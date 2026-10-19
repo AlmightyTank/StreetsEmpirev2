@@ -19,14 +19,17 @@ import {
   pickDaily,
   rulesets,
   streetPassSkipPrice,
+  SUPPORTER_DROP_DISCOUNT_PERCENT,
+  BIRTHDAY_DISCOUNT_PERCENT,
+  discountedDropPrice,
 } from '../index.js';
 
 const items = Object.values(DROP_ITEMS);
 const bundles = Object.values(DROP_BUNDLES);
 
 describe('The Drop catalogue', () => {
-  it('ships three collections, at least 18 SKUs, a shell theme each and a bundle per collection', () => {
-    expect(Object.keys(DROP_COLLECTIONS)).toHaveLength(3);
+  it('ships fifteen collections, at least 18 SKUs, a shell theme each and a bundle per collection', () => {
+    expect(Object.keys(DROP_COLLECTIONS)).toHaveLength(15);
     expect(items.length).toBeGreaterThanOrEqual(18);
     for (const collection of Object.keys(DROP_COLLECTIONS)) {
       expect(items.filter((item) => item.collection === collection).length).toBeGreaterThanOrEqual(7);
@@ -151,5 +154,30 @@ describe('Rotation windows', () => {
     const collections = Object.keys(DROP_COLLECTIONS);
     expect(new Set([0, 1, 2].map((week) => featuredCollectionFor(week, collections))).size).toBe(3);
     expect(featuredCollectionFor(5, [])).toBeNull();
+  });
+});
+
+describe('Drop discounts', () => {
+  it('takes 10% off, rounded in the player\'s favour, and never below 1 Crown', () => {
+    expect(SUPPORTER_DROP_DISCOUNT_PERCENT).toBe(10);
+    expect(discountedDropPrice(2_800, SUPPORTER_DROP_DISCOUNT_PERCENT)).toBe(2_520);
+    expect(discountedDropPrice(250, SUPPORTER_DROP_DISCOUNT_PERCENT)).toBe(225);
+    expect(discountedDropPrice(155, SUPPORTER_DROP_DISCOUNT_PERCENT)).toBe(139);
+    expect(discountedDropPrice(1, SUPPORTER_DROP_DISCOUNT_PERCENT)).toBe(1);
+    expect(discountedDropPrice(0, SUPPORTER_DROP_DISCOUNT_PERCENT)).toBe(0);
+    expect(discountedDropPrice(streetPassSkipPrice(10), SUPPORTER_DROP_DISCOUNT_PERCENT)).toBe(1_080);
+  });
+
+  it('ignores a zero or negative percent', () => {
+    expect(discountedDropPrice(800, 0)).toBe(800);
+    expect(discountedDropPrice(800, -5)).toBe(800);
+    expect(discountedDropPrice(800, BIRTHDAY_DISCOUNT_PERCENT)).toBe(680);
+  });
+
+  it('always leaves a supporter price below the list price for every Drop item and bundle', () => {
+    for (const entry of [...items, ...bundles]) {
+      expect(discountedDropPrice(entry.priceCrowns, SUPPORTER_DROP_DISCOUNT_PERCENT)).toBeLessThan(entry.priceCrowns);
+      expect(Number.isSafeInteger(discountedDropPrice(entry.priceCrowns, SUPPORTER_DROP_DISCOUNT_PERCENT))).toBe(true);
+    }
   });
 });

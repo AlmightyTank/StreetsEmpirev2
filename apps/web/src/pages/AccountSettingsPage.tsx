@@ -1233,6 +1233,20 @@ export function AccountSettingsPage() {
               <label className="se-checkrow se-checkrow--toggle">
                 <input
                   type="checkbox"
+                  checked={cosmetics.showBirthdayCake ?? false}
+                  onChange={(event) => setCosmetics((current) => ({
+                    ...current,
+                    showBirthdayCake: event.target.checked,
+                  }))}
+                />
+                <span>
+                  <strong>Show a birthday cake on my name</strong>
+                  <small>On your birthday only, other players see a cake by your name. Never your date or age. Your gift, discount, frame and theme come either way.</small>
+                </span>
+              </label>
+              <label className="se-checkrow se-checkrow--toggle">
+                <input
+                  type="checkbox"
                   checked={cosmetics.showLookOnProfile ?? true}
                   onChange={(event) => setCosmetics((current) => ({
                     ...current,

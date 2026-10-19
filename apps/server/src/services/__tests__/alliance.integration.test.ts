@@ -37,7 +37,7 @@ describe.runIf(process.env.ALLIANCE_INTEGRATION === '1')('alliances with Postgre
     vi.spyOn(RoundService, 'requireCurrent').mockImplementation(async () => app.prisma.round.findUniqueOrThrow({ where: { id: roundId } }));
     for (let i = 0; i < PLAYERS; i++) {
       const name = `ally_${randomUUID().slice(0, 8)}`;
-      const response = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { username: name, email: `${name}@example.invalid`, password: randomUUID() } });
+      const response = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { birthDate: '1990-01-01', ageConfirmed: true, username: name, email: `${name}@example.invalid`, password: randomUUID() } });
       expect(response.statusCode).toBe(201);
       accounts.push(response.json().account.id);
       cookies.push(response.cookies.map((cookie) => `${cookie.name}=${cookie.value}`).join('; '));

@@ -5,6 +5,7 @@ import { ConnectionBanner } from '../components/ConnectionBanner.js';
 import { RoundRollCallNotice } from '../components/RoundRollCall.js';
 import { TrackedQuests } from '../components/TrackedQuests.js';
 import { IntroDialog } from '../components/onboarding/IntroDialog.js';
+import { BirthdayGift } from '../components/BirthdayGift.js';
 import { TourOverlay } from '../components/onboarding/TourOverlay.js';
 import { PageGuide } from '../components/onboarding/PageGuide.js';
 import { useOnboarding } from '../stores/onboarding.js';
@@ -12,6 +13,7 @@ import { NavIcon } from '../components/NavIcon.js';
 import { usePageFreshness } from '../hooks/usePageFreshness.js';
 import { useGamePresence } from '../hooks/useGamePresence.js';
 import { useStaleGameReload } from '../hooks/useStaleGameReload.js';
+import { useTabSwipe } from '../hooks/useTabSwipe.js';
 import { isMobileNavSwipe, isSheetDismissSwipe } from './mobileNavSwipe.js';
 import { useSession } from '../stores/session.js';
 import { PlayerProfileHoverLayer } from '../components/PlayerProfileHoverLayer.js';
@@ -619,6 +621,7 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
   useStaleGameReload();
   useGamePresence();
   usePageFreshness();
+  useTabSwipe();
   const round = useSession((s) => s.round);
   const experience = useSession((s) => s.me?.experience ?? null);
   const isAdmin = useSession((s) => s.account?.isAdmin ?? false);
@@ -706,6 +709,7 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
       <CaseStoryAlerts />
       <IntroDialog />
       <TourOverlay />
+      <BirthdayGift />
 
       <div className="se-gamegrid">
         <div className="se-gamemain">

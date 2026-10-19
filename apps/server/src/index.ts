@@ -20,6 +20,7 @@ import { LawOfficialService } from './services/law-official.service.js';
 import { PlayerStateService } from './services/player-state.service.js';
 import { refreshSportsbookCache } from './services/sportsbook-feed.service.js';
 import { SportsbookService } from './services/sportsbook.service.js';
+import { BirthdayService } from './services/birthday.service.js';
 import { SupporterDropService } from './services/supporter-drop.service.js';
 import { EventLifecycleService } from './services/event-lifecycle.service.js';
 
@@ -78,6 +79,12 @@ const stopSupporterDrops = startPoller('Supporter drops', 60 * 60_000, async () 
   if (result.granted) app.log.info({ supporterDrop: result }, 'Supporter drop given out');
 }, (message, error) => app.log.error(error, message));
 
+// Birthdays: the day-only frame and theme come off within the hour after the day ends.
+const stopBirthdays = startPoller('Birthday looks', 60 * 60_000, async () => {
+  const result = await BirthdayService.sweep(app.prisma, new Date());
+  if (result.cleared) app.log.info({ birthdayLooks: result }, 'Birthday looks taken off');
+}, (message, error) => app.log.error(error, message));
+
 // Scheduled events advance without waiting for a player to open the Events center. The first
 // reconciliation already ran before listen; this keeps later windows moving on their own.
 const stopEvents = startPoller('Event lifecycle', 60_000, async () => {
@@ -128,6 +135,7 @@ for (const signal of ['SIGINT', 'SIGTERM'] as const) {
     stopAlerts();
     stopSportsbook();
     stopSupporterDrops();
+    stopBirthdays();
     stopEvents();
     stopTurfWars();
     await app.close();

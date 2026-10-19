@@ -18,35 +18,58 @@ packs off everywhere until `DROP_CROWN_PACKS_ENABLED=true` with Stripe keys.
 | Street Pass skips | Any tier of the current round's Street Pass (decided 2026-10-18). 150 a tier, 1,200 for ten. A skip raises Cred to that tier; the player still claims each tier. |
 | Drop Pass | Not built. The roadmap's optional cosmetic-only pass was replaced by Street Pass skips. |
 | Randomness | None. Every offer shows exactly what it grants and costs. |
+| Supporter discount | Active, paid supporters (Stripe `active`, or a Google Play subscription that is active, in grace or paid through) pay 10% less for items, bundles and Street Pass skips, rounded down, never below 1 Crown (decided 2026-10-18). Free trials pay full price. It applies after the bundle adjustment, ends when the membership does, and never touches Crown packs. A birthday week gives 15% instead ([BIRTHDAYS.md](BIRTHDAYS.md)); an account gets the larger discount, never both. Rule: `supporterDropPrice` in `packages/rulesets/src/drop.ts`; the order metadata records the discount and the pre-discount price. |
 | Ownership | `AccountCosmeticUnlock` rows with `sourceQuestKey = 'drop'`, keys starting `drop-`. Never sold twice. |
 | Existing rewards | Nothing from the Street Pass, login track, supporter catalogue, events or achievements is sold. A test checks the keys and style keys never collide. |
 
 ## Catalogue
 
-Defined in code, `packages/rulesets/src/drop.ts`. Three collections, seven
-or eight SKUs each (22 in all), one bundle each:
+Defined in code, `packages/rulesets/src/drop.ts`. Fifteen collections, seven
+or eight SKUs each (115 in all), one bundle each. The three launch sets came
+first; the twelve after them were added on 2026-10-18 (see
+[DROP-COLLECTIONS-NEXT.md](DROP-COLLECTIONS-NEXT.md)):
 
 | Collection | Vehicle | Crew | Weapon | Profile | Shell & accent | Title |
 | --- | --- | --- | --- | --- | --- | --- |
 | Kingpin Luxe | Sedan (800) | Thug (700), Hoe (700) | — | Frame (450) | Shell (1,250), Lacquer Brass accent (350) | Old Money (250) |
 | Neon Underworld | Low-Rider (850) | Thug (700), Hoe (700) | Tek-9 (600) | Frame (450) | Shell (1,250), Underworld Violet accent (350) | After Hours (250) |
 | Winter Heist | Van (800) | Crew set, both types (900) | Shotgun (550) | Frame (450) | Shell (1,200), Heist Frost accent (300) | Cold Case (200) |
+| Biscayne Sunset | Sedan (800) | Thug (700), Hoe (700) | Pistol (550) | Frame (450) | Shell (1,200), Flamingo Pink accent (300) | Ocean Drive (200) |
+| Velvet Speakeasy | Sedan (850) | Thug (700), Hoe (700) | AK-47 (600) | Frame (450) | Shell (1,250), Merlot Velvet accent (350) | Bootlegger (250) |
+| Platinum Funk | Low-Rider (850) | Thug (700), Hoe (700) | — | Frame (450) | Shell (1,250), Tangerine Funk accent (350) | Funk Royalty (250) |
+| Redline Syndicate | Sedan (850) | Thug (700), Hoe (700) | AK-47 (600) | Frame (450) | Shell (1,250), Redline Red accent (350) | Redline (250) |
+| Wet Paint | Low-Rider (800) | Thug (650), Hoe (650) | Pistol (550) | Frame (450) | Shell (1,200), Spray Mint accent (300) | All City (200) |
+| Hazard Cook | Van (800) | Crew set, both types (900) | Shotgun (550) | Frame (450) | Shell (1,200), Hazard Yellow accent (300) | The Chemist (250) |
+| Dockside | Van (800) | Thug (700), Hoe (700) | AK-47 (600) | Frame (450) | Shell (1,200), Harbour Blue accent (300) | Off the Books (200) |
+| Crown Jewels | Sedan (1,000) | Crew set, both types (1,000) | AK-47 (650) | Frame (500) | Shell (1,350), Sapphire accent (350) | Crowned (250) |
+| Bayou Smoke | Van (800) | Thug (700), Hoe (700) | Shotgun (550) | Frame (450) | Shell (1,200), Firefly Green accent (300) | Swamp King (200) |
+| Desert Mirage | Low-Rider (850) | Thug (700), Hoe (700) | Tek-9 (600) | Frame (450) | Shell (1,250), Turquoise Stone accent (350) | Dust Devil (250) |
+| Rewind | Van (800) | Thug (700), Hoe (700) | Tek-9 (550) | Frame (450) | Shell (1,200), Tracking Magenta accent (300) | Run It Back (200) |
+| Snake Eyes | Sedan (850) | Thug (700), Hoe (700) | Pistol (550) | Frame (450) | Shell (1,250), Card Felt accent (350) | Loaded Dice (250) |
 
 Bundles: Kingpin Luxe 2,800 (list 4,500), Neon Underworld 2,800 (list 5,150),
-Winter Heist 2,750 (list 4,400).
+Winter Heist 2,750 (list 4,400), Biscayne Sunset 2,750 (list 4,900), Velvet Speakeasy 2,800 (list 5,150), Platinum Funk 2,650 (list 4,550), Redline Syndicate 2,800 (list 5,150), Wet Paint 2,700 (list 4,800), Hazard Cook 2,650 (list 4,450), Dockside 2,750 (list 4,950), Crown Jewels 2,800 (list 5,100), Bayou Smoke 2,750 (list 4,900), Desert Mirage 2,800 (list 5,150), Rewind 2,750 (list 4,900), Snake Eyes 2,800 (list 5,100).
 
 ### Shell themes
 
-Each collection has a full game-shell theme (`SITE_THEME`, style keys
-`kingpin-luxe-shell`, `neon-underworld-shell`, `winter-heist-shell`). Like the
+Each collection has a full game-shell theme (`SITE_THEME`, style key
+`<collection>-shell`, e.g. `kingpin-luxe-shell`). Like the
 other premium shells they reskin the whole game: palette tokens, panel, stat,
 button, input, top bar and footer fills in `apps/web/src/styles/drop-shells.css`,
 plus an illustrated backdrop under the page content
-(`apps/web/src/components/theme-scenes/{KingpinLuxe,NeonUnderworld,WinterHeist}Scene.tsx`,
-registered in `SiteThemeDecor`). Kingpin Luxe: a deco sunburst and brass-lit
+(`apps/web/src/components/theme-scenes/<Collection>Scene.tsx`, registered in
+`SiteThemeDecor`). Kingpin Luxe: a deco sunburst and brass-lit
 towers. Neon Underworld: buzzing tube signs (a slow, soft dip, never a flash),
 rain and a neon-lit wet street. Winter Heist: a vault dial, a frosted skyline
-and falling snow. Every scene stops under reduced motion; the snow is parked in
+and falling snow. The twelve later shells: deco hotels and swaying palms
+(Biscayne Sunset), a hidden bar with a gramophone and cigar smoke (Velvet
+Speakeasy), a turning mirror ball (Platinum Funk), a parking-garage meet with
+light trails (Redline Syndicate), a piece drawing itself on a yard wall (Wet
+Paint), a desert lab with bubbling flasks (Hazard Cook), cranes and a sweeping
+searchlight (Dockside), a crown and glinting stones (Crown Jewels), cypress and
+fireflies (Bayou Smoke), mesas and heat shimmer (Desert Mirage), a CRT and a
+rolling tracking glitch (Rewind) and a card table under a swinging lamp (Snake
+Eyes). Every scene stops under reduced motion; the snow is parked in
 view. The player's chosen accent still colours buttons and links, as with every
 shell. A shell does not include its collection's frame; frames are sold
 separately. Equip in Account → Profile → Site theme; the server refuses a shell
@@ -59,9 +82,10 @@ weapon or vehicle look shows on items the player already has; it never grants
 the item or buying access. Art is plain SVG in
 `apps/web/public/items/cosmetics/drop/`, generated by
 `node scripts/art/generate-drop-art.mjs` from the Classic geometry with new
-paint, clothes and details. Frames and accents are CSS in
-`apps/web/src/styles/drop.css`; the Neon and Winter frames animate and stop
-under reduced motion.
+paint, clothes and details. Accents are CSS in `apps/web/src/styles/drop.css`
+and frames in `apps/web/src/styles/drop-art.css`; the animated frames (Neon
+Underworld, Winter Heist, Platinum Funk, Redline Syndicate, Wet Paint, Crown
+Jewels, Bayou Smoke, Desert Mirage and Rewind) stop under reduced motion.
 
 ### Bundle pricing with partial ownership
 

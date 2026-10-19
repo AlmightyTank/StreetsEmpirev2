@@ -7,6 +7,7 @@ import { communityApi } from '../api/community.js';
 import { ItemTile } from './ItemTile.js';
 import { hasProfileLook } from './ProfileLook.js';
 import { SupporterMark } from './SupporterMark.js';
+import { BirthdayCake } from './BirthdayCake.js';
 import { AvatarPortrait } from './BuiltAvatar.js';
 
 type Target = { id: number; anchor: HTMLAnchorElement; hoverRoot: HTMLElement; label: string };
@@ -327,7 +328,7 @@ export function PlayerProfileHoverLayer() {
         </span>
         <span className="se-profile-hover-card__identity-copy">
           {profile?.cosmetics.title ? <span className="se-profile-hover-card__title">{profile.cosmetics.title}</span> : null}
-          <strong><span>{profile?.displayName ?? target.label}</span>{profile?.isSupporter ? <SupporterMark /> : null}</strong>
+          <strong><span>{profile?.displayName ?? target.label}</span>{profile?.isSupporter ? <SupporterMark /> : null}{profile?.birthdayToday ? <BirthdayCake /> : null}</strong>
           <small>PLAYER #{formatNumber(target.id)}{profile?.isSupporter ? ' · SUPPORTER' : ''}</small>
         </span>
       </div>

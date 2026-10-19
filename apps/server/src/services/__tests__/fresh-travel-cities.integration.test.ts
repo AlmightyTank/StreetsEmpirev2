@@ -47,6 +47,7 @@ describe.runIf(process.env.TRAVEL_INTEGRATION === '1')('fresh travel city catalo
       method: 'POST',
       url: '/api/auth/register',
       payload: {
+        ageConfirmed: true,
         username: name,
         email: `${name}@example.invalid`,
         password: randomUUID(),

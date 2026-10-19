@@ -4,6 +4,7 @@ import adminLivingStoriesRoutes from './admin-living-stories.routes.js';
 import adminOperationsRoutes from './admin-operations.routes.js';
 import adminRoundRollCallRoutes from './admin-round-roll-call.routes.js';
 import adminDropRoutes from './admin-drop.routes.js';
+import birthdayRoutes from './birthday.routes.js';
 import dropRoutes from './drop.routes.js';
 import allianceRoutes from './alliance.routes.js';
 import playingTogetherRoutes from './playing-together.routes.js';
@@ -52,6 +53,7 @@ const routes: FastifyPluginAsync = async (fastify) => {
   await fastify.register(adminRoundRollCallRoutes, { prefix: '/admin' });
   await fastify.register(adminDropRoutes, { prefix: '/admin' });
   await fastify.register(dropRoutes, { prefix: '/drop' });
+  await fastify.register(birthdayRoutes, { prefix: '/birthday' });
   await fastify.register(roundRoutes, { prefix: '/rounds' });
   await fastify.register(roundAftermathRoutes, { prefix: '/rounds' });
   await fastify.register(roundInfoRoutes, { prefix: '/rounds' });

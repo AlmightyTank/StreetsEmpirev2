@@ -218,7 +218,19 @@ export type ProfileAccent =
   | 'supporter-crimson'
   | 'luxe-lacquer'
   | 'underworld-violet'
-  | 'heist-frost';
+  | 'heist-frost'
+  | 'biscayne-flamingo'
+  | 'speakeasy-merlot'
+  | 'funk-tangerine'
+  | 'redline-red'
+  | 'wet-paint-mint'
+  | 'hazard-yellow'
+  | 'dockside-harbor'
+  | 'jewel-sapphire'
+  | 'bayou-firefly'
+  | 'mirage-turquoise'
+  | 'rewind-magenta'
+  | 'felt-green';
 export type UiDensity = 'comfortable' | 'compact';
 export type MoneyFormat = 'full' | 'compact';
 export type DefaultLanding = 'game' | 'profile' | 'rankings' | 'news';
@@ -291,6 +303,8 @@ export interface AccountProfileSettingsDto {
   showCrewMoments?: boolean;
   /** Optional player-only milestone celebrations; default false. */
   showCrewCelebrations?: boolean;
+  /** Birthdays: a cake on the name on the day. Opt-in, off by default. */
+  showBirthdayCake?: boolean;
   featuredBadgeKeys: string[];
   profileAccent: ProfileAccent;
   uiDensity: UiDensity;

@@ -7,7 +7,7 @@ import { PublicPageHero } from '../components/PublicPageBits.js';
  * when that changes, change these. The operator should read both before launch (they
  * are plain-language pages, not legal advice), and update LEGAL_UPDATED when they do.
  */
-export const LEGAL_UPDATED = '15 October 2026';
+export const LEGAL_UPDATED = '19 October 2026';
 const CONTACT = <a href="https://forum.streetsempire.dev">the StreetsEmpire forum</a>;
 
 function LegalPage({ eyebrow, title, intro, sections }: { eyebrow: string; title: string; intro: string; sections: Array<{ heading: string; body: React.ReactNode }> }) {
@@ -44,6 +44,7 @@ export function PrivacyPage() {
             <>
               <p>Your <strong>username</strong> (public), your <strong>email address</strong> (private: sign-in, password recovery and verification only) and your <strong>password</strong>, which is stored only as a one-way hash and never readable, even by staff.</p>
               <p>We also store your date of birth privately to enforce the {MINIMUM_AGE}+ age requirement. It is not shown on public player profiles, leaderboards, or account session responses. You can contact staff to correct it, and it is included in your own account data export.</p>
+              <p>We also use the day and month of your birth date for <strong>birthday rewards</strong>: during your birthday week the game offers you a gift of Crowns and a title, a discount in The Drop, and a frame and theme to wear on the day. This happens automatically and stays private to you. Other players see nothing unless you turn on &ldquo;Show a birthday cake on my name&rdquo; in account settings; then they see a cake by your name on your birthday only, never your date of birth, age or birth year. You can turn the cake off at any time.</p>
               <p>Each signed-in session keeps the <strong>IP address and browser</strong> it signed in from and when it was last used, so you can see and end your sessions and so staff can spot account sharing and abuse. With "Keep me signed in" a session lasts while you keep visiting, ends after 30 days away, and always ends 90 days after you signed in; without it, it ends when you close the browser or after 12 hours idle. If you use two-step sign-in and choose "Trust this browser", that browser keeps a cookie for 30 days so it can skip the code (you can forget it in account settings). The account also keeps the IP address it was created from, so one network cannot flood the game with new accounts.</p>
             </>
           ),

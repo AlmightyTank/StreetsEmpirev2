@@ -72,7 +72,7 @@ describe.runIf(process.env.LOAN_INTEGRATION === '1')('due settle sweep with Post
     const registered = await app.inject({
       method: 'POST',
       url: '/api/auth/register',
-      payload: { username: name, email: `${name}@example.invalid`, password: randomUUID() },
+      payload: { ageConfirmed: true, username: name, email: `${name}@example.invalid`, password: randomUUID() },
     });
     accountId = registered.json().account.id;
   });

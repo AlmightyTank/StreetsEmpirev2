@@ -331,6 +331,966 @@ Object.assign(recipes, {
   },
 });
 
+
+/* ---------- Twelve more collections ---------- */
+
+/** Insert markup just before the first match of `needle` (a literal string). */
+function before(svg, needle, markup) {
+  const at = svg.indexOf(needle);
+  if (at < 0) throw new Error(`no ${needle.slice(0, 40)}`);
+  return `${svg.slice(0, at)}${markup}\n    ${svg.slice(at)}`;
+}
+
+/** Replace one literal element. */
+function swap(svg, needle, markup) {
+  if (!svg.includes(needle)) throw new Error(`no ${needle.slice(0, 40)}`);
+  return svg.replace(needle, markup);
+}
+
+const load = (name) => readFile(path.join(classicDir, `${name}.svg`), 'utf8');
+
+/** Rings drawn over each wheel (vehicle coordinates), e.g. whitewalls or coloured rims. */
+const rings = (centres, ring) => centres.map(([x, y]) => `<g transform="translate(${x} ${y})" fill="none">${ring}</g>`).join('\n    ');
+const SEDAN_WHEELS = [[192, 94], [66, 94]];
+const LOW_RIDER_WHEELS = [[213, 91], [77, 91]];
+const VAN_WHEELS = [[203, 95], [67, 95]];
+
+/** Card suits, centred on 0 0, about 8 units tall. */
+const SUIT = {
+  heart: 'M0 3.6 C-5 0 -4.6 -4 -2.2 -4 C-1 -4 0 -3 0 -2 C0 -3 1 -4 2.2 -4 C4.6 -4 5 0 0 3.6 Z',
+  diamond: 'M0 -4.2 L3.2 0 L0 4.2 L-3.2 0 Z',
+  spade: 'M0 -4 C4.4 -.6 4.6 2.4 2.2 2.4 C1.2 2.4 .5 1.8 .3 1.2 L1.2 4 H-1.2 L-.3 1.2 C-.5 1.8 -1.2 2.4 -2.2 2.4 C-4.6 2.4 -4.4 -.6 0 -4 Z',
+  club: 'M0 -4.2 A1.9 1.9 0 1 1 0 -.4 A1.9 1.9 0 1 1 -1.2 1.6 A1.9 1.9 0 1 1 -1.2 1.6 Z M-2.2 -.6 A1.9 1.9 0 1 0 -.4 1.6 M2.2 -.6 A1.9 1.9 0 1 1 .4 1.6 M-.5 1 L-1.2 4 H1.2 L.5 1 Z',
+};
+const suit = (kind, x, y, fill, scale = 1) => `<path transform="translate(${x} ${y}) scale(${scale})" d="${SUIT[kind]}" fill="${fill}"/>`;
+
+/** A die face of `pips` (1-6) with its top-left at x y, `size` wide. */
+function die(x, y, size, pips, body = '#f6f1e3', pip = '#141416') {
+  const at = { 1: [[.5, .5]], 2: [[.25, .25], [.75, .75]], 3: [[.25, .25], [.5, .5], [.75, .75]], 4: [[.25, .25], [.75, .25], [.25, .75], [.75, .75]], 5: [[.25, .25], [.75, .25], [.5, .5], [.25, .75], [.75, .75]], 6: [[.25, .22], [.75, .22], [.25, .5], [.75, .5], [.25, .78], [.75, .78]] }[pips];
+  return `<rect x="${x}" y="${y}" width="${size}" height="${size}" rx="${size / 5}" fill="${body}" stroke="#000" stroke-width=".6"/>`
+    + at.map(([u, v]) => `<circle cx="${(x + u * size).toFixed(2)}" cy="${(y + v * size).toFixed(2)}" r="${(size / 10).toFixed(2)}" fill="${pip}"/>`).join('');
+}
+
+/** The Hoe's coat as a smooth fabric: restop the fur, swap its tufts, drop the fuzz. */
+function hoeCoat(svg, stops, tufts) {
+  let out = restop(svg, 'fur', stops);
+  out = repattern(out, 'tufts', tufts);
+  return out.replace(/ filter="url\(#fuzz\)"/g, '');
+}
+
+const FLAMINGO = '#ff8fb1';
+const SEAGLASS = '#4fd6c7';
+const MERLOT = '#7a1f33';
+const PEWTER = '#9aa0a6';
+const CREAM = '#efe4cc';
+const TANGERINE = '#ff8a2a';
+const CHOCOLATE = '#4a2a17';
+const PLATINUM = '#d9dee6';
+const SIGNAL = '#ff3344';
+const CARBON = '#1d1f23';
+const MINT = '#36e2a0';
+const SPRAY_PINK = '#ff5fa2';
+const HAZARD = '#ffd400';
+const NAVY = '#1d3350';
+const SAFETY = '#ff7a2f';
+const SAPPHIRE = '#3157d6';
+const EMERALD = '#2fbf71';
+const RUBY = '#e0263f';
+const MOSS = '#4a6b3a';
+const CYPRESS = '#6a4a30';
+const FIREFLY = '#e8ff6a';
+const SAND = '#e8cfa0';
+const CANYON = '#c25a22';
+const TURQUOISE = '#3fc1c9';
+const MAGENTA = '#e04bff';
+const LIME = '#c6ff3d';
+const FELT = '#1f7a4a';
+const IVORY = '#f1e6c8';
+
+Object.assign(recipes, {
+  /* Biscayne Sunset */
+  'sedan-biscayne-sunset': async () => {
+    let svg = await load('sedan');
+    svg = restop(svg, 'paint', ['#ffffff', '#f4f1ea', '#dcd5c9', '#a89f92']);
+    svg = restop(svg, 'glass', ['#c6f5ee', '#58b3ab', '#1f5652']);
+    svg = recolor(svg, { '#5e4e35': '#2a7a73', '#5a4a32': '#7a7266', '#6e5c3e': '#c95680', '#c2ad85': '#ffffff', '#9aa2ab': '#e9ecef' });
+    return decorate(svg, {
+      over: [
+        `<path d="M24 76.4 Q130 72.9 238 75.4" stroke="${FLAMINGO}" stroke-width="1.6" fill="none"/>`,
+        `<path d="M24 79 Q130 75.5 238 78" stroke="${SEAGLASS}" stroke-width=".9" fill="none"/>`,
+        // A sunset decal on the rear door: half a sun with deco bars.
+        `<g transform="translate(150 88)"><path d="M-10 0 A10 10 0 0 1 10 0 Z" fill="${FLAMINGO}" stroke="#c95680" stroke-width=".6"/><path d="M-9.4 -2.4 H9.4 M-8 -5 H8 M-5.6 -7.6 H5.6" stroke="#ffffff" stroke-width="1"/></g>`,
+        // Teal interior showing through the glass.
+        `<path d="M94 56.6 H124 M134 56.6 H170" stroke="${SEAGLASS}" stroke-width="2" stroke-opacity=".8"/>`,
+        // Whitewalls.
+        rings(SEDAN_WHEELS, '<circle r="13" stroke="#fbfaf6" stroke-width="2.8"/><circle r="11.4" stroke="#c95680" stroke-width=".5"/>'),
+        `<path d="M70 52 C92 40 116 37 132 37" stroke="#ffffff" stroke-opacity=".6" stroke-width="2.2" fill="none" stroke-linecap="round"/>`,
+      ].join('\n    '),
+    });
+  },
+  'thug-biscayne-sunset': async () => {
+    let svg = await load('thug');
+    svg = repattern(svg, 'plaid', '<rect width="14" height="14" fill="#f4f1ea"/><path d="M0 3.5 H14 M0 10.5 H14" stroke="#e2dccf" stroke-width=".7"/><path d="M3.5 0 V14 M10.5 0 V14" stroke="#ebe6dc" stroke-width=".6"/>');
+    svg = restop(svg, 'tank', ['#ffd3e0', FLAMINGO]);
+    svg = restop(svg, 'band', ['#2a1b12', '#120a06']);
+    svg = restop(svg, 'lens', ['#c6f5ee', '#1f5652', SEAGLASS]);
+    svg = recolor(svg, { '#e9fff0': '#ffffff', '#b5f5c5': '#ffffff', '#6ee095': '#ffffff' });
+    return decorate(svg, {
+      over: [
+        // Soft linen lapels and pushed-up sleeves.
+        '<path d="M50 86 L57 102 L47 126 M78 86 L71 102 L81 126" stroke="#cfc8bb" stroke-width="1.3" fill="none" stroke-linejoin="round"/>',
+        '<path d="M12 116 Q22 113 30 116 M98 116 Q106 113 116 116" stroke="#dcd5c9" stroke-width="2.4" fill="none" stroke-linecap="round"/>',
+        // Straw panama with a flamingo band.
+        '<path d="M34 47 Q64 39 94 47 Q92 51.5 64 49.5 Q36 51.5 34 47 Z" fill="#efe2bf" stroke="#8a7a52" stroke-width="1.2"/>',
+        '<path d="M45 46 Q44 31 64 28 Q84 31 83 46 Q64 42 45 46 Z" fill="#f4e9cb" stroke="#8a7a52" stroke-width="1.2"/>',
+        `<path d="M45.5 43.5 Q64 39.6 82.5 43.5" stroke="${FLAMINGO}" stroke-width="2.4" fill="none"/>`,
+        '<path d="M50 36 Q64 32 78 36 M48 40 Q64 36 80 40" stroke="#d9c99e" stroke-width=".7" fill="none"/>',
+      ].join('\n  '),
+    });
+  },
+  'hoe-biscayne-sunset': async () => {
+    let svg = await load('hoe');
+    // A palm-print wrap over a sea-glass sequin dress.
+    svg = hoeCoat(svg, ['#ffffff', '#f6f2ea', '#d6cdbd'], `<path d="M1 6 Q3 2 6 1 M3.5 4 L5.5 6.5" stroke="#3a9a6a" stroke-width=".7" fill="none"/><circle cx="5.6" cy="2.2" r=".9" fill="${FLAMINGO}"/>`);
+    svg = recolor(svg, { '#5a060c': '#8a8273', '#17131a': '#1f9c92', '#3d3346': '#c6f5ee' });
+    return decorate(svg, {
+      over: [
+        '<g fill="#c6f5ee" opacity=".8"><circle cx="54" cy="112" r=".8"/><circle cx="60" cy="118" r=".8"/><circle cx="68" cy="113" r=".8"/><circle cx="74" cy="121" r=".8"/><circle cx="56" cy="127" r=".8"/><circle cx="66" cy="130" r=".8"/><circle cx="72" cy="106" r=".8"/></g>',
+        // Big white sunglasses with flamingo lenses.
+        `<g stroke="#ffffff" stroke-width="1.6"><rect x="47.5" y="48" width="14" height="10" rx="4.5" fill="${FLAMINGO}" fill-opacity=".85"/><rect x="66.5" y="48" width="14" height="10" rx="4.5" fill="${FLAMINGO}" fill-opacity=".85"/><path d="M61.5 52 Q64 50.6 66.5 52" fill="none"/></g>`,
+        '<path d="M50 50.5 L54 49.5 M69 50.5 L73 49.5" stroke="#ffffff" stroke-opacity=".8" stroke-width=".9" stroke-linecap="round"/>',
+      ].join('\n  '),
+    });
+  },
+  'pistol-biscayne-sunset': async () => {
+    let svg = await load('pistol');
+    svg = restop(svg, 'slide', ['#ffffff', '#ccd2d8', '#7d848c']);
+    svg = restop(svg, 'frame', ['#4fd6c7', '#1f7f78']);
+    svg = restop(svg, 'grip', ['#fffaf2', '#efe3d6', '#c9b6a6']);
+    svg = recolor(svg, { '#2a2d32': '#c9ced4', '#1c1e22': '#1f7f78', '#15171a': '#5a6168' });
+    return decorate(svg, {
+      over: [
+        '<path d="M36 64 Q44 61 52 64" stroke="#ffffff" stroke-opacity=".7" stroke-width="1.4" fill="none" stroke-linecap="round"/>',
+        `<ellipse cx="40" cy="84" rx="5" ry="7.5" fill="${FLAMINGO}" stroke="#c95680" stroke-width=".8"/>`,
+        '<path d="M38.5 80 Q40 78 41.5 80" stroke="#ffffff" stroke-width=".7" fill="none"/>',
+        `<path d="M22 49.5 H111" stroke="${FLAMINGO}" stroke-width="1.1"/>`,
+      ].join('\n  '),
+    });
+  },
+
+  /* Velvet Speakeasy */
+  'sedan-velvet-speakeasy': async () => {
+    let svg = await load('sedan');
+    svg = restop(svg, 'paint', ['#b84a62', '#7a1f33', '#4a0f1e', '#22060d']);
+    svg = restop(svg, 'glass', ['#3a2a2e', '#140c0e', '#070405']);
+    svg = restop(svg, 'rim', ['#f4f5f6', PEWTER, '#4f555b']);
+    svg = recolor(svg, { '#5e4e35': '#1a0509', '#5a4a32': '#3a0f1a', '#6e5c3e': '#3a0f1a', '#c2ad85': PEWTER, '#9aa2ab': PEWTER });
+    return decorate(svg, {
+      over: [
+        // Running boards between the wheels.
+        '<path d="M86 97.5 H172" stroke="#141416" stroke-width="4" stroke-linecap="round"/>',
+        `<path d="M88 96.2 H170" stroke="${PEWTER}" stroke-width=".9"/>`,
+        `<path d="M24 76.6 Q130 73.1 238 75.6" stroke="${PEWTER}" stroke-width="1.1" fill="none"/>`,
+        `<path d="M73 58.5 C88 46.5 106 40.5 129 40.5 C149 40.5 163 45 179 58" stroke="${CREAM}" stroke-opacity=".7" stroke-width=".8" fill="none"/>`,
+        // Cream whitewalls and a pewter hood ornament.
+        rings(SEDAN_WHEELS, `<circle r="13" stroke="${CREAM}" stroke-width="3"/><circle r="11.3" stroke="#5a5f66" stroke-width=".5"/>`),
+        `<path d="M233 64.5 l3 -5 l1.4 5 Z" fill="${PEWTER}" stroke="#3a3e45" stroke-width=".5"/>`,
+        '<path d="M70 52 C92 40 116 37 132 37" stroke="#ffffff" stroke-opacity=".3" stroke-width="2.2" fill="none" stroke-linecap="round"/>',
+      ].join('\n    '),
+    });
+  },
+  'thug-velvet-speakeasy': async () => {
+    let svg = await load('thug');
+    svg = repattern(svg, 'plaid', '<rect width="14" height="14" fill="#2b2d33"/><path d="M2 0 V14 M6.5 0 V14 M11 0 V14" stroke="#8c8a84" stroke-width=".45"/>');
+    svg = restop(svg, 'tank', ['#f6f0e2', '#d9cfba']);
+    svg = restop(svg, 'band', ['#2a1b12', '#120a06']);
+    svg = restop(svg, 'lens', ['#3a3426', '#0b0a08', '#2a2418']);
+    svg = recolor(svg, { '#e9fff0': PEWTER, '#b5f5c5': '#c9ced4', '#6ee095': PEWTER });
+    return decorate(svg, {
+      over: [
+        // The waistcoat over the shirt, with pewter buttons.
+        '<path d="M46 92 L58 104 L57 126 H45 Z M82 92 L70 104 L71 126 H83 Z" fill="#2b2d33" stroke="#0b0c0e" stroke-width="1"/>',
+        `<g fill="${PEWTER}" stroke="#2a2d32" stroke-width=".4"><circle cx="56" cy="110" r="1.2"/><circle cx="56" cy="116" r="1.2"/><circle cx="56" cy="122" r="1.2"/></g>`,
+        `<path d="M61.5 90 H66.5 L67.5 94 L65 118 L64 120 L63 118 L60.5 94 Z" fill="${MERLOT}" stroke="#2a0710" stroke-width=".8"/>`,
+        // Fedora with a pewter band.
+        '<path d="M36 47 Q64 40 92 47 Q90 51 64 49 Q38 51 36 47 Z" fill="#26282e" stroke="#000" stroke-width="1.3"/>',
+        '<path d="M45 46 Q44 30 64 27 Q84 30 83 46 Q64 42 45 46 Z" fill="#30333a" stroke="#000" stroke-width="1.3"/>',
+        `<path d="M45.5 43.5 Q64 39.6 82.5 43.5" stroke="${MERLOT}" stroke-width="2.4" fill="none"/>`,
+        '<path d="M57 30 Q64 33 71 30" stroke="#4a4e56" stroke-width="1" fill="none"/>',
+      ].join('\n  '),
+    });
+  },
+  'hoe-velvet-speakeasy': async () => {
+    let svg = await load('hoe');
+    // A merlot velvet shawl over a beaded cream flapper dress.
+    svg = hoeCoat(svg, ['#c25670', MERLOT, '#36091a'], '<path d="M0 7 Q3.5 5 7 7" stroke="#d27a8e" stroke-width=".35" fill="none" opacity=".5"/>');
+    svg = recolor(svg, { '#5a060c': '#2a0710', '#17131a': '#e9dcc0', '#3d3346': '#b9a888' });
+    return decorate(svg, {
+      over: [
+        // Beaded fringe rows.
+        '<path d="M47 112 H81 M46.5 120 H81.5 M46 128 H82" stroke="#b9a888" stroke-width="1.6" stroke-dasharray=".8 1.2"/>',
+        '<path d="M48 113 V118 M52 113 V118 M56 113 V118 M60 113 V118 M64 113 V118 M68 113 V118 M72 113 V118 M76 113 V118 M80 113 V118" stroke="#cdbd93" stroke-width=".5"/>',
+        // A long pearl strand.
+        '<path d="M57 84 Q58 104 64 112 Q70 104 71 84" fill="none" stroke="#fbf6ee" stroke-width="1.8" stroke-dasharray="1.6 .7" stroke-linecap="round"/>',
+        // Feathered headband across the brow.
+        `<path d="M47 38 Q64 32 81 38" stroke="${MERLOT}" stroke-width="2.4" fill="none"/>`,
+        `<circle cx="77" cy="36.5" r="2" fill="${PEWTER}" stroke="#3a3e45" stroke-width=".5"/>`,
+        '<path d="M78 35 Q86 22 82 10 Q80 22 76 34 Z" fill="#f6efe0" stroke="#b9a888" stroke-width=".7"/>',
+        '<path d="M79 31 L82 27 M80 26 L83 22 M80.5 21 L83 17" stroke="#b9a888" stroke-width=".5"/>',
+      ].join('\n  '),
+    });
+  },
+  'ak47-velvet-speakeasy': async () => {
+    let svg = await load('ak47');
+    svg = restop(svg, 'wood', ['#9a6a40', '#6a4224', '#3a2210']);
+    svg = restop(svg, 'steel', ['#d4d8dc', '#80868c', '#3f4449']);
+    svg = recolor(svg, { '#454a52': '#b0b5ba', '#2c2f34': '#5f656b', '#26292e': '#4f555b', '#4a1f07': '#2a1608', '#f0a060': '#e2b98a' });
+    // A drum magazine in place of the box.
+    svg = swap(svg, '<path d="M128 62 H152 Q158 88 176 106 L154 116 Q134 94 128 62 Z" fill="url(#mag)"/>',
+      `<circle cx="141" cy="84" r="20" fill="url(#steel)"/><circle cx="141" cy="84" r="13" fill="none" stroke="#3f4449" stroke-width="1.2"/><circle cx="141" cy="84" r="4" fill="${PEWTER}"/><rect x="132" y="60" width="18" height="8" fill="url(#steel)"/>`);
+    svg = svg.replace('<path d="M133 70 Q138 72 154 70M136 82 Q141 84 160 82M142 94 Q148 96 168 93"/>', '');
+    return decorate(svg, {
+      over: [
+        '<path d="M141 66 A18 18 0 0 1 159 84" stroke="#ffffff" stroke-opacity=".45" stroke-width="1.4" fill="none"/>',
+        `<path d="M16 63 L68 54 M154 45.5 H186" stroke="${CREAM}" stroke-opacity=".4" stroke-width="1"/>`,
+        `<rect x="186" y="44" width="12" height="14" rx="1.5" fill="${PEWTER}" stroke="#0a0b0d" stroke-width="1.2"/>`,
+      ].join('\n  '),
+    });
+  },
+
+  /* Platinum Funk */
+  'low-rider-platinum-funk': async () => {
+    let svg = await load('low-rider');
+    svg = restop(svg, 'paint', ['#ffb067', TANGERINE, '#b5541a', '#5a2a0c']);
+    svg = restop(svg, 'roof', ['#5a3520', '#2a170b']);
+    svg = restop(svg, 'door', ['#6a3e24', CHOCOLATE]);
+    svg = restop(svg, 'primer', [['#262b3a', 0], ['#262b3a', 0]]);
+    svg = restop(svg, 'glass', ['#5a3a24', '#22140a', '#0d0703']);
+    svg = recolor(svg, { '#e02a3a': PLATINUM, '#c2222e': '#ffffff', '#16384a': CHOCOLATE, '#3a1f1a': '#c9651a' });
+    return decorate(svg, {
+      over: [
+        `<path d="M14 73.4 L244 76.4" stroke="${PLATINUM}" stroke-width="1.3" fill="none"/>`,
+        // Sunburst stripes down the flank.
+        `<path d="M98 84 L196 84.6" stroke="${CHOCOLATE}" stroke-width="2.6"/><path d="M100 88.4 L194 89" stroke="#ffcf8a" stroke-width="1.6"/><path d="M102 91.8 L192 92.3" stroke="${CHOCOLATE}" stroke-width="1.2"/>`,
+        // Fur on the dash and a platinum hood ornament.
+        '<path d="M150 61 Q154 57.5 158 60.5 Q161 57 164 61" fill="#fbf8f2" stroke="#b9b0a4" stroke-width=".6"/>',
+        `<path d="M236 68 l3 -5.5 l1.6 5.5 Z" fill="${PLATINUM}" stroke="#5a5f66" stroke-width=".5"/>`,
+        rings(LOW_RIDER_WHEELS, '<circle r="13.4" stroke="#fbfaf6" stroke-width="2.4"/>'),
+      ].join('\n    '),
+    });
+  },
+  'thug-platinum-funk': async () => {
+    let svg = await load('thug');
+    svg = repattern(svg, 'plaid', `<rect width="14" height="14" fill="${TANGERINE}"/><path d="M0 14 L14 0" stroke="#e8761a" stroke-width=".8"/>`);
+    svg = restop(svg, 'tank', ['#fff1e2', '#f3d3ad']);
+    svg = restop(svg, 'band', ['#1b100a', '#0b0604']);
+    svg = restop(svg, 'gold', ['#ffffff', PLATINUM, '#7d848c']);
+    svg = restop(svg, 'lens', ['#ffcf8a', '#b5541a', '#ff9a45']);
+    svg = recolor(svg, { '#e9fff0': '#2a170b', '#b5f5c5': '#3a2010', '#6ee095': '#ffe2b8', '#3a2a05': '#5a5f66' });
+    // A full afro behind the face.
+    svg = before(svg, '<ellipse cx="64" cy="55" rx="19" ry="23" fill="url(#skin)"/>',
+      '<path d="M64 14 C90 14 98 30 96 46 C98 56 92 64 86 62 L42 62 C36 64 30 56 32 46 C30 30 38 14 64 14 Z" fill="#1b100a" stroke="#07100a" stroke-width="1.4"/>');
+    return decorate(svg, {
+      over: [
+        // Wide lapels and a patterned shirt.
+        '<path d="M50 86 L60 104 L44 126 L40 112 Z M78 86 L68 104 L84 126 L88 112 Z" fill="#c9651a" stroke="#5a2a0c" stroke-width="1"/>',
+        `<path d="M50 96 q4 -3 8 0 q4 3 8 0 q4 -3 8 0 M48 106 q4 -3 8 0 q4 3 8 0 q4 -3 8 0 M50 116 q4 -3 8 0 q4 3 8 0 q4 -3 8 0" stroke="${CHOCOLATE}" stroke-width="1" fill="none" opacity=".75"/>`,
+        '<path d="M44 46 Q62 36 84 46" stroke="#3a2010" stroke-width="1" fill="none" opacity=".6"/>',
+      ].join('\n  '),
+    });
+  },
+  'hoe-platinum-funk': async () => {
+    let svg = await load('hoe');
+    // A plush white fur coat (the fuzz stays) over a platinum disco jumpsuit.
+    svg = restop(svg, 'fur', ['#ffffff', '#f3eee6', '#bdb4a7']);
+    svg = repattern(svg, 'tufts', '<path d="M1 6 q1-3 0-5 M4.5 6.5 q1.2-3 .2-5.5" stroke="#ffffff" stroke-width=".8" fill="none"/><path d="M3 3 q.8-2 0-3" stroke="#c9c0b2" stroke-width=".8" fill="none" opacity=".7"/>');
+    svg = recolor(svg, { '#5a060c': '#9a9085', '#17131a': '#c9ced6', '#3d3346': '#ffffff' });
+    return decorate(svg, {
+      over: [
+        // Disco sparkle on the jumpsuit.
+        '<g fill="#ffffff"><path d="M56 110 l1 -2.5 l1 2.5 l2.5 1 l-2.5 1 l-1 2.5 l-1 -2.5 l-2.5 -1 Z"/><path d="M70 120 l.8 -2 l.8 2 l2 .8 l-2 .8 l-.8 2 l-.8 -2 l-2 -.8 Z"/><path d="M62 128 l.7 -1.8 l.7 1.8 l1.8 .7 l-1.8 .7 l-.7 1.8 l-.7 -1.8 l-1.8 -.7 Z"/></g>',
+        '<path d="M50 100 L58 136 M78 100 L70 136" stroke="#8a93a3" stroke-width=".8" opacity=".7"/>',
+        `<path d="M47 104 H81" stroke="${TANGERINE}" stroke-width="2.2"/>`,
+      ].join('\n  '),
+    });
+  },
+
+  /* Redline Syndicate */
+  'sedan-redline-syndicate': async () => {
+    let svg = await load('sedan');
+    svg = restop(svg, 'paint', ['#ff7380', SIGNAL, '#b5121f', '#5a0710']);
+    svg = restop(svg, 'glass', ['#3a3e45', '#121417', '#050607']);
+    svg = restop(svg, 'rim', ['#5a5f66', '#1c1e22', '#0a0b0d']);
+    svg = recolor(svg, { '#5e4e35': '#000000', '#5a4a32': '#2a0508', '#6e5c3e': '#2a0508', '#c2ad85': CARBON, '#9aa2ab': '#3a3e45' });
+    return decorate(svg, {
+      over: [
+        // Widebody arches.
+        rings(SEDAN_WHEELS, `<path d="M-20 2 A20 20 0 0 1 20 2" stroke="${CARBON}" stroke-width="3.6" stroke-linecap="round"/><circle r="12" stroke="${SIGNAL}" stroke-width="1"/>`),
+        // Carbon rear wing.
+        `<path d="M22 62 V55 M34 61.5 V55" stroke="${CARBON}" stroke-width="2"/><path d="M10 51.5 H46 L44 55.8 H12 Z" fill="${CARBON}" stroke="#000" stroke-width=".8"/>`,
+        // Livery: a white stripe and a door number.
+        '<path d="M28 82.5 Q130 79 236 81.5" stroke="#ffffff" stroke-width="2.2" fill="none"/>',
+        `<circle cx="130" cy="72" r="7" fill="#ffffff" stroke="${CARBON}" stroke-width="1.2"/><text x="130" y="75.2" text-anchor="middle" font-family="Arial, sans-serif" font-size="8.5" font-weight="900" fill="${CARBON}">07</text>`,
+        `<path d="M232 92 H250" stroke="${CARBON}" stroke-width="2.4"/>`,
+        '<path d="M70 52 C92 40 116 37 132 37" stroke="#ffffff" stroke-opacity=".4" stroke-width="2.2" fill="none" stroke-linecap="round"/>',
+      ].join('\n    '),
+    });
+  },
+  'thug-redline-syndicate': async () => {
+    let svg = await load('thug');
+    svg = repattern(svg, 'plaid', `<rect width="14" height="14" fill="${CARBON}"/><path d="M0 0 H7 V7 H0 Z M7 7 H14 V14 H7 Z" fill="#2a2d32"/>`);
+    svg = restop(svg, 'tank', ['#ffffff', '#d9dde3']);
+    svg = restop(svg, 'band', ['#ff6b78', '#b5121f']);
+    svg = restop(svg, 'lens', ['#ff8a94', '#5a0710', SIGNAL]);
+    svg = recolor(svg, { '#e9fff0': '#ffffff', '#b5f5c5': '#ffd3d7', '#6ee095': '#ffffff' });
+    return decorate(svg, {
+      over: [
+        `<path d="M14 112 Q22 98 34 93 M114 112 Q106 98 94 93" stroke="${SIGNAL}" stroke-width="2.4" fill="none"/>`,
+        '<path d="M16 115 Q24 101 36 96 M112 115 Q104 101 92 96" stroke="#ffffff" stroke-width="1" fill="none"/>',
+        // Patches.
+        `<rect x="22" y="104" width="10" height="6" rx="1" fill="${SIGNAL}" stroke="#000" stroke-width=".6"/><rect x="96" y="104" width="10" height="6" rx="1" fill="#ffffff" stroke="#000" stroke-width=".6"/><rect x="28" y="114" width="8" height="5" rx="1" fill="${HAZARD}" stroke="#000" stroke-width=".6"/><circle cx="100" cy="117" r="3.2" fill="#2f8cff" stroke="#000" stroke-width=".6"/>`,
+        `<path d="M50 86 L46 126 M78 86 L82 126" stroke="${SIGNAL}" stroke-width="1.2" fill="none"/>`,
+      ].join('\n  '),
+    });
+  },
+  'hoe-redline-syndicate': async () => {
+    let svg = await load('hoe');
+    svg = hoeCoat(svg, ['#ff7380', SIGNAL, '#8e0e1b'], '<path d="M0 7 L7 0" stroke="#ffffff" stroke-width=".3" opacity=".2"/>');
+    svg = recolor(svg, { '#5a060c': '#3a0408', '#17131a': '#f3f4f6', '#3d3346': CARBON });
+    return decorate(svg, {
+      over: [
+        // White shoulder stripes and a zip down the suit.
+        '<path d="M10 110 Q18 96 34 90 M118 110 Q110 96 94 90" stroke="#ffffff" stroke-width="2.6" fill="none"/>',
+        `<path d="M64 98 V136" stroke="${CARBON}" stroke-width="1.2" stroke-dasharray="1 1"/>`,
+        `<rect x="48" y="112" width="9" height="6" rx="1" fill="${SIGNAL}" stroke="#000" stroke-width=".5"/>`,
+        // Pit headset.
+        `<path d="M40 52 Q40 16 64 15 Q88 16 88 52" stroke="${CARBON}" stroke-width="3" fill="none" stroke-linecap="round"/>`,
+        `<rect x="35" y="46" width="8" height="12" rx="3" fill="${CARBON}" stroke="#000" stroke-width=".8"/><rect x="85" y="46" width="8" height="12" rx="3" fill="${CARBON}" stroke="#000" stroke-width=".8"/>`,
+        `<path d="M88 56 Q86 70 72 71" stroke="${CARBON}" stroke-width="1.4" fill="none"/><circle cx="71" cy="71" r="1.6" fill="${SIGNAL}"/>`,
+      ].join('\n  '),
+    });
+  },
+  'ak47-redline-syndicate': async () => {
+    let svg = await load('ak47');
+    svg = restop(svg, 'wood', ['#3a3d43', CARBON, '#0a0b0d']);
+    svg = restop(svg, 'steel', ['#5a5f66', '#26292e', '#0f1012']);
+    svg = restop(svg, 'mag', ['#2a2d32', '#3a3e45', '#141518']);
+    svg = recolor(svg, { '#4a1f07': '#000000', '#f0a060': '#ff8a94', '#454a52': '#3a3e45' });
+    return decorate(svg, {
+      over: [
+        `<path d="M14 66 L70 57" stroke="${SIGNAL}" stroke-width="2.2"/>`,
+        `<path d="M152 61 H188" stroke="${SIGNAL}" stroke-width="1.6"/>`,
+        `<path d="M136 66 L150 66 M140 80 L156 80" stroke="${SIGNAL}" stroke-width="1.4"/>`,
+        '<path d="M20 62 l6 -1 M30 60.4 l6 -1 M40 58.8 l6 -1" stroke="#ffffff" stroke-opacity=".25" stroke-width="3"/>',
+      ].join('\n  '),
+    });
+  },
+
+  /* Wet Paint */
+  'low-rider-wet-paint': async () => {
+    let svg = await load('low-rider');
+    svg = restop(svg, 'paint', ['#3a3e45', '#1e2024', '#0d0e10', '#050505']);
+    svg = restop(svg, 'roof', ['#7ff2c4', MINT]);
+    svg = restop(svg, 'door', ['#2a2d32', '#111316']);
+    svg = restop(svg, 'primer', [['#262b3a', 0], ['#262b3a', 0]]);
+    svg = recolor(svg, { '#e02a3a': SPRAY_PINK, '#16384a': MINT, '#c2222e': SPRAY_PINK });
+    const letters = [[112, 82, 11], [131, 80, 10], [149, 83, 11], [168, 81, 10]];
+    return decorate(svg, {
+      over: [
+        // Bubble letters with chrome highlights, then the drips.
+        ...letters.map(([x, y, r]) => `<ellipse cx="${x}" cy="${y}" rx="${r}" ry="${r * 0.72}" fill="${MINT}" stroke="#000" stroke-width="1.2"/><ellipse cx="${x - 2}" cy="${y - 2.5}" rx="${r * 0.5}" ry="${r * 0.22}" fill="#ffffff" opacity=".75"/><ellipse cx="${x}" cy="${y}" rx="${r + 1.6}" ry="${r * 0.72 + 1.6}" fill="none" stroke="${SPRAY_PINK}" stroke-width="1"/>`),
+        `<g stroke="${MINT}" stroke-width="1.6" stroke-linecap="round"><path d="M106 88 V96 M124 86 V93 M147 89 V97.5 M171 87 V94"/></g>`,
+        `<g fill="${MINT}"><circle cx="106" cy="96.6" r="1.4"/><circle cx="147" cy="98" r="1.4"/></g>`,
+        `<path d="M18 74 l8 -3 M22 78 l10 -4" stroke="${SPRAY_PINK}" stroke-width="1.2" stroke-linecap="round"/>`,
+        rings(LOW_RIDER_WHEELS, `<circle r="12.4" stroke="${MINT}" stroke-width="1.3"/>`),
+      ].join('\n    '),
+    });
+  },
+  'thug-wet-paint': async () => {
+    let svg = await load('thug');
+    svg = repattern(svg, 'plaid', `<rect width="14" height="14" fill="#16181c"/><circle cx="3" cy="4" r="1.1" fill="${MINT}"/><circle cx="10" cy="9" r=".8" fill="${SPRAY_PINK}"/><circle cx="6" cy="12" r=".6" fill="${HAZARD}"/><circle cx="12" cy="2" r=".5" fill="#ffffff"/>`);
+    svg = restop(svg, 'tank', ['#2a2d32', '#111316']);
+    svg = restop(svg, 'band', ['#9aa0a6', '#4f555b']);
+    svg = restop(svg, 'lens', ['#7ff2c4', '#0d4a32', MINT]);
+    svg = recolor(svg, { '#e9fff0': '#ffffff', '#b5f5c5': '#c9ced4', '#6ee095': '#ffffff' });
+    return decorate(svg, {
+      over: [
+        // Respirator pushed up on the head.
+        '<path d="M50 40 Q64 33 78 40 L76 46 Q64 41 52 46 Z" fill="#3a3e45" stroke="#000" stroke-width="1"/>',
+        `<circle cx="50" cy="42" r="5" fill="${MINT}" stroke="#000" stroke-width="1"/><circle cx="78" cy="42" r="5" fill="${MINT}" stroke="#000" stroke-width="1"/>`,
+        '<path d="M47.5 42 H52.5 M75.5 42 H80.5" stroke="#0d4a32" stroke-width="1"/>',
+        // Hoodie drawstrings and splatter on the front.
+        '<path d="M58 90 V108 M70 90 V108" stroke="#d9dde3" stroke-width="1" stroke-linecap="round"/>',
+        `<path d="M50 112 q3 -4 6 0 q2 3 5 -1 M64 118 l3 4 M72 110 q2 2 4 0" stroke="${SPRAY_PINK}" stroke-width="1.6" fill="none" stroke-linecap="round"/>`,
+        `<circle cx="76" cy="122" r="1.6" fill="${MINT}"/>`,
+      ].join('\n  '),
+    });
+  },
+  'hoe-wet-paint': async () => {
+    let svg = await load('hoe');
+    svg = hoeCoat(svg, ['#8ab0de', '#4a6fa5', '#253d63'], '<path d="M0 2 H7 M0 5 H7" stroke="#6d93c9" stroke-width=".35" opacity=".6"/>');
+    svg = recolor(svg, { '#5a060c': '#162845', '#17131a': MINT, '#3d3346': '#1d8f63' });
+    return decorate(svg, {
+      over: [
+        // Tags on the denim and a few drips.
+        `<path d="M14 112 q4 -6 8 -1 q3 4 6 -2 q2 -4 6 0" stroke="${SPRAY_PINK}" stroke-width="1.8" fill="none" stroke-linecap="round"/>`,
+        `<path d="M94 108 q4 -5 8 0 q4 5 8 0" stroke="${MINT}" stroke-width="1.8" fill="none" stroke-linecap="round"/>`,
+        `<path d="M20 111 V120 M104 110 V117" stroke="${SPRAY_PINK}" stroke-width="1.2" stroke-linecap="round"/>`,
+        '<path d="M48 88 L52 136 M80 88 L76 136" stroke="#d9a74a" stroke-width=".8" stroke-dasharray="1.4 1"/>',
+        // Spray-can hoops.
+        `<circle cx="45" cy="72" r="4" fill="none" stroke="${MINT}" stroke-width="1.2"/><circle cx="83" cy="72" r="4" fill="none" stroke="${MINT}" stroke-width="1.2"/>`,
+      ].join('\n  '),
+    });
+  },
+  'pistol-wet-paint': async () => {
+    let svg = await load('pistol');
+    svg = restop(svg, 'slide', ['#ffffff', '#c9ced6', '#7d848c']);
+    svg = restop(svg, 'frame', ['#2a2d32', '#111316']);
+    svg = restop(svg, 'grip', ['#2a2d32', '#0d0e10']);
+    return decorate(svg, {
+      over: [
+        // Mint paint running off the top of the slide.
+        `<path d="M20 38 H112 Q116 38 116 42 V44 Q108 44 106 48 Q104 52 102 46 Q98 42 92 44 Q88 50 86 44 Q80 42 74 45 Q70 54 68 45 Q60 42 54 44 Q50 50 48 44 Q40 41 34 44 Q31 49 29 44 Q24 42 17 44 V41 Q17 38 20 38 Z" fill="${MINT}" stroke="#0a0b0d" stroke-width=".8"/>`,
+        `<path d="M70 52 V57 M50 48 V52 M104 50 V54" stroke="${MINT}" stroke-width="1.4" stroke-linecap="round"/>`,
+        `<path d="M78 50 q3 -3 6 0 q3 3 6 0" stroke="${SPRAY_PINK}" stroke-width="1.2" fill="none" stroke-linecap="round"/>`,
+        `<path d="M30 74 l10 -6 M30 86 l12 -8" stroke="${MINT}" stroke-width="1.2" stroke-linecap="round" opacity=".8"/>`,
+      ].join('\n  '),
+    });
+  },
+
+  /* Hazard Cook */
+  'van-hazard-cook': async () => {
+    let svg = await load('van');
+    svg = restop(svg, 'paint', ['#fff38a', HAZARD, '#c9a700', '#7a6600']);
+    svg = restop(svg, 'trim', ['#2a2d32', '#0d0e10']);
+    svg = restop(svg, 'decal', ['#1a1a1a', '#000000']);
+    svg = restop(svg, 'rust', [['#6a5a10', 0.5], ['#6a5a10', 0.2], ['#6a5a10', 0]]);
+    svg = restop(svg, 'steel', ['#f2f4f6', '#a9b0b8', '#5a6168']);
+    svg = recolor(svg, { '#b8bcba': HAZARD });
+    return decorate(svg, {
+      defs: `<pattern id="hz" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="8" height="8" fill="${HAZARD}"/><rect width="4" height="8" fill="#111111"/></pattern>`,
+      over: [
+        '<rect x="12" y="74" width="198" height="7" fill="url(#hz)" stroke="#000" stroke-width=".6"/>',
+        // Warning triangle and lettering on the cargo panel.
+        `<path d="M58 66 L66 52 L74 66 Z" fill="${HAZARD}" stroke="#000" stroke-width="1.4" stroke-linejoin="round"/><path d="M66 56.5 V61.5" stroke="#000" stroke-width="1.6" stroke-linecap="round"/><circle cx="66" cy="64" r=".9" fill="#000"/>`,
+        `<text x="78" y="62.5" font-family="Arial, sans-serif" font-size="6.5" font-weight="900" letter-spacing=".6" fill="${HAZARD}">LAB</text>`,
+        // Roof vent stack with smoke.
+        '<rect x="132" y="12" width="8" height="15" fill="url(#steel)" stroke="#0a0b0d" stroke-width="1"/><rect x="130" y="10" width="12" height="3" rx="1" fill="url(#steel)" stroke="#0a0b0d" stroke-width=".8"/>',
+        '<path d="M136 8 Q131 3 136 -2 Q141 -6 137 -11" stroke="#d9dde3" stroke-opacity=".5" stroke-width="3" fill="none" stroke-linecap="round"/>',
+        // A drum strapped to the back.
+        `<rect x="2" y="56" width="10" height="26" rx="2" fill="#2f6bb5" stroke="#0a0b0d" stroke-width="1"/><path d="M2 62 H12 M2 76 H12" stroke="#173a66" stroke-width="1"/><path d="M4 69 H12" stroke="${HAZARD}" stroke-width="2"/>`,
+      ].join('\n    '),
+    });
+  },
+  'thug-hazard-cook': async () => {
+    let svg = await load('thug');
+    svg = repattern(svg, 'plaid', '<rect width="14" height="14" fill="#f2cb00"/><path d="M0 7 H14" stroke="#c9a700" stroke-width=".6"/>');
+    svg = restop(svg, 'tank', ['#ffe45c', '#d9b400']);
+    svg = restop(svg, 'band', ['#ffe45c', '#c9a700']);
+    svg = restop(svg, 'gold', ['#f2f4f6', '#a9b0b8', '#5a6168']);
+    svg = restop(svg, 'lens', ['#eef8f6', '#8fb5ae', '#d4ebe7']);
+    svg = recolor(svg, { '#e9fff0': '#fff38a', '#b5f5c5': '#ffffff', '#6ee095': '#ffffff', '#3a2a05': '#3a3e45' });
+    return decorate(svg, {
+      over: [
+        // The hood seals around the face.
+        '<path d="M44 50 Q42 29 64 28 Q86 29 84 50 Q88 66 82 78 L76 82 Q86 66 82 52 Q80 36 64 36 Q48 36 46 52 Q42 66 52 82 L46 78 Q40 66 44 50 Z" fill="#ffd400" stroke="#7a6600" stroke-width="1.2"/>',
+        // Goggle strap and a respirator over the mouth.
+        '<path d="M44 55 H84" stroke="#141416" stroke-width="2" opacity=".85"/>',
+        '<path d="M54 64 Q64 60 74 64 L72 76 Q64 80 56 76 Z" fill="#26292e" stroke="#000" stroke-width="1"/>',
+        `<circle cx="52" cy="72" r="4.2" fill="#3a3e45" stroke="#000" stroke-width="1"/><circle cx="76" cy="72" r="4.2" fill="#3a3e45" stroke="#000" stroke-width="1"/><circle cx="52" cy="72" r="1.8" fill="${HAZARD}"/><circle cx="76" cy="72" r="1.8" fill="${HAZARD}"/>`,
+        // Taped seams.
+        '<path d="M64 90 V126 M14 110 H44 M84 110 H114" stroke="#c9ced4" stroke-width="2.2" opacity=".85"/>',
+      ].join('\n  '),
+    });
+  },
+  'hoe-hazard-cook': async () => {
+    let svg = await load('hoe');
+    // The hood: her silhouette in sealed yellow, with seams for strands.
+    svg = restop(svg, 'hair', ['#c9a700', HAZARD, '#ffe45c', '#c9a700']);
+    svg = restop(svg, 'hairFront', ['#c9a700', HAZARD, '#ffe45c', '#c9a700']);
+    svg = recolor(svg, { '#8a6234': '#a88a00', '#9a7240': '#a88a00', '#ecd395': '#fff38a', '#fff3c4': '#fff38a', '#4a3018': '#5a4a00', '#5a3c1e': '#5a4a00' });
+    svg = hoeCoat(svg, ['#fff38a', HAZARD, '#a88a00'], '<path d="M0 3.5 H7" stroke="#c9a700" stroke-width=".4" opacity=".7"/>');
+    svg = recolor(svg, { '#5a060c': '#5a4a00', '#17131a': '#e6bf00', '#3d3346': '#141416' });
+    return decorate(svg, {
+      over: [
+        // Goggles and a respirator.
+        '<rect x="47" y="47" width="34" height="12" rx="6" fill="#d4ebe7" fill-opacity=".45" stroke="#141416" stroke-width="1.6"/><path d="M64 47 V59" stroke="#141416" stroke-width="1.2"/>',
+        '<path d="M56 64 Q64 61 72 64 L70.5 74 Q64 77.5 57.5 74 Z" fill="#26292e" stroke="#000" stroke-width="1"/>',
+        `<circle cx="55" cy="71" r="3.4" fill="#3a3e45" stroke="#000" stroke-width=".9"/><circle cx="73" cy="71" r="3.4" fill="#3a3e45" stroke="#000" stroke-width=".9"/><circle cx="55" cy="71" r="1.4" fill="${HAZARD}"/><circle cx="73" cy="71" r="1.4" fill="${HAZARD}"/>`,
+        '<path d="M64 98 V136 M8 120 H34 M94 120 H120" stroke="#c9ced4" stroke-width="2" opacity=".85"/>',
+      ].join('\n  '),
+    });
+  },
+  'shotgun-hazard-cook': async () => {
+    let svg = await load('shotgun');
+    svg = restop(svg, 'barrel', ['#f4f6f8', '#b0b7be', '#5f666d']);
+    svg = restop(svg, 'steel', ['#e2e6ea', '#9aa2aa', '#4f565d']);
+    svg = restop(svg, 'wood', ['#3a3d43', '#1d1f23', '#0a0b0d']);
+    svg = recolor(svg, { '#3a1d08': '#000000', '#e6a868': '#5f666d' });
+    return decorate(svg, {
+      defs: `<pattern id="hz" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="${HAZARD}"/><rect width="3" height="6" fill="#111111"/></pattern>`,
+      over: [
+        // Hazard tape round the stock and the pump.
+        '<path d="M40 50.5 L48 50 L52 74 L44 77.6 Z M60 49.2 L68 48.7 L68 69 L60 70.6 Z" fill="url(#hz)" stroke="#000" stroke-width=".7"/>',
+        '<rect x="156" y="53" width="10" height="15" fill="url(#hz)" stroke="#000" stroke-width=".7"/><rect x="178" y="53" width="10" height="15" fill="url(#hz)" stroke="#000" stroke-width=".7"/>',
+        '<path d="M122 47.5 H246" stroke="#ffffff" stroke-opacity=".7" stroke-width="1.2"/>',
+      ].join('\n  '),
+    });
+  },
+
+  /* Dockside */
+  'van-dockside': async () => {
+    let svg = await load('van');
+    svg = restop(svg, 'paint', ['#4f6f96', '#2a4566', '#1a2d45', '#0c1622']);
+    svg = restop(svg, 'trim', ['#3a3e45', '#141518']);
+    svg = restop(svg, 'decal', [SAFETY, '#b5501a']);
+    svg = restop(svg, 'glass', ['#9fb3c6', '#3d5268', '#1a2636']);
+    svg = recolor(svg, { '#b8bcba': '#ffffff' });
+    const ribs = Array.from({ length: 16 }, (_, index) => `M${16 + index * 6} 30 V86`).join(' ');
+    return decorate(svg, {
+      over: [
+        // Corrugated container panels, then rust streaks from the roof seam.
+        `<path d="${ribs}" stroke="#0c1622" stroke-opacity=".55" stroke-width="1.6"/>`,
+        `<path d="M17 30 V86 M23 30 V86" stroke="#ffffff" stroke-opacity=".08" stroke-width="1"/>`,
+        '<path d="M30 30 Q31 40 29 50 M74 30 Q75 36 73 44 M126 30 Q127 42 125 54 M150 30 Q151 36 150 42" stroke="#8a4a2a" stroke-opacity=".8" stroke-width="1.4" fill="none"/>',
+        // Stencils.
+        '<text x="46" y="56" font-family="Arial, sans-serif" font-size="7" font-weight="900" letter-spacing="1" fill="#ffffff">SEKU 4471</text>',
+        '<text x="46" y="65" font-family="Arial, sans-serif" font-size="5.5" font-weight="700" letter-spacing=".8" fill="#0c1622">NO MANIFEST</text>',
+        `<path d="M170 34 V58" stroke="${SAFETY}" stroke-width="1.6"/>`,
+      ].join('\n    '),
+    });
+  },
+  'thug-dockside': async () => {
+    let svg = await load('thug');
+    svg = repattern(svg, 'plaid', `<rect width="14" height="14" fill="${NAVY}"/><path d="M0 3 L3 0 M5 14 L14 5 M9 14 L14 9" stroke="#25405f" stroke-width=".6"/>`);
+    svg = restop(svg, 'tank', ['#efe8d8', '#cfc4ad']);
+    svg = restop(svg, 'band', ['#2a3d55', '#121d2b']);
+    svg = restop(svg, 'lens', ['#4a5a6a', '#0c1622', '#2a3d55']);
+    svg = recolor(svg, { '#e9fff0': '#4a6a90', '#b5f5c5': '#4a6a90', '#6ee095': '#c9d6e2' });
+    return decorate(svg, {
+      over: [
+        // Turned-up collar and double-breasted buttons.
+        `<path d="M44 86 L52 76 L58 92 Z M84 86 L76 76 L70 92 Z" fill="${NAVY}" stroke="#060b12" stroke-width="1.1"/>`,
+        `<g fill="${PEWTER}" stroke="#2a2d32" stroke-width=".4"><circle cx="38" cy="106" r="1.8"/><circle cx="38" cy="116" r="1.8"/><circle cx="90" cy="106" r="1.8"/><circle cx="90" cy="116" r="1.8"/></g>`,
+        // Ribbed knit at the neck and a watch cap.
+        '<path d="M52 89 Q64 96 76 89" stroke="#b9ad94" stroke-width="2.2" fill="none" stroke-dasharray="1 .8"/>',
+        '<path d="M44 48 Q42 28 64 26 Q86 28 84 48 Q64 42 44 48 Z" fill="#1d3350" stroke="#060b12" stroke-width="1.2"/>',
+        '<path d="M44 44 Q64 38 84 44 L84 49 Q64 43 44 49 Z" fill="#25405f" stroke="#060b12" stroke-width="1"/>',
+        '<path d="M50 30 V44 M56 28 V42 M62 27 V41 M68 27 V41 M74 28 V42 M80 31 V45" stroke="#2a4a70" stroke-width="1"/>',
+      ].join('\n  '),
+    });
+  },
+  'hoe-dockside': async () => {
+    let svg = await load('hoe');
+    svg = hoeCoat(svg, ['#ffa060', SAFETY, '#b5501a'], '<path d="M0 7 L7 0" stroke="#ffffff" stroke-width=".25" opacity=".2"/>');
+    svg = recolor(svg, { '#5a060c': '#5a2008', '#17131a': NAVY, '#3d3346': '#0c1622' });
+    return decorate(svg, {
+      over: [
+        // Reflective bands.
+        '<path d="M4 120 H52 M76 120 H124" stroke="#e2e6ea" stroke-width="3"/><path d="M4 120 H52 M76 120 H124" stroke="#ffffff" stroke-width="1" opacity=".9"/>',
+        // Overall bib and straps.
+        `<path d="M50 96 L56 136 M78 96 L72 136" stroke="#2a4566" stroke-width="2.4"/>`,
+        `<rect x="56" y="108" width="16" height="11" rx="1" fill="#25405f" stroke="#0c1622" stroke-width=".8"/><path d="M58 111 H70" stroke="${SAFETY}" stroke-width=".8"/>`,
+        `<g fill="${PEWTER}"><circle cx="51" cy="98" r="1.3"/><circle cx="77" cy="98" r="1.3"/></g>`,
+      ].join('\n  '),
+    });
+  },
+  'ak47-dockside': async () => {
+    let svg = await load('ak47');
+    svg = restop(svg, 'wood', ['#7a6a56', '#4f4232', '#2a2219']);
+    svg = restop(svg, 'steel', ['#9aa3a8', '#5c666b', '#2c3236']);
+    svg = restop(svg, 'mag', ['#4a5358', '#6a7378', '#2c3236']);
+    svg = recolor(svg, { '#4a1f07': '#1a140d', '#f0a060': '#c9b48a', '#454a52': '#7a8388' });
+    const rope = (x1, y1, count, dx, dy) => Array.from({ length: count }, (_, index) => `M${x1 + index * dx} ${y1 + index * dy} l3 9`).join(' ');
+    return decorate(svg, {
+      over: [
+        // Rope wraps on the stock and handguard.
+        `<path d="${rope(26, 55, 8, 5, -0.8)}" stroke="#c9b48a" stroke-width="1.8" stroke-linecap="round"/>`,
+        `<path d="${rope(26, 55, 8, 5, -0.8)}" stroke="#8a7550" stroke-width=".6" stroke-linecap="round" transform="translate(1 0)"/>`,
+        `<path d="${rope(154, 51, 7, 5, 0)}" stroke="#c9b48a" stroke-width="1.8" stroke-linecap="round"/>`,
+        // Salt pitting.
+        '<g fill="#e8eef0" opacity=".6"><circle cx="80" cy="52" r=".7"/><circle cx="94" cy="57" r=".5"/><circle cx="108" cy="50" r=".6"/><circle cx="122" cy="58" r=".5"/><circle cx="136" cy="53" r=".7"/><circle cx="204" cy="52" r=".5"/><circle cx="222" cy="51" r=".6"/><circle cx="146" cy="88" r=".6"/><circle cx="156" cy="100" r=".5"/></g>',
+      ].join('\n  '),
+    });
+  },
+
+  /* Crown Jewels */
+  'sedan-crown-jewels': async () => {
+    let svg = await load('sedan');
+    svg = restop(svg, 'paint', ['#7a9cff', SAPPHIRE, '#1a2f8a', '#0b1440']);
+    svg = restop(svg, 'glass', ['#2a3050', '#0e1124', '#05060f']);
+    svg = restop(svg, 'rim', ['#ffffff', '#e1e6ee', '#8a93a3']);
+    svg = recolor(svg, { '#5e4e35': '#05081f', '#5a4a32': '#0e1a52', '#6e5c3e': '#0e1a52', '#c2ad85': PLATINUM, '#9aa2ab': PLATINUM });
+    const jewels = [RUBY, EMERALD, '#7aa2ff'];
+    return decorate(svg, {
+      over: [
+        `<path d="M24 76.4 Q130 72.9 238 75.4" stroke="${PLATINUM}" stroke-width="1.4" fill="none"/>`,
+        // A row of set stones along the belt line.
+        ...Array.from({ length: 10 }, (_, index) => {
+          const x = 34 + index * 20;
+          const y = 77.6 - Math.sin((x / 256) * Math.PI) * 3.2;
+          return `<circle cx="${x}" cy="${y.toFixed(1)}" r="1.5" fill="${jewels[index % 3]}" stroke="${PLATINUM}" stroke-width=".6"/>`;
+        }),
+        // Armoured window surround and a crown on the hood.
+        `<path d="M73 58.5 C88 46.5 106 40.5 129 40.5 C149 40.5 163 45 179 58" stroke="${PLATINUM}" stroke-width="1.6" fill="none"/>`,
+        `<path d="M224 64.5 L225 58.5 L228 61.5 L230.5 57 L233 61.5 L236 58.5 L237 64.5 Z" fill="${PLATINUM}" stroke="#4a5262" stroke-width=".6" stroke-linejoin="round"/><circle cx="230.5" cy="62.4" r="1" fill="${RUBY}"/>`,
+        // The jewelled grille.
+        `<rect x="240" y="78" width="8" height="7" rx="1.5" fill="${PLATINUM}" stroke="#4a5262" stroke-width=".6"/><circle cx="242.5" cy="81.5" r="1" fill="${EMERALD}"/><circle cx="245.6" cy="81.5" r="1" fill="${RUBY}"/>`,
+        rings(SEDAN_WHEELS, `<circle r="11.6" stroke="${PLATINUM}" stroke-width="1.4"/><circle r="8.4" stroke="${EMERALD}" stroke-width=".8"/>`),
+        '<path d="M70 52 C92 40 116 37 132 37" stroke="#ffffff" stroke-opacity=".45" stroke-width="2.2" fill="none" stroke-linecap="round"/>',
+      ].join('\n    '),
+    });
+  },
+  'thug-crown-jewels': async () => {
+    let svg = await load('thug');
+    svg = repattern(svg, 'plaid', `<rect width="14" height="14" fill="${SAPPHIRE}"/><path d="M0 14 L14 0" stroke="#4a70e8" stroke-width="1.4" opacity=".5"/>`);
+    svg = restop(svg, 'tank', ['#ff6b80', '#8a0f20']);
+    svg = restop(svg, 'band', ['#1b100a', '#0b0604']);
+    svg = restop(svg, 'gold', ['#ffffff', PLATINUM, '#7d848c']);
+    svg = restop(svg, 'lens', ['#2a3050', '#05060f', '#1a2f8a']);
+    svg = recolor(svg, { '#e9fff0': '#3a2010', '#b5f5c5': '#3a2010', '#6ee095': '#ffffff', '#3a2a05': '#4a5262' });
+    const spots = [[18, 100], [26, 94], [36, 90], [102, 100], [94, 94], [84, 90]].map(([x, y]) => `<path d="M${x} ${y - 1.4} v2.8" stroke="#111" stroke-width="1.1" stroke-linecap="round"/>`).join('');
+    return decorate(svg, {
+      over: [
+        // Ermine collar over the shoulders.
+        '<path d="M12 106 Q16 92 34 88 L50 86 M116 106 Q112 92 94 88 L78 86" stroke="#fbf8f2" stroke-width="7" fill="none" stroke-linecap="round"/>',
+        spots,
+        // An emerald pendant on the chain, and a small platinum crown.
+        `<circle cx="64" cy="99" r="4.6" fill="${EMERALD}" stroke="#0e5a32" stroke-width="1"/><path d="M62.2 97.6 L64 96.4" stroke="#ffffff" stroke-width=".8"/>`,
+        `<path d="M50 30 L52 20 L57.5 25.5 L64 16 L70.5 25.5 L76 20 L78 30 Z" fill="${PLATINUM}" stroke="#4a5262" stroke-width="1" stroke-linejoin="round"/>`,
+        `<circle cx="64" cy="25" r="1.8" fill="${RUBY}"/><circle cx="55.5" cy="27" r="1.2" fill="${EMERALD}"/><circle cx="72.5" cy="27" r="1.2" fill="#7aa2ff"/>`,
+      ].join('\n  '),
+    });
+  },
+  'hoe-crown-jewels': async () => {
+    let svg = await load('hoe');
+    svg = hoeCoat(svg, ['#6fe6aa', EMERALD, '#0e5a32'], `<path d="M0 7 Q3.5 5 7 7" stroke="#9af0c4" stroke-width=".35" fill="none" opacity=".5"/>`);
+    svg = recolor(svg, { '#5a060c': '#0a3a20', '#17131a': '#16804a', '#3d3346': PLATINUM });
+    return decorate(svg, {
+      over: [
+        // Ermine trim down the coat fronts.
+        '<path d="M47 86 Q55 90 56 103 L53 136 M81 86 Q73 90 72 103 L75 136" stroke="#fbf8f2" stroke-width="4.5" fill="none"/>',
+        '<path d="M54.6 104 v3 M54 116 v3 M53.6 128 v3 M73.4 104 v3 M74 116 v3 M74.4 128 v3" stroke="#111" stroke-width="1.1" stroke-linecap="round"/>',
+        // Ruby studs on the gown.
+        `<g fill="${RUBY}" stroke="#5a0710" stroke-width=".4"><circle cx="60" cy="110" r="1.2"/><circle cx="68" cy="110" r="1.2"/><circle cx="64" cy="118" r="1.2"/><circle cx="58" cy="126" r="1.2"/><circle cx="70" cy="126" r="1.2"/></g>`,
+        // A tiara.
+        `<path d="M53 18 L56 10.5 L59.5 14.5 L64 7 L68.5 14.5 L72 10.5 L75 18 Q64 15.5 53 18 Z" fill="${PLATINUM}" stroke="#4a5262" stroke-width=".8" stroke-linejoin="round"/>`,
+        `<circle cx="64" cy="12.6" r="1.6" fill="${RUBY}"/><circle cx="57.8" cy="15.6" r="1" fill="#7aa2ff"/><circle cx="70.2" cy="15.6" r="1" fill="#7aa2ff"/>`,
+      ].join('\n  '),
+    });
+  },
+  'ak47-crown-jewels': async () => {
+    let svg = await load('ak47');
+    svg = restop(svg, 'wood', ['#5a7cf0', SAPPHIRE, '#132a7a']);
+    svg = restop(svg, 'steel', ['#ffffff', PLATINUM, '#8a93a3']);
+    svg = restop(svg, 'mag', ['#c9d0da', '#9aa3b2', '#5f6878']);
+    svg = recolor(svg, { '#4a1f07': '#0b1440', '#f0a060': '#a8bcff', '#454a52': '#e1e6ee', '#2c2f34': '#a9b0bc', '#26292e': '#8a93a3' });
+    const stone = (x, y, color) => `<circle cx="${x}" cy="${y}" r="2.2" fill="${color}" stroke="${PLATINUM}" stroke-width=".9"/><circle cx="${x - 0.7}" cy="${y - 0.7}" r=".6" fill="#ffffff"/>`;
+    return decorate(svg, {
+      over: [
+        stone(30, 62, RUBY), stone(42, 60, EMERALD), stone(54, 58, '#7aa2ff'),
+        stone(90, 54, EMERALD), stone(110, 54, RUBY), stone(130, 54, EMERALD),
+        stone(166, 57, RUBY), stone(178, 57, '#7aa2ff'),
+        `<path d="M16 58 L70 49" stroke="${PLATINUM}" stroke-width="1.2"/>`,
+      ].join('\n  '),
+    });
+  },
+
+  /* Bayou Smoke */
+  'van-bayou-smoke': async () => {
+    let svg = await load('van');
+    svg = restop(svg, 'paint', ['#86a266', MOSS, '#2e4524', '#18240f']);
+    svg = restop(svg, 'trim', ['#3a2a1a', '#1a120a']);
+    svg = restop(svg, 'decal', ['#3e2a18', '#1e140a']);
+    svg = restop(svg, 'glass', ['#a6b88e', '#4a5a3a', '#1e2818']);
+    svg = restop(svg, 'rust', [['#5a3e22', 1], ['#5a3e22', 0.7], ['#5a3e22', 0]]);
+    svg = recolor(svg, { '#b8bcba': '#c9b48a' });
+    return decorate(svg, {
+      defs: `<filter id="glow" x="-200%" y="-200%" width="500%" height="500%"><feGaussianBlur stdDeviation="1.6"/></filter>`,
+      over: [
+        // Mud up the sills.
+        '<path d="M12 86 Q20 80 28 86 Q36 78 44 85 L48 92 L12 92 Z M88 86 Q98 79 110 85 Q122 78 134 85 Q146 80 160 86 L184 92 L86 92 Z M222 86 Q232 80 244 85 L246 92 L222 92 Z" fill="#5a3e22" opacity=".9"/>',
+        '<g fill="#5a3e22"><circle cx="60" cy="78" r="1.6"/><circle cx="140" cy="76" r="1.2"/><circle cx="170" cy="80" r="1.8"/><circle cx="236" cy="76" r="1.2"/></g>',
+        // Roof rack and a winch.
+        '<path d="M20 20 H180 M30 20 V26 M80 20 V26 M130 20 V26 M175 20 V26" stroke="#141416" stroke-width="2"/>',
+        '<rect x="240" y="80" width="10" height="8" rx="2" fill="#3a3e45" stroke="#0a0b0d" stroke-width=".8"/><path d="M250 84 H254" stroke="#9aa0a6" stroke-width="1"/>',
+        // Spanish moss from the mirror, and fireflies.
+        '<path d="M202 53 Q200 60 203 66 M205 53 Q206 60 204 68 M208 54 Q207 59 209 64" stroke="#a6b88e" stroke-width="1" fill="none"/>',
+        `<g fill="${FIREFLY}"><circle cx="30" cy="12" r="2.4" filter="url(#glow)"/><circle cx="30" cy="12" r=".9"/><circle cx="160" cy="8" r="2.4" filter="url(#glow)"/><circle cx="160" cy="8" r=".9"/><circle cx="228" cy="44" r="2" filter="url(#glow)"/><circle cx="228" cy="44" r=".8"/></g>`,
+      ].join('\n    '),
+    });
+  },
+  'thug-bayou-smoke': async () => {
+    let svg = await load('thug');
+    svg = repattern(svg, 'plaid', `<rect width="14" height="14" fill="${MOSS}"/><path d="M0 4 Q7 2 14 4 M0 11 Q7 9 14 11" stroke="#5f8248" stroke-width=".8" fill="none"/>`);
+    svg = restop(svg, 'tank', ['#7a8a44', '#3e4a22']);
+    svg = restop(svg, 'band', ['#5a3e28', '#2e1f12']);
+    svg = restop(svg, 'gold', ['#fffaf0', '#e8dcc0', '#9a8a68']);
+    svg = restop(svg, 'lens', ['#3a4a2a', '#0b0f08', '#2a3a1a']);
+    svg = recolor(svg, { '#e9fff0': '#7a5a3a', '#b5f5c5': '#7a5a3a', '#6ee095': '#e8ff6a', '#3a2a05': '#5a4a30' });
+    return decorate(svg, {
+      over: [
+        // Wader straps and buckles.
+        '<path d="M52 92 L54 126 M76 92 L74 126" stroke="#2e3a14" stroke-width="2.4"/>',
+        '<rect x="51" y="100" width="5" height="4" rx=".8" fill="none" stroke="#c9ced4" stroke-width=".9"/><rect x="72" y="100" width="5" height="4" rx=".8" fill="none" stroke="#c9ced4" stroke-width=".9"/>',
+        // A gator tooth on the cord.
+        '<path d="M61.5 96 Q64 108 66.5 96 Z" fill="#fffaf0" stroke="#6a5a40" stroke-width=".8"/>',
+        // Waxed sheen and a pocket flap.
+        '<path d="M18 104 Q24 98 30 98 M98 98 Q104 98 110 104" stroke="#9ab878" stroke-width="1" fill="none" opacity=".7"/>',
+        '<path d="M24 112 H38 V117 H24 Z M90 112 H104 V117 H90 Z" fill="#3e5a30" stroke="#1e2a14" stroke-width=".8"/>',
+      ].join('\n  '),
+    });
+  },
+  'hoe-bayou-smoke': async () => {
+    let svg = await load('hoe');
+    svg = hoeCoat(svg, ['#9aaa5a', '#5a6b2a', '#2e3a14'], '<rect x=".6" y=".6" width="2.6" height="2.2" rx=".8" fill="none" stroke="#3a4a1a" stroke-width=".4"/><rect x="3.8" y="3.8" width="2.6" height="2.2" rx=".8" fill="none" stroke="#3a4a1a" stroke-width=".4"/>');
+    svg = recolor(svg, { '#5a060c': '#1e2a0a', '#17131a': CYPRESS, '#3d3346': '#a8845e' });
+    return decorate(svg, {
+      defs: `<filter id="ffglow" x="-200%" y="-200%" width="500%" height="500%"><feGaussianBlur stdDeviation="1.4"/></filter>`,
+      over: [
+        '<path d="M50 100 L52 136 M78 100 L76 136 M58 104 L59 136 M70 104 L69 136" stroke="#7a5a3a" stroke-width=".6" opacity=".7"/>',
+        // Fireflies.
+        `<g fill="${FIREFLY}"><circle cx="14" cy="40" r="2.2" filter="url(#ffglow)"/><circle cx="14" cy="40" r=".9"/><circle cx="114" cy="28" r="2.2" filter="url(#ffglow)"/><circle cx="114" cy="28" r=".9"/><circle cx="120" cy="80" r="2" filter="url(#ffglow)"/><circle cx="120" cy="80" r=".8"/><circle cx="10" cy="84" r="2" filter="url(#ffglow)"/><circle cx="10" cy="84" r=".8"/></g>`,
+        // A firefly charm on a cord.
+        `<path d="M58 84 Q64 92 70 84" stroke="#7a5a3a" stroke-width="1" fill="none"/><circle cx="64" cy="89" r="1.6" fill="${FIREFLY}"/>`,
+      ].join('\n  '),
+    });
+  },
+  'shotgun-bayou-smoke': async () => {
+    let svg = await load('shotgun');
+    svg = restop(svg, 'barrel', ['#6a7378', '#363d42', '#16191c']);
+    svg = restop(svg, 'steel', ['#5a6268', '#30363a', '#121416']);
+    svg = restop(svg, 'wood', ['#a8845e', '#7a5a3a', '#3e2a18']);
+    svg = recolor(svg, { '#3a1d08': '#2a1a0c', '#e6a868': '#c9a67a' });
+    const scales = Array.from({ length: 5 }, (_, row) => Array.from({ length: 4 }, (_, col) => `<rect x="${40 + col * 6 + (row % 2) * 3}" y="${56 + row * 4}" width="4.6" height="3.2" rx="1.2"/>`).join('')).join('');
+    return decorate(svg, {
+      over: [
+        // Gator-hide wrap at the wrist of the stock.
+        `<path d="M38 52 L66 49.5 L68 68 L42 77 Z" fill="#5a6b2a" stroke="#1e2a0a" stroke-width=".8"/>`,
+        `<g fill="#7a8a44" stroke="#2e3a14" stroke-width=".4">${scales}</g>`,
+        '<path d="M122 47.5 H246" stroke="#c9ced4" stroke-opacity=".35" stroke-width="1.2"/>',
+      ].join('\n  '),
+    });
+  },
+
+  /* Desert Mirage */
+  'low-rider-desert-mirage': async () => {
+    let svg = await load('low-rider');
+    svg = restop(svg, 'paint', ['#fff3dc', SAND, '#c9a678', '#8a6a44']);
+    svg = restop(svg, 'roof', ['#d9733a', '#8a3e14']);
+    svg = restop(svg, 'door', ['#f4dfb6', '#d6b787']);
+    svg = restop(svg, 'primer', [['#262b3a', 0], ['#262b3a', 0]]);
+    svg = restop(svg, 'glass', ['#f0e2c8', '#a89070', '#5a4a38']);
+    svg = recolor(svg, { '#e02a3a': TURQUOISE, '#16384a': '#8a3e14', '#c2222e': TURQUOISE });
+    return decorate(svg, {
+      defs: `<linearGradient id="fade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${CANYON}" stop-opacity="0"/><stop offset="1" stop-color="${CANYON}" stop-opacity=".9"/></linearGradient>`,
+      over: [
+        // Rust-canyon fade up from the sills.
+        '<path d="M12 80 L250 82 L249 90 L232 95 L195 95 L96 95 L59 95 L14 92 Z" fill="url(#fade)"/>',
+        `<path d="M14 73.4 L244 76.4" stroke="${TURQUOISE}" stroke-width="1.4" fill="none"/>`,
+        `<path d="M100 78 Q130 74 160 78 Q176 80 190 76" stroke="${TURQUOISE}" stroke-width=".9" fill="none"/>`,
+        // Dust on the sills and tyres.
+        '<g fill="#f4e6c8" opacity=".75"><circle cx="104" cy="92" r=".8"/><circle cx="118" cy="93" r=".6"/><circle cx="134" cy="91.5" r=".8"/><circle cx="150" cy="93" r=".6"/><circle cx="166" cy="92" r=".8"/><circle cx="182" cy="93" r=".6"/></g>',
+        rings(LOW_RIDER_WHEELS, `<circle r="12.4" stroke="${SAND}" stroke-width="1.3" stroke-dasharray="3 2"/>`),
+      ].join('\n    '),
+    });
+  },
+  'thug-desert-mirage': async () => {
+    let svg = await load('thug');
+    svg = repattern(svg, 'plaid', '<rect width="14" height="14" fill="#c9a678"/><path d="M0 7 H14 M7 0 V14" stroke="#b8956a" stroke-width=".5"/>');
+    svg = restop(svg, 'tank', ['#f6ead2', '#d9c4a0']);
+    svg = restop(svg, 'band', ['#d9733a', '#8a3e14']);
+    svg = restop(svg, 'gold', ['#e8eef0', '#a9b0b8', '#5a6168']);
+    svg = restop(svg, 'lens', ['#ffd88a', '#7a4a10', '#e8a33a']);
+    svg = recolor(svg, { '#e9fff0': '#fff3dc', '#b5f5c5': '#fff3dc', '#6ee095': '#ffffff', '#3a2a05': '#3a2a1a' });
+    return decorate(svg, {
+      over: [
+        // The duster's long collar.
+        '<path d="M50 86 L58 106 L44 126 M78 86 L70 106 L84 126" stroke="#8a6a44" stroke-width="1.4" fill="none" stroke-linejoin="round"/>',
+        // Bolo tie: two cords and a turquoise slide.
+        '<path d="M60 90 L61 112 M68 90 L67 112" stroke="#3a2a1a" stroke-width="1"/>',
+        `<ellipse cx="64" cy="94" rx="3.6" ry="4.6" fill="${TURQUOISE}" stroke="#c9ced4" stroke-width="1.1"/>`,
+        '<path d="M63 92 l1.6 2 l-1 1.4" stroke="#1d6a70" stroke-width=".5" fill="none"/>',
+        '<path d="M60 112 l-1 3 M68 112 l1 3" stroke="#c9ced4" stroke-width="1.6" stroke-linecap="round"/>',
+        // Dots on the bandana.
+        '<g fill="#fff3dc"><circle cx="52" cy="40" r=".8"/><circle cx="60" cy="36" r=".8"/><circle cx="68" cy="36" r=".8"/><circle cx="76" cy="40" r=".8"/></g>',
+      ].join('\n  '),
+    });
+  },
+  'hoe-desert-mirage': async () => {
+    let svg = await load('hoe');
+    svg = hoeCoat(svg, ['#e2b07a', '#b5803e', '#7a5222'], '<path d="M0 7 L7 0" stroke="#9a6a32" stroke-width=".3" opacity=".4"/>');
+    svg = recolor(svg, { '#5a060c': '#4a3014', '#17131a': CANYON, '#3d3346': TURQUOISE });
+    const fringe = (x0, x1, y) => Array.from({ length: Math.floor((x1 - x0) / 3) + 1 }, (_, index) => `M${x0 + index * 3} ${y} v7`).join(' ');
+    return decorate(svg, {
+      over: [
+        // Suede fringe off the sleeves and yoke.
+        `<path d="${fringe(6, 34, 124)} ${fringe(94, 122, 124)}" stroke="#9a6a32" stroke-width="1.1" stroke-linecap="round"/>`,
+        '<path d="M14 104 Q28 96 44 96 M114 104 Q100 96 84 96" stroke="#9a6a32" stroke-width="1" fill="none"/>',
+        // Stacked turquoise beads.
+        ...[[57, 85], [59.5, 88], [62, 90], [64.5, 90.4], [67, 89.6], [69.5, 87.6], [71.5, 85]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="1.3" fill="${TURQUOISE}" stroke="#1d6a70" stroke-width=".4"/>`),
+        `<ellipse cx="64" cy="95" rx="2.6" ry="3.4" fill="${TURQUOISE}" stroke="#c9ced4" stroke-width=".9"/>`,
+      ].join('\n  '),
+    });
+  },
+  'tek9-desert-mirage': async () => {
+    let svg = await load('tek9');
+    svg = restop(svg, 'steel', ['#efe4cf', '#b5a68e', '#7a6d5a']);
+    svg = restop(svg, 'shroud', ['#d6c7ac', '#9a8a70', '#5f5444']);
+    svg = restop(svg, 'poly', ['#a8845e', '#6a4a30']);
+    svg = recolor(svg, { '#26292e': '#6a5a48', '#44484f': '#8a7a62', '#2f3237': '#9a8a70' });
+    const inlay = (x, y, w) => `<rect x="${x}" y="${y}" width="${w}" height="5" rx="2" fill="${TURQUOISE}" stroke="#c9ced4" stroke-width=".8"/><path d="M${x + 1.5} ${y + 3} l${w / 3} -1.6 l${w / 3} 1.4" stroke="#1d6a70" stroke-width=".4" fill="none"/>`;
+    return decorate(svg, {
+      over: [
+        inlay(70, 50, 22), inlay(122, 50, 16), inlay(70, 84, 12),
+        `<path d="M62 62.6 H160" stroke="${CANYON}" stroke-width="1"/>`,
+      ].join('\n  '),
+    });
+  },
+
+  /* Rewind */
+  'van-rewind': async () => {
+    let svg = await load('van');
+    svg = restop(svg, 'paint', ['#3a3e45', '#1e2024', '#0d0e10', '#050505']);
+    svg = restop(svg, 'trim', ['#2a2d32', '#0d0e10']);
+    svg = restop(svg, 'decal', [MAGENTA, '#7a1aa0']);
+    svg = restop(svg, 'rust', [['#000000', 0], ['#000000', 0]]);
+    svg = restop(svg, 'glass', ['#5a3a6a', '#1a1024', '#07040a']);
+    svg = recolor(svg, { '#b8bcba': LIME });
+    return decorate(svg, {
+      defs: `<linearGradient id="sunset" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${LIME}"/><stop offset=".5" stop-color="#ffb627"/><stop offset="1" stop-color="${MAGENTA}"/></linearGradient>`,
+      over: [
+        // Racing stripes, magenta over lime.
+        `<path d="M12 72 H120 Q140 72 150 64 H246" stroke="${MAGENTA}" stroke-width="3.2" fill="none"/>`,
+        `<path d="M12 78 H122 Q144 78 154 70 H247" stroke="${LIME}" stroke-width="2" fill="none"/>`,
+        // A sunset decal and a bubble window.
+        '<g transform="translate(71 58)"><circle r="9" fill="url(#sunset)" stroke="#000" stroke-width=".8"/><path d="M-9 2 H9 M-8.4 4.4 H8.4 M-7 6.6 H7" stroke="#0d0e10" stroke-width="1.2"/></g>',
+        '<ellipse cx="136" cy="46" rx="16" ry="9" fill="url(#glass)" stroke="#0a0b0d" stroke-width="1.4"/><path d="M126 42 Q130 39 136 39" stroke="#ffffff" stroke-opacity=".45" stroke-width="1.6" fill="none" stroke-linecap="round"/>',
+      ].join('\n    '),
+    });
+  },
+  'thug-rewind': async () => {
+    let svg = await load('thug');
+    svg = repattern(svg, 'plaid', '<rect width="14" height="14" fill="#141416"/><path d="M0 0 H14" stroke="#2a2d32" stroke-width=".6"/>');
+    svg = restop(svg, 'tank', ['#ffffff', '#d9dde3']);
+    svg = restop(svg, 'band', ['#1b100a', '#0b0604']);
+    svg = restop(svg, 'lens', ['#ff9af0', '#2a0a36', MAGENTA]);
+    svg = recolor(svg, { '#e9fff0': '#3a2010', '#b5f5c5': '#3a2010', '#6ee095': '#ffffff' });
+    return decorate(svg, {
+      over: [
+        // Colour-block panels on the windbreaker.
+        `<path d="M14 108 Q20 96 32 92 L50 86 L54 94 L48 108 Z" fill="${MAGENTA}" stroke="#000" stroke-width="1"/>`,
+        `<path d="M114 108 Q108 96 96 92 L78 86 L74 94 L80 108 Z" fill="${LIME}" stroke="#000" stroke-width="1"/>`,
+        `<path d="M11 116 H47 M81 116 H117" stroke="${LIME}" stroke-width="3"/><path d="M11 120 H46 M82 120 H117" stroke="${MAGENTA}" stroke-width="2"/>`,
+        // A cassette on the chain.
+        '<rect x="57" y="95" width="14" height="9" rx="1.2" fill="#1e2024" stroke="#000" stroke-width=".8"/>',
+        `<rect x="59" y="96.4" width="10" height="3.6" rx=".6" fill="${MAGENTA}"/><circle cx="61.6" cy="101.6" r="1.2" fill="#d9dde3"/><circle cx="66.4" cy="101.6" r="1.2" fill="#d9dde3"/>`,
+      ].join('\n  '),
+    });
+  },
+  'hoe-rewind': async () => {
+    let svg = await load('hoe');
+    svg = hoeCoat(svg, ['#e2ff8a', LIME, '#7aa81a'], '<path d="M0 3.5 H7" stroke="#9acd2a" stroke-width=".3" opacity=".6"/>');
+    svg = recolor(svg, { '#5a060c': '#3a5208', '#17131a': '#16141c', '#3d3346': MAGENTA });
+    return decorate(svg, {
+      over: [
+        // Big shoulders.
+        `<path d="M10 98 Q16 82 34 84 Q46 86 48 92 Q34 90 22 98 Z" fill="${MAGENTA}" stroke="#000" stroke-width="1"/>`,
+        `<path d="M118 98 Q112 82 94 84 Q82 86 80 92 Q94 90 106 98 Z" fill="${MAGENTA}" stroke="#000" stroke-width="1"/>`,
+        // Zigzag across the top and a scrunchie on the side ponytail.
+        `<path d="M48 110 l4 -4 l4 4 l4 -4 l4 4 l4 -4 l4 4 l4 -4 l4 4" stroke="${LIME}" stroke-width="1.6" fill="none"/>`,
+        `<circle cx="98" cy="30" r="5" fill="${MAGENTA}" stroke="#000" stroke-width="1"/><path d="M95 28 q3 -2 6 0 M95 32 q3 2 6 0" stroke="#ff9af0" stroke-width=".8" fill="none"/>`,
+        `<path d="M44 72 v6 M84 72 v6" stroke="${LIME}" stroke-width="2.4" stroke-linecap="round"/>`,
+      ].join('\n  '),
+    });
+  },
+  'tek9-rewind': async () => {
+    let svg = await load('tek9');
+    svg = restop(svg, 'steel', ['#3a3e45', '#1e2024', '#0d0e10']);
+    svg = restop(svg, 'shroud', ['#2a2d32', '#141518', '#050505']);
+    svg = restop(svg, 'poly', ['#1e2024', '#0d0e10']);
+    return decorate(svg, {
+      over: [
+        `<path d="M168 45 L176 63 M180 45 L188 63" stroke="${MAGENTA}" stroke-width="3.4"/>`,
+        `<path d="M174 45 L182 63 M186 45 L194 63" stroke="${LIME}" stroke-width="2"/>`,
+        `<path d="M60 62.6 H158" stroke="${MAGENTA}" stroke-width="1.4"/><path d="M60 47.6 H158" stroke="${LIME}" stroke-width="1"/>`,
+        `<path d="M80 74 L94 74 M79 84 L92 84" stroke="${LIME}" stroke-width="1.6"/>`,
+      ].join('\n  '),
+    });
+  },
+
+  /* Snake Eyes */
+  'sedan-snake-eyes': async () => {
+    let svg = await load('sedan');
+    svg = restop(svg, 'paint', ['#4a4e56', '#1c1e22', '#0b0c0e', '#030304']);
+    svg = restop(svg, 'glass', ['#3a3e45', '#121417', '#050607']);
+    svg = recolor(svg, { '#5e4e35': '#000000', '#5a4a32': '#2a2d32', '#6e5c3e': '#2a2d32', '#c2ad85': IVORY, '#9aa2ab': '#c9ced4' });
+    return decorate(svg, {
+      over: [
+        `<path d="M24 76.4 Q130 72.9 238 75.4" stroke="${FELT}" stroke-width="1.8" fill="none"/>`,
+        `<path d="M24 79 Q130 75.5 238 78" stroke="${IVORY}" stroke-width=".6" fill="none"/>`,
+        // Card suits on the rear door.
+        suit('spade', 140, 86, IVORY), suit('heart', 151, 86, RUBY), suit('club', 162, 86, IVORY), suit('diamond', 116, 86, RUBY),
+        // Fuzzy dice on the mirror.
+        '<path d="M150 43 V48 M154 43 V50" stroke="#c9ced4" stroke-width=".6"/>',
+        die(146.5, 47.5, 6, 5, '#ffffff'), die(151.5, 49.5, 6, 6, '#ffffff'),
+        rings(SEDAN_WHEELS, `<circle r="11.4" stroke="${FELT}" stroke-width="1.6"/>`),
+        '<path d="M70 52 C92 40 116 37 132 37" stroke="#ffffff" stroke-opacity=".35" stroke-width="2.2" fill="none" stroke-linecap="round"/>',
+      ].join('\n    '),
+    });
+  },
+  'thug-snake-eyes': async () => {
+    let svg = await load('thug');
+    svg = repattern(svg, 'plaid', '<rect width="14" height="14" fill="#f6f3ea"/><path d="M0 9 Q7 7 14 9" stroke="#dcd6c6" stroke-width=".7" fill="none"/>');
+    svg = restop(svg, 'tank', ['#2a2d32', '#0b0c0e']);
+    svg = restop(svg, 'band', ['#1b100a', '#0b0604']);
+    svg = restop(svg, 'lens', ['#3a3e45', '#0b0c0e', '#2a2d32']);
+    svg = recolor(svg, { '#e9fff0': '#3a2010', '#b5f5c5': '#3a2010', '#6ee095': '#ffffff' });
+    return decorate(svg, {
+      over: [
+        // Waistcoat buttons, a red bow tie and sleeve garters.
+        `<g fill="${IVORY}"><circle cx="64" cy="106" r="1.2"/><circle cx="64" cy="113" r="1.2"/><circle cx="64" cy="120" r="1.2"/></g>`,
+        `<path d="M57 88 L64 91 L71 88 L71 95 L64 92 L57 95 Z" fill="${RUBY}" stroke="#5a0710" stroke-width=".8"/>`,
+        `<path d="M14 112 Q22 109 30 112 M98 112 Q106 109 114 112" stroke="${RUBY}" stroke-width="2.4" fill="none"/>`,
+        // The dealer's green visor.
+        `<path d="M42 44 Q64 34 86 44 L82 50 Q64 43 46 50 Z" fill="${FELT}" fill-opacity=".85" stroke="#0e3a22" stroke-width="1"/>`,
+        // A card in the pocket.
+        `<rect x="90" y="100" width="7" height="9" rx="1" fill="#ffffff" stroke="#000" stroke-width=".6" transform="rotate(10 93 104)"/>`,
+        suit('heart', 93.4, 104.6, RUBY, 0.45),
+      ].join('\n  '),
+    });
+  },
+  'hoe-snake-eyes': async () => {
+    let svg = await load('hoe');
+    svg = hoeCoat(svg, ['#4a4e56', '#16181c', '#050505'], '<circle cx="2" cy="2" r=".5" fill="#ffffff" opacity=".35"/><circle cx="5.5" cy="5" r=".4" fill="#ffffff" opacity=".25"/>');
+    svg = recolor(svg, { '#5a060c': '#000000', '#17131a': '#0b0c0e', '#3d3346': RUBY });
+    const chips = [RUBY, '#ffffff', FELT, RUBY, '#141416'].map((color, index) => `<ellipse cx="104" cy="${126 - index * 3}" rx="8" ry="2.6" fill="${color}" stroke="#000" stroke-width=".7"/>`).join('');
+    return decorate(svg, {
+      over: [
+        // Red suits on the sequin dress.
+        suit('heart', 58, 112, RUBY, 0.9), suit('diamond', 70, 118, RUBY, 0.9), suit('heart', 62, 128, RUBY, 0.8),
+        '<g fill="#ffffff" opacity=".5"><circle cx="54" cy="104" r=".6"/><circle cx="74" cy="108" r=".6"/><circle cx="66" cy="122" r=".6"/><circle cx="52" cy="124" r=".6"/></g>',
+        // A stack of chips.
+        chips,
+      ].join('\n  '),
+    });
+  },
+  'pistol-snake-eyes': async () => {
+    let svg = await load('pistol');
+    svg = restop(svg, 'slide', ['#4a4e56', '#1c1e22', '#0b0c0e']);
+    svg = restop(svg, 'grip', ['#fffaf0', IVORY, '#c9b994']);
+    svg = recolor(svg, { '#2a2d32': '#1c1e22' });
+    return decorate(svg, {
+      over: [
+        // A five face of dice pips on the grip.
+        '<g fill="#141416"><circle cx="34" cy="70" r="1.8"/><circle cx="48" cy="70" r="1.8"/><circle cx="40" cy="80" r="1.8"/><circle cx="32" cy="90" r="1.8"/><circle cx="46" cy="90" r="1.8"/></g>',
+        `<path d="M22 49.5 H111" stroke="${RUBY}" stroke-width="1.1"/>`,
+        suit('spade', 92, 46.5, IVORY, 0.8),
+      ].join('\n  '),
+    });
+  },
+});
+
 await mkdir(outDir, { recursive: true });
 for (const [name, recipe] of Object.entries(recipes)) {
   const svg = await recipe();

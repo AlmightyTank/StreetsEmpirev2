@@ -17,6 +17,7 @@ describe.runIf(process.env.STORE_INTEGRATION === '1')('store API with PostgreSQL
     app = await buildApp();
     const name = `store_${randomUUID().slice(0, 8)}`;
     const registered = await app.inject({ method: 'POST', url: '/api/auth/register', payload: {
+      ageConfirmed: true,
       username: name, email: `${name}@example.invalid`, password: randomUUID(),
     } });
     expect(registered.statusCode).toBe(201);

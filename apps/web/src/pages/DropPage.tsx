@@ -14,6 +14,7 @@ import type {
   ItemCosmeticStyleKey,
   StreetPassSkipQuoteDto,
 } from '@streets/shared';
+import { discountedDropPrice } from '@streets/rulesets';
 import { formatNumber } from '@streets/shared';
 import { dropApi } from '../api/drop.js';
 import { ApiError } from '../api/client.js';
@@ -217,7 +218,8 @@ function DropCard({ item, bundle, offer, items, collection, now, size = 'normal'
           {owned ? <span className="se-drop-card__owned-label">Owned</span> : (
             <span className="se-drop-card__price">
               <Crowns value={price} />
-              {bundle && bundle.yourPriceCrowns < bundle.listPriceCrowns ? <Crowns value={bundle.listPriceCrowns} strike /> : null}
+              {offer && offer.basePriceCrowns > offer.priceCrowns ? <Crowns value={offer.basePriceCrowns} strike />
+                : bundle && bundle.yourPriceCrowns < bundle.listPriceCrowns ? <Crowns value={bundle.listPriceCrowns} strike /> : null}
             </span>
           )}
           {soon ? <small className="se-drop-card__time">{formatWhen(offer!.startsAt)}</small> : null}
@@ -421,6 +423,11 @@ function ShopView() {
       </div>
 
       {data.wallet?.held ? <Alert tone="warning" title="Wallet on hold">{data.wallet.holdReason ?? 'Support is reviewing a payment.'} Spending is paused; your items are safe.</Alert> : null}
+      {data.discount?.reason === 'BIRTHDAY' ? (
+        <Alert tone="success" title="Happy birthday!">Everything in The Drop and every Street Pass skip is {data.discount.percent}% off until {formatWhen(data.discount.endsAt!)}. Crown packs aren't included.</Alert>
+      ) : data.discount ? (
+        <Alert tone="success" title="Supporter pricing">Thanks for supporting: every item, bundle and Street Pass skip is {data.discount.percent}% off while your membership is active.</Alert>
+      ) : null}
 
       {featuredGroups.map((group) => (
         <OfferSection
@@ -582,7 +589,8 @@ function ItemView() {
               <div key={offer.id} className="se-drop-buy__offer">
                 <div className="se-drop-buy__price">
                   <Crowns value={offer.priceCrowns} />
-                  {bundle && offer.priceCrowns < bundle.listPriceCrowns ? <Crowns value={bundle.listPriceCrowns} strike /> : null}
+                  {offer.basePriceCrowns > offer.priceCrowns ? <Crowns value={offer.basePriceCrowns} strike />
+                    : bundle && offer.priceCrowns < bundle.listPriceCrowns ? <Crowns value={bundle.listPriceCrowns} strike /> : null}
                   <small>{BADGE_LABEL[offer.badge]} · {offer.endsAt ? <>Leaves the shop in <b>{countdown(offer.endsAt, now)}</b></> : 'No end date'}</small>
                 </div>
                 {!signedIn ? <Link className="se-drop-purchase" to="/login">Sign in to buy</Link> : (
@@ -842,13 +850,14 @@ function PassView() {
   useEffect(() => { load(); }, [load]);
 
   const count = quote ? Math.max(1, Math.min(tiers, quote.remaining || 1)) : 1;
-  const price = quote ? skipPrice(count, quote.single, quote.tenPack) : 0;
+  const basePrice = quote ? skipPrice(count, quote.single, quote.tenPack) : 0;
+  const price = discountedDropPrice(basePrice, quote?.discount?.percent ?? 0);
 
   async function skip() {
     if (!quote) return;
     const ok = await confirmAction({
       title: `Skip ${count} Street Pass tier${count === 1 ? '' : 's'}?`,
-      body: `${formatNumber(price)} Crowns. You go from tier ${quote.tier} to tier ${quote.tier + count}, then claim each tier's rewards on the Street Pass as usual.`,
+      body: `${formatNumber(price)} Crowns${price < basePrice ? ` (${quote.discount?.reason === 'BIRTHDAY' ? 'birthday' : 'supporter'} price, was ${formatNumber(basePrice)})` : ''}. You go from tier ${quote.tier} to tier ${quote.tier + count}, then claim each tier's rewards on the Street Pass as usual.`,
       confirmLabel: `Skip for ${formatNumber(price)} Crowns`,
     });
     if (!ok) return;
@@ -873,7 +882,7 @@ function PassView() {
       {error ? <Alert>{error}</Alert> : null}
       {notice ? <Alert tone="success" title="Tiers skipped">{notice} <Link to="/game/street-pass">Open the Street Pass</Link></Alert> : null}
       {!quote ? (error ? null : <Panel title="Street Pass skips" loading>{null}</Panel>) : (
-        <Panel title="Skip Street Pass tiers" subtitle={`${formatNumber(quote.single)} Crowns a tier, or ${formatNumber(quote.tenPack)} for ten.`}>
+        <Panel title="Skip Street Pass tiers" subtitle={`${formatNumber(quote.single)} Crowns a tier, or ${formatNumber(quote.tenPack)} for ten.${quote.discount ? ` ${quote.discount.reason === 'BIRTHDAY' ? 'Birthday' : 'Supporter'} price: ${quote.discount.percent}% off.` : ''}`}>
           {!quote.enabled ? <Alert tone="info">Street Pass skips are not available right now.</Alert> : quote.remaining === 0 ? (
             <p>You've reached the last tier. Nothing left to skip.</p>
           ) : (
@@ -895,7 +904,7 @@ function PassView() {
                 </label>
               </div>
               <div className="se-drop-buy__offer">
-                <div><Crowns value={price} /><small>{count >= 10 ? 'Ten-pack price applied.' : `${10 - (count % 10)} more for the ten-pack price.`}</small></div>
+                <div>{price < basePrice ? <Crowns value={basePrice} strike /> : null}<Crowns value={price} /><small>{count >= 10 ? 'Ten-pack price applied.' : `${10 - (count % 10)} more for the ten-pack price.`}</small></div>
                 <Button variant="primary" loading={busy} disabledReason={(quote.balance ?? 0) < price ? `You need ${formatNumber(price - (quote.balance ?? 0))} more Crowns.` : null} onClick={() => void skip()}>
                   Skip for {formatNumber(price)}
                 </Button>

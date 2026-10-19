@@ -260,6 +260,8 @@ model AccountProfile {
   showCrewMoments         Boolean @default(false)
   /// 2.1.0-F. Account-private cosmetic milestone celebrations, off by default.
   showCrewCelebrations    Boolean @default(false)
+  /// Birthdays (docs/BIRTHDAYS.md). A cake on the name on the birthday itself. Opt-in, so off by default.
+  showBirthdayCake        Boolean @default(false)
   featuredBadgeKeys       Json    @default("[]")
   featuredLegacyEntryId   String?
   profileAccent           String  @default("default")

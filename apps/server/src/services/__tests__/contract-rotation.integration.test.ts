@@ -58,13 +58,13 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.4.0-B2 contract rotation
     const name = 'contracts_' + randomUUID().slice(0, 6);
     const registered = await app.inject({
       method: 'POST', url: '/api/auth/register',
-      payload: { username: name, email: name + '@example.invalid', password: randomUUID() },
+      payload: { ageConfirmed: true, username: name, email: name + '@example.invalid', password: randomUUID() },
     });
     accountId = registered.json().account.id;
     const mate = 'contracts_' + randomUUID().slice(0, 6);
     const teammate = await app.inject({
       method: 'POST', url: '/api/auth/register',
-      payload: { username: mate, email: mate + '@example.invalid', password: randomUUID() },
+      payload: { ageConfirmed: true, username: mate, email: mate + '@example.invalid', password: randomUUID() },
     });
     teammateId = teammate.json().account.id;
   });

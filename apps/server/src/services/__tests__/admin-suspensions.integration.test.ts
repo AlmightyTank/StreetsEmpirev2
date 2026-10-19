@@ -22,7 +22,7 @@ describe.runIf(process.env.ADMIN_INTEGRATION === '1')('Admin suspensions and pla
   async function register(label: string): Promise<Who> {
     const username = `${label}_${randomUUID().slice(0, 8)}`;
     const password = `Pw-${randomUUID()}`;
-    const response = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { username, email: `${username}@example.invalid`, password } });
+    const response = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { ageConfirmed: true, username, email: `${username}@example.invalid`, password } });
     expect(response.statusCode, response.body).toBe(201);
     const accountId = response.json().account.id as string;
     accountIds.push(accountId);

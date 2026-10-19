@@ -1,8 +1,11 @@
 # Supporter cosmetics
 
-Supporter rewards are cosmetic only. They never change stats, prices, cargo,
-seats, speed, ranking, visibility or combat (see "Never sell" in
-`ROADMAP-FUTURE.md`, section 1.9). Once granted they are permanent: there is
+Supporter rewards are cosmetic only. They never change stats, in-game prices,
+cargo, seats, speed, ranking, visibility or combat (see "Never sell" in
+`ROADMAP-FUTURE.md`, section 1.9). The one price perk is cosmetic too: while a
+membership is active and paid, The Drop charges 10% fewer Crowns for items,
+bundles and Street Pass skips (see "Supporter discount" in `THE-DROP.md`).
+Free trials don't get it. Once granted they are permanent: there is
 no revoke, and a player keeps them after they stop supporting.
 
 ## What a supporter gets

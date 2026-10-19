@@ -79,6 +79,90 @@ export const DROP_COLLECTIONS = {
     description: 'An urban winter operation: frosted glass, layered outerwear, icy road texture and city dusk.',
     accent: '#8fd3ff',
   },
+  'biscayne-sunset': {
+    key: 'biscayne-sunset',
+    name: 'Biscayne Sunset',
+    tagline: 'Pastel money on the waterfront.',
+    description: 'Eighties waterfront wealth: flamingo pink, sea-glass teal, white linen and deco hotel fronts at golden hour.',
+    accent: '#ff8fb1',
+  },
+  'velvet-speakeasy': {
+    key: 'velvet-speakeasy',
+    name: 'Velvet Speakeasy',
+    tagline: 'Knock twice. Ask for nobody.',
+    description: 'Prohibition nightlife: merlot velvet, cream silk, pewter fittings and cigar smoke behind a hidden door.',
+    accent: '#c2405c',
+  },
+  'platinum-funk': {
+    key: 'platinum-funk',
+    name: 'Platinum Funk',
+    tagline: 'Smooth as the seventies.',
+    description: 'Seventies street royalty: tangerine and chocolate, platinum trim, plush fur and a mirror-ball glow.',
+    accent: '#ff8a2a',
+  },
+  'redline-syndicate': {
+    key: 'redline-syndicate',
+    name: 'Redline Syndicate',
+    tagline: 'Meet at midnight. Leave at redline.',
+    description: 'Underground street racing: carbon fibre, signal red, race livery and light trails in a parking-garage meet.',
+    accent: '#ff3344',
+  },
+  'wet-paint': {
+    key: 'wet-paint',
+    name: 'Wet Paint',
+    tagline: 'Every wall is a canvas.',
+    description: 'Train-yard graffiti: bubble letters, chrome fills, spray drips and fresh mint paint that never quite dries.',
+    accent: '#36e2a0',
+  },
+  'hazard-cook': {
+    key: 'hazard-cook',
+    name: 'Hazard Cook',
+    tagline: 'Suit up. Seal the door.',
+    description: 'The cookhouse in full protection: hazmat yellow, brushed stainless steel and black warning stripes.',
+    accent: '#ffd400',
+  },
+  dockside: {
+    key: 'dockside',
+    name: 'Dockside',
+    tagline: 'Nothing on the manifest.',
+    description: 'The harbour after dark: navy steel, rust, safety orange and container cranes in the fog.',
+    accent: '#5b9bd5',
+  },
+  'crown-jewels': {
+    key: 'crown-jewels',
+    name: 'Crown Jewels',
+    tagline: 'Wear the currency.',
+    description: 'The flagship set named for Crowns: emerald, ruby and sapphire on platinum and royal velvet.',
+    accent: '#4a78ff',
+  },
+  'bayou-smoke': {
+    key: 'bayou-smoke',
+    name: 'Bayou Smoke',
+    tagline: 'Low water. Lower profile.',
+    description: 'Back-country swamp runs: moss green, cypress brown, gator hide and fireflies in the evening haze.',
+    accent: '#b6e05a',
+  },
+  'desert-mirage': {
+    key: 'desert-mirage',
+    name: 'Desert Mirage',
+    tagline: 'Heat on the horizon.',
+    description: 'A border run under a white sun: bleached sand, rust canyon, turquoise stone and heat shimmer.',
+    accent: '#3fc1c9',
+  },
+  rewind: {
+    key: 'rewind',
+    name: 'Rewind',
+    tagline: 'Pause. Rewind. Run it back.',
+    description: 'A tape from the eighties: magenta and lime on black, scan lines, tracking glitches and a glowing CRT.',
+    accent: '#e04bff',
+  },
+  'snake-eyes': {
+    key: 'snake-eyes',
+    name: 'Snake Eyes',
+    tagline: 'The house is always watching.',
+    description: 'A back-room card game: green felt, ivory dice, red and black card suits under a low lamp.',
+    accent: '#1fae6a',
+  },
 } as const satisfies Readonly<Record<string, DropCollectionDefinition>>;
 
 export type DropCollectionKey = keyof typeof DROP_COLLECTIONS;
@@ -102,7 +186,8 @@ function item(
 }
 
 /**
- * The launch catalogue: three collections, seven or eight SKUs each. Item looks are
+ * The catalogue: the three launch collections and twelve more, seven or eight SKUs
+ * each. Item looks are
  * partial-coverage collections (see COLLECTION_COVERAGE in @streets/shared),
  * so each SKU is one style key that dresses only the items it names.
  */
@@ -220,6 +305,483 @@ const ITEMS: readonly DropItemDefinition[] = [
     kind: 'TITLE_BADGE', rarity: 'uncommon', category: 'PROFILES', priceCrowns: 200,
     preview: { type: 'TITLE', title: 'Cold Case' },
   }),
+  // Biscayne Sunset
+  item('biscayne-sunset', 'sedan', {
+    name: 'Biscayne Sunset Sedan', description: 'A white convertible look with a flamingo pinstripe, teal interior and whitewall tyres. A Sedan look only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'VEHICLES', priceCrowns: 800, styleKey: 'biscayne-sunset-sedan',
+    preview: { type: 'ITEM', items: ['SEDAN'] }, dresses: 'SEDAN',
+  }),
+  item('biscayne-sunset', 'thug', {
+    name: 'Biscayne Sunset Thug', description: 'A white linen suit over a pastel tee, sleeves pushed up, loafers and no socks. A Thug outfit only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'CREW', priceCrowns: 700, styleKey: 'biscayne-sunset-thug',
+    preview: { type: 'ITEM', items: ['THUG'] }, dresses: 'THUG',
+  }),
+  item('biscayne-sunset', 'hoe', {
+    name: 'Biscayne Sunset Hoe', description: 'A sea-glass teal sequin dress under a palm-print wrap, with big white sunglasses. A Hoe outfit only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'CREW', priceCrowns: 700, styleKey: 'biscayne-sunset-hoe',
+    preview: { type: 'ITEM', items: ['HOE'] }, dresses: 'HOE',
+  }),
+  item('biscayne-sunset', 'pistol', {
+    name: 'Biscayne Sunset Pistol', description: 'A polished slide with a pearl grip and a flamingo inlay. A visual finish only; it never gives you a pistol or the right to buy one.',
+    kind: 'ITEM_COLLECTION', rarity: 'rare', category: 'WEAPONS', priceCrowns: 550, styleKey: 'biscayne-sunset-pistol',
+    preview: { type: 'ITEM', items: ['PISTOL'] }, dresses: 'PISTOL',
+  }),
+  item('biscayne-sunset', 'frame', {
+    name: 'Biscayne Sunset Frame', description: 'A flamingo-pink and teal deco ring for the profile and avatar.',
+    kind: 'PROFILE_FRAME', rarity: 'epic', category: 'PROFILES', priceCrowns: 450, styleKey: 'biscayne-sunset-frame',
+    preview: { type: 'FRAME' },
+  }),
+  item('biscayne-sunset', 'accent', {
+    name: 'Flamingo Pink Accent', description: 'A flamingo-pink profile and banner accent.',
+    kind: 'ACCENT', rarity: 'rare', category: 'SHELLS', priceCrowns: 300, styleKey: 'biscayne-flamingo',
+    preview: { type: 'ACCENT', color: '#ff8fb1' },
+  }),
+  item('biscayne-sunset', 'shell', {
+    name: 'Biscayne Sunset Shell', description: 'The whole game on the waterfront: pastel panels, teal controls, deco hotel fronts and palms swaying at sunset.',
+    kind: 'SITE_THEME', rarity: 'legendary', category: 'SHELLS', priceCrowns: 1200, styleKey: 'biscayne-sunset-shell',
+    preview: { type: 'THEME' },
+  }),
+  item('biscayne-sunset', 'title', {
+    name: 'Ocean Drive', description: 'A Biscayne Sunset title. Wear it as a title or feature it as a badge.',
+    kind: 'TITLE_BADGE', rarity: 'uncommon', category: 'PROFILES', priceCrowns: 200,
+    preview: { type: 'TITLE', title: 'Ocean Drive' },
+  }),
+  // Velvet Speakeasy
+  item('velvet-speakeasy', 'sedan', {
+    name: 'Velvet Speakeasy Sedan', description: 'A vintage sedan with running boards, a merlot body, cream whitewalls and pewter trim. A Sedan look only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'VEHICLES', priceCrowns: 850, styleKey: 'velvet-speakeasy-sedan',
+    preview: { type: 'ITEM', items: ['SEDAN'] }, dresses: 'SEDAN',
+  }),
+  item('velvet-speakeasy', 'thug', {
+    name: 'Velvet Speakeasy Thug', description: 'A charcoal pinstripe three-piece, a merlot tie and a pewter-banded fedora. A Thug outfit only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'CREW', priceCrowns: 700, styleKey: 'velvet-speakeasy-thug',
+    preview: { type: 'ITEM', items: ['THUG'] }, dresses: 'THUG',
+  }),
+  item('velvet-speakeasy', 'hoe', {
+    name: 'Velvet Speakeasy Hoe', description: 'A beaded cream flapper dress, a long pearl strand and a feathered headband. A Hoe outfit only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'CREW', priceCrowns: 700, styleKey: 'velvet-speakeasy-hoe',
+    preview: { type: 'ITEM', items: ['HOE'] }, dresses: 'HOE',
+  }),
+  item('velvet-speakeasy', 'ak47', {
+    name: 'Velvet Speakeasy AK-47', description: 'Walnut furniture, a drum magazine and pewter fittings. A visual finish only; it never gives you an AK-47 or the right to buy one.',
+    kind: 'ITEM_COLLECTION', rarity: 'rare', category: 'WEAPONS', priceCrowns: 600, styleKey: 'velvet-speakeasy-ak47',
+    preview: { type: 'ITEM', items: ['AK47'] }, dresses: 'AK47',
+  }),
+  item('velvet-speakeasy', 'frame', {
+    name: 'Velvet Speakeasy Frame', description: 'A velvet-rope ring on pewter posts for the profile and avatar.',
+    kind: 'PROFILE_FRAME', rarity: 'epic', category: 'PROFILES', priceCrowns: 450, styleKey: 'velvet-speakeasy-frame',
+    preview: { type: 'FRAME' },
+  }),
+  item('velvet-speakeasy', 'accent', {
+    name: 'Merlot Velvet Accent', description: 'A deep merlot profile and banner accent.',
+    kind: 'ACCENT', rarity: 'rare', category: 'SHELLS', priceCrowns: 350, styleKey: 'speakeasy-merlot',
+    preview: { type: 'ACCENT', color: '#c2405c' },
+  }),
+  item('velvet-speakeasy', 'shell', {
+    name: 'Velvet Speakeasy Shell', description: 'The whole game behind the hidden door: merlot velvet panels, pewter controls, a sliding bookcase and cigar smoke drifting past the gramophone.',
+    kind: 'SITE_THEME', rarity: 'legendary', category: 'SHELLS', priceCrowns: 1250, styleKey: 'velvet-speakeasy-shell',
+    preview: { type: 'THEME' },
+  }),
+  item('velvet-speakeasy', 'title', {
+    name: 'Bootlegger', description: 'A Velvet Speakeasy title. Wear it as a title or feature it as a badge.',
+    kind: 'TITLE_BADGE', rarity: 'rare', category: 'PROFILES', priceCrowns: 250,
+    preview: { type: 'TITLE', title: 'Bootlegger' },
+  }),
+  // Platinum Funk
+  item('platinum-funk', 'low-rider', {
+    name: 'Platinum Funk Low-Rider', description: 'A long-hood cruiser in chocolate and tangerine with a fur dash, platinum trim and whitewalls. A Low-Rider look only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'VEHICLES', priceCrowns: 850, styleKey: 'platinum-funk-low-rider',
+    preview: { type: 'ITEM', items: ['LOW_RIDER'] }, dresses: 'LOW_RIDER',
+  }),
+  item('platinum-funk', 'thug', {
+    name: 'Platinum Funk Thug', description: 'A wide-lapel tangerine suit, a patterned shirt open at the collar and a platinum chain. A Thug outfit only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'CREW', priceCrowns: 700, styleKey: 'platinum-funk-thug',
+    preview: { type: 'ITEM', items: ['THUG'] }, dresses: 'THUG',
+  }),
+  item('platinum-funk', 'hoe', {
+    name: 'Platinum Funk Hoe', description: 'A plush white fur coat over a platinum disco jumpsuit. A Hoe outfit only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'CREW', priceCrowns: 700, styleKey: 'platinum-funk-hoe',
+    preview: { type: 'ITEM', items: ['HOE'] }, dresses: 'HOE',
+  }),
+  item('platinum-funk', 'frame', {
+    name: 'Platinum Funk Frame', description: 'A mirror-ball ring that throws slow flecks of light. The flecks hold still under reduced motion.',
+    kind: 'PROFILE_FRAME', rarity: 'epic', category: 'PROFILES', priceCrowns: 450, styleKey: 'platinum-funk-frame',
+    preview: { type: 'FRAME' },
+  }),
+  item('platinum-funk', 'accent', {
+    name: 'Tangerine Funk Accent', description: 'A warm tangerine profile and banner accent.',
+    kind: 'ACCENT', rarity: 'rare', category: 'SHELLS', priceCrowns: 350, styleKey: 'funk-tangerine',
+    preview: { type: 'ACCENT', color: '#ff8a2a' },
+  }),
+  item('platinum-funk', 'shell', {
+    name: 'Platinum Funk Shell', description: 'The whole game on the roller-disco floor: chocolate panels, tangerine controls, sunburst stripes and a mirror ball turning overhead.',
+    kind: 'SITE_THEME', rarity: 'legendary', category: 'SHELLS', priceCrowns: 1250, styleKey: 'platinum-funk-shell',
+    preview: { type: 'THEME' },
+  }),
+  item('platinum-funk', 'title', {
+    name: 'Funk Royalty', description: 'A Platinum Funk title. Wear it as a title or feature it as a badge.',
+    kind: 'TITLE_BADGE', rarity: 'rare', category: 'PROFILES', priceCrowns: 250,
+    preview: { type: 'TITLE', title: 'Funk Royalty' },
+  }),
+  // Redline Syndicate
+  item('redline-syndicate', 'sedan', {
+    name: 'Redline Syndicate Sedan', description: 'A widebody kit, a carbon rear wing, red race livery and a number on the door. A Sedan look only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'VEHICLES', priceCrowns: 850, styleKey: 'redline-syndicate-sedan',
+    preview: { type: 'ITEM', items: ['SEDAN'] }, dresses: 'SEDAN',
+  }),
+  item('redline-syndicate', 'thug', {
+    name: 'Redline Syndicate Thug', description: 'A carbon-black racing jacket covered in sponsor-style patches, with red shoulder stripes. A Thug outfit only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'CREW', priceCrowns: 700, styleKey: 'redline-syndicate-thug',
+    preview: { type: 'ITEM', items: ['THUG'] }, dresses: 'THUG',
+  }),
+  item('redline-syndicate', 'hoe', {
+    name: 'Redline Syndicate Hoe', description: 'A red and white pit-crew jumpsuit with a headset and fingerless gloves. A Hoe outfit only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'CREW', priceCrowns: 700, styleKey: 'redline-syndicate-hoe',
+    preview: { type: 'ITEM', items: ['HOE'] }, dresses: 'HOE',
+  }),
+  item('redline-syndicate', 'ak47', {
+    name: 'Redline Syndicate AK-47', description: 'Carbon-fibre furniture with signal-red trim. A visual finish only; it never gives you an AK-47 or the right to buy one.',
+    kind: 'ITEM_COLLECTION', rarity: 'rare', category: 'WEAPONS', priceCrowns: 600, styleKey: 'redline-syndicate-ak47',
+    preview: { type: 'ITEM', items: ['AK47'] }, dresses: 'AK47',
+  }),
+  item('redline-syndicate', 'frame', {
+    name: 'Redline Syndicate Frame', description: 'A tachometer ring whose needle sweeps up to the redline. The needle holds still under reduced motion.',
+    kind: 'PROFILE_FRAME', rarity: 'epic', category: 'PROFILES', priceCrowns: 450, styleKey: 'redline-syndicate-frame',
+    preview: { type: 'FRAME' },
+  }),
+  item('redline-syndicate', 'accent', {
+    name: 'Redline Red Accent', description: 'A signal-red profile and banner accent.',
+    kind: 'ACCENT', rarity: 'rare', category: 'SHELLS', priceCrowns: 350, styleKey: 'redline-red',
+    preview: { type: 'ACCENT', color: '#ff3344' },
+  }),
+  item('redline-syndicate', 'shell', {
+    name: 'Redline Syndicate Shell', description: 'The whole game at the midnight meet: carbon panels, red controls, light trails and tyre smoke under the parking-garage lights.',
+    kind: 'SITE_THEME', rarity: 'legendary', category: 'SHELLS', priceCrowns: 1250, styleKey: 'redline-syndicate-shell',
+    preview: { type: 'THEME' },
+  }),
+  item('redline-syndicate', 'title', {
+    name: 'Redline', description: 'A Redline Syndicate title. Wear it as a title or feature it as a badge.',
+    kind: 'TITLE_BADGE', rarity: 'rare', category: 'PROFILES', priceCrowns: 250,
+    preview: { type: 'TITLE', title: 'Redline' },
+  }),
+  // Wet Paint
+  item('wet-paint', 'low-rider', {
+    name: 'Wet Paint Low-Rider', description: 'A full mural paint job: mint and chrome bubble letters with drips running down the doors. A Low-Rider look only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'VEHICLES', priceCrowns: 800, styleKey: 'wet-paint-low-rider',
+    preview: { type: 'ITEM', items: ['LOW_RIDER'] }, dresses: 'LOW_RIDER',
+  }),
+  item('wet-paint', 'thug', {
+    name: 'Wet Paint Thug', description: 'A paint-splattered black hoodie and a respirator pushed up on the head. A Thug outfit only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'CREW', priceCrowns: 650, styleKey: 'wet-paint-thug',
+    preview: { type: 'ITEM', items: ['THUG'] }, dresses: 'THUG',
+  }),
+  item('wet-paint', 'hoe', {
+    name: 'Wet Paint Hoe', description: 'A tagged denim jacket over a mint crop top, with spray-can hoop earrings. A Hoe outfit only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'CREW', priceCrowns: 650, styleKey: 'wet-paint-hoe',
+    preview: { type: 'ITEM', items: ['HOE'] }, dresses: 'HOE',
+  }),
+  item('wet-paint', 'pistol', {
+    name: 'Wet Paint Pistol', description: 'A mint drip finish over chrome, with a tag on the slide. A visual finish only; it never gives you a pistol or the right to buy one.',
+    kind: 'ITEM_COLLECTION', rarity: 'rare', category: 'WEAPONS', priceCrowns: 550, styleKey: 'wet-paint-pistol',
+    preview: { type: 'ITEM', items: ['PISTOL'] }, dresses: 'PISTOL',
+  }),
+  item('wet-paint', 'frame', {
+    name: 'Wet Paint Frame', description: 'A ring of spray paint with a drip that slowly runs. The drip holds still under reduced motion.',
+    kind: 'PROFILE_FRAME', rarity: 'epic', category: 'PROFILES', priceCrowns: 450, styleKey: 'wet-paint-frame',
+    preview: { type: 'FRAME' },
+  }),
+  item('wet-paint', 'accent', {
+    name: 'Spray Mint Accent', description: 'A fresh spray-mint profile and banner accent.',
+    kind: 'ACCENT', rarity: 'rare', category: 'SHELLS', priceCrowns: 300, styleKey: 'wet-paint-mint',
+    preview: { type: 'ACCENT', color: '#36e2a0' },
+  }),
+  item('wet-paint', 'shell', {
+    name: 'Wet Paint Shell', description: 'The whole game in the train yard: concrete panels, mint controls and a wall of tags with a fresh piece slowly filling in.',
+    kind: 'SITE_THEME', rarity: 'legendary', category: 'SHELLS', priceCrowns: 1200, styleKey: 'wet-paint-shell',
+    preview: { type: 'THEME' },
+  }),
+  item('wet-paint', 'title', {
+    name: 'All City', description: 'A Wet Paint title. Wear it as a title or feature it as a badge.',
+    kind: 'TITLE_BADGE', rarity: 'uncommon', category: 'PROFILES', priceCrowns: 200,
+    preview: { type: 'TITLE', title: 'All City' },
+  }),
+  // Hazard Cook
+  item('hazard-cook', 'van', {
+    name: 'Hazard Cook Van', description: 'A lab van in hazmat yellow with warning stripes, a roof vent stack and drums strapped to the back. A Van look only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'VEHICLES', priceCrowns: 800, styleKey: 'hazard-cook-van',
+    preview: { type: 'ITEM', items: ['VAN'] }, dresses: 'VAN',
+  }),
+  item('hazard-cook', 'crew', {
+    name: 'Hazard Cook Crew Set', description: 'Sealed hazmat suits with respirators and taped gloves for both crew types.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'CREW', priceCrowns: 900, styleKey: 'hazard-cook-crew',
+    preview: { type: 'ITEM', items: ['THUG', 'HOE'] }, dresses: 'THUG',
+  }),
+  item('hazard-cook', 'shotgun', {
+    name: 'Hazard Cook Shotgun', description: 'Brushed stainless steel wrapped in black and yellow hazard tape. A visual finish only; it never gives you a shotgun or the right to buy one.',
+    kind: 'ITEM_COLLECTION', rarity: 'rare', category: 'WEAPONS', priceCrowns: 550, styleKey: 'hazard-cook-shotgun',
+    preview: { type: 'ITEM', items: ['SHOTGUN'] }, dresses: 'SHOTGUN',
+  }),
+  item('hazard-cook', 'frame', {
+    name: 'Hazard Cook Frame', description: 'A black and yellow hazard-stripe ring for the profile and avatar.',
+    kind: 'PROFILE_FRAME', rarity: 'epic', category: 'PROFILES', priceCrowns: 450, styleKey: 'hazard-cook-frame',
+    preview: { type: 'FRAME' },
+  }),
+  item('hazard-cook', 'accent', {
+    name: 'Hazard Yellow Accent', description: 'A warning-yellow profile and banner accent.',
+    kind: 'ACCENT', rarity: 'rare', category: 'SHELLS', priceCrowns: 300, styleKey: 'hazard-yellow',
+    preview: { type: 'ACCENT', color: '#ffd400' },
+  }),
+  item('hazard-cook', 'shell', {
+    name: 'Hazard Cook Shell', description: 'The whole game in the cookhouse: stainless panels, hazard-yellow controls and a desert lab at dusk with flasks bubbling under a work lamp.',
+    kind: 'SITE_THEME', rarity: 'legendary', category: 'SHELLS', priceCrowns: 1200, styleKey: 'hazard-cook-shell',
+    preview: { type: 'THEME' },
+  }),
+  item('hazard-cook', 'title', {
+    name: 'The Chemist', description: 'A Hazard Cook title. Wear it as a title or feature it as a badge.',
+    kind: 'TITLE_BADGE', rarity: 'rare', category: 'PROFILES', priceCrowns: 250,
+    preview: { type: 'TITLE', title: 'The Chemist' },
+  }),
+  // Dockside
+  item('dockside', 'van', {
+    name: 'Dockside Van', description: 'A box van in shipping-container livery: corrugated navy panels, rust streaks and an orange stencil. A Van look only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'VEHICLES', priceCrowns: 800, styleKey: 'dockside-van',
+    preview: { type: 'ITEM', items: ['VAN'] }, dresses: 'VAN',
+  }),
+  item('dockside', 'thug', {
+    name: 'Dockside Thug', description: 'A navy peacoat with the collar up and a ribbed watch cap. A Thug outfit only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'CREW', priceCrowns: 700, styleKey: 'dockside-thug',
+    preview: { type: 'ITEM', items: ['THUG'] }, dresses: 'THUG',
+  }),
+  item('dockside', 'hoe', {
+    name: 'Dockside Hoe', description: 'A safety-orange longshore jacket over navy work overalls and steel-toe boots. A Hoe outfit only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'CREW', priceCrowns: 700, styleKey: 'dockside-hoe',
+    preview: { type: 'ITEM', items: ['HOE'] }, dresses: 'HOE',
+  }),
+  item('dockside', 'ak47', {
+    name: 'Dockside AK-47', description: 'A weathered finish with salt-pitted steel and rope-wrapped furniture. A visual finish only; it never gives you an AK-47 or the right to buy one.',
+    kind: 'ITEM_COLLECTION', rarity: 'rare', category: 'WEAPONS', priceCrowns: 600, styleKey: 'dockside-ak47',
+    preview: { type: 'ITEM', items: ['AK47'] }, dresses: 'AK47',
+  }),
+  item('dockside', 'frame', {
+    name: 'Dockside Frame', description: 'An anchor-chain ring lashed with rope for the profile and avatar.',
+    kind: 'PROFILE_FRAME', rarity: 'epic', category: 'PROFILES', priceCrowns: 450, styleKey: 'dockside-frame',
+    preview: { type: 'FRAME' },
+  }),
+  item('dockside', 'accent', {
+    name: 'Harbour Blue Accent', description: 'A harbour-blue profile and banner accent.',
+    kind: 'ACCENT', rarity: 'rare', category: 'SHELLS', priceCrowns: 300, styleKey: 'dockside-harbor',
+    preview: { type: 'ACCENT', color: '#5b9bd5' },
+  }),
+  item('dockside', 'shell', {
+    name: 'Dockside Shell', description: 'The whole game on the docks: navy steel panels, safety-orange controls, container cranes and a searchlight sweeping slowly through the fog.',
+    kind: 'SITE_THEME', rarity: 'legendary', category: 'SHELLS', priceCrowns: 1200, styleKey: 'dockside-shell',
+    preview: { type: 'THEME' },
+  }),
+  item('dockside', 'title', {
+    name: 'Off the Books', description: 'A Dockside title. Wear it as a title or feature it as a badge.',
+    kind: 'TITLE_BADGE', rarity: 'uncommon', category: 'PROFILES', priceCrowns: 200,
+    preview: { type: 'TITLE', title: 'Off the Books' },
+  }),
+  // Crown Jewels
+  item('crown-jewels', 'sedan', {
+    name: 'Crown Jewels Sedan', description: 'An armoured state car in royal sapphire with a jewelled grille, platinum trim and a crown on the hood. A Sedan look only.',
+    kind: 'ITEM_COLLECTION', rarity: 'legendary', category: 'VEHICLES', priceCrowns: 1000, styleKey: 'crown-jewels-sedan',
+    preview: { type: 'ITEM', items: ['SEDAN'] }, dresses: 'SEDAN',
+  }),
+  item('crown-jewels', 'crew', {
+    name: 'Crown Jewels Crew Set', description: 'An ermine-collared sapphire coat with a jewelled chain, and a ruby-studded emerald gown with a tiara.',
+    kind: 'ITEM_COLLECTION', rarity: 'legendary', category: 'CREW', priceCrowns: 1000, styleKey: 'crown-jewels-crew',
+    preview: { type: 'ITEM', items: ['THUG', 'HOE'] }, dresses: 'THUG',
+  }),
+  item('crown-jewels', 'ak47', {
+    name: 'Crown Jewels AK-47', description: 'Platinum with emerald, ruby and sapphire inlays. A visual finish only; it never gives you an AK-47 or the right to buy one.',
+    kind: 'ITEM_COLLECTION', rarity: 'rare', category: 'WEAPONS', priceCrowns: 650, styleKey: 'crown-jewels-ak47',
+    preview: { type: 'ITEM', items: ['AK47'] }, dresses: 'AK47',
+  }),
+  item('crown-jewels', 'frame', {
+    name: 'Crown Jewels Frame', description: 'A platinum crown ring whose emerald, ruby and sapphire glint in turn. The glints hold still under reduced motion.',
+    kind: 'PROFILE_FRAME', rarity: 'epic', category: 'PROFILES', priceCrowns: 500, styleKey: 'crown-jewels-frame',
+    preview: { type: 'FRAME' },
+  }),
+  item('crown-jewels', 'accent', {
+    name: 'Sapphire Accent', description: 'A royal sapphire profile and banner accent.',
+    kind: 'ACCENT', rarity: 'rare', category: 'SHELLS', priceCrowns: 350, styleKey: 'jewel-sapphire',
+    preview: { type: 'ACCENT', color: '#4a78ff' },
+  }),
+  item('crown-jewels', 'shell', {
+    name: 'Crown Jewels Shell', description: 'The whole game in the treasury: velvet panels, platinum controls and a vault of jewels glittering behind the open door.',
+    kind: 'SITE_THEME', rarity: 'legendary', category: 'SHELLS', priceCrowns: 1350, styleKey: 'crown-jewels-shell',
+    preview: { type: 'THEME' },
+  }),
+  item('crown-jewels', 'title', {
+    name: 'Crowned', description: 'A Crown Jewels title. Wear it as a title or feature it as a badge.',
+    kind: 'TITLE_BADGE', rarity: 'rare', category: 'PROFILES', priceCrowns: 250,
+    preview: { type: 'TITLE', title: 'Crowned' },
+  }),
+  // Bayou Smoke
+  item('bayou-smoke', 'van', {
+    name: 'Bayou Smoke Van', description: 'A mud-caked moss-green swamp van with a roof rack, a winch and Spanish moss hanging off the mirrors. A Van look only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'VEHICLES', priceCrowns: 800, styleKey: 'bayou-smoke-van',
+    preview: { type: 'ITEM', items: ['VAN'] }, dresses: 'VAN',
+  }),
+  item('bayou-smoke', 'thug', {
+    name: 'Bayou Smoke Thug', description: 'A waxed moss-green field jacket, chest waders and a gator-tooth necklace. A Thug outfit only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'CREW', priceCrowns: 700, styleKey: 'bayou-smoke-thug',
+    preview: { type: 'ITEM', items: ['THUG'] }, dresses: 'THUG',
+  }),
+  item('bayou-smoke', 'hoe', {
+    name: 'Bayou Smoke Hoe', description: 'A cypress-brown linen dress, gator-hide boots and a firefly charm bracelet. A Hoe outfit only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'CREW', priceCrowns: 700, styleKey: 'bayou-smoke-hoe',
+    preview: { type: 'ITEM', items: ['HOE'] }, dresses: 'HOE',
+  }),
+  item('bayou-smoke', 'shotgun', {
+    name: 'Bayou Smoke Shotgun', description: 'Cypress-wood furniture with a gator-hide wrap on the grip. A visual finish only; it never gives you a shotgun or the right to buy one.',
+    kind: 'ITEM_COLLECTION', rarity: 'rare', category: 'WEAPONS', priceCrowns: 550, styleKey: 'bayou-smoke-shotgun',
+    preview: { type: 'ITEM', items: ['SHOTGUN'] }, dresses: 'SHOTGUN',
+  }),
+  item('bayou-smoke', 'frame', {
+    name: 'Bayou Smoke Frame', description: 'A ring of twisted cypress with fireflies drifting around it. The fireflies hold still under reduced motion.',
+    kind: 'PROFILE_FRAME', rarity: 'epic', category: 'PROFILES', priceCrowns: 450, styleKey: 'bayou-smoke-frame',
+    preview: { type: 'FRAME' },
+  }),
+  item('bayou-smoke', 'accent', {
+    name: 'Firefly Green Accent', description: 'A glowing firefly-green profile and banner accent.',
+    kind: 'ACCENT', rarity: 'rare', category: 'SHELLS', priceCrowns: 300, styleKey: 'bayou-firefly',
+    preview: { type: 'ACCENT', color: '#b6e05a' },
+  }),
+  item('bayou-smoke', 'shell', {
+    name: 'Bayou Smoke Shell', description: 'The whole game deep in the swamp: moss panels, firefly-green controls, cypress knees in the water and fireflies drifting through the haze.',
+    kind: 'SITE_THEME', rarity: 'legendary', category: 'SHELLS', priceCrowns: 1200, styleKey: 'bayou-smoke-shell',
+    preview: { type: 'THEME' },
+  }),
+  item('bayou-smoke', 'title', {
+    name: 'Swamp King', description: 'A Bayou Smoke title. Wear it as a title or feature it as a badge.',
+    kind: 'TITLE_BADGE', rarity: 'uncommon', category: 'PROFILES', priceCrowns: 200,
+    preview: { type: 'TITLE', title: 'Swamp King' },
+  }),
+  // Desert Mirage
+  item('desert-mirage', 'low-rider', {
+    name: 'Desert Mirage Low-Rider', description: 'A sun-bleached sand cruiser with rust-canyon fades, turquoise pinstripes and dust on the sills. A Low-Rider look only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'VEHICLES', priceCrowns: 850, styleKey: 'desert-mirage-low-rider',
+    preview: { type: 'ITEM', items: ['LOW_RIDER'] }, dresses: 'LOW_RIDER',
+  }),
+  item('desert-mirage', 'thug', {
+    name: 'Desert Mirage Thug', description: 'A long sand duster, a rust bandana and a turquoise bolo tie. A Thug outfit only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'CREW', priceCrowns: 700, styleKey: 'desert-mirage-thug',
+    preview: { type: 'ITEM', items: ['THUG'] }, dresses: 'THUG',
+  }),
+  item('desert-mirage', 'hoe', {
+    name: 'Desert Mirage Hoe', description: 'A fringed suede jacket over a rust slip dress, with stacked turquoise jewellery. A Hoe outfit only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'CREW', priceCrowns: 700, styleKey: 'desert-mirage-hoe',
+    preview: { type: 'ITEM', items: ['HOE'] }, dresses: 'HOE',
+  }),
+  item('desert-mirage', 'tek9', {
+    name: 'Desert Mirage Tek-9', description: 'A sandblasted finish with turquoise stone inlays. A visual finish only; it never gives you a Tek-9 or the right to buy one.',
+    kind: 'ITEM_COLLECTION', rarity: 'rare', category: 'WEAPONS', priceCrowns: 600, styleKey: 'desert-mirage-tek9',
+    preview: { type: 'ITEM', items: ['TEK9'] }, dresses: 'TEK9',
+  }),
+  item('desert-mirage', 'frame', {
+    name: 'Desert Mirage Frame', description: 'A sandstone ring set with turquoise, with heat shimmer rising off it. The shimmer holds still under reduced motion.',
+    kind: 'PROFILE_FRAME', rarity: 'epic', category: 'PROFILES', priceCrowns: 450, styleKey: 'desert-mirage-frame',
+    preview: { type: 'FRAME' },
+  }),
+  item('desert-mirage', 'accent', {
+    name: 'Turquoise Stone Accent', description: 'A turquoise-stone profile and banner accent.',
+    kind: 'ACCENT', rarity: 'rare', category: 'SHELLS', priceCrowns: 350, styleKey: 'mirage-turquoise',
+    preview: { type: 'ACCENT', color: '#3fc1c9' },
+  }),
+  item('desert-mirage', 'shell', {
+    name: 'Desert Mirage Shell', description: 'The whole game on a border run: sand panels, turquoise controls, red mesas under a white sun and heat shimmer on the road.',
+    kind: 'SITE_THEME', rarity: 'legendary', category: 'SHELLS', priceCrowns: 1250, styleKey: 'desert-mirage-shell',
+    preview: { type: 'THEME' },
+  }),
+  item('desert-mirage', 'title', {
+    name: 'Dust Devil', description: 'A Desert Mirage title. Wear it as a title or feature it as a badge.',
+    kind: 'TITLE_BADGE', rarity: 'rare', category: 'PROFILES', priceCrowns: 250,
+    preview: { type: 'TITLE', title: 'Dust Devil' },
+  }),
+  // Rewind
+  item('rewind', 'van', {
+    name: 'Rewind Van', description: 'A black conversion van with magenta and lime racing stripes, a sunset decal and a bubble window. A Van look only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'VEHICLES', priceCrowns: 800, styleKey: 'rewind-van',
+    preview: { type: 'ITEM', items: ['VAN'] }, dresses: 'VAN',
+  }),
+  item('rewind', 'thug', {
+    name: 'Rewind Thug', description: 'A colour-block windbreaker in magenta, lime and black, with a cassette on a chain. A Thug outfit only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'CREW', priceCrowns: 700, styleKey: 'rewind-thug',
+    preview: { type: 'ITEM', items: ['THUG'] }, dresses: 'THUG',
+  }),
+  item('rewind', 'hoe', {
+    name: 'Rewind Hoe', description: 'A lime and magenta jacket with big shoulders, leg warmers and a side ponytail. A Hoe outfit only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'CREW', priceCrowns: 700, styleKey: 'rewind-hoe',
+    preview: { type: 'ITEM', items: ['HOE'] }, dresses: 'HOE',
+  }),
+  item('rewind', 'tek9', {
+    name: 'Rewind Tek-9', description: 'Black with magenta and lime tape stripes. A visual finish only; it never gives you a Tek-9 or the right to buy one.',
+    kind: 'ITEM_COLLECTION', rarity: 'rare', category: 'WEAPONS', priceCrowns: 550, styleKey: 'rewind-tek9',
+    preview: { type: 'ITEM', items: ['TEK9'] }, dresses: 'TEK9',
+  }),
+  item('rewind', 'frame', {
+    name: 'Rewind Frame', description: 'A CRT ring with scan lines and a tracking glitch that rolls through. The glitch holds still under reduced motion.',
+    kind: 'PROFILE_FRAME', rarity: 'epic', category: 'PROFILES', priceCrowns: 450, styleKey: 'rewind-frame',
+    preview: { type: 'FRAME' },
+  }),
+  item('rewind', 'accent', {
+    name: 'Tracking Magenta Accent', description: 'A glowing VHS-magenta profile and banner accent.',
+    kind: 'ACCENT', rarity: 'rare', category: 'SHELLS', priceCrowns: 300, styleKey: 'rewind-magenta',
+    preview: { type: 'ACCENT', color: '#e04bff' },
+  }),
+  item('rewind', 'shell', {
+    name: 'Rewind Shell', description: 'The whole game on tape: black panels with scan lines, magenta controls and a CRT glowing behind the page, with a tracking glitch rolling past.',
+    kind: 'SITE_THEME', rarity: 'legendary', category: 'SHELLS', priceCrowns: 1200, styleKey: 'rewind-shell',
+    preview: { type: 'THEME' },
+  }),
+  item('rewind', 'title', {
+    name: 'Run It Back', description: 'A Rewind title. Wear it as a title or feature it as a badge.',
+    kind: 'TITLE_BADGE', rarity: 'uncommon', category: 'PROFILES', priceCrowns: 200,
+    preview: { type: 'TITLE', title: 'Run It Back' },
+  }),
+  // Snake Eyes
+  item('snake-eyes', 'sedan', {
+    name: 'Snake Eyes Sedan', description: 'A black stretch look with felt-green pinstripes, card suits on the doors and fuzzy dice on the mirror. A Sedan look only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'VEHICLES', priceCrowns: 850, styleKey: 'snake-eyes-sedan',
+    preview: { type: 'ITEM', items: ['SEDAN'] }, dresses: 'SEDAN',
+  }),
+  item('snake-eyes', 'thug', {
+    name: 'Snake Eyes Thug', description: 'A dealer\'s waistcoat and bow tie with sleeve garters and a deck in the pocket. A Thug outfit only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'CREW', priceCrowns: 700, styleKey: 'snake-eyes-thug',
+    preview: { type: 'ITEM', items: ['THUG'] }, dresses: 'THUG',
+  }),
+  item('snake-eyes', 'hoe', {
+    name: 'Snake Eyes Hoe', description: 'A black sequin dress with red card suits and a stack of chips in her hand. A Hoe outfit only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'CREW', priceCrowns: 700, styleKey: 'snake-eyes-hoe',
+    preview: { type: 'ITEM', items: ['HOE'] }, dresses: 'HOE',
+  }),
+  item('snake-eyes', 'pistol', {
+    name: 'Snake Eyes Pistol', description: 'A black slide with ivory dice-pip grips. A visual finish only; it never gives you a pistol or the right to buy one.',
+    kind: 'ITEM_COLLECTION', rarity: 'rare', category: 'WEAPONS', priceCrowns: 550, styleKey: 'snake-eyes-pistol',
+    preview: { type: 'ITEM', items: ['PISTOL'] }, dresses: 'PISTOL',
+  }),
+  item('snake-eyes', 'frame', {
+    name: 'Snake Eyes Frame', description: 'A ring of poker chips around green felt for the profile and avatar.',
+    kind: 'PROFILE_FRAME', rarity: 'epic', category: 'PROFILES', priceCrowns: 450, styleKey: 'snake-eyes-frame',
+    preview: { type: 'FRAME' },
+  }),
+  item('snake-eyes', 'accent', {
+    name: 'Card Felt Accent', description: 'A card-table felt-green profile and banner accent.',
+    kind: 'ACCENT', rarity: 'rare', category: 'SHELLS', priceCrowns: 350, styleKey: 'felt-green',
+    preview: { type: 'ACCENT', color: '#1fae6a' },
+  }),
+  item('snake-eyes', 'shell', {
+    name: 'Snake Eyes Shell', description: 'The whole game in the back room: felt-green panels, ivory controls and a card table under a swinging lamp, with chips stacked high.',
+    kind: 'SITE_THEME', rarity: 'legendary', category: 'SHELLS', priceCrowns: 1250, styleKey: 'snake-eyes-shell',
+    preview: { type: 'THEME' },
+  }),
+  item('snake-eyes', 'title', {
+    name: 'Loaded Dice', description: 'A Snake Eyes title. Wear it as a title or feature it as a badge.',
+    kind: 'TITLE_BADGE', rarity: 'rare', category: 'PROFILES', priceCrowns: 250,
+    preview: { type: 'TITLE', title: 'Loaded Dice' },
+  }),
 ];
 
 export const DROP_ITEMS: Readonly<Record<string, DropItemDefinition>> = Object.fromEntries(ITEMS.map((entry) => [entry.key, entry]));
@@ -239,6 +801,18 @@ export const DROP_BUNDLES: Readonly<Record<string, DropBundleDefinition>> = Obje
   bundleOf('kingpin-luxe', 2800, 'All seven Kingpin Luxe pieces: the Sedan, both crew outfits, the frame, the accent, the shell theme and the Old Money title.'),
   bundleOf('neon-underworld', 2800, 'All eight Neon Underworld pieces: the Low-Rider, both crew outfits, the Tek-9 finish, the frame, the accent, the shell theme and the After Hours title.'),
   bundleOf('winter-heist', 2750, 'All seven Winter Heist pieces: the Van, the crew set, the shotgun finish, the frame, the accent, the shell theme and the Cold Case title.'),
+  bundleOf('biscayne-sunset', 2750, 'All eight Biscayne Sunset pieces: the Sedan, both crew outfits, the Pistol finish, the frame, the accent, the shell theme and the Ocean Drive title.'),
+  bundleOf('velvet-speakeasy', 2800, 'All eight Velvet Speakeasy pieces: the Sedan, both crew outfits, the AK-47 finish, the frame, the accent, the shell theme and the Bootlegger title.'),
+  bundleOf('platinum-funk', 2650, 'All seven Platinum Funk pieces: the Low-Rider, both crew outfits, the frame, the accent, the shell theme and the Funk Royalty title.'),
+  bundleOf('redline-syndicate', 2800, 'All eight Redline Syndicate pieces: the Sedan, both crew outfits, the AK-47 finish, the frame, the accent, the shell theme and the Redline title.'),
+  bundleOf('wet-paint', 2700, 'All eight Wet Paint pieces: the Low-Rider, both crew outfits, the Pistol finish, the frame, the accent, the shell theme and the All City title.'),
+  bundleOf('hazard-cook', 2650, 'All seven Hazard Cook pieces: the Van, the crew set, the Shotgun finish, the frame, the accent, the shell theme and the The Chemist title.'),
+  bundleOf('dockside', 2750, 'All eight Dockside pieces: the Van, both crew outfits, the AK-47 finish, the frame, the accent, the shell theme and the Off the Books title.'),
+  bundleOf('crown-jewels', 2800, 'All seven Crown Jewels pieces: the Sedan, the crew set, the AK-47 finish, the frame, the accent, the shell theme and the Crowned title.'),
+  bundleOf('bayou-smoke', 2750, 'All eight Bayou Smoke pieces: the Van, both crew outfits, the Shotgun finish, the frame, the accent, the shell theme and the Swamp King title.'),
+  bundleOf('desert-mirage', 2800, 'All eight Desert Mirage pieces: the Low-Rider, both crew outfits, the Tek-9 finish, the frame, the accent, the shell theme and the Dust Devil title.'),
+  bundleOf('rewind', 2750, 'All eight Rewind pieces: the Van, both crew outfits, the Tek-9 finish, the frame, the accent, the shell theme and the Run It Back title.'),
+  bundleOf('snake-eyes', 2800, 'All eight Snake Eyes pieces: the Sedan, both crew outfits, the Pistol finish, the frame, the accent, the shell theme and the Loaded Dice title.'),
 ].map((bundle) => [bundle.key, bundle]));
 
 export function dropItem(key: string): DropItemDefinition | null {
@@ -320,6 +894,22 @@ export const CROWN_EARN_RULES = {
   eventContract: 25,
   eventCap: 50,
 } as const;
+
+/* ---------- Discounts ---------- */
+
+/**
+ * Active, paid supporters (not free trials) pay this much less for Drop items,
+ * bundles and Street Pass skips. A birthday week gives BIRTHDAY_DISCOUNT_PERCENT
+ * (birthday.ts) instead; an account gets the larger of the two, never both.
+ * Applied last, after any bundle adjustment. Crown packs are never discounted.
+ */
+export const SUPPORTER_DROP_DISCOUNT_PERCENT = 10;
+
+/** A discounted Drop price: rounded in the player's favour, never below 1 Crown. */
+export function discountedDropPrice(price: number, percent: number): number {
+  if (!Number.isSafeInteger(price) || price <= 0 || percent <= 0) return price;
+  return Math.max(1, Math.floor((price * (100 - percent)) / 100));
+}
 
 /* ---------- Street Pass level skips ---------- */
 

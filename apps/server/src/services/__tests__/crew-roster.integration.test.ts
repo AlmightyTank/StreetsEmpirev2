@@ -33,7 +33,7 @@ describe.runIf(process.env.CREW_INTEGRATION === '1')('1.7.0-A crew roster with P
   beforeAll(async () => {
     app = await (await import('../../app.js')).buildApp();
     const name = `roster_${randomUUID().slice(0, 8)}`;
-    const registered = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { username: name, email: `${name}@example.invalid`, password: randomUUID() } });
+    const registered = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { ageConfirmed: true, username: name, email: `${name}@example.invalid`, password: randomUUID() } });
     accountId = registered.json().account.id;
     cookie = registered.cookies.map((entry) => `${entry.name}=${entry.value}`).join('; ');
     const current = async () => app.prisma.round.findUniqueOrThrow({ where: { id: currentRoundId } });

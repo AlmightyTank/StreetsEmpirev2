@@ -86,7 +86,7 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
     accountName = 'book_' + randomUUID().slice(0, 6);
     const registered = await app.inject({
       method: 'POST', url: '/api/auth/register',
-      payload: { username: accountName, email: accountName + '@example.invalid', password: randomUUID() },
+      payload: { ageConfirmed: true, username: accountName, email: accountName + '@example.invalid', password: randomUUID() },
     });
     accountId = registered.json().account.id;
   });
