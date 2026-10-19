@@ -1,5 +1,6 @@
 export * from './schemas/auth.js';
 export * from './schemas/advisor.js';
+export * from './schemas/career-storylines.js';
 export * from './schemas/game.js';
 export * from './schemas/casino.js';
 export * from './schemas/alliance.js';
@@ -11,6 +12,7 @@ export * from './schemas/admin-survey.js';
 export * from './types/api.js';
 export * from './types/advisor.js';
 export * from './types/advisor-evaluation.js';
+export * from './types/career-storylines.js';
 export * from './types/casino.js';
 export * from './types/sportsbook.js';
 export * from './types/casino-tournament.js';

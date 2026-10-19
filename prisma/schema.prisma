@@ -108,6 +108,7 @@ model Account {
   cosmeticUnlocks                  AccountCosmeticUnlock[]
   legacyEntries                    LegacyEntry[]
   playerCareer                     PlayerCareer?
+  careerStoryPortfolios             CareerStoryPortfolio[]
   supporterMembership              SupporterMembership?
   googlePlaySupporterSubscriptions GooglePlaySupporterSubscription[]
   supporterPayments                SupporterPayment[]
@@ -1775,6 +1776,7 @@ model Round {
   supplySupplierStocks     SupplySupplierStock[]
   encounterGangs           EncounterGang[]
   encounterGangTurfs       EncounterGangTurf[]
+  careerStoryInstances     CareerStoryInstance[]
 
   @@index([status])
   @@index([discordEndedAt, discordEndedClaimedAt])
@@ -1797,6 +1799,80 @@ model AdvisorSuppression {
 
   @@unique([accountId, roundId, suggestionKey])
   @@index([roundId, accountId])
+}
+
+/// 2.4.0. Round-scoped career story progress pinned to an immutable catalog.
+model CareerStoryInstance {
+  id String @id @default(cuid())
+  roundPlayerId String
+  roundId String
+  career String
+  catalogVersion String
+  status String @default("ACTIVE")
+  currentChapterKey String?
+  startedAt DateTime @default(now())
+  expiresAt DateTime?
+  archivedAt DateTime?
+  updatedAt DateTime @updatedAt
+  roundPlayer RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  round Round @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  sourceClaims CareerStorySourceClaim[]
+  choices CareerStoryChoice[]
+  relationships CareerStoryRelationship[]
+  portfolio CareerStoryPortfolio?
+  @@unique([roundPlayerId, career, catalogVersion])
+  @@index([roundId, career, status])
+}
+
+model CareerStorySourceClaim {
+  id String @id @default(cuid())
+  instanceId String
+  sourceKind String
+  sourceId String
+  objectiveKey String
+  settledAt DateTime
+  createdAt DateTime @default(now())
+  instance CareerStoryInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  @@unique([instanceId, sourceKind, sourceId, objectiveKey])
+  @@index([instanceId, objectiveKey])
+}
+
+model CareerStoryChoice {
+  id String @id @default(cuid())
+  instanceId String
+  chapterKey String
+  branchKey String
+  chosenAt DateTime @default(now())
+  instance CareerStoryInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  @@unique([instanceId, chapterKey])
+}
+
+model CareerStoryRelationship {
+  id String @id @default(cuid())
+  instanceId String
+  subjectKey String
+  relationshipKey String
+  value Int @default(0)
+  updatedAt DateTime @updatedAt
+  instance CareerStoryInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  @@unique([instanceId, subjectKey, relationshipKey])
+}
+
+model CareerStoryPortfolio {
+  id String @id @default(cuid())
+  accountId String
+  instanceId String @unique
+  career String
+  title String
+  visibility String @default("PUBLIC")
+  completedChapters Int @default(0)
+  finaleEarned Boolean @default(false)
+  provenance Json @default("{}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  instance CareerStoryInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  @@index([accountId, visibility])
 }
 
 /// 2.3.0. Privacy-safe append-only advisor outcome trace.
@@ -2131,6 +2207,7 @@ model RoundPlayer {
   updatedAt DateTime @updatedAt
 
   activity              PlayerActivity[]
+  careerStoryInstances  CareerStoryInstance[]
   inAppNotifications    InAppNotification[]
   scheduledAlerts       ScheduledAlert[]
   economyLedger         EconomyLedgerEntry[]

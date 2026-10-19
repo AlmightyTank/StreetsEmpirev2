@@ -14,6 +14,8 @@ import { parseBody } from '../utils/validate.js';
 import { z } from 'zod';
 import { EmpireLegacyService } from '../services/empire-legacy.service.js';
 import { CAREER_KEYS, PlayerCareerService } from '../services/player-career.service.js';
+import { CareerStoryService } from '../services/career-story.service.js';
+import { careerStoryChoiceSchema } from '@streets/shared';
 
 const MAX_ACTIVITY = 100;
 
@@ -84,6 +86,27 @@ const communityRoutes: FastifyPluginAsync = async (fastify) => {
       roundPlayerId: settled.player.id,
       key: career,
     }) };
+  });
+
+  fastify.get('/career-story', { preHandler: fastify.requireAuth }, async (request) => {
+    const { settled } = await requireSettledPlayer(request.auth!.account.id);
+    return { story: await CareerStoryService.active(fastify.prisma, { accountId: request.auth!.account.id, roundPlayerId: settled.player.id, ruleset: settled.ruleset }) };
+  });
+
+  fastify.post('/career-story/choice', { preHandler: fastify.requireAuth }, async (request) => {
+    const { settled } = await requireSettledPlayer(request.auth!.account.id);
+    const input = parseBody(careerStoryChoiceSchema, request.body);
+    return { choice: await CareerStoryService.choose(fastify.prisma, { accountId: request.auth!.account.id, roundPlayerId: settled.player.id, ruleset: settled.ruleset, ...input }) };
+  });
+
+  fastify.get('/career-story/portfolio', { preHandler: fastify.requireAuth }, async (request) => ({ portfolio: await CareerStoryService.portfolio(fastify.prisma, request.auth!.account.id) }));
+
+  fastify.get('/career-story/portfolio/public/:publicPimpId', { preHandler: fastify.requireAuth }, async (request) => {
+    const publicPimpId = Number((request.params as { publicPimpId?: string }).publicPimpId);
+    if (!Number.isSafeInteger(publicPimpId) || publicPimpId < 1) throw AppError.badRequest('INVALID_PIMP_ID', 'That pimp number is not valid.');
+    const target = await fastify.prisma.roundPlayer.findFirst({ where: { publicPimpId }, select: { accountId: true } });
+    if (!target) throw AppError.notFound('PLAYER_NOT_FOUND', 'That player was not found.');
+    return { portfolio: await CareerStoryService.portfolio(fastify.prisma, target.accountId, 'PUBLIC') };
   });
 
   /** Select one immutable receipt for the public profile; null clears the slot. */

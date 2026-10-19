@@ -3095,6 +3095,8 @@ export interface Ruleset {
   readonly cityConditions?: readonly CityConditionRules[];
   /** 2.0.0-A. Opt-in story invitations; absent on existing pinned rounds. No active writer until later slices. */
   readonly livingStories?: LivingStoryCatalog;
+  /** 2.4.0-A. Career storylines are opt-in and never inferred for old rounds. */
+  readonly careerStorylines?: { readonly enabled: boolean; readonly catalogVersion: string };
   /** 2.2.0. Cooperative operation templates. Absent on rounds pinned before this catalog. */
   readonly underworldOperations?: UnderworldOperationCatalog;
   readonly round: RoundRules;

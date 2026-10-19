@@ -40,7 +40,7 @@ function dto(row: { career: string; history: Prisma.JsonValue; selectedAt: Date;
 }
 
 export const PlayerCareerService = {
-  async get(prisma: PrismaClient, accountId: string, now = new Date()): Promise<CareerIdentityDto | null> {
+  async get(prisma: PrismaClient | Prisma.TransactionClient, accountId: string, now = new Date()): Promise<CareerIdentityDto | null> {
     const row = await prisma.playerCareer.findUnique({ where: { accountId } });
     return row ? dto(row, now) : null;
   },
