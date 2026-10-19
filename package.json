@@ -81,7 +81,8 @@
     "db:cleanup:seed-rivals": "tsx scripts/ops/remove-seed-rivals.ts",
     "dev:site": "npm run dev -w @streets/site",
     "build:site": "npm run build -w @streets/site",
-    "qa:loans": "node --import tsx scripts/qa/loan-sim.mjs"
+    "qa:loans": "node --import tsx scripts/qa/loan-sim.mjs",
+    "qa:operations": "node --import tsx scripts/qa/operation-sim.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

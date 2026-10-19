@@ -1,6 +1,8 @@
 # StreetsEmpire 2.3.0 — Release Roadmap
 
-**Status:** Proposed. Base future implementation on `beta`; see [Living World Master Roadmap](STREETSEMPIRE-LIVING-WORLD-ROADMAP-2.0-2.7.md) for shared policies and dependencies.
+**Status:** Minor feature update — in progress (beta implementation). Target application version: `2.3.0`. Base implementation on `beta`; see [Living World Master Roadmap](STREETSEMPIRE-LIVING-WORLD-ROADMAP-2.0-2.7.md) for shared policies and dependencies.
+
+**Beta rollout:** `EMPIRE_ADVISOR_ENABLED=1` (default) includes the additive `advisor` field on the dashboard snapshot. Set `EMPIRE_ADVISOR_ENABLED=0` to omit the field and roll back the briefing without changing quests, notifications, or settled gameplay. Existing clients ignore the additive field.
 
 **Engineering contract:** `openspec/changes/empire-advisor-2-3/` (proposal, design, `advisor-signals`, `advisor-recommendations`, `advisor-suppression`, `advisor-dashboard`, `advisor-planning`, `advisor-evaluation`, tasks). This roadmap stays the product description.
 

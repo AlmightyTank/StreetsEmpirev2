@@ -69,7 +69,7 @@ function OperationCard({ operation, busy, act }: {
 
       {operation.checklist.length ? (
         <div className="se-operation__checklist">
-          {operation.checklist.map((item) => <span key={item.key} className={item.done ? 'is-done' : ''}>{item.done ? 'Ready' : 'Need'} {item.label}</span>)}
+           {operation.checklist.map((item) => <span key={item.key} className={item.done ? 'is-done' : ''}>{item.done ? 'Ready' : 'Need'} {item.label}{item.optional ? ' · optional' : ''}</span>)}
         </div>
       ) : null}
 
@@ -161,7 +161,8 @@ function OperationCard({ operation, busy, act }: {
             </div>
             <strong>{reported.success || reported.band === 'partial' ? `${formatCentsExact(reported.payoutCents)} each` : 'No payout'}</strong>
           </header>
-          <ol>{reported.stages.map((stage, index) => <li key={`${stage.stage}-${index}`} className={stage.wentWrong ? 'se-bad' : ''}><b>{stage.stage}</b><span>{stage.detail}</span></li>)}</ol>
+           <ol>{reported.stages.map((stage, index) => <li key={`${stage.stage}-${index}`} className={stage.wentWrong ? 'se-bad' : ''}><b>{stage.stage}{stage.optional ? ' · optional' : ''}</b><span>{stage.detail}</span></li>)}</ol>
+           {reported.contributions?.length ? <div className="se-operation__contributions"><span className="se-eyebrow">Crew credits</span>{reported.contributions.map((credit) => <div key={credit.roundPlayerId}><b>{roleLabel(credit.role)}</b><span>{credit.windows?.length ? credit.windows.join(', ') : 'Crew seat'}</span><strong>{formatCentsExact(credit.payoutCents ?? 0)}</strong></div>)}</div> : null}
         </section>
       ) : null}
     </article>

@@ -18,6 +18,7 @@ import type {
   RoundPlayerDto,
   RandomEncounterDto,
   SeasonHideoutDto,
+  AdvisorDto,
 } from '@streets/shared';
 import { explainThugHappiness, explainWhoreHappiness, totalWeapons } from '@streets/rules-engine';
 import { staffCapabilities } from '@streets/shared';
@@ -303,10 +304,12 @@ export function toGameSnapshotDto(input: {
   turf?: RoundPlayerDto['turf'];
   pendingEncounters?: RandomEncounterDto[];
   recentActivity: PlayerActivity[];
+  advisor?: AdvisorDto;
 }): GameSnapshotDto {
   return {
     round: toRoundDto(input.round, input.playerCount),
     player: toRoundPlayerDto(input.player, input.ruleset, input.turns, input.products, input.run ?? null, input.moving ?? null, input.convoyAlert ?? null, input.turf ?? null, input.pendingEncounters ?? []),
     recentActivity: input.recentActivity.map(toActivityDto),
+    ...(input.advisor ? { advisor: input.advisor } : {}),
   };
 }

@@ -665,7 +665,7 @@ export interface OperationDto {
     status: 'LOCKED' | 'INVITED' | 'ACCEPTED' | 'DECLINED' | 'OPEN';
   }>;
   seats: OperationSeatDto[];
-  checklist: Array<{ key: string; label: string; done: boolean; sourceKinds?: string[] }>;
+  checklist: Array<{ key: string; label: string; done: boolean; optional?: boolean; sourceKinds?: string[] }>;
   /** Leader or a locked seat can cite a settled result. Invites cannot. */
   canCite: boolean;
   countdownEndsAt: string | null;
@@ -676,10 +676,10 @@ export interface OperationDto {
   report: {
     success: boolean;
     band?: 'success' | 'partial' | 'failure';
-    stages: Array<{ stage: string; detail: string; wentWrong: boolean }>;
+    stages: Array<{ stage: string; detail: string; wentWrong: boolean; optional?: boolean; contributorId?: string | null }>;
     payoutCents: number;
     totalPayoutCents?: number;
-    contributions?: Array<{ roundPlayerId: string; role: string; payoutCents?: number }>;
+    contributions?: Array<{ roundPlayerId: string; role: string; payoutCents?: number; windows?: string[] }>;
     capApplied?: boolean;
     source?: { kind: string | null; id: string | null; escort?: unknown; routeRisk?: unknown } | null;
   } | null;

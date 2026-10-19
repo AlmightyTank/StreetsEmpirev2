@@ -21,7 +21,7 @@ import {
   type RoundClock,
 } from './operation-shared.js';
 
-type StoredWindow = { key: string; sourceKind: string | null; sourceId: string | null };
+type StoredWindow = { key: string; sourceKind: string | null; sourceId: string | null; contributorId?: string | null };
 
 const LIVE_WAR = ['OPENING', 'SIEGE', 'BETWEEN'];
 
@@ -194,19 +194,21 @@ async function sourceReady(tx: Db, operation: { id: string; roundId: string; lea
   return false;
 }
 
-async function withWindow(tx: Db, operationId: string, key: string, sourceKind: string, sourceId: string): Promise<void> {
+async function withWindow(tx: Db, operationId: string, key: string, sourceKind: string, sourceId: string, contributorId: string | null = null): Promise<void> {
   const row = await tx.operation.findUniqueOrThrow({ where: { id: operationId }, select: { windows: true } });
   const windows = windowsOf(row.windows);
   const next = windows.some((window) => window.key === key)
-    ? windows.map((window) => window.key === key ? { key, sourceKind, sourceId } : window)
-    : [...windows, { key, sourceKind, sourceId }];
+    ? windows.map((window) => window.key === key ? { key, sourceKind, sourceId, contributorId } : window)
+    : [...windows, { key, sourceKind, sourceId, contributorId }];
   await tx.operation.update({ where: { id: operationId }, data: { windows: next as unknown as Prisma.InputJsonValue } });
 }
 
 function bandFor(snapshot: UnderworldOperationTemplate, windows: StoredWindow[]): 'success' | 'partial' | 'failure' {
   const required = snapshot.windows.filter((window) => !window.optional);
   const done = required.filter((window) => windows.some((row) => row.key === window.key && row.sourceId)).length;
+  const anyDone = snapshot.windows.some((window) => windows.some((row) => row.key === window.key && row.sourceId));
   if (required.length === 0 || done === required.length) return 'success';
+  if (anyDone) return 'partial';
   if (done === 0) return 'failure';
   return 'partial';
 }
@@ -220,9 +222,9 @@ async function autoResolve(tx: Db, operation: { id: string; roundId: string; lea
     if (!window || !window.sourceKinds.includes(sourceKind)) return;
     const ok = await sourceReady(tx, operation, snapshot, sourceKind, sourceId);
     if (!ok) return;
-    await withWindow(tx, operation.id, key, sourceKind, sourceId);
-    windows = windows.map((row) => row.key === key ? { key, sourceKind, sourceId } : row);
-    if (!windows.some((row) => row.key === key)) windows = [...windows, { key, sourceKind, sourceId }];
+    await withWindow(tx, operation.id, key, sourceKind, sourceId, operation.leaderId);
+    windows = windows.map((row) => row.key === key ? { key, sourceKind, sourceId, contributorId: operation.leaderId } : row);
+    if (!windows.some((row) => row.key === key)) windows = [...windows, { key, sourceKind, sourceId, contributorId: operation.leaderId }];
   };
   await tryOne('action', OPERATION_SOURCES.supplyStock, typeof target.supplyStockId === 'string' ? target.supplyStockId : undefined);
   await tryOne('prep', OPERATION_SOURCES.shipment, typeof target.runId === 'string' ? target.runId : undefined);
@@ -575,7 +577,7 @@ export const TemplatedOperations = {
       }
       const ok = await sourceReady(tx, operation, snapshot, input.sourceKind, input.sourceId);
       if (!ok) throw AppError.conflict('OPERATION_SOURCE', 'That result is not settled, or another operation already claimed it.');
-      await withWindow(tx, operation.id, input.windowKey, input.sourceKind, input.sourceId);
+       await withWindow(tx, operation.id, input.windowKey, input.sourceKind, input.sourceId, roundPlayerId);
       await recordOperationTransition(tx, operation.id, roundPlayerId, operation.status, operation.status, `cite ${input.windowKey}`);
       const after = await reload(tx, operation.id);
       return toOperationDto(after, after.participants, roundPlayerId, now, pauseOffsetMs(round, now));
@@ -676,19 +678,22 @@ export const TemplatedOperations = {
         band,
         stages: snapshot.windows.map((window) => {
           const hit = windows.find((row) => row.key === window.key && row.sourceId);
-          return {
-            stage: window.key,
-            detail: hit ? `${window.key} cited ${hit.sourceKind}.` : `${window.key} was not completed.`,
-            wentWrong: !hit,
-          };
+           return {
+             stage: window.key,
+             detail: hit ? `${window.key} cited ${hit.sourceKind}.` : `${window.key} was not completed.`,
+             wentWrong: !hit,
+             optional: window.optional,
+             contributorId: hit?.contributorId ?? null,
+           };
         }),
         payoutCents: distinct.length ? Math.floor(totalPayoutCents / distinct.length) : 0,
         totalPayoutCents,
-        contributions: distinct.map((playerId, index) => ({
-          roundPlayerId: playerId,
-          role: crew.find((seat) => seat.roundPlayerId === playerId)?.role ?? snapshot.roles[0]?.key ?? 'runner',
-          payoutCents: shares[index] ?? 0,
-        })),
+         contributions: distinct.map((playerId, index) => ({
+           roundPlayerId: playerId,
+           role: crew.find((seat) => seat.roundPlayerId === playerId)?.role ?? snapshot.roles[0]?.key ?? 'runner',
+           payoutCents: shares[index] ?? 0,
+           windows: windows.filter((window) => window.contributorId === playerId).map((window) => window.key),
+         })),
         capApplied,
         source: cited ? {
           kind: cited.sourceKind,

@@ -161,8 +161,8 @@ Rationale: slice F asks for utility measurement without private data and without
 3. Enable on beta with the fixture pack from slice G (zero cash, no turns, newcomer, maxed-out, paused round, ruleset drift).
 4. Rollback turns the switch off. Suppression rows and traces can remain. Settled gameplay is untouched.
 
-## Open Questions
+## Resolved implementation choices
 
-- Default snooze is 24 hours of server time. Slice C can shorten it if playtests still feel naggy, but it should not be shorter than a few hours.
-- Whether `completed` can be attributed for holdings and supply without a new receipt id. If a destination has no stable source id, record click and dismiss only, and skip `completed` rather than guessing.
-- Which affordable "safe investment" actions exist on the current ruleset beyond holdings the player can already buy. Slice A inventories them; unknown actions stay out of the catalog.
+- Snooze is fixed at 24 hours of server time for 2.3.0. Changing that duration later is a tuning change, not a reason to make the initial implementation configurable.
+- `completed` is recorded only for destinations with a stable source or receipt id. Holdings and supply cards record click and dismiss when no stable settlement id exists; they must not guess completion from a later state change.
+- The 2.3.0 safe-investment catalog contains only player-owned city holdings that the active ruleset exposes as affordable. Unknown or newly added investment actions stay out of the catalog until a later ruleset-specific change defines their eligibility and completion source.

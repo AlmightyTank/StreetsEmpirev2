@@ -131,8 +131,8 @@ export const UNDERWORLD_OPERATIONS_V1: UnderworldOperationCatalog = {
       productKey: 'CRACK',
       bands: bands(10_000, 4_000, 'The score is told for years', 'You got a piece of the plan', 'The score never came together'),
       windows: [
-        { key: 'intel', optional: false, sourceKinds: ['intel-rumor'] },
-        { key: 'prep', optional: false, sourceKinds: ['run'] },
+        { key: 'intel', optional: true, sourceKinds: ['intel-rumor'] },
+        { key: 'prep', optional: true, sourceKinds: ['run'] },
         { key: 'action', optional: false, sourceKinds: ['block-war', 'turf-push'] },
       ],
       milestone: { kind: 'operation_big_score', title: 'The Big Score' },

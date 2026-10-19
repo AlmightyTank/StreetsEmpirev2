@@ -57,6 +57,8 @@ run('Crew staffing balance gates', npm, ['run', 'qa:crew-staffing']);
 run('Loan Shark balance gates', npm, ['run', 'qa:loans', '--', '--quiet']);
 // 1.8.0-D/E: sportsbook limits keep any betting style's best rounds well short of a leaderboard jump.
 run('Sportsbook limit gates', npm, ['run', 'qa:sportsbook']);
+// 2.2.0-G: operation catalog budgets, required canonical actions, failure non-farming, and splits.
+run('Underworld operation simulation', npm, ['run', 'qa:operations', '--', '--samples=10000']);
 
 if (withDb) {
   // One file at a time: suites share the .env database, and any real current-round lookup
@@ -97,6 +99,8 @@ if (withDb) {
     LOAN_INTEGRATION: '1',
     // 1.7.0-A: crew roster migration, retries, dealer careers and members in step with counts.
     CREW_INTEGRATION: '1',
+    // 2.2.0: durable two-player operation receipt and source reconciliation.
+    UNDERWORLD_INTEGRATION: '1',
   });
   // 1.0.0-H: the Discord bot API, verified forum links and phone alerts only exist with their
   // secrets set, so they run on their own with throwaway ones generated here.

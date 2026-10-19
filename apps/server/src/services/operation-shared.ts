@@ -112,10 +112,11 @@ export function toOperationDto(
   const checklist = snapshot
     ? [
       ...snapshot.windows.map((window) => ({
-        key: window.key,
-        label: window.key,
-        done: windows.some((row) => row.key === window.key && Boolean(row.sourceId)),
-        sourceKinds: [...window.sourceKinds],
+       key: window.key,
+       label: window.key,
+       done: windows.some((row) => row.key === window.key && Boolean(row.sourceId)),
+        optional: window.optional,
+       sourceKinds: [...window.sourceKinds],
       })),
       ...seatDtos.map((seat) => ({ key: `seat:${seat.role}`, label: seat.role, done: seat.status === 'LOCKED' || seat.status === 'ACCEPTED' })),
     ]

@@ -1,4 +1,4 @@
-import type { GameSnapshotDto, PlayerExperienceDto, PlayerExperienceEventDto } from '@streets/shared';
+import type { AdvisorEvaluationInput, AdvisorFocus, AdvisorPreferenceInput, GameSnapshotDto, PlayerExperienceDto, PlayerExperienceEventDto } from '@streets/shared';
 import { api } from './client.js';
 import { noteRoundRollCallContinuity, publishRoundRollCallStamp, roundRollCallApi } from './roundRollCall.js';
 
@@ -35,4 +35,9 @@ export const gameApi = {
     }
     return snapshot;
   },
+  advisorPreferences: () => api.get<{ preferences: AdvisorPreferenceInput }>('/game/advisor/preferences'),
+  updateAdvisorPreferences: (preferences: AdvisorPreferenceInput) => api.put<{ preferences: AdvisorPreferenceInput }>('/game/advisor/preferences', preferences),
+  updateAdvisorFocus: (focus: AdvisorFocus) => api.put<{ preferences: AdvisorPreferenceInput }>('/game/advisor/focus', { focus }),
+  suppressAdvisor: (input: { suggestionKey: string; mode: 'snooze' | 'dismiss' }) => api.post<{ ok: true }>('/game/advisor/suppressions', input),
+  evaluateAdvisor: (input: AdvisorEvaluationInput) => api.post<{ ok: true }>('/game/advisor/evaluations', input),
 };

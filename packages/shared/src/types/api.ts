@@ -1130,6 +1130,7 @@ export interface GameSnapshotDto {
   round: RoundDto;
   player: RoundPlayerDto;
   recentActivity: ActivityDto[];
+  advisor?: import('./advisor.js').AdvisorDto;
 }
 
 export interface RoundOverPlayerDto {

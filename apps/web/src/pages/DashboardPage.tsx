@@ -25,6 +25,7 @@ import { formatClockTime, formatDate, formatDuration, formatWhen } from '../util
 import { dashboardAttentionState, dashboardDisclosureForHash } from '../utils/dashboardAttention.js';
 import { TourOffer } from '../components/onboarding/TourOffer.js';
 import { useOnboarding } from '../stores/onboarding.js';
+import { AdvisorBriefing } from '../components/AdvisorBriefing.js';
 
 function RankMovement({ movement }: { movement: number | null }) {
   if (movement === null || movement === 0) {
@@ -341,6 +342,7 @@ function HideoutPanel({ hideout }: { hideout: RoundPlayerDto['hideout'] }) {
 }
 
 function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
+  const advisor = useSession((s) => s.advisor);
   const holdingsAvailable = useSession((s) => {
     const ruleset = s.round ? rulesets[s.round.rulesetId] : undefined;
     return ruleset ? cityHoldingsEnabled(ruleset) : false;
@@ -419,6 +421,7 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
         {error ? <Alert>{error}</Alert> : null}
 
         <TourOffer />
+        <AdvisorBriefing advisor={advisor} />
         <PendingEncountersPanel encounters={me.pendingEncounters} />
         <div className="se-dashboard-snapshot" aria-label="Empire at a glance">
           <Link className="se-dashboard-snapshot__tile" to="/game/stores">
