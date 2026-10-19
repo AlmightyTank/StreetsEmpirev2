@@ -3,7 +3,7 @@
 Status: **Planned** · Target: **beta** · Scope: Combat, armed escorts, encounters, turf defense, gun store, garage service, Territory Rewards.
 
 ## Vision
-Guns stop being a one-time purchase. Every gun burns ammo every time it fires, and bigger guns burn a lot more of it. Ammo is cheap per round and sold in bulk, because players go through so much of it. Vehicles work the same way with **parts**: every run uses parts and cash, and bigger vehicles use more.
+Guns stop being a one-time purchase. Every gun burns ammo every time it fires, and bigger guns burn a lot more of it. Ammo is cheap per round and sold in bulk, because players go through so much of it. Vehicles scale the same way: every run costs cash, bigger vehicles cost more, and garage repairs use **parts**.
 
 Both apply only to new, versioned rulesets. Rounds pinned before them keep free-firing guns and cash-only repairs.
 
@@ -68,20 +68,22 @@ Running out has to hurt, without making an offline player helpless:
 
 ## Parts
 
-Vehicles work like guns: every run wears them down, and **bigger vehicles burn more parts and more cash**, both on the road and in the garage.
+Vehicles scale like guns: **bigger vehicles cost more** on the road and in the garage. Runs cost **cash only**; parts are used only for repairs.
 
 ### One parts stock, bigger vehicles use more
 - One generic stock: `parts`. No per-model parts.
 - Size follows cargo: sedan (65% cargo, 4 crew seats) < low-rider (100%) < van (150%).
 
 ### Running cost per run
-Every vehicle that leaves on a run or boss trip spends parts and cash (fuel and upkeep) when it departs:
+Every vehicle that leaves on a run or boss trip pays a cash fee (fuel and upkeep) when it departs. No parts are spent on runs.
 
-| Vehicle | Price | Cargo | Parts per run | Cash per run | Total at $8/part |
-| --- | --- | --- | --- | --- | --- |
-| Sedan | $3,500 | 65% | 1 | $25 | $33 |
-| Low-rider | $5,000 | 100% | 2 | $50 | $66 |
-| Van | $8,500 | 150% | 4 | $100 | $132 |
+| Vehicle | Price | Cargo | Cash per run |
+| --- | --- | --- | --- |
+| Sedan | $3,500 | 65% | $35 |
+| Low-rider | $5,000 | 100% | $65 |
+| Van | $8,500 | 150% | $130 |
+
+A run with too little cash for its fleet fee is refused at launch, like any other unaffordable action; a run already out is never stranded.
 
 A van carries the most but costs 4× a sedan to run, so fleet choice is a real trade-off.
 
@@ -98,9 +100,7 @@ Today repairs are cash only (damaged: sedan $500, low-rider $750, van $1,250; di
 - **Without parts** a repair still works at 1.5× today's cash price and takes longer. Nobody is ever stuck in the garage.
 - Existing garage discounts (Auto Garage, Road Saints MC) apply to the cash part only.
 
-### Running dry on the road
-- A vehicle that leaves without its parts still drives, but runs **worn**: a higher chance of turning Damaged on that run (proposal: +50% of its normal trouble chance).
-- The run preview shows parts and cash to be spent per vehicle and warns when the fleet will leave worn.
+- The run preview shows the cash fee per vehicle and the fleet total.
 
 ### Buying parts
 Sold at Charlie's alongside vehicles, in bulk:
@@ -135,9 +135,9 @@ The chop shop (strip your own disabled vehicles: sedan 10, low-rider 15, van 30 
 - Armed escorts, turf/outpost defense and encounter gunfights spend ammo through the same allocation code.
 
 ### Slice E — Parts and garage
-- Per-run parts and cash spend by vehicle size; worn vehicles' extra trouble chance.
+- Per-run cash fee by vehicle size, charged at launch.
 - Repairs with and without parts, scaled by size; chop shop; Charlie's parts packs.
-- Run preview shows parts and cash per vehicle; rerun vehicle simulations so each fleet choice stays viable.
+- Run preview shows the cash fee per vehicle; rerun vehicle simulations so each fleet choice stays viable.
 
 ### Slice F — Territory, balance and rollout
 - Ammo and parts in territory yields and tolls.
