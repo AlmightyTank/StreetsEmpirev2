@@ -784,22 +784,42 @@ Object.assign(recipes, {
   },
   'thug-hazard-cook': async () => {
     let svg = await load('thug');
+    // Not in a hazmat suit either: warning-stripe work shirt, goggles pushed up, and the fumes got to him.
     svg = repattern(svg, 'plaid', '<rect width="14" height="14" fill="#f2cb00"/><path d="M0 7 H14" stroke="#c9a700" stroke-width=".6"/>');
-    svg = restop(svg, 'tank', ['#ffe45c', '#d9b400']);
+    svg = restop(svg, 'tank', ['#2a2d32', '#111316']);
     svg = restop(svg, 'band', ['#ffe45c', '#c9a700']);
     svg = restop(svg, 'gold', ['#f2f4f6', '#a9b0b8', '#5a6168']);
-    svg = restop(svg, 'lens', ['#eef8f6', '#8fb5ae', '#d4ebe7']);
-    svg = recolor(svg, { '#e9fff0': '#fff38a', '#b5f5c5': '#ffffff', '#6ee095': '#ffffff', '#3a2a05': '#3a3e45' });
+    svg = restop(svg, 'skin', ['#8f9c56', '#606e34', '#3a4520']);
+    svg = recolor(svg, { '#e9fff0': '#141416', '#b5f5c5': '#fff38a', '#4d2b16': '#2f3818', '#3a2a05': '#3a3e45', '#3a1f10': '#2a1426' });
+    // His shades come off so the eyes show.
+    const shades = '<path d="M45 52 H83 Q84 59 77 60 H69 L64 56 L59 60 H51 Q44 59 45 52 Z" fill="url(#lens)"/>';
+    if (!svg.includes(shades)) throw new Error('thug shades moved');
+    svg = svg.replace(shades, '').replace(/<path d="M49 54 L55 54 M68 54 L75 54"[^>]*\/>/, '');
+    const shirt = 'M10 126 Q12 100 32 92 L50 86 L56 94 L46 126 Z M118 126 Q116 100 96 92 L78 86 L72 94 L82 126 Z';
     return decorate(svg, {
+      defs: [
+        `<pattern id="hz" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="${HAZARD}"/><rect width="3" height="6" fill="#111111"/></pattern>`,
+        `<clipPath id="shirt"><path d="${shirt}"/></clipPath>`,
+      ].join('\n    '),
       over: [
-        // The hood seals around the face.
-        '<path d="M44 50 Q42 29 64 28 Q86 29 84 50 Q88 66 82 78 L76 82 Q86 66 82 52 Q80 36 64 36 Q48 36 46 52 Q42 66 52 82 L46 78 Q40 66 44 50 Z" fill="#ffd400" stroke="#7a6600" stroke-width="1.2"/>',
-        // Goggle strap and a respirator over the mouth.
-        '<path d="M44 55 H84" stroke="#141416" stroke-width="2" opacity=".85"/>',
-        '<path d="M54 64 Q64 60 74 64 L72 76 Q64 80 56 76 Z" fill="#26292e" stroke="#000" stroke-width="1"/>',
-        `<circle cx="52" cy="72" r="4.2" fill="#3a3e45" stroke="#000" stroke-width="1"/><circle cx="76" cy="72" r="4.2" fill="#3a3e45" stroke="#000" stroke-width="1"/><circle cx="52" cy="72" r="1.8" fill="${HAZARD}"/><circle cx="76" cy="72" r="1.8" fill="${HAZARD}"/>`,
-        // Taped seams.
-        '<path d="M64 90 V126 M14 110 H44 M84 110 H114" stroke="#c9ced4" stroke-width="2.2" opacity=".85"/>',
+        // Warning-stripe hem and placket edges.
+        '<g clip-path="url(#shirt)"><rect x="0" y="119" width="128" height="7" fill="url(#hz)"/><path d="M56 94 L46 126 M72 94 L82 126" stroke="url(#hz)" stroke-width="5"/></g>',
+        // Sunken, toxic eyes with dark rings.
+        '<path d="M49.5 58.2 Q55 62 60.5 58 M78.5 58.2 Q73 62 67.5 58" stroke="#1f1420" stroke-width="1.8" fill="none" stroke-linecap="round" opacity=".6"/>',
+        '<path d="M50 55.5 Q55 51.5 60 55.5 Q55 59 50 55.5 Z M78 55.5 Q73 51.5 68 55.5 Q73 59 78 55.5 Z" fill="#e8e4b0" stroke="#2f3818" stroke-width=".8"/>',
+        '<circle cx="55" cy="55.4" r="2" fill="#8cff3a"/><circle cx="73" cy="55.4" r="2" fill="#8cff3a"/><circle cx="55" cy="55.4" r=".9" fill="#0b0b0b"/><circle cx="73" cy="55.4" r=".9" fill="#0b0b0b"/>',
+        '<path d="M49 52.6 Q55 49.4 60.5 52 M79 52.6 Q73 49.4 67.5 52" stroke="#1b100a" stroke-width="1.4" fill="none" stroke-linecap="round"/>',
+        // Lab goggles pushed up on the bandana.
+        '<path d="M43 45 Q64 38 85 45" stroke="#141416" stroke-width="2.2" fill="none" stroke-linecap="round"/>',
+        '<rect x="49" y="37.5" width="13" height="8.5" rx="4.2" fill="#d4ebe7" fill-opacity=".6" stroke="#141416" stroke-width="1.4"/><rect x="66" y="37.5" width="13" height="8.5" rx="4.2" fill="#d4ebe7" fill-opacity=".6" stroke="#141416" stroke-width="1.4"/>',
+        '<path d="M62 41.8 H66" stroke="#141416" stroke-width="1.4"/><path d="M51.5 40 Q54 38.8 56.5 39.4 M68.5 40 Q71 38.8 73.5 39.4" stroke="#ffffff" stroke-width=".8" fill="none" stroke-linecap="round" opacity=".8"/>',
+        // Sores, green veins up the neck, and toxic drool.
+        '<g fill="#c9d64a" stroke="#4a5a10" stroke-width=".5"><circle cx="49.5" cy="65" r="1.3"/><circle cx="51.8" cy="68" r=".8"/><circle cx="78.6" cy="64" r="1.1"/><circle cx="59" cy="84" r="1"/></g>',
+        '<g fill="#fff9c0" opacity=".8"><circle cx="49.1" cy="64.6" r=".4"/><circle cx="78.3" cy="63.7" r=".35"/></g>',
+        '<path d="M58.5 88 Q60 84 58.8 81 Q60.2 79.4 59.6 77.4 M69.5 88 Q68 84.5 69.4 81.5 Q68.2 79.8 68.8 77.8" stroke="#7ad04a" stroke-width=".8" fill="none" stroke-linecap="round" opacity=".7"/>',
+        '<path d="M67.4 76 Q68.2 79 67.6 81.6" stroke="#8cff3a" stroke-width="1.1" fill="none" stroke-linecap="round" opacity=".85"/><circle cx="67.6" cy="82.4" r=".9" fill="#8cff3a" opacity=".85"/>',
+        // A warning-sign charm on the chain.
+        `<path d="M64 94.2 L69.4 103.2 H58.6 Z" fill="${HAZARD}" stroke="#141416" stroke-width="1" stroke-linejoin="round"/><path d="M64 97 V100" stroke="#141416" stroke-width="1.1" stroke-linecap="round"/><circle cx="64" cy="101.5" r=".55" fill="#141416"/>`,
       ].join('\n  '),
     });
   },
