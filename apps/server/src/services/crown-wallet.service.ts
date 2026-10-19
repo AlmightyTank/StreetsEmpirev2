@@ -62,6 +62,7 @@ const LEDGER_LABELS: Record<string, string> = {
   'weekly-contract': 'Weekly contract',
   milestone: 'Round milestone',
   event: 'Event contract',
+  'account-level': 'Account level reward',
   'drop-order': 'The Drop purchase',
   'street-pass-skip': 'Street Pass level skip',
   admin: 'Admin adjustment',

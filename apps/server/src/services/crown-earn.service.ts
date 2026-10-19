@@ -1,6 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import { CROWN_EARN_RULES, dropDailyWindow, dropWeeklyWindow, type QuestType } from '@streets/rulesets';
-import type { DropEarnOpportunityDto } from '@streets/shared';
+import { EXPERIENCE_LEVEL_CROWNS, experienceCrownMilestones, experienceLevelFor, type DropEarnOpportunityDto } from '@streets/shared';
 import { env } from '../config/env.js';
 import type { Db } from '../utils/db.js';
 import { CrownWalletService } from './crown-wallet.service.js';
@@ -105,6 +105,32 @@ export const CrownEarnService = {
     return total;
   },
 
+  /**
+   * Account level milestones. Each pays once per account, outside the round cap
+   * (no roundId), from the XP award transaction. Every milestone up to `level`
+   * is offered, so one missed while earning was off lands on the next level-up.
+   */
+  async onLevelReached(tx: Db, accountId: string, level: number): Promise<number> {
+    if (!env.drop.enabled) return 0;
+    const milestones = experienceCrownMilestones(0, level);
+    if (!milestones.length) return 0;
+    const settings = await DropSettingsService.get(tx);
+    if (!settings.earningEnabled) return 0;
+    let total = 0;
+    for (const { level: milestone, crowns } of milestones) {
+      const result = await CrownWalletService.apply(tx, {
+        accountId,
+        kind: 'EARN',
+        delta: crowns,
+        source: 'account-level',
+        externalRef: `earn:account-level:${accountId}:${milestone}`,
+        reason: `Reached account level ${milestone}`,
+      });
+      if (result.applied) total += crowns;
+    }
+    return total;
+  },
+
   /** The wallet page's "how to earn more" list for this round. */
   async opportunities(prisma: PrismaClient, accountId: string, roundId: string | null, roundPlayerId: string | null, now = new Date()): Promise<DropEarnOpportunityDto[]> {
     if (!roundId) return [];
@@ -113,11 +139,14 @@ export const CrownEarnService = {
       `earn:weekly:${accountId}:${dropWeeklyWindow(now).key}`,
       ...CROWN_EARN_RULES.checkInMilestones.map((milestone) => `earn:milestone:${accountId}:${roundId}:${milestone}`),
     ];
-    const [done, events, checkIns] = await Promise.all([
+    const [done, events, checkIns, account] = await Promise.all([
       prisma.crownLedgerEntry.findMany({ where: { externalRef: { in: refs } }, select: { externalRef: true } }),
       prisma.crownLedgerEntry.aggregate({ where: { accountId, roundId, kind: 'EARN', source: 'event' }, _sum: { delta: true } }),
       roundPlayerId ? prisma.roundLoginCheckIn.count({ where: { roundPlayerId, source: 'LOGIN' } }) : Promise.resolve(0),
+      prisma.account.findUnique({ where: { id: accountId }, select: { experiencePoints: true } }),
     ]);
+    const level = experienceLevelFor(account?.experiencePoints ?? 0);
+    const nextLevel = experienceCrownMilestones(level, level + EXPERIENCE_LEVEL_CROWNS.every)[0]!;
     const got = new Set(done.map((row) => row.externalRef));
     const eventCrowns = events._sum.delta ?? 0;
     return [
@@ -133,6 +162,10 @@ export const CrownEarnService = {
       {
         key: 'event', label: 'Event contracts', crowns: CROWN_EARN_RULES.eventContract, done: eventCrowns >= CROWN_EARN_RULES.eventCap,
         detail: `${CROWN_EARN_RULES.eventContract} per event contract, up to ${CROWN_EARN_RULES.eventCap} a round (${eventCrowns}/${CROWN_EARN_RULES.eventCap}).`,
+      },
+      {
+        key: 'account-level', label: `Account level ${nextLevel.level}`, crowns: nextLevel.crowns, done: false,
+        detail: `Reach account level ${nextLevel.level} (you are level ${level}). Pays once, on top of the round cap.`,
       },
     ];
   },

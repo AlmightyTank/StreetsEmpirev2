@@ -51,6 +51,8 @@ describe.runIf(process.env.RELEASE_INTEGRATION === '1')('0.3.0-E alliance season
       pimps.push(joined.json().me.publicPimpId);
     }
     await app.prisma.account.update({ where: { id: accounts[4]! }, data: { isAdmin: true } });
+    // Seasoned accounts: founding an alliance waits for a few account levels.
+    await app.prisma.account.updateMany({ where: { id: { in: accounts.slice(0, 4) } }, data: { experiencePoints: 5_000 } });
     adminCookie = cookies[4]!;
 
     // Raid-ready crews past newcomer protection.

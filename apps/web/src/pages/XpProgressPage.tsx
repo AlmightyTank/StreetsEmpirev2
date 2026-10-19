@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { EXPERIENCE_LEVEL_REWARDS, experienceRequiredForLevel, formatCents, formatNumber, type PlayerExperienceDto, type PlayerExperienceEventDto, type PublicCareerDto } from '@streets/shared';
+import { ACCOUNT_TRUST_GATES, EXPERIENCE_LEVEL_CROWNS, EXPERIENCE_LEVEL_REWARDS, experienceCrownMilestones, experienceRequiredForLevel, formatCents, formatNumber, type PlayerExperienceDto, type PlayerExperienceEventDto, type PublicCareerDto } from '@streets/shared';
 import { communityApi } from '../api/community.js';
+import { dropApi } from '../api/drop.js';
 import { gameApi } from '../api/game.js';
 import { CareerGuidance, CareerMetricStrip, CareerNavigation } from '../components/CareerExperience.js';
 import { Panel, Row, Stat } from '../components/Panel.js';
@@ -36,6 +37,15 @@ export function XpProgressPage() {
   const [careerError, setCareerError] = useState(false);
   const experienceRequestId = useRef(0);
   const lastObservedXp = useRef<{ accountId: string; totalXp: number } | null>(null);
+  const [dropEnabled, setDropEnabled] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    void dropApi.status()
+      .then((status) => { if (active) setDropEnabled(status.enabled); })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -121,6 +131,7 @@ export function XpProgressPage() {
   const rewardProgress = nextRewardXp
     ? Math.max(0, Math.min(100, Math.floor(((totalXp - previousRewardXp) / (nextRewardXp - previousRewardXp)) * 100)))
     : 100;
+  const nextCrowns = experienceCrownMilestones(level, level + EXPERIENCE_LEVEL_CROWNS.every)[0]!;
   const legacy = career?.legacy;
   const finishedSeasons = career?.seasons ?? [];
   const lifetimeRaidWins = finishedSeasons.reduce((total, season) => total + season.stats.raidAttackWins, 0);
@@ -167,7 +178,7 @@ export function XpProgressPage() {
 
         <CareerGuidance title="Permanent level, seasonal progress, and cosmetics">
           <p>Lifetime XP, account level, earned titles, badges, and other profile cosmetics carry between rounds. Street Cred and Street Pass tiers belong to the current round and reset when it ends.</p>
-          <p>Career rewards are cosmetic only and never add cash, strength, turns, or another gameplay advantage.</p>
+          <p>Career rewards are cosmetic only and never add cash, strength, turns, or another gameplay advantage.{dropEnabled ? ` Every ${formatNumber(EXPERIENCE_LEVEL_CROWNS.every)} levels also pays Crowns for The Drop, once per account and on top of the round's earning cap.` : ''}</p>
         </CareerGuidance>
 
         <section className="se-pass-info se-xp-info">
@@ -211,6 +222,21 @@ export function XpProgressPage() {
             ) : (
               <p className="se-muted">You have reached every listed XP title milestone. New account rewards will appear here when the track expands.</p>
             )}
+          </Panel>
+
+          <Panel title={dropEnabled ? 'Crowns and unlocks' : 'Level unlocks'} className="se-pass-panel se-xp-unlocks">
+            {dropEnabled ? (
+              <div className="se-rows">
+                <Row label={`Level ${formatNumber(nextCrowns.level)} pays`} value={`${formatNumber(nextCrowns.crowns)} Crowns`} />
+                <Row label="Lifetime XP needed" value={`${formatNumber(experienceRequiredForLevel(nextCrowns.level))} XP`} />
+              </div>
+            ) : null}
+            <p className={dropEnabled ? 'se-hint se-mt' : 'se-hint'}>New players reach out to strangers after a few levels of play. Replies, your alliance and staff are always open.</p>
+            <div className="se-rows">
+              {Object.values(ACCOUNT_TRUST_GATES).map((gate) => (
+                <Row key={gate.label} label={gate.label} value={level >= gate.level ? 'Open' : `Level ${formatNumber(gate.level)}`} />
+              ))}
+            </div>
           </Panel>
         </section>
 

@@ -26,7 +26,7 @@ import {
   type CityControl,
 } from './turf-territory.service.js';
 import { endPlayerTurfHolds, startPlayerTurfHolds } from './turf-history.service.js';
-import { assertCanCommunicate } from './communication-guard.js';
+import { accountTrust, assertCanCommunicate, assertTrustGate } from './communication-guard.js';
 
 type AllianceRules = NonNullable<Ruleset['alliances']>;
 
@@ -396,6 +396,7 @@ export const AllianceService = {
         if (me.allianceCooldownUntil && me.allianceCooldownUntil > now) {
           throw AppError.conflict('ALLIANCE_COOLDOWN', `You left an alliance recently. You can found or join one in ${waitText(me.allianceCooldownUntil, now)}.`);
         }
+        assertTrustGate(await accountTrust(tx, me.accountId), 'foundAlliance');
         const base = loadRulesetForRound(player.round);
         const territoryBefore = await territoryBeforeForPlayers(tx, me.roundId, [me.id], base);
         await endPlayerTurfHolds(tx, me.id, now);
@@ -607,7 +608,7 @@ export const AllianceService = {
     const claim = await withOwnAlliance(prisma, playerId, async ({ tx, alliance, me, rules, now, round }) => {
       requireLeader(alliance, me, 'post a recruitment thread');
       // 0.9.0-H: a public forum thread is communication too.
-      await assertCanCommunicate(tx, me.accountId, now);
+      assertTrustGate(await assertCanCommunicate(tx, me.accountId, now), 'foundAlliance');
       if (alliance.forumDiscussionId) throw AppError.conflict('FORUM_THREAD_EXISTS', `${alliance.name} already has a recruitment thread.`);
       if (alliance.forumPostStartedAt && now.getTime() - alliance.forumPostStartedAt.getTime() < 60_000) {
         throw AppError.conflict('FORUM_THREAD_POSTING', 'Your recruitment thread is already on its way.');

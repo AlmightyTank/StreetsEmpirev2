@@ -1091,6 +1091,10 @@
   gap: 10px;
 }
 
+.se-xp-unlocks {
+  grid-column: 1 / -1;
+}
+
 .se-xp-reward {
   display: grid;
   gap: 3px;

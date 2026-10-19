@@ -30,6 +30,8 @@ run('Travel balance gates', npm, ['run', 'qa:travel', '--', '--quiet']);
 // Trips: flying, riding along, being hunted, bodyguards and the airport; travel stays a choice, not a requirement.
 run('Trips balance gates', npm, ['run', 'qa:trips', '--', '--quiet']);
 run('Street Pass balance', npm, ['run', 'qa:street-pass', '--', '--quiet']);
+// Account levels: lifetime XP pace, level Crowns and the trust gates for new accounts.
+run('Account XP pacing', npm, ['run', 'qa:account-xp', '--', '--quiet']);
 // 0.6.0: all 40 turf blocks and player-vs-player push balance must still pass on the release ruleset.
 run('Turf balance gates', npm, ['run', 'qa:turf', '--', '--quiet']);
 // 1.1.0-F: businesses, rackets, block wars and the full-round release profile.

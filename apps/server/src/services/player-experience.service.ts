@@ -1,6 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import { EXPERIENCE_LEVEL_REWARDS, experienceLevelFor, playerExperienceDto, type ExperienceLevelReward, type PlayerExperienceDto, type PlayerExperienceEventDto } from '@streets/shared';
 import type { Db } from '../utils/db.js';
+import { CrownEarnService } from './crown-earn.service.js';
 
 export const PlayerExperienceService = {
   /** Recent account-wide XP awards, newest first. */
@@ -87,6 +88,9 @@ export const PlayerExperienceService = {
         update: {},
       });
     }
+
+    // Crowns for every milestone up to the new level; already-paid ones are skipped.
+    if (level > previousLevel) await CrownEarnService.onLevelReached(tx, player.accountId, level);
 
     return { awardedXp: amount, totalXp, level, unlocked };
   },

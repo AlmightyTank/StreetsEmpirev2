@@ -7,6 +7,7 @@ import {
   type StreetPassRules,
 } from '@streets/rulesets';
 import type { StreetPassProgress } from '@prisma/client';
+import { EXPERIENCE_PER_TURN, questExperience } from '@streets/shared';
 import type { Db } from '../utils/db.js';
 import { dailyContractWindow } from './daily-contract.service.js';
 import { PlayerExperienceService } from './player-experience.service.js';
@@ -62,11 +63,7 @@ export async function progressFor(tx: Db, roundPlayerId: string, rules: StreetPa
 export const StreetPassCredService = {
   /** Cred and permanent XP for a finished job or contract. */
   async creditQuest(tx: Db, roundPlayerId: string, ruleset: Ruleset, questType: QuestType, sourceKey: string, now = new Date()): Promise<number> {
-    const questXp = questType === 'DAILY' ? 75
-      : questType === 'SEASON' ? 300
-      : questType === 'WEEKLY' ? 200
-        : questType === 'CITY_CONTRACT' || questType === 'EVENT' || questType === 'ALLIANCE' ? 150
-          : 100;
+    const questXp = questExperience(questType);
     await PlayerExperienceService.award(tx, {
       roundPlayerId,
       sourceKey,
@@ -98,7 +95,7 @@ export const StreetPassCredService = {
         roundPlayerId,
         sourceKey,
         source: 'TURN_SPEND',
-        amount: turnsSpent,
+        amount: turnsSpent * EXPERIENCE_PER_TURN,
         awardedAt: now,
       });
     }

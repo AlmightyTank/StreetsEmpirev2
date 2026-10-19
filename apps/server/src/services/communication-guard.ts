@@ -1,4 +1,5 @@
 import type { Prisma } from '@prisma/client';
+import { ACCOUNT_TRUST_GATES, experienceLevelFor, type AccountTrustGate } from '@streets/shared';
 import { env } from '../config/env.js';
 import { AppError } from '../utils/errors.js';
 
@@ -14,6 +15,8 @@ type Tx = Prisma.TransactionClient;
  *   Replying to someone who wrote to you first is never throttled.
  * - Links from established accounts and copy-paste blasts are allowed but flagged
  *   into the admin report queue automatically.
+ * - Account level trust gates: reaching out to strangers (a cold message, a new
+ *   alliance, a public recruitment thread) waits for a few levels of play.
  */
 export const NEW_ACCOUNT_HOURS = 48;
 export const NEW_ACCOUNT_WINDOW_MAX = 5;
@@ -59,11 +62,36 @@ export function commsMuted(account: CommsMuteState, now: Date): boolean {
   return account.commsMutedPermanent || Boolean(account.commsMutedUntil && account.commsMutedUntil > now);
 }
 
+export interface AccountTrust {
+  level: number;
+  isAdmin: boolean;
+}
+
+/** Staff skip every gate. */
+export function meetsTrustGate(account: AccountTrust, gate: AccountTrustGate): boolean {
+  return account.isAdmin || account.level >= ACCOUNT_TRUST_GATES[gate].level;
+}
+
+export function assertTrustGate(account: AccountTrust, gate: AccountTrustGate): void {
+  if (meetsTrustGate(account, gate)) return;
+  const { level, label } = ACCOUNT_TRUST_GATES[gate];
+  throw new AppError(
+    403,
+    'ACCOUNT_LEVEL_REQUIRED',
+    `${label}: unlocks at account level ${level}. You are level ${account.level}. Spend turns and finish jobs to earn XP.`,
+  );
+}
+
+export async function accountTrust(tx: Tx, accountId: string): Promise<AccountTrust> {
+  const account = await tx.account.findUniqueOrThrow({ where: { id: accountId }, select: { experiencePoints: true, isAdmin: true } });
+  return { level: experienceLevelFor(account.experiencePoints), isAdmin: account.isAdmin };
+}
+
 /** Throws when an admin has restricted this account's communication. */
-export async function assertCanCommunicate(tx: Tx, accountId: string, now: Date): Promise<{ createdAt: Date }> {
+export async function assertCanCommunicate(tx: Tx, accountId: string, now: Date): Promise<{ createdAt: Date } & AccountTrust> {
   const account = await tx.account.findUniqueOrThrow({
     where: { id: accountId },
-    select: { createdAt: true, commsMutedUntil: true, commsMutedPermanent: true },
+    select: { createdAt: true, commsMutedUntil: true, commsMutedPermanent: true, experiencePoints: true, isAdmin: true },
   });
   if (commsMuted(account, now)) {
     throw new AppError(
@@ -74,7 +102,7 @@ export async function assertCanCommunicate(tx: Tx, accountId: string, now: Date)
         : `A moderator has paused your messaging until ${account.commsMutedUntil!.toISOString().slice(0, 16).replace('T', ' ')} UTC.`,
     );
   }
-  return { createdAt: account.createdAt };
+  return { createdAt: account.createdAt, level: experienceLevelFor(account.experiencePoints), isAdmin: account.isAdmin };
 }
 
 /**
@@ -87,6 +115,7 @@ export async function checkDirectMessage(
     senderPlayerId: string;
     recipientPlayerId: string;
     senderCreatedAt: Date;
+    sender: AccountTrust;
     body: string;
     subject: string;
     recentCount: number;
@@ -117,6 +146,17 @@ export async function checkDirectMessage(
     }),
   ]);
   const conversations = new Set(repliedBy.map((row) => row.senderId));
+  if (!conversations.has(input.recipientPlayerId) && !meetsTrustGate(input.sender, 'coldMessage')) {
+    // Below the gate a player can still reach their own alliance and staff.
+    const pair = await tx.roundPlayer.findMany({
+      where: { id: { in: [input.senderPlayerId, input.recipientPlayerId] } },
+      select: { id: true, allianceId: true, account: { select: { isAdmin: true } } },
+    });
+    const from = pair.find((row) => row.id === input.senderPlayerId);
+    const to = pair.find((row) => row.id === input.recipientPlayerId);
+    const sameAlliance = Boolean(from?.allianceId && from.allianceId === to?.allianceId);
+    if (!sameAlliance && !to?.account.isAdmin) assertTrustGate(input.sender, 'coldMessage');
+  }
   const coldRecipients = new Set(recent.map((row) => row.recipientId).filter((id) => !conversations.has(id)));
   const isCold = !conversations.has(input.recipientPlayerId) && !coldRecipients.has(input.recipientPlayerId);
   const cap = fresh ? NEW_ACCOUNT_COLD_RECIPIENTS : COLD_RECIPIENTS;

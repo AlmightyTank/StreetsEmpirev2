@@ -718,6 +718,7 @@ export const PimpConsoleService = {
         senderPlayerId: owner.id,
         recipientPlayerId: target.id,
         senderCreatedAt: sender.createdAt,
+        sender,
         subject: input.subject,
         body: input.body,
         recentCount,
