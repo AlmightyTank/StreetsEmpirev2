@@ -44,7 +44,7 @@ Each held district, city and zone runs a **yield clock**. On each tick (proposal
 
 | Rule | Proposal |
 | --- | --- |
-| What accrues | Mostly goods and supplies (product, beer, medicine, condoms, ammo/weapon stock, vehicle parts), plus a small cash share. Goods keep yields tied to the economy instead of printing money. |
+| What accrues | Mostly goods and supplies (product such as crack, weed or cocaine; beer; medicine; condoms; guns such as pistols and shotguns), plus a small cash share. Goods keep yields tied to the economy instead of printing money. |
 | Cache cap | Each cache holds at most ~12h of yield. A full cache stops accruing, so owners must show up. |
 | Collection | A member who is in that city spends turns to collect, or a run/pickup collects it through the existing logistics flow. |
 | Exposure | An uncollected cache is part of the location: raiding or flipping the district can take a share. Rivals have a reason to attack, and owners a reason to defend. |
@@ -62,12 +62,12 @@ Each district and city gets **one access entry, one yield profile, and at most o
 
 | Territory | Access | Yield | Perk |
 | --- | --- | --- | --- |
-| District: industrial | Chop shop (strip/repair vehicles) | Vehicle parts, product | +3% local production output |
+| District: industrial | Chop shop (strip/repair vehicles) | Product | +3% local production output |
 | District: market | Back-room market (toll) | Product, small cash | +3% local store proceeds |
-| District: transit | Shortcut lane (toll) | Ammo, beer | -3% local travel expense |
+| District: transit | Shortcut lane (toll) | Beer, pistols | -3% local travel expense |
 | District: residential | Safehouse (lay low, cut heat) | Medicine, condoms | +3% local defensive rating |
-| Chicago | Arms dealer shelf | Weapon stock | +5% owned-turf defense |
-| Detroit | Motor City garage (vehicle buys/upgrades) | Vehicle parts | -5% eligible travel cost |
+| Chicago | Arms dealer shelf | Guns (pistols, shotguns) | +5% owned-turf defense |
+| Detroit | Motor City garage (vehicle buys/upgrades) | Low-riders | -5% eligible travel cost |
 | Las Vegas | Private card room (high-limit tables) | Casino chips | +3% business income · **no odds change** |
 | New York City | Wall Street fixer (laundering/loan terms) | Cash | +5% store profit |
 | Miami Beach | Port dock (port-only shipment route) | Imported product | +5% scout supply rewards |
