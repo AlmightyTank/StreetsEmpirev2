@@ -168,27 +168,28 @@ describe.runIf(process.env.ADMIN_INTEGRATION === '1')('Admin accounts, inspector
     player = { ...player, username };
   });
 
-  it('grants and revokes admin, and two admins cannot remove each other at once', async () => {
-    const granted = await post(`/api/admin/accounts/${rival.id}/admin`, { reason: 'New moderator', isAdmin: true });
+  it('gives and takes lower staff roles, but only the Founder makes or removes Admins', async () => {
+    const refused = await post(`/api/admin/accounts/${rival.id}/admin`, { reason: 'New admin', isAdmin: true });
+    expect(refused.statusCode, refused.body).toBe(403);
+    expect(refused.json().error.code).toBe('STAFF_RANK');
+
+    const granted = await post(`/api/admin/accounts/${rival.id}/staff-role`, { reason: 'New moderator', role: 'MOD' });
     expect(granted.statusCode, granted.body).toBe(200);
-    expect(granted.json().account.isAdmin).toBe(true);
+    expect(granted.json().account).toMatchObject({ staffRole: 'MOD', isAdmin: false });
 
-    const selfRevoke = await post(`/api/admin/accounts/${rival.id}/admin`, { reason: 'Stepping down', isAdmin: false }, rival);
-    expect(selfRevoke.statusCode, selfRevoke.body).toBe(409);
+    const selfRevoke = await post(`/api/admin/accounts/${rival.id}/staff-role`, { reason: 'Stepping down', role: null }, rival);
+    expect(selfRevoke.statusCode, selfRevoke.body).toBe(403);
 
+    // Two Admins cannot remove each other: neither outranks the other.
+    await app.prisma.account.update({ where: { id: rival.id }, data: { staffRole: 'ADMIN' } });
     const results = await Promise.all([
       post(`/api/admin/accounts/${rival.id}/admin`, { reason: 'Removing the other admin', isAdmin: false }, admin),
       post(`/api/admin/accounts/${admin.id}/admin`, { reason: 'Removing the other admin', isAdmin: false }, rival),
     ]);
-    expect(results.map((result) => result.statusCode).sort()).toEqual([200, 403]);
-    const remaining = await app.prisma.account.findMany({ where: { id: { in: [admin.id, rival.id] } }, select: { id: true, isAdmin: true } });
-    expect(remaining.filter((row) => row.isAdmin)).toHaveLength(1);
-
-    // Put the original admin back if the rival won the race, so later tests act as them.
-    if (!remaining.find((row) => row.id === admin.id)!.isAdmin) {
-      await app.prisma.account.update({ where: { id: admin.id }, data: { isAdmin: true } });
-      await app.prisma.account.update({ where: { id: rival.id }, data: { isAdmin: false } });
-    }
+    expect(results.map((result) => result.json().error.code)).toEqual(['STAFF_RANK', 'STAFF_RANK']);
+    const remaining = await app.prisma.account.findMany({ where: { id: { in: [admin.id, rival.id] } }, select: { isAdmin: true } });
+    expect(remaining.every((row) => row.isAdmin)).toBe(true);
+    await app.prisma.account.update({ where: { id: rival.id }, data: { staffRole: null } });
   });
 
   it('inspects a player without settling them and pages their battle reports', async () => {
