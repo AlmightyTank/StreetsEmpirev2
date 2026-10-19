@@ -101,30 +101,7 @@ Today repairs are cash only (damaged: sedan $500, low-rider $750, van $1,250; di
 - Existing garage discounts (Auto Garage, Road Saints MC) apply to the cash part only.
 
 ### Upgrades
-Parts also buy **fleet upgrades**. Vehicles are stored as counts per class (`sedans`, `lowRiders`, `vans`), not as individual cars, so an upgrade applies to **every vehicle of that class** the player owns, including ones bought later. Upgrades last for the round.
-
-Four tracks, three tiers each. Each tier replaces the one below; it does not add to it.
-
-| Track | Effect per tier (1 / 2 / 3) |
-| --- | --- |
-| Cargo | +5% / +10% / +15% cargo |
-| Armor | −10% / −20% / −30% chance of turning Damaged or Disabled |
-| Engine | −5% / −10% / −15% travel time |
-| Hidden compartments | −5% / −10% / −15% police stop chance |
-
-Bigger vehicles cost more to upgrade, per tier, in parts plus cash:
-
-| Vehicle | Tier 1 | Tier 2 | Tier 3 |
-| --- | --- | --- | --- |
-| Sedan | 25 parts + $500 | 60 parts + $1,500 | 120 parts + $4,000 |
-| Low-rider | 40 parts + $750 | 100 parts + $2,500 | 200 parts + $6,000 |
-| Van | 80 parts + $1,500 | 200 parts + $5,000 | 400 parts + $12,000 |
-
-- Upgrades need parts; there is no cash-only path. Parts are what make upgrades scarce.
-- A full set (all four tracks at tier 3) for vans costs 2,720 parts and $74,000, so most players pick one or two tracks per class.
-- Hidden compartments overlap the Auto Garage's existing Run mods bonus. They share one capped stop-reduction total (proposal: −25%), like the garage discount cap.
-- Armor lowers the chance of damage; it never makes a vehicle immune.
-- The garage shows each class's tiers, what the next tier costs and does, and the run preview shows which upgrades apply.
+Parts also pay for upgrades. Guns and vehicles become individual items with their own mod slots; see [Armory & Garage](ROADMAP-ARMORY-GARAGE.md) for mods, tiers and costs.
 
 ### Buying parts
 Sold at Charlie's alongside vehicles, in bulk:
@@ -161,7 +138,6 @@ The chop shop (strip your own disabled vehicles: sedan 10, low-rider 15, van 30 
 ### Slice E — Parts and garage
 - Per-run cash fee by vehicle size, charged at launch.
 - Repairs with and without parts, scaled by size; chop shop; Charlie's parts packs.
-- Fleet upgrades: per-class tier storage, garage upgrade screen, effects in run settlement, shared stop-reduction cap with Run mods.
 - Run preview shows the cash fee per vehicle; rerun vehicle simulations so each fleet choice stays viable.
 
 ### Slice F — Territory, balance and rollout

@@ -1,0 +1,140 @@
+# StreetsEmpire — Armory & Garage Roadmap (individual guns and vehicles)
+
+Status: **Planned** · Target: **beta** · Builds on: [Ammo & Parts](ROADMAP-AMMO-PARTS.md) · Scope: gun store, Charlie's, combat, runs, garage, the Drop, Territory Rewards.
+
+## Vision
+Every gun and every vehicle is its own item. It has a model, a name, a condition, mods, a look and a history. A player's AK isn't "one of 12 AK-47s": it's *Widowmaker*, scoped, extended mag, 41 fights, taken off a rival in Detroit.
+
+Today guns and vehicles are counts on `RoundPlayer` (`pistols`, `ak47s`, `lowRiders`, `damagedVans`...). Rounds pinned to older rulesets keep counts. New rulesets switch to individual items.
+
+All numbers are proposals to tune in simulation.
+
+## The item model
+
+### Guns (`PlayerGun`)
+| Field | Meaning |
+| --- | --- |
+| `model` | PISTOL, SHOTGUN, TEC9, AK47 |
+| `name` | Optional player nickname |
+| `condition` | 0–100. Falls with use; low condition lowers power and raises jam chance |
+| `mods` | One mod per slot, each with a tier |
+| `lookKey` | Optional Drop weapon look (cosmetic only) |
+| `origin` | Bought, looted (from whom), found, reward |
+| `stats` | Fights, rounds fired, wins |
+| `status` | READY, BROKEN (condition 0), LOCKED (equipped on an escort or posted) |
+
+### Vehicles (`PlayerVehicle`)
+| Field | Meaning |
+| --- | --- |
+| `model` | SEDAN, LOW_RIDER, VAN |
+| `name`, `plate` | Nickname and a generated plate |
+| `status` | READY, DAMAGED, DISABLED, ON_RUN. Replaces the `damaged*` / `disabled*` counts |
+| `condition` | 0–100. Falls a little each run; low condition raises the chance of trouble |
+| `mods` | One mod per slot, each with a tier |
+| `lookKey` | Optional Drop vehicle look (cosmetic only) |
+| `origin`, `stats` | Bought, recovered, looted; runs, miles, busts survived |
+
+## Customization
+
+### Mod slots
+Bigger items get more slots, and every mod costs **parts + cash**, scaled by size.
+
+| Gun | Slots | | Vehicle | Slots |
+| --- | --- | --- | --- | --- |
+| Pistol | 2 | | Sedan | 2 |
+| Shotgun | 3 | | Low-rider | 3 |
+| TEC-9 | 3 | | Van | 4 |
+| AK-47 | 4 | | | |
+
+### Gun mods (tiers 1 / 2 / 3)
+| Mod | Effect |
+| --- | --- |
+| Barrel | +3% / +6% / +10% gun power |
+| Scope | +2% / +4% / +7% gun power, AK-47 and shotgun only |
+| Extended mag | −10% / −20% / −30% jam chance |
+| Compensator | −5% / −10% / −15% rounds per fight |
+| Suppressor | −5% / −10% / −15% heat from fights this gun fires in (capped per fight) |
+| Reinforced frame | −20% / −35% / −50% condition loss |
+
+One mod per slot, one of each mod type per gun. Mods are tuned so a fully modded pistol never beats a stock shotgun: model order stays the main power ladder.
+
+### Vehicle mods (tiers 1 / 2 / 3)
+Replaces the per-class upgrades in the Ammo & Parts doc; each vehicle is modded on its own.
+
+| Mod | Effect |
+| --- | --- |
+| Cargo | +5% / +10% / +15% cargo |
+| Armor | −10% / −20% / −30% chance of turning Damaged or Disabled |
+| Engine | −5% / −10% / −15% travel time |
+| Hidden compartments | −5% / −10% / −15% police stop chance (shares a −25% cap with Auto Garage Run mods) |
+| Fuel tank | −10% / −20% / −30% run fee |
+
+### Cost per mod (parts + cash)
+| Size | Tier 1 | Tier 2 | Tier 3 |
+| --- | --- | --- | --- |
+| Pistol / Sedan | 5 + $100 | 15 + $300 | 40 + $900 |
+| Shotgun / TEC-9 / Low-rider | 10 + $200 | 30 + $600 | 80 + $1,800 |
+| AK-47 / Van | 20 + $400 | 60 + $1,200 | 160 + $3,600 |
+
+Mods can be removed for half their parts back. A mod is lost with its item.
+
+### Looks and names
+- Players can name any gun or vehicle (filtered by the existing profanity rules).
+- Drop weapon and vehicle looks (e.g. *Quarter Mile Sedan*, *Winter Heist Van*) apply per item and are **cosmetic only**, never stats.
+- Named items show in combat and run receipts ("*Widowmaker* fired 180 rounds").
+
+## Wear, repair and ammo
+- **Guns:** each fight costs condition (proposal: −2 for pistols up to −4 for AK-47s). Below 50 condition, power drops and jam chance rises; at 0 the gun is BROKEN until repaired with parts at the gun store. Jammed guns fight unarmed for that fight but still spend their rounds.
+- **Vehicles:** each run costs a little condition; the existing Damaged/Disabled outcomes are now per vehicle. Repairs use the parts + cash table in the Ammo & Parts doc.
+- **Ammo:** spent per gun, using that gun's rounds per fight after mods. The biggest-guns-first allocation now goes gun by gun, best effective power first.
+
+## Combat and runs with individual items
+- **Auto-equip:** fighters take guns best-first (effective power after mods and condition). Players never assign guns by hand unless they want to.
+- **Favourites and reserves:** a player can mark guns as *favourite* (always equipped first) or *reserve* (never equipped, never lootable unless the armory is overrun).
+- **Loot:** a winning attacker takes specific guns, not counts, chosen at random from the defender's non-reserve guns. Looted guns keep their name, mods and history, with "taken from X" added. A player can win their gun back.
+- **Runs:** the player picks vehicles for a run, or uses *auto-fleet* (best cargo per run fee). Trouble hits a specific vehicle, the most visible first, as now.
+- **No trading or selling between players.** Items move between players only through combat loot, as with the 3.0 "no member/property trades" rule. Selling back to stores works as now.
+
+## Managing hundreds of items
+A player with 600 pistols has to stay comfortable:
+- **Stacks:** identical, unmodified, unnamed, full-condition items show as one stack ("212 × Pistol"). Customizing one splits it out.
+- **Bulk actions:** select by filter (model, condition, mods) and repair, mod, sell, rename-prefix or mark reserve in one action with one combined cost.
+- **Builds:** save a mod build ("Street AK: barrel 2, scope 2, comp 1") and apply it to N matching guns at once.
+- Sort and filter by power, condition, mods, name and origin; search by name.
+
+## Storage and performance
+- From the player's view everything is individual. In storage, an untouched stack may be one row with a `quantity`, split into individual rows the first time any item in it is customized, damaged or looted. This keeps a 600-pistol player at a few rows until they actually customize.
+- Hard caps per round player (proposal: 2,000 guns, 100 vehicles), so a stuck or abusive account can't grow without bound.
+- Combat and run settlement read an aggregate per effective-stats group (model + mods + condition band) rather than looping 600 rows, and lock the player's armory in one transaction.
+- A per-player armory summary (total power, counts by model, condition bands) is kept in step transactionally for headers and rankings.
+
+## Guardrails
+- Mods never change casino odds and are never sold for Crowns or Supporter perks; Drop looks are cosmetic only.
+- Model order stays the main power ladder; mod bonuses are capped per item and per fight.
+- No item carries over between rounds. Permanent memory is cosmetic: a round's most famous named gun or vehicle can go on the profile and in the round aftermath.
+- Loot, mod, repair and bulk actions are idempotent on retry and audited.
+- Old rounds keep count-based guns and vehicles unchanged.
+
+## Slices
+
+### Slice A — Item tables and catalog
+- `PlayerGun` and `PlayerVehicle` with stack rows, caps and armory summary. Ruleset catalog: slots, mods, tiers, costs, wear.
+- New ruleset flag switches buying, selling and the starting kit to items. Old rulesets untouched.
+
+### Slice B — Armory and garage screens
+- Stacked list, filters, sort, search, naming, favourites/reserves, bulk select. Phone and desktop.
+
+### Slice C — Mods and builds
+- Install/remove mods with parts + cash, saved builds, bulk apply. Receipts.
+
+### Slice D — Combat with items
+- Best-first auto-equip, per-gun ammo and wear, jams, item loot with history, named items in receipts. Rerun combat simulations.
+
+### Slice E — Runs and vehicles with items
+- Vehicle picker and auto-fleet, per-vehicle trouble, status and repairs, vehicle mods in settlement. Rerun vehicle simulations.
+
+### Slice F — Looks, history and aftermath
+- Drop looks per item, item history, "famous items" on the profile and in round aftermath.
+
+### Slice G — Performance, abuse and rollout
+- Load test players at the item caps, loot races, parallel bulk actions. Admin item inspector and audit log. Staged opt-in on new rounds.
