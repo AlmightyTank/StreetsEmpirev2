@@ -4,6 +4,22 @@
  * casino.css; loaded after drop.css. Wallet, packs and skips stay in drop.css.
  */
 
+/* Barlow Condensed (SIL OFL 1.1, see assets/fonts/barlow-condensed/OFL.txt), bundled so nothing loads from a third party. */
+@font-face {
+  font-family: "Barlow Condensed";
+  font-style: italic;
+  font-weight: 800;
+  font-display: swap;
+  src: url("../assets/fonts/barlow-condensed/barlow-condensed-latin-800-italic.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Barlow Condensed";
+  font-style: italic;
+  font-weight: 900;
+  font-display: swap;
+  src: url("../assets/fonts/barlow-condensed/barlow-condensed-latin-900-italic.woff2") format("woff2");
+}
+
 /* ---------- Page ---------- */
 /*
  * Item-shop presentation: rarity-filled tiles, sets with live countdowns, a
@@ -12,7 +28,7 @@
  */
 .se-drop {
   --se-drop-gap: 16px;
-  --se-drop-display: "Bebas Neue", "Oswald", "Anton", Impact, "Haettenschweiler", "Arial Narrow", system-ui, sans-serif;
+  --se-drop-display: "Barlow Condensed", Impact, "Arial Narrow", system-ui, sans-serif;
   --se-drop-cta: #ffe14d;
   --se-drop-cta-ink: #1a1500;
   display: grid;
@@ -47,13 +63,12 @@
 .se-drop-top h1 {
   margin: 0;
   font-family: var(--se-drop-display);
-  font-size: clamp(34px, 6vw, 56px);
+  font-size: clamp(40px, 7vw, 64px);
   font-style: italic;
   font-weight: 900;
   line-height: .95;
   letter-spacing: .01em;
   text-transform: uppercase;
-  transform: skewX(-4deg);
 }
 .se-drop-top__timer { color: var(--se-text-dim); font-size: var(--se-type-sm); font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
 .se-drop-top__timer b, .se-drop-timer b { color: var(--se-text); font-variant-numeric: tabular-nums; }
@@ -102,7 +117,7 @@
   padding: 8px 14px;
   color: var(--se-text-dim);
   font-family: var(--se-drop-display);
-  font-size: 18px;
+  font-size: 21px;
   font-style: italic;
   font-weight: 800;
   letter-spacing: .03em;
@@ -183,7 +198,7 @@
   background: var(--se-drop-cta);
   color: var(--se-drop-cta-ink);
   font-family: var(--se-drop-display);
-  font-size: 18px;
+  font-size: 21px;
   font-style: italic;
   font-weight: 900;
   letter-spacing: .03em;
@@ -263,7 +278,7 @@
 .se-drop-section__head h2 {
   margin: 0;
   font-family: var(--se-drop-display);
-  font-size: clamp(24px, 3.4vw, 32px);
+  font-size: clamp(28px, 4vw, 38px);
   font-style: italic;
   font-weight: 900;
   line-height: 1;
@@ -355,17 +370,17 @@
   display: -webkit-box;
   overflow: hidden;
   font-family: var(--se-drop-display);
-  font-size: 19px;
+  font-size: 23px;
   font-style: italic;
   font-weight: 900;
-  line-height: 1;
+  line-height: .95;
   letter-spacing: .01em;
   text-transform: uppercase;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   line-clamp: 2;
 }
-.se-drop-card--large .se-drop-card__name { font-size: clamp(24px, 3.4vw, 34px); }
+.se-drop-card--large .se-drop-card__name { font-size: clamp(28px, 4vw, 40px); }
 .se-drop-card__collection { color: rgba(255, 255, 255, .7); font-size: var(--se-type-xs); font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
 .se-drop-card__foot { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin-top: 4px; }
 .se-drop-card__price { display: inline-flex; gap: 8px; align-items: center; }
@@ -547,7 +562,7 @@ a.se-drop-purchase {
   background: var(--se-drop-cta);
   color: var(--se-drop-cta-ink);
   font-family: var(--se-drop-display);
-  font-size: 22px;
+  font-size: 26px;
   font-style: italic;
   font-weight: 900;
   letter-spacing: .03em;
@@ -566,7 +581,7 @@ a.se-drop-purchase {
   .se-drop-detail { grid-template-columns: 1fr; padding: 12px; }
   .se-drop-detail__stage { min-height: 220px; }
   .se-drop-grid { --se-drop-tile: 140px; gap: 8px; }
-  .se-drop-card__name { font-size: 16px; }
+  .se-drop-card__name { font-size: 19px; }
   .se-drop-card__time { margin-left: 0; }
   .se-drop-facts div { grid-template-columns: 1fr; gap: 0; }
   .se-drop-buy__offer .se-btn, .se-drop-buy__offer .se-why, a.se-drop-purchase { width: 100%; }
