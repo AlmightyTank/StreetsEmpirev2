@@ -237,6 +237,8 @@ export interface QuestObjectiveAdvance {
 }
 
 export type QuestRewardKind =
+  /** Account-wide Crowns, typically used by Street Pass rewards. */
+  | 'CROWNS'
   | 'CASH'
   | 'TURNS'
   | 'ITEM'
