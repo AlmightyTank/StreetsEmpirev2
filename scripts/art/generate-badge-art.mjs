@@ -235,13 +235,15 @@ function storefront(x, y, w, h, wall, awning, sign) {
     + `<circle cx="${x + w * 0.62}" cy="${y + h - 12}" r="1.3" fill="#f6d061"/>`;
 }
 
-function inlineCount() { inlineCount.n = (inlineCount.n ?? 0) + 1; return inlineCount.n; }
+// Inlined item ids are numbered per badge (reset in render) so a filtered run
+// writes the same file as a full one.
+let inlineCount = 0;
 
 /** Classic item art from apps/web/public/items, centred on (cx, cy). */
 function item(name, cx, cy, s = 1, rot = 0) {
   const svg = readFileSync(path.join(itemsDir, `${name}.svg`), 'utf8');
   const [, w, h] = svg.match(/viewBox="0 0 (\d+(?:\.\d+)?) (\d+(?:\.\d+)?)"/).map(Number);
-  const pre = `i${inlineCount()}`;
+  const pre = `i${++inlineCount}`;
   const body = svg
     .replace(/^[\s\S]*?<svg[^>]*>/, '')
     .replace(/<\/svg>\s*$/, '')
@@ -996,6 +998,7 @@ const BADGES = {
 // ---------------------------------------------------------------------------
 
 function render(key) {
+  inlineCount = 0;
   const body = BADGES[key]();
   const used = Object.keys(PAINT).filter((id) => body.includes(`url(#${id})`));
   const title = key.replace(/-/g, ' ');
