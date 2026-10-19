@@ -1480,3 +1480,8 @@
 .se-discovery-clue__label { color: var(--se-text); font-size: 10px; line-height: 1.35; }
 .se-discovery-families { list-style: none; display: grid; gap: 4px; margin: 0; padding: 0; font-size: 11px; color: var(--se-muted); }
 .se-ach--discovery > .se-btn { margin-top: auto; align-self: flex-start; }
+.se-profile-achievements .se-ach.se-ach--trophy { min-height: 0; }
+/* polish.css resets .se-ach border colours after theme.css sets the rarity ones. */
+.se-ach--trophy.se-ach--rare { border-left-color: #6899f3; }
+.se-ach--trophy.se-ach--epic { border-left-color: #e576e1; }
+.se-ach--trophy.se-ach--legendary { border-left-color: #f1b622; }

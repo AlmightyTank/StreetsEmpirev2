@@ -467,7 +467,7 @@ function DiscoveriesPanel({ discoveries }: { discoveries: SecretCollectionDto | 
           <p className="se-muted">Trophies survive every season reset.</p>
           <ul className="se-ach-grid">
             {trophies.map((trophy) => (
-              <li className="se-ach se-ach--discovery" key={trophy.key}>
+              <li className={`se-ach se-ach--discovery se-ach--trophy se-ach--${trophy.rarity.toLowerCase()}`} key={trophy.key}>
                 <div className="se-ach__top">
                   <span className="se-ach__cat">{trophy.family ? familyLabel(trophy.family) : 'Secret'}</span>
                   <span className="se-ach__rarity">{trophy.rarity}</span>
