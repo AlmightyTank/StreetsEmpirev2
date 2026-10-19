@@ -1,3 +1,4 @@
+import type { StaffCapability, StaffRole } from '../staff.js';
 import type { HeatDto, TripHeatDto, TurfSummaryDto, TurfTripDto, WorkSupplyPlanDto } from './playing-together.js';
 import type { LawSummaryDto } from './law.js';
 import type { CrewCosmeticLoadout, ItemCosmeticLoadout } from '../cosmetics.js';
@@ -150,7 +151,12 @@ export interface AccountDto {
   emailVerifiedAt: string | null;
   discordLinked: boolean;
   discordUsername: string | null;
+  /** True for Founder and Admin. */
   isAdmin: boolean;
+  /** Null for players. */
+  staffRole: StaffRole | null;
+  /** What this account's staff role may do in the admin panel. Empty for players. */
+  staffCapabilities: StaffCapability[];
   createdAt: string;
   lastLoginAt: string | null;
   /** True until this account may play: verify the email, or sign in with Discord. */
@@ -160,8 +166,8 @@ export interface AccountDto {
   /** Private birth date has not been collected. Exact birthday is never sent in session DTOs. */
   birthDateRequired: boolean;
   /**
-   * rc.2. An admin signed in with a password while admin tools require a Discord
-   * sign-in: the admin pages are closed until they sign in with Discord.
+   * rc.2. A staff member signed in with a password while admin tools require a second
+   * factor: the admin pages are closed until they prove one.
    */
   adminSignInRequired: boolean;
   /** rc.3. Sign-in asks for an authenticator code. */

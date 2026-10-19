@@ -117,6 +117,10 @@ async function main(): Promise<void> {
     const admins = await prisma.account.findMany({ where: { isAdmin: true, isActive: true }, select: { username: true, discordId: true, twoFactorEnabledAt: true } });
     report('Admin accounts configured', admins.length === 0 ? 'FAIL' : admins.length === 1 ? 'WARN' : 'PASS',
       admins.length ? `${admins.map((a) => a.username).join(', ')}${admins.length === 1 ? ' (one admin: add a second so the game is never without one).' : '.'}` : 'No admin. npm run admin -- <username>.');
+    // Staff roles: the Founder is the only one who can make or remove Admins, and is set from the console.
+    const founder = await prisma.account.findFirst({ where: { staffRole: 'FOUNDER' }, select: { username: true } });
+    report('Founder set', founder ? 'PASS' : 'WARN',
+      founder ? `${founder.username} is the Founder.` : 'No Founder, so no one can make or remove Admins from the panel. npm run admin -- <owner> --founder.');
     // rc.2/rc.3: admin tools answer only a session with a second factor (Discord or an authenticator).
     const adminSecondFactor = (env.get('REQUIRE_ADMIN_2FA') ?? env.get('REQUIRE_ADMIN_DISCORD') ?? (environment === 'production' || environment === 'beta' ? 'true' : 'false')) === 'true';
     const unprotected = admins.filter((a) => !a.discordId && !a.twoFactorEnabledAt).map((a) => a.username);

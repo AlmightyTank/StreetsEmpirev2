@@ -1,4 +1,4 @@
-import type { FastifyPluginAsync } from 'fastify';
+import type { FastifyPluginAsync, FastifyRequest } from 'fastify';
 import {
   ADMIN_COMMS_MUTE_LENGTHS,
   ADMIN_GRANT_CAPS,
@@ -13,12 +13,16 @@ import {
   adminSurveyResultsQuerySchema,
   usernameSchema,
   ADMIN_DISCORD_TIMEOUT_LENGTHS,
+  STAFF_ROLES,
+  type StaffCapability,
   type AdminCommsMuteLength,
   type AdminDiscordTimeoutLength,
   type AdminSuspensionLength,
 } from '@streets/shared';
 import { z } from 'zod';
 import { AdminAccountService } from '../services/admin-account.service.js';
+import { StaffService } from '../services/staff.service.js';
+import { staffRoleOf } from '../auth/play-access.js';
 import { AdminAuditService } from '../services/admin-audit.service.js';
 import { AppError } from '../utils/errors.js';
 import { AdminModerationService } from '../services/admin-moderation.service.js';
@@ -198,6 +202,7 @@ const startRoundSchema = z.object({ confirmHandoff: z.boolean().optional() }).st
 const revokeSessionsSchema = z.object({ reason, sessionId: id.optional() }).strict();
 const renameSchema = z.object({ reason, username: usernameSchema }).strict();
 const adminRoleSchema = z.object({ reason, isAdmin: z.boolean() }).strict();
+const staffRoleSchema = z.object({ reason, role: z.enum(STAFF_ROLES).nullable() }).strict();
 const betaAccessSchema = z.object({ reason, approved: z.boolean() }).strict();
 const deleteAccountSchema = z.object({
   reason,
@@ -373,11 +378,69 @@ const auditQuery = z.object({
 const auditExportQuery = auditQuery.omit({ before: true }).strict();
 
 /**
- * 0.3.0-B admin API. The admin guard is a hook on this whole plugin, so a
+ * The routes staff below Admin may use, and the capability each needs. A route not
+ * listed needs the admin capability, so a new route is admin-only until it is added
+ * here. Services re-check the actor and the target's rank on top of this.
+ */
+const STAFF_ROUTE_CAPABILITIES: Partial<Record<string, StaffCapability>> = {
+  'GET /staff': 'staff.view',
+  'POST /accounts/:accountId/staff-role': 'staff.assign',
+  'GET /accounts': 'accounts.view',
+  'GET /accounts/:accountId': 'accounts.view',
+  'GET /accounts/:accountId/community': 'accounts.mute',
+  'POST /accounts/:accountId/notes': 'accounts.notes',
+  'POST /accounts/:accountId/comms-mute': 'accounts.mute',
+  'POST /accounts/:accountId/comms-mute/lift': 'accounts.mute',
+  'POST /accounts/:accountId/discord-timeout': 'accounts.mute',
+  'POST /accounts/:accountId/discord-timeout/lift': 'accounts.mute',
+  'POST /accounts/:accountId/suspend': 'accounts.suspend',
+  'POST /accounts/:accountId/suspend/lift': 'accounts.suspend',
+  'POST /accounts/:accountId/sessions/revoke': 'accounts.suspend',
+  'POST /accounts/:accountId/forum-suspend': 'accounts.suspend',
+  'POST /accounts/:accountId/forum-suspend/lift': 'accounts.suspend',
+  'POST /accounts/:accountId/ban': 'accounts.ban',
+  'POST /accounts/:accountId/unban': 'accounts.ban',
+  'POST /accounts/:accountId/rename': 'accounts.rename',
+  'POST /accounts/:accountId/reset-profile': 'accounts.rename',
+  'GET /reports': 'reports.handle',
+  'POST /reports/:reportId/open': 'reports.handle',
+  'POST /reports/:reportId/resolve': 'reports.handle',
+  'POST /wire/:postId/remove': 'reports.handle',
+  'POST /crew-legends/moderate': 'reports.handle',
+  'GET /bug-reports': 'bugs.triage',
+  'POST /bug-reports/:reportId/resolve': 'bugs.triage',
+};
+
+/** The routes listed above, for the test that checks each one exists. */
+export const STAFF_ROUTES = Object.keys(STAFF_ROUTE_CAPABILITIES);
+
+/** The capability a request to this plugin needs. */
+export function staffCapabilityFor(method: string, path: string): StaffCapability {
+  return STAFF_ROUTE_CAPABILITIES[`${method} ${path}`] ?? 'admin';
+}
+
+/**
+ * 0.3.0-B admin API. The staff guard is a hook on this whole plugin, so a
  * route added here cannot forget it. Every change writes an audit record.
  */
 const adminRoutes: FastifyPluginAsync = async (fastify) => {
-  fastify.addHook('onRequest', fastify.requireAdmin);
+  fastify.addHook('onRequest', async (request, reply) => {
+    const path = (request.routeOptions.url ?? '').slice(fastify.prefix.length);
+    await fastify.requireStaff(staffCapabilityFor(request.method, path))(request, reply);
+  });
+
+  // The hook above has already checked the caller is staff.
+  const viewerRole = (request: FastifyRequest) => staffRoleOf(request.auth!.account)!;
+
+  // Staff roles
+
+  fastify.get('/staff', async (request) => StaffService.list(fastify.prisma, viewerRole(request)));
+
+  fastify.post('/accounts/:accountId/staff-role', async (request) => {
+    const { accountId } = parseBody(accountParams, request.params);
+    const body = parseBody(staffRoleSchema, request.body ?? {});
+    return AdminAccountService.setStaffRole(fastify.prisma, request.auth!.account, accountId, body.role, body.reason);
+  });
 
   // 2.1.0-E. Moderator-only suppression of live or archived preset names.
   fastify.post('/crew-legends/moderate', async (request) => {
@@ -701,11 +764,11 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
 
   // Accounts
 
-  fastify.get('/accounts', async (request) => AdminAccountService.search(fastify.prisma, parseBody(accountSearchQuery, request.query)));
+  fastify.get('/accounts', async (request) => AdminAccountService.search(fastify.prisma, parseBody(accountSearchQuery, request.query), viewerRole(request)));
 
   fastify.get('/accounts/:accountId', async (request) => {
     const { accountId } = parseBody(accountParams, request.params);
-    return AdminAccountService.detail(fastify.prisma, accountId);
+    return AdminAccountService.detail(fastify.prisma, accountId, viewerRole(request));
   });
 
   fastify.post('/accounts/:accountId/deactivate', async (request) => {
@@ -848,7 +911,8 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post('/accounts/:accountId/admin', async (request) => {
     const { accountId } = parseBody(accountParams, request.params);
     const body = parseBody(adminRoleSchema, request.body ?? {});
-    return AdminAccountService.setAdmin(fastify.prisma, request.auth!.account, accountId, body.isAdmin, body.reason);
+    // Before staff roles: grant makes an Admin, revoke takes every staff role away.
+    return AdminAccountService.setStaffRole(fastify.prisma, request.auth!.account, accountId, body.isAdmin ? 'ADMIN' : null, body.reason);
   });
 
   fastify.post('/accounts/:accountId/beta-access', async (request) => {

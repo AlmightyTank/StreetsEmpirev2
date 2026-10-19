@@ -139,8 +139,7 @@ export function AdminAuditPage() {
               <option value="account.">Account actions</option>
               <option value="account.deactivate">Deactivations</option>
               <option value="account.rename">Renames</option>
-              <option value="account.grant-admin">Admin grants</option>
-              <option value="account.revoke-admin">Admin removals</option>
+              <option value="account.staff-role">Staff role changes</option>
               <option value="account.grant-supporter">Supporter grants</option>
             </select>
           </div>

@@ -8,24 +8,52 @@ needs the seed script, a database client, or a deploy.
 
 ## Getting in
 
-Admin is a flag on an account. The first one has to be set from the console,
-and so does the one you set after locking yourself out:
+Staff have one of five roles: **Founder, Admin, Mod, JR Mod, Helper**. Founder
+and Admin see every tool; the others see only the pages their role can use
+(Accounts, Staff, Reports, Bug Reports). The first role has to be set from the
+console, and so does the one you set after locking yourself out:
 
 ```bash
-npm run admin -- <username or email>
+npm run admin -- <username or email> --founder           # once, for the owner
+npm run admin -- <username or email>                     # Admin
+npm run admin -- <username or email> --role mod          # mod, jr-mod or helper
 ```
 
-`--off` removes the flag, `--list` shows who has it, `--reason "why"` is saved
-to the audit log with the change. Lookups take a pimp name or an email. Sign out
-and back in for the admin menu to appear.
+`--off` removes any staff role, `--list` shows who has one, `--reason "why"` is
+saved to the audit log and the staff role history. Lookups take a pimp name or an
+email. Sign out and back in for the admin menu to appear.
 
-After that, admins make other admins from **Accounts → the account →
-Make admin**. An admin cannot change their own role, and the last active admin
-cannot be removed from the panel — the console command is the way back.
+**After deploying staff roles, run `--founder` once for the owner.** Until then
+every existing admin is a plain Admin, and Admins cannot change each other.
+
+After that, roles are changed from **Accounts → the account → Change staff role**,
+and **Staff** lists everyone with a role and every change. The rules:
+
+- Only the Founder makes or removes Admins. Admins make Mods, JR Mods and Helpers.
+- Founder is never offered in the panel. There is exactly one, set from the console.
+- Nobody changes their own role, and nobody acts on staff at or above their own
+  rank (a Mod cannot mute an Admin; an Admin cannot ban another Admin).
+- Bans, suspensions, mutes and deletion still need the staff role taken away first.
+- JR Mods mute and time out on Discord for up to a day.
+- Email, sessions and audit snapshots are Admin and up. Notes are JR Mod and up.
+
+| Can | Founder | Admin | Mod | JR Mod | Helper |
+|---|---|---|---|---|---|
+| Rounds, economy, content, integrations, audit | ✅ | ✅ | | | |
+| Email, sessions, devices | ✅ | ✅ | | | |
+| Give Admin | ✅ | | | | |
+| Give Mod, JR Mod, Helper | ✅ | ✅ | | | |
+| Ban, suspend (game and forum), sign out, rename | ✅ | ✅ | ✅ | | |
+| Mute, Discord timeout | ✅ | ✅ | ✅ | up to 1 day | |
+| Message reports, wire posts, notes | ✅ | ✅ | ✅ | ✅ | |
+| Bug reports, support tickets, account lookup | ✅ | ✅ | ✅ | ✅ | ✅ |
+
+The full map is `packages/shared/src/staff.ts`. `isAdmin` on an account stays
+true for Founder and Admin; a database trigger keeps it in step with `staffRole`.
 
 ### Admin sign-in
 
-Admin tools only open for a sign-in with a **second factor**:
+Admin tools only open for a sign-in with a **second factor**, for every staff role:
 
 - **Sign in with Discord.** Discord's own sign-in covers this, so turn on two-factor in Discord.
 - **An authenticator code (rc.3).** The admin sets up an authenticator app in **Account settings → Two-step sign-in**, then signs in with a password and the app's code.

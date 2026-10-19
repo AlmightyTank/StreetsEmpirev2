@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { Prisma, type Account, type PrismaClient } from '@prisma/client';
+import { Prisma, type Account, type PrismaClient, type StaffRole } from '@prisma/client';
 import type { FastifyBaseLogger } from 'fastify';
 import type {
   AdminAccountDeleteResultDto,
@@ -13,9 +13,13 @@ import type {
 import {
   ADMIN_COMMS_MUTE_LENGTHS,
   ADMIN_SUSPENSION_LENGTHS,
+  STAFF_ROLE_LABELS,
   type AdminCommsMuteLength,
   type AdminSuspensionLength,
   normalizeUsername,
+  staffCan,
+  staffMayChangeRole,
+  type StaffCapability,
 } from '@streets/shared';
 import { commsMuted } from './communication-guard.js';
 import { createAccountEmailToken, emailVerificationUrl } from '../auth/email-tokens.js';
@@ -23,7 +27,9 @@ import { hashPassword } from '../auth/password.js';
 import { env } from '../config/env.js';
 import { lockAccount, type Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
+import { isStaff, staffRoleOf } from '../auth/play-access.js';
 import { AdminAuditService, toAuditEntryDto, type AuditActor } from './admin-audit.service.js';
+import { actorStaffRole, assertMuteLength, assertNotSelf, assertOutranks } from './staff-guard.js';
 import { sendCurrentEmailVerification, sendTwoFactorNotice } from './email.service.js';
 import { TwoFactorService } from './two-factor.service.js';
 import { deletedAccountIdentity, eraseAccount } from './account-data.service.js';
@@ -62,6 +68,7 @@ export function accountSnapshot(account: Account) {
     emailVerifiedAt: account.emailVerifiedAt,
     isActive: account.isActive,
     isAdmin: account.isAdmin,
+    staffRole: account.staffRole,
     betaApproved: account.betaApproved,
     discordUsername: account.discordUsername,
     suspendedUntil: account.suspendedUntil,
@@ -96,6 +103,7 @@ export function deletionAuditSnapshot(account: Account, roundsPlayed: number) {
     username: account.username,
     isActive: account.isActive,
     isAdmin: account.isAdmin,
+    staffRole: account.staffRole,
     betaApproved: account.betaApproved,
     roundsPlayed,
   };
@@ -123,15 +131,16 @@ const summaryInclude = {
 
 type SummaryAccount = Account & { forumLink: { forumUsername: string } | null; _count: { roundPlayers: number } };
 
-function toSummary(account: SummaryAccount, activeSessions: number, now = new Date()): AdminAccountSummaryDto {
+function toSummary(account: SummaryAccount, activeSessions: number, showPrivate: boolean, now = new Date()): AdminAccountSummaryDto {
   return {
     id: account.id,
     username: account.username,
-    email: account.email,
+    email: showPrivate ? account.email : null,
     emailVerified: Boolean(account.emailVerifiedAt),
     twoFactorEnabled: Boolean(account.twoFactorEnabledAt),
     isActive: account.isActive,
     isAdmin: account.isAdmin,
+    staffRole: staffRoleOf(account),
     betaApproved: account.betaApproved,
     suspension: toSuspensionDto(account, now),
     ban: account.bannedAt ? { at: account.bannedAt.toISOString(), reason: account.bannedReason ?? '', byUsername: account.bannedByUsername } : null,
@@ -151,6 +160,24 @@ function stringArray(value: unknown): string[] {
 type Change = { account: Account; detail?: Record<string, unknown> };
 
 /**
+ * The capability each account action needs. An action not listed needs the admin
+ * capability, so a new one is admin-only until it is added here.
+ */
+const ACTION_CAPABILITY: Partial<Record<string, StaffCapability>> = {
+  'comms-mute': 'accounts.mute',
+  'comms-unmute': 'accounts.mute',
+  'add-note': 'accounts.notes',
+  ban: 'accounts.ban',
+  unban: 'accounts.ban',
+  suspend: 'accounts.suspend',
+  'lift-suspension': 'accounts.suspend',
+  'revoke-sessions': 'accounts.suspend',
+  rename: 'accounts.rename',
+  'reset-profile': 'accounts.rename',
+  'staff-role': 'staff.assign',
+};
+
+/**
  * One moderation action on another admin's or player's account, with its audit
  * record in the same transaction. Moderation is serialised and the acting admin
  * is re-checked inside it, so two admins cannot remove each other at once.
@@ -161,7 +188,7 @@ async function moderate(
   accountId: string,
   action: string,
   reason: string,
-  apply: (tx: Db, account: Account) => Promise<Change>,
+  apply: (tx: Db, account: Account, actorRole: StaffRole) => Promise<Change>,
 ): Promise<void> {
   try {
     await prisma.$transaction((tx) => moderateWithin(tx, actor, accountId, action, reason, apply));
@@ -180,20 +207,18 @@ async function moderateWithin(
   accountId: string,
   action: string,
   reason: string,
-  apply: (tx: Db, account: Account) => Promise<Change>,
+  apply: (tx: Db, account: Account, actorRole: StaffRole) => Promise<Change>,
 ): Promise<void> {
-  if (actor.id === accountId) {
-    throw AppError.conflict('ADMIN_SELF_ACTION', 'Admins cannot moderate their own account. Ask another admin.');
-  }
+  assertNotSelf(actor, accountId);
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(3003)`;
-  const me = await tx.account.findUnique({ where: { id: actor.id }, select: { isAdmin: true, isActive: true } });
-  if (!me?.isAdmin || !me.isActive) throw AppError.forbidden('Only game admins can do that.');
+  const actorRole = await actorStaffRole(tx, actor, ACTION_CAPABILITY[action] ?? 'admin');
 
   await lockAccount(tx, accountId);
   const before = await tx.account.findUnique({ where: { id: accountId } });
   if (!before) throw AppError.notFound('ACCOUNT_NOT_FOUND', 'That account does not exist.');
+  assertOutranks(actorRole, before);
 
-  const change = await apply(tx, before);
+  const change = await apply(tx, before, actorRole);
   await AdminAuditService.record(tx, actor, {
     action: `account.${action}`,
     targetType: 'account',
@@ -213,8 +238,9 @@ function commsMuteStep(actor: AuditActor, length: AdminCommsMuteLength, reason: 
   if (!chosen) throw AppError.badRequest('COMMS_MUTE_LENGTH_UNKNOWN', 'Pick one of the offered mute lengths.');
   const permanent = chosen.hours === null;
   const until = permanent ? null : new Date(now.getTime() + chosen.hours! * 60 * 60_000);
-  return async (tx: Db, before: Account): Promise<Change> => {
-    if (before.isAdmin) throw AppError.conflict('ADMIN_COMMS_MUTE', `Remove ${before.username}'s admin role before muting them.`);
+  return async (tx: Db, before: Account, actorRole: StaffRole): Promise<Change> => {
+    assertMuteLength(actorRole, chosen.hours);
+    if (isStaff(before)) throw AppError.conflict('ADMIN_COMMS_MUTE', `Remove ${before.username}'s staff role before muting them.`);
     const outlasts = before.commsMutedPermanent || Boolean(until && before.commsMutedUntil && before.commsMutedUntil >= until);
     if (keepLonger && outlasts) return { account: before, detail: { length: chosen.label, keptLongerMute: true } };
     const account = await tx.account.update({
@@ -225,12 +251,21 @@ function commsMuteStep(actor: AuditActor, length: AdminCommsMuteLength, reason: 
   };
 }
 
+export type StaffRoleSource = 'GAME' | 'DISCORD' | 'CONSOLE';
+
+/** The account as the acting staff member may see it, after their action. */
+async function detailFor(prisma: PrismaClient, actor: AuditActor, accountId: string): Promise<AdminAccountDetailDto> {
+  return AdminAccountService.detail(prisma, accountId, await actorStaffRole(prisma, actor, 'accounts.view'));
+}
+
 export const AdminAccountService = {
   async search(
     prisma: PrismaClient,
     input: { query?: string | undefined; status?: AdminAccountStatusFilter | undefined; limit?: number | undefined },
+    viewerRole: StaffRole,
     now = new Date(),
   ): Promise<AdminAccountSearchDto> {
+    const showPrivate = staffCan(viewerRole, 'accounts.private');
     const query = input.query?.trim();
     const pimpId = query && /^#?\d{1,9}$/.test(query) ? Number(query.replace('#', '')) : null;
     const where: Prisma.AccountWhereInput = {
@@ -238,7 +273,8 @@ export const AdminAccountService = {
         ? {
             OR: [
               { usernameNormalized: { contains: normalizeUsername(query) } },
-              { email: { contains: query.toLowerCase() } },
+              // Below Admin, an email address never finds an account: that would confirm it.
+              ...(showPrivate ? [{ email: { contains: query.toLowerCase() } }] : []),
               { discordUsername: { contains: query, mode: 'insensitive' } },
               { id: query },
               ...(pimpId ? [{ roundPlayers: { some: { publicPimpId: pimpId } } }] : []),
@@ -247,7 +283,7 @@ export const AdminAccountService = {
         : {}),
       ...(input.status === 'active' ? { isActive: true }
         : input.status === 'inactive' ? { isActive: false }
-          : input.status === 'admin' ? { isAdmin: true }
+          : input.status === 'admin' ? { staffRole: { not: null } }
             : input.status === 'suspended' ? { suspendedUntil: { gt: now } }
               : input.status === 'beta-pending' ? { isActive: true, isAdmin: false, betaApproved: false }
                 : {}),
@@ -265,10 +301,13 @@ export const AdminAccountService = {
       _count: { _all: true },
     });
     const sessionsFor = new Map(sessions.map((row) => [row.accountId, row._count._all]));
-    return { accounts: rows.map((row) => toSummary(row, sessionsFor.get(row.id) ?? 0, now)) };
+    return { accounts: rows.map((row) => toSummary(row, sessionsFor.get(row.id) ?? 0, showPrivate, now)) };
   },
 
-  async detail(prisma: PrismaClient, accountId: string, now = new Date()): Promise<AdminAccountDetailDto> {
+  /** Below Admin, private data is left out; below JR Mod, notes are too. */
+  async detail(prisma: PrismaClient, accountId: string, viewerRole: StaffRole, now = new Date()): Promise<AdminAccountDetailDto> {
+    const showPrivate = staffCan(viewerRole, 'accounts.private');
+    const showNotes = staffCan(viewerRole, 'accounts.notes');
     const account = await prisma.account.findUnique({
       where: { id: accountId },
       include: {
@@ -298,7 +337,8 @@ export const AdminAccountService = {
     ]);
 
     return {
-      account: toSummary(account, account.sessions.length, now),
+      account: toSummary(account, account.sessions.length, showPrivate, now),
+      privateDataHidden: !showPrivate,
       profile: {
         activeTitleKey: account.profile?.activeTitleKey ?? null,
         titlePlacement: account.profile?.titlePlacement === 'suffix' ? 'suffix' : 'prefix',
@@ -328,7 +368,7 @@ export const AdminAccountService = {
         username: account.discordUsername,
         botApiEnabled: env.discordBot.enabled,
       },
-      sessions: account.sessions.map((session) => ({
+      sessions: !showPrivate ? [] : account.sessions.map((session) => ({
         id: session.id,
         device: deviceLabel(session.userAgent),
         createdAt: session.createdAt.toISOString(),
@@ -347,9 +387,10 @@ export const AdminAccountService = {
         localRank: player.localRank,
         joinedAt: player.createdAt.toISOString(),
       })),
-      audit: audit.map(toAuditEntryDto),
+      // Snapshots carry the email address, so lower staff see what happened, not the fields.
+      audit: audit.map((row) => (showPrivate ? toAuditEntryDto(row) : { ...toAuditEntryDto(row), before: null, after: null })),
       comms: toCommsMuteDto(account, now),
-      notes: notes.map((note) => ({
+      notes: !showNotes ? [] : notes.map((note) => ({
         id: note.id,
         authorUsername: note.authorUsername,
         body: note.body,
@@ -373,7 +414,7 @@ export const AdminAccountService = {
     now = new Date(),
   ): Promise<AdminAccountDetailDto> {
     await moderate(prisma, actor, accountId, 'comms-mute', reason, commsMuteStep(actor, length, reason, now, false));
-    return AdminAccountService.detail(prisma, accountId);
+    return detailFor(prisma, actor, accountId);
   },
 
   /**
@@ -400,7 +441,7 @@ export const AdminAccountService = {
       });
       return { account };
     });
-    return AdminAccountService.detail(prisma, accountId);
+    return detailFor(prisma, actor, accountId);
   },
 
   /** 0.9.0-H. A private moderation note. The note itself is the audit reason. */
@@ -411,7 +452,7 @@ export const AdminAccountService = {
       });
       return { account: before, detail: { noteId: note.id } };
     });
-    return AdminAccountService.detail(prisma, accountId);
+    return detailFor(prisma, actor, accountId);
   },
 
   /**
@@ -427,28 +468,23 @@ export const AdminAccountService = {
     confirmation: string,
     reason: string,
   ): Promise<AdminAccountDeleteResultDto> {
-    if (actor.id === accountId) {
-      throw AppError.conflict('ADMIN_SELF_ACTION', 'Admins cannot delete their own account. Ask another admin.');
-    }
+    assertNotSelf(actor, accountId);
 
     // Generate the replacement credential before taking the database lock.
     const replacementPasswordHash = await hashPassword(randomBytes(32).toString('base64url'));
 
     return prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(3003)`;
-      const me = await tx.account.findUnique({
-        where: { id: actor.id },
-        select: { isAdmin: true, isActive: true },
-      });
-      if (!me?.isAdmin || !me.isActive) throw AppError.forbidden('Only game admins can do that.');
+      const actorRole = await actorStaffRole(tx, actor, 'admin');
 
       await lockAccount(tx, accountId);
       const before = await tx.account.findUnique({ where: { id: accountId } });
       if (!before) throw AppError.notFound('ACCOUNT_NOT_FOUND', 'That account does not exist.');
-      if (before.isAdmin) {
+      assertOutranks(actorRole, before);
+      if (isStaff(before)) {
         throw AppError.conflict(
           'ADMIN_DELETE_ADMIN',
-          `Remove ${before.username}'s admin role before deleting the account.`,
+          `Remove ${before.username}'s staff role before deleting the account.`,
         );
       }
       if (confirmation !== before.username) {
@@ -502,7 +538,7 @@ export const AdminAccountService = {
       const { count } = await tx.session.deleteMany({ where: { accountId: before.id } });
       return { account, detail: { sessionsRevoked: count } };
     });
-    return AdminAccountService.detail(prisma, accountId);
+    return detailFor(prisma, actor, accountId);
   },
 
   /**
@@ -513,7 +549,7 @@ export const AdminAccountService = {
   async ban(prisma: PrismaClient, actor: AuditActor, accountId: string, reason: string, now = new Date()): Promise<AdminAccountDetailDto> {
     await moderate(prisma, actor, accountId, 'ban', reason, async (tx, before) => {
       if (before.bannedAt) throw AppError.conflict('ACCOUNT_ALREADY_BANNED', `${before.username} is already banned.`);
-      if (before.isAdmin) throw AppError.conflict('ADMIN_BAN', `Remove ${before.username}'s admin role before banning them.`);
+      if (isStaff(before)) throw AppError.conflict('ADMIN_BAN', `Remove ${before.username}'s staff role before banning them.`);
       const account = await tx.account.update({
         where: { id: before.id },
         data: { isActive: false, bannedAt: now, bannedReason: reason, bannedByUsername: actor.username, suspendedUntil: null, suspendedReason: null, suspendedByUsername: null },
@@ -521,7 +557,7 @@ export const AdminAccountService = {
       const { count } = await tx.session.deleteMany({ where: { accountId: before.id } });
       return { account, detail: { sessionsRevoked: count } };
     });
-    return AdminAccountService.detail(prisma, accountId);
+    return detailFor(prisma, actor, accountId);
   },
 
   async unban(prisma: PrismaClient, actor: AuditActor, accountId: string, reason: string): Promise<AdminAccountDetailDto> {
@@ -533,7 +569,7 @@ export const AdminAccountService = {
       });
       return { account };
     });
-    return AdminAccountService.detail(prisma, accountId);
+    return detailFor(prisma, actor, accountId);
   },
 
   /**
@@ -558,8 +594,8 @@ export const AdminAccountService = {
       if (!before.isActive) {
         throw AppError.conflict('ACCOUNT_INACTIVE', `${before.username} is deactivated, which already keeps them out.`);
       }
-      if (before.isAdmin) {
-        throw AppError.conflict('ADMIN_SUSPENSION', `Remove ${before.username}'s admin role before suspending them.`);
+      if (isStaff(before)) {
+        throw AppError.conflict('ADMIN_SUSPENSION', `Remove ${before.username}'s staff role before suspending them.`);
       }
       const account = await tx.account.update({
         where: { id: before.id },
@@ -568,7 +604,7 @@ export const AdminAccountService = {
       const { count } = await tx.session.deleteMany({ where: { accountId: before.id } });
       return { account, detail: { suspendedUntil: until, sessionsRevoked: count, length: chosen.label } };
     });
-    return AdminAccountService.detail(prisma, accountId);
+    return detailFor(prisma, actor, accountId);
   },
 
   /** Ends a suspension early. A suspension that simply runs out needs no admin. */
@@ -583,7 +619,7 @@ export const AdminAccountService = {
       });
       return { account };
     });
-    return AdminAccountService.detail(prisma, accountId);
+    return detailFor(prisma, actor, accountId);
   },
 
   async revokeSessions(prisma: PrismaClient, actor: AuditActor, accountId: string, reason: string, sessionId?: string): Promise<AdminAccountDetailDto> {
@@ -592,7 +628,7 @@ export const AdminAccountService = {
       if (sessionId && count === 0) throw AppError.notFound('SESSION_NOT_FOUND', 'That session has already ended.');
       return { account: before, detail: { sessionsRevoked: count, ...(sessionId ? { sessionId } : {}) } };
     });
-    return AdminAccountService.detail(prisma, accountId);
+    return detailFor(prisma, actor, accountId);
   },
 
   /** Renames the account and the name on every round it played, archived results included. */
@@ -609,7 +645,7 @@ export const AdminAccountService = {
       await tx.accountUsernameChange.create({ data: { accountId: before.id, fromUsername: before.username, fromUsernameNormalized: before.usernameNormalized, toUsername: username, source: 'STAFF' } });
       return { account, detail: { roundNamesUpdated: count } };
     });
-    return AdminAccountService.detail(prisma, accountId);
+    return detailFor(prisma, actor, accountId);
   },
 
   async resetProfile(prisma: PrismaClient, actor: AuditActor, accountId: string, reason: string): Promise<AdminAccountDetailDto> {
@@ -630,25 +666,50 @@ export const AdminAccountService = {
         },
       };
     });
-    return AdminAccountService.detail(prisma, accountId);
+    return detailFor(prisma, actor, accountId);
   },
 
-  async setAdmin(prisma: PrismaClient, actor: AuditActor, accountId: string, isAdmin: boolean, reason: string): Promise<AdminAccountDetailDto> {
-    await moderate(prisma, actor, accountId, isAdmin ? 'grant-admin' : 'revoke-admin', reason, async (tx, before) => {
-      if (before.isAdmin === isAdmin) {
-        throw AppError.conflict('ADMIN_ROLE_UNCHANGED', isAdmin ? `${before.username} is already an admin.` : `${before.username} is not an admin.`);
+  /**
+   * Give, change or take away a staff role. The actor must outrank the target's current
+   * role and be able to give the new one: only the Founder makes Admins, and nobody
+   * makes a Founder here. Recorded in StaffRoleChange as well as the audit log.
+   */
+  async setStaffRole(
+    prisma: PrismaClient,
+    actor: AuditActor,
+    accountId: string,
+    role: StaffRole | null,
+    reason: string,
+    source: StaffRoleSource = 'GAME',
+  ): Promise<AdminAccountDetailDto> {
+    await moderate(prisma, actor, accountId, 'staff-role', reason, async (tx, before, actorRole) => {
+      const from = staffRoleOf(before);
+      if (from === role) {
+        throw AppError.conflict('STAFF_ROLE_UNCHANGED', role ? `${before.username} is already ${STAFF_ROLE_LABELS[role]}.` : `${before.username} has no staff role.`);
       }
-      if (isAdmin && !before.isActive) {
-        throw AppError.conflict('ACCOUNT_INACTIVE', `Reactivate ${before.username} before making them an admin.`);
+      if (role === 'FOUNDER') throw AppError.forbidden('The Founder role is set from the server console only.');
+      if (!staffMayChangeRole(actorRole, from, role)) {
+        throw new AppError(403, 'STAFF_RANK', role === 'ADMIN' ? 'Only the Founder can make Admins.' : `${STAFF_ROLE_LABELS[actorRole]}s cannot give that role.`);
       }
-      if (!isAdmin) {
-        const others = await tx.account.count({ where: { isAdmin: true, isActive: true, id: { not: before.id } } });
-        if (others === 0) throw AppError.conflict('LAST_ADMIN', 'The game needs at least one active admin.');
+      if (role && !before.isActive) {
+        throw AppError.conflict('ACCOUNT_INACTIVE', `Reactivate ${before.username} before giving them a staff role.`);
       }
-      const account = await tx.account.update({ where: { id: before.id }, data: { isAdmin } });
-      return { account };
+      const account = await tx.account.update({ where: { id: before.id }, data: { staffRole: role } });
+      await tx.staffRoleChange.create({
+        data: {
+          accountId: before.id,
+          username: before.username,
+          actorAccountId: actor.id,
+          actorUsername: actor.username,
+          fromRole: from,
+          toRole: role,
+          reason,
+          source,
+        },
+      });
+      return { account, detail: { fromRole: from, toRole: role, source } };
     });
-    return AdminAccountService.detail(prisma, accountId);
+    return detailFor(prisma, actor, accountId);
   },
 
   async setBetaApproved(prisma: PrismaClient, actor: AuditActor, accountId: string, approved: boolean, reason: string): Promise<AdminAccountDetailDto> {
@@ -662,7 +723,7 @@ export const AdminAccountService = {
       const account = await tx.account.update({ where: { id: before.id }, data: { betaApproved: approved } });
       return { account };
     });
-    return AdminAccountService.detail(prisma, accountId);
+    return detailFor(prisma, actor, accountId);
   },
 
   /**
@@ -671,7 +732,7 @@ export const AdminAccountService = {
    */
   async grantSupporter(prisma: PrismaClient, actor: AuditActor, accountId: string, reason: string): Promise<AdminAccountDetailDto> {
     await AdminAccountService.grantSupporterRewards(prisma, actor, accountId, reason);
-    return AdminAccountService.detail(prisma, accountId);
+    return detailFor(prisma, actor, accountId);
   },
 
   /** The audited supporter grant on its own, for the Supporters tab. Returns the reward keys it added. */
@@ -722,7 +783,7 @@ export const AdminAccountService = {
         throw AppError.conflict('EMAIL_SEND_FAILED', 'The verification link was created, but the mailer failed to send it. Try again shortly.');
       }
     }
-    return AdminAccountService.detail(prisma, accountId);
+    return detailFor(prisma, actor, accountId);
   },
 
   async markEmailVerified(prisma: PrismaClient, actor: AuditActor, accountId: string, reason: string): Promise<AdminAccountDetailDto> {
@@ -731,7 +792,7 @@ export const AdminAccountService = {
       const account = await tx.account.update({ where: { id: before.id }, data: { emailVerifiedAt: new Date() } });
       return { account };
     });
-    return AdminAccountService.detail(prisma, accountId);
+    return detailFor(prisma, actor, accountId);
   },
 
   /**
@@ -752,7 +813,7 @@ export const AdminAccountService = {
       await sendTwoFactorNotice({ ...(notify as { to: string; username: string }), change: 'reset' }, log)
         .catch((error: unknown) => log.warn({ err: error }, 'two-factor notice failed'));
     }
-    return AdminAccountService.detail(prisma, accountId);
+    return detailFor(prisma, actor, accountId);
   },
 
   /** Removes the verified forum link and any link still in progress. The player can link again later. */
@@ -767,6 +828,6 @@ export const AdminAccountService = {
         detail: { unlinkedForum: { forumOrigin: link.forumOrigin, forumUserId: link.forumUserId, forumUsername: link.forumUsername } },
       };
     });
-    return AdminAccountService.detail(prisma, accountId);
+    return detailFor(prisma, actor, accountId);
   },
 };

@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { env } from '../config/env.js';
 import { AppError } from '../utils/errors.js';
 import { AdminAuditService, type AuditActor } from './admin-audit.service.js';
+import { assertMuteLength, assertStaffMayActOn } from './staff-guard.js';
 
 /**
  * Discord timeouts for linked players. Only the bot holds a Discord token, so the
@@ -62,6 +63,7 @@ export const DiscordModerationService = {
     const chosen = ADMIN_DISCORD_TIMEOUT_LENGTHS.find((option) => option.key === length);
     if (!chosen) throw AppError.badRequest('DISCORD_TIMEOUT_LENGTH_UNKNOWN', 'Pick one of the offered timeout lengths.');
     const { username, discordId } = await linkedDiscordId(prisma, accountId);
+    assertMuteLength(await assertStaffMayActOn(prisma, actor, accountId, 'accounts.mute'), chosen.minutes / 60);
     const result = await askBot('/internal/timeout', { discordId, minutes: chosen.minutes, reason: `${reason} (by ${actor.username} in StreetsEmpire)` }, fetcher);
     if (!result.ok) throw AppError.conflict('DISCORD_TIMEOUT_FAILED', result.problem);
     await AdminAuditService.record(prisma, actor, {
@@ -75,6 +77,7 @@ export const DiscordModerationService = {
 
   async liftTimeout(prisma: PrismaClient, actor: AuditActor, accountId: string, reason: string, fetcher: typeof fetch = fetch): Promise<void> {
     const { username, discordId } = await linkedDiscordId(prisma, accountId);
+    await assertStaffMayActOn(prisma, actor, accountId, 'accounts.mute');
     const result = await askBot('/internal/timeout', { discordId, minutes: null, reason: `${reason} (by ${actor.username} in StreetsEmpire)` }, fetcher);
     if (!result.ok) throw AppError.conflict('DISCORD_TIMEOUT_FAILED', result.problem);
     await AdminAuditService.record(prisma, actor, { action: 'discord.timeout-lift', targetType: 'account', targetId: accountId, reason, after: { username } });

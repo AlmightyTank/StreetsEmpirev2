@@ -1,3 +1,4 @@
+import type { StaffRole } from '../staff.js';
 import type { ActivityDto, RoundDto, RoundStatus, SupporterMembershipDto } from './api.js';
 import type { BattleReportDto } from './combat.js';
 import type { LawPageDto, WantedStageDto } from './law.js';
@@ -276,8 +277,7 @@ export type AdminAccountAction =
   | 'revoke-sessions'
   | 'rename'
   | 'reset-profile'
-  | 'grant-admin'
-  | 'revoke-admin'
+  | 'staff-role'
   | 'approve-beta'
   | 'revoke-beta'
   | 'grant-supporter'
@@ -301,12 +301,14 @@ export interface AdminSuspensionDto {
 export interface AdminAccountSummaryDto {
   id: string;
   username: string;
-  email: string;
+  /** Null unless the viewer may see private account data (Admin and up). */
+  email: string | null;
   emailVerified: boolean;
   /** rc.3. Signs in with an authenticator code. */
   twoFactorEnabled: boolean;
   isActive: boolean;
   isAdmin: boolean;
+  staffRole: StaffRole | null;
   betaApproved: boolean;
   suspension: AdminSuspensionDto | null;
   /** 1.0.0-E. Set while the account is banned. */
@@ -476,6 +478,11 @@ export interface AdminAccountRoundDto {
 
 export interface AdminAccountDetailDto {
   account: AdminAccountSummaryDto;
+  /**
+   * True when the viewer is below Admin: email, sessions and audit before/after
+   * snapshots are left out, and notes are left out below JR Mod.
+   */
+  privateDataHidden: boolean;
   profile: {
     activeTitleKey: string | null;
     titlePlacement: 'prefix' | 'suffix';
@@ -1685,4 +1692,38 @@ export interface AdminSupporterGrantResultDto {
   rows: AdminSupporterGrantRowDto[];
   /** Accounts given at least one reward. Always 0 for a preview. */
   granted: number;
+}
+
+/** One staff member on Admin → Staff. */
+export interface AdminStaffMemberDto {
+  accountId: string;
+  username: string;
+  staffRole: StaffRole;
+  /** Discord and forum links: stage B/D sync roles to them, so a missing one is a warning. */
+  discordUsername: string | null;
+  forumUsername: string | null;
+  twoFactorEnabled: boolean;
+  isActive: boolean;
+  lastLoginAt: string | null;
+  /** When they were given their current role, if it was recorded. */
+  since: string | null;
+}
+
+export interface AdminStaffRoleChangeDto {
+  id: string;
+  accountId: string | null;
+  username: string;
+  actorUsername: string;
+  fromRole: StaffRole | null;
+  toRole: StaffRole | null;
+  reason: string;
+  source: 'GAME' | 'DISCORD' | 'CONSOLE';
+  createdAt: string;
+}
+
+export interface AdminStaffDto {
+  members: AdminStaffMemberDto[];
+  history: AdminStaffRoleChangeDto[];
+  /** The roles the viewer may give. Empty when they cannot change roles. */
+  assignable: StaffRole[];
 }
