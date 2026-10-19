@@ -965,7 +965,7 @@ model AdmissionLease {
 /// One row controls admission for one round. It is seeded lazily so a migration
 /// never enables a queue by accident.
 model AdmissionSettings {
-  id                    Int      @id @default(1)
+  id                    Int      @id @default(autoincrement())
   roundId               String   @unique
   round                 Round    @relation(fields: [roundId], references: [id], onDelete: Cascade)
   enabled               Boolean  @default(false)

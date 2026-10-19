@@ -61,9 +61,6 @@ describe.runIf(process.env.ACCOUNT_LEVEL_INTEGRATION === '1')('account levels wi
       rulesetId: rules.meta.id, rulesetVersion: rules.meta.version, status: 'ACTIVE',
       startsAt: new Date(Date.now() - DAY), endsAt: new Date(Date.now() + 7 * DAY),
     } });
-    // AdmissionSettings.id defaults to the constant 1, so a second round's settings row cannot be
-    // created while another round holds one. Clear other rounds' rows so this fixture round can play.
-    await app.prisma.admissionSettings.deleteMany({ where: { roundId: { not: round.id } } });
     const { RoundService } = await import('../round.service.js');
     vi.spyOn(RoundService, 'requireCurrent').mockImplementation(async () => round);
     vi.spyOn(RoundService, 'getCurrent').mockImplementation(async () => round);
