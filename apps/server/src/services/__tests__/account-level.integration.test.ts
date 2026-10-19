@@ -188,4 +188,19 @@ describe.runIf(process.env.ACCOUNT_LEVEL_INTEGRATION === '1')('account levels wi
     expect((await post('/chips/buy', { amountCents: 100, actionId: randomUUID() })).json().error?.code).not.toBe('ACCOUNT_LEVEL_REQUIRED');
     expect((await post('/sportsbook/bets', {})).json().error.code).toBe('ACCOUNT_LEVEL_REQUIRED');
   });
+
+  it('ranks this year\'s XP and places the viewer', async () => {
+    const year = new Date().getUTCFullYear();
+    const top = await makePlayer();
+    const mid = await makePlayer();
+    // Big enough to sit above any other fixture account in this database.
+    await award(top.id, 9_000_000);
+    await award(mid.id, 8_000_000);
+    const service = await experience();
+    const board = await service.yearlyLeaderboard(app.prisma, year, mid.accountId, 2);
+    expect(board.entries.map((entry) => entry.xp)).toEqual([9_000_000, 8_000_000]);
+    expect(board.entries[1]).toMatchObject({ rank: 2, isYou: true, publicPimpId: mid.publicPimpId });
+    expect(board.me).toEqual({ rank: 2, xp: 8_000_000 });
+    expect((await service.yearlyLeaderboard(app.prisma, year - 1, mid.accountId)).me).toBeNull();
+  });
 });

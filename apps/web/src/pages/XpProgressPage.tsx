@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ACCOUNT_TRUST_GATES, EXPERIENCE_LEVEL_CROWNS, EXPERIENCE_LEVEL_REWARDS, PRESTIGE_LEVELS, accountGateOpen, accountLevelBadge, experienceCrownMilestones, experienceRequiredForLevel, experienceTitlesBetween, levelRewardsAt, formatCents, formatNumber, type PlayerExperienceDto, type PlayerExperienceEventDto, type PublicCareerDto } from '@streets/shared';
+import { ACCOUNT_TRUST_GATES, EXPERIENCE_LEVEL_CROWNS, EXPERIENCE_LEVEL_REWARDS, PRESTIGE_LEVELS, accountGateOpen, accountLevelBadge, experienceCrownMilestones, experienceRequiredForLevel, experienceTitlesBetween, levelRewardsAt, formatCents, formatNumber, type PlayerExperienceDto, type PlayerExperienceEventDto, type PublicCareerDto, type XpLeaderboardDto } from '@streets/shared';
 import { communityApi } from '../api/community.js';
 import { dropApi } from '../api/drop.js';
 import { gameApi } from '../api/game.js';
 import { CareerGuidance, CareerMetricStrip, CareerNavigation } from '../components/CareerExperience.js';
+import { LevelChip } from '../components/LevelChip.js';
 import { Panel, Row, Stat } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
@@ -38,6 +39,16 @@ export function XpProgressPage() {
   const experienceRequestId = useRef(0);
   const lastObservedXp = useRef<{ accountId: string; totalXp: number } | null>(null);
   const [dropEnabled, setDropEnabled] = useState(false);
+  const [leaderboard, setLeaderboard] = useState<XpLeaderboardDto | null>(null);
+
+  useEffect(() => {
+    if (!accountId) return;
+    let active = true;
+    void communityApi.xpLeaderboard()
+      .then((board) => { if (active) setLeaderboard(board); })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, [accountId]);
 
   useEffect(() => {
     let active = true;
@@ -395,6 +406,27 @@ export function XpProgressPage() {
             })}
           </ol>
         </section>
+
+        {leaderboard ? (
+          <Panel title={`${leaderboard.year} XP leaders`} className="se-xp-leaders" aside={leaderboard.me ? `You: #${formatNumber(leaderboard.me.rank)} · ${formatNumber(leaderboard.me.xp)} XP` : undefined}>
+            <p className="se-hint">Account XP earned this calendar year across every round. The board resets on January 1 (UTC).</p>
+            {leaderboard.entries.length ? (
+              <ol className="se-xp-upcoming__list">
+                {leaderboard.entries.slice(0, 10).map((entry) => (
+                  <li key={entry.rank} className={`se-xp-upcoming__item${entry.isYou ? ' se-rank-you' : ''}`}>
+                    <span className="se-xp-upcoming__level">#{formatNumber(entry.rank)}</span>
+                    <span className="se-xp-upcoming__rewards">
+                      {entry.publicPimpId ? <Link className="se-playerlink" to={`/game/players/${entry.publicPimpId}`}>{entry.displayName}</Link> : entry.displayName}
+                      <LevelChip level={entry.level} />
+                      {entry.isYou ? <span className="se-you">YOU</span> : null}
+                    </span>
+                    <span className="se-num">{formatNumber(entry.xp)} XP</span>
+                  </li>
+                ))}
+              </ol>
+            ) : <p className="se-muted">No XP earned this year yet.</p>}
+          </Panel>
+        ) : null}
 
         <Panel title="XP activity log" className="se-xp-log">
           <p className="se-hint">Your 25 most recent XP awards across all seasons.</p>

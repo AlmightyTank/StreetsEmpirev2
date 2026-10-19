@@ -7,6 +7,7 @@ import type {
   PublicLegacyEntryDto,
   PublicPlayerProfileResponseDto,
   RankingsDto,
+  XpLeaderboardDto,
 } from '@streets/shared';
 import { api } from './client.js';
 
@@ -14,6 +15,7 @@ export const communityApi = {
   rankings: () => api.get<RankingsDto>('/game/rankings'),
   hallOfFame: () => api.get<HallOfFameDto>('/game/hall-of-fame'),
   career: () => api.get<PublicCareerResponseDto>('/game/career'),
+  xpLeaderboard: () => api.get<XpLeaderboardDto>('/game/xp-leaderboard'),
   careerIdentity: () => api.get<{ career: CareerIdentityDto | null; choices: CareerIdentityKey[] }>('/game/career-identity'),
   chooseCareer: (career: CareerIdentityKey) =>
     api.post<{ career: CareerIdentityDto }>('/game/career-identity', { career }),

@@ -218,3 +218,14 @@ describe('Drop discounts', () => {
     }
   });
 });
+
+describe('level-gated Drop sets', () => {
+  it('reports the highest account level the keys\' collections need', async () => {
+    const { DROP_ITEMS, dropMinAccountLevel } = await import('../drop.js');
+    const jewel = Object.values(DROP_ITEMS).find((item) => item.collection === 'crown-jewels')!;
+    const open = Object.values(DROP_ITEMS).find((item) => item.collection === 'kingpin-luxe')!;
+    expect(dropMinAccountLevel([open.key])).toBe(0);
+    expect(dropMinAccountLevel([jewel.key])).toBe(25);
+    expect(dropMinAccountLevel([open.key, jewel.key, 'not-a-key'])).toBe(25);
+  });
+});

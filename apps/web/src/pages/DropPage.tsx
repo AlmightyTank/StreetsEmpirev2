@@ -449,7 +449,7 @@ function ShopView() {
           key={group.key || 'featured'}
           id={`drop-set-${group.key || 'featured'}`}
           title={group.collection?.name ?? 'Featured'}
-          subtitle={group.collection?.tagline}
+          subtitle={group.collection?.minAccountLevel ? `${group.collection.tagline} Account level ${formatNumber(group.collection.minAccountLevel)}+.` : group.collection?.tagline}
           accent={group.collection?.accent}
           timer={countdown(data.featured.endsAt, now)}
         >
@@ -511,6 +511,7 @@ function ItemView() {
   const [timing, setTiming] = useState({ startedAt: 0, receivedAt: 0 });
   const attempt = useRef<Record<string, string>>({});
   const signedIn = useSession((s) => Boolean(s.account));
+  const accountLevel = useSession((s) => s.me?.experience?.level ?? 1);
   const now = useServerNow(detail?.serverTime ?? null, timing.startedAt, timing.receivedAt);
 
   const load = useCallback(async () => {
@@ -561,6 +562,8 @@ function ItemView() {
   const owned = item ? item.owned : Boolean(bundle && bundle.yourPriceCrowns === 0);
   const policy = item?.returnPolicy ?? bundle?.returnPolicy ?? 'MAY_RETURN';
   const vaulted = item?.vaulted ?? bundle?.vaulted ?? false;
+  const requiredLevel = detail.collection?.minAccountLevel ?? 0;
+  const levelLocked = signedIn && !owned && accountLevel < requiredLevel;
   const liveOffers = detail.offers.filter((offer) => offer.state !== 'COMING_SOON');
   const soonOffers = detail.offers.filter((offer) => offer.state === 'COMING_SOON');
   const balance = wallet?.balance ?? 0;
@@ -596,6 +599,7 @@ function ItemView() {
           <div className="se-drop-card__tags">
             <span className="se-drop-badge se-drop-badge--drop_exclusive">Drop Exclusive</span>
             {vaulted ? <span className="se-tag">Vaulted</span> : null}
+            {levelLocked ? <span className="se-tag se-tag--warn">Account level {formatNumber(requiredLevel)}+</span> : null}
           </div>
 
           <div className="se-drop-buy">
@@ -614,6 +618,7 @@ function ItemView() {
                     className="se-drop-purchase"
                     loading={busy === offer.id}
                     disabledReason={offer.state === 'OWNED' ? 'You own this.'
+                      : levelLocked ? `This set is for account level ${formatNumber(requiredLevel)} and up. You are level ${formatNumber(accountLevel)}.`
                       : wallet?.held ? 'Your wallet is on hold.'
                         : balance < offer.priceCrowns ? `You need ${formatNumber(offer.priceCrowns - balance)} more Crowns.` : null}
                     onClick={() => void buy(offer, name)}

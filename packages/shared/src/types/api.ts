@@ -1115,6 +1115,24 @@ export interface PlayerExperienceDto {
   veteran?: boolean;
 }
 
+/** Endgame: account XP earned in one calendar year (UTC), ranked. */
+export interface XpLeaderboardEntryDto {
+  rank: number;
+  displayName: string;
+  /** Set only when the player is in the current round, so the name can link to their profile. */
+  publicPimpId: number | null;
+  xp: number;
+  level: number;
+  isYou: boolean;
+}
+
+export interface XpLeaderboardDto {
+  year: number;
+  entries: XpLeaderboardEntryDto[];
+  /** The viewer's own standing this year, or null when they have earned no XP in it. */
+  me: { rank: number; xp: number } | null;
+}
+
 export interface PlayerExperienceEventDto {
   id: string;
   source: string;

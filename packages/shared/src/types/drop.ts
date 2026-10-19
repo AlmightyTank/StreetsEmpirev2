@@ -31,6 +31,8 @@ export interface DropCollectionDto {
   tagline: string;
   description: string;
   accent: string;
+  /** A status set: buying from it needs this account level. Optional for older servers. */
+  minAccountLevel?: number;
 }
 
 export interface DropItemDto {

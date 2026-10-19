@@ -36,6 +36,8 @@ export interface DropCollectionDefinition {
   readonly windows?: readonly { readonly from: string; readonly until: string }[];
   /** One-off pieces with no set: no bundle, no shell, never featured; they fill the daily picks. */
   readonly singles?: boolean;
+  /** A status set: only accounts at this account level or above can buy from it. */
+  readonly minAccountLevel?: number;
 }
 
 /** What the detail page draws for an item. */
@@ -149,6 +151,7 @@ export const DROP_COLLECTIONS = {
     tagline: 'Wear the currency.',
     description: 'The flagship set named for Crowns: emerald, ruby and sapphire on platinum and royal velvet.',
     accent: '#4a78ff',
+    minAccountLevel: 25,
   },
   'bayou-smoke': {
     key: 'bayou-smoke',
@@ -1445,6 +1448,17 @@ export function dropDefaultState(key: string, now: Date = new Date()): 'LIVE' | 
 
 export function dropItem(key: string): DropItemDefinition | null {
   return DROP_ITEMS[key] ?? null;
+}
+
+/** The highest account level any of these Drop keys' collections require, or 0. */
+export function dropMinAccountLevel(keys: readonly string[]): number {
+  let level = 0;
+  for (const key of keys) {
+    const collection = DROP_ITEMS[key]?.collection;
+    const required = collection ? (DROP_COLLECTIONS as Record<string, DropCollectionDefinition>)[collection]?.minAccountLevel ?? 0 : 0;
+    level = Math.max(level, required);
+  }
+  return level;
 }
 
 export function dropBundle(key: string): DropBundleDefinition | null {
