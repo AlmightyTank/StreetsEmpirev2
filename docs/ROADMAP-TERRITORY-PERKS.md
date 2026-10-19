@@ -1,9 +1,15 @@
-# StreetsEmpire — Territory Perks Roadmap (Slices A–G)
+# StreetsEmpire — Territory Rewards Roadmap (Slices A–H)
 
 Status: **Planned** · Target: **beta** · Scope: existing Turf, City Blocks, Alliances, Scout, Produce, Stores, Travel, Combat, Events, Achievements and Profile.
 
 ## Vision
-Make owning a district, dominating a city, and controlling a multi-city region strategically distinct. Territory should grant visible, server-authoritative *passive perks* and unlock unique activities, without letting a large alliance snowball into an unbeatable monopoly.
+Make owning a district, dominating a city, and controlling a multi-city region strategically distinct. Holding ground should change **what you can do and where you can go**, and should **pay out over time**, not just tweak percentages. Territory grants three kinds of server-authoritative reward:
+
+1. **Access** — places, stock, jobs and routes that only open to the holder (or to others for a toll).
+2. **Yields** — resources that accrue on a schedule while control holds, into a local cache someone has to collect.
+3. **Perks** — small passive modifiers, now the smallest of the three.
+
+None of it may let a large alliance snowball into an unbeatable monopoly.
 
 This roadmap **extends** the current turf ownership and control mechanics. It does **not** replace or reset current turf claims, city-control rankings, round achievements, or the 1.8.5 consolidated encounter system. Validate actual city/district catalog, round rules, alliance membership and existing buffs before changing schema; example cities and numbers below are balancing proposals, not claims about the live data model.
 
@@ -16,7 +22,60 @@ This roadmap **extends** the current turf ownership and control mechanics. It do
 
 **Region mapping must be explicit and versioned**; do not infer live regions from city names and do not introduce unimplemented cities as if playable. Seed only city records that actually exist, with fallback for unmapped cities.
 
-### Initial perk catalog (proposals, tune after measuring economy)
+### Reward types
+
+#### Access
+Access is the headline reward. A holder gets in; everyone else gets a refusal that names the owner, or a **toll** where the access type allows it.
+
+| Kind | Example | Notes |
+| --- | --- | --- |
+| Place | Back-room market, chop shop, private card room, port dock, safehouse | A new location on the district/city screen. Closes on the next settlement after control is lost. |
+| Stock | Black-market weapon/product shelf, discounted bulk supplier slot | Its own restock clock and per-round budget, like existing store stock. |
+| Jobs | Territory-only Jobs & Contacts offers, local boss contracts | Uses the existing quest runtime; an offer already accepted can still be finished after control is lost. |
+| Routes | A shortcut lane, a port-only shipment route | Quoted by the existing logistics preview; an in-flight run is never stranded. |
+| Encounters | Territory-exclusive events | Uses the 1.8.5 event system (Slice F). |
+
+**Tolls:** each access entry declares `holderOnly`, `toll` or `allianceAndPacts`. A toll is paid by the visitor at use, split to the holding alliance's yield cache, and capped per player per day. Tolls keep rivals in the game instead of locking them out, and give the holder income tied to real traffic.
+
+Access never grants casino odds changes, unique weapons stronger than the open shop ladder, or anything needed to finish the tutorial or a story quest.
+
+#### Yields (resources over time)
+Each held district, city and zone runs a **yield clock**. On each tick (proposal: hourly, settled lazily on read like turns) it adds resources to a **cache** at that location.
+
+| Rule | Proposal |
+| --- | --- |
+| What accrues | Mostly goods and supplies (product, beer, medicine, condoms, ammo/weapon stock, vehicle parts), plus a small cash share. Goods keep yields tied to the economy instead of printing money. |
+| Cache cap | Each cache holds at most ~12h of yield. A full cache stops accruing, so owners must show up. |
+| Collection | A member who is in that city spends turns to collect, or a run/pickup collects it through the existing logistics flow. |
+| Exposure | An uncollected cache is part of the location: raiding or flipping the district can take a share. Rivals have a reason to attack, and owners a reason to defend. |
+| Split | Collected yield goes to the collector, with an officer-set share to the alliance bank (if one exists) and the rest split among members who meet the participation threshold. |
+| Diminishing returns | Each additional district/city held pays less than the last (proposal: ×0.85 per extra holding in the same tier), so wide empires earn more but not linearly. |
+| Ownership change | Ticks stop at the settlement that ends control. Ticks already accrued stay in the cache for whoever controls it next, or are lost if the location goes neutral. Nothing is paid retroactively. |
+
+Yield clocks are derived from authoritative control intervals, so a retry, parallel flip or stale client cannot mint extra ticks.
+
+#### Perks
+Small capped modifiers as originally planned, kept for flavour and identity. Values below are proposals.
+
+### Initial reward catalog (proposals, tune after measuring economy)
+Each district and city gets **one access entry, one yield profile, and at most one perk**.
+
+| Territory | Access | Yield | Perk |
+| --- | --- | --- | --- |
+| District: industrial | Chop shop (strip/repair vehicles) | Vehicle parts, product | +3% local production output |
+| District: market | Back-room market (toll) | Product, small cash | +3% local store proceeds |
+| District: transit | Shortcut lane (toll) | Ammo, beer | -3% local travel expense |
+| District: residential | Safehouse (lay low, cut heat) | Medicine, condoms | +3% local defensive rating |
+| Chicago | Arms dealer shelf | Weapon stock | +5% owned-turf defense |
+| Detroit | Motor City garage (vehicle buys/upgrades) | Vehicle parts | -5% eligible travel cost |
+| Las Vegas | Private card room (high-limit tables) | Casino chips | +3% business income · **no odds change** |
+| New York City | Wall Street fixer (laundering/loan terms) | Cash | +5% store profit |
+| Miami Beach | Port dock (port-only shipment route) | Imported product | +5% scout supply rewards |
+| Los Angeles | Studio lot jobs | Contact reputation | +3% contact reputation |
+
+Only register entries that exist in the current playable map; others remain future catalog entries.
+
+### Perk detail (original proposals)
 | Territory | Example perk | Proposed initial value | Application |
 | --- | --- | --- | --- |
 | District: industrial | Workshop Advantage | +3% local production output | Produce in district |
@@ -33,6 +92,8 @@ This roadmap **extends** the current turf ownership and control mechanics. It do
 Only register sample cities that exist in the current playable map; others remain future catalog entries.
 
 ### Region prototypes
+A region's top tier unlocks a **regional place** (e.g., a regional hub market or a Kingpin's estate) and boosts that region's yield caps, in addition to the selectable bonus below.
+
 | Region | Identity | Proposed maximum activated bonus |
 | --- | --- | --- |
 | Midwest | Industrial Empire | +8% production efficiency |
@@ -56,6 +117,8 @@ Implement only regions with enough mapped playable cities. Different country/fic
 - Maintain integer/fixed-point economy math, deterministic rounding, receipts and audit logging. Idempotent reward claims and concurrency protections are mandatory.
 - Prevent alliance hopping, duplicate control events, split claims, last-second threshold exploits, buff farming and repeating event rewards.
 - Keep player-versus-player fair: no bonuses to casino outcome odds; combat bonuses small, readable and bounded. Permanent awards should be cosmetic/prestige rather than runaway power.
+- Yields: per-location cache caps, diminishing returns per extra holding, and an alliance-wide daily yield ceiling scaled to member count. Simulate total yield against existing income sources before enabling; yield should be a meaningful share of a holder's income, not the majority.
+- Access: every holder-only place needs a non-holder alternative (a toll, or the ordinary open version elsewhere) so no single location becomes must-own.
 
 ## Implementation slices
 
@@ -69,8 +132,10 @@ Implement only regions with enough mapped playable cities. Different country/fic
 
 **Acceptance:** Existing ownership is unchanged; migrations are reversible/safe; deterministic catalogs validate all live districts/cities; old pinned rounds have identical behavior.
 
-### Slice B — District passive perk engine
+### Slice B — District access and perk engine
 **Goal:** Every owned district can matter.
+- Add the access gate: one server check per access entry (`holderOnly` / `toll` / `allianceAndPacts`) used by routes, stores, jobs and place screens, with a typed refusal naming the owner and the toll.
+- Toll settlement: charge the visitor, credit the holding cache, enforce the per-player daily cap, idempotent on retry.
 - Calculate qualifying owner and district effect on the server at Scout, Produce, Store, Turf/Combat and appropriate Travel action settlement.
 - Introduce a shared modifier resolver (source IDs, stacking caps, effect totals, explanatory receipts) rather than page-specific multiplier hacks.
 - Support control changes and contested/tie states; invalidate caches on authoritative territory events.
@@ -79,10 +144,21 @@ Implement only regions with enough mapped playable cities. Different country/fic
 
 **Acceptance:** Perks activate/deactivate from real control, only apply in qualified locations, and appear once in receipts without regression to resource accounting.
 
+### Slice B2 — Yield clocks and caches
+**Goal:** Holding ground pays over time and gives rivals something to take.
+- Derive yield ticks from authoritative control intervals; settle lazily on read and at control flips. Persist only the cache contents and last settled tick.
+- Collection actions (turns, in-city) and logistics pickup integration; split rules and participation threshold.
+- Raid/flip exposure: a defined share of the cache moves with a successful raid or ownership change.
+- Cache caps, diminishing returns and alliance daily ceiling from the ruleset.
+- Tests: parallel flips, retries, paused rounds, neutral districts, round end (caches are not carried into the next round).
+
+**Acceptance:** Yield matches control time exactly; no duplicate ticks; full caches stop accruing; collecting and raiding produce receipts.
+
 ### Slice C — City domination and identity bonuses
 **Goal:** Owning a city produces recognizable strategic choices.
 - Determine city majority from its existing eligible districts, with correct control rollups and tie/neutral behavior.
-- Register distinct city-perk definitions, not hard-coded city-name conditionals.
+- Register distinct city access/yield/perk definitions, not hard-coded city-name conditionals.
+- Open each city's access place and yield profile through the Slice B/B2 engines.
 - Display city progress (controlled/eligible districts), next threshold, active bonus, source and owner.
 - Integrate city modifiers into the same server resolver with cap tests and no casino odds modification.
 - Award city-control changes through existing notifications/history feed with dedupe.
@@ -99,9 +175,10 @@ Implement only regions with enough mapped playable cities. Different country/fic
 
 **Acceptance:** No overlapping region grants or tier stacking; UI and server agree; lost cities promptly reduce eligibility; all clients observe changes.
 
-### Slice E — Territory Perks interface
+### Slice E — Empire panel interface
 **Goal:** Let players understand why and where they have a bonus.
-- Create **Alliance > Empire Perks** panel: districts, cities, regions, active bonuses, inactive/locked perks, activation choice, ownership requirements and participation eligibility.
+- Create **Alliance > Empire** panel: districts, cities, regions, unlocked places, cache fill and time-to-full, active bonuses, inactive/locked perks, activation choice, ownership requirements and participation eligibility.
+- Map markers for unlocked places and full caches; locked places show who holds them and the toll.
 - Add compact contextual chips on Turf, City Blocks, Scout, Produce, Stores, Travel and relevant action receipts.
 - Progress card for each region showing city count/threshold, regional identity and next reward; show *what will change* before an officer switches activated region.
 - Responsive desktop/mobile design; keyboard navigation, accessible labels, no layout overflow and color-independent ownership states.
@@ -134,10 +211,11 @@ Implement only regions with enough mapped playable cities. Different country/fic
 | Slice | Shippable milestone | Primary focus |
 | --- | --- | --- |
 | A | Verified data model and catalog | Backend/data |
-| B | District perk settlement | Rules/actions |
+| B | District access, tolls and perks | Rules/actions |
+| B2 | Yield clocks, caches and collection | Economy |
 | C | City ownership bonuses | Rules + UI |
 | D | Region tiers and selection | Alliance/region |
-| E | Empire Perks dashboard | Player experience |
+| E | Empire dashboard | Player experience |
 | F | Exclusive events + cosmetic prestige | Event system |
 | G | Hardening and beta rollout | QA/ops |
 
@@ -147,7 +225,8 @@ For each slice: commit to a focused branch targeting **beta** (or to beta only w
 ## Out of scope for A–G
 - Replacing Turf ownership/combat, inventing new live cities, resetting rounds or forcing geographic expansions.
 - Purchased power bonuses, permanent combat buffs from old round awards, boosts to casino win odds.
+- Yields or access carried across rounds.
 - Global territory rebalance without measurements.
 
 ## Definition of done
-A player can open existing Turf or Alliance UI, see exactly which districts/cities/regions their alliance controls and which passive perks that earns, understand where each effect applies, and verify the resulting action receipt. Losing control immediately stops future qualified payouts. Round rules, anti-abuse limits, event integrations and cosmetics remain auditable.
+A player can open existing Turf or Alliance UI, see exactly which districts/cities/regions their alliance controls, which places that opens, what each cache holds and when it fills, and which perks apply, and verify the resulting receipts. Losing control immediately closes access and stops future yield ticks and payouts. Round rules, anti-abuse limits, event integrations and cosmetics remain auditable.
