@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BELL_CATEGORY_BY_ACTIVITY, EXPERIENCE_LEVEL_REWARDS, formatCents, type ActivityDto, type RoundDto, type RoundPlayerDto } from '@streets/shared';
+import { BELL_CATEGORY_BY_ACTIVITY, formatCents, levelRewardsAt, type ActivityDto, type RoundDto, type RoundPlayerDto } from '@streets/shared';
 import { describeActivity } from './ActivityFeed.js';
 import { notificationsApi } from '../api/notifications.js';
 import { useSession } from '../stores/session.js';
@@ -42,14 +42,12 @@ let manualToastId = 0;
 
 /** Build the celebration for newly earned lifetime XP levels. */
 export function levelUpToastFor(previousLevel: number, level: number): Omit<GameEventToast, 'id'> {
-  const titles = EXPERIENCE_LEVEL_REWARDS
-    .filter((reward) => reward.level > previousLevel && reward.level <= level)
-    .map((reward) => reward.title);
-  const rewardText = titles.length === 1
-    ? `New title unlocked: ${titles[0]}. Equip it from Account settings.`
-    : titles.length > 1
-      ? `New titles unlocked: ${titles.join(', ')}. Equip them from Account settings.`
-      : 'Your account progress continues across seasons.';
+  const rewards: string[] = [];
+  for (let at = previousLevel + 1; at <= level; at += 1) rewards.push(...levelRewardsAt(at).map((reward) => reward.label));
+  const titles = rewards.filter((label) => label.startsWith('Title: '));
+  const rewardText = rewards.length
+    ? `${rewards.slice(0, 4).join(' · ')}${rewards.length > 4 ? ` · and ${rewards.length - 4} more` : ''}.${titles.length ? ' Equip titles from Account settings.' : ''}`
+    : 'Your account progress continues across seasons.';
   return {
     title: `Level ${level} reached`,
     detail: `${rewardText} Open XP Progress to see your career track.`,

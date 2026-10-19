@@ -65,11 +65,21 @@ export function commsMuted(account: CommsMuteState, now: Date): boolean {
 export interface AccountTrust {
   level: number;
   isAdmin: boolean;
+  /** Finished at least one season. Veterans predate account XP, so they skip the gates. */
+  veteran?: boolean;
 }
 
-/** Staff skip every gate. */
+/** Staff and veterans skip every gate. */
 export function meetsTrustGate(account: AccountTrust, gate: AccountTrustGate): boolean {
-  return account.isAdmin || account.level >= ACCOUNT_TRUST_GATES[gate].level;
+  return account.isAdmin || Boolean(account.veteran) || account.level >= ACCOUNT_TRUST_GATES[gate].level;
+}
+
+async function finishedASeason(tx: Tx, accountId: string): Promise<boolean> {
+  const row = await tx.roundPlayer.findFirst({
+    where: { accountId, round: { status: { in: ['ENDED', 'ARCHIVED'] } } },
+    select: { id: true },
+  });
+  return Boolean(row);
 }
 
 export function assertTrustGate(account: AccountTrust, gate: AccountTrustGate): void {
@@ -84,7 +94,8 @@ export function assertTrustGate(account: AccountTrust, gate: AccountTrustGate): 
 
 export async function accountTrust(tx: Tx, accountId: string): Promise<AccountTrust> {
   const account = await tx.account.findUniqueOrThrow({ where: { id: accountId }, select: { experiencePoints: true, isAdmin: true } });
-  return { level: experienceLevelFor(account.experiencePoints), isAdmin: account.isAdmin };
+  const level = experienceLevelFor(account.experiencePoints);
+  return { level, isAdmin: account.isAdmin, veteran: await finishedASeason(tx, accountId) };
 }
 
 /** Throws when an admin has restricted this account's communication. */
@@ -102,7 +113,12 @@ export async function assertCanCommunicate(tx: Tx, accountId: string, now: Date)
         : `A moderator has paused your messaging until ${account.commsMutedUntil!.toISOString().slice(0, 16).replace('T', ' ')} UTC.`,
     );
   }
-  return { createdAt: account.createdAt, level: experienceLevelFor(account.experiencePoints), isAdmin: account.isAdmin };
+  return {
+    createdAt: account.createdAt,
+    level: experienceLevelFor(account.experiencePoints),
+    isAdmin: account.isAdmin,
+    veteran: await finishedASeason(tx, accountId),
+  };
 }
 
 /**

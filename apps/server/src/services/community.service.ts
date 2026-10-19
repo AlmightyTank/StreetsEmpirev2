@@ -27,6 +27,7 @@ import { env } from '../config/env.js';
 import { toCityDto, toSeasonHideoutDto } from '../game/dto.js';
 import { AppError } from '../utils/errors.js';
 import { allianceTagDto } from './alliance.service.js';
+import { PlayerExperienceService } from './player-experience.service.js';
 import { SupporterService } from './supporter.service.js';
 import { ForumGroupsService } from './forum-groups.service.js';
 import { forumProfileUrl } from './forum-link.service.js';
@@ -73,6 +74,8 @@ interface PublicContext {
   isSupporter: boolean;
   /** UTC month (YYYY-MM) of the account's earliest supporter reward. */
   supporterSince: string | null;
+  /** Lifetime account level, for the chip beside the name. */
+  accountLevel: number;
   raidAttacks: number;
   raidAttackWins: number;
   raidDefenses: number;
@@ -398,6 +401,7 @@ const emptyContext = (): PublicContext => ({
   legacy: emptyLegacy(),
   isSupporter: false,
   supporterSince: null,
+  accountLevel: 1,
   raidAttacks: 0,
   raidAttackWins: 0,
   raidDefenses: 0,
@@ -698,7 +702,7 @@ export async function loadPublicContexts(
   for (const id of ids) contexts.set(id, emptyContext());
   if (!ids.length) return contexts;
 
-  const [pastRows, battles, reconActivities, completedJobs, legacyFavorRows, supporterFlags] = await Promise.all([
+  const [pastRows, battles, reconActivities, completedJobs, legacyFavorRows, supporterFlags, levels] = await Promise.all([
     prisma.roundPlayer.findMany({
       where: { accountId: { in: accountIds }, roundId: { not: currentRoundId }, round: { status: { in: ['ENDED', 'ARCHIVED'] } } },
       select: { accountId: true, localRank: true, nationalRank: true, netWorthCents: true },
@@ -723,6 +727,7 @@ export async function loadPublicContexts(
       orderBy: { questDoneAt: 'asc' },
     }),
     SupporterService.flags(prisma, accountIds),
+    PlayerExperienceService.levels(prisma, accountIds),
   ]);
 
   const legacyByAccount = new Map<string, PublicLegacyDto>();
@@ -736,6 +741,7 @@ export async function loadPublicContexts(
     const flag = supporterFlags.get(accountId);
     contexts.get(id)!.isSupporter = flag?.isSupporter ?? false;
     contexts.get(id)!.supporterSince = flag?.supporterSince ?? null;
+    contexts.get(id)!.accountLevel = levels.get(accountId) ?? 1;
   }
 
   for (const battle of battles) {
@@ -880,6 +886,7 @@ export function rankRows(
       isYou,
       isSupporter: context.isSupporter,
       supporterSince: context.supporterSince,
+      accountLevel: context.accountLevel,
       intelRequired: false,
       alliance: allianceTagDto(row.alliance),
     };

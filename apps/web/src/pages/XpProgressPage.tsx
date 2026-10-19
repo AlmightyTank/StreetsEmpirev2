@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ACCOUNT_TRUST_GATES, EXPERIENCE_LEVEL_CROWNS, EXPERIENCE_LEVEL_REWARDS, experienceCrownMilestones, experienceRequiredForLevel, formatCents, formatNumber, type PlayerExperienceDto, type PlayerExperienceEventDto, type PublicCareerDto } from '@streets/shared';
+import { ACCOUNT_TRUST_GATES, EXPERIENCE_LEVEL_CROWNS, EXPERIENCE_LEVEL_REWARDS, PRESTIGE_LEVELS, accountGateOpen, accountLevelBadge, experienceCrownMilestones, experienceRequiredForLevel, experienceTitlesBetween, levelRewardsAt, formatCents, formatNumber, type PlayerExperienceDto, type PlayerExperienceEventDto, type PublicCareerDto } from '@streets/shared';
 import { communityApi } from '../api/community.js';
 import { dropApi } from '../api/drop.js';
 import { gameApi } from '../api/game.js';
@@ -124,8 +124,12 @@ export function XpProgressPage() {
   const totalXp = experience?.totalXp ?? 0;
   const nextLevel = level + 1;
   const nextLevelTotal = experienceRequiredForLevel(nextLevel);
-  const claimedRewards = EXPERIENCE_LEVEL_REWARDS.filter((reward) => reward.level <= level);
-  const nextReward = EXPERIENCE_LEVEL_REWARDS.find((reward) => reward.level > level) ?? null;
+  const claimedRewards = experienceTitlesBetween(0, level);
+  const titleTarget = Math.max(PRESTIGE_LEVELS, Math.ceil((level + 1) / PRESTIGE_LEVELS) * PRESTIGE_LEVELS);
+  const titlesListed = experienceTitlesBetween(0, titleTarget).length;
+  const nextReward = experienceTitlesBetween(level, level + PRESTIGE_LEVELS)[0] ?? null;
+  const badge = accountLevelBadge(level);
+  const upcoming = Array.from({ length: 10 }, (_, i) => level + 1 + i).map((at) => ({ level: at, rewards: levelRewardsAt(at) }));
   const nextRewardXp = nextReward ? experienceRequiredForLevel(nextReward.level) : null;
   const previousRewardXp = claimedRewards.length > 0 ? experienceRequiredForLevel(claimedRewards[claimedRewards.length - 1]!.level) : 0;
   const rewardProgress = nextRewardXp
@@ -171,7 +175,8 @@ export function XpProgressPage() {
           items={[
             { label: 'Current level', value: experienceLoading && !experience ? '...' : formatNumber(level), tone: 'accent' },
             { label: 'Lifetime XP', value: experience ? formatNumber(totalXp) : experienceLoading ? 'Loading...' : '-' },
-            { label: 'Titles unlocked', value: `${formatNumber(claimedRewards.length)} / ${formatNumber(EXPERIENCE_LEVEL_REWARDS.length)}`, tone: claimedRewards.length ? 'good' : undefined },
+            { label: 'Titles unlocked', value: `${formatNumber(claimedRewards.length)} / ${formatNumber(titlesListed)}`, tone: claimedRewards.length ? 'good' : undefined },
+            { label: 'Prestige', value: badge.prestige ? `${'★'.repeat(Math.min(badge.prestige, 5))} ${formatNumber(badge.prestige)}` : `at level ${formatNumber(PRESTIGE_LEVELS)}`, tone: badge.prestige ? 'accent' : undefined },
             { label: 'Next level starts', value: `${formatNumber(nextLevelTotal)} XP` },
           ]}
         />
@@ -233,9 +238,10 @@ export function XpProgressPage() {
             ) : null}
             <p className={dropEnabled ? 'se-hint se-mt' : 'se-hint'}>New players reach out to strangers after a few levels of play. Replies, your alliance and staff are always open.</p>
             <div className="se-rows">
-              {Object.values(ACCOUNT_TRUST_GATES).map((gate) => (
-                <Row key={gate.label} label={gate.label} value={level >= gate.level ? 'Open' : `Level ${formatNumber(gate.level)}`} />
-              ))}
+              {(Object.keys(ACCOUNT_TRUST_GATES) as (keyof typeof ACCOUNT_TRUST_GATES)[]).map((key) => {
+                const gate = ACCOUNT_TRUST_GATES[key];
+                return <Row key={key} label={gate.label} value={accountGateOpen(experience, key) ? 'Open' : `Level ${formatNumber(gate.level)}`} />;
+              })}
             </div>
           </Panel>
         </section>
@@ -342,11 +348,24 @@ export function XpProgressPage() {
           </ul>
         </section>
 
+        <Panel title="Next 10 levels" className="se-xp-upcoming">
+          <p className="se-hint">Every level gives something: a title, Crowns, an unlock or a prestige star.</p>
+          <ol className="se-xp-upcoming__list">
+            {upcoming.map((step) => (
+              <li key={step.level} className="se-xp-upcoming__item">
+                <span className="se-xp-upcoming__level">Lv {formatNumber(step.level)}</span>
+                <span className="se-xp-upcoming__rewards">{step.rewards.length ? step.rewards.map((reward) => reward.label).join(' · ') : 'Progress toward your next reward'}</span>
+                <span className="se-muted se-num">{formatNumber(experienceRequiredForLevel(step.level))} XP</span>
+              </li>
+            ))}
+          </ol>
+        </Panel>
+
         <section className="se-pass-trackwrap se-xp-trackwrap" aria-label="Lifetime title unlock milestones">
           <div className="se-xp-trackhead">
             <div>
               <span className="se-eyebrow">Permanent rewards</span>
-              <h2>Level reward track</h2>
+              <h2>Milestone titles</h2>
             </div>
             <p className="se-hint">Titles unlock automatically and remain yours across seasons.</p>
           </div>

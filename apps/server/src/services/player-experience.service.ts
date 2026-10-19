@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import { EXPERIENCE_LEVEL_REWARDS, experienceLevelFor, playerExperienceDto, type ExperienceLevelReward, type PlayerExperienceDto, type PlayerExperienceEventDto } from '@streets/shared';
+import { experienceLevelFor, experienceTitlesBetween, playerExperienceDto, type ExperienceLevelReward, type PlayerExperienceDto, type PlayerExperienceEventDto } from '@streets/shared';
 import type { Db } from '../utils/db.js';
 import { CrownEarnService } from './crown-earn.service.js';
 import { DoubleXpWeekendService } from './double-xp-weekend.service.js';
@@ -21,10 +21,23 @@ export const PlayerExperienceService = {
     }));
   },
 
+  /** Account level per account, for the level chip beside player names. Missing accounts read as level 1. */
+  async levels(db: Db | PrismaClient, accountIds: string[]): Promise<Map<string, number>> {
+    const ids = [...new Set(accountIds)];
+    const out = new Map(ids.map((id) => [id, 1]));
+    if (!ids.length) return out;
+    const rows = await db.account.findMany({ where: { id: { in: ids } }, select: { id: true, experiencePoints: true } });
+    for (const row of rows) out.set(row.id, experienceLevelFor(row.experiencePoints));
+    return out;
+  },
+
   /** Lifetime progress. It is stored on Account and survives every round reset. */
   async view(db: Db | PrismaClient, accountId: string): Promise<PlayerExperienceDto> {
-    const account = await db.account.findUnique({ where: { id: accountId }, select: { experiencePoints: true } });
-    return playerExperienceDto(account?.experiencePoints ?? 0);
+    const [account, finished] = await Promise.all([
+      db.account.findUnique({ where: { id: accountId }, select: { experiencePoints: true } }),
+      db.roundPlayer.findFirst({ where: { accountId, round: { status: { in: ['ENDED', 'ARCHIVED'] } } }, select: { id: true } }),
+    ]);
+    return { ...playerExperienceDto(account?.experiencePoints ?? 0), veteran: Boolean(finished) };
   },
 
   /**
@@ -69,12 +82,12 @@ export const PlayerExperienceService = {
     const totalXp = updated.experiencePoints;
     const previousLevel = experienceLevelFor(totalXp - amount);
     const level = experienceLevelFor(totalXp);
-    const unlocked = EXPERIENCE_LEVEL_REWARDS.filter((cosmetic) => cosmetic.level > previousLevel && cosmetic.level <= level);
+    const unlocked = experienceTitlesBetween(previousLevel, level);
 
-    for (const cosmetic of unlocked) {
-      await tx.accountCosmeticUnlock.upsert({
-        where: { accountId_key: { accountId: player.accountId, key: cosmetic.key } },
-        create: {
+    if (level > previousLevel) {
+      // Every title up to the new level, so accounts that levelled before a title existed catch up.
+      await tx.accountCosmeticUnlock.createMany({
+        data: experienceTitlesBetween(0, level).map((cosmetic) => ({
           accountId: player.accountId,
           key: cosmetic.key,
           kind: 'TITLE_BADGE',
@@ -86,13 +99,12 @@ export const PlayerExperienceService = {
           sourceRulesetId: 'account-progression',
           sourceRulesetVersion: '1',
           awardedAt: input.awardedAt,
-        },
-        update: {},
+        })),
+        skipDuplicates: true,
       });
+      // Crowns for every milestone up to the new level; already-paid ones are skipped.
+      await CrownEarnService.onLevelReached(tx, player.accountId, level);
     }
-
-    // Crowns for every milestone up to the new level; already-paid ones are skipped.
-    if (level > previousLevel) await CrownEarnService.onLevelReached(tx, player.accountId, level);
 
     return { awardedXp: amount, totalXp, level, unlocked };
   },

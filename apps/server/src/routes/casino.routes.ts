@@ -29,6 +29,7 @@ import { CasinoTournamentsService } from '../services/casino-tournaments.service
 import { RoundPlayerService } from '../services/round-player.service.js';
 import { RoundService } from '../services/round.service.js';
 import { env } from '../config/env.js';
+import { accountTrust, assertTrustGate } from '../services/communication-guard.js';
 import { AppError } from '../utils/errors.js';
 import { parseBody } from '../utils/validate.js';
 import { SportsbookService } from '../services/sportsbook.service.js';
@@ -40,6 +41,18 @@ const casinoRoutes: FastifyPluginAsync = async (fastify) => {
     if (!player) throw AppError.notFound('NOT_IN_ROUND', 'You have not entered the current round yet.');
     return player;
   }
+
+  // Account level unlocks: new accounts reach the casino and the sportsbook after a few levels
+  // of play. Ways out (cashing chips, closing a session, leaving a table) always stay open.
+  const ALWAYS_OPEN = new Set(['/chips/redeem', '/sessions/:sessionId/close', '/poker/tables/:tableId/leave', '/poker/tables/:tableId/timeout']);
+  fastify.addHook('preHandler', async (request) => {
+    if (request.method !== 'POST' || !request.auth) return;
+    const url = request.routeOptions.url ?? '';
+    const path = url.slice(url.indexOf('/game/casino') + '/game/casino'.length);
+    if (ALWAYS_OPEN.has(path)) return;
+    const gate = path.startsWith('/sportsbook') ? 'sportsbook' : 'casino';
+    assertTrustGate(await accountTrust(fastify.prisma, request.auth.account.id), gate);
+  });
 
   fastify.get('/', { preHandler: fastify.requireAuth }, async (request) => {
     const player = await requirePlayer(request.auth!.account.id);

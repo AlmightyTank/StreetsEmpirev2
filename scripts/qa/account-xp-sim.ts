@@ -200,7 +200,7 @@ for (const [key, gate] of Object.entries(ACCOUNT_TRUST_GATES)) {
   // A throwaway account that only burns its starting turns must not clear any gate.
   check(experienceLevelFor(ruleset.round.startingPlayer.turns * EXPERIENCE_PER_TURN) < gate.level, `Starting turns alone clear the ${key} gate`);
   const casual = cells[ARCHETYPES.findIndex((p) => p.name === 'Casual')];
-  const limit = key === 'coldMessage' ? 2 : 4;
+  const limit = ({ casino: 2, coldMessage: 2, sportsbook: 3, foundAlliance: 4 } as Record<string, number>)[key] ?? 4;
   check(casual !== null && casual!.day <= limit, `A casual player should clear the ${key} gate within ${limit} days, not ${casual?.label ?? 'never'}`);
 }
 

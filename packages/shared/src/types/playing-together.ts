@@ -101,6 +101,8 @@ export interface WirePostDto {
     isSupporter: boolean;
     /** UTC month (YYYY-MM) of the author's earliest supporter reward, null when not a supporter. */
     supporterSince: string | null;
+    /** Lifetime account level. Optional for older servers. */
+    accountLevel?: number;
   };
   body: string;
   kind: WirePostKindDto;
@@ -194,6 +196,8 @@ export interface PlayerDirectoryEntryDto {
   isSupporter: boolean;
   /** UTC month (YYYY-MM) of the account's earliest supporter reward, null when not a supporter. */
   supporterSince: string | null;
+  /** Lifetime account level for the chip beside the name. Optional for older servers. */
+  accountLevel?: number;
 }
 
 export interface PlayerDirectoryDto {

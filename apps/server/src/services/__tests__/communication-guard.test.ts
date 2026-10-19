@@ -43,6 +43,7 @@ describe('account level trust gates', () => {
     expect(meetsTrustGate({ level: gate - 1, isAdmin: false }, 'coldMessage')).toBe(false);
     expect(meetsTrustGate({ level: gate, isAdmin: false }, 'coldMessage')).toBe(true);
     expect(meetsTrustGate({ level: 1, isAdmin: true }, 'foundAlliance')).toBe(true);
+    expect(meetsTrustGate({ level: 1, isAdmin: false, veteran: true }, 'sportsbook')).toBe(true);
   });
 
   it('explains the level needed when it refuses', () => {

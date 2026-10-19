@@ -15,6 +15,7 @@ import { lockRoundPlayer } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { AdminAuditService, type AuditActor } from './admin-audit.service.js';
 import { assertCanCommunicate } from './communication-guard.js';
+import { PlayerExperienceService } from './player-experience.service.js';
 import { SupporterService } from './supporter.service.js';
 import { assertCommunicationContent, maskOrdinaryProfanity, maskSevereSlurs, monitorCommunicationContent } from './content-moderation.service.js';
 
@@ -38,6 +39,7 @@ function toPostDto(
   viewerLeads: boolean,
   supporter?: { isSupporter: boolean; supporterSince: string | null },
   showProfanity = false,
+  accountLevel = 1,
 ): WirePostDto {
   const isYours = post.authorId === viewerId;
   const kind = post.kind === 'ANNOUNCEMENT' ? 'ANNOUNCEMENT' : 'MESSAGE';
@@ -48,6 +50,7 @@ function toPostDto(
       displayName: post.author.displayName,
       isSupporter: supporter?.isSupporter ?? false,
       supporterSince: supporter?.supporterSince ?? null,
+      accountLevel,
     },
     body: showProfanity ? maskSevereSlurs(post.body) : maskOrdinaryProfanity(post.body),
     kind,
@@ -270,15 +273,16 @@ export const WireService = {
       coordinationCards(prisma, player, alliance, now),
     ]);
     const cooldownUntil = last ? new Date(last.createdAt.getTime() + WIRE_COOLDOWN_SECONDS * 1000) : null;
-    const supporterFlags = await SupporterService.flags(
-      prisma,
-      [...rows, ...(pinned ? [pinned] : [])].map((row) => row.author.accountId),
-    );
+    const authorIds = [...rows, ...(pinned ? [pinned] : [])].map((row) => row.author.accountId);
+    const [supporterFlags, levels] = await Promise.all([
+      SupporterService.flags(prisma, authorIds),
+      PlayerExperienceService.levels(prisma, authorIds),
+    ]);
     const showProfanity = (await prisma.accountProfile?.findUnique({ where: { accountId: player.accountId }, select: { showProfanity: true } }))?.showProfanity ?? false;
     return {
-      pinnedAnnouncement: pinned ? toPostDto(pinned, player.id, leads, supporterFlags.get(pinned.author.accountId), showProfanity) : null,
+      pinnedAnnouncement: pinned ? toPostDto(pinned, player.id, leads, supporterFlags.get(pinned.author.accountId), showProfanity, levels.get(pinned.author.accountId)) : null,
       cards,
-      posts: rows.slice(0, WIRE_PAGE_SIZE).map((row) => toPostDto(row, player.id, leads, supporterFlags.get(row.author.accountId), showProfanity)),
+      posts: rows.slice(0, WIRE_PAGE_SIZE).map((row) => toPostDto(row, player.id, leads, supporterFlags.get(row.author.accountId), showProfanity, levels.get(row.author.accountId))),
       nextBefore: rows.length > WIRE_PAGE_SIZE ? rows[WIRE_PAGE_SIZE - 1]!.id : null,
       cooldownUntil: cooldownUntil && cooldownUntil > now ? cooldownUntil.toISOString() : null,
       canPostAnnouncement: leads,

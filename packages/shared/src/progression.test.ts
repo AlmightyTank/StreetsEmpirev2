@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   ACCOUNT_TRUST_GATES,
+  accountGateOpen,
+  accountLevelBadge,
+  experienceTitlesBetween,
+  levelRewardsAt,
+  prestigeTitleFor,
   EXPERIENCE_LEVEL_REWARDS,
   experienceCrownMilestones,
   experienceCrownsForLevel,
@@ -63,5 +68,33 @@ describe('account experience progression', () => {
   it('keeps trust gates above what starting turns alone reach', () => {
     for (const gate of Object.values(ACCOUNT_TRUST_GATES)) expect(gate.level).toBeGreaterThan(experienceLevelFor(144));
     expect(ACCOUNT_TRUST_GATES.foundAlliance.level).toBeGreaterThanOrEqual(ACCOUNT_TRUST_GATES.coldMessage.level);
+  });
+
+  it('gives every level from 2 to 50 at least one reward', () => {
+    for (let level = 2; level <= 50; level += 1) expect(levelRewardsAt(level).length, `level ${level}`).toBeGreaterThan(0);
+    expect(levelRewardsAt(50).map((reward) => reward.kind)).toEqual(expect.arrayContaining(['title', 'crowns', 'prestige']));
+  });
+
+  it('keeps title keys unique and ordered, with prestige titles past 50', () => {
+    const titles = experienceTitlesBetween(0, 200);
+    expect(new Set(titles.map((title) => title.key)).size).toBe(titles.length);
+    expect(titles.map((title) => title.level)).toEqual([...titles.map((title) => title.level)].sort((a, b) => a - b));
+    expect(experienceTitlesBetween(0, 50)).toHaveLength(41);
+    expect(experienceTitlesBetween(50, 150).map((title) => title.key)).toEqual(['player-prestige-2-title', 'player-prestige-3-title']);
+    expect(prestigeTitleFor(75)).toBeNull();
+  });
+
+  it('bands the level chip and counts prestige stars', () => {
+    expect(accountLevelBadge(4)).toEqual({ level: 4, prestige: 0, tier: 'common' });
+    expect(accountLevelBadge(30)).toMatchObject({ tier: 'rare', prestige: 0 });
+    expect(accountLevelBadge(63)).toMatchObject({ tier: 'epic', prestige: 1 });
+    expect(accountLevelBadge(151)).toMatchObject({ tier: 'legendary', prestige: 3 });
+  });
+
+  it('opens every gate for veterans and none for a fresh account', () => {
+    expect(accountGateOpen({ level: 1, veteran: true }, 'foundAlliance')).toBe(true);
+    expect(accountGateOpen({ level: 1 }, 'casino')).toBe(false);
+    expect(accountGateOpen({ level: ACCOUNT_TRUST_GATES.casino.level }, 'casino')).toBe(true);
+    expect(accountGateOpen(null, 'casino')).toBe(false);
   });
 });

@@ -1111,6 +1111,8 @@ export interface PlayerExperienceDto {
   xpForLevel: number;
   xpToNextLevel: number;
   progressPercent: number;
+  /** Finished at least one season: every level unlock is open. Optional for older servers. */
+  veteran?: boolean;
 }
 
 export interface PlayerExperienceEventDto {

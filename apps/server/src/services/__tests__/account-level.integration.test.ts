@@ -4,7 +4,7 @@ import type { FastifyInstance } from 'fastify';
 import type { Round } from '@prisma/client';
 import { classicOgV22A, type Ruleset } from '@streets/rulesets';
 import { startingStock } from '@streets/rules-engine';
-import { ACCOUNT_TRUST_GATES, experienceRequiredForLevel } from '@streets/shared';
+import { ACCOUNT_TRUST_GATES, experienceRequiredForLevel, experienceTitlesBetween } from '@streets/shared';
 
 /**
  * Account level rewards and trust gates on PostgreSQL: Crowns paid once per
@@ -141,5 +141,51 @@ describe.runIf(process.env.ACCOUNT_LEVEL_INTEGRATION === '1')('account levels wi
     await expect(service.create(app.prisma, fresh.id, { name: 'Too Soon', tag: 'SOON' })).rejects.toMatchObject({ code: 'ACCOUNT_LEVEL_REQUIRED' });
     expect(await app.prisma.alliance.count({ where: { roundId: round.id, tag: 'SOON' } })).toBe(0);
     await expect(service.create(app.prisma, seasoned.id, { name: 'Right On Time', tag: 'TIME' })).resolves.toMatchObject({ alliance: { tag: 'TIME' } });
+  });
+
+  it('grants every title up to the new level, catching up older accounts', async () => {
+    const player = await makePlayer(experienceRequiredForLevel(26));
+    await award(player.id, experienceRequiredForLevel(27) - experienceRequiredForLevel(26));
+    const keys = (await app.prisma.accountCosmeticUnlock.findMany({ where: { accountId: player.accountId, sourceQuestKey: 'PLAYER_EXPERIENCE_LEVEL' }, select: { key: true } })).map((row) => row.key);
+    expect(keys.sort()).toEqual(experienceTitlesBetween(0, 27).map((title) => title.key).sort());
+    await award(player.id, experienceRequiredForLevel(28) - experienceRequiredForLevel(27));
+    expect(await app.prisma.accountCosmeticUnlock.count({ where: { accountId: player.accountId, sourceQuestKey: 'PLAYER_EXPERIENCE_LEVEL' } })).toBe(experienceTitlesBetween(0, 28).length);
+  });
+
+  it('lets a veteran through every gate whatever their level', async () => {
+    const veteran = await makePlayer(0);
+    const past = await app.prisma.round.create({ data: {
+      name: 'Finished season', slug: `account-level-past-${randomUUID()}`,
+      rulesetId: rules.meta.id, rulesetVersion: rules.meta.version, status: 'ENDED',
+      startsAt: new Date(Date.now() - 60 * DAY), endsAt: new Date(Date.now() - 30 * DAY),
+    } });
+    try {
+      const city = await app.prisma.city.findUniqueOrThrow({ where: { slug: rules.round.startingCitySlug } });
+      await app.prisma.roundPlayer.create({ data: {
+        ...rules.round.startingPlayer, ...startingStock(rules), accountId: veteran.accountId, roundId: past.id, cityId: city.id,
+        publicPimpId: Math.floor(Math.random() * 1_000_000_000) + 1_000_000, displayName: `vet_${randomUUID().slice(0, 6)}`, lastTurnCalculationAt: new Date(),
+      } });
+      const service = await alliances();
+      await expect(service.create(app.prisma, veteran.id, { name: 'Old Guard', tag: 'OLDG' })).resolves.toMatchObject({ alliance: { tag: 'OLDG' } });
+    } finally {
+      await app.prisma.round.delete({ where: { id: past.id } });
+    }
+  });
+
+  it('holds casino and sportsbook plays below their level but never the way out', async () => {
+    const name = `lvlc_${randomUUID().slice(0, 8)}`;
+    const registered = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { ageConfirmed: true, birthDate: '1990-01-01', username: name, email: `${name}@example.invalid`, password: randomUUID() } });
+    expect(registered.statusCode, registered.body).toBe(201);
+    accountIds.push(registered.json().account.id);
+    const cookie = registered.cookies.map((entry) => `${entry.name}=${entry.value}`).join('; ');
+    const post = (url: string, payload: object = {}) => app.inject({ method: 'POST', url: `/api/game/casino${url}`, headers: { cookie }, payload });
+
+    expect((await post('/chips/buy', { amountCents: 100, actionId: randomUUID() })).json().error.code).toBe('ACCOUNT_LEVEL_REQUIRED');
+    expect((await post('/sportsbook/bets', {})).json().error.code).toBe('ACCOUNT_LEVEL_REQUIRED');
+    expect((await post('/chips/redeem', {})).json().error?.code).not.toBe('ACCOUNT_LEVEL_REQUIRED');
+
+    await app.prisma.account.update({ where: { id: registered.json().account.id }, data: { experiencePoints: experienceRequiredForLevel(ACCOUNT_TRUST_GATES.casino.level) } });
+    expect((await post('/chips/buy', { amountCents: 100, actionId: randomUUID() })).json().error?.code).not.toBe('ACCOUNT_LEVEL_REQUIRED');
+    expect((await post('/sportsbook/bets', {})).json().error.code).toBe('ACCOUNT_LEVEL_REQUIRED');
   });
 });

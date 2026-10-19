@@ -46,7 +46,9 @@ Play already pays up to 500 Crowns a round. Level Crowns sit outside that cap an
 
 | Gate | Level | XP | Hardcore | Active | Casual | Weekends only |
 | --- | --- | --- | --- | --- | --- | --- |
+| Play the casino | 3 | 250 | S1 d0.2 | S1 d0.3 | S1 d0.5 | S1 d5.3 |
 | Message players who have not written to you | 4 | 450 | S1 d0.3 | S1 d0.5 | S1 d0.9 | S1 d5.5 |
+| Bet on the sportsbook | 5 | 700 | S1 d0.4 | S1 d0.7 | S1 d1.4 | S1 d5.7 |
 | Found an alliance or post its recruitment thread | 6 | 1,000 | S1 d0.6 | S1 d1.0 | S1 d2.2 | S1 d6.0 |
 
 **Pace: PASS** (starting turns clear no gate, a casual player messages by day 2 and founds by day 4, no one earns more than half the play cap in level Crowns in a season).
