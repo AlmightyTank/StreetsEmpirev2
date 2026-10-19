@@ -816,8 +816,8 @@ Object.assign(recipes, {
         // Sores, green veins up the neck, and toxic drool.
         '<g fill="#c9d64a" stroke="#4a5a10" stroke-width=".5"><circle cx="49.5" cy="65" r="1.3"/><circle cx="51.8" cy="68" r=".8"/><circle cx="78.6" cy="64" r="1.1"/><circle cx="59" cy="84" r="1"/></g>',
         '<g fill="#fff9c0" opacity=".8"><circle cx="49.1" cy="64.6" r=".4"/><circle cx="78.3" cy="63.7" r=".35"/></g>',
-        '<path d="M58.5 88 Q60 84 58.8 81 Q60.2 79.4 59.6 77.4 M69.5 88 Q68 84.5 69.4 81.5 Q68.2 79.8 68.8 77.8" stroke="#7ad04a" stroke-width=".8" fill="none" stroke-linecap="round" opacity=".7"/>',
-        '<path d="M67.4 76 Q68.2 79 67.6 81.6" stroke="#8cff3a" stroke-width="1.1" fill="none" stroke-linecap="round" opacity=".85"/><circle cx="67.6" cy="82.4" r=".9" fill="#8cff3a" opacity=".85"/>',
+        '<path d="M57.8 89.5 Q59.2 87 58.6 84.6 Q58.1 82.8 58.9 81 M58.7 85.4 Q60.4 84.6 60.9 82.6 M58.4 83.2 Q57.4 82.2 57.2 80.8 M70.2 89.5 Q68.8 87 69.4 84.6 Q69.9 82.8 69.1 81 M69.3 85.4 Q67.6 84.6 67.1 82.6 M69.6 83.2 Q70.6 82.2 70.8 80.8" stroke="#8cff3a" stroke-width="1.8" fill="none" stroke-linecap="round" opacity=".15"/><path d="M57.8 89.5 Q59.2 87 58.6 84.6 Q58.1 82.8 58.9 81 M58.7 85.4 Q60.4 84.6 60.9 82.6 M58.4 83.2 Q57.4 82.2 57.2 80.8 M70.2 89.5 Q68.8 87 69.4 84.6 Q69.9 82.8 69.1 81 M69.3 85.4 Q67.6 84.6 67.1 82.6 M69.6 83.2 Q70.6 82.2 70.8 80.8" stroke="#2f6a1a" stroke-width=".6" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity=".8"/>',
+        '<path d="M67.8 74.6 Q68.5 76 68.1 77.4" stroke="#8cff3a" stroke-width="1.1" fill="none" stroke-linecap="round" opacity=".85"/><circle cx="68.1" cy="78" r=".8" fill="#8cff3a" opacity=".85"/>',
         // A warning-sign charm on the chain.
         `<path d="M64 94.2 L69.4 103.2 H58.6 Z" fill="${HAZARD}" stroke="#141416" stroke-width="1" stroke-linejoin="round"/><path d="M64 97 V100" stroke="#141416" stroke-width="1.1" stroke-linecap="round"/><circle cx="64" cy="101.5" r=".55" fill="#141416"/>`,
       ].join('\n  '),
@@ -859,7 +859,7 @@ Object.assign(recipes, {
         '<path d="M50.6 56.2 Q55.5 60.4 60.2 56 M77.4 56.2 Q72.5 60.4 67.8 56" stroke="#3f2a3a" stroke-width="1.6" fill="none" stroke-linecap="round" opacity=".55"/>',
         '<g fill="#c9d64a" stroke="#6a7a1a" stroke-width=".5"><circle cx="51.5" cy="63" r="1.3"/><circle cx="53.6" cy="65.6" r=".8"/><circle cx="76.8" cy="62.4" r="1"/><circle cx="68.6" cy="43.2" r=".9"/><circle cx="60" cy="84.6" r="1.1"/></g>',
         '<g fill="#fff9c0" opacity=".8"><circle cx="51.1" cy="62.6" r=".4"/><circle cx="76.5" cy="62.1" r=".3"/><circle cx="59.6" cy="84.2" r=".35"/></g>',
-        '<path d="M58.5 86 Q60 82 58.8 79 Q60.2 77.6 59.6 75.8 M69.5 86.5 Q68 83 69.4 80 Q68.2 78.4 68.8 76.4" stroke="#4a8a2a" stroke-width=".7" fill="none" stroke-linecap="round" opacity=".75"/>',
+        '<path d="M57.4 86.4 Q58.7 84 58.2 81.8 Q57.8 80.4 58.5 79.2 M58.3 82.8 Q59.9 82 60.3 80.4 M70.6 86.4 Q69.3 84 69.8 81.8 Q70.2 80.4 69.5 79.2 M69.7 82.8 Q68.1 82 67.7 80.4" stroke="#8cff3a" stroke-width="1.8" fill="none" stroke-linecap="round" opacity=".15"/><path d="M57.4 86.4 Q58.7 84 58.2 81.8 Q57.8 80.4 58.5 79.2 M58.3 82.8 Q59.9 82 60.3 80.4 M70.6 86.4 Q69.3 84 69.8 81.8 Q70.2 80.4 69.5 79.2 M69.7 82.8 Q68.1 82 67.7 80.4" stroke="#2f6a1a" stroke-width=".6" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity=".8"/>',
         // Toxic drool at the corner of the mouth.
         '<path d="M70.6 67.6 Q71.4 70.6 70.8 73.6" stroke="#8cff3a" stroke-width="1.1" fill="none" stroke-linecap="round" opacity=".85"/><circle cx="70.8" cy="74.4" r=".9" fill="#8cff3a" opacity=".85"/>',
         // Yellow hoops.
