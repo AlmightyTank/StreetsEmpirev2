@@ -1,7 +1,7 @@
 # StreetsEmpire — Avatar Cosmetics
 ## Earned and Drop Wearables for the Built Avatar
 
-**Status:** Slices A and B built on `beta` (see §7). Slices C–D planned.  
+**Status:** Slices A, B and C built on `beta` (see §7). Slice D planned.  
 **Reference branch:** `AlmightyTank/StreetsEmpirev2` → `beta`  
 **Prepared:** October 19, 2026  
 **Depends on:** the avatar builder (`packages/shared/src/avatar-builder.ts`), `AccountCosmeticUnlock`, The Drop ([THE-DROP.md](THE-DROP.md)), Street Pass ([STREET-PASS.md](STREET-PASS.md)).
@@ -54,9 +54,9 @@ Each new slot is a new SVG layer and a new key in `AVATAR_PART_OPTIONS`, with
 | --- | --- | --- | --- |
 | `headwear` | over hair | `none`, beanie, durag | **Built:** snapback, Santa hat, Kingpin crown. Later: fitted cap, bucket hat, fedora, halo/horns |
 | `grill` | in mouth | `none`, gold tooth, silver grill | Gold grill, diamond grill |
-| `faceMark` | over skin, under facial hair | `none` | Scar, teardrop tattoo, neck tattoo, bandage, black eye |
+| `faceMark` | over skin, under facial hair | `none`, freckles, beauty mark, bandage | **Built:** scar. Later: teardrop tattoo, neck tattoo, black eye |
 | `aura` | behind body, over background | `none` | **Built:** neon glow, snowfall. Later: cigar smoke, falling cash, sparkle |
-| `prop` | in front of shoulder | `none` | Phone, cash stack, dice, briefcase, rose |
+| `prop` | in front of shoulder, held in a skin-tone hand | `none`, phone, rose, cash stack | **Built:** gold dice, briefcase |
 | `earrings` | on ears, over hair that leaves the ear showing | `none`, studs, hoops (moved from `accessory`) | Diamond studs, gold hoops, big door-knocker hoops, cross dangle, dice dangle, crown drop, faction-emblem stud, single ear cuff |
 
 **Earrings move out of `accessory`.** Today studs and hoops share the
@@ -80,7 +80,7 @@ thumbnail on a grin.
 | `shirtColor` / `hairColor` | Two-tone and neon gradients, chrome |
 | `accessory` | Cuban link, iced chain with pendant (crown, $, faction emblem), watch, monocle |
 | `mask` | **Built:** neon visor. Later: faction bandana |
-| `background` | Casino floor, penthouse, cell block, vault, one skyline per seeded city |
+| `background` | **Built:** one skyline per seeded city (12). Later: casino floor, penthouse, cell block, vault |
 
 ### 3.3 Sources
 
@@ -88,8 +88,8 @@ thumbnail on a grin.
 | --- | --- | --- |
 | **The Drop** | Bought with Crowns; `sourceQuestKey = 'drop'`, keys `drop-<collection>-<slug>` like every Drop item | **Built:** Kingpin Luxe crown, fur coat, crown drops; Neon Underworld visor, glow; Winter Heist parka, snowfall (see Slice B) |
 | **Street Pass** | Tier reward (`COSMETIC_UNLOCK`) | **Built:** Snapback at Season 1 tier 4. Later seasons: gold grill, sparkle aura |
-| **Gameplay milestones** | Granted in the transaction that earns it | **Built:** prison jumpsuit (first arrest, at home or on a run). Later: scar (first lost raid as defender), dice prop (casino milestone), city skyline (own turf in that city at round end), briefcase (first loan repaid) |
-| **Round placement** | Granted at round rollover | Top 10: round crown or laurel, stamped with the game number in its title. Top 3: diamond studs |
+| **Gameplay milestones** | Granted in the transaction that earns it | **Built:** prison jumpsuit (first arrest), scar (first raid lost as defender), gold dice (casino jackpot or mega win), briefcase (a loan paid off), city skylines (turf held at round end). Originally planned: scar (first lost raid as defender), dice prop (casino milestone), city skyline (own turf in that city at round end), briefcase (first loan repaid) |
+| **Round placement** | Granted at round close | **Built:** top 10 laurel, top 3 diamond studs (one of each, kept for good) |
 | **Factions** | Joining/ranking in a faction | Faction-colored bandana, emblem pendant, emblem stud earring |
 | **Holidays / events** | The event's own reward | **Built:** Santa hat, hidden, with the Holiday Road Sedan. Later: pumpkin mask |
 | **Easter eggs** | Hidden until owned | Halo/horns, golden monocle |
@@ -211,11 +211,24 @@ Bundles: Kingpin Luxe 2,800 (ten pieces, list 4,800), Neon Underworld 2,800 (ten
 - **Eyewear under the visor.** Shades and glasses are not drawn under the neon visor; the builder notes it under Accessory.
 - Drop item pages already preview on the buyer's avatar (Slice A).
 
-### Slice C — Gameplay and placement rewards
+### Slice C — Gameplay and placement rewards (built)
 
-- `faceMark`, `prop` slots.
-- Milestone grants (scar, dice, briefcase, city skylines) in their earning transactions, with idempotent keys.
-- Round-placement crowns at rollover.
+- **`faceMark` slot** (free freckles, beauty mark, bandage) and **`prop` slot** (free phone, rose, cash stack), each held in a hand in the skin tone.
+- **Laurel** headwear is a wreath, not a hat: hair is never cut under it.
+- **Grants**, each through `AvatarWearableService` (idempotent, account-level):
+
+| Piece | Unlock key | When | Where |
+| --- | --- | --- | --- |
+| Scar | `avatar-scar` | The defender loses a raid (`result.winner === 'ATTACKER'`) | `combat.service.ts`, raid transaction |
+| Gold dice | `avatar-dice` | A casino result with a `JACKPOT` or `MEGA_WIN` highlight, any game | `CasinoStatusService.recordResult` |
+| Briefcase | `avatar-briefcase` | A loan reaches `PAID_OFF` | `loan-ledger.service.ts`, payment allocation |
+| Top 10 laurel | `avatar-top-ten-laurel` | National rank 1–10 when the round closes | `RoundService.closeRoundInTransaction` → `grantAtRoundClose` |
+| Diamond studs | `avatar-top-three-diamonds` | National rank 1–3 when the round closes | same |
+| City skylines | `avatar-skyline-<city slug>` | Holding at least one block in that city when the round closes | same |
+
+- Round-close grants run after standings freeze and use `sourceQuestKey = 'ROUND_CLOSE:<roundId>'`, so the unlock row says which round first earned it.
+- **Open question 1, decided:** one laurel and one pair of diamond studs, kept for good. The first round to earn each is on its unlock row. A per-round collectible would mean a new builder option every round; it can come later as titles or badges instead.
+- **Skylines:** twelve backdrops drawn in `BuiltAvatar.tsx` (`SKYLINES` + `Landmark`), each with its own sky, orb, towers and a landmark kept to the side of the head: Empire State, Renaissance Center, Miami palms and deco, Space Needle, Beverly Hills palms, the Strat, the LA crown tower, Atlanta's cylinder, Transamerica and the Golden Gate, Willis Tower, Tulsa deco, Reunion Tower. The city list lives in `@streets/shared` and `@streets/rulesets`; a server test keeps them in step.
 
 ### Slice D — Factions, events, easter eggs, supporter
 
@@ -240,11 +253,18 @@ Slice B:
 - `avatar-builder.test.ts`: an avatar saved before auras reads as `aura: 'none'`.
 - `drop.test.ts`: the new SKUs pass the existing price, key, style-key and bundle-range checks.
 
+Slice C:
+
+- `avatar-wearable.service.test.ts`: every skyline has a definition; the two city lists match; `grantAtRoundClose` gives the laurel to the top 10, diamonds to the top 3 and a skyline per city held (one per account and city), and never repeats a piece.
+- `avatar-wearables.integration.test.ts` (`AVATAR_INTEGRATION=1`): a real round close on Postgres grants the laurel, diamonds and the Detroit skyline.
+- `loan-payments.integration.test.ts`: paying off a loan grants the briefcase. `casino-slots.integration.test.ts`: a slots jackpot grants the dice.
+- The scar hook is covered by type-checking only: `combat.integration.test.ts` already fails on `beta` before any change (its fixtures predate the birth-date play gate).
+
 ---
 
 ## 9. Open questions
 
-1. Should round-placement crowns be per round (collectible, one per game number) or one crown that upgrades?
+1. ~~Per-round placement crowns or one?~~ Decided in Slice C: one laurel and one pair of diamond studs, kept for good.
 2. Do earned marks like the scar and black eye stay permanently, or can a player hide them while keeping ownership? (Proposed: owned forever, worn by choice like every part.)
 3. ~~Are animated auras allowed in dense lists?~~ Decided in Slice B: still in lists, moving only on large single portraits.
 4. Do faction pieces stay owned after leaving the faction?

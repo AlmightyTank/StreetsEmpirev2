@@ -13,6 +13,7 @@ import type { LoanAccountDto, LoanCollectionState, LoanDto, LoanPaymentPreviewDt
 import type { Db } from '../utils/db.js';
 import { ActivityService } from './activity.service.js';
 import type { EconomyLedgerWrite } from './economy-ledger.service.js';
+import { AvatarWearableService } from './avatar-wearable.service.js';
 
 /**
  * 1.6.5-A. The loan shark's books, shared by acceptance, repayment and the scheduled
@@ -400,6 +401,8 @@ export async function applyLoanPayment(db: Db, input: {
     at,
   });
   if (status === 'PAID_OFF') {
+    // Paying off a loan earns the briefcase for the built avatar, once.
+    await AvatarWearableService.grantToRoundPlayer(db, input.roundPlayerId, 'avatar-briefcase', 'LOAN_PAID_OFF', at);
     await writeLoanEvent(db, {
       roundPlayerId: input.roundPlayerId,
       loanId: loan.id,

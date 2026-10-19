@@ -27,7 +27,7 @@ export function BuiltAvatar({ parts, className, live = false }: { parts: AvatarP
   // A ski mask hides the hair under it; long hair still falls out the back.
   const hairHidden = parts.mask === 'ski-mask';
   // Under a hat, hair that stands up is cut down to a cap so it fits.
-  const hatted = (parts.headwear ?? 'none') !== 'none';
+  const hatted = (parts.headwear ?? 'none') !== 'none' && parts.headwear !== 'laurel';
   const hairStyle: AvatarParts['hair'] = hatted && TALL_HAIR.has(parts.hair) ? 'buzz' : parts.hair;
 
   return (
@@ -109,6 +109,7 @@ export function BuiltAvatar({ parts, className, live = false }: { parts: AvatarP
       <Accessory style={parts.mask === 'neon-visor' && (parts.accessory === 'shades' || parts.accessory === 'glasses') ? 'none' : parts.accessory} ctx={ctx} />
       {/* A ski mask covers the ears. */}
       {parts.mask === 'ski-mask' ? null : <Earrings style={parts.earrings ?? 'none'} ctx={ctx} />}
+      <Prop style={parts.prop ?? 'none'} ctx={ctx} />
     </svg>
   );
 }
@@ -252,12 +253,61 @@ function BackgroundDefs({ id, background }: { id: string; background: AvatarPart
   }
   if (background === 'brick') return <Vertical id={id} from="#8a3f2a" to="#4a1e14" />;
   if (background === 'city') return <Vertical id={id} from="#0b1024" to="#3a2a62" />;
+  const skyline = SKYLINES[background.replace('skyline-', '')];
+  if (skyline) return <Vertical id={id} from={skyline.sky[0]} to={skyline.sky[1]} />;
   return null;
 }
+
+type Skyline = {
+  sky: [string, string];
+  /** A sun or moon: [x, y, r, color]. */
+  orb: [number, number, number, string];
+  towers: readonly (readonly [number, number, number])[];
+  building: string;
+  windows: string;
+  landmark: string;
+};
+
+/** One backdrop per city skyline, each with its own sky, towers and a landmark at the side. */
+const SKYLINES: Record<string, Skyline> = {
+  'new-york-city': { sky: ['#0c1430', '#36284f'], orb: [24, 20, 7, '#f4eccf'], towers: [[0, 70, 16], [14, 54, 14], [26, 76, 14], [86, 62, 14], [112, 48, 16]], building: '#151b30', windows: '#f7d774', landmark: 'empire' },
+  detroit: { sky: ['#1b2a3e', '#5a6f86'], orb: [104, 22, 6, '#e8eef4'], towers: [[38, 78, 10], [88, 70, 14], [100, 58, 12], [114, 74, 14]], building: '#1c2532', windows: '#cfe3f2', landmark: 'rencen' },
+  'miami-beach': { sky: ['#ff9fb8', '#3cc6c0'], orb: [92, 26, 12, '#ffe6a8'], towers: [[0, 84, 20], [20, 92, 14], [86, 80, 18], [104, 88, 24]], building: '#f6e6d6', windows: '#2aa7a2', landmark: 'palm' },
+  seattle: { sky: ['#3a4a5c', '#8796a6'], orb: [20, 22, 6, '#dde6ee'], towers: [[0, 72, 14], [12, 60, 14], [24, 80, 12], [84, 74, 12]], building: '#28323e', windows: '#e6edf3', landmark: 'needle' },
+  'beverly-hills': { sky: ['#ff8a4a', '#f4c96a'], orb: [64, 30, 13, '#fff1c4'], towers: [[0, 96, 30], [98, 94, 30]], building: '#6b4a3a', windows: '#ffe3a0', landmark: 'hills' },
+  'las-vegas': { sky: ['#14081f', '#5a1a5e'], orb: [22, 16, 5, '#f4eccf'], towers: [[0, 74, 14], [14, 64, 14], [86, 70, 14], [100, 80, 12]], building: '#1e1028', windows: '#ff5fd2', landmark: 'strat' },
+  'los-angeles': { sky: ['#5a3a8a', '#ff9a5a'], orb: [100, 30, 10, '#ffd28a'], towers: [[26, 74, 12], [86, 66, 14], [100, 76, 14], [114, 84, 14]], building: '#2e2240', windows: '#ffd28a', landmark: 'la' },
+  atlanta: { sky: ['#0f2a24', '#3f7a5a'], orb: [24, 20, 6, '#f0f4e0'], towers: [[0, 64, 16], [16, 76, 14], [28, 70, 10], [86, 74, 12]], building: '#14261f', windows: '#e8f2a0', landmark: 'cylinder' },
+  'san-francisco': { sky: ['#6f7f8f', '#d9c7b0'], orb: [104, 18, 7, '#fff4e0'], towers: [[28, 80, 10], [86, 78, 12], [98, 86, 10]], building: '#3c4652', windows: '#f2e6c8', landmark: 'bay' },
+  chicago: { sky: ['#0d1a33', '#2d5a8a'], orb: [24, 18, 6, '#e8eef8'], towers: [[0, 66, 14], [14, 72, 12], [26, 58, 14], [86, 76, 12]], building: '#121c2e', windows: '#f7e08a', landmark: 'willis' },
+  tulsa: { sky: ['#4a2a12', '#e0a84a'], orb: [100, 26, 9, '#fff0b8'], towers: [[34, 82, 8], [86, 76, 14], [100, 70, 12], [112, 84, 16]], building: '#3a2414', windows: '#ffd77a', landmark: 'deco' },
+  dallas: { sky: ['#2a0f1a', '#c2462e'], orb: [24, 24, 8, '#ffd9a0'], towers: [[0, 70, 14], [14, 80, 12], [26, 66, 12], [86, 72, 12]], building: '#22121a', windows: '#ffcf7a', landmark: 'reunion' },
+};
 
 function Background({ background, ctx }: { background: AvatarParts['background']; ctx: Ctx }) {
   const { ref } = ctx;
   if (background === 'none') return null;
+  const skyline = SKYLINES[background.replace('skyline-', '')];
+  if (skyline) {
+    const [ox, oy, or, oc] = skyline.orb;
+    return (
+      <>
+        <rect width="128" height="128" fill={ref('bg')} />
+        <circle cx={ox} cy={oy} r={or * 1.8} fill={oc} opacity=".16" />
+        <circle cx={ox} cy={oy} r={or} fill={oc} stroke={INK} strokeWidth="1" />
+        <g fill={skyline.building} stroke={INK} strokeWidth="1.2">
+          {skyline.towers.map(([x, top, width]) => <rect key={x} x={x} y={top} width={width} height={128 - top} />)}
+        </g>
+        <g fill={skyline.windows} opacity=".85">
+          {skyline.towers.flatMap(([x, top, width]) => Array.from({ length: 6 }, (_, index) => (
+            (index * 5 + x) % 3 === 0 ? null : <rect key={`${x}-${index}`} x={x + 3 + (index % 2) * (width - 8.4)} y={top + 6 + Math.floor(index / 2) * 9} width="3" height="3.6" />
+          )))}
+        </g>
+        <Landmark kind={skyline.landmark} skyline={skyline} />
+        <rect width="128" height="128" fill={ref('vignette')} />
+      </>
+    );
+  }
   if (SPOTLIGHTS[background]) {
     return (
       <>
@@ -305,6 +355,116 @@ function Background({ background, ctx }: { background: AvatarParts['background']
       <rect width="128" height="128" fill={ref('vignette')} />
     </>
   );
+}
+
+/** Each city's landmark, kept to the sides so the head never hides it. */
+function Landmark({ kind, skyline }: { kind: string; skyline: Skyline }) {
+  const fill = skyline.building;
+  const lit = skyline.windows;
+  const props = { fill, stroke: INK, strokeWidth: 1.2, strokeLinejoin: 'round' as const };
+  switch (kind) {
+    case 'empire':
+      return (
+        <>
+          <path d="M98 128 V58 H101 V46 H104 V36 H107 V46 H110 V58 H113 V128 Z" {...props} />
+          <path d="M105.5 36 V20" stroke={INK} strokeWidth="1.4" />
+          <circle cx="105.5" cy="19" r="1.2" fill="#ff5a5a" />
+        </>
+      );
+    case 'rencen':
+      return (
+        <g {...props}>
+          <rect x="8" y="58" width="9" height="70" rx="4.5" /><rect x="18" y="46" width="11" height="82" rx="5.5" /><rect x="30" y="62" width="9" height="66" rx="4.5" />
+          <path d="M20 54 H27" stroke={lit} strokeWidth="1.4" />
+        </g>
+      );
+    case 'palm':
+    case 'la': {
+      // LA adds the crowned tower behind its palm.
+      const [cx, cy] = kind === 'la' ? [33, 70] : [18, 64];
+      return (
+        <>
+          {kind === 'la' ? <path d="M6 128 V52 Q12 44 18 52 V128 Z" {...props} /> : null}
+          <path d={`M${cx - 4} 128 Q${cx - 5} ${cy + 26} ${cx} ${cy}`} fill="none" stroke="#3a2a1a" strokeWidth="3" strokeLinecap="round" />
+          <g fill="#1f4a2a" stroke={INK} strokeWidth="1">
+            {[-1, 1].flatMap((side) => [
+              <path key={`a${side}`} d={`M${cx} ${cy} Q${cx + side * 10} ${cy - 8} ${cx + side * 18} ${cy + 2} Q${cx + side * 9} ${cy - 2} ${cx} ${cy} Z`} />,
+              <path key={`b${side}`} d={`M${cx} ${cy} Q${cx + side * 6} ${cy - 12} ${cx + side * 12} ${cy - 10} Q${cx + side * 5} ${cy - 6} ${cx} ${cy} Z`} />,
+            ])}
+          </g>
+        </>
+      );
+    }
+    case 'needle':
+      return (
+        <g {...props}>
+          <path d="M104 128 L106.6 70 H108.4 L111 128 Z" />
+          <path d="M98 66 Q107.5 58 117 66 Q107.5 72 98 66 Z" />
+          <path d="M107.5 58 V44" stroke={INK} strokeWidth="1.4" fill="none" />
+        </g>
+      );
+    case 'hills':
+      return (
+        <>
+          <path d="M0 104 Q30 80 64 96 Q96 80 128 102 V128 H0 Z" fill="#7a5a3a" stroke={INK} strokeWidth="1.2" />
+          {([[20, 92], [108, 90]] as const).map(([x, y]) => (
+            <g key={x}>
+              <path d={`M${x} 128 Q${x - 1} ${y + 10} ${x + 2} ${y - 6}`} fill="none" stroke="#3a2a1a" strokeWidth="2.4" strokeLinecap="round" />
+              <path d={`M${x + 2} ${y - 6} q-10 -2 -14 6 M${x + 2} ${y - 6} q10 -2 14 6 M${x + 2} ${y - 6} q-4 -8 -10 -8 M${x + 2} ${y - 6} q4 -8 10 -8`} fill="none" stroke="#1f4a2a" strokeWidth="2.4" strokeLinecap="round" />
+            </g>
+          ))}
+        </>
+      );
+    case 'strat':
+      return (
+        <g {...props}>
+          <path d="M108 128 L109.6 52 H111.4 L113 128 Z" />
+          <rect x="103" y="44" width="15" height="9" rx="3" />
+          <path d="M110.5 44 V26" stroke={INK} strokeWidth="1.4" fill="none" />
+          <path d="M104 48.5 H117" stroke={lit} strokeWidth="1.6" />
+        </g>
+      );
+    case 'cylinder':
+      return (
+        <g {...props}>
+          <rect x="102" y="50" width="16" height="78" rx="3" />
+          <path d="M102 58 H118 M102 66 H118 M102 74 H118" stroke={lit} strokeOpacity=".7" strokeWidth="1" />
+        </g>
+      );
+    case 'bay':
+      return (
+        <>
+          <path d="M8 128 L18 40 L28 128 Z" {...props} />
+          <path d="M112 128 V44 M120 128 V44 M110 52 H122 M110 70 H122" fill="none" stroke="#c0362c" strokeWidth="2.6" />
+          <path d="M88 96 Q100 70 112 52 M120 52 Q124 60 128 66" fill="none" stroke="#c0362c" strokeWidth="1.2" />
+        </>
+      );
+    case 'willis':
+      return (
+        <>
+          <path d="M100 128 V62 H104 V50 H108 V38 H112 V50 H116 V62 H120 V128 Z" {...props} />
+          <path d="M106 38 V22 M114 38 V24" stroke={INK} strokeWidth="1.3" />
+        </>
+      );
+    case 'deco':
+      return (
+        <>
+          <path d="M8 128 V64 H12 V54 H16 V46 H22 V54 H26 V64 H30 V128 Z" {...props} />
+          <path d="M19 46 V36" stroke={INK} strokeWidth="1.3" />
+          <path d="M12 70 V126 M19 66 V126 M26 70 V126" stroke={lit} strokeOpacity=".55" strokeWidth="1" />
+        </>
+      );
+    case 'reunion':
+      return (
+        <g {...props}>
+          <path d="M108 128 L109.4 60 H112.6 L114 128 Z" />
+          <circle cx="111" cy="52" r="9" />
+          <path d="M102.6 50 H119.4 M104 55.6 H118" stroke={lit} strokeWidth="1" fill="none" />
+        </g>
+      );
+    default:
+      return null;
+  }
 }
 
 /* Auras ------------------------------------------------------------------ */
@@ -512,6 +672,7 @@ function Face({ parts, ctx }: { parts: AvatarParts; ctx: Ctx }) {
           <ellipse cx="77" cy="62" rx="4" ry="2.4" fill={ref('blush')} />
         </>
       ) : null}
+      <FaceMark style={parts.faceMark ?? 'none'} skin={skin} />
       <FacialHair style={parts.facialHair} ctx={ctx} />
       <Mouth style={parts.mouth} girl={girl} />
       <Grill style={parts.grill ?? 'none'} mouth={parts.mouth} ctx={ctx} />
@@ -672,6 +833,37 @@ function Grill({ style, mouth, ctx }: { style: AvatarParts['grill']; mouth: Avat
       <path d={`M59.4 ${top + 0.5} H62.4`} stroke="#fff" strokeOpacity=".7" strokeWidth=".5" strokeLinecap="round" />
     </>
   );
+}
+
+function FaceMark({ style, skin }: { style: AvatarParts['faceMark']; skin: string }) {
+  switch (style) {
+    case 'freckles':
+      return (
+        <g fill={shade(skin, -0.38)} opacity=".7">
+          {[[52, 60], [55, 62], [50.6, 63], [76, 60], [73, 62], [77.4, 63], [62, 61], [66, 61]].map(([cx, cy]) => <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r=".7" />)}
+        </g>
+      );
+    case 'beauty-mark':
+      return <circle cx="73.6" cy="66" r="1" fill="#2a1a12" />;
+    case 'bandage':
+      return (
+        <g transform="rotate(-24 75 46)">
+          <rect x="68" y="43.4" width="14" height="5.2" rx="2" fill="#e8c9a0" stroke={INK} strokeWidth=".7" />
+          <rect x="72.6" y="43.4" width="4.8" height="5.2" fill="#d6b48a" />
+          <g fill="#b8936a"><circle cx="70" cy="46" r=".45" /><circle cx="80" cy="46" r=".45" /></g>
+        </g>
+      );
+    case 'scar':
+      return (
+        <g fill="none" strokeLinecap="round">
+          <path d="M69.6 46 L76.8 62.6" stroke={shade(skin, -0.55)} strokeWidth="2.4" />
+          <path d="M69.6 46 L76.8 62.6" stroke={shade(skin, 0.3)} strokeWidth=".8" />
+          <path d="M70.4 49.8 L73.6 48.4 M71.8 53.2 L75 51.8 M73.4 56.6 L76.6 55.2 M74.8 60 L78 58.6" stroke={shade(skin, -0.6)} strokeWidth=".9" />
+        </g>
+      );
+    default:
+      return null;
+  }
 }
 
 const MUSTACHE = 'M56.4 67 Q59 62.6 64 64.6 Q69 62.6 71.6 67 Q68 65.6 64 66.2 Q60 65.6 56.4 67 Z';
@@ -1074,6 +1266,15 @@ function Earrings({ style, ctx }: { style: AvatarParts['earrings']; ctx: Ctx }) 
           </Mirrored>
         </g>
       );
+    case 'diamond-studs':
+      return (
+        <g filter={ref('shadow')}>
+          <Mirrored>
+            <path d="M44.6 62.4 L46.8 64.6 L44.6 67 L42.4 64.6 Z" fill="#e8f6ff" stroke="#5a7a90" strokeWidth=".7" />
+            <path d="M43.4 63.6 L44.6 62.8" stroke="#fff" strokeWidth=".6" strokeLinecap="round" />
+          </Mirrored>
+        </g>
+      );
     case 'crown-drop':
       return (
         <g filter={ref('shadow')}>
@@ -1088,6 +1289,75 @@ function Earrings({ style, ctx }: { style: AvatarParts['earrings']; ctx: Ctx }) 
       return null;
   }
 }
+
+/** Held up at the lower right, in front of the shoulder, by a hand in the skin tone. */
+function Prop({ style, ctx }: { style: AvatarParts['prop']; ctx: Ctx }) {
+  if (style === 'none') return null;
+  const { ref } = ctx;
+  const hand = <path d="M90 126 Q88 112 94 106 Q100 102 104 108 L106 126 Z" fill={ref('skin')} stroke={INK} strokeWidth="1.2" />;
+  const thumb = <path d="M92 110 Q88 104 92 101 Q95 101 96 106" fill={ref('skin')} stroke={INK} strokeWidth="1" />;
+  let item: ReactNode;
+  switch (style) {
+    case 'phone':
+      item = (
+        <>
+          <rect x="92" y="86" width="12" height="22" rx="2.4" fill="#1b1d22" stroke={INK} strokeWidth="1.2" />
+          <rect x="93.6" y="88.6" width="8.8" height="15.6" rx="1" fill="#3a6fb0" />
+          <path d="M94.6 90 L100 96" stroke="#fff" strokeOpacity=".4" strokeWidth="1" />
+        </>
+      );
+      break;
+    case 'rose':
+      item = (
+        <>
+          <path d="M98 108 Q96 96 99 84" fill="none" stroke="#2f6b38" strokeWidth="1.6" />
+          <path d="M97.4 96 Q92 94 92 90 Q96 90 97.4 96 Z" fill="#2f6b38" stroke={INK} strokeWidth=".7" />
+          <path d="M93.6 80 Q93 74 99 74 Q105 74 104.4 80 Q104 86 99 86 Q94 86 93.6 80 Z" fill="#c8202a" stroke={INK} strokeWidth="1" />
+          <path d="M96 78 Q99 75.6 102 78 M97 81 Q99 79 101.4 81" fill="none" stroke="#7a0e16" strokeWidth=".8" />
+        </>
+      );
+      break;
+    case 'cash':
+      item = (
+        <>
+          {[0, 1, 2].map((index) => (
+            <rect key={index} x={88 + index * 1.2} y={94 - index * 3} width="20" height="10" rx="1.2" fill="#6fae5c" stroke={INK} strokeWidth=".9" transform={`rotate(-12 98 ${99 - index * 3})`} />
+          ))}
+          <rect x="96" y="86" width="3.6" height="11" fill="#d9c27a" stroke={INK} strokeWidth=".6" transform="rotate(-12 98 92)" />
+        </>
+      );
+      break;
+    case 'dice':
+      item = (
+        <>
+          <rect x="88" y="88" width="10" height="10" rx="2" fill={ref('gold')} stroke="#3a2a05" strokeWidth="1" transform="rotate(-14 93 93)" />
+          <rect x="97" y="84" width="10" height="10" rx="2" fill={ref('gold')} stroke="#3a2a05" strokeWidth="1" transform="rotate(12 102 89)" />
+          <g fill="#2a1d04"><circle cx="91" cy="91" r=".9" /><circle cx="95" cy="95" r=".9" /><circle cx="102" cy="89" r=".9" /><circle cx="99.6" cy="86.6" r=".9" /><circle cx="104.4" cy="91.4" r=".9" /></g>
+        </>
+      );
+      break;
+    case 'briefcase':
+      item = (
+        <>
+          <path d="M94 92 V88 Q94 86 96 86 H102 Q104 86 104 88 V92" fill="none" stroke={INK} strokeWidth="1.8" />
+          <rect x="86" y="91" width="26" height="17" rx="2" fill="#5a3a22" stroke={INK} strokeWidth="1.2" />
+          <path d="M86 98 H112" stroke="#3a2414" strokeWidth="1" />
+          <rect x="97" y="96.4" width="4" height="3.6" rx=".6" fill={ref('gold')} stroke="#3a2a05" strokeWidth=".6" />
+        </>
+      );
+      break;
+    default:
+      return null;
+  }
+  return (
+    <g filter={ref('shadow')}>
+      {style === 'briefcase' ? <>{item}{hand}</> : <>{hand}{item}{thumb}</>}
+    </g>
+  );
+}
+
+/** Laurel leaves as [x, y, angle], ear to crown, drawn on the left and mirrored. */
+const LAUREL_LEAVES = [[41.4, 52, -100], [41, 45.6, -90], [42, 39.4, -72], [44.6, 33.6, -58], [48.4, 28.6, -42], [53, 24.6, -28]] as const;
 
 /** Hats sit over the hair; the beanie, durag and snapback take the shirt color. */
 function Headwear({ style, ctx }: { style: AvatarParts['headwear']; ctx: Ctx }) {
@@ -1132,6 +1402,16 @@ function Headwear({ style, ctx }: { style: AvatarParts['headwear']; ctx: Ctx }) 
           <path d="M39.6 40.4 Q64 33.6 88.4 40.4 L88.4 48.4 Q64 41.8 39.6 48.4 Z" fill="#f7f4ee" />
           <circle cx="100.6" cy="36.4" r="5.4" fill="#f7f4ee" />
         </>
+      );
+    case 'laurel':
+      // Leaves follow the side of the head from the ear up to the crown, tangent to it.
+      return (
+        <g fill={ref('gold')} stroke="#3a2a05" strokeWidth=".7">
+          <Mirrored>
+            <path d="M43.6 56 Q41 38 56 22.6" fill="none" stroke="#8a6508" strokeWidth="1.4" />
+            {LAUREL_LEAVES.map(([x, y, angle]) => <ellipse key={`${x}-${y}`} cx={x} cy={y} rx="3.6" ry="1.6" transform={`rotate(${angle} ${x} ${y})`} />)}
+          </Mirrored>
+        </g>
       );
     case 'kingpin-crown':
       return (

@@ -62,6 +62,7 @@ import { accountsShareNetwork } from './admin-signals.service.js';
 import { CrewRosterService } from './crew-roster.service.js';
 import { LawService } from './law.service.js';
 import { TutorialCombatTargetService } from './tutorial-combat-target.service.js';
+import { AvatarWearableService } from './avatar-wearable.service.js';
 
 type CombatRules = NonNullable<Ruleset['combat']>;
 const json = (value: unknown): Prisma.InputJsonValue => JSON.parse(JSON.stringify(value, (_, v: unknown) => typeof v === 'bigint' ? v.toString() : v));
@@ -1063,6 +1064,8 @@ export const CombatService = {
       await RingService.breakInvisibility(tx, attackerId, now);
       if (result.winner === 'ATTACKER') {
         await RingService.transferOnRaidWin(tx, original.roundId, attackerId, target.id, now);
+        // Losing a raid on your own block leaves a scar on the built avatar, once.
+        await AvatarWearableService.grantToRoundPlayer(tx, target.id, 'avatar-scar', 'RAIDED', now);
       }
       // Both final worths are in the transaction before either rank is calculated.
       const afterA = await RankingService.ranksFor(tx, { ...attacker, netWorthCents: NetWorthService.calculate({ ...nextA, products: productsA }, ruleset) });

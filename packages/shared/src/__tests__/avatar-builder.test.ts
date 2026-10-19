@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { updateAccountProfileSettingsSchema } from '../schemas/auth.js';
 import {
   AVATAR_LOCKED_OPTIONS,
+  AVATAR_SKYLINE_CITIES,
+  avatarSkylineUnlockKey,
   AVATAR_PART_OPTIONS,
   AVATAR_UNLOCKS,
   DEFAULT_AVATAR_PARTS,
@@ -82,8 +84,8 @@ describe('readAvatarParts', () => {
 describe('avatar wearables', () => {
   const none = new Set<string>();
 
-  it('reads an avatar saved before hats, grills, auras and the earrings slot as wearing none', () => {
-    const { headwear: _h, grill: _g, earrings: _e, aura: _a, ...before } = DEFAULT_AVATAR_PARTS.boy;
+  it('reads an avatar saved before hats, grills, auras, marks, props and the earrings slot as wearing none', () => {
+    const { headwear: _h, grill: _g, earrings: _e, aura: _a, faceMark: _f, prop: _p, ...before } = DEFAULT_AVATAR_PARTS.boy;
     expect(avatarPartsSchema.parse(before)).toEqual(DEFAULT_AVATAR_PARTS.boy);
     expect(readAvatarParts(before)).toEqual(DEFAULT_AVATAR_PARTS.boy);
   });
@@ -121,7 +123,8 @@ describe('avatar wearables', () => {
     const locked = (Object.keys(AVATAR_PART_OPTIONS) as (keyof typeof AVATAR_PART_OPTIONS)[])
       .flatMap((part) => (AVATAR_PART_OPTIONS[part] as readonly AvatarPartOption[]).filter((option) => option.unlock));
     expect(new Set(locked.map((option) => option.unlock)).size).toBe(locked.length);
-    expect([...AVATAR_LOCKED_OPTIONS.keys()].sort()).toEqual(Object.values(AVATAR_UNLOCKS).sort());
+    const skylines = AVATAR_SKYLINE_CITIES.map((city) => avatarSkylineUnlockKey(city.slug));
+    expect([...AVATAR_LOCKED_OPTIONS.keys()].sort()).toEqual([...Object.values(AVATAR_UNLOCKS), ...skylines].sort());
     for (const option of locked) expect(option.unlockHint).toBeTruthy();
     expect(avatarUnlockStyleKey(AVATAR_UNLOCKS.snapback)).toBe('headwear:snapback');
     expect(avatarUnlockStyleKey('nope')).toBeNull();

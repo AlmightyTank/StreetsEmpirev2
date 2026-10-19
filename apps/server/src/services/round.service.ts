@@ -14,6 +14,7 @@ import { EmpireLegacyService } from './empire-legacy.service.js';
 import { CrewLegendService } from './crew-legends.service.js';
 import { RingService } from './ring.service.js';
 import { SupporterService } from './supporter.service.js';
+import { AvatarWearableService } from './avatar-wearable.service.js';
 
 /**
  * Any current round is joinable until it ends. The lifecycle status is the
@@ -196,6 +197,8 @@ export const RoundService = {
     await RoundRollCallCosmeticService.grantCompletedAtClose(tx, round, freezeAt);
     // The Ring: whoever still holds a live Ring gets My Precious.
     await RingService.grantMyPreciousAtClose(tx, round.id, freezeAt);
+    // Avatar wearables: top-10 laurel, top-3 diamonds, a skyline for each city with held turf.
+    await AvatarWearableService.grantAtRoundClose(tx, round.id, freezeAt);
 
     const closedAt = options.endsAt && options.endsAt.getTime() < freezeAt.getTime() ? options.endsAt : freezeAt;
     const endsAt = closedAt.getTime() < round.endsAt.getTime() ? closedAt : null;

@@ -171,6 +171,9 @@ describe.runIf(process.env.LOAN_INTEGRATION === '1')('1.6.5-D repayment and deli
     const after = await player(playerId);
     expect(before.cashCents - after.cashCents).toBe(BigInt(result.paidCents));
     expect(after.loanDebtCents).toBe(0n);
+    // Paying it off earns the briefcase for the built avatar.
+    expect(await app.prisma.accountCosmeticUnlock.findUnique({ where: { accountId_key: { accountId, key: 'avatar-briefcase' } }, select: { sourceQuestKey: true } }))
+      .toEqual({ sourceQuestKey: 'LOAN_PAID_OFF' });
     // Nothing left to take.
     const again = await pay(loan.id, 100);
     expect(again.statusCode).toBe(409);
