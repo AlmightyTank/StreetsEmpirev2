@@ -5,10 +5,12 @@ import { ALLIANCE_DESCRIPTION_MAX, ALLIANCE_NAME_MAX, ALLIANCE_PITCH_MAX, ALLIAN
 import { allianceApi } from '../api/alliances.js';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
+import { AllianceRankingTable } from '../components/AllianceRankingTable.js';
 import { AllianceTag } from '../components/AllianceTag.js';
 import { AllianceWire } from '../components/AllianceWire.js';
 import { Button } from '../components/Button.js';
 import { Field } from '../components/Field.js';
+import { LevelChip } from '../components/LevelChip.js';
 import { Panel, Stat } from '../components/Panel.js';
 import { SocialNavigation } from '../components/SocialExperience.js';
 import { GameLayout } from '../layouts/GameLayout.js';
@@ -76,6 +78,7 @@ export function AllianceMembers({ alliance, actions }: {
                 <Link to={`/game/players/${member.publicPimpId}`} className="se-playerlink">
                   {member.displayName} <span className="se-muted se-num">(#{member.publicPimpId})</span>
                 </Link>
+                <LevelChip level={member.accountLevel} />
                 {member.isLeader ? <span className="se-tag se-tag--good">Leader</span> : null}
                 {member.isYou ? <span className="se-you">YOU</span> : null}
               </td>
@@ -98,6 +101,7 @@ export function AllianceSummary({ alliance }: { alliance: AllianceDetailDto }) {
       <Stat label="Alliance rank" value={`#${formatNumber(alliance.rank)}`} />
       <Stat label="Combined net worth" value={formatCents(alliance.combinedNetWorthCents)} />
       <Stat label="Members" value={`${formatNumber(alliance.memberCount)} / ${formatNumber(alliance.maxMembers)}`} meter={{ value: alliance.memberCount, max: alliance.maxMembers }} />
+      {alliance.crewRep ? <Stat label="Crew rep" value={`${formatNumber(alliance.crewRep.combinedLevel)} levels`} /> : null}
     </div>
   );
 }
@@ -340,6 +344,13 @@ export function AlliancePage() {
                   detail={availableSeats ? `${formatNumber(availableSeats)} seat${availableSeats === 1 ? '' : 's'} open` : 'crew is full'}
                   tone={availableSeats ? 'good' : 'warn'}
                 />
+                {alliance.crewRep ? (
+                  <AllianceMetric
+                    label="Crew rep"
+                    value={`${formatNumber(alliance.crewRep.combinedLevel)} levels`}
+                    detail={`average account level ${formatNumber(alliance.crewRep.averageLevel)}`}
+                  />
+                ) : null}
                 <AllianceMetric
                   label="Pending invites"
                   value={formatNumber(data.outgoingInvites.length)}
@@ -611,33 +622,7 @@ export function AlliancePage() {
             {rankings && !rankings.enabled ? <p className="se-muted se-admin-pad">This round is played solo.</p> : null}
             {rankings?.enabled && rankings.alliances.length === 0 ? <p className="se-muted se-admin-pad">No alliances yet.</p> : null}
             {rankings?.enabled && rankings.alliances.length ? (
-              <div className="se-tablewrap">
-                <table className="se-table se-table--cards se-ranking-table">
-                  <thead>
-                    <tr>
-                      <th>Rank</th>
-                      <th>Alliance</th>
-                      <th className="se-table__number">Members</th>
-                      <th className="se-table__number">Combined Net Worth</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rankings.alliances.map((row) => (
-                      <tr key={row.tag} className={row.isYours ? 'se-rank-you' : undefined}>
-                        <td className="se-num" data-label="Rank">#{formatNumber(row.rank)}</td>
-                        <td className="se-td--title">
-                          <Link to={`/game/alliances/${encodeURIComponent(row.tag)}`} className="se-playerlink">
-                            <span className="se-alliance-tag">[{row.tag}]</span>{row.name}
-                          </Link>
-                          {row.isYours ? <span className="se-you">YOURS</span> : null}
-                        </td>
-                        <td className="se-table__number se-num" data-label="Members">{formatNumber(row.memberCount)}</td>
-                        <td className="se-table__number se-num" data-label="Net worth">{formatCents(row.combinedNetWorthCents)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <AllianceRankingTable rows={rankings.alliances} />
             ) : null}
           </Panel>
         </section>

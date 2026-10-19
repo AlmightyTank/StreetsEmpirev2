@@ -1977,3 +1977,68 @@ img.se-pass-theme-preview__frame-avatar {
   }
   .se-pass-hero__readout > span:last-child { border-right: 0; }
 }
+
+/* Account level chip beside player names; colours come from the .se-xp-chip rarities. */
+.se-level-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 6px;
+  padding: 1px 5px;
+  font-family: var(--se-mono);
+  font-size: 10px;
+  line-height: 1.4;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.se-level-chip.se-xp-chip--uncommon {
+  border-color: var(--se-good);
+  color: var(--se-good);
+}
+
+.se-level-chip__stars {
+  letter-spacing: -0.05em;
+}
+
+.se-xp-upcoming__list {
+  display: grid;
+  gap: 0;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.se-xp-upcoming__item {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: baseline;
+  padding: 8px 0;
+  border-top: 1px solid var(--se-line);
+}
+
+.se-xp-upcoming__level {
+  font-family: var(--se-mono);
+  font-weight: 800;
+}
+
+.se-xp-upcoming__rewards {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 760px) {
+  .se-xp-upcoming__item {
+    grid-template-columns: 52px minmax(0, 1fr);
+  }
+
+  .se-xp-upcoming__item > .se-num {
+    grid-column: 2;
+  }
+}
+
+.se-level-lock__list {
+  margin: 6px 0;
+  padding-left: 18px;
+}

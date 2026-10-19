@@ -1,6 +1,6 @@
 import { Prisma, type AccountProfile, type PrismaClient } from '@prisma/client';
 import { classicOgStreetPassA, classicOgV07AA } from '@streets/rulesets';
-import { DEFAULT_AVATAR_PARTS, type UpdateAccountProfileSettingsInput } from '@streets/shared';
+import { AVATAR_UNLOCKS, DEFAULT_AVATAR_PARTS, type UpdateAccountProfileSettingsInput } from '@streets/shared';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AccountProfileService, PROFILE_EFFECTS } from '../account-profile.service.js';
 import { RoundService } from '../round.service.js';
@@ -532,6 +532,24 @@ describe('AccountProfileService profile showcase toggles', () => {
 
     const cleared = await AccountProfileService.update(prisma, 'account-1', { ...input, profileAvatar: null });
     expect(cleared.settings.profileAvatar).toBeNull();
+  });
+
+  it('refuses a locked avatar piece until the account owns it, then saves it', async () => {
+    const input = { ...updateInput, activeSiteThemeKey: null };
+    const avatar = { ...DEFAULT_AVATAR_PARTS.boy, headwear: 'snapback' as const };
+
+    await expect(AccountProfileService.update(prismaFor(false), 'account-1', { ...input, profileAvatar: avatar }))
+      .rejects.toMatchObject({ code: 'COSMETIC_NOT_EARNED', fields: { profileAvatar: 'One or more avatar pieces are not unlocked.' } });
+
+    const owner = prismaFor(false, [{ key: AVATAR_UNLOCKS.snapback, kind: 'AVATAR_PART', title: 'Snapback', description: '', styleKey: 'headwear:snapback', awardedAt: new Date(0) }]);
+    const saved = await AccountProfileService.update(owner, 'account-1', { ...input, profileAvatar: avatar });
+    expect(saved.settings.profileAvatar).toEqual(avatar);
+    expect(saved.options.avatarUnlocks).toEqual([AVATAR_UNLOCKS.snapback]);
+  });
+
+  it('opens every avatar piece to admins in seasonal QA mode', async () => {
+    const response = await AccountProfileService.settings(prismaFor(true), 'account-1');
+    expect(response.options.avatarUnlocks).toEqual(expect.arrayContaining(Object.values(AVATAR_UNLOCKS)));
   });
 });
 

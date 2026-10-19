@@ -7,6 +7,7 @@ import { wireApi } from '../api/playing-together.js';
 import { Alert } from './Alert.js';
 import { Button } from './Button.js';
 import { SupporterMark } from './SupporterMark.js';
+import { LevelChip } from './LevelChip.js';
 import { Markdown } from './Markdown.js';
 import { Panel } from './Panel.js';
 import { formatWhen } from '../utils/time.js';
@@ -23,6 +24,7 @@ function PostRow({ post, busy, run }: {
       <div className="se-wire__meta">
         <Link to={`/game/players/${post.author.publicPimpId}`} className="se-playerlink">{post.author.displayName}</Link>
         {post.author.isSupporter ? <SupporterMark /> : null}
+        <LevelChip level={post.author.accountLevel} />
         <span className="se-muted">{formatWhen(post.createdAt)}</span>
         {post.kind === 'ANNOUNCEMENT' ? <span className="se-tag se-tag--warn">Announcement</span> : null}
         {post.pinned ? <span className="se-tag se-tag--good">Pinned</span> : null}

@@ -15,6 +15,7 @@ import { CasinoStatusPanel } from '../components/CasinoStatusPanel.js';
 import { CasinoBankrollSummary, CasinoBetControl, CasinoGameSelector } from '../components/CasinoExperience.js';
 import { SportsbookPanel } from '../components/SportsbookPanel.js';
 import { Button } from '../components/Button.js';
+import { LevelLockNotice } from '../components/LevelLockNotice.js';
 import { Panel, Row } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import {
@@ -510,6 +511,7 @@ export function CasinoPage() {
   return (
     <GameLayout>
       <div className={'se-casino' + (activeGame ? ' se-casino--table' : ' se-casino--lobby')}>
+        <LevelLockNotice gates={[activeGame === 'sportsbook' ? 'sportsbook' : 'casino']} />
         {activeInfo ? (
           <header className="se-casino-tablehead">
             <Link className="se-casino-tablehead__back" to="/game/casino">&larr; Lobby</Link>

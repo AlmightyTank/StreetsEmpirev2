@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   ACCOUNT_TRUST_GATES,
+  experienceSourceLabel,
+  seasonFinishExperience,
+  turnExperienceFor,
+  accountGateOpen,
+  accountLevelBadge,
+  experienceTitlesBetween,
+  levelRewardsAt,
+  prestigeTitleFor,
   EXPERIENCE_LEVEL_REWARDS,
   experienceCrownMilestones,
   experienceCrownsForLevel,
@@ -63,5 +71,57 @@ describe('account experience progression', () => {
   it('keeps trust gates above what starting turns alone reach', () => {
     for (const gate of Object.values(ACCOUNT_TRUST_GATES)) expect(gate.level).toBeGreaterThan(experienceLevelFor(144));
     expect(ACCOUNT_TRUST_GATES.foundAlliance.level).toBeGreaterThanOrEqual(ACCOUNT_TRUST_GATES.coldMessage.level);
+  });
+
+  it('gives every level from 2 to 50 at least one reward', () => {
+    for (let level = 2; level <= 50; level += 1) expect(levelRewardsAt(level).length, `level ${level}`).toBeGreaterThan(0);
+    expect(levelRewardsAt(50).map((reward) => reward.kind)).toEqual(expect.arrayContaining(['title', 'crowns', 'prestige']));
+  });
+
+  it('keeps title keys unique and ordered, with prestige titles past 50', () => {
+    const titles = experienceTitlesBetween(0, 200);
+    expect(new Set(titles.map((title) => title.key)).size).toBe(titles.length);
+    expect(titles.map((title) => title.level)).toEqual([...titles.map((title) => title.level)].sort((a, b) => a - b));
+    expect(experienceTitlesBetween(0, 50)).toHaveLength(41);
+    expect(experienceTitlesBetween(50, 150).map((title) => title.key)).toEqual(['player-prestige-2-title', 'player-prestige-3-title']);
+    expect(prestigeTitleFor(75)).toBeNull();
+  });
+
+  it('bands the level chip and counts prestige stars', () => {
+    expect(accountLevelBadge(4)).toEqual({ level: 4, prestige: 0, tier: 'common' });
+    expect(accountLevelBadge(30)).toMatchObject({ tier: 'rare', prestige: 0 });
+    expect(accountLevelBadge(63)).toMatchObject({ tier: 'epic', prestige: 1 });
+    expect(accountLevelBadge(151)).toMatchObject({ tier: 'legendary', prestige: 3 });
+  });
+
+  it('opens every gate for veterans and none for a fresh account', () => {
+    expect(accountGateOpen({ level: 1, veteran: true }, 'foundAlliance')).toBe(true);
+    expect(accountGateOpen({ level: 1 }, 'casino')).toBe(false);
+    expect(accountGateOpen({ level: ACCOUNT_TRUST_GATES.casino.level }, 'casino')).toBe(true);
+    expect(accountGateOpen(null, 'casino')).toBe(false);
+  });
+
+  it('pays full turn XP for the first 300 turns of the day, then half, exactly over any split', () => {
+    expect(turnExperienceFor(0, 300)).toBe(300);
+    expect(turnExperienceFor(300, 100)).toBe(50);
+    expect(turnExperienceFor(250, 100)).toBe(50 + 25);
+    let total = 0;
+    for (let spent = 0; spent < 576; spent += 1) total += turnExperienceFor(spent, 1);
+    expect(total).toBe(turnExperienceFor(0, 576));
+  });
+
+  it('stacks season finish bonuses by final national rank', () => {
+    expect(seasonFinishExperience(null)).toBe(500);
+    expect(seasonFinishExperience(40)).toBe(500);
+    expect(seasonFinishExperience(10)).toBe(1_500);
+    expect(seasonFinishExperience(3)).toBe(3_000);
+    expect(seasonFinishExperience(1)).toBe(5_500);
+  });
+
+  it('labels XP log sources for players', () => {
+    expect(experienceSourceLabel('TURN_SPEND')).toBe('Turns spent');
+    expect(experienceSourceLabel('QUEST_DAILY')).toBe('Daily contract');
+    expect(experienceSourceLabel('QUEST_STORY')).toBe('Job finished');
+    expect(experienceSourceLabel('SOMETHING_NEW')).toBe('SOMETHING_NEW');
   });
 });

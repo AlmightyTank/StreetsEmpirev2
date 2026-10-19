@@ -2,6 +2,8 @@ import type { PrismaClient, Round } from '@prisma/client';
 import { AppError } from '../utils/errors.js';
 import { RoundRollCallCosmeticService } from './round-roll-call-cosmetic.service.js';
 import { CrownEarnService } from './crown-earn.service.js';
+import { PlayerExperienceService } from './player-experience.service.js';
+import { ACTIVITY_EXPERIENCE } from '@streets/shared';
 import type { Db } from '../utils/db.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -145,7 +147,12 @@ export const RoundRollCallService = {
         skipDuplicates: true,
       });
       // The Drop: check-in day milestones pay Crowns once each per round.
-      if (inserted.count === 1) await CrownEarnService.onCheckIn(tx, roundPlayerId, now);
+      if (inserted.count === 1) {
+        await CrownEarnService.onCheckIn(tx, roundPlayerId, now);
+        await PlayerExperienceService.award(tx, {
+          roundPlayerId, sourceKey: `check-in:${roundPlayerId}:${clock.roundDay}`, source: 'CHECK_IN', amount: ACTIVITY_EXPERIENCE.checkIn, awardedAt: now,
+        });
+      }
       const after = await RoundRollCallService.view(tx, round, roundPlayerId, now);
       // Full attendance is a server-verified requirement; no earlier stamp
       // awards permanent cosmetics and no second check-in can duplicate them.
@@ -154,6 +161,9 @@ export const RoundRollCallService = {
           where: { id: roundPlayerId }, select: { accountId: true },
         });
         await RoundRollCallCosmeticService.awardIfEligible(tx, round, roundPlayerId, player.accountId, now);
+        await PlayerExperienceService.award(tx, {
+          roundPlayerId, sourceKey: `roll-call-complete:${round.id}`, source: 'ROLL_CALL_COMPLETE', amount: ACTIVITY_EXPERIENCE.rollCallComplete, awardedAt: now,
+        });
       }
       return { ...after, recorded: inserted.count === 1 };
     });

@@ -1,6 +1,7 @@
 import { Prisma, type PrismaClient } from '@prisma/client';
 import { loadRulesetForRound, type Ruleset } from '@streets/rules-engine';
 import {
+  ACTIVITY_EXPERIENCE,
   ONBOARDING_GUIDE_STEPS,
   ONBOARDING_PAGE_KEYS,
   TOUR_STEP_KEYS,
@@ -11,6 +12,7 @@ import {
   type TourStepKey,
 } from '@streets/shared';
 import { RoundService } from './round.service.js';
+import { PlayerExperienceService } from './player-experience.service.js';
 
 /**
  * 1.0.0-B. Tutorial progress and the early "getting started" goals.
@@ -202,6 +204,10 @@ export const OnboardingService = {
     switch (input.action) {
       case 'complete-intro':
         next.introCompletedAt = now.toISOString();
+        // Once per account, however many times the intro is replayed.
+        await prisma.$transaction((tx) => PlayerExperienceService.award(tx, {
+          accountId, sourceKey: 'onboarding-intro', source: 'ONBOARDING', amount: ACTIVITY_EXPERIENCE.onboardingIntro, awardedAt: now,
+        }));
         break;
       case 'skip-intro':
         next.introSkippedAt = now.toISOString();

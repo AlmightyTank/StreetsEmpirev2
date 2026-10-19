@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import type {
   AccountProfileSettingsDto,
@@ -13,7 +13,7 @@ import type {
   UiDensity,
   UsernameChangeStatusDto,
 } from '@streets/shared';
-import { USERNAME_MAX, CREW_NAME_MAX, DEFAULT_AVATAR_PARTS, DEFAULT_CREW_COSMETICS, RELEASED_CREW_COSMETIC_STYLES, RELEASED_ITEM_COSMETIC_STYLES, collectionOptions, PROFILE_BIO_MAX, PROFILE_IMAGE_URL_MAX, formatNumber, profileNameParts, SIGNATURE_CARD_FRAME_KEY } from '@streets/shared';
+import { USERNAME_MAX, CREW_NAME_MAX, DEFAULT_AVATAR_PARTS, DEFAULT_CREW_COSMETICS, lockedAvatarParts, readAvatarParts, RELEASED_CREW_COSMETIC_STYLES, RELEASED_ITEM_COSMETIC_STYLES, collectionOptions, PROFILE_BIO_MAX, PROFILE_IMAGE_URL_MAX, formatNumber, profileNameParts, SIGNATURE_CARD_FRAME_KEY } from '@streets/shared';
 import { siteThemeCompanionLook } from '@streets/rulesets';
 import { ApiError } from '../api/client.js';
 import { authApi } from '../api/auth.js';
@@ -475,6 +475,10 @@ export function AccountSettingsPage() {
     }
   }
 
+  // Drafts remembered from before a slot existed read as that slot's default.
+  const builtAvatar = readAvatarParts(cosmetics.profileAvatar ?? avatarDraft) ?? DEFAULT_AVATAR_PARTS.boy;
+  const avatarUnlocks = useMemo(() => new Set(profileSettings?.options.avatarUnlocks ?? []), [profileSettings]);
+  const avatarLocked = avatarMode === 'built' && lockedAvatarParts(builtAvatar, avatarUnlocks).length > 0;
   const selectedAccent = profileSettings?.options.accents.find((option) => option.key === cosmetics.profileAccent);
   const selectedTitle = profileSettings?.options.titles.find((option) => option.key === cosmetics.activeTitleKey);
   const selectedAvatarFrame = profileSettings?.options.frames.find((option) => option.key === cosmetics.activeAvatarFrameKey);
@@ -884,7 +888,7 @@ export function AccountSettingsPage() {
                     </>
                   ) : avatarMode === 'built' ? (
                     <>
-                      <AvatarBuilder value={cosmetics.profileAvatar ?? avatarDraft} onChange={changeBuiltAvatar} />
+                      <AvatarBuilder value={builtAvatar} onChange={changeBuiltAvatar} owned={avatarUnlocks} />
                       {fields.profileAvatar
                         ? <p className="se-error" role="alert">{fields.profileAvatar}</p>
                         : <p className="se-hint">No picture needed. Pick a boy or girl base, then mix face pieces, hair and a shirt. Save settings to put it on.</p>}
@@ -1261,7 +1265,10 @@ export function AccountSettingsPage() {
               </label>
             </div>
 
-            <Button className="se-btn se-btn--primary se-btn--block" disabledReason={busy !== null ? working : null}>
+            <Button
+              className="se-btn se-btn--primary se-btn--block"
+              disabledReason={busy !== null ? working : avatarLocked ? 'Your avatar is trying on a locked piece. Take it off to save.' : null}
+            >
               {busy === 'cosmetics' ? 'Saving...' : 'Save settings'}
             </Button>
           </form>

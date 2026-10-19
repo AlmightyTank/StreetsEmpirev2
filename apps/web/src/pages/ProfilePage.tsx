@@ -734,7 +734,7 @@ export function ProfilePage() {
           <div className="se-profile-pagehead__main">
             {player ? (
               <span className={`se-profile-pagehead__avatar${avatarFrame ? ` se-profile-pagehead__avatar--framed se-profile-pagehead__avatar--${avatarFrame}` : ''}${avatarFrame && hasAvatarFrameArt(avatarFrame) ? ' se-profile-pagehead__avatar--art' : ''}`} aria-hidden="true">
-                <AvatarPortrait imageUrl={player.cosmetics.imageUrl} avatar={player.cosmetics.avatar} fallback={initials(player.displayName)} frameKey={avatarFrame} />
+                <AvatarPortrait imageUrl={player.cosmetics.imageUrl} avatar={player.cosmetics.avatar} fallback={initials(player.displayName)} frameKey={avatarFrame} live />
               </span>
             ) : null}
             <div>

@@ -20,6 +20,7 @@ import { NetWorthService } from './net-worth.service.js';
 import { CRACK, ProductInventoryService } from './product-inventory.service.js';
 import { SingleUseFavorService } from './single-use-favor.service.js';
 import { LawService, seizedValueCents } from './law.service.js';
+import { AvatarWearableService } from './avatar-wearable.service.js';
 
 export interface HeatBribeResult {
   points: number;
@@ -107,6 +108,8 @@ export const HeatService = {
     const drop = arrest.arrested ? rules.arrest!.heatDrop : bust.busted ? rules.bust.heatDrop : 0;
     const after = addHeat(input.startHeat, added - drop, rules);
     const lockedUntil = arrest.arrested ? new Date((input.now ?? new Date()).getTime() + arrest.downtimeMinutes * 60_000) : null;
+    // The first arrest earns the prison jumpsuit for the built avatar, for good.
+    if (arrest.arrested) await AvatarWearableService.grantToRoundPlayer(tx, roundPlayerId, 'avatar-prison-jumpsuit', 'ARREST', input.now ?? new Date());
     next = { ...next, heat: after, ...(lockedUntil ? { lockedUntil } : {}) };
 
     return {

@@ -15,11 +15,12 @@ import type {
   StreetPassSkipQuoteDto,
 } from '@streets/shared';
 import { discountedDropPrice } from '@streets/rulesets';
-import { formatNumber } from '@streets/shared';
+import { DEFAULT_AVATAR_PARTS, formatNumber, type AvatarParts } from '@streets/shared';
 import { dropApi } from '../api/drop.js';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
+import { BuiltAvatar } from '../components/BuiltAvatar.js';
 import { ItemTile } from '../components/ItemTile.js';
 import { Panel, Stat } from '../components/Panel.js';
 import { hasItemArt } from '../items/itemArt.js';
@@ -120,9 +121,19 @@ function leavingSoon(offer: DropOfferDto | undefined, now: number): boolean {
   return ms > 0 && ms < 86_400_000;
 }
 
-/** The art for an item: its look on the items it dresses, a frame ring, an accent swatch or a title plate. */
+/** The art for an item: its look on the items it dresses, a frame ring, an accent swatch, a title plate or the viewer's avatar wearing it. */
 export function DropArt({ item, size = 'md' }: { item: DropItemDto; size?: 'sm' | 'md' | 'lg' }) {
   const preview = item.preview;
+  const builtAvatar = useSession((state) => state.profileSettings.profileAvatar);
+  if (preview.type === 'AVATAR') {
+    // The viewer's own built avatar when they have one, else the starter look.
+    const parts = { ...(builtAvatar ?? DEFAULT_AVATAR_PARTS.boy), [preview.part]: preview.option } as AvatarParts;
+    return (
+      <div className={`se-drop-art se-drop-art--avatar se-drop-art--${size}`} role="img" aria-label={`${item.name} on your avatar`}>
+        <span className="se-drop-avatar"><BuiltAvatar parts={parts} live={size !== 'sm'} /></span>
+      </div>
+    );
+  }
   if (preview.type === 'ITEM') {
     const items = preview.items.filter(hasItemArt);
     return (
@@ -438,7 +449,7 @@ function ShopView() {
           key={group.key || 'featured'}
           id={`drop-set-${group.key || 'featured'}`}
           title={group.collection?.name ?? 'Featured'}
-          subtitle={group.collection?.tagline}
+          subtitle={group.collection?.minAccountLevel ? `${group.collection.tagline} Account level ${formatNumber(group.collection.minAccountLevel)}+.` : group.collection?.tagline}
           accent={group.collection?.accent}
           timer={countdown(data.featured.endsAt, now)}
         >
@@ -500,6 +511,7 @@ function ItemView() {
   const [timing, setTiming] = useState({ startedAt: 0, receivedAt: 0 });
   const attempt = useRef<Record<string, string>>({});
   const signedIn = useSession((s) => Boolean(s.account));
+  const accountLevel = useSession((s) => s.me?.experience?.level ?? 1);
   const now = useServerNow(detail?.serverTime ?? null, timing.startedAt, timing.receivedAt);
 
   const load = useCallback(async () => {
@@ -550,6 +562,8 @@ function ItemView() {
   const owned = item ? item.owned : Boolean(bundle && bundle.yourPriceCrowns === 0);
   const policy = item?.returnPolicy ?? bundle?.returnPolicy ?? 'MAY_RETURN';
   const vaulted = item?.vaulted ?? bundle?.vaulted ?? false;
+  const requiredLevel = detail.collection?.minAccountLevel ?? 0;
+  const levelLocked = signedIn && !owned && accountLevel < requiredLevel;
   const liveOffers = detail.offers.filter((offer) => offer.state !== 'COMING_SOON');
   const soonOffers = detail.offers.filter((offer) => offer.state === 'COMING_SOON');
   const balance = wallet?.balance ?? 0;
@@ -585,6 +599,7 @@ function ItemView() {
           <div className="se-drop-card__tags">
             <span className="se-drop-badge se-drop-badge--drop_exclusive">Drop Exclusive</span>
             {vaulted ? <span className="se-tag">Vaulted</span> : null}
+            {levelLocked ? <span className="se-tag se-tag--warn">Account level {formatNumber(requiredLevel)}+</span> : null}
           </div>
 
           <div className="se-drop-buy">
@@ -603,6 +618,7 @@ function ItemView() {
                     className="se-drop-purchase"
                     loading={busy === offer.id}
                     disabledReason={offer.state === 'OWNED' ? 'You own this.'
+                      : levelLocked ? `This set is for account level ${formatNumber(requiredLevel)} and up. You are level ${formatNumber(accountLevel)}.`
                       : wallet?.held ? 'Your wallet is on hold.'
                         : balance < offer.priceCrowns ? `You need ${formatNumber(offer.priceCrowns - balance)} more Crowns.` : null}
                     onClick={() => void buy(offer, name)}

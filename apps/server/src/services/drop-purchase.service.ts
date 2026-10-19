@@ -1,6 +1,6 @@
 import type { DropOrder, PrismaClient } from '@prisma/client';
-import { DROP_BUNDLES, DROP_ITEMS, DROP_SOURCE, DROP_SOURCE_VERSION } from '@streets/rulesets';
-import type { DropOrderDto, DropPurchaseResultDto } from '@streets/shared';
+import { DROP_BUNDLES, DROP_ITEMS, DROP_SOURCE, DROP_SOURCE_VERSION, dropMinAccountLevel } from '@streets/rulesets';
+import { experienceLevelFor, type DropOrderDto, type DropPurchaseResultDto } from '@streets/shared';
 import type { Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { CrownWalletService, lockCrownWallet } from './crown-wallet.service.js';
@@ -110,6 +110,14 @@ export const DropPurchaseService = {
       const { offer, catalog } = await resolveOffer(tx, input.offerId, now);
       const keys = offerKeys(offer.kind, offer.refKey);
       if (!keys.length) throw AppError.conflict('DROP_OFFER_EXPIRED', 'That offer is not in the shop right now.');
+      const minLevel = dropMinAccountLevel(keys);
+      if (minLevel > 0) {
+        const account = await tx.account.findUniqueOrThrow({ where: { id: accountId }, select: { experiencePoints: true } });
+        const level = experienceLevelFor(account.experiencePoints);
+        if (level < minLevel) {
+          throw new AppError(403, 'DROP_LEVEL_REQUIRED', `This set is for account level ${minLevel} and up. You are level ${level}.`);
+        }
+      }
       const owned = new Set((await tx.accountCosmeticUnlock.findMany({
         where: { accountId, key: { in: keys } },
         select: { key: true },

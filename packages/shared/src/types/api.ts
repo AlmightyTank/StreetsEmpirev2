@@ -363,6 +363,8 @@ export interface AccountProfileSettingsResponseDto {
     crewStyles?: CollectionOptionDto[];
     /** Slice C. Owned crew banners, with locked previews included. */
     crewBanners?: CollectionOptionDto[];
+    /** Unlock keys of the avatar wearables this account may wear. Optional for older servers. */
+    avatarUnlocks?: string[];
     densities: CosmeticOptionDto[];
     moneyFormats: CosmeticOptionDto[];
     defaultLandings: CosmeticOptionDto[];
@@ -1109,6 +1111,43 @@ export interface PlayerExperienceDto {
   xpForLevel: number;
   xpToNextLevel: number;
   progressPercent: number;
+  /** Finished at least one season: every level unlock is open. Optional for older servers. */
+  veteran?: boolean;
+}
+
+export interface MentoringPersonDto {
+  displayName: string;
+  /** Set only when they are in the current round, so the name can link to their profile. */
+  publicPimpId: number | null;
+  level: number;
+}
+
+/** GET /api/game/mentoring */
+export interface MentoringDto {
+  mentor: MentoringPersonDto | null;
+  mentees: (MentoringPersonDto & { milestonesReached: number })[];
+  /** True while the viewer is new enough to name a mentor and has none. */
+  canChooseMentor: boolean;
+  /** True when the viewer is senior enough to mentor and has room. */
+  canMentor: boolean;
+}
+
+/** Endgame: account XP earned in one calendar year (UTC), ranked. */
+export interface XpLeaderboardEntryDto {
+  rank: number;
+  displayName: string;
+  /** Set only when the player is in the current round, so the name can link to their profile. */
+  publicPimpId: number | null;
+  xp: number;
+  level: number;
+  isYou: boolean;
+}
+
+export interface XpLeaderboardDto {
+  year: number;
+  entries: XpLeaderboardEntryDto[];
+  /** The viewer's own standing this year, or null when they have earned no XP in it. */
+  me: { rank: number; xp: number } | null;
 }
 
 export interface PlayerExperienceEventDto {

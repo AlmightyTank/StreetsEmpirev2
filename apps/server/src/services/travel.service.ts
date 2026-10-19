@@ -73,6 +73,7 @@ import { RelocationService } from './relocation.service.js';
 import { BossTripService } from './boss-trip.service.js';
 import { bossAway } from './boss-trip-settle.service.js';
 import { ActivityService } from './activity.service.js';
+import { AvatarWearableService } from './avatar-wearable.service.js';
 import { FactionService } from './faction.service.js';
 import { PermanentUnlockService } from './permanent-unlock.service.js';
 import { HighMarketService } from './high-market.service.js';
@@ -1008,7 +1009,10 @@ export const TravelService = {
           await LawService.notePoliceLoss(tx, roundPlayerId, base, seizedValueCents(roll.seized, base) + roll.fineCents, now);
           await ActivityService.log(tx, roundPlayerId, 'RUN_INCIDENT', { runId: run.id, ...trouble } as unknown as Prisma.InputJsonValue);
           // An arrest ends the trip: the crew is let go with the empty car and drives home.
-          if (roll.kind === 'ARREST') await writeStops(tx, run.id, planHeadHome(base, stops, now));
+          if (roll.kind === 'ARREST') {
+            await writeStops(tx, run.id, planHeadHome(base, stops, now));
+            await AvatarWearableService.grantToRoundPlayer(tx, roundPlayerId, 'avatar-prison-jumpsuit', 'ARREST', now);
+          }
         }
 
         // The crew saw the counter and the market as they left them.

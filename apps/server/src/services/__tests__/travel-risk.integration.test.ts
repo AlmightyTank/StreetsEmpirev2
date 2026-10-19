@@ -189,12 +189,17 @@ describe.runIf(process.env.TRAVEL_INTEGRATION === '1')('markets and risk with Po
     expect(page.run!.position.city).toBe('new-york-city');
     expect(page.run!.incidents.map((incident) => incident.kind)).toEqual(['ARREST']);
     expect((await row(0)).heat).toBeLessThan(100);
+    // The first arrest earns the prison jumpsuit for the built avatar.
+    expect(await app.prisma.accountCosmeticUnlock.findMany({ where: { accountId: accounts[0]!, kind: 'AVATAR_PART' }, select: { key: true, sourceQuestKey: true } }))
+      .toEqual([{ key: 'avatar-prison-jumpsuit', sourceQuestKey: 'ARREST' }]);
   });
 
   it('locks a player up after an arrest at home, and nothing moves until they are out', async () => {
     await app.prisma.roundPlayer.update({ where: { id: players[0]! }, data: { heat: 100, lastTurnCalculationAt: new Date() } });
     const trip = await ScoutService.scout(app.prisma, players[0]!, { district: 'WINO_SLUMS', turns: 1, actionId: randomUUID() }, () => 0);
     expect(trip.result.heat?.arrested).toBe(true);
+    // Arrested again, at home this time: still the one jumpsuit.
+    expect(await app.prisma.accountCosmeticUnlock.count({ where: { accountId: accounts[0]!, key: 'avatar-prison-jumpsuit' } })).toBe(1);
     const player = await row(0);
     expect(player.lockedUntil!.getTime()).toBeGreaterThan(Date.now() + 100 * 60_000);
     const refused = await post(0, '/travel/launch', { to: 'detroit', route: 0, lowRiders: 1, escortThugs: 0, cashCents: 0, cargo: {}, actionId: randomUUID() });

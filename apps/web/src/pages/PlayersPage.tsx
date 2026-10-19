@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
+import { LevelChip } from '../components/LevelChip.js';
 import type { ContactKindDto, PlayerActivityBand, PlayerDirectoryDto, PlayerDirectoryView } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
 import { ApiError } from '../api/client.js';
@@ -220,6 +221,7 @@ export function PlayersPage() {
                                   {player.displayName}
                                 </Link>
                                 <span className="se-muted se-num">#{player.publicPimpId}</span>
+                                <LevelChip level={player.accountLevel} />
                                 <ThemeSwatch theme={player.siteTheme} label={player.siteThemeLabel} />
                                 {player.isYou ? <span className="se-tag se-tag--good">You</span> : null}
                               </div>

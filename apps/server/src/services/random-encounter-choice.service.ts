@@ -11,6 +11,7 @@ import type { Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { ActionService } from './action.service.js';
 import { ActivityService } from './activity.service.js';
+import { AvatarWearableService } from './avatar-wearable.service.js';
 import { EasterEggService } from './easter-egg.service.js';
 import { applyRandomEncounterEffects, capRandomEncounterEffects } from './random-encounter.service.js';
 import { EncounterGangService } from './encounter-gang.service.js';
@@ -93,9 +94,18 @@ async function holidayRoadReward(
     tx, player.accountId, ruleset, HOLIDAY_ROAD_COSMETIC_KEY,
     `RANDOM_ENCOUNTER:${HOLIDAY_ROAD_ENCOUNTER_KEY}`, now,
   );
+  // The Santa hat rides along, also for good; an account that had the Sedan before the hat existed gets it now.
+  const hat = await AvatarWearableService.grant(tx, player.accountId, 'holiday-road-santa-hat', `RANDOM_ENCOUNTER:${HOLIDAY_ROAD_ENCOUNTER_KEY}`, now);
+  if (existing && hat) {
+    return {
+      title: 'Santa Hat',
+      description: 'The Perfect Christmas Tree has unlocked a Santa hat for your built avatar. Wear it in Account → Profile.',
+      isNew: true,
+    };
+  }
   return existing ? null : {
     title: 'Holiday Road Sedan',
-    description: 'The Perfect Christmas Tree has unlocked this legendary sedan cosmetic permanently. Equip it in your collection.',
+    description: 'The Perfect Christmas Tree has unlocked this legendary sedan cosmetic and a Santa hat for your built avatar, permanently. Equip the Sedan in your collection and the hat in Account → Profile.',
     isNew: true,
   };
 }

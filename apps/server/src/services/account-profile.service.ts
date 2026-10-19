@@ -1,7 +1,9 @@
 import { Prisma, type AccountProfile, type PrismaClient } from '@prisma/client';
 import { loadRulesetForRound } from '@streets/rules-engine';
 import {
+  AVATAR_LOCKED_OPTIONS,
   DEFAULT_CREW_COSMETICS,
+  lockedAvatarParts,
   RELEASED_CREW_COSMETIC_STYLES,
   RELEASED_ITEM_COSMETIC_STYLES,
   collectionOptions,
@@ -35,6 +37,7 @@ import { CommunityService, permanentAwardsForAccount } from './community.service
 import { RoundPlayerService } from './round-player.service.js';
 import { RoundService } from './round.service.js';
 import { QuestCosmeticService, withThemeCompanionFrames } from './quest-cosmetic.service.js';
+import { AvatarWearableService } from './avatar-wearable.service.js';
 import { isPermanentAward } from './profile-badges.js';
 import { profileTitleForAward } from './profile-titles.js';
 import { crewCosmeticLoadout, itemCosmeticLoadout } from './profile-showcase.service.js';
@@ -239,6 +242,7 @@ function toSettingsDto(
   themeOptions: CosmeticOptionDto[],
   ownedCollections: ReadonlySet<string>,
   bannerOptions: CollectionOptionDto[],
+  avatarUnlocks: ReadonlySet<string>,
 ): AccountProfileSettingsDto {
   const activeTitleKey = profile?.activeTitleKey && earnedTitleKeys.has(profile.activeTitleKey)
     ? profile.activeTitleKey
@@ -281,7 +285,7 @@ function toSettingsDto(
     crewName: profile?.crewName ?? null,
     profileBio: profile?.profileBio ?? null,
     profileImageUrl: profile?.profileImageUrl ?? null,
-    profileAvatar: readAvatarParts(profile?.profileAvatar),
+    profileAvatar: readAvatarParts(profile?.profileAvatar, avatarUnlocks),
     profileBannerUrl: profile?.profileBannerUrl ?? null,
     activeCrewBannerKey: profile?.activeCrewBannerKey && bannerOptions.some((option) => option.key === profile.activeCrewBannerKey && !option.locked)
       ? profile.activeCrewBannerKey
@@ -338,8 +342,10 @@ async function appearanceOptions(prisma: PrismaClient, accountId: string): Promi
   /** Item art collection keys this account has earned (Classic is implicit). */
   collections: Set<string>;
   crewBanners: CollectionOptionDto[];
+  /** Unlock keys of the avatar wearables this account may wear. */
+  avatarUnlocks: Set<string>;
 }> {
-  const [questAccents, frames, themes, bannerUnlocks, collectionUnlocks, account, trialActive, birthday] = await Promise.all([
+  const [questAccents, frames, themes, bannerUnlocks, collectionUnlocks, account, trialActive, birthday, avatarUnlocks] = await Promise.all([
     QuestCosmeticService.optionsForAccount(prisma, accountId, 'ACCENT'),
     QuestCosmeticService.optionsForAccount(prisma, accountId, 'PROFILE_FRAME'),
     QuestCosmeticService.optionsForAccount(prisma, accountId, 'SITE_THEME'),
@@ -348,6 +354,7 @@ async function appearanceOptions(prisma: PrismaClient, accountId: string): Promi
     prisma.account.findUnique({ where: { id: accountId }, select: { isAdmin: true } }),
     supporterTrialActive(prisma, accountId),
     birthdayLookOptions(prisma, accountId, new Date()),
+    AvatarWearableService.ownedKeys(prisma, accountId),
   ]);
   const accents = [...PROFILE_ACCENTS];
   const known = new Set(accents.map((option) => option.key));
@@ -399,11 +406,12 @@ async function appearanceOptions(prisma: PrismaClient, accountId: string): Promi
         knownThemes.add(option.key);
       }
     }
+    for (const key of AVATAR_LOCKED_OPTIONS.keys()) avatarUnlocks.add(key);
   }
   if (account?.isAdmin && env.seasonalEvents.adminTestMode) {
     for (const style of RELEASED_ITEM_COSMETIC_STYLES) collections.add(style.key);
   }
-  return { accents, frames: withThemeCompanionFrames(frameOptions, themeOptions), themes: themeOptions, collections, crewBanners };
+  return { accents, frames: withThemeCompanionFrames(frameOptions, themeOptions), themes: themeOptions, collections, crewBanners, avatarUnlocks };
 }
 
 export const AccountProfileService = {
@@ -422,7 +430,7 @@ export const AccountProfileService = {
     const earnedTitleKeys = new Set([...earnedBadgeKeys, ...honorificTitleKeys]);
 
     return {
-      settings: toSettingsDto(profile, earnedBadgeKeys, earnedTitleKeys, appearance.accents, appearance.frames, appearance.themes, appearance.collections, appearance.crewBanners),
+      settings: toSettingsDto(profile, earnedBadgeKeys, earnedTitleKeys, appearance.accents, appearance.frames, appearance.themes, appearance.collections, appearance.crewBanners, appearance.avatarUnlocks),
       convenience: convenienceLimits(supporterSince !== null),
       options: {
         titles: titleOptions,
@@ -435,6 +443,7 @@ export const AccountProfileService = {
         itemStyles: collectionOptions(RELEASED_ITEM_COSMETIC_STYLES, appearance.collections, hints),
         crewStyles: collectionOptions(RELEASED_CREW_COSMETIC_STYLES, appearance.collections, hints),
          crewBanners: appearance.crewBanners,
+        avatarUnlocks: [...appearance.avatarUnlocks].sort(),
         densities: UI_DENSITIES,
         moneyFormats: MONEY_FORMATS,
         defaultLandings: DEFAULT_LANDINGS,
@@ -510,6 +519,11 @@ export const AccountProfileService = {
     if (Object.values(input.crewCosmetics ?? {}).some((style) => !isOwnedCollection(style, appearance.collections))) {
       throw AppError.badRequest('COSMETIC_NOT_EARNED', 'Pick an outfit collection you have already unlocked.', {
         crewCosmetics: 'That outfit collection is not unlocked.',
+      });
+    }
+    if (input.profileAvatar && lockedAvatarParts(input.profileAvatar, appearance.avatarUnlocks).length) {
+      throw AppError.badRequest('COSMETIC_NOT_EARNED', 'Your avatar is wearing a piece you have not unlocked yet.', {
+        profileAvatar: 'One or more avatar pieces are not unlocked.',
       });
     }
     const featuredBadgeKeys = uniqueKeys(input.featuredBadgeKeys)
@@ -611,7 +625,7 @@ export const AccountProfileService = {
     const unlocked = awards.filter((award) => award.unlocked);
     const earnedBadgeKeys = new Set(unlocked.map((award) => award.key));
     const earnedTitleKeys = new Set([...earnedBadgeKeys, ...honorificTitleKeys]);
-    const settings = toSettingsDto(profile, earnedBadgeKeys, earnedTitleKeys, appearance.accents, appearance.frames, appearance.themes, appearance.collections, appearance.crewBanners);
+    const settings = toSettingsDto(profile, earnedBadgeKeys, earnedTitleKeys, appearance.accents, appearance.frames, appearance.themes, appearance.collections, appearance.crewBanners, appearance.avatarUnlocks);
     const titleAward = unlocked.find((award) => award.key === settings.activeTitleKey);
     const title = settings.activeTitleKey && honorificTitleKeys.includes(settings.activeTitleKey)
       ? profileTitleForAward({ key: settings.activeTitleKey, title: settings.activeTitleKey })

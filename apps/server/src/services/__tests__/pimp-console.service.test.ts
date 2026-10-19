@@ -113,6 +113,10 @@ describe('PimpConsoleService.send', () => {
         // 0.9.0-H: the sender's own communication mute is checked first.
         findUniqueOrThrow: vi.fn().mockResolvedValue({ createdAt: new Date('2026-01-01'), commsMutedUntil: null, commsMutedPermanent: false }),
       },
+      // Account level gates: has the sender finished a season?
+      roundPlayer: {
+        findFirst: vi.fn().mockResolvedValue(null),
+      },
       playerBlock: {
         findFirst: vi.fn().mockResolvedValue({ id: 'block-1' }),
       },

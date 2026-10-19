@@ -7,7 +7,7 @@ import {
   type StreetPassRules,
 } from '@streets/rulesets';
 import type { StreetPassProgress } from '@prisma/client';
-import { EXPERIENCE_PER_TURN, questExperience } from '@streets/shared';
+import { questExperience, turnExperienceFor } from '@streets/shared';
 import type { Db } from '../utils/db.js';
 import { dailyContractWindow } from './daily-contract.service.js';
 import { PlayerExperienceService } from './player-experience.service.js';
@@ -93,11 +93,22 @@ export const StreetPassCredService = {
    */
   async creditTurns(tx: Db, roundPlayerId: string, ruleset: Ruleset, turnsSpent: number, now: Date, sourceKey: string): Promise<number> {
     if (turnsSpent > 0) {
+      // Full XP for the first turns of each daily window, half after that.
+      const { account } = await tx.roundPlayer.findUniqueOrThrow({
+        where: { id: roundPlayerId },
+        select: { account: { select: { id: true, turnXpWindowStartsAt: true, turnXpTurnsInWindow: true } } },
+      });
+      const xpWindow = dailyContractWindow(now, ruleset);
+      const before = account.turnXpWindowStartsAt?.getTime() === xpWindow.startsAt.getTime() ? account.turnXpTurnsInWindow : 0;
+      await tx.account.update({
+        where: { id: account.id },
+        data: { turnXpWindowStartsAt: xpWindow.startsAt, turnXpTurnsInWindow: before + turnsSpent },
+      });
       await PlayerExperienceService.award(tx, {
-        roundPlayerId,
+        accountId: account.id,
         sourceKey,
         source: 'TURN_SPEND',
-        amount: turnsSpent * EXPERIENCE_PER_TURN,
+        amount: turnExperienceFor(before, turnsSpent),
         awardedAt: now,
       });
     }

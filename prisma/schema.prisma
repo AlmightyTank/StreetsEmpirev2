@@ -134,7 +134,12 @@ model Account {
   moderationNotes                  AccountModerationNote[]
   surveySubmissions                SurveySubmission[]
   experienceEvents                 PlayerExperienceEvent[]
+  mentees                          Mentorship[]                      @relation("Mentor")
+  mentor                           Mentorship?                       @relation("Mentee")
   experiencePoints                 Int                               @default(0)
+  /// Turn XP taper: the daily window being counted and the turns spent in it.
+  turnXpWindowStartsAt             DateTime?
+  turnXpTurnsInWindow              Int                               @default(0)
   /// When the player last changed their own pimp name. Null until the first change, which is free.
   usernameChangedAt                DateTime?
   usernameChanges                  AccountUsernameChange[]
@@ -200,6 +205,19 @@ model AccountUsernameChange {
 }
 
 /// Permanent account progress, separate from season resources and Street Pass Cred.
+/// Mentoring: a new player names one seasoned mentor, who earns account XP
+/// as the mentee reaches levels. One mentor per mentee, for good.
+model Mentorship {
+  id              String   @id @default(cuid())
+  mentorAccountId String
+  mentor          Account  @relation("Mentor", fields: [mentorAccountId], references: [id], onDelete: Cascade)
+  menteeAccountId String   @unique
+  mentee          Account  @relation("Mentee", fields: [menteeAccountId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+
+  @@index([mentorAccountId])
+}
+
 model PlayerExperienceEvent {
   id        String  @id @default(cuid())
   accountId String
@@ -212,6 +230,7 @@ model PlayerExperienceEvent {
 
   @@unique([accountId, sourceKey])
   @@index([accountId, awardedAt(sort: Desc)])
+  @@index([awardedAt])
 }
 
 /// The server-selected monthly Double XP Weekend. The schedule is persisted so

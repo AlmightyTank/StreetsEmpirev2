@@ -36,6 +36,8 @@ export interface DropCollectionDefinition {
   readonly windows?: readonly { readonly from: string; readonly until: string }[];
   /** One-off pieces with no set: no bundle, no shell, never featured; they fill the daily picks. */
   readonly singles?: boolean;
+  /** A status set: only accounts at this account level or above can buy from it. */
+  readonly minAccountLevel?: number;
 }
 
 /** What the detail page draws for an item. */
@@ -45,10 +47,12 @@ export type DropPreview =
   | { readonly type: 'ACCENT'; readonly color: string }
   | { readonly type: 'TITLE'; readonly title: string }
   /** A full game-shell theme: palette, panels, controls and an illustrated backdrop. */
-  | { readonly type: 'THEME' };
+  | { readonly type: 'THEME' }
+  /** An avatar wearable, drawn on the viewer's built avatar. */
+  | { readonly type: 'AVATAR'; readonly part: string; readonly option: string };
 
 export interface DropItemDefinition extends QuestCosmeticDefinition {
-  readonly kind: Extract<QuestCosmeticKind, 'ITEM_COLLECTION' | 'PROFILE_FRAME' | 'ACCENT' | 'TITLE_BADGE' | 'SITE_THEME'>;
+  readonly kind: Extract<QuestCosmeticKind, 'ITEM_COLLECTION' | 'PROFILE_FRAME' | 'ACCENT' | 'TITLE_BADGE' | 'SITE_THEME' | 'AVATAR_PART'>;
   readonly collection: string;
   readonly category: DropCategory;
   /** List price in Crowns. Admins can override it per catalog entry. */
@@ -147,6 +151,7 @@ export const DROP_COLLECTIONS = {
     tagline: 'Wear the currency.',
     description: 'The flagship set named for Crowns: emerald, ruby and sapphire on platinum and royal velvet.',
     accent: '#4a78ff',
+    minAccountLevel: 25,
   },
   'bayou-smoke': {
     key: 'bayou-smoke',
@@ -313,6 +318,21 @@ const ITEMS: readonly DropItemDefinition[] = [
     kind: 'TITLE_BADGE', rarity: 'rare', category: 'PROFILES', priceCrowns: 200,
     preview: { type: 'TITLE', title: 'Old Money' },
   }),
+  item('kingpin-luxe', 'crown', {
+    name: 'Kingpin Crown', description: 'A brass crown set with lacquer-black stones, worn by your built avatar.',
+    kind: 'AVATAR_PART', rarity: 'epic', category: 'PROFILES', priceCrowns: 300, styleKey: 'headwear:kingpin-crown',
+    preview: { type: 'AVATAR', part: 'headwear', option: 'kingpin-crown' },
+  }),
+  item('kingpin-luxe', 'fur-coat', {
+    name: 'Kingpin Fur Coat', description: 'A long coat with a deep cream fur collar and brass buttons, in your shirt colour, for your built avatar.',
+    kind: 'AVATAR_PART', rarity: 'epic', category: 'PROFILES', priceCrowns: 400, styleKey: 'shirt:fur-coat',
+    preview: { type: 'AVATAR', part: 'shirt', option: 'fur-coat' },
+  }),
+  item('kingpin-luxe', 'crown-earrings', {
+    name: 'Crown Drops', description: 'Brass crown earrings on a short drop, for your built avatar.',
+    kind: 'AVATAR_PART', rarity: 'rare', category: 'PROFILES', priceCrowns: 250, styleKey: 'earrings:crown-drop',
+    preview: { type: 'AVATAR', part: 'earrings', option: 'crown-drop' },
+  }),
   // Neon Underworld
   item('neon-underworld', 'low-rider', {
     name: 'Neon Underworld Low-Rider', description: 'Gunmetal body, violet underglow and teal edge lines that catch the wet street. A Low-Rider look only.',
@@ -354,6 +374,16 @@ const ITEMS: readonly DropItemDefinition[] = [
     kind: 'TITLE_BADGE', rarity: 'rare', category: 'PROFILES', priceCrowns: 200,
     preview: { type: 'TITLE', title: 'After Hours' },
   }),
+  item('neon-underworld', 'visor', {
+    name: 'Neon Visor', description: 'A wraparound visor lit violet to teal, for your built avatar.',
+    kind: 'AVATAR_PART', rarity: 'rare', category: 'PROFILES', priceCrowns: 300, styleKey: 'mask:neon-visor',
+    preview: { type: 'AVATAR', part: 'mask', option: 'neon-visor' },
+  }),
+  item('neon-underworld', 'glow', {
+    name: 'Neon Glow', description: 'A slow violet and teal glow behind your built avatar. Still when motion is reduced.',
+    kind: 'AVATAR_PART', rarity: 'epic', category: 'PROFILES', priceCrowns: 500, styleKey: 'aura:neon-glow',
+    preview: { type: 'AVATAR', part: 'aura', option: 'neon-glow' },
+  }),
   // Winter Heist
   item('winter-heist', 'van', {
     name: 'Winter Heist Van', description: 'A frost-white panel van with chained tyres, a snow-loaded roof and fogged glass. A Van look only.',
@@ -389,6 +419,16 @@ const ITEMS: readonly DropItemDefinition[] = [
     name: 'Cold Case', description: 'A Winter Heist title. Wear it as a title or feature it as a badge.',
     kind: 'TITLE_BADGE', rarity: 'uncommon', category: 'PROFILES', priceCrowns: 150,
     preview: { type: 'TITLE', title: 'Cold Case' },
+  }),
+  item('winter-heist', 'parka', {
+    name: 'Heist Parka', description: 'A frost-white quilted parka with a fur-trimmed collar, for your built avatar.',
+    kind: 'AVATAR_PART', rarity: 'epic', category: 'PROFILES', priceCrowns: 400, styleKey: 'shirt:heist-parka',
+    preview: { type: 'AVATAR', part: 'shirt', option: 'heist-parka' },
+  }),
+  item('winter-heist', 'snowfall', {
+    name: 'Snowfall', description: 'Snow drifting down behind your built avatar. Parked in place when motion is reduced.',
+    kind: 'AVATAR_PART', rarity: 'epic', category: 'PROFILES', priceCrowns: 500, styleKey: 'aura:snowfall',
+    preview: { type: 'AVATAR', part: 'aura', option: 'snowfall' },
   }),
   // Biscayne Sunset
   item('biscayne-sunset', 'sedan', {
@@ -1364,9 +1404,9 @@ function bundleOf(collection: DropCollectionKey, priceCrowns: number, descriptio
 }
 
 export const DROP_BUNDLES: Readonly<Record<string, DropBundleDefinition>> = Object.fromEntries([
-  bundleOf('kingpin-luxe', 2400, 'All seven Kingpin Luxe pieces: the Sedan, both crew outfits, the frame, the accent, the shell theme and the Old Money title.'),
-  bundleOf('neon-underworld', 2400, 'All eight Neon Underworld pieces: the Low-Rider, both crew outfits, the Tek-9 finish, the frame, the accent, the shell theme and the After Hours title.'),
-  bundleOf('winter-heist', 2350, 'All seven Winter Heist pieces: the Van, the crew set, the shotgun finish, the frame, the accent, the shell theme and the Cold Case title.'),
+  bundleOf('kingpin-luxe', 2800, 'All ten Kingpin Luxe pieces: the Sedan, both crew outfits, the frame, the accent, the shell theme, the Old Money title, and the crown, fur coat and crown drops for your avatar.'),
+  bundleOf('neon-underworld', 2800, 'All ten Neon Underworld pieces: the Low-Rider, both crew outfits, the Tek-9 finish, the frame, the accent, the shell theme, the After Hours title, and the visor and glow for your avatar.'),
+  bundleOf('winter-heist', 2750, 'All nine Winter Heist pieces: the Van, the crew set, the shotgun finish, the frame, the accent, the shell theme, the Cold Case title, and the parka and snowfall for your avatar.'),
   bundleOf('biscayne-sunset', 2350, 'All eight Biscayne Sunset pieces: the Sedan, both crew outfits, the Pistol finish, the frame, the accent, the shell theme and the Ocean Drive title.'),
   bundleOf('velvet-speakeasy', 2400, 'All eight Velvet Speakeasy pieces: the Sedan, both crew outfits, the AK-47 finish, the frame, the accent, the shell theme and the Bootlegger title.'),
   bundleOf('platinum-funk', 2250, 'All seven Platinum Funk pieces: the Low-Rider, both crew outfits, the frame, the accent, the shell theme and the Funk Royalty title.'),
@@ -1408,6 +1448,17 @@ export function dropDefaultState(key: string, now: Date = new Date()): 'LIVE' | 
 
 export function dropItem(key: string): DropItemDefinition | null {
   return DROP_ITEMS[key] ?? null;
+}
+
+/** The highest account level any of these Drop keys' collections require, or 0. */
+export function dropMinAccountLevel(keys: readonly string[]): number {
+  let level = 0;
+  for (const key of keys) {
+    const collection = DROP_ITEMS[key]?.collection;
+    const required = collection ? (DROP_COLLECTIONS as Record<string, DropCollectionDefinition>)[collection]?.minAccountLevel ?? 0 : 0;
+    level = Math.max(level, required);
+  }
+  return level;
 }
 
 export function dropBundle(key: string): DropBundleDefinition | null {

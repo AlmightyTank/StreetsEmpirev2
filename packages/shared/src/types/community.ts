@@ -291,6 +291,8 @@ export interface RankingEntryDto {
   isSupporter: boolean;
   /** UTC month (YYYY-MM) of the account's earliest supporter reward, null when not a supporter. */
   supporterSince: string | null;
+  /** Lifetime account level for the chip beside the name. Optional for older servers. */
+  accountLevel?: number;
   /** 0.3.0-C. Null for solo players and on rounds without alliances. */
   alliance: AllianceTagDto | null;
   /** Slice F. The site theme this player shows on their profile; optional for older servers. */

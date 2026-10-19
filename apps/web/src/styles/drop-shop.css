@@ -436,6 +436,10 @@
 .se-drop-card .se-drop-art--lg { min-height: 0; }
 .se-drop-art--bundle { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
 .se-drop-art--bundle .se-drop-art { min-height: 0; }
+.se-drop-avatar { display: block; width: 96px; height: 96px; overflow: hidden; border-radius: 999px; }
+.se-drop-avatar .se-built-avatar { display: block; width: 100%; height: 100%; }
+.se-drop-art--sm .se-drop-avatar { width: 64px; height: 64px; }
+.se-drop-art--lg .se-drop-avatar { width: min(220px, 40vw); height: min(220px, 40vw); }
 
 /* ---------- Detail: a showcase, like an item's shop page ---------- */
 .se-drop-back { margin: 0; }

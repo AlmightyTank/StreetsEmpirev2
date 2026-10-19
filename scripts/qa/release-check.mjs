@@ -101,6 +101,8 @@ if (withDb) {
     CREW_INTEGRATION: '1',
     // 2.2.0: durable two-player operation receipt and source reconciliation.
     UNDERWORLD_INTEGRATION: '1',
+    // Avatar cosmetics Slice C: laurel, diamonds and city skylines at round close.
+    AVATAR_INTEGRATION: '1',
   });
   // 1.0.0-H: the Discord bot API, verified forum links and phone alerts only exist with their
   // secrets set, so they run on their own with throwaway ones generated here.

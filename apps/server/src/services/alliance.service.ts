@@ -6,6 +6,7 @@ import {
   allianceForumPostSchema,
   allianceSettingsSchema,
   createAllianceSchema,
+  experienceLevelFor,
   type AdminAlliancesDto,
   type AllianceDetailDto,
   type AllianceEventDto,
@@ -27,6 +28,7 @@ import {
 } from './turf-territory.service.js';
 import { endPlayerTurfHolds, startPlayerTurfHolds } from './turf-history.service.js';
 import { accountTrust, assertCanCommunicate, assertTrustGate } from './communication-guard.js';
+import { PlayerExperienceService } from './player-experience.service.js';
 
 type AllianceRules = NonNullable<Ruleset['alliances']>;
 
@@ -188,6 +190,8 @@ interface Standing {
   activeMembers: number;
   memberCount: number;
   rank: number;
+  /** Account levels of active members, added up. */
+  combinedLevel: number;
 }
 
 /** Live alliance standings for a round: combined net worth of active members, ties share a rank. */
@@ -196,10 +200,10 @@ async function standings(db: Db | PrismaClient, roundId: string): Promise<{ alli
   const members = alliances.length
     ? await db.roundPlayer.findMany({
         where: { roundId, allianceId: { in: alliances.map((alliance) => alliance.id) } },
-        select: { allianceId: true, netWorthCents: true, account: { select: { isActive: true } } },
+        select: { allianceId: true, netWorthCents: true, account: { select: { isActive: true, experiencePoints: true } } },
       })
     : [];
-  const totals = new Map<string, Standing>(alliances.map((alliance) => [alliance.id, { allianceId: alliance.id, combinedNetWorthCents: 0n, activeMembers: 0, memberCount: 0, rank: 0 }]));
+  const totals = new Map<string, Standing>(alliances.map((alliance) => [alliance.id, { allianceId: alliance.id, combinedNetWorthCents: 0n, activeMembers: 0, memberCount: 0, rank: 0, combinedLevel: 0 }]));
   for (const member of members) {
     const total = totals.get(member.allianceId!);
     if (!total) continue;
@@ -207,6 +211,7 @@ async function standings(db: Db | PrismaClient, roundId: string): Promise<{ alli
     if (member.account.isActive) {
       total.activeMembers += 1;
       total.combinedNetWorthCents += member.netWorthCents;
+      total.combinedLevel += experienceLevelFor(member.account.experiencePoints);
     }
   }
   const order = alliances.map((alliance) => totals.get(alliance.id)!)
@@ -229,6 +234,8 @@ async function detail(db: Db | PrismaClient, alliance: Alliance, standing: Stand
     where: { roundId: alliance.roundId, netWorthCents: { gt: member.netWorthCents }, account: { isActive: true } },
   })));
   const leader = members.find((member) => member.id === alliance.leaderId);
+  const levels = await PlayerExperienceService.levels(db, members.map((member) => member.accountId));
+  const combinedLevel = members.reduce((total, member) => total + (levels.get(member.accountId) ?? 1), 0);
   return {
     name: alliance.name,
     tag: alliance.tag,
@@ -245,7 +252,9 @@ async function detail(db: Db | PrismaClient, alliance: Alliance, standing: Stand
       isLeader: member.id === alliance.leaderId,
       isYou: viewer ? member.id === viewer.id : false,
       joinedAt: (member.allianceJoinedAt ?? alliance.createdAt).toISOString(),
+      accountLevel: levels.get(member.accountId) ?? 1,
     })),
+    crewRep: { combinedLevel, averageLevel: members.length ? Math.round(combinedLevel / members.length) : 0 },
     foundedAt: alliance.createdAt.toISOString(),
     isYours: viewer ? viewer.allianceId === alliance.id : false,
     forumUrl: alliance.forumDiscussionId ? forumDiscussionUrl(alliance.forumDiscussionId) : null,
@@ -358,7 +367,10 @@ export const AllianceService = {
       enabled: true,
       alliances: alliances.slice(0, limit).map((alliance) => {
         const standing = byId.get(alliance.id)!;
-        return { name: alliance.name, tag: alliance.tag, rank: standing.rank, combinedNetWorthCents: Number(standing.combinedNetWorthCents), memberCount: standing.memberCount, isYours: player.allianceId === alliance.id };
+        return {
+          name: alliance.name, tag: alliance.tag, rank: standing.rank, combinedNetWorthCents: Number(standing.combinedNetWorthCents), memberCount: standing.memberCount, isYours: player.allianceId === alliance.id,
+          averageLevel: standing.activeMembers ? Math.round(standing.combinedLevel / standing.activeMembers) : 0,
+        };
       }),
     };
   },

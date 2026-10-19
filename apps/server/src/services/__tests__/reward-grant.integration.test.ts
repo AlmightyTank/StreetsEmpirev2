@@ -128,6 +128,7 @@ describe.runIf(process.env.STREET_PASS_INTEGRATION === '1')('reward grants with 
       ['street-pass-s1-phantom-convoy-theme', 'SITE_THEME', 'epic', 'street-pass-s1:10'],
       ['street-pass-s1-siren-breaker-frame', 'PROFILE_FRAME', 'epic', 'street-pass-s1:15'],
       ['street-pass-s1-siren-breaker-theme', 'SITE_THEME', 'epic', 'street-pass-s1:15'],
+      ['street-pass-s1-snapback', 'AVATAR_PART', 'uncommon', 'street-pass-s1:4'],
       ['street-pass-s1-snowstorm-frame', 'PROFILE_FRAME', 'legendary', 'street-pass-s1:15'],
       ['street-pass-s1-urban-ghost', 'ITEM_COLLECTION', 'rare', 'street-pass-s1:8'],
     ]);

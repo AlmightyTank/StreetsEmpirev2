@@ -1,47 +1,15 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import type { AllianceDetailDto, AllianceRankingEntryDto, AllianceRankingsDto } from '@streets/shared';
-import { formatCents, formatNumber } from '@streets/shared';
+import type { AllianceDetailDto, AllianceRankingsDto } from '@streets/shared';
 import { allianceApi } from '../api/alliances.js';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
+import { AllianceRankingTable } from '../components/AllianceRankingTable.js';
 import { Panel } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { AllianceMembers, AllianceSummary } from './AlliancePage.js';
 import { formatDate } from '../utils/time.js';
 
-/** Alliances ranked by the combined net worth of their active members. Shared with the Rankings page. */
-export function AllianceRankingTable({ rows }: { rows: AllianceRankingEntryDto[] }) {
-  return (
-    <div className="se-tablewrap">
-      <table className="se-table se-table--cards se-ranking-table">
-        <thead>
-          <tr>
-            <th>Rank</th>
-            <th>Alliance</th>
-            <th className="se-table__number">Members</th>
-            <th className="se-table__number">Combined Net Worth</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr key={row.tag} className={row.isYours ? 'se-rank-you' : undefined}>
-              <td className="se-num" data-label="Rank">#{formatNumber(row.rank)}</td>
-              <td className="se-td--title">
-                <Link to={`/game/alliances/${encodeURIComponent(row.tag)}`} className="se-playerlink">
-                  <span className="se-alliance-tag">[{row.tag}]</span>{row.name}
-                </Link>
-                {row.isYours ? <span className="se-you">YOURS</span> : null}
-              </td>
-              <td className="se-table__number se-num" data-label="Members">{formatNumber(row.memberCount)}</td>
-              <td className="se-table__number se-num" data-label="Net worth">{formatCents(row.combinedNetWorthCents)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
 
 /** Alliance rankings: combined net worth of each alliance's active members. */
 export function AlliancesPage() {

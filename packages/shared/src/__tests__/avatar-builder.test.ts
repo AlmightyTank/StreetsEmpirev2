@@ -1,6 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { updateAccountProfileSettingsSchema } from '../schemas/auth.js';
-import { AVATAR_PART_OPTIONS, DEFAULT_AVATAR_PARTS, avatarPartsSchema, readAvatarParts } from '../avatar-builder.js';
+import {
+  AVATAR_LOCKED_OPTIONS,
+  AVATAR_SKYLINE_CITIES,
+  avatarSkylineUnlockKey,
+  AVATAR_PART_OPTIONS,
+  AVATAR_UNLOCKS,
+  DEFAULT_AVATAR_PARTS,
+  avatarPartsSchema,
+  avatarUnlockStyleKey,
+  lockedAvatarParts,
+  readAvatarParts,
+  type AvatarPartOption,
+} from '../avatar-builder.js';
 
 describe('avatarPartsSchema', () => {
   it('accepts both starter looks', () => {
@@ -66,5 +78,61 @@ describe('readAvatarParts', () => {
       ...DEFAULT_AVATAR_PARTS.girl,
       mouth: 'grin',
     });
+  });
+});
+
+describe('avatar wearables', () => {
+  const none = new Set<string>();
+
+  it('reads an avatar saved before hats, grills, auras, marks, props and the earrings slot as wearing none', () => {
+    const { headwear: _h, grill: _g, earrings: _e, aura: _a, faceMark: _f, prop: _p, ...before } = DEFAULT_AVATAR_PARTS.boy;
+    expect(avatarPartsSchema.parse(before)).toEqual(DEFAULT_AVATAR_PARTS.boy);
+    expect(readAvatarParts(before)).toEqual(DEFAULT_AVATAR_PARTS.boy);
+  });
+
+  it('moves earrings saved as an accessory into the earrings slot', () => {
+    const { earrings: _e, ...rest } = DEFAULT_AVATAR_PARTS.girl;
+    for (const style of ['studs', 'hoops'] as const) {
+      const saved = { ...rest, accessory: style };
+      expect(readAvatarParts(saved)).toMatchObject({ accessory: 'none', earrings: style });
+      expect(avatarPartsSchema.parse(saved)).toMatchObject({ accessory: 'none', earrings: style });
+    }
+  });
+
+  it('keeps every starter look free', () => {
+    expect(lockedAvatarParts(DEFAULT_AVATAR_PARTS.boy, none)).toEqual([]);
+    expect(lockedAvatarParts(DEFAULT_AVATAR_PARTS.girl, none)).toEqual([]);
+  });
+
+  it('names the locked slots until the account owns the piece', () => {
+    const parts = { ...DEFAULT_AVATAR_PARTS.boy, headwear: 'snapback' as const, shirt: 'prison-jumpsuit' as const };
+    expect(lockedAvatarParts(parts, none)).toEqual(['shirt', 'headwear']);
+    expect(lockedAvatarParts(parts, new Set([AVATAR_UNLOCKS.snapback]))).toEqual(['shirt']);
+    expect(lockedAvatarParts(parts, new Set([AVATAR_UNLOCKS.snapback, AVATAR_UNLOCKS.prisonJumpsuit]))).toEqual([]);
+  });
+
+  it('reads a locked piece the account no longer holds as the base default', () => {
+    const saved = { ...DEFAULT_AVATAR_PARTS.girl, headwear: 'kingpin-crown', mouth: 'grin' };
+    expect(readAvatarParts(saved, none)).toEqual({ ...DEFAULT_AVATAR_PARTS.girl, mouth: 'grin' });
+    expect(readAvatarParts(saved, new Set([AVATAR_UNLOCKS.kingpinCrown]))).toEqual(saved);
+    // Without an owned set (another player's saved avatar) it is read as saved.
+    expect(readAvatarParts(saved)).toEqual(saved);
+  });
+
+  it('gives every locked piece its own unlock key, a hint and a slot:option style key', () => {
+    const locked = (Object.keys(AVATAR_PART_OPTIONS) as (keyof typeof AVATAR_PART_OPTIONS)[])
+      .flatMap((part) => (AVATAR_PART_OPTIONS[part] as readonly AvatarPartOption[]).filter((option) => option.unlock));
+    expect(new Set(locked.map((option) => option.unlock)).size).toBe(locked.length);
+    const skylines = AVATAR_SKYLINE_CITIES.map((city) => avatarSkylineUnlockKey(city.slug));
+    expect([...AVATAR_LOCKED_OPTIONS.keys()].sort()).toEqual([...Object.values(AVATAR_UNLOCKS), ...skylines].sort());
+    for (const option of locked) expect(option.unlockHint).toBeTruthy();
+    expect(avatarUnlockStyleKey(AVATAR_UNLOCKS.snapback)).toBe('headwear:snapback');
+    expect(avatarUnlockStyleKey('nope')).toBeNull();
+  });
+
+  it('only hides pieces that can be unlocked', () => {
+    for (const options of Object.values(AVATAR_PART_OPTIONS) as readonly (readonly AvatarPartOption[])[]) {
+      for (const option of options) if (option.hidden) expect(option.unlock).toBeTruthy();
+    }
   });
 });

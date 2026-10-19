@@ -22,6 +22,7 @@ import { ActivityService } from './activity.service.js';
 import { bossPresence } from './boss-presence.service.js';
 import { EasterEggService } from './easter-egg.service.js';
 import { QuestProgressService } from './quest-progress.service.js';
+import { AvatarWearableService } from './avatar-wearable.service.js';
 
 /**
  * 1.2.0-E — High Rollers & City Identity.
@@ -333,6 +334,10 @@ export const CasinoStatusService = {
     }
     if (input.returnCents === BigInt(LEET_RETURN_CENTS)) {
       await EasterEggService.discoverForPlayer(tx, input.roundPlayerId, 'LEET', input.now);
+    }
+    // A jackpot or a mega win earns the gold dice for the built avatar, once.
+    if (input.highlight === 'JACKPOT' || input.highlight === 'MEGA_WIN') {
+      await AvatarWearableService.grantToRoundPlayer(tx, input.roundPlayerId, 'avatar-dice', 'CASINO', input.now);
     }
     if (!ruleset.casino?.status) return;
     const net = input.returnCents - input.stakeCents;

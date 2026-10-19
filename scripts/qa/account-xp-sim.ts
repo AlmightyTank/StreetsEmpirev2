@@ -5,10 +5,14 @@ import {
   experienceCrownMilestones,
   experienceCrownsForLevel,
   EXPERIENCE_LEVEL_REWARDS,
+  ACTIVITY_EXPERIENCE,
   EXPERIENCE_PER_TURN,
+  TURN_EXPERIENCE_FULL_PER_DAY,
   experienceLevelFor,
   experienceRequiredForLevel,
   questExperience,
+  seasonFinishExperience,
+  turnExperienceFor,
 } from '@streets/shared';
 
 /**
@@ -40,16 +44,18 @@ interface Archetype {
   seasonShare: number;
   /** Community events and alliance contracts over the round. */
   eventsPerRound: number;
+  /** National rank at season close, for the finish bonus. */
+  finalRank: number;
 }
 
 const everyDay = () => true;
 const weekends = (day: number) => day % 7 === 6 || day % 7 === 0;
 
 const ARCHETYPES: Archetype[] = [
-  { name: 'Hardcore', plays: everyDay, dailiesPerDay: 3, weekliesPerWeek: 2, turnsPerDay: 576, cityContractsPerDay: 2, oneTimeShare: 0.85, oneTimeByDay: 21, seasonShare: 0.8, eventsPerRound: 8 },
-  { name: 'Active', plays: everyDay, dailiesPerDay: 3, weekliesPerWeek: 2, turnsPerDay: 400, cityContractsPerDay: 0.5, oneTimeShare: 0.5, oneTimeByDay: 24, seasonShare: 0.5, eventsPerRound: 2 },
-  { name: 'Casual', plays: everyDay, dailiesPerDay: 2, weekliesPerWeek: 1, turnsPerDay: 150, cityContractsPerDay: 0, oneTimeShare: 0.25, oneTimeByDay: 28, seasonShare: 0.1, eventsPerRound: 0 },
-  { name: 'Weekends only', plays: weekends, dailiesPerDay: 3, weekliesPerWeek: 1, turnsPerDay: 400, cityContractsPerDay: 0.5, oneTimeShare: 0.15, oneTimeByDay: 28, seasonShare: 0, eventsPerRound: 0 },
+  { name: 'Hardcore', plays: everyDay, dailiesPerDay: 3, weekliesPerWeek: 2, turnsPerDay: 576, cityContractsPerDay: 2, oneTimeShare: 0.85, oneTimeByDay: 21, seasonShare: 0.8, eventsPerRound: 8, finalRank: 8 },
+  { name: 'Active', plays: everyDay, dailiesPerDay: 3, weekliesPerWeek: 2, turnsPerDay: 400, cityContractsPerDay: 0.5, oneTimeShare: 0.5, oneTimeByDay: 24, seasonShare: 0.5, eventsPerRound: 2, finalRank: 40 },
+  { name: 'Casual', plays: everyDay, dailiesPerDay: 2, weekliesPerWeek: 1, turnsPerDay: 150, cityContractsPerDay: 0, oneTimeShare: 0.25, oneTimeByDay: 28, seasonShare: 0.1, eventsPerRound: 0, finalRank: 200 },
+  { name: 'Weekends only', plays: weekends, dailiesPerDay: 3, weekliesPerWeek: 1, turnsPerDay: 400, cityContractsPerDay: 0.5, oneTimeShare: 0.15, oneTimeByDay: 28, seasonShare: 0, eventsPerRound: 0, finalRank: 400 },
 ];
 
 function questCounts(ruleset: Ruleset): { oneTime: number; season: number } {
@@ -61,7 +67,7 @@ function questCounts(ruleset: Ruleset): { oneTime: number; season: number } {
 }
 
 /** XP earned on each day of one round (index 0 = day 1). */
-function xpByDay(ruleset: Ruleset, player: Archetype, quests: { oneTime: number; season: number }): number[] {
+function xpByDay(ruleset: Ruleset, player: Archetype, quests: { oneTime: number; season: number }, season: number): number[] {
   const regenPerDay = Math.floor((24 * 60) / ruleset.turns.intervalMinutes) * ruleset.turns.amountPerInterval;
   const turnsPerDay = Math.min(player.turnsPerDay, regenPerDay);
   const activeDays = Array.from({ length: DAYS }, (_, i) => i + 1).filter(player.plays);
@@ -76,7 +82,10 @@ function xpByDay(ruleset: Ruleset, player: Archetype, quests: { oneTime: number;
     let xp = 0;
     if (activeDays.includes(day)) {
       const turns = turnsPerDay + (day === activeDays[0] ? ruleset.round.startingPlayer.turns : 0);
-      xp += turns * EXPERIENCE_PER_TURN;
+      xp += turnExperienceFor(0, turns);
+      xp += ACTIVITY_EXPERIENCE.checkIn;
+      if (season === 1 && day === activeDays[0]) xp += ACTIVITY_EXPERIENCE.onboardingIntro;
+      if (activeDays.length === DAYS && day === DAYS) xp += ACTIVITY_EXPERIENCE.rollCallComplete;
       xp += player.dailiesPerDay * questExperience('DAILY');
       const week = Math.ceil(day / 7);
       const weekDays = activeDays.filter((d) => Math.ceil(d / 7) === week);
@@ -89,9 +98,18 @@ function xpByDay(ruleset: Ruleset, player: Archetype, quests: { oneTime: number;
       jobsDone = jobsByToday;
       if (day === activeDays[activeDays.length - 1]) xp += Math.round(quests.season * player.seasonShare) * questExperience('SEASON');
     }
-    out.push(DOUBLE_XP_DAYS.has(day) ? xp * 2 : xp);
+    // Season finish lands at close, after the last day's play.
+    out.push((DOUBLE_XP_DAYS.has(day) ? xp * 2 : xp) + (day === DAYS ? seasonFinishExperience(player.finalRank) : 0));
   }
   return out;
+}
+
+/** Lifetime XP at the end of each season. */
+function seasonEnds(daily: number[]): number[] {
+  const ends: number[] = [];
+  let total = 0;
+  daily.forEach((xp, i) => { total += xp; if ((i + 1) % DAYS === 0) ends.push(total); });
+  return ends;
 }
 
 /** "S1 d3.4": the season and fractional day the running total first reaches `target`, or null. */
@@ -133,24 +151,24 @@ const fmt = (n: number) => n.toLocaleString('en-US');
 log(`# Account XP pacing · ${rulesetId}`);
 log();
 log(`${DAYS}-day seasons, played back to back. ${quests.oneTime} one-time Jobs and ${quests.season} season quests a round. `
-  + `XP: ${EXPERIENCE_PER_TURN}/turn (regen ${ruleset.turns.amountPerInterval} per ${ruleset.turns.intervalMinutes} min, ${ruleset.round.startingPlayer.turns} to start), `
+  + `XP: ${EXPERIENCE_PER_TURN}/turn for the first ${TURN_EXPERIENCE_FULL_PER_DAY} turns a day, half after (regen ${ruleset.turns.amountPerInterval} per ${ruleset.turns.intervalMinutes} min, ${ruleset.round.startingPlayer.turns} to start), `
   + `daily ${questExperience('DAILY')}, weekly ${questExperience('WEEKLY')}, city/event/alliance ${questExperience('CITY_CONTRACT')}, Job ${questExperience('STORY')}, season ${questExperience('SEASON')}. `
-  + `Double XP on days ${[...DOUBLE_XP_DAYS].join(', ')} of each season.`);
+  + `Double XP on days ${[...DOUBLE_XP_DAYS].join(', ')} of each season. `
+  + `Check-ins ${ACTIVITY_EXPERIENCE.checkIn}/day, Roll Call ${ACTIVITY_EXPERIENCE.rollCallComplete}, intro ${ACTIVITY_EXPERIENCE.onboardingIntro} once, season finish by final rank (${ARCHETYPES.map((p) => `${p.name} #${p.finalRank}`).join(', ')}).`);
 
 const timelines = new Map(ARCHETYPES.map((player) => {
-  const round = xpByDay(ruleset, player, quests);
-  return [player.name, Array.from({ length: seasons }, () => round).flat()];
+  return [player.name, Array.from({ length: seasons }, (_, i) => xpByDay(ruleset, player, quests, i + 1)).flat()];
 }));
 
 log();
 log('## Level at the end of each season');
 log();
-log(`| Player | XP / season | ${Array.from({ length: seasons }, (_, i) => `S${i + 1}`).join(' | ')} |`);
+log(`| Player | XP / season (after S1) | ${Array.from({ length: seasons }, (_, i) => `S${i + 1}`).join(' | ')} |`);
 log(`| --- | --- | ${Array.from({ length: seasons }, () => '---').join(' | ')} |`);
 for (const player of ARCHETYPES) {
   const daily = timelines.get(player.name)!;
-  const perSeason = daily.slice(0, DAYS).reduce((a, b) => a + b, 0);
-  const levels = Array.from({ length: seasons }, (_, i) => experienceLevelFor(perSeason * (i + 1)));
+  const perSeason = daily.slice(DAYS, 2 * DAYS).reduce((a, b) => a + b, 0) || daily.slice(0, DAYS).reduce((a, b) => a + b, 0);
+  const levels = seasonEnds(daily).map((total) => experienceLevelFor(total));
   log(`| ${player.name} | ${fmt(perSeason)} | ${levels.join(' | ')} |`);
 }
 
@@ -177,10 +195,10 @@ log(`| Player | ${Array.from({ length: seasons }, (_, i) => `S${i + 1}`).join(' 
 log(`| --- | ${Array.from({ length: seasons }, () => '---').join(' | ')} |`);
 for (const player of ARCHETYPES) {
   const daily = timelines.get(player.name)!;
-  const perSeason = daily.slice(0, DAYS).reduce((a, b) => a + b, 0);
+  const ends = seasonEnds(daily);
   const crowns = Array.from({ length: seasons }, (_, i) => {
-    const from = experienceLevelFor(perSeason * i);
-    const to = experienceLevelFor(perSeason * (i + 1));
+    const from = experienceLevelFor(i ? ends[i - 1]! : 0);
+    const to = experienceLevelFor(ends[i]!);
     return experienceCrownMilestones(from, to).reduce((n, r) => n + r.crowns, 0);
   });
   crowns.forEach((amount, i) => check(amount <= CROWN_EARN_RULES.roundCap / 2,
@@ -199,15 +217,20 @@ for (const [key, gate] of Object.entries(ACCOUNT_TRUST_GATES)) {
   log(`| ${gate.label} | ${gate.level} | ${fmt(xp)} | ${cells.map((c) => c?.label ?? '–').join(' | ')} |`);
   // A throwaway account that only burns its starting turns must not clear any gate.
   check(experienceLevelFor(ruleset.round.startingPlayer.turns * EXPERIENCE_PER_TURN) < gate.level, `Starting turns alone clear the ${key} gate`);
+  // The intro is one cheap API call: with starting turns it may open the casino, never reach-out.
+  if (key === 'coldMessage' || key === 'foundAlliance') {
+    check(experienceLevelFor(turnExperienceFor(0, ruleset.round.startingPlayer.turns) + ACTIVITY_EXPERIENCE.onboardingIntro + ACTIVITY_EXPERIENCE.checkIn) < gate.level,
+      `Starting turns, the intro and a check-in clear the ${key} gate`);
+  }
   const casual = cells[ARCHETYPES.findIndex((p) => p.name === 'Casual')];
-  const limit = key === 'coldMessage' ? 2 : 4;
+  const limit = ({ casino: 2, coldMessage: 2, sportsbook: 3, runs: 3, foundAlliance: 4, bossRuns: 4, travel: 5 } as Record<string, number>)[key] ?? 4;
   check(casual !== null && casual!.day <= limit, `A casual player should clear the ${key} gate within ${limit} days, not ${casual?.label ?? 'never'}`);
 }
 
 log();
 log(failures.length
   ? `**Pace: FAIL**\n\n${failures.map((f) => `- ${f}`).join('\n')}`
-  : '**Pace: PASS** (starting turns clear no gate, a casual player messages by day 2 and founds by day 4, no one earns more than half the play cap in level Crowns in a season).');
+  : '**Pace: PASS** (starting turns clear no gate, the intro plus starting turns cannot reach out, a casual player messages by day 2 and founds by day 4, no one earns more than half the play cap in level Crowns in a season).');
 
 const markdown = lines.join('\n');
 if (output) await writeFile(output, markdown, 'utf8');
