@@ -127,6 +127,10 @@ const themeScenes: Partial<Record<string, ComponentType>> = {
   'desert-mirage-shell': lazy(() => import('./theme-scenes/DesertMirageScene.js')),
   'rewind-shell': lazy(() => import('./theme-scenes/RewindScene.js')),
   'snake-eyes-shell': lazy(() => import('./theme-scenes/SnakeEyesScene.js')),
+  'graveyard-shift-shell': lazy(() => import('./theme-scenes/GraveyardShiftScene.js')),
+  'naughty-list-shell': lazy(() => import('./theme-scenes/NaughtyListScene.js')),
+  'heartbreaker-shell': lazy(() => import('./theme-scenes/HeartbreakerScene.js')),
+  'block-party-shell': lazy(() => import('./theme-scenes/BlockPartyScene.js')),
 };
 
 function ThemeSceneAtmosphere({ themeKey, Scene }: { themeKey: string; Scene: ComponentType }) {

@@ -5,8 +5,8 @@ Launch catalogue and rules: [THE-DROP.md](THE-DROP.md).
 - **Built (12, evergreen):** in the catalogue since 2026-10-18 and in rotation
   as soon as they deploy. A new Drop item is Live, in the daily pool and in the
   weekly Featured cycle unless an admin changes its catalog entry.
-- **Holiday sets (4, not built):** specs below, kept back so each can be
-  released in its own month.
+- **Holiday sets (4, built and held):** in the catalogue since 2026-10-19 but
+  held as Draft and hidden until an admin releases each in its season.
 
 ## Constraints every set follows
 
@@ -64,13 +64,23 @@ Where each piece lives:
 - Accents in `apps/web/src/styles/drop.css`; frames in `drop-art.css`; shells in
   `drop-shells.css` with scenes in `apps/web/src/components/theme-scenes/`.
 
-## Holiday sets (not built)
+## Holiday sets (built, held)
 
-Release each in its month. **Before building one:** new Drop items deploy Live,
-so either give the definitions a held default state (a small change to
-`resolveEntry` in `apps/server/src/services/drop-catalog.service.ts`), or create
-their catalog entries as Draft or Scheduled in the admin Drop page before the
-deploy that adds them. Mark them `MAY_RETURN` so they can come back next year.
+All four are built: art, frames, accents, shells with scenes, titles and
+bundles (31 SKUs). Each collection carries a `season`, so its items and bundle
+start as **Draft** (`dropDefaultState` in `packages/rulesets/src/drop.ts`):
+
+- Nothing from them is in the shop, the daily picks or the weekly Featured
+  cycle, and the storefront doesn't list the collection.
+- Their item looks are `hidden` styles, so the locker never shows them, even
+  locked, until someone owns one.
+- Admins can still preview every piece from the admin Drop page.
+
+**To release one in its month:** in the admin Drop page, set the collection's
+entries (its items and its bundle) to Live, or Scheduled with a start time, and
+add a Featured offer for the window if you want it on the hero. Set them back
+to Vaulted (or Draft) when the season ends; owners keep everything. Return
+policy stays `MAY_RETURN` so they can come back next year.
 
 | Collection | Month | Palette | Vehicle | Crew | Weapon | Title |
 | --- | --- | --- | --- | --- | --- | --- |

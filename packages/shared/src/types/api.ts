@@ -230,7 +230,11 @@ export type ProfileAccent =
   | 'bayou-firefly'
   | 'mirage-turquoise'
   | 'rewind-magenta'
-  | 'felt-green';
+  | 'felt-green'
+  | 'ghost-green'
+  | 'candy-red'
+  | 'heartbreak-rose'
+  | 'block-party-mango';
 export type UiDensity = 'comfortable' | 'compact';
 export type MoneyFormat = 'full' | 'compact';
 export type DefaultLanding = 'game' | 'profile' | 'rankings' | 'news';

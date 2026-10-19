@@ -23,6 +23,11 @@ export interface DropCollectionDefinition {
   readonly description: string;
   /** Hex accent used on the collection's hero and cards. */
   readonly accent: string;
+  /**
+   * A holiday set's season, e.g. 'December'. Its items and bundle start held
+   * (Draft) and stay out of the shop until an admin releases them.
+   */
+  readonly season?: string;
 }
 
 /** What the detail page draws for an item. */
@@ -162,6 +167,39 @@ export const DROP_COLLECTIONS = {
     tagline: 'The house is always watching.',
     description: 'A back-room card game: green felt, ivory dice, red and black card suits under a low lamp.',
     accent: '#1fae6a',
+  },
+  // Holiday sets: built, held as Draft until an admin releases them in their season.
+  'graveyard-shift': {
+    key: 'graveyard-shift',
+    name: 'Graveyard Shift',
+    tagline: 'Some jobs only happen after dark.',
+    description: 'Moonlit cemetery work: bone white, moss, wrought iron and a cold ghost-green glow.',
+    accent: '#a8f0c6',
+    season: 'October–November',
+  },
+  'naughty-list': {
+    key: 'naughty-list',
+    name: 'Naughty List',
+    tagline: 'Checked it twice. Still made the list.',
+    description: 'The stash house at Christmas: candy-stripe red, foil green, wrapping paper and ribbon.',
+    accent: '#e23a3a',
+    season: 'December',
+  },
+  heartbreaker: {
+    key: 'heartbreaker',
+    name: 'Heartbreaker',
+    tagline: 'Love gone cold.',
+    description: 'Valentine’s with an edge: crimson satin, black roses and thorns.',
+    accent: '#ff4d6d',
+    season: 'February',
+  },
+  'block-party': {
+    key: 'block-party',
+    name: 'Block Party',
+    tagline: 'Hydrant open. Speakers up.',
+    description: 'High summer on the block: mango, sky blue, hydrant red and music in the street.',
+    accent: '#ffb627',
+    season: 'July',
   },
 } as const satisfies Readonly<Record<string, DropCollectionDefinition>>;
 
@@ -782,6 +820,165 @@ const ITEMS: readonly DropItemDefinition[] = [
     kind: 'TITLE_BADGE', rarity: 'rare', category: 'PROFILES', priceCrowns: 250,
     preview: { type: 'TITLE', title: 'Loaded Dice' },
   }),
+  // Graveyard Shift
+  item('graveyard-shift', 'sedan', {
+    name: 'Graveyard Shift Sedan', description: 'A black hearse conversion with a wrought-iron roof rail and lace curtains in the rear glass. A Sedan look only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'VEHICLES', priceCrowns: 850, styleKey: 'graveyard-shift-sedan',
+    preview: { type: 'ITEM', items: ['SEDAN'] }, dresses: 'SEDAN',
+  }),
+  item('graveyard-shift', 'thug', {
+    name: 'Graveyard Shift Thug', description: 'An undertaker\'s frock coat, a bowler and a bone-handled cane. A Thug outfit only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'CREW', priceCrowns: 700, styleKey: 'graveyard-shift-thug',
+    preview: { type: 'ITEM', items: ['THUG'] }, dresses: 'THUG',
+  }),
+  item('graveyard-shift', 'hoe', {
+    name: 'Graveyard Shift Hoe', description: 'A black lace mourning dress with a veil and a ghost-green cameo. A Hoe outfit only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'CREW', priceCrowns: 700, styleKey: 'graveyard-shift-hoe',
+    preview: { type: 'ITEM', items: ['HOE'] }, dresses: 'HOE',
+  }),
+  item('graveyard-shift', 'pistol', {
+    name: 'Graveyard Shift Pistol', description: 'A bone-inlay grip and a slide etched with skulls and vines. A visual finish only; it never gives you a pistol or the right to buy one.',
+    kind: 'ITEM_COLLECTION', rarity: 'rare', category: 'WEAPONS', priceCrowns: 550, styleKey: 'graveyard-shift-pistol',
+    preview: { type: 'ITEM', items: ['PISTOL'] }, dresses: 'PISTOL',
+  }),
+  item('graveyard-shift', 'frame', {
+    name: 'Graveyard Shift Frame', description: 'A wrought-iron gate ring with mist drifting through the bars. The mist holds still under reduced motion.',
+    kind: 'PROFILE_FRAME', rarity: 'epic', category: 'PROFILES', priceCrowns: 450, styleKey: 'graveyard-shift-frame',
+    preview: { type: 'FRAME' },
+  }),
+  item('graveyard-shift', 'accent', {
+    name: 'Ghost Green Accent', description: 'A cold ghost-green profile and banner accent.',
+    kind: 'ACCENT', rarity: 'rare', category: 'SHELLS', priceCrowns: 300, styleKey: 'ghost-green',
+    preview: { type: 'ACCENT', color: '#a8f0c6' },
+  }),
+  item('graveyard-shift', 'shell', {
+    name: 'Graveyard Shift Shell', description: 'The whole game after midnight: iron-grey panels, ghost-green controls, cemetery gates, crooked trees and fog rolling low across the page.',
+    kind: 'SITE_THEME', rarity: 'legendary', category: 'SHELLS', priceCrowns: 1250, styleKey: 'graveyard-shift-shell',
+    preview: { type: 'THEME' },
+  }),
+  item('graveyard-shift', 'title', {
+    name: 'Night Shift', description: 'A Graveyard Shift title. Wear it as a title or feature it as a badge.',
+    kind: 'TITLE_BADGE', rarity: 'rare', category: 'PROFILES', priceCrowns: 250,
+    preview: { type: 'TITLE', title: 'Night Shift' },
+  }),
+  // Naughty List
+  item('naughty-list', 'van', {
+    name: 'Naughty List Van', description: 'A candy-stripe delivery van with a giant bow on the roof and a NAUGHTY plate. A Van look only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'VEHICLES', priceCrowns: 800, styleKey: 'naughty-list-van',
+    preview: { type: 'ITEM', items: ['VAN'] }, dresses: 'VAN',
+  }),
+  item('naughty-list', 'crew', {
+    name: 'Naughty List Crew Set', description: 'An ugly-sweater hoodie with a chain, and a red velvet coat with white trim.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'CREW', priceCrowns: 900, styleKey: 'naughty-list-crew',
+    preview: { type: 'ITEM', items: ['THUG', 'HOE'] }, dresses: 'THUG',
+  }),
+  item('naughty-list', 'tek9', {
+    name: 'Naughty List Tek-9', description: 'A gift-wrap finish with a ribbon tied round the grip. A visual finish only; it never gives you a Tek-9 or the right to buy one.',
+    kind: 'ITEM_COLLECTION', rarity: 'rare', category: 'WEAPONS', priceCrowns: 550, styleKey: 'naughty-list-tek9',
+    preview: { type: 'ITEM', items: ['TEK9'] }, dresses: 'TEK9',
+  }),
+  item('naughty-list', 'frame', {
+    name: 'Naughty List Frame', description: 'A ribbon ring tied off with a bow, with foil sparkle that glints in turn. The sparkle holds still under reduced motion.',
+    kind: 'PROFILE_FRAME', rarity: 'epic', category: 'PROFILES', priceCrowns: 450, styleKey: 'naughty-list-frame',
+    preview: { type: 'FRAME' },
+  }),
+  item('naughty-list', 'accent', {
+    name: 'Candy Red Accent', description: 'A candy-stripe red profile and banner accent.',
+    kind: 'ACCENT', rarity: 'rare', category: 'SHELLS', priceCrowns: 300, styleKey: 'candy-red',
+    preview: { type: 'ACCENT', color: '#e23a3a' },
+  }),
+  item('naughty-list', 'shell', {
+    name: 'Naughty List Shell', description: 'The whole game wrapped for the holidays: foil-green panels, candy-red controls, rooftops and wrapped boxes stacked by a back door, with a sack of coal.',
+    kind: 'SITE_THEME', rarity: 'legendary', category: 'SHELLS', priceCrowns: 1200, styleKey: 'naughty-list-shell',
+    preview: { type: 'THEME' },
+  }),
+  item('naughty-list', 'title', {
+    name: 'Coal Collector', description: 'A Naughty List title. Wear it as a title or feature it as a badge.',
+    kind: 'TITLE_BADGE', rarity: 'uncommon', category: 'PROFILES', priceCrowns: 200,
+    preview: { type: 'TITLE', title: 'Coal Collector' },
+  }),
+  // Heartbreaker
+  item('heartbreaker', 'low-rider', {
+    name: 'Heartbreaker Low-Rider', description: 'Candy-apple red with a chain heart steering wheel and a rose-vine pinstripe. A Low-Rider look only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'VEHICLES', priceCrowns: 850, styleKey: 'heartbreaker-low-rider',
+    preview: { type: 'ITEM', items: ['LOW_RIDER'] }, dresses: 'LOW_RIDER',
+  }),
+  item('heartbreaker', 'thug', {
+    name: 'Heartbreaker Thug', description: 'A black bomber embroidered with roses and thorns. A Thug outfit only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'CREW', priceCrowns: 700, styleKey: 'heartbreaker-thug',
+    preview: { type: 'ITEM', items: ['THUG'] }, dresses: 'THUG',
+  }),
+  item('heartbreaker', 'hoe', {
+    name: 'Heartbreaker Hoe', description: 'A red satin dress with heart-shaped shades and a thorned choker. A Hoe outfit only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'CREW', priceCrowns: 700, styleKey: 'heartbreaker-hoe',
+    preview: { type: 'ITEM', items: ['HOE'] }, dresses: 'HOE',
+  }),
+  item('heartbreaker', 'tek9', {
+    name: 'Heartbreaker Tek-9', description: 'Rose-chrome with an engraved thorn vine. A visual finish only; it never gives you a Tek-9 or the right to buy one.',
+    kind: 'ITEM_COLLECTION', rarity: 'rare', category: 'WEAPONS', priceCrowns: 600, styleKey: 'heartbreaker-tek9',
+    preview: { type: 'ITEM', items: ['TEK9'] }, dresses: 'TEK9',
+  }),
+  item('heartbreaker', 'frame', {
+    name: 'Heartbreaker Frame', description: 'A thorned rose ring with a single petal drifting down. The petal holds still under reduced motion.',
+    kind: 'PROFILE_FRAME', rarity: 'epic', category: 'PROFILES', priceCrowns: 450, styleKey: 'heartbreaker-frame',
+    preview: { type: 'FRAME' },
+  }),
+  item('heartbreaker', 'accent', {
+    name: 'Heartbreak Rose Accent', description: 'A rose-red profile and banner accent.',
+    kind: 'ACCENT', rarity: 'rare', category: 'SHELLS', priceCrowns: 350, styleKey: 'heartbreak-rose',
+    preview: { type: 'ACCENT', color: '#ff4d6d' },
+  }),
+  item('heartbreaker', 'shell', {
+    name: 'Heartbreaker Shell', description: 'The whole game after a bad breakup: crimson panels, rose controls, rain on the street and a broken-heart sign flickering softly.',
+    kind: 'SITE_THEME', rarity: 'legendary', category: 'SHELLS', priceCrowns: 1250, styleKey: 'heartbreaker-shell',
+    preview: { type: 'THEME' },
+  }),
+  item('heartbreaker', 'title', {
+    name: 'Cold Hearted', description: 'A Heartbreaker title. Wear it as a title or feature it as a badge.',
+    kind: 'TITLE_BADGE', rarity: 'rare', category: 'PROFILES', priceCrowns: 250,
+    preview: { type: 'TITLE', title: 'Cold Hearted' },
+  }),
+  // Block Party
+  item('block-party', 'van', {
+    name: 'Block Party Van', description: 'An ice-cream truck with a speaker stack on the roof and a swirl cone on the side. A Van look only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'VEHICLES', priceCrowns: 800, styleKey: 'block-party-van',
+    preview: { type: 'ITEM', items: ['VAN'] }, dresses: 'VAN',
+  }),
+  item('block-party', 'thug', {
+    name: 'Block Party Thug', description: 'A sky-blue track jacket and a bucket hat. A Thug outfit only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'CREW', priceCrowns: 700, styleKey: 'block-party-thug',
+    preview: { type: 'ITEM', items: ['THUG'] }, dresses: 'THUG',
+  }),
+  item('block-party', 'hoe', {
+    name: 'Block Party Hoe', description: 'A bright two-piece with big silver hoops and a mango scrunchie. A Hoe outfit only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'CREW', priceCrowns: 700, styleKey: 'block-party-hoe',
+    preview: { type: 'ITEM', items: ['HOE'] }, dresses: 'HOE',
+  }),
+  item('block-party', 'shotgun', {
+    name: 'Block Party Shotgun', description: 'A sticker-bombed finish in summer colours. A visual finish only; it never gives you a shotgun or the right to buy one.',
+    kind: 'ITEM_COLLECTION', rarity: 'rare', category: 'WEAPONS', priceCrowns: 550, styleKey: 'block-party-shotgun',
+    preview: { type: 'ITEM', items: ['SHOTGUN'] }, dresses: 'SHOTGUN',
+  }),
+  item('block-party', 'frame', {
+    name: 'Block Party Frame', description: 'A speaker-cone ring that thumps gently to a beat. The beat holds still under reduced motion.',
+    kind: 'PROFILE_FRAME', rarity: 'epic', category: 'PROFILES', priceCrowns: 450, styleKey: 'block-party-frame',
+    preview: { type: 'FRAME' },
+  }),
+  item('block-party', 'accent', {
+    name: 'Mango Heat Accent', description: 'A hot mango profile and banner accent.',
+    kind: 'ACCENT', rarity: 'rare', category: 'SHELLS', priceCrowns: 300, styleKey: 'block-party-mango',
+    preview: { type: 'ACCENT', color: '#ffb627' },
+  }),
+  item('block-party', 'shell', {
+    name: 'Block Party Shell', description: 'The whole game on a summer afternoon: sky panels, mango controls, brownstones, string flags and an open hydrant spraying.',
+    kind: 'SITE_THEME', rarity: 'legendary', category: 'SHELLS', priceCrowns: 1200, styleKey: 'block-party-shell',
+    preview: { type: 'THEME' },
+  }),
+  item('block-party', 'title', {
+    name: 'Block Captain', description: 'A Block Party title. Wear it as a title or feature it as a badge.',
+    kind: 'TITLE_BADGE', rarity: 'uncommon', category: 'PROFILES', priceCrowns: 200,
+    preview: { type: 'TITLE', title: 'Block Captain' },
+  }),
 ];
 
 export const DROP_ITEMS: Readonly<Record<string, DropItemDefinition>> = Object.fromEntries(ITEMS.map((entry) => [entry.key, entry]));
@@ -813,7 +1010,18 @@ export const DROP_BUNDLES: Readonly<Record<string, DropBundleDefinition>> = Obje
   bundleOf('desert-mirage', 2800, 'All eight Desert Mirage pieces: the Low-Rider, both crew outfits, the Tek-9 finish, the frame, the accent, the shell theme and the Dust Devil title.'),
   bundleOf('rewind', 2750, 'All eight Rewind pieces: the Van, both crew outfits, the Tek-9 finish, the frame, the accent, the shell theme and the Run It Back title.'),
   bundleOf('snake-eyes', 2800, 'All eight Snake Eyes pieces: the Sedan, both crew outfits, the Pistol finish, the frame, the accent, the shell theme and the Loaded Dice title.'),
+  bundleOf('graveyard-shift', 2800, 'All eight Graveyard Shift pieces: the Sedan, both crew outfits, the Pistol finish, the frame, the accent, the shell theme and the Night Shift title.'),
+  bundleOf('naughty-list', 2650, 'All seven Naughty List pieces: the Van, the crew set, the Tek-9 finish, the frame, the accent, the shell theme and the Coal Collector title.'),
+  bundleOf('heartbreaker', 2800, 'All eight Heartbreaker pieces: the Low-Rider, both crew outfits, the Tek-9 finish, the frame, the accent, the shell theme and the Cold Hearted title.'),
+  bundleOf('block-party', 2700, 'All eight Block Party pieces: the Van, both crew outfits, the Shotgun finish, the frame, the accent, the shell theme and the Block Captain title.'),
 ].map((bundle) => [bundle.key, bundle]));
+
+/** Holiday sets start held (Draft); everything else starts Live. An admin catalog entry overrides either. */
+export function dropDefaultState(key: string): 'LIVE' | 'DRAFT' {
+  const collection = (DROP_ITEMS[key] ?? DROP_BUNDLES[key])?.collection;
+  const definition = collection ? (DROP_COLLECTIONS as Readonly<Record<string, DropCollectionDefinition>>)[collection] : undefined;
+  return definition?.season ? 'DRAFT' : 'LIVE';
+}
 
 export function dropItem(key: string): DropItemDefinition | null {
   return DROP_ITEMS[key] ?? null;
@@ -971,7 +1179,14 @@ export function pickDaily(pool: readonly string[], dayKey: string, count: number
 }
 
 /** The collection featured this week, in a fixed cycle. */
-export function featuredCollectionFor(weekIndex: number, collections: readonly string[] = Object.keys(DROP_COLLECTIONS)): string | null {
+/** Collections in the cycle by default: every one except the held holiday sets. */
+export function evergreenDropCollections(): string[] {
+  return Object.values(DROP_COLLECTIONS as Readonly<Record<string, DropCollectionDefinition>>)
+    .filter((collection) => !collection.season)
+    .map((collection) => collection.key);
+}
+
+export function featuredCollectionFor(weekIndex: number, collections: readonly string[] = evergreenDropCollections()): string | null {
   if (!collections.length) return null;
   return collections[((weekIndex % collections.length) + collections.length) % collections.length]!;
 }

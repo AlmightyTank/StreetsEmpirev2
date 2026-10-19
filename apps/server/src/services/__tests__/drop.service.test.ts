@@ -127,6 +127,26 @@ describe('Drop purchases', () => {
     return (await rotationAt(db as never, { ...DEFAULT_DROP_SETTINGS }, await loadCatalog(db as never), now)).offers;
   }
 
+  it('keeps held holiday sets out of the catalog, the rotation and the storefront', async () => {
+    const db = fakeDb();
+    const catalog = await loadCatalog(db as never);
+    expect(catalog.get('drop-naughty-list-van')?.state).toBe('DRAFT');
+    expect(catalog.get('drop-naughty-list-bundle')?.state).toBe('DRAFT');
+    expect(catalog.get('drop-snake-eyes-sedan')?.state).toBe('LIVE');
+    for (let day = 0; day < 21; day++) {
+      const offers = (await rotationAt(db as never, { ...DEFAULT_DROP_SETTINGS }, catalog, new Date(now.getTime() + day * 86_400_000))).offers;
+      expect(offers.some((offer) => /graveyard-shift|naughty-list|heartbreaker|block-party/.test(offer.refKey))).toBe(false);
+    }
+  });
+
+  it('releases a holiday set once an admin catalog entry makes it Live', async () => {
+    const db = fakeDb();
+    db.state.catalog.push({ key: 'drop-heartbreaker-thug', state: 'LIVE', priceCrowns: null, returnPolicy: 'MAY_RETURN', inDailyPool: true, homepageSlot: null });
+    const catalog = await loadCatalog(db as never);
+    expect(catalog.get('drop-heartbreaker-thug')?.state).toBe('LIVE');
+    expect(catalog.get('drop-heartbreaker-hoe')?.state).toBe('DRAFT');
+  });
+
   it('sells the featured collection and daily picks, and refuses an offer from yesterday', async () => {
     const db = fakeDb();
     const offers = await liveOffers(db);

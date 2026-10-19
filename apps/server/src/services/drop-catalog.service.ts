@@ -8,6 +8,7 @@ import {
   bundlePriceFor,
   SUPPORTER_DROP_DISCOUNT_PERCENT,
   discountedDropPrice,
+  dropDefaultState,
   dropDailyWindow,
   dropWeeklyWindow,
   featuredCollectionFor,
@@ -89,7 +90,8 @@ function resolveEntry(key: string, kind: 'ITEM' | 'BUNDLE', defaultPrice: number
   return {
     key,
     kind,
-    state: row && isEntryState(row.state) ? row.state : 'LIVE',
+    // Holiday sets start held (Draft) until an admin entry releases them.
+    state: row && isEntryState(row.state) ? row.state : dropDefaultState(key),
     priceCrowns: row?.priceCrowns ?? defaultPrice,
     defaultPriceCrowns: defaultPrice,
     returnPolicy: row && isReturnPolicy(row.returnPolicy) ? row.returnPolicy : 'MAY_RETURN',
@@ -419,7 +421,10 @@ export const DropCatalogService = {
       discount,
       featured: { collection: rotation.featuredCollection ? collectionDto(rotation.featuredCollection) : null, endsAt: rotation.featuredEndsAt.toISOString() },
       daily: { resetsAt: rotation.dailyResetsAt.toISOString() },
-      collections: Object.keys(DROP_COLLECTIONS).map((key) => collectionDto(key)!),
+      // Only collections with something to show, so a held holiday set stays a surprise.
+      collections: Object.keys(DROP_COLLECTIONS)
+        .filter((key) => items.some((item) => item.collection === key))
+        .map((key) => collectionDto(key)!),
       items,
       bundles,
       offers: switches.storefront

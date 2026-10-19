@@ -656,6 +656,10 @@ function profileAccent(value: string | null | undefined): ProfileAccent {
     'mirage-turquoise',
     'rewind-magenta',
     'felt-green',
+    'ghost-green',
+    'candy-red',
+    'heartbreak-rose',
+    'block-party-mango',
   ].includes(value ?? '')
     ? value as ProfileAccent
     : 'default';

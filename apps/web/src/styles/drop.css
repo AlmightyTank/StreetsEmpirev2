@@ -138,6 +138,42 @@
 .se-profile-hover-card[data-accent="bayou-firefly"] { --se-hover-accent: #cdee86; }
 .se-profile-hover-card[data-accent="mirage-turquoise"] { --se-hover-accent: #78d8de; }
 .se-profile-hover-card[data-accent="rewind-magenta"] { --se-hover-accent: #ec85ff; }
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--ghost-green {
+  --se-accent: #a8f0c6;
+  --se-accent-dim: #76b892;
+  --se-accent-hover: #c8f8dc;
+  --se-accent-rgb: 168, 240, 198;
+}
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--candy-red {
+  --se-accent: #e23a3a;
+  --se-accent-dim: #b02424;
+  --se-accent-hover: #f06a6a;
+  --se-accent-rgb: 226, 58, 58;
+}
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--heartbreak-rose {
+  --se-accent: #ff4d6d;
+  --se-accent-dim: #c9304d;
+  --se-accent-hover: #ff8299;
+  --se-accent-rgb: 255, 77, 109;
+}
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--block-party-mango {
+  --se-accent: #ffb627;
+  --se-accent-dim: #c98a12;
+  --se-accent-hover: #ffcd66;
+  --se-accent-rgb: 255, 182, 39;
+}
+.se-profile-accent--ghost-green { --se-profile-accent: #a8f0c6; }
+.se-profile-accent--candy-red { --se-profile-accent: #e23a3a; }
+.se-profile-accent--heartbreak-rose { --se-profile-accent: #ff4d6d; }
+.se-profile-accent--block-party-mango { --se-profile-accent: #ffb627; }
+.se-swatch--ghost-green { --se-swatch: #a8f0c6; }
+.se-swatch--candy-red { --se-swatch: #e23a3a; }
+.se-swatch--heartbreak-rose { --se-swatch: #ff4d6d; }
+.se-swatch--block-party-mango { --se-swatch: #ffb627; }
+.se-profile-hover-card[data-accent="ghost-green"] { --se-hover-accent: #c8f8dc; }
+.se-profile-hover-card[data-accent="candy-red"] { --se-hover-accent: #f06a6a; }
+.se-profile-hover-card[data-accent="heartbreak-rose"] { --se-hover-accent: #ff8299; }
+.se-profile-hover-card[data-accent="block-party-mango"] { --se-hover-accent: #ffcd66; }
 .se-profile-hover-card[data-accent="felt-green"] { --se-hover-accent: #4fcc8e; }
 
 /* ---------- Wallet, packs, skips ---------- */

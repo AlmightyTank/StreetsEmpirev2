@@ -487,6 +487,134 @@
     linear-gradient(180deg, #0c1a12, #050b08 62%);
 }
 
+.se-site-theme--graveyard-shift-shell {
+  --se-bg: #07090a;
+  --se-panel: #10161a;
+  --se-panel-hi: #172024;
+  --se-line: rgba(168, 240, 198, 0.3);
+  --se-line-soft: rgba(168, 240, 198, 0.15);
+  --se-text: #eef6f2;
+  --se-text-dim: #b3c4bb;
+  --se-muted: #7f9088;
+  --se-accent: #a8f0c6;
+  --se-accent-dim: #76b892;
+  --se-accent-hover: #c8f8dc;
+  --se-accent-rgb: 168, 240, 198;
+  --se-accent-2: #6f7d86;
+  --se-theme-panel-fill:
+    linear-gradient(150deg, rgba(168, 240, 198, 0.07), transparent 40%),
+    linear-gradient(180deg, rgba(22, 30, 33, 0.95), rgba(7, 9, 10, 0.96));
+  --se-theme-stat-fill:
+    linear-gradient(180deg, rgba(168, 240, 198, 0.07), rgba(111, 125, 134, 0.04)),
+    rgba(7, 9, 10, 0.96);
+  --se-theme-button-fill: linear-gradient(180deg, rgba(168, 240, 198, 0.12), rgba(7, 9, 10, 0.96));
+  --se-theme-head-fill:
+    linear-gradient(90deg, rgba(168, 240, 198, 0.18), rgba(111, 125, 134, 0.06) 55%, transparent),
+    linear-gradient(180deg, #172024, #10161a);
+  --se-theme-topbar-layer:
+    linear-gradient(90deg, rgba(168, 240, 198, 0.14), transparent 32%, rgba(111, 125, 134, 0.1));
+  background-image:
+    radial-gradient(900px 520px at 94% 0%, rgba(168, 240, 198, 0.16), transparent 62%),
+    radial-gradient(720px 440px at 2% 100%, rgba(111, 125, 134, 0.09), transparent 60%),
+    linear-gradient(180deg, #10161a, #07090a 62%);
+}
+
+.se-site-theme--naughty-list-shell {
+  --se-bg: #0c0708;
+  --se-panel: #170d0f;
+  --se-panel-hi: #1f1214;
+  --se-line: rgba(226, 58, 58, 0.3);
+  --se-line-soft: rgba(226, 58, 58, 0.15);
+  --se-text: #fff4f2;
+  --se-text-dim: #dcc0bc;
+  --se-muted: #a38783;
+  --se-accent: #e23a3a;
+  --se-accent-dim: #b02424;
+  --se-accent-hover: #f06a6a;
+  --se-accent-rgb: 226, 58, 58;
+  --se-accent-2: #2f8a4f;
+  --se-theme-panel-fill:
+    linear-gradient(150deg, rgba(226, 58, 58, 0.07), transparent 40%),
+    linear-gradient(180deg, rgba(36, 18, 20, 0.95), rgba(12, 7, 8, 0.96));
+  --se-theme-stat-fill:
+    linear-gradient(180deg, rgba(226, 58, 58, 0.07), rgba(47, 138, 79, 0.04)),
+    rgba(12, 7, 8, 0.96);
+  --se-theme-button-fill: linear-gradient(180deg, rgba(226, 58, 58, 0.12), rgba(12, 7, 8, 0.96));
+  --se-theme-head-fill:
+    linear-gradient(90deg, rgba(226, 58, 58, 0.18), rgba(47, 138, 79, 0.06) 55%, transparent),
+    linear-gradient(180deg, #1f1214, #170d0f);
+  --se-theme-topbar-layer:
+    linear-gradient(90deg, rgba(226, 58, 58, 0.14), transparent 32%, rgba(47, 138, 79, 0.1));
+  background-image:
+    radial-gradient(900px 520px at 94% 0%, rgba(226, 58, 58, 0.16), transparent 62%),
+    radial-gradient(720px 440px at 2% 100%, rgba(47, 138, 79, 0.09), transparent 60%),
+    linear-gradient(180deg, #170d0f, #0c0708 62%);
+}
+
+.se-site-theme--heartbreaker-shell {
+  --se-bg: #0d0609;
+  --se-panel: #190b11;
+  --se-panel-hi: #231019;
+  --se-line: rgba(255, 77, 109, 0.3);
+  --se-line-soft: rgba(255, 77, 109, 0.15);
+  --se-text: #fff0f3;
+  --se-text-dim: #dcb5bf;
+  --se-muted: #a1808a;
+  --se-accent: #ff4d6d;
+  --se-accent-dim: #c9304d;
+  --se-accent-hover: #ff8299;
+  --se-accent-rgb: 255, 77, 109;
+  --se-accent-2: #1d1d22;
+  --se-theme-panel-fill:
+    linear-gradient(150deg, rgba(255, 77, 109, 0.07), transparent 40%),
+    linear-gradient(180deg, rgba(36, 15, 24, 0.95), rgba(13, 6, 9, 0.96));
+  --se-theme-stat-fill:
+    linear-gradient(180deg, rgba(255, 77, 109, 0.07), rgba(29, 29, 34, 0.04)),
+    rgba(13, 6, 9, 0.96);
+  --se-theme-button-fill: linear-gradient(180deg, rgba(255, 77, 109, 0.12), rgba(13, 6, 9, 0.96));
+  --se-theme-head-fill:
+    linear-gradient(90deg, rgba(255, 77, 109, 0.18), rgba(29, 29, 34, 0.06) 55%, transparent),
+    linear-gradient(180deg, #231019, #190b11);
+  --se-theme-topbar-layer:
+    linear-gradient(90deg, rgba(255, 77, 109, 0.14), transparent 32%, rgba(29, 29, 34, 0.1));
+  background-image:
+    radial-gradient(900px 520px at 94% 0%, rgba(255, 77, 109, 0.16), transparent 62%),
+    radial-gradient(720px 440px at 2% 100%, rgba(29, 29, 34, 0.09), transparent 60%),
+    linear-gradient(180deg, #190b11, #0d0609 62%);
+}
+
+.se-site-theme--block-party-shell {
+  --se-bg: #08101a;
+  --se-panel: #101c2b;
+  --se-panel-hi: #162639;
+  --se-line: rgba(255, 182, 39, 0.3);
+  --se-line-soft: rgba(255, 182, 39, 0.15);
+  --se-text: #f4f9ff;
+  --se-text-dim: #b8cbe0;
+  --se-muted: #8299b2;
+  --se-accent: #ffb627;
+  --se-accent-dim: #c98a12;
+  --se-accent-hover: #ffcd66;
+  --se-accent-rgb: 255, 182, 39;
+  --se-accent-2: #e8443a;
+  --se-theme-panel-fill:
+    linear-gradient(150deg, rgba(255, 182, 39, 0.07), transparent 40%),
+    linear-gradient(180deg, rgba(22, 36, 54, 0.95), rgba(8, 16, 26, 0.96));
+  --se-theme-stat-fill:
+    linear-gradient(180deg, rgba(255, 182, 39, 0.07), rgba(232, 68, 58, 0.04)),
+    rgba(8, 16, 26, 0.96);
+  --se-theme-button-fill: linear-gradient(180deg, rgba(255, 182, 39, 0.12), rgba(8, 16, 26, 0.96));
+  --se-theme-head-fill:
+    linear-gradient(90deg, rgba(255, 182, 39, 0.18), rgba(232, 68, 58, 0.06) 55%, transparent),
+    linear-gradient(180deg, #162639, #101c2b);
+  --se-theme-topbar-layer:
+    linear-gradient(90deg, rgba(255, 182, 39, 0.14), transparent 32%, rgba(232, 68, 58, 0.1));
+  background-image:
+    radial-gradient(900px 520px at 94% 0%, rgba(255, 182, 39, 0.16), transparent 62%),
+    radial-gradient(720px 440px at 2% 100%, rgba(232, 68, 58, 0.09), transparent 60%),
+    linear-gradient(180deg, #101c2b, #08101a 62%);
+}
+
 /* Shared component surfaces, the same contract as the other premium shells. */
 :is(
   .se-site-theme--kingpin-luxe-shell,
@@ -503,7 +631,11 @@
   .se-site-theme--bayou-smoke-shell,
   .se-site-theme--desert-mirage-shell,
   .se-site-theme--rewind-shell,
-  .se-site-theme--snake-eyes-shell
+  .se-site-theme--snake-eyes-shell,
+  .se-site-theme--graveyard-shift-shell,
+  .se-site-theme--naughty-list-shell,
+  .se-site-theme--heartbreaker-shell,
+  .se-site-theme--block-party-shell
 ) {
   --se-theme-panel-glow: rgba(var(--se-accent-rgb), 0.12);
   --se-theme-topbar-bg: color-mix(in srgb, var(--se-bg) 86%, #000);
@@ -525,7 +657,11 @@
   .se-site-theme--bayou-smoke-shell,
   .se-site-theme--desert-mirage-shell,
   .se-site-theme--rewind-shell,
-  .se-site-theme--snake-eyes-shell
+  .se-site-theme--snake-eyes-shell,
+  .se-site-theme--graveyard-shift-shell,
+  .se-site-theme--naughty-list-shell,
+  .se-site-theme--heartbreaker-shell,
+  .se-site-theme--block-party-shell
 ) .se-topbar {
   background: var(--se-theme-topbar-layer), color-mix(in srgb, var(--se-theme-topbar-bg) 92%, transparent);
   border-bottom-color: color-mix(in srgb, var(--se-accent) 48%, var(--se-line));
@@ -546,7 +682,11 @@
   .se-site-theme--bayou-smoke-shell,
   .se-site-theme--desert-mirage-shell,
   .se-site-theme--rewind-shell,
-  .se-site-theme--snake-eyes-shell
+  .se-site-theme--snake-eyes-shell,
+  .se-site-theme--graveyard-shift-shell,
+  .se-site-theme--naughty-list-shell,
+  .se-site-theme--heartbreaker-shell,
+  .se-site-theme--block-party-shell
 ) :is(.se-panel, .se-stats, .se-stat) {
   background: var(--se-theme-panel-fill);
   border-style: var(--se-theme-border-style);
@@ -567,7 +707,11 @@
   .se-site-theme--bayou-smoke-shell,
   .se-site-theme--desert-mirage-shell,
   .se-site-theme--rewind-shell,
-  .se-site-theme--snake-eyes-shell
+  .se-site-theme--snake-eyes-shell,
+  .se-site-theme--graveyard-shift-shell,
+  .se-site-theme--naughty-list-shell,
+  .se-site-theme--heartbreaker-shell,
+  .se-site-theme--block-party-shell
 ) :is(.se-stats, .se-stat) {
   background: var(--se-theme-stat-fill);
 }
@@ -586,7 +730,11 @@
   .se-site-theme--bayou-smoke-shell,
   .se-site-theme--desert-mirage-shell,
   .se-site-theme--rewind-shell,
-  .se-site-theme--snake-eyes-shell
+  .se-site-theme--snake-eyes-shell,
+  .se-site-theme--graveyard-shift-shell,
+  .se-site-theme--naughty-list-shell,
+  .se-site-theme--heartbreaker-shell,
+  .se-site-theme--block-party-shell
 ) .se-panel__head {
   background: var(--se-theme-head-fill);
 }
@@ -605,7 +753,11 @@
   .se-site-theme--bayou-smoke-shell,
   .se-site-theme--desert-mirage-shell,
   .se-site-theme--rewind-shell,
-  .se-site-theme--snake-eyes-shell
+  .se-site-theme--snake-eyes-shell,
+  .se-site-theme--graveyard-shift-shell,
+  .se-site-theme--naughty-list-shell,
+  .se-site-theme--heartbreaker-shell,
+  .se-site-theme--block-party-shell
 ) :is(.se-btn, .se-input) {
   background: var(--se-theme-button-fill);
   border-color: color-mix(in srgb, var(--se-accent) 34%, var(--se-line));
@@ -626,7 +778,11 @@
   .se-site-theme--bayou-smoke-shell,
   .se-site-theme--desert-mirage-shell,
   .se-site-theme--rewind-shell,
-  .se-site-theme--snake-eyes-shell
+  .se-site-theme--snake-eyes-shell,
+  .se-site-theme--graveyard-shift-shell,
+  .se-site-theme--naughty-list-shell,
+  .se-site-theme--heartbreaker-shell,
+  .se-site-theme--block-party-shell
 ) select.se-input {
   color-scheme: dark;
   background-color: color-mix(in srgb, var(--se-panel-hi) 82%, #000);
@@ -646,7 +802,11 @@
   .se-site-theme--bayou-smoke-shell,
   .se-site-theme--desert-mirage-shell,
   .se-site-theme--rewind-shell,
-  .se-site-theme--snake-eyes-shell
+  .se-site-theme--snake-eyes-shell,
+  .se-site-theme--graveyard-shift-shell,
+  .se-site-theme--naughty-list-shell,
+  .se-site-theme--heartbreaker-shell,
+  .se-site-theme--block-party-shell
 ) select.se-input option {
   background: color-mix(in srgb, var(--se-panel-hi) 88%, #000);
   color: var(--se-text);
@@ -666,7 +826,11 @@
   .se-site-theme--bayou-smoke-shell,
   .se-site-theme--desert-mirage-shell,
   .se-site-theme--rewind-shell,
-  .se-site-theme--snake-eyes-shell
+  .se-site-theme--snake-eyes-shell,
+  .se-site-theme--graveyard-shift-shell,
+  .se-site-theme--naughty-list-shell,
+  .se-site-theme--heartbreaker-shell,
+  .se-site-theme--block-party-shell
 ) select.se-input option:checked {
   background: color-mix(in srgb, var(--se-accent) 36%, #000);
   color: #fff;
@@ -686,7 +850,11 @@
   .se-site-theme--bayou-smoke-shell,
   .se-site-theme--desert-mirage-shell,
   .se-site-theme--rewind-shell,
-  .se-site-theme--snake-eyes-shell
+  .se-site-theme--snake-eyes-shell,
+  .se-site-theme--graveyard-shift-shell,
+  .se-site-theme--naughty-list-shell,
+  .se-site-theme--heartbreaker-shell,
+  .se-site-theme--block-party-shell
 ) .se-btn--primary {
   background: linear-gradient(180deg, color-mix(in srgb, var(--se-accent) 34%, var(--se-panel-hi)), color-mix(in srgb, var(--se-accent-dim) 34%, #000));
   border-color: color-mix(in srgb, var(--se-accent) 72%, var(--se-line));
@@ -708,7 +876,11 @@
   .se-site-theme--bayou-smoke-shell,
   .se-site-theme--desert-mirage-shell,
   .se-site-theme--rewind-shell,
-  .se-site-theme--snake-eyes-shell
+  .se-site-theme--snake-eyes-shell,
+  .se-site-theme--graveyard-shift-shell,
+  .se-site-theme--naughty-list-shell,
+  .se-site-theme--heartbreaker-shell,
+  .se-site-theme--block-party-shell
 ) .se-btn--primary:hover:not(:disabled) {
   background: linear-gradient(180deg, color-mix(in srgb, var(--se-accent-hover) 42%, var(--se-panel-hi)), color-mix(in srgb, var(--se-accent-dim) 42%, #000));
   border-color: color-mix(in srgb, var(--se-accent-hover) 82%, var(--se-line));
@@ -729,7 +901,11 @@
   .se-site-theme--bayou-smoke-shell,
   .se-site-theme--desert-mirage-shell,
   .se-site-theme--rewind-shell,
-  .se-site-theme--snake-eyes-shell
+  .se-site-theme--snake-eyes-shell,
+  .se-site-theme--graveyard-shift-shell,
+  .se-site-theme--naughty-list-shell,
+  .se-site-theme--heartbreaker-shell,
+  .se-site-theme--block-party-shell
 ) .se-btn:disabled {
   color: color-mix(in srgb, var(--se-text) 82%, #fff);
   opacity: 0.58;
@@ -749,7 +925,11 @@
   .se-site-theme--bayou-smoke-shell,
   .se-site-theme--desert-mirage-shell,
   .se-site-theme--rewind-shell,
-  .se-site-theme--snake-eyes-shell
+  .se-site-theme--snake-eyes-shell,
+  .se-site-theme--graveyard-shift-shell,
+  .se-site-theme--naughty-list-shell,
+  .se-site-theme--heartbreaker-shell,
+  .se-site-theme--block-party-shell
 ) .se-footer {
   background: linear-gradient(180deg, color-mix(in srgb, var(--se-bg) 74%, transparent), var(--se-bg)), color-mix(in srgb, var(--se-panel) 84%, #000);
   border-top-color: color-mix(in srgb, var(--se-accent) 36%, var(--se-line));
@@ -785,6 +965,10 @@
 .se-site-theme-decor--desert-mirage-shell { --se-pack-color: #3fc1c9; }
 .se-site-theme-decor--rewind-shell { --se-pack-color: #e04bff; }
 .se-site-theme-decor--snake-eyes-shell { --se-pack-color: #1fae6a; }
+.se-site-theme-decor--graveyard-shift-shell { --se-pack-color: #a8f0c6; }
+.se-site-theme-decor--naughty-list-shell { --se-pack-color: #e23a3a; }
+.se-site-theme-decor--heartbreaker-shell { --se-pack-color: #ff4d6d; }
+.se-site-theme-decor--block-party-shell { --se-pack-color: #ffb627; }
 
 /* ---------- Kingpin Luxe scene ---------- */
 .se-kl__sunburst { top: 0; right: 0; width: min(40vw, 520px); height: auto; }
@@ -1032,3 +1216,47 @@
 .se-se__swing { transform-box: view-box; transform-origin: 120px 0; animation: se-se-swing 8s ease-in-out infinite alternate; }
 .se-se__table { right: 0; bottom: 0; width: min(48vw, 640px); height: auto; }
 @keyframes se-se-swing { from { transform: rotate(-3deg); } to { transform: rotate(3deg); } }
+
+/* ---------- Graveyard Shift scene (holiday) ---------- */
+.se-gs__yard { right: 0; bottom: 0; width: min(48vw, 640px); height: auto; }
+.se-gs__fog {
+  position: absolute;
+  inset: auto 0 0;
+  height: 26vh;
+  background: linear-gradient(0deg, rgba(168, 240, 198, 0.1), transparent);
+  background-size: 200% 100%;
+  animation: se-gs-fog 20s ease-in-out infinite alternate;
+}
+@keyframes se-gs-fog { from { transform: translateX(-3%); opacity: .7; } to { transform: translateX(3%); opacity: 1; } }
+
+/* ---------- Naughty List scene (holiday) ---------- */
+.se-nl__stash { right: 0; bottom: 0; width: min(48vw, 640px); height: auto; }
+.se-nl__glint { opacity: 0; animation: se-nl-glint 4.5s ease-in-out infinite; }
+@keyframes se-nl-glint { 0%, 70%, 100% { opacity: 0; } 80% { opacity: .9; } }
+.se-reduced-motion .se-nl__glint { opacity: .6; }
+@media (prefers-reduced-motion: reduce) { .se-nl__glint { opacity: .6; } }
+
+/* ---------- Heartbreaker scene (holiday; a soft flicker, never a flash) ---------- */
+.se-hb__sign { top: 0; right: 4%; width: min(26vw, 320px); height: auto; }
+.se-hb__tube { animation: se-hb-buzz 7s ease-in-out infinite; }
+.se-hb__rain {
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(104deg, transparent 0 22px, rgba(255, 200, 210, 0.06) 22px 23px);
+  background-size: 120px 180px;
+  animation: se-hb-rain 1.8s linear infinite;
+}
+.se-hb__street {
+  position: absolute;
+  inset: auto 0 0;
+  height: 24vh;
+  background: radial-gradient(ellipse 40% 60% at 82% 100%, rgba(255, 77, 109, 0.22), transparent 70%);
+}
+@keyframes se-hb-buzz { 0%, 44%, 100% { opacity: .95; } 48% { opacity: .6; } 52% { opacity: .9; } }
+@keyframes se-hb-rain { to { background-position: -40px 180px; } }
+
+/* ---------- Block Party scene (holiday) ---------- */
+.se-bp__flags { top: 0; right: 0; width: min(60vw, 760px); height: auto; }
+.se-bp__block { right: 0; bottom: 0; width: min(48vw, 640px); height: auto; }
+.se-bp__spray { stroke-dasharray: 8 6; animation: se-bp-spray 1.2s linear infinite; }
+@keyframes se-bp-spray { to { stroke-dashoffset: -28; } }

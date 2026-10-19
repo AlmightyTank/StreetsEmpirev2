@@ -173,12 +173,14 @@ export const DROP_ART_FILES = {
     'redline-syndicate-sedan': 'cosmetics/drop/sedan-redline-syndicate.svg',
     'crown-jewels-sedan': 'cosmetics/drop/sedan-crown-jewels.svg',
     'snake-eyes-sedan': 'cosmetics/drop/sedan-snake-eyes.svg',
+    'graveyard-shift-sedan': 'cosmetics/drop/sedan-graveyard-shift.svg',
   },
   LOW_RIDER: {
     'neon-underworld-low-rider': 'cosmetics/drop/low-rider-neon-underworld.svg',
     'platinum-funk-low-rider': 'cosmetics/drop/low-rider-platinum-funk.svg',
     'wet-paint-low-rider': 'cosmetics/drop/low-rider-wet-paint.svg',
     'desert-mirage-low-rider': 'cosmetics/drop/low-rider-desert-mirage.svg',
+    'heartbreaker-low-rider': 'cosmetics/drop/low-rider-heartbreaker.svg',
   },
   VAN: {
     'winter-heist-van': 'cosmetics/drop/van-winter-heist.svg',
@@ -186,21 +188,27 @@ export const DROP_ART_FILES = {
     'dockside-van': 'cosmetics/drop/van-dockside.svg',
     'bayou-smoke-van': 'cosmetics/drop/van-bayou-smoke.svg',
     'rewind-van': 'cosmetics/drop/van-rewind.svg',
+    'naughty-list-van': 'cosmetics/drop/van-naughty-list.svg',
+    'block-party-van': 'cosmetics/drop/van-block-party.svg',
   },
   PISTOL: {
     'biscayne-sunset-pistol': 'cosmetics/drop/pistol-biscayne-sunset.svg',
     'wet-paint-pistol': 'cosmetics/drop/pistol-wet-paint.svg',
     'snake-eyes-pistol': 'cosmetics/drop/pistol-snake-eyes.svg',
+    'graveyard-shift-pistol': 'cosmetics/drop/pistol-graveyard-shift.svg',
   },
   SHOTGUN: {
     'winter-heist-shotgun': 'cosmetics/drop/shotgun-winter-heist.svg',
     'hazard-cook-shotgun': 'cosmetics/drop/shotgun-hazard-cook.svg',
     'bayou-smoke-shotgun': 'cosmetics/drop/shotgun-bayou-smoke.svg',
+    'block-party-shotgun': 'cosmetics/drop/shotgun-block-party.svg',
   },
   TEK9: {
     'neon-underworld-tek9': 'cosmetics/drop/tek9-neon-underworld.svg',
     'desert-mirage-tek9': 'cosmetics/drop/tek9-desert-mirage.svg',
     'rewind-tek9': 'cosmetics/drop/tek9-rewind.svg',
+    'naughty-list-tek9': 'cosmetics/drop/tek9-naughty-list.svg',
+    'heartbreaker-tek9': 'cosmetics/drop/tek9-heartbreaker.svg',
   },
   AK47: {
     'velvet-speakeasy-ak47': 'cosmetics/drop/ak47-velvet-speakeasy.svg',
@@ -224,6 +232,10 @@ export const DROP_ART_FILES = {
     'desert-mirage-thug': 'cosmetics/drop/thug-desert-mirage.svg',
     'rewind-thug': 'cosmetics/drop/thug-rewind.svg',
     'snake-eyes-thug': 'cosmetics/drop/thug-snake-eyes.svg',
+    'graveyard-shift-thug': 'cosmetics/drop/thug-graveyard-shift.svg',
+    'naughty-list-crew': 'cosmetics/drop/thug-naughty-list.svg',
+    'heartbreaker-thug': 'cosmetics/drop/thug-heartbreaker.svg',
+    'block-party-thug': 'cosmetics/drop/thug-block-party.svg',
   },
   HOE: {
     'kingpin-luxe-hoe': 'cosmetics/drop/hoe-kingpin-luxe.svg',
@@ -241,6 +253,10 @@ export const DROP_ART_FILES = {
     'desert-mirage-hoe': 'cosmetics/drop/hoe-desert-mirage.svg',
     'rewind-hoe': 'cosmetics/drop/hoe-rewind.svg',
     'snake-eyes-hoe': 'cosmetics/drop/hoe-snake-eyes.svg',
+    'graveyard-shift-hoe': 'cosmetics/drop/hoe-graveyard-shift.svg',
+    'naughty-list-crew': 'cosmetics/drop/hoe-naughty-list.svg',
+    'heartbreaker-hoe': 'cosmetics/drop/hoe-heartbreaker.svg',
+    'block-party-hoe': 'cosmetics/drop/hoe-block-party.svg',
   },
 } as const satisfies Partial<Record<ItemArtKey, Partial<Record<ItemCosmeticStyleKey, string>>>>;
 

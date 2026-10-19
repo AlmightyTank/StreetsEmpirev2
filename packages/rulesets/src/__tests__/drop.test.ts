@@ -22,14 +22,15 @@ import {
   SUPPORTER_DROP_DISCOUNT_PERCENT,
   BIRTHDAY_DISCOUNT_PERCENT,
   discountedDropPrice,
+  dropDefaultState,
 } from '../index.js';
 
 const items = Object.values(DROP_ITEMS);
 const bundles = Object.values(DROP_BUNDLES);
 
 describe('The Drop catalogue', () => {
-  it('ships fifteen collections, at least 18 SKUs, a shell theme each and a bundle per collection', () => {
-    expect(Object.keys(DROP_COLLECTIONS)).toHaveLength(15);
+  it('ships nineteen collections, at least 18 SKUs, a shell theme each and a bundle per collection', () => {
+    expect(Object.keys(DROP_COLLECTIONS)).toHaveLength(19);
     expect(items.length).toBeGreaterThanOrEqual(18);
     for (const collection of Object.keys(DROP_COLLECTIONS)) {
       expect(items.filter((item) => item.collection === collection).length).toBeGreaterThanOrEqual(7);
@@ -154,6 +155,18 @@ describe('Rotation windows', () => {
     const collections = Object.keys(DROP_COLLECTIONS);
     expect(new Set([0, 1, 2].map((week) => featuredCollectionFor(week, collections))).size).toBe(3);
     expect(featuredCollectionFor(5, [])).toBeNull();
+  });
+});
+
+describe('Holiday sets', () => {
+  const holiday = Object.values(DROP_COLLECTIONS as Readonly<Record<string, { key: string; season?: string }>>).filter((collection) => collection.season);
+
+  it('holds the four holiday sets as Draft by default and everything else Live', () => {
+    expect(holiday.map((collection) => collection.key)).toEqual(['graveyard-shift', 'naughty-list', 'heartbreaker', 'block-party']);
+    for (const entry of [...items, ...bundles]) {
+      const seasonal = holiday.some((collection) => collection.key === entry.collection);
+      expect(dropDefaultState(entry.key), entry.key).toBe(seasonal ? 'DRAFT' : 'LIVE');
+    }
   });
 });
 

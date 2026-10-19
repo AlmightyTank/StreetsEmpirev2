@@ -5,6 +5,7 @@ import { DROP_ITEMS, streetPassSkipPrice, STREET_PASS_SKIP_PRICES } from '@stree
 import {
   collectionCovers,
   crewCosmeticLoadoutSchema,
+  isHiddenStyle,
   isReleasedItemCosmeticStyle,
   itemCosmeticLoadoutSchema,
   profileAccentSchema,
@@ -52,8 +53,17 @@ describe('The Drop art', () => {
     expect(crewCosmeticLoadoutSchema.safeParse({ THUG: 'winter-heist-crew', HOE: 'winter-heist-crew' }).success).toBe(true);
     expect(crewCosmeticLoadoutSchema.safeParse({ THUG: 'classic', HOE: 'neon-underworld-thug' }).success).toBe(false);
     const accents = Object.values(DROP_ITEMS).filter((item) => item.kind === 'ACCENT').map((item) => item.styleKey!);
-    expect(accents).toHaveLength(15);
+    expect(accents).toHaveLength(19);
     for (const accent of accents) expect(profileAccentSchema.safeParse(accent).success, accent).toBe(true);
+  });
+});
+
+describe('The Drop holiday sets', () => {
+  it('keeps every holiday look out of the locker until it is owned', () => {
+    const holidayLooks = looks.filter((look) => ['graveyard-shift', 'naughty-list', 'heartbreaker', 'block-party'].includes(look.collection));
+    expect(holidayLooks.length).toBeGreaterThan(0);
+    for (const look of holidayLooks) expect(isHiddenStyle(look.styleKey!), look.styleKey).toBe(true);
+    for (const look of looks.filter((candidate) => !holidayLooks.includes(candidate))) expect(isHiddenStyle(look.styleKey!), look.styleKey).toBe(false);
   });
 });
 
@@ -62,7 +72,7 @@ describe('The Drop shell themes', () => {
     const css = readFileSync(path.resolve(import.meta.dirname, '../styles/drop-shells.css'), 'utf8');
     const decor = readFileSync(path.resolve(import.meta.dirname, '../components/SiteThemeDecor.tsx'), 'utf8');
     const shells = Object.values(DROP_ITEMS).filter((item) => item.kind === 'SITE_THEME');
-    expect(shells).toHaveLength(15);
+    expect(shells).toHaveLength(19);
     for (const shell of shells) {
       expect(css).toContain(`.se-site-theme--${shell.styleKey} {`);
       expect(css).toContain(`.se-site-theme-decor--${shell.styleKey}`);

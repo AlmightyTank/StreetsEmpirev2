@@ -24,8 +24,11 @@ packs off everywhere until `DROP_CROWN_PACKS_ENABLED=true` with Stripe keys.
 
 ## Catalogue
 
-Defined in code, `packages/rulesets/src/drop.ts`. Fifteen collections, seven
-or eight SKUs each (115 in all), one bundle each. The three launch sets came
+Defined in code, `packages/rulesets/src/drop.ts`. Nineteen collections, seven
+or eight SKUs each (146 in all), one bundle each. Fifteen are in rotation; the
+four holiday sets (Graveyard Shift, Naughty List, Heartbreaker, Block Party)
+are held as Draft and hidden until an admin releases them in their season (see
+[DROP-COLLECTIONS-NEXT.md](DROP-COLLECTIONS-NEXT.md)). The three launch sets came
 first; the twelve after them were added on 2026-10-18 (see
 [DROP-COLLECTIONS-NEXT.md](DROP-COLLECTIONS-NEXT.md)):
 
