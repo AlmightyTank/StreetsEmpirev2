@@ -45,10 +45,12 @@ export type DropPreview =
   | { readonly type: 'ACCENT'; readonly color: string }
   | { readonly type: 'TITLE'; readonly title: string }
   /** A full game-shell theme: palette, panels, controls and an illustrated backdrop. */
-  | { readonly type: 'THEME' };
+  | { readonly type: 'THEME' }
+  /** An avatar wearable, drawn on the viewer's built avatar. */
+  | { readonly type: 'AVATAR'; readonly part: string; readonly option: string };
 
 export interface DropItemDefinition extends QuestCosmeticDefinition {
-  readonly kind: Extract<QuestCosmeticKind, 'ITEM_COLLECTION' | 'PROFILE_FRAME' | 'ACCENT' | 'TITLE_BADGE' | 'SITE_THEME'>;
+  readonly kind: Extract<QuestCosmeticKind, 'ITEM_COLLECTION' | 'PROFILE_FRAME' | 'ACCENT' | 'TITLE_BADGE' | 'SITE_THEME' | 'AVATAR_PART'>;
   readonly collection: string;
   readonly category: DropCategory;
   /** List price in Crowns. Admins can override it per catalog entry. */
@@ -312,6 +314,11 @@ const ITEMS: readonly DropItemDefinition[] = [
     name: 'Old Money', description: 'A Kingpin Luxe title. Wear it as a title or feature it as a badge.',
     kind: 'TITLE_BADGE', rarity: 'rare', category: 'PROFILES', priceCrowns: 200,
     preview: { type: 'TITLE', title: 'Old Money' },
+  }),
+  item('kingpin-luxe', 'crown', {
+    name: 'Kingpin Crown', description: 'A brass crown set with lacquer-black stones, worn by your built avatar.',
+    kind: 'AVATAR_PART', rarity: 'epic', category: 'PROFILES', priceCrowns: 300, styleKey: 'headwear:kingpin-crown',
+    preview: { type: 'AVATAR', part: 'headwear', option: 'kingpin-crown' },
   }),
   // Neon Underworld
   item('neon-underworld', 'low-rider', {
@@ -1364,7 +1371,7 @@ function bundleOf(collection: DropCollectionKey, priceCrowns: number, descriptio
 }
 
 export const DROP_BUNDLES: Readonly<Record<string, DropBundleDefinition>> = Object.fromEntries([
-  bundleOf('kingpin-luxe', 2400, 'All seven Kingpin Luxe pieces: the Sedan, both crew outfits, the frame, the accent, the shell theme and the Old Money title.'),
+  bundleOf('kingpin-luxe', 2550, 'All eight Kingpin Luxe pieces: the Sedan, both crew outfits, the frame, the accent, the shell theme, the Old Money title and the Kingpin Crown for your avatar.'),
   bundleOf('neon-underworld', 2400, 'All eight Neon Underworld pieces: the Low-Rider, both crew outfits, the Tek-9 finish, the frame, the accent, the shell theme and the After Hours title.'),
   bundleOf('winter-heist', 2350, 'All seven Winter Heist pieces: the Van, the crew set, the shotgun finish, the frame, the accent, the shell theme and the Cold Case title.'),
   bundleOf('biscayne-sunset', 2350, 'All eight Biscayne Sunset pieces: the Sedan, both crew outfits, the Pistol finish, the frame, the accent, the shell theme and the Ocean Drive title.'),

@@ -174,6 +174,7 @@ permanent on the account, through the existing cosmetics system
 
 | Tier | Cosmetic | Kind | Rarity |
 | --- | --- | --- | --- |
+| 4 | Snapback · Season 1 | avatar hat (`AVATAR_PART`, see [ROADMAP-AVATAR-COSMETICS.md](ROADMAP-AVATAR-COSMETICS.md)) | uncommon |
 | 10 | Fresh Face · Season 1 | title (`TITLE_BADGE`) | rare |
 | 20 | Made Man · Season 1 | title (`TITLE_BADGE`) | epic |
 | 30 | Kingpin · Season 1 | title (`TITLE_BADGE`) | legendary |

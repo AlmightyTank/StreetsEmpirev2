@@ -305,6 +305,7 @@ export * from './types.js';
 export * from './event-system.js';
 export * from './living-stories.js';
 export * from './holiday-road.js';
+export * from './avatar-wearables.js';
 export * from './living-cases.js';
 export * from './combat-prototype.js';
 export * from './hideout-v2.js';

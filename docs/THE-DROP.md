@@ -38,7 +38,7 @@ first; the twelve after them were added on 2026-10-18 and three movie homages
 
 | Collection | Vehicle | Crew | Weapon | Profile | Shell & accent | Title |
 | --- | --- | --- | --- | --- | --- | --- |
-| Kingpin Luxe | Sedan (700) | Thug (600), Hoe (600) | — | Frame (400) | Shell (1,050), Lacquer Brass accent (300) | Old Money (200) |
+| Kingpin Luxe | Sedan (700) | Thug (600), Hoe (600) | — | Frame (400), Kingpin Crown avatar hat (300) | Shell (1,050), Lacquer Brass accent (300) | Old Money (200) |
 | Neon Underworld | Low-Rider (700) | Thug (600), Hoe (600) | Tek-9 (500) | Frame (400) | Shell (1,050), Underworld Violet accent (300) | After Hours (200) |
 | Winter Heist | Van (700) | Crew set, both types (750) | Shotgun (450) | Frame (400) | Shell (1,000), Heist Frost accent (250) | Cold Case (150) |
 | Biscayne Sunset | Sedan (700) | Thug (600), Hoe (600) | Pistol (450) | Frame (400) | Shell (1,000), Flamingo Pink accent (250) | Ocean Drive (150) |
@@ -62,7 +62,7 @@ first; the twelve after them were added on 2026-10-18 and three movie homages
 | Swamp Kingdom | Van (700) | Thug (600), Hoe (600) | Shotgun (450) | Frame (400) | Shell (1,000), Swamp Moss accent (250) | Got Layers (150) |
 | Zombie Apocalypse | Van (700) | Thug (600), Hoe (600) | Shotgun (450) | Frame (400) | Shell (1,000), Quarantine Orange accent (250) | Last One Standing (200) |
 
-Bundles: Kingpin Luxe 2,400 (list 3,850), Neon Underworld 2,400 (list 4,350), Winter Heist 2,350 (list 3,700), Biscayne Sunset 2,350 (list 4,150), Velvet Speakeasy 2,400 (list 4,350), Platinum Funk 2,250 (list 3,850), Redline Syndicate 2,400 (list 4,350), Wet Paint 2,300 (list 4,050), Hazard Cook 2,250 (list 3,750), Dockside 2,350 (list 4,200), Crown Jewels 2,400 (list 4,350), Bayou Smoke 2,350 (list 4,150), Desert Mirage 2,400 (list 4,350), Rewind 2,350 (list 4,150), Snake Eyes 2,400 (list 4,300), Graveyard Shift 2,400 (list 4,250), Naughty List 2,250 (list 3,700), Heartbreaker 2,400 (list 4,350), Block Party 2,300 (list 4,150), Quarter Mile 2,400 (list 5,050), 88 Club 2,350 (list 4,200), Swamp Kingdom 2,350 (list 4,150), Zombie Apocalypse 2,350 (list 4,200).
+Bundles: Kingpin Luxe 2,550 (list 4,150), Neon Underworld 2,400 (list 4,350), Winter Heist 2,350 (list 3,700), Biscayne Sunset 2,350 (list 4,150), Velvet Speakeasy 2,400 (list 4,350), Platinum Funk 2,250 (list 3,850), Redline Syndicate 2,400 (list 4,350), Wet Paint 2,300 (list 4,050), Hazard Cook 2,250 (list 3,750), Dockside 2,350 (list 4,200), Crown Jewels 2,400 (list 4,350), Bayou Smoke 2,350 (list 4,150), Desert Mirage 2,400 (list 4,350), Rewind 2,350 (list 4,150), Snake Eyes 2,400 (list 4,300), Graveyard Shift 2,400 (list 4,250), Naughty List 2,250 (list 3,700), Heartbreaker 2,400 (list 4,350), Block Party 2,300 (list 4,150), Quarter Mile 2,400 (list 5,050), 88 Club 2,350 (list 4,200), Swamp Kingdom 2,350 (list 4,150), Zombie Apocalypse 2,350 (list 4,200).
 
 ### Shell themes
 

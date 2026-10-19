@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { ItemCosmeticStyleKey, QuestRewardDto, StreetPassClaimResult, StreetPassDto, StreetPassTierDto } from '@streets/shared';
-import { formatNumber, formatProfileName, profileNameParts } from '@streets/shared';
+import { AVATAR_LOCKED_OPTIONS, DEFAULT_AVATAR_PARTS, formatNumber, formatProfileName, profileNameParts } from '@streets/shared';
 import { streetPassApi } from '../api/streetPass.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
@@ -56,7 +56,7 @@ function tierState(tier: StreetPassTierDto): 'claimed' | 'ready' | 'locked' {
   return tier.reached ? 'ready' : 'locked';
 }
 
-type CosmeticPreviewKind = 'theme' | 'frame' | 'badge' | 'title' | 'item';
+type CosmeticPreviewKind = 'theme' | 'frame' | 'badge' | 'title' | 'item' | 'avatar';
 
 const COSMETIC_PREVIEW_ITEMS = ['PISTOL', 'SHOTGUN', 'TEK9', 'AK47', 'LOW_RIDER', 'SEDAN', 'VAN'] as const;
 type CosmeticPreviewItemKey = typeof COSMETIC_PREVIEW_ITEMS[number];
@@ -96,6 +96,7 @@ function cosmeticPreviewLabel(reward: QuestRewardDto): string {
 }
 
 function cosmeticPreviewKind(key: string): CosmeticPreviewKind {
+  if (AVATAR_LOCKED_OPTIONS.has(key)) return 'avatar';
   if (cosmeticCollectionStyle(key)) return 'item';
   if (key.endsWith('-theme')) return 'theme';
   if (key.includes('frame') || key.includes('chrome-halo')) return 'frame';
@@ -145,13 +146,16 @@ function CosmeticRewardPreviewCarousel({ previews }: { previews: CosmeticPreview
 
   if (!active) return null;
 
-  const eyebrow = active.kind === 'theme' ? 'Theme preview' : active.kind === 'title' ? 'Name preview' : active.kind === 'frame' ? 'Avatar frame preview' : 'Cosmetic preview';
+  const eyebrow = active.kind === 'theme' ? 'Theme preview' : active.kind === 'title' ? 'Name preview' : active.kind === 'frame' ? 'Avatar frame preview' : active.kind === 'avatar' ? 'Avatar preview' : 'Cosmetic preview';
+  const wearable = active.kind === 'avatar' ? AVATAR_LOCKED_OPTIONS.get(active.key) : undefined;
   const description = active.kind === 'theme'
     ? `Unlocks at tier ${formatNumber(active.tier)} and can be selected from account settings after you claim it.`
     : active.kind === 'title'
       ? `Unlocks at tier ${formatNumber(active.tier)} and shows how this title appears with your player name.`
       : active.kind === 'item'
         ? `Unlocks at tier ${formatNumber(active.tier)} and gives this look to every eligible item.`
+        : active.kind === 'avatar'
+          ? `Unlocks at tier ${formatNumber(active.tier)}. Wear it on your built avatar from account settings.`
         : `Unlocks at tier ${formatNumber(active.tier)} and stays on your account after the season.`;
 
   return (
@@ -227,6 +231,13 @@ function CosmeticRewardPreviewCarousel({ previews }: { previews: CosmeticPreview
                 {active.art ? <img className="se-pass-theme-preview__frame-art" src={itemArtUrl(active.art)} alt="" /> : null}
               </>
             )}
+          </div>
+        ) : wearable ? (
+          <div className="se-pass-theme-preview__frame-stage" role="img" aria-label={`${displayName}'s avatar wearing ${active.label}`}>
+            <span className="se-pass-theme-preview__frame-avatar" aria-hidden="true">
+              {/* Your built avatar wears it; a photo or initials can't, so the starter look stands in. */}
+              <BuiltAvatar parts={{ ...(profileAvatar ?? DEFAULT_AVATAR_PARTS.boy), [wearable.part]: wearable.option.key }} />
+            </span>
           </div>
         ) : active.kind === 'item' && activeCollectionStyle && activeWeapon ? (
           <div className="se-pass-theme-preview__weapon-stage">

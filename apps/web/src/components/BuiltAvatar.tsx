@@ -15,12 +15,16 @@ export function BuiltAvatar({ parts, className }: { parts: AvatarParts; classNam
   const girl = parts.base === 'girl';
   const skin = avatarColor('skin', parts.skin);
   const hair = avatarColor('hairColor', parts.hairColor);
-  const shirt = avatarColor('shirtColor', parts.shirtColor);
+  // The jumpsuit is always County orange.
+  const shirt = parts.shirt === 'prison-jumpsuit' ? JUMPSUIT_ORANGE : avatarColor('shirtColor', parts.shirtColor);
   const mask = avatarColor('maskColor', parts.maskColor);
   const body = girl ? GIRL_BODY : BOY_BODY;
   const ctx: Ctx = { ref, girl, skin, hair, shirt, mask, body };
   // A ski mask hides the hair under it; long hair still falls out the back.
   const hairHidden = parts.mask === 'ski-mask';
+  // Under a hat, hair that stands up is cut down to a cap so it fits.
+  const hatted = (parts.headwear ?? 'none') !== 'none';
+  const hairStyle: AvatarParts['hair'] = hatted && TALL_HAIR.has(parts.hair) ? 'buzz' : parts.hair;
 
   return (
     <svg
@@ -75,7 +79,7 @@ export function BuiltAvatar({ parts, className }: { parts: AvatarParts; classNam
       <Background background={parts.background} ctx={ctx} />
 
       <g filter={ref('shadow')} stroke={INK} strokeWidth="1.6" strokeLinejoin="round">
-        {!hairHidden || LONG_HAIR.has(parts.hair) ? <HairBack style={parts.hair} ctx={ctx} /> : null}
+        {!hairHidden || LONG_HAIR.has(hairStyle) ? <HairBack style={hairStyle} ctx={ctx} /> : null}
         <Shirt style={parts.shirt} ctx={ctx} />
         <path d={EARS} fill={ref('skin')} />
         <path d={girl ? GIRL_HEAD : BOY_HEAD} fill={ref('skin')} />
@@ -86,11 +90,14 @@ export function BuiltAvatar({ parts, className }: { parts: AvatarParts; classNam
       <Face parts={parts} ctx={ctx} />
 
       <g filter={ref('shadow')} stroke={INK} strokeWidth="1.6" strokeLinejoin="round">
-        {hairHidden ? null : <HairFront style={parts.hair} ctx={ctx} />}
+        {hairHidden ? null : <HairFront style={hairStyle} ctx={ctx} />}
         <Mask style={parts.mask} ctx={ctx} />
+        <Headwear style={parts.headwear ?? 'none'} ctx={ctx} />
       </g>
-      {hairHidden ? null : <HairShine style={parts.hair} ctx={ctx} />}
+      {hairHidden || hatted ? null : <HairShine style={hairStyle} ctx={ctx} />}
       <Accessory style={parts.accessory} ctx={ctx} />
+      {/* A ski mask covers the ears. */}
+      {parts.mask === 'ski-mask' ? null : <Earrings style={parts.earrings ?? 'none'} ctx={ctx} />}
     </svg>
   );
 }
@@ -160,6 +167,7 @@ export function AvatarPortrait({ imageUrl, avatar, fallback, frameKey }: {
 }
 
 const INK = '#07100a';
+const JUMPSUIT_ORANGE = '#e8742a';
 
 type Body = { left: number; shoulderX: number; shoulderY: number; neckX: number; neckY: number; neck: string };
 type Ctx = {
@@ -358,6 +366,24 @@ function Shirt({ style, ctx }: { style: AvatarParts['shirt']; ctx: Ctx }) {
         </>
       );
     }
+    case 'prison-jumpsuit': {
+      // A collared V-neck in County orange, zipped down the front, stenciled across the chest.
+      const x = body.neckX - 54;
+      const y = body.neckY - 86;
+      return (
+        <>
+          <path d={bodyPath(body)} fill={ref('shirt')} />
+          <path d={`M${body.neckX} ${body.neckY} L64 ${body.neckY + 12} L${128 - body.neckX} ${body.neckY} Z`} fill={ref('skin')} />
+          {neck}
+          <Mirrored>
+            <path d={`M${55.5 + x} ${81 + y} L${45 + x} ${95 + y} L${60 + x} ${97 + y} L${54.6 + x} ${86.6 + y} Z`} fill={shade(shirt, -0.12)} />
+          </Mirrored>
+          <path d={`M64 ${body.neckY + 12} V126`} fill="none" stroke={shade(shirt, -0.5)} strokeWidth="1.4" strokeDasharray="1.6 1" />
+          <text x="64" y="117" textAnchor="middle" fontSize="7.4" fontWeight="900" letterSpacing=".6" fontFamily="Arial Black, Arial, sans-serif" fill="#1b1d22" opacity=".78" stroke="none">COUNTY</text>
+          {folds}
+        </>
+      );
+    }
     case 'tee':
     default:
       return (
@@ -402,6 +428,7 @@ function Face({ parts, ctx }: { parts: AvatarParts; ctx: Ctx }) {
       ) : null}
       <FacialHair style={parts.facialHair} ctx={ctx} />
       <Mouth style={parts.mouth} girl={girl} />
+      <Grill style={parts.grill ?? 'none'} mouth={parts.mouth} ctx={ctx} />
     </>
   );
 }
@@ -538,6 +565,29 @@ function Mouth({ style, girl }: { style: AvatarParts['mouth']; girl: boolean }) 
   }
 }
 
+/** The teeth each open mouth shows, where a grill sits. */
+const TEETH: Partial<Record<AvatarParts['mouth'], string>> = {
+  grin: 'M57.8 67.4 Q64 69.2 70.2 67.4 Q69.6 69.8 64 70 Q58.4 69.8 57.8 67.4 Z',
+  laugh: 'M57.2 66.8 Q64 69 70.8 66.8 Q70.2 69.4 64 69.6 Q57.8 69.4 57.2 66.8 Z',
+};
+
+/** Only shows with a mouth that shows teeth. */
+function Grill({ style, mouth, ctx }: { style: AvatarParts['grill']; mouth: AvatarParts['mouth']; ctx: Ctx }) {
+  const teeth = TEETH[mouth];
+  if (!teeth || style === 'none') return null;
+  const top = mouth === 'laugh' ? 66.9 : 67.5;
+  if (style === 'gold-tooth') {
+    return <rect x="60.2" y={top} width="2.6" height="2" rx=".5" fill={ctx.ref('gold')} stroke="#3a2a05" strokeWidth=".4" />;
+  }
+  return (
+    <>
+      <path d={teeth} fill={ctx.ref('steel')} stroke={INK} strokeWidth=".5" />
+      <path d={[59.8, 62, 64, 66, 68.2].map((x) => `M${x} ${top + 0.2} V${top + 2}`).join(' ')} stroke="#4a525e" strokeWidth=".5" />
+      <path d={`M59.4 ${top + 0.5} H62.4`} stroke="#fff" strokeOpacity=".7" strokeWidth=".5" strokeLinecap="round" />
+    </>
+  );
+}
+
 const MUSTACHE = 'M56.4 67 Q59 62.6 64 64.6 Q69 62.6 71.6 67 Q68 65.6 64 66.2 Q60 65.6 56.4 67 Z';
 
 function FacialHair({ style, ctx }: { style: AvatarParts['facialHair']; ctx: Ctx }) {
@@ -574,6 +624,8 @@ function FacialHair({ style, ctx }: { style: AvatarParts['facialHair']; ctx: Ctx
 /* Hair ------------------------------------------------------------------- */
 
 const LONG_HAIR = new Set<AvatarParts['hair']>(['long-straight', 'long-curls', 'braids', 'ponytail', 'pigtails', 'locs']);
+/** Styles that stand up past a hat; under one they are drawn as a buzz cut. */
+const TALL_HAIR = new Set<AvatarParts['hair']>(['high-top', 'mohawk', 'afro', 'puffs', 'bun']);
 
 /** Loc strands as [x, length], left to right behind the head. */
 const LOCS = [[38, 50], [42.5, 56], [47, 60], [76, 60], [80.5, 56], [85, 50]] as const;
@@ -902,6 +954,14 @@ function Accessory({ style, ctx }: { style: AvatarParts['accessory']; ctx: Ctx }
         </g>
       );
     }
+    default:
+      return null;
+  }
+}
+
+function Earrings({ style, ctx }: { style: AvatarParts['earrings']; ctx: Ctx }) {
+  const { ref } = ctx;
+  switch (style) {
     case 'studs':
       return (
         <g filter={ref('shadow')}>
@@ -918,6 +978,69 @@ function Accessory({ style, ctx }: { style: AvatarParts['accessory']; ctx: Ctx }
             <circle cx="44.4" cy="69" r="4" fill="none" stroke={ref('gold')} strokeWidth="1.8" />
           </Mirrored>
         </g>
+      );
+    default:
+      return null;
+  }
+}
+
+/** Hats sit over the hair; the beanie, durag and snapback take the shirt color. */
+function Headwear({ style, ctx }: { style: AvatarParts['headwear']; ctx: Ctx }) {
+  const { ref, shirt } = ctx;
+  switch (style) {
+    case 'beanie':
+      return (
+        <>
+          <path d="M42.4 44 Q41.6 17.4 64 16.6 Q86.4 17.4 85.6 44 Z" fill={ref('shirt')} />
+          <path d="M40.6 38.6 Q64 33 87.4 38.6 L87.4 47.4 Q64 41.8 40.6 47.4 Z" fill={ref('shirt-dark')} />
+          <path d={[46, 51, 56, 61, 67, 72, 77, 82].map((x) => `M${x} ${37.4 + Math.abs(x - 64) * 0.06} V${44.6 + Math.abs(x - 64) * 0.06}`).join(' ')} fill="none" stroke={shade(shirt, -0.55)} strokeOpacity=".55" strokeWidth=".9" />
+          <path d="M52 24 Q60 20 70 21" fill="none" stroke={shade(shirt, 0.5)} strokeOpacity=".5" strokeWidth="1.4" strokeLinecap="round" />
+        </>
+      );
+    case 'durag':
+      return (
+        <>
+          <path d="M82 42 Q92 52 96 74 Q90 72 86 64 Q84 54 80 46 Z" fill={ref('shirt-dark')} />
+          <path d="M44 47 Q42.6 23 64 22 Q85.4 23 84 47 Q78 41 64 40.6 Q50 41 44 47 Z" fill={ref('shirt')} />
+          <path d="M64 22.4 V40.4" fill="none" stroke={shade(shirt, -0.45)} strokeOpacity=".6" strokeWidth="1.1" />
+          <path d="M50 28 Q57 24.4 64 24.2" fill="none" stroke="#fff" strokeOpacity=".45" strokeWidth="1.6" strokeLinecap="round" />
+        </>
+      );
+    case 'snapback': {
+      const brim = shade(shirt, -0.5);
+      return (
+        <>
+          <path d="M43 44 Q42.4 18.6 64 18 Q85.6 18.6 85 44 Q64 39 43 44 Z" fill={ref('shirt')} />
+          <path d="M64 18.4 V40.6 M53 21 Q50 31 50.4 41.6 M75 21 Q78 31 77.6 41.6" fill="none" stroke={shade(shirt, -0.45)} strokeOpacity=".5" strokeWidth=".9" />
+          <circle cx="64" cy="18.6" r="1.6" fill={ref('shirt-dark')} strokeWidth=".8" />
+          <rect x="58.4" y="27" width="11.2" height="7" rx="1.2" fill={ref('gold')} stroke="#3a2a05" strokeWidth=".8" />
+          <path d="M37.6 45.6 Q64 37.4 90.4 45.6 L88 50.6 Q64 43.6 40 50.6 Z" fill={brim} />
+          <path d="M42 46.4 Q64 40 86 46.4" fill="none" stroke={shade(brim, 0.4)} strokeOpacity=".6" strokeWidth=".9" />
+        </>
+      );
+    }
+    case 'santa-hat':
+      return (
+        <>
+          <path d="M43.4 42 Q45 15 68 13.4 Q90 13 100.4 34 Q94 25.4 85 26.6 Q86.6 34 85.4 42 Z" fill="#c8202a" />
+          <path d="M52 22 Q62 16.6 74 16.4" fill="none" stroke="#ff7a7a" strokeOpacity=".55" strokeWidth="1.6" strokeLinecap="round" />
+          <path d="M39.6 40.4 Q64 33.6 88.4 40.4 L88.4 48.4 Q64 41.8 39.6 48.4 Z" fill="#f7f4ee" />
+          <circle cx="100.6" cy="36.4" r="5.4" fill="#f7f4ee" />
+        </>
+      );
+    case 'kingpin-crown':
+      return (
+        <>
+          <path d="M45.4 41 L43.4 21 L53.6 30 L64 15.6 L74.4 30 L84.6 21 L82.6 41 Z" fill={ref('gold')} />
+          <path d="M45 35.4 Q64 32.6 83 35.4 L82.6 41.6 Q64 39 45.4 41.6 Z" fill="#14100a" />
+          <g fill="#1c1f26" stroke={ref('gold')} strokeWidth=".9">
+            <circle cx="64" cy="37.4" r="2.2" /><circle cx="54" cy="38" r="1.6" /><circle cx="74" cy="38" r="1.6" />
+          </g>
+          <g fill={ref('gold')} strokeWidth=".8">
+            <circle cx="43.4" cy="20.4" r="1.8" /><circle cx="64" cy="15" r="2" /><circle cx="84.6" cy="20.4" r="1.8" />
+          </g>
+          <path d="M50 30 L48.6 24 M64 22 V18.6 M78 30 L79.4 24" fill="none" stroke="#fff2a8" strokeOpacity=".7" strokeWidth=".9" strokeLinecap="round" />
+        </>
       );
     default:
       return null;

@@ -82,6 +82,7 @@ export const ITEM_ART = {
   CROWNS: { name: 'Crowns', shortName: 'Crowns', category: 'CURRENCY', rarity: 'RARE', file: 'crowns.svg', cells: ONE },
 
   // Street Pass Season 1 cosmetics, keyed by cosmetic key
+  'street-pass-s1-snapback': { name: 'Snapback · Season 1', shortName: 'Snapback', category: 'COSMETIC', rarity: 'UNCOMMON', file: 'street-pass-s1-snapback.svg', cells: ONE },
   'street-pass-s1-fresh-face': { name: 'Fresh Face · Season 1', shortName: 'Fresh Face', category: 'COSMETIC', rarity: 'RARE', file: 'street-pass-s1-fresh-face.svg', cells: ONE },
   'street-pass-s1-made-man': { name: 'Made Man · Season 1', shortName: 'Made Man', category: 'COSMETIC', rarity: 'EPIC', file: 'street-pass-s1-made-man.svg', cells: ONE },
   'street-pass-s1-kingpin': { name: 'Kingpin · Season 1', shortName: 'Kingpin', category: 'COSMETIC', rarity: 'LEGENDARY', file: 'street-pass-s1-kingpin.svg', cells: ONE },

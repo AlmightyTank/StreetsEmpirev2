@@ -15,11 +15,12 @@ import type {
   StreetPassSkipQuoteDto,
 } from '@streets/shared';
 import { discountedDropPrice } from '@streets/rulesets';
-import { formatNumber } from '@streets/shared';
+import { DEFAULT_AVATAR_PARTS, formatNumber, type AvatarParts } from '@streets/shared';
 import { dropApi } from '../api/drop.js';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
+import { BuiltAvatar } from '../components/BuiltAvatar.js';
 import { ItemTile } from '../components/ItemTile.js';
 import { Panel, Stat } from '../components/Panel.js';
 import { hasItemArt } from '../items/itemArt.js';
@@ -120,9 +121,19 @@ function leavingSoon(offer: DropOfferDto | undefined, now: number): boolean {
   return ms > 0 && ms < 86_400_000;
 }
 
-/** The art for an item: its look on the items it dresses, a frame ring, an accent swatch or a title plate. */
+/** The art for an item: its look on the items it dresses, a frame ring, an accent swatch, a title plate or the viewer's avatar wearing it. */
 export function DropArt({ item, size = 'md' }: { item: DropItemDto; size?: 'sm' | 'md' | 'lg' }) {
   const preview = item.preview;
+  const builtAvatar = useSession((state) => state.profileSettings.profileAvatar);
+  if (preview.type === 'AVATAR') {
+    // The viewer's own built avatar when they have one, else the starter look.
+    const parts = { ...(builtAvatar ?? DEFAULT_AVATAR_PARTS.boy), [preview.part]: preview.option } as AvatarParts;
+    return (
+      <div className={`se-drop-art se-drop-art--avatar se-drop-art--${size}`} role="img" aria-label={`${item.name} on your avatar`}>
+        <span className="se-drop-avatar"><BuiltAvatar parts={parts} /></span>
+      </div>
+    );
+  }
   if (preview.type === 'ITEM') {
     const items = preview.items.filter(hasItemArt);
     return (

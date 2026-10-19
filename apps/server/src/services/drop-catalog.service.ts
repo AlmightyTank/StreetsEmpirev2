@@ -276,6 +276,8 @@ function equipHint(item: DropItemDefinition): string {
       return 'Pick it in Account → Profile as your accent.';
     case 'SITE_THEME':
       return 'Equip it in Account → Profile as your site theme. It reskins the whole game for you.';
+    case 'AVATAR_PART':
+      return 'Wear it in Account → Profile → Build one. It shows on your built avatar.';
     default:
       return 'Wear it as your title, or feature it as a badge, in Account → Profile.';
   }
@@ -291,6 +293,8 @@ function previewDto(item: DropItemDefinition): DropPreviewDto {
       return { type: 'ACCENT', styleKey: item.styleKey ?? '', color: item.preview.color };
     case 'THEME':
       return { type: 'THEME', styleKey: item.styleKey ?? '' };
+    case 'AVATAR':
+      return { type: 'AVATAR', part: item.preview.part, option: item.preview.option };
     default:
       return { type: 'TITLE', title: item.preview.title };
   }

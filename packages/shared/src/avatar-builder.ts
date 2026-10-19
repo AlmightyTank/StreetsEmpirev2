@@ -2,10 +2,24 @@ import { z } from 'zod';
 
 /**
  * Built avatars: a chest-up portrait assembled from face pieces, for players
- * who would rather not use a picture. Pure cosmetic; every part is free.
+ * who would rather not use a picture. Pure cosmetic.
+ *
+ * Most parts are free. A wearable with `unlock` is worn only once the account
+ * holds the AccountCosmeticUnlock with that key (kind AVATAR_PART), earned in
+ * play or bought in The Drop; `hidden` ones stay out of the builder until
+ * owned. See docs/ROADMAP-AVATAR-COSMETICS.md.
  *
  * The catalog only names parts and colors. The web client draws them.
  */
+
+/** Unlock keys for the locked wearables. Each is an AccountCosmeticUnlock key. */
+export const AVATAR_UNLOCKS = {
+  kingpinCrown: 'drop-kingpin-luxe-crown',
+  snapback: 'street-pass-s1-snapback',
+  prisonJumpsuit: 'avatar-prison-jumpsuit',
+  santaHat: 'holiday-road-santa-hat',
+} as const;
+
 export const AVATAR_PART_OPTIONS = {
   base: [
     { key: 'boy', label: 'Boy' },
@@ -105,6 +119,8 @@ export const AVATAR_PART_OPTIONS = {
     { key: 'tank', label: 'Tank top' },
     { key: 'jacket', label: 'Jacket' },
     { key: 'jersey', label: 'Jersey' },
+    // Always County orange; the shirt color does not apply.
+    { key: 'prison-jumpsuit', label: 'Prison jumpsuit', unlock: AVATAR_UNLOCKS.prisonJumpsuit, unlockHint: 'Get arrested once.' },
   ],
   shirtColor: [
     { key: 'black', label: 'Black', color: '#1f2228' },
@@ -137,8 +153,27 @@ export const AVATAR_PART_OPTIONS = {
     { key: 'chain', label: 'Gold chain' },
     { key: 'shades', label: 'Shades' },
     { key: 'glasses', label: 'Glasses' },
+  ],
+  /** Their own slot so they go with a chain or shades. Hidden under long hair over the ears and full masks. */
+  earrings: [
+    { key: 'none', label: 'None' },
     { key: 'studs', label: 'Stud earrings' },
     { key: 'hoops', label: 'Hoop earrings' },
+  ],
+  /** Drawn over the hair. Tall hair is cut down to fit under a hat. */
+  headwear: [
+    { key: 'none', label: 'None' },
+    { key: 'beanie', label: 'Beanie' },
+    { key: 'durag', label: 'Durag' },
+    { key: 'snapback', label: 'Snapback', unlock: AVATAR_UNLOCKS.snapback, unlockHint: 'Street Pass Season 1, tier 4.' },
+    { key: 'santa-hat', label: 'Santa hat', unlock: AVATAR_UNLOCKS.santaHat, hidden: true, unlockHint: 'A Christmas good deed on the road.' },
+    { key: 'kingpin-crown', label: 'Kingpin crown', unlock: AVATAR_UNLOCKS.kingpinCrown, unlockHint: 'The Drop: Kingpin Luxe, 300 Crowns.' },
+  ],
+  /** Shows only with a mouth that shows teeth: smile, grin or laugh. */
+  grill: [
+    { key: 'none', label: 'None' },
+    { key: 'gold-tooth', label: 'Gold tooth' },
+    { key: 'silver-grill', label: 'Silver grill' },
   ],
   /** Drawn like the item art: lit backdrops and scenes, or clear like the item icons themselves. */
   background: [
@@ -177,6 +212,9 @@ export const DEFAULT_AVATAR_PARTS: Record<AvatarBase, AvatarParts> = {
     mask: 'none',
     maskColor: 'black',
     accessory: 'chain',
+    earrings: 'none',
+    headwear: 'none',
+    grill: 'none',
     background: 'brick',
   },
   girl: {
@@ -194,7 +232,10 @@ export const DEFAULT_AVATAR_PARTS: Record<AvatarBase, AvatarParts> = {
     shirtColor: 'red',
     mask: 'none',
     maskColor: 'black',
-    accessory: 'hoops',
+    accessory: 'none',
+    earrings: 'hoops',
+    headwear: 'none',
+    grill: 'none',
     background: 'city',
   },
 };
@@ -204,7 +245,15 @@ function partEnum<K extends AvatarPartKey>(key: K) {
   return z.enum(keys as [string, ...string[]]) as unknown as z.ZodType<AvatarParts[K]>;
 }
 
-export const avatarPartsSchema = z.object({
+/** Earrings used to be accessories; an avatar saved then wears them in the earrings slot. */
+function withEarringsSlot(value: unknown): unknown {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return value;
+  const raw = value as Record<string, unknown>;
+  if (raw.earrings !== undefined || (raw.accessory !== 'studs' && raw.accessory !== 'hoops')) return value;
+  return { ...raw, earrings: raw.accessory, accessory: 'none' };
+}
+
+export const avatarPartsSchema = z.preprocess(withEarringsSlot, z.object({
   base: partEnum('base'),
   skin: partEnum('skin'),
   hair: partEnum('hair'),
@@ -221,21 +270,73 @@ export const avatarPartsSchema = z.object({
   mask: partEnum('mask').default('none'),
   maskColor: partEnum('maskColor').default('black'),
   accessory: partEnum('accessory'),
+  earrings: partEnum('earrings').default('none'),
+  headwear: partEnum('headwear').default('none'),
+  grill: partEnum('grill').default('none'),
   background: partEnum('background'),
-}).strict();
+}).strict()) as unknown as z.ZodType<AvatarParts, z.ZodTypeDef, unknown>;
+
+/** One option in a slot, with the lock fields every option may carry. */
+export type AvatarPartOption = {
+  readonly key: string;
+  readonly label: string;
+  readonly color?: string;
+  readonly group?: string;
+  /** The AccountCosmeticUnlock key that owns it. Absent: free. */
+  readonly unlock?: string;
+  /** Left out of the builder until owned. */
+  readonly hidden?: boolean;
+  /** How to get it, shown on the locked option. */
+  readonly unlockHint?: string;
+};
+
+export function avatarPartOption(part: AvatarPartKey, key: string): AvatarPartOption | undefined {
+  const options: readonly AvatarPartOption[] = AVATAR_PART_OPTIONS[part];
+  return options.find((option) => option.key === key);
+}
+
+/** Whether an account holding `owned` unlock keys may wear this option. */
+export function avatarOptionOwned(option: AvatarPartOption, owned: ReadonlySet<string>): boolean {
+  return !option.unlock || owned.has(option.unlock);
+}
+
+/** Slots wearing a locked option the account does not hold. Empty when the avatar can be saved. */
+export function lockedAvatarParts(parts: AvatarParts, owned: ReadonlySet<string>): AvatarPartKey[] {
+  return (Object.keys(AVATAR_PART_OPTIONS) as AvatarPartKey[]).filter((part) => {
+    const option = avatarPartOption(part, parts[part]);
+    return option !== undefined && !avatarOptionOwned(option, owned);
+  });
+}
+
+/** Every locked wearable, keyed by its unlock key: the slot and option it unlocks. */
+export const AVATAR_LOCKED_OPTIONS: ReadonlyMap<string, { part: AvatarPartKey; option: AvatarPartOption }> = new Map(
+  (Object.keys(AVATAR_PART_OPTIONS) as AvatarPartKey[]).flatMap((part) => (
+    (AVATAR_PART_OPTIONS[part] as readonly AvatarPartOption[])
+      .filter((option) => option.unlock)
+      .map((option) => [option.unlock!, { part, option }] as const)
+  )),
+);
+
+/** The style key stored on a wearable's unlock row, e.g. `headwear:snapback`. */
+export function avatarUnlockStyleKey(unlockKey: string): string | null {
+  const found = AVATAR_LOCKED_OPTIONS.get(unlockKey);
+  return found ? `${found.part}:${found.option.key}` : null;
+}
 
 /**
  * Reads a stored avatar. A part that was retired, or added after it was saved,
- * falls back to the base's default so an old avatar keeps drawing.
+ * falls back to the base's default so an old avatar keeps drawing. Given the
+ * account's unlock keys, a locked part it does not hold falls back the same way.
  */
-export function readAvatarParts(value: unknown): AvatarParts | null {
+export function readAvatarParts(value: unknown, owned?: ReadonlySet<string>): AvatarParts | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-  const raw = value as Record<string, unknown>;
+  const raw = withEarringsSlot(value) as Record<string, unknown>;
   const base: AvatarBase = raw.base === 'girl' ? 'girl' : 'boy';
   const parts = { ...DEFAULT_AVATAR_PARTS[base] } as Record<AvatarPartKey, string>;
   for (const key of Object.keys(AVATAR_PART_OPTIONS) as AvatarPartKey[]) {
     const candidate = raw[key];
-    if (AVATAR_PART_OPTIONS[key].some((option) => option.key === candidate)) parts[key] = candidate as string;
+    const option = typeof candidate === 'string' ? avatarPartOption(key, candidate) : undefined;
+    if (option && (!owned || avatarOptionOwned(option, owned))) parts[key] = option.key;
   }
   return parts as AvatarParts;
 }

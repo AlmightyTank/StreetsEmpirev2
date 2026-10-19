@@ -211,6 +211,7 @@ describe('streetPassProblems', () => {
 
   it('refuses season 1 on a round without its cosmetics', () => {
     expect(streetPassProblems(STREET_PASS_S1, classicOgV08H)).toEqual([
+      'street-pass-s1 tier 4: COSMETIC_UNLOCK street-pass-s1-snapback is not a cosmetic in this round',
       'street-pass-s1 tier 8: COSMETIC_UNLOCK street-pass-s1-urban-ghost is not a cosmetic in this round',
       'street-pass-s1 tier 8: COSMETIC_UNLOCK street-pass-s1-chrome-serpent-theme is not a cosmetic in this round',
       'street-pass-s1 tier 8: COSMETIC_UNLOCK street-pass-s1-chrome-serpent-frame is not a cosmetic in this round',

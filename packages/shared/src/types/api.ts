@@ -363,6 +363,8 @@ export interface AccountProfileSettingsResponseDto {
     crewStyles?: CollectionOptionDto[];
     /** Slice C. Owned crew banners, with locked previews included. */
     crewBanners?: CollectionOptionDto[];
+    /** Unlock keys of the avatar wearables this account may wear. Optional for older servers. */
+    avatarUnlocks?: string[];
     densities: CosmeticOptionDto[];
     moneyFormats: CosmeticOptionDto[];
     defaultLandings: CosmeticOptionDto[];

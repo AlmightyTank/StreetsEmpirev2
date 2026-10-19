@@ -5,6 +5,7 @@ import type {
   Ruleset,
   StreetPassRules,
 } from './types.js';
+import { AVATAR_WEARABLES } from './avatar-wearables.js';
 
 /**
  * Player columns an `ITEM` reward may add to. Guns are the gun itself, never
@@ -48,6 +49,8 @@ const cosmetic = (key: string): QuestRewardDefinition => ({ kind: 'COSMETIC_UNLO
  * season so each season's set is collectible.
  */
 export const STREET_PASS_S1_COSMETICS = {
+  // An avatar wearable (avatar-wearables.ts), listed here so the pass can grant it.
+  'street-pass-s1-snapback': AVATAR_WEARABLES['street-pass-s1-snapback'],
   'street-pass-s1-fresh-face': {
     key: 'street-pass-s1-fresh-face',
     name: 'Fresh Face · Season 1',
@@ -297,7 +300,7 @@ export const STREET_PASS_S1 = {
     { tier: 1, rewards: [cash(20_000), crowns(100)] },
     { tier: 2, rewards: [item('condoms', 1000)] },
     { tier: 3, rewards: [item('whores', 3)] },
-    { tier: 4, rewards: [turns(25)] },
+    { tier: 4, rewards: [turns(25), cosmetic('street-pass-s1-snapback')] },
     { tier: 5, rewards: [item('pistols', 25), item('thugs', 5)] },
     { tier: 6, rewards: [item('beer', 500)] },
     { tier: 7, rewards: [item('medicine', 50)] },
