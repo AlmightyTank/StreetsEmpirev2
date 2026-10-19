@@ -121,12 +121,14 @@ describe('release bumps', () => {
   it('plans the next release from pulls merged after the current version', () => {
     const head = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
     const parent = execFileSync('git', ['rev-parse', 'HEAD~1'], { encoding: 'utf8' }).trim();
+    const current = readAppVersion(fs.readFileSync(path.resolve(process.cwd(), 'packages/shared/src/platform.ts'), 'utf8'));
+    const [major, minor] = current.split('.').map(Number);
     expect(planRelease({ to: head, from: head, pullsFor: () => [] })).toBeNull();
     expect(planRelease({
       to: head,
       from: parent,
       pullsFor: () => [{ title: 'feat: automatic releases', body: '## Version\nminor' }],
-    })).toEqual({ level: 'minor', previous: '2.1.0', version: '2.2.0' });
+    })).toEqual({ level: 'minor', previous: current, version: `${major}.${minor + 1}.0` });
     expect(planRelease({
       to: head,
       from: parent,
