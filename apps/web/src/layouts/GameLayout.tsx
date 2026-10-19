@@ -19,6 +19,7 @@ import { useSession } from '../stores/session.js';
 import { PlayerProfileHoverLayer } from '../components/PlayerProfileHoverLayer.js';
 import { JokeDayBanner } from '../components/EasterEggs.js';
 import { CaseStoryAlerts } from '../components/CaseStoryAlerts.js';
+import { AdmissionGate } from '../components/AdmissionGate.js';
 import { AdminWorkspace } from '../components/AdminWorkspace.js';
 import { formatDuration } from '../utils/time.js';
 import { isPageScrollLocked } from '../utils/pageScrollLock.js';
@@ -738,8 +739,8 @@ export function GameLayout({ children }: { children: ReactNode }) {
  * routes stay transparent so InfoLayout can continue to render its public Shell.
  */
 export function GameRouteLayout() {
-  const me = useSession((state) => state.me);
+  const account = useSession((state) => state.account);
   // An account that may not play yet gets no game frame (and none of its polling).
   const blocked = useSession((state) => Boolean(state.account?.verificationRequired || state.account?.rulesAcceptanceRequired || state.account?.birthDateRequired));
-  return me && !blocked ? <><GameLayoutFrame><Outlet /></GameLayoutFrame><PlayerProfileHoverLayer /></> : <Outlet />;
+  return account && !blocked ? <><GameLayoutFrame><AdmissionGate /><Outlet /></GameLayoutFrame><PlayerProfileHoverLayer /></> : <Outlet />;
 }

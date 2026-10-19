@@ -1,9 +1,10 @@
-import type { SupporterPollsDto, SupporterRedirectDto, SupporterStatusDto } from '@streets/shared';
+import type { SupporterBenefitsDto, SupporterPollsDto, SupporterRedirectDto, SupporterStatusDto } from '@streets/shared';
 import { api } from './client.js';
 
 /** Supporter page: status, Stripe Checkout and the Stripe billing portal. */
 export const supporterApi = {
   status: () => api.get<SupporterStatusDto>('/supporter'),
+  benefits: () => api.get<SupporterBenefitsDto>('/supporter/benefits'),
   checkout: () => api.post<SupporterRedirectDto>('/supporter/checkout', {}),
   giftCheckout: (recipientAccountId: string) => api.post<SupporterRedirectDto>('/supporter/gift-checkout', { recipientAccountId }),
   portal: () => api.post<SupporterRedirectDto>('/supporter/portal', {}),

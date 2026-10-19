@@ -5,6 +5,7 @@ import type {
   AdminSupporterGrantResultDto,
   AdminSupporterGrantStatus,
   AdminSupportersDto,
+  AdminSupporterBenefitsDiagnosticsDto,
   SupporterMembershipDto,
 } from '@streets/shared';
 import { ADMIN_SUPPORTER_GRANT_MAX, formatNumber } from '@streets/shared';
@@ -112,6 +113,7 @@ function GrantRows({ result, rewardName }: { result: AdminSupporterGrantResultDt
  */
 export function AdminSupportersPage() {
   const [data, setData] = useState<AdminSupportersDto | null>(null);
+  const [benefitDiagnostics, setBenefitDiagnostics] = useState<AdminSupporterBenefitsDiagnosticsDto | null>(null);
   const [grants, setGrants] = useState<AdminAuditEntryDto[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -133,8 +135,9 @@ export function AdminSupportersPage() {
 
   const load = useCallback(async () => {
     try {
-      const [supporters, audit] = await Promise.all([adminApi.supporters(), adminApi.audit({ action: GRANT_ACTION })]);
+      const [supporters, audit, diagnostics] = await Promise.all([adminApi.supporters(), adminApi.audit({ action: GRANT_ACTION }), adminApi.supporterBenefits()]);
       setData(supporters);
+      setBenefitDiagnostics(diagnostics);
       setGrants(audit.entries.slice(0, RECENT_GRANTS));
     } catch (caught) {
       setError(message(caught, 'Could not load supporters.'));
@@ -283,6 +286,16 @@ export function AdminSupportersPage() {
         <Stat label="Missing rewards" value={data ? formatNumber(data.missingCount) : '-'} />
         <Stat label="On the thank-you list" value={data ? formatNumber(data.listedCount) : '-'} />
       </div>
+      <Panel title="Benefits health" subtitle="Centralized entitlement and rollout view; no billing details are shown here." className="se-mb">
+        <div className="se-stats">
+          <Stat label="Active paid" value={benefitDiagnostics ? formatNumber(benefitDiagnostics.activePaidAccounts) : '-'} />
+          <Stat label="Permanent reward accounts" value={benefitDiagnostics ? formatNumber(benefitDiagnostics.permanentlyRewardedAccounts) : '-'} />
+          <Stat label="Linked forum accounts" value={benefitDiagnostics ? formatNumber(benefitDiagnostics.linkedForumAccounts) : '-'} />
+          <Stat label="Forum opted in" value={benefitDiagnostics ? formatNumber(benefitDiagnostics.optedInForumAccounts) : '-'} />
+          <Stat label="Queue priority" value={benefitDiagnostics ? benefitDiagnostics.queue.priorityEnabled ? 'Enabled' : 'Off' : '-'} />
+        </div>
+        <p className="se-hint">Forum integration mode: {benefitDiagnostics?.forum.mode ?? 'loading'}; writes to Flarum: {benefitDiagnostics?.forum.writesToFlarum ? 'yes' : 'no'}.</p>
+      </Panel>
 
       <Panel title="Grant rewards" className="se-mb">
         <form onSubmit={previewGrant} noValidate>

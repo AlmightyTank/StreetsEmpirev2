@@ -351,6 +351,8 @@ export interface ProfileLookDto {
   crew: CrewCosmeticLoadout;
   /** Item art collections the owner has earned, oldest first. */
   collections: { key: string; title: string; rarity: string }[];
+  /** Slice C. Stable owned banner style, absent for old clients and classic profiles. */
+  crewBanner?: string | null;
 }
 
 export interface PublicPlayerProfileDto {

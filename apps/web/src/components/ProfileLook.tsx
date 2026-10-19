@@ -7,6 +7,7 @@ import { ItemTile } from './ItemTile.js';
 export function hasProfileLook(look: ProfileLookDto | null | undefined): look is ProfileLookDto {
   if (!look) return false;
   return look.collections.length > 0
+    || Boolean(look.crewBanner)
     || Object.values(look.items).some((style) => style && style !== 'classic')
     || Object.values(look.crew).some((style) => style !== 'classic');
 }
@@ -39,6 +40,7 @@ export function ProfileLook({ look, isYou }: { look: ProfileLookDto; isYou: bool
       )}
 
       <div className="se-profile-look__groups">
+        {look.crewBanner ? <div className="se-profile-look__banner" data-crew-banner={look.crewBanner}><span className="se-profile-look__label">Crew banner</span><strong>Midnight Chrome</strong></div> : null}
         {ITEM_COSMETIC_GROUPS.map((group) => (
           <div className="se-profile-look__group" key={group.key}>
             <span className="se-profile-look__label">{group.label}</span>

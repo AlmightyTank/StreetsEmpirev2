@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import type { SupporterPollsDto, SupporterStatusDto } from '@streets/shared';
+import type { SupporterBenefitsDto, SupporterPollsDto, SupporterStatusDto } from '@streets/shared';
 import { ApiError } from '../api/client.js';
 import { supporterApi } from '../api/supporter.js';
 import { Alert } from './Alert.js';
@@ -27,6 +27,7 @@ export function SupporterPanel() {
   const [searchParams, setSearchParams] = useSearchParams();
   const returned = searchParams.get('supporter');
   const [status, setStatus] = useState<SupporterStatusDto | null>(null);
+  const [benefits, setBenefits] = useState<SupporterBenefitsDto | null>(null);
   const [polls, setPolls] = useState<SupporterPollsDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -38,8 +39,9 @@ export function SupporterPanel() {
 
   const load = useCallback(async () => {
     try {
-      const next = await supporterApi.status();
+      const [next, benefitState] = await Promise.all([supporterApi.status(), supporterApi.benefits()]);
       setStatus(next);
+      setBenefits(benefitState);
       return next;
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Could not load your supporter status.');
@@ -222,6 +224,28 @@ export function SupporterPanel() {
         </Alert>
       ) : null}
       {error ? <Alert>{error}</Alert> : null}
+
+      {benefits ? (
+        <section className="se-supporter-benefit-status" aria-labelledby="supporter-benefit-status-title">
+          <h3 id="supporter-benefit-status-title">Your supporter benefits</h3>
+          <div className="se-grid-2">
+            <div>
+              <strong>Access</strong>
+              <p className="se-muted">{benefits.activePaid ? 'Active paid supporter' : benefits.earnedPermanently ? 'Permanent rewards earned; active access is not currently paid' : 'No active supporter access'}</p>
+              <p className="se-muted">Queue priority: {benefits.queue.eligible ? 'available now' : benefits.queue.state === 'COMING_LATER' ? 'coming later' : 'not available'}</p>
+            </div>
+            <div>
+              <strong>Community</strong>
+              <p className="se-muted">Forum: {benefits.forum.linked ? benefits.forum.visible ? 'linked and opted in' : 'linked, visibility off' : 'not linked'}</p>
+              <p className="se-muted">Sync: pull-through; no billing details shared</p>
+            </div>
+          </div>
+          <ul className="se-supporter-benefit-list">
+            {benefits.cosmetics.map((cosmetic) => <li key={cosmetic.key}><span>{cosmetic.name}</span><span className={`se-tag${cosmetic.owned ? ' se-tag--good' : ''}`}>{cosmetic.state === 'EARNED_PERMANENTLY' ? 'Earned permanently' : cosmetic.state === 'AVAILABLE_NOW' ? 'Available now' : 'Not available'}</span></li>)}
+          </ul>
+          {benefits.monthlyDrop ? <p className="se-hint">Monthly drop: {benefits.monthlyDrop.held ? 'earned permanently' : benefits.monthlyDrop.state === 'AVAILABLE_NOW' ? 'available now' : 'not available'}.</p> : null}
+        </section>
+      ) : null}
 
       <p>
         Supporting keeps StreetsEmpire running. It is cosmetic only: no cash, turns, product, weapons or anything else that

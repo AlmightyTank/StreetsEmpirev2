@@ -112,6 +112,8 @@ model Account {
   crownAdjustments                 CrownAdjustmentRequest[]
   supporterSeasonStamps            SupporterSeasonStamp[]
   supporterVotes                   SupporterVote[]
+  admissionTickets                 AdmissionTicket[]
+  admissionLeases                  AdmissionLease[]
   roundPlayers                     RoundPlayer[]
   aftermathRewardClaims            RoundAftermathRewardClaim[]
   authoredNews                     GameNews[]                        @relation("GameNewsAuthor")
@@ -235,6 +237,8 @@ model AccountProfile {
   /// Avatar built from face pieces (base, hair, eyes, shirt, ...). Shown when there is no image.
   profileAvatar           Json?
   profileBannerUrl        String?
+  /// Slice C. Stable supporter crew banner key; entitlement is checked before display.
+  activeCrewBannerKey     String?
   profileEffect           String  @default("none")
   activeProfileFrameKey   String?
   activeAvatarFrameKey    String?
@@ -256,6 +260,8 @@ model AccountProfile {
   showThemeOnProfile      Boolean @default(true)
   /// Slice E. Visitors see the owner's item and crew look on their public profile.
   showLookOnProfile       Boolean @default(true)
+  /// Slice E. Opt-in decorative cosmetics for the linked forum account.
+  forumCosmeticsVisible   Boolean @default(false)
   /// 2.1.0-C. Player-only crew stories; never affects gameplay.
   showCrewMoments         Boolean @default(false)
   /// 2.1.0-F. Account-private cosmetic milestone celebrations, off by default.
@@ -835,6 +841,61 @@ model Session {
 
   @@index([accountId])
   @@index([expiresAt])
+}
+
+/// A single account's place in the optional capacity waiting room. This is
+/// deliberately account-scoped, rather than session-scoped, so extra tabs and
+/// devices cannot consume extra admission slots.
+model AdmissionTicket {
+  id          String   @id @default(cuid())
+  accountId   String
+  account     Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  roundId     String
+  round       Round    @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  lane        String
+  enqueuedAt  DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  admittedAt  DateTime?
+  canceledAt  DateTime?
+
+  @@index([lane, enqueuedAt])
+  @@index([canceledAt, enqueuedAt])
+  @@unique([accountId, roundId])
+  @@index([roundId, lane, enqueuedAt])
+}
+
+/// Renewable account admission lease. A lease is never tied to a browser
+/// session and is the only thing that permits gameplay while capacity control
+/// is enabled.
+model AdmissionLease {
+  id         String   @id @default(cuid())
+  accountId  String
+  account    Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  roundId    String
+  round      Round    @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  issuedAt   DateTime @default(now())
+  renewedAt  DateTime @default(now())
+  expiresAt  DateTime
+
+  @@index([expiresAt])
+  @@unique([accountId, roundId])
+  @@index([roundId, expiresAt])
+}
+
+/// One row controls admission for one round. It is seeded lazily so a migration
+/// never enables a queue by accident.
+model AdmissionSettings {
+  id                    Int      @id @default(1)
+  roundId               String   @unique
+  round                 Round    @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  enabled               Boolean  @default(false)
+  supporterPriority     Boolean  @default(false)
+  capacity              Int?
+  rotationSequence      Int      @default(0)
+  renewalFailures       Int      @default(0)
+  lastRenewalFailureAt  DateTime?
+  lastPromotionAt       DateTime?
+  updatedAt             DateTime @updatedAt
 }
 
 /// rc.3. One-use codes for signing in when the authenticator phone is lost. Only hashes are kept.
@@ -1554,6 +1615,9 @@ model QuestProgressReceipt {
 
 model Round {
   id   String @id @default(cuid())
+  admissionSettings AdmissionSettings?
+  admissionTickets AdmissionTicket[]
+  admissionLeases AdmissionLease[]
   criminalCaseFiles CriminalCaseFile[]
   name String
   slug String @unique

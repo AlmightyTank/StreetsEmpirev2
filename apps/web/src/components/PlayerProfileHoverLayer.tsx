@@ -310,6 +310,7 @@ export function PlayerProfileHoverLayer() {
     >
       <div
         className="se-profile-hover-card__banner"
+        data-crew-banner={profile?.look?.crewBanner ?? undefined}
         aria-hidden="true"
         style={profile?.cosmetics.bannerUrl ? { backgroundImage: `linear-gradient(90deg, rgba(5, 8, 8, 0.36), rgba(5, 8, 8, 0.82)), url("${profile.cosmetics.bannerUrl}")` } : undefined}
       >

@@ -198,6 +198,17 @@
   filter: saturate(1.08);
 }
 
+.se-profile-pagehead__banner[data-crew-banner="midnight-chrome-crew-banner"] {
+  background:
+    linear-gradient(90deg, rgba(8, 10, 14, .94), rgba(28, 32, 40, .68) 48%, rgba(8, 10, 14, .88)),
+    linear-gradient(135deg, #252a33, #8e96a3 48%, #151820 49%, #4b5361);
+}
+.se-profile-pagehead__banner[data-crew-banner="midnight-chrome-crew-banner-night"] {
+  background:
+    linear-gradient(90deg, rgba(3, 5, 10, .96), rgba(16, 27, 43, .68) 48%, rgba(3, 5, 10, .92)),
+    linear-gradient(160deg, #101522, #506782 52%, #080c14 53%, #2b3548);
+}
+
 .se-profile-pagehead__banner::after {
   content: '';
   position: absolute;

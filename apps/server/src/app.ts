@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { env } from './config/env.js';
 import authPlugin from './plugins/auth.js';
+import admissionPlugin from './plugins/admission.js';
 import errorHandlerPlugin from './plugins/error-handler.js';
 import prismaPlugin from './plugins/prisma.js';
 import rateLimitPlugin from './plugins/rate-limit.js';
@@ -54,6 +55,7 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   await app.register(prismaPlugin);
   await app.register(authPlugin);
+  await app.register(admissionPlugin);
   await app.register(rateLimitPlugin);
   await app.register(maintenancePlugin);
   await app.register(playAccessPlugin);

@@ -288,6 +288,8 @@ export interface AccountProfileSettingsDto {
   profileAvatar?: AvatarParts | null;
   /** Direct HTTPS image URL used for the public profile banner/background. */
   profileBannerUrl: string | null;
+  /** Slice C. Selected owned crew banner; optional for older clients. */
+  activeCrewBannerKey?: string | null;
   profileEffect: ProfileEffect;
   activeProfileFrameKey: string | null;
   /** Independently equipped avatar frame. Optional for older clients. */
@@ -303,6 +305,8 @@ export interface AccountProfileSettingsDto {
   showThemeOnProfile?: boolean;
   /** Slice E. Visitors see this player's item and crew look on their profile. Optional for older clients. */
   showLookOnProfile?: boolean;
+  /** Slice E. Opt-in decorative cosmetics on the linked forum account. */
+  forumCosmeticsVisible?: boolean;
   /** Account-private optional crew personality cards, off by default. */
   showCrewMoments?: boolean;
   /** Optional player-only milestone celebrations; default false. */
@@ -341,6 +345,8 @@ export interface AccountProfileSettingsResponseDto {
     /** Universal item/crew skins, locked ones included. Optional so older fixture payloads stay valid. */
     itemStyles?: CollectionOptionDto[];
     crewStyles?: CollectionOptionDto[];
+    /** Slice C. Owned crew banners, with locked previews included. */
+    crewBanners?: CollectionOptionDto[];
     densities: CosmeticOptionDto[];
     moneyFormats: CosmeticOptionDto[];
     defaultLandings: CosmeticOptionDto[];
@@ -2248,6 +2254,61 @@ export interface SupporterStatusDto {
   } | null;
   /** Monthly drops and tenure badges the account holds, newest first. */
   dropsHeld: { month: string; name: string }[];
+}
+
+export type SupporterBenefitState = 'AVAILABLE_NOW' | 'ACTIVE_PAID' | 'EARNED_PERMANENTLY' | 'COMING_LATER' | 'NOT_AVAILABLE';
+export interface SupporterBenefitsDto {
+  activePaid: boolean;
+  earnedPermanently: boolean;
+  queue: { eligible: boolean; state: SupporterBenefitState; capacityGateEnabled: boolean; priorityEnabled: boolean };
+  monthlyDrop: { name: string; held: boolean; state: SupporterBenefitState } | null;
+  cosmetics: { key: string; name: string; kind: string; owned: boolean; state: SupporterBenefitState }[];
+  forum: { linked: boolean; visible: boolean; syncMode: 'pull-through'; state: SupporterBenefitState };
+}
+export interface AdminSupporterBenefitsDiagnosticsDto {
+  linkedForumAccounts: number;
+  optedInForumAccounts: number;
+  activePaidAccounts: number;
+  permanentlyRewardedAccounts: number;
+  permanentlyOwnedCosmetics: number;
+  queue: { capacityGateEnabled: boolean; priorityEnabled: boolean };
+  forum: { mode: 'pull-through'; writesToFlarum: false };
+}
+
+/** The account-scoped capacity waiting-room state. Position is intentionally approximate between polls. */
+export type AdmissionStatusDto =
+  | { state: 'disabled' }
+  | { state: 'not-queued' }
+  | { state: 'queued'; position: number; lane: 'SUPPORTER' | 'STANDARD'; enqueuedAt: string }
+  | { state: 'admitted'; expiresAt: string };
+
+export type InsightMetricStatus = 'AVAILABLE' | 'NOT_RECORDED';
+export interface InsightMetricDto {
+  value: number | null;
+  status: InsightMetricStatus;
+}
+export interface EmpireInsightsRoundDto {
+  id: string;
+  name: string;
+  status: RoundStatus;
+  startsAt: string;
+  endsAt: string;
+  metrics: {
+    street: { turnsWorked: InsightMetricDto; streetEarningsCents: InsightMetricDto; recruitsFound: InsightMetricDto; peakCrew: InsightMetricDto };
+    combat: { raidsWon: InsightMetricDto; raidsLost: InsightMetricDto; defensesHeld: InsightMetricDto; defensesLost: InsightMetricDto; driveBysLanded: InsightMetricDto; thugsDefeated: InsightMetricDto; cashStolenCents: InsightMetricDto; biggestRaidCents: InsightMetricDto };
+    turf: { blocksCaptured: InsightMetricDto; blocksLost: InsightMetricDto; blockHours: InsightMetricDto; citiesControlled: InsightMetricDto };
+    travel: { runsCompleted: InsightMetricDto; driveHours: InsightMetricDto; cargoMoved: InsightMetricDto; convoyAttacksWon: InsightMetricDto };
+    economy: { productProduced: InsightMetricDto; productSold: InsightMetricDto; largestTransactionCents: InsightMetricDto; traderReputation: InsightMetricDto };
+    business: { businessBuilds: InsightMetricDto; businessIncomeCents: InsightMetricDto; racketsStarted: InsightMetricDto; launderedHeat: InsightMetricDto; businessesTorched: InsightMetricDto; blockWarsDeclared: InsightMetricDto; blockWarAttackWins: InsightMetricDto; blockWarDefenseWins: InsightMetricDto; blockWarTakes: InsightMetricDto; blockWarSacks: InsightMetricDto };
+    casino: { casinoRatedWagers: InsightMetricDto; casinoTheoCents: InsightMetricDto; casinoCitiesPlayed: InsightMetricDto; casinoVipWagers: InsightMetricDto; casinoCompsCents: InsightMetricDto; casinoJackpots: InsightMetricDto; casinoBiggestWinCents: InsightMetricDto };
+    law: { lawSeason: InsightMetricDto; lawPeakStage: InsightMetricDto; lawWarrantsServed: InsightMetricDto };
+    factions: { factionsConnected: InsightMetricDto; factionsInnerCircle: InsightMetricDto };
+  };
+}
+export interface EmpireInsightsDto {
+  supporter: true;
+  generatedAt: string;
+  rounds: EmpireInsightsRoundDto[];
 }
 
 export interface SupporterPollOptionDto {

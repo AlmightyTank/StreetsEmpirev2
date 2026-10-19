@@ -426,6 +426,7 @@ export const updateAccountProfileSettingsSchema = z.object({
   /** Omitted keeps the built avatar; null removes it. */
   profileAvatar: avatarPartsSchema.nullable().optional(),
   profileBannerUrl: profileImageUrlSchema.nullable().optional(),
+  activeCrewBannerKey: z.string().trim().min(1).max(80).nullable().optional(),
   profileEffect: profileEffectSchema.optional(),
   activeProfileFrameKey: z.string().trim().min(1).max(80).nullable(),
   activeAvatarFrameKey: z.string().trim().min(1).max(80).nullable().optional(),
@@ -436,6 +437,7 @@ export const updateAccountProfileSettingsSchema = z.object({
   crewCosmetics: crewCosmeticLoadoutSchema,
   showThemeOnProfile: z.boolean().default(true),
   showLookOnProfile: z.boolean().default(true),
+  forumCosmeticsVisible: z.boolean().optional(),
   showCrewMoments: z.boolean().optional(),
   showCrewCelebrations: z.boolean().optional(),
   /** Birthdays: a cake on the name on the day. Omitted keeps the current choice. */

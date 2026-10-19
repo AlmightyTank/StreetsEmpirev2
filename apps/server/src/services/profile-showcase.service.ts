@@ -59,14 +59,20 @@ export async function profileShowcase(
 ): Promise<{ siteTheme: string | null; siteThemeLabel: string | null; look: ProfileLookDto | null }> {
   const showTheme = profile?.showThemeOnProfile ?? true;
   const showLook = profile?.showLookOnProfile ?? true;
-  const [themes, collections, trialActive] = await Promise.all([
+  const [themes, collections, bannerUnlocks, trialActive] = await Promise.all([
     showTheme && profile?.activeSiteThemeKey ? QuestCosmeticService.optionsForAccount(db, accountId, 'SITE_THEME') : [],
     showLook
       ? db.accountCosmeticUnlock.findMany({
         where: { accountId, kind: 'ITEM_COLLECTION' },
         orderBy: [{ awardedAt: 'asc' }, { key: 'asc' }],
       })
-    : [],
+      : [],
+    showLook && profile?.activeCrewBannerKey
+      ? db.accountCosmeticUnlock.findMany({
+        where: { accountId, kind: 'CREW_BANNER', key: profile.activeCrewBannerKey },
+        select: { key: true },
+      })
+      : [],
     supporterTrialActive(db as PrismaClient, accountId),
   ]);
   const theme = themes.find((option) => option.key === profile?.activeSiteThemeKey) ?? null;
@@ -82,14 +88,18 @@ export async function profileShowcase(
   const visibleCollections = trialActive
     ? [...collections, ...TRIAL_SUPPORTER_COSMETICS.filter((cosmetic) => cosmetic.kind === 'ITEM_COLLECTION').map((cosmetic) => ({ key: cosmetic.key, title: cosmetic.name, rarity: cosmetic.rarity }))]
     : collections;
+  const look: ProfileLookDto = {
+    items: itemCosmeticLoadout(profile?.itemCosmetics, owned),
+    crew: crewCosmeticLoadout(profile?.crewCosmetics, owned),
+    collections: visibleCollections.map((row) => ({ key: row.key, title: row.title, rarity: row.rarity })),
+  };
+  if (profile?.activeCrewBannerKey && bannerUnlocks.some((unlock) => unlock.key === profile.activeCrewBannerKey)) {
+    look.crewBanner = profile.activeCrewBannerKey;
+  }
   return {
     siteTheme,
     siteThemeLabel,
-    look: {
-      items: itemCosmeticLoadout(profile?.itemCosmetics, owned),
-      crew: crewCosmeticLoadout(profile?.crewCosmetics, owned),
-      collections: visibleCollections.map((row) => ({ key: row.key, title: row.title, rarity: row.rarity })),
-    },
+    look,
   };
 }
 

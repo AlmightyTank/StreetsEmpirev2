@@ -720,7 +720,8 @@ export function ProfilePage() {
         >
           {player ? (
             <div
-              className={`se-profile-pagehead__banner${player.cosmetics.bannerUrl ? ' se-profile-pagehead__banner--uploaded' : ''}`}
+              className={`se-profile-pagehead__banner${player.cosmetics.bannerUrl ? ' se-profile-pagehead__banner--uploaded' : ''}${player.look?.crewBanner ? ' se-profile-pagehead__banner--crew' : ''}`}
+              data-crew-banner={player.look?.crewBanner ?? undefined}
               aria-hidden="true"
               style={player.cosmetics.bannerUrl ? { backgroundImage: `linear-gradient(90deg, rgba(5, 8, 12, 0.9), rgba(5, 8, 12, 0.58) 48%, rgba(5, 8, 12, 0.78)), url("${player.cosmetics.bannerUrl}")` } : undefined}
             />

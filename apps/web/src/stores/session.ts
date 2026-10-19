@@ -34,6 +34,7 @@ export const DEFAULT_PROFILE_SETTINGS: AccountProfileSettingsDto = {
   profileImageUrl: null,
   profileAvatar: null,
   profileBannerUrl: null,
+  activeCrewBannerKey: null,
   profileEffect: 'none',
   activeProfileFrameKey: null,
   activeAvatarFrameKey: null,

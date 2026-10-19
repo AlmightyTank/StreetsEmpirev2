@@ -1136,6 +1136,7 @@ export function AccountSettingsPage() {
               settings={cosmetics}
               styles={profileSettings.options.itemStyles ?? FALLBACK_ITEM_STYLES}
               crewStyles={profileSettings.options.crewStyles ?? FALLBACK_CREW_STYLES}
+              bannerStyles={profileSettings.options.crewBanners ?? []}
               onChange={setCosmetics}
             />
 

@@ -40,6 +40,7 @@ import { CollectionPage } from './pages/CollectionPage.js';
 import { DropPage } from './pages/DropPage.js';
 import { AdminDropPage } from './pages/AdminDropPage.js';
 import { SupporterPage } from './pages/SupporterPage.js';
+import { EmpireInsightsPage } from './pages/EmpireInsightsPage.js';
 import { XpProgressPage } from './pages/XpProgressPage.js';
 import { ConsolePage } from './pages/ConsolePage.js';
 import { DashboardPage } from './pages/DashboardPage.js';
@@ -204,6 +205,7 @@ export function App() {
         <Route path="drop/crowns" element={<RequireAccount><DropPage view="crowns" /></RequireAccount>} />
         <Route path="drop/pass" element={<Protected><LiveRound><DropPage view="pass" /></LiveRound></Protected>} />
         <Route path="supporter" element={<RequireAccount><SupporterPage /></RequireAccount>} />
+        <Route path="insights" element={<Protected><EmpireInsightsPage /></Protected>} />
         <Route path="stores" element={<Protected><LiveRound><StoresIndexPage /></LiveRound></Protected>} />
         <Route path="stores/:slug" element={<Protected><LiveRound><StorePage /></LiveRound></Protected>} />
         <Route path="supply" element={<Protected><LiveRound><SupplyPage /></LiveRound></Protected>} />

@@ -44,6 +44,10 @@ const envSchema = z.object({
   BETA_INVITE_ONLY: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
   /** Staged release switch for public aftermath/archive endpoints; report capture and rewards are unaffected. */
   ROUND_AFTERMATH_PUBLIC_ENABLED: z.enum(['true', 'false']).default('true').transform((value) => value === 'true'),
+  /** Capacity admission is deliberately off until measured capacity and load tests exist. */
+  ADMISSION_CAPACITY_ENABLED: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
+  /** Supporter priority is independently gated so fairness can be tested first. */
+  ADMISSION_SUPPORTER_PRIORITY_ENABLED: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
   /** Non-production admin QA mode: expose seasonal event quests outside their real-world window. */
   SEASONAL_EVENT_ADMIN_TEST_MODE: z.enum(['true', 'false']).optional(),
 
@@ -285,6 +289,11 @@ export const env = {
   },
   roundAftermath: {
     publicEnabled: parsed.data.ROUND_AFTERMATH_PUBLIC_ENABLED,
+  },
+  admission: {
+    enabled: parsed.data.ADMISSION_CAPACITY_ENABLED,
+    supporterPriority: parsed.data.ADMISSION_SUPPORTER_PRIORITY_ENABLED,
+    leaseMs: 90_000,
   },
   seasonalEvents: {
     adminTestMode: seasonalEventAdminTestMode,

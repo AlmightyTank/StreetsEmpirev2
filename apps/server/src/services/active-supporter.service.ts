@@ -30,8 +30,8 @@ export const ActiveSupporterService = {
     return new Set([...stripe, ...play].map((row) => row.accountId));
   },
 
-  async has(prisma: PrismaClient, accountId: string, now = new Date()): Promise<boolean> {
-    return (await ActiveSupporterService.accountIds(prisma, [accountId], now)).has(accountId);
+  async has(prisma: PrismaClient, accountId: string, now = new Date(), paidOnly = false): Promise<boolean> {
+    return (await ActiveSupporterService.accountIds(prisma, [accountId], now, paidOnly)).has(accountId);
   },
 
   /** Paid supporters only: the Drop discount never applies during a free trial. */
