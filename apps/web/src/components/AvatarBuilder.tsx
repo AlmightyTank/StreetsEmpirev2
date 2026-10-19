@@ -32,13 +32,16 @@ const PART_LABELS: Record<AvatarPartKey, string> = {
   earrings: 'Earrings',
   headwear: 'Hat',
   grill: 'Grill',
+  aura: 'Aura',
   background: 'Background',
 };
 
 /** A line under a part's options, for pieces that only show sometimes. */
 const PART_NOTES: Partial<Record<AvatarPartKey, string>> = {
   grill: 'Shows with a grin or a laugh.',
+  accessory: 'Shades and glasses come off under the neon visor.',
   earrings: 'Hidden under a ski mask.',
+  aura: 'Moves on your profile and here; still when motion is reduced.',
 };
 
 const TABS: { key: string; label: string; parts: AvatarPartKey[] }[] = [
@@ -51,7 +54,7 @@ const TABS: { key: string; label: string; parts: AvatarPartKey[] }[] = [
   { key: 'shirt', label: 'Shirt', parts: ['shirt', 'shirtColor'] },
   { key: 'mask', label: 'Mask', parts: ['mask', 'maskColor'] },
   { key: 'extras', label: 'Extras', parts: ['accessory', 'earrings', 'grill'] },
-  { key: 'background', label: 'Background', parts: ['background'] },
+  { key: 'background', label: 'Background', parts: ['background', 'aura'] },
 ];
 
 function sameParts(a: AvatarParts, b: AvatarParts): boolean {
@@ -109,6 +112,7 @@ function randomParts(base: AvatarBase, owned: ReadonlySet<string>): AvatarParts 
     mask: Math.random() < 0.75 ? 'none' : parts.mask,
     headwear: Math.random() < 0.7 ? 'none' : parts.headwear,
     grill: Math.random() < 0.8 ? 'none' : parts.grill,
+    aura: Math.random() < 0.8 ? 'none' : parts.aura,
     // Mostly a style cut for the base, with the odd crossover.
     hair: Math.random() < 0.8 ? randomHair(base) : parts.hair,
   };
@@ -153,7 +157,7 @@ export function AvatarBuilder({ value, onChange, owned = NO_UNLOCKS }: {
     <div className="se-avatar-builder">
       <div className="se-avatar-builder__stage">
         <span className="se-avatar-builder__preview">
-          <BuiltAvatar parts={value} />
+          <BuiltAvatar parts={value} live />
         </span>
         <div className="se-avatar-builder__stage-actions">
           <button type="button" className="se-btn se-btn--ghost se-btn--sm" onClick={() => onChange(randomParts(value.base, owned))}>

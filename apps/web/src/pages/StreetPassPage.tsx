@@ -236,7 +236,7 @@ function CosmeticRewardPreviewCarousel({ previews }: { previews: CosmeticPreview
           <div className="se-pass-theme-preview__frame-stage" role="img" aria-label={`${displayName}'s avatar wearing ${active.label}`}>
             <span className="se-pass-theme-preview__frame-avatar" aria-hidden="true">
               {/* Your built avatar wears it; a photo or initials can't, so the starter look stands in. */}
-              <BuiltAvatar parts={{ ...(profileAvatar ?? DEFAULT_AVATAR_PARTS.boy), [wearable.part]: wearable.option.key }} />
+              <BuiltAvatar parts={{ ...(profileAvatar ?? DEFAULT_AVATAR_PARTS.boy), [wearable.part]: wearable.option.key }} live />
             </span>
           </div>
         ) : active.kind === 'item' && activeCollectionStyle && activeWeapon ? (

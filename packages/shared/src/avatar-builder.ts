@@ -18,6 +18,12 @@ export const AVATAR_UNLOCKS = {
   snapback: 'street-pass-s1-snapback',
   prisonJumpsuit: 'avatar-prison-jumpsuit',
   santaHat: 'holiday-road-santa-hat',
+  kingpinFurCoat: 'drop-kingpin-luxe-fur-coat',
+  kingpinCrownEarrings: 'drop-kingpin-luxe-crown-earrings',
+  neonVisor: 'drop-neon-underworld-visor',
+  neonGlow: 'drop-neon-underworld-glow',
+  heistParka: 'drop-winter-heist-parka',
+  heistSnowfall: 'drop-winter-heist-snowfall',
 } as const;
 
 export const AVATAR_PART_OPTIONS = {
@@ -121,6 +127,9 @@ export const AVATAR_PART_OPTIONS = {
     { key: 'jersey', label: 'Jersey' },
     // Always County orange; the shirt color does not apply.
     { key: 'prison-jumpsuit', label: 'Prison jumpsuit', unlock: AVATAR_UNLOCKS.prisonJumpsuit, unlockHint: 'Get arrested once.' },
+    { key: 'fur-coat', label: 'Fur coat', unlock: AVATAR_UNLOCKS.kingpinFurCoat, unlockHint: 'The Drop: Kingpin Luxe, 400 Crowns.' },
+    // Always frost white; the shirt color does not apply.
+    { key: 'heist-parka', label: 'Heist parka', unlock: AVATAR_UNLOCKS.heistParka, unlockHint: 'The Drop: Winter Heist, 400 Crowns.' },
   ],
   shirtColor: [
     { key: 'black', label: 'Black', color: '#1f2228' },
@@ -139,6 +148,8 @@ export const AVATAR_PART_OPTIONS = {
     { key: 'skull-bandana', label: 'Skull bandana' },
     { key: 'hockey', label: 'Hockey mask' },
     { key: 'gas-mask', label: 'Gas mask' },
+    // Lit violet and teal; the mask color does not apply.
+    { key: 'neon-visor', label: 'Neon visor', unlock: AVATAR_UNLOCKS.neonVisor, unlockHint: 'The Drop: Neon Underworld, 300 Crowns.' },
   ],
   maskColor: [
     { key: 'black', label: 'Black', color: '#1d1f24' },
@@ -159,6 +170,7 @@ export const AVATAR_PART_OPTIONS = {
     { key: 'none', label: 'None' },
     { key: 'studs', label: 'Stud earrings' },
     { key: 'hoops', label: 'Hoop earrings' },
+    { key: 'crown-drop', label: 'Crown drops', unlock: AVATAR_UNLOCKS.kingpinCrownEarrings, unlockHint: 'The Drop: Kingpin Luxe, 250 Crowns.' },
   ],
   /** Drawn over the hair. Tall hair is cut down to fit under a hat. */
   headwear: [
@@ -169,7 +181,13 @@ export const AVATAR_PART_OPTIONS = {
     { key: 'santa-hat', label: 'Santa hat', unlock: AVATAR_UNLOCKS.santaHat, hidden: true, unlockHint: 'A Christmas good deed on the road.' },
     { key: 'kingpin-crown', label: 'Kingpin crown', unlock: AVATAR_UNLOCKS.kingpinCrown, unlockHint: 'The Drop: Kingpin Luxe, 300 Crowns.' },
   ],
-  /** Shows only with a mouth that shows teeth: smile, grin or laugh. */
+  /** Drawn behind the body, over the background. Animated on large portraits; still under reduced motion. */
+  aura: [
+    { key: 'none', label: 'None' },
+    { key: 'neon-glow', label: 'Neon glow', unlock: AVATAR_UNLOCKS.neonGlow, unlockHint: 'The Drop: Neon Underworld, 500 Crowns.' },
+    { key: 'snowfall', label: 'Snowfall', unlock: AVATAR_UNLOCKS.heistSnowfall, unlockHint: 'The Drop: Winter Heist, 500 Crowns.' },
+  ],
+  /** Shows only with a mouth that shows teeth: grin or laugh. */
   grill: [
     { key: 'none', label: 'None' },
     { key: 'gold-tooth', label: 'Gold tooth' },
@@ -215,6 +233,7 @@ export const DEFAULT_AVATAR_PARTS: Record<AvatarBase, AvatarParts> = {
     earrings: 'none',
     headwear: 'none',
     grill: 'none',
+    aura: 'none',
     background: 'brick',
   },
   girl: {
@@ -236,6 +255,7 @@ export const DEFAULT_AVATAR_PARTS: Record<AvatarBase, AvatarParts> = {
     earrings: 'hoops',
     headwear: 'none',
     grill: 'none',
+    aura: 'none',
     background: 'city',
   },
 };
@@ -273,6 +293,7 @@ export const avatarPartsSchema = z.preprocess(withEarringsSlot, z.object({
   earrings: partEnum('earrings').default('none'),
   headwear: partEnum('headwear').default('none'),
   grill: partEnum('grill').default('none'),
+  aura: partEnum('aura').default('none'),
   background: partEnum('background'),
 }).strict()) as unknown as z.ZodType<AvatarParts, z.ZodTypeDef, unknown>;
 

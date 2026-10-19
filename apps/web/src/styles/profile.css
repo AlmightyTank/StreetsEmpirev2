@@ -1525,3 +1525,34 @@
 .se-discovery-families { list-style: none; display: grid; gap: 4px; margin: 0; padding: 0; font-size: 11px; color: var(--se-muted); }
 .se-ach--discovery > .se-btn { margin-top: auto; align-self: flex-start; }
 .se-profile-achievements .se-ach.se-ach--trophy { min-height: 0; }
+
+/* Avatar auras: they move only on a live portrait (one large avatar, never a list) and stop under reduced motion. */
+.se-built-avatar--live .se-avatar-aura--neon {
+  animation: se-avatar-aura-pulse 4.5s ease-in-out infinite alternate;
+}
+
+.se-built-avatar--live .se-avatar-aura__fall {
+  animation: se-avatar-aura-fall 14s linear infinite;
+}
+
+@keyframes se-avatar-aura-pulse {
+  from { opacity: 0.55; }
+  to { opacity: 1; }
+}
+
+@keyframes se-avatar-aura-fall {
+  from { transform: translateY(0); }
+  to { transform: translateY(128px); }
+}
+
+.se-reduced-motion .se-built-avatar--live .se-avatar-aura--neon,
+.se-reduced-motion .se-built-avatar--live .se-avatar-aura__fall {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .se-built-avatar--live .se-avatar-aura--neon,
+  .se-built-avatar--live .se-avatar-aura__fall {
+    animation: none;
+  }
+}

@@ -8,15 +8,19 @@ import { avatarColor, type AvatarParts } from '@streets/shared';
  * shading, dark ink outlines, a soft drop shadow and rim highlights, with the
  * head, eyes and shoulders on the portraits' grid so the two sit together.
  */
-export function BuiltAvatar({ parts, className }: { parts: AvatarParts; className?: string }) {
+/**
+ * `live` lets an aura move: set it on large single portraits (builder, profile,
+ * Drop art), never in lists. Reduced motion stills it either way.
+ */
+export function BuiltAvatar({ parts, className, live = false }: { parts: AvatarParts; className?: string; live?: boolean }) {
   // Gradient ids are per drawing, so many avatars on one page keep their own colors.
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, '');
   const ref = (name: string) => `url(#${uid}-${name})`;
   const girl = parts.base === 'girl';
   const skin = avatarColor('skin', parts.skin);
   const hair = avatarColor('hairColor', parts.hairColor);
-  // The jumpsuit is always County orange.
-  const shirt = parts.shirt === 'prison-jumpsuit' ? JUMPSUIT_ORANGE : avatarColor('shirtColor', parts.shirtColor);
+  // The jumpsuit and the parka keep their own colors.
+  const shirt = FIXED_SHIRT_COLORS[parts.shirt] ?? avatarColor('shirtColor', parts.shirtColor);
   const mask = avatarColor('maskColor', parts.maskColor);
   const body = girl ? GIRL_BODY : BOY_BODY;
   const ctx: Ctx = { ref, girl, skin, hair, shirt, mask, body };
@@ -28,7 +32,7 @@ export function BuiltAvatar({ parts, className }: { parts: AvatarParts; classNam
 
   return (
     <svg
-      className={`se-built-avatar${className ? ` ${className}` : ''}`}
+      className={`se-built-avatar${live ? ' se-built-avatar--live' : ''}${className ? ` ${className}` : ''}`}
       viewBox="0 0 128 128"
       aria-hidden="true"
       focusable="false"
@@ -65,6 +69,11 @@ export function BuiltAvatar({ parts, className }: { parts: AvatarParts; classNam
           <stop offset=".5" stopColor="#0b0f0d" />
           <stop offset="1" stopColor="#1c2a22" />
         </linearGradient>
+        <linearGradient id={`${uid}-visor`} x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stopColor="#8b3fd9" />
+          <stop offset=".55" stopColor="#4b2a8f" />
+          <stop offset="1" stopColor="#1fb9ac" />
+        </linearGradient>
         <radialGradient id={`${uid}-blush`}>
           <stop offset="0" stopColor="#e0606a" stopOpacity=".45" />
           <stop offset="1" stopColor="#e0606a" stopOpacity="0" />
@@ -77,6 +86,7 @@ export function BuiltAvatar({ parts, className }: { parts: AvatarParts; classNam
       </defs>
 
       <Background background={parts.background} ctx={ctx} />
+      <Aura style={parts.aura ?? 'none'} />
 
       <g filter={ref('shadow')} stroke={INK} strokeWidth="1.6" strokeLinejoin="round">
         {!hairHidden || LONG_HAIR.has(hairStyle) ? <HairBack style={hairStyle} ctx={ctx} /> : null}
@@ -95,7 +105,8 @@ export function BuiltAvatar({ parts, className }: { parts: AvatarParts; classNam
         <Headwear style={parts.headwear ?? 'none'} ctx={ctx} />
       </g>
       {hairHidden || hatted ? null : <HairShine style={hairStyle} ctx={ctx} />}
-      <Accessory style={parts.accessory} ctx={ctx} />
+      {/* Eyewear comes off under the neon visor. */}
+      <Accessory style={parts.mask === 'neon-visor' && (parts.accessory === 'shades' || parts.accessory === 'glasses') ? 'none' : parts.accessory} ctx={ctx} />
       {/* A ski mask covers the ears. */}
       {parts.mask === 'ski-mask' ? null : <Earrings style={parts.earrings ?? 'none'} ctx={ctx} />}
     </svg>
@@ -103,13 +114,14 @@ export function BuiltAvatar({ parts, className }: { parts: AvatarParts; classNam
 }
 
 /** A photo when there is one, else a built avatar, else the given fallback (usually initials). */
-export function AvatarFace({ imageUrl, avatar, fallback }: {
+export function AvatarFace({ imageUrl, avatar, fallback, live }: {
   imageUrl: string | null | undefined;
   avatar: AvatarParts | null | undefined;
   fallback: ReactNode;
+  live?: boolean;
 }) {
   if (imageUrl) return <img src={imageUrl} alt="" />;
-  if (avatar) return <BuiltAvatar parts={avatar} />;
+  if (avatar) return <BuiltAvatar parts={avatar} live={live} />;
   return <>{fallback}</>;
 }
 
@@ -143,13 +155,14 @@ export function previewFrameKeyForCosmetic(cosmeticKey: string): string | null {
 }
 
 /** One renderer for every surface: optional back layer, avatar opening, front overlay. */
-export function AvatarPortrait({ imageUrl, avatar, fallback, frameKey }: {
+export function AvatarPortrait({ imageUrl, avatar, fallback, frameKey, live }: {
   imageUrl: string | null | undefined;
   avatar: AvatarParts | null | undefined;
   fallback: ReactNode;
   frameKey: string | null | undefined;
+  live?: boolean;
 }) {
-  if (!frameKey) return <AvatarFace imageUrl={imageUrl} avatar={avatar} fallback={fallback} />;
+  if (!frameKey) return <AvatarFace imageUrl={imageUrl} avatar={avatar} fallback={fallback} live={live} />;
 
   const frameArt = avatarFrameSpec(frameKey)?.artUrl;
   return (
@@ -159,7 +172,7 @@ export function AvatarPortrait({ imageUrl, avatar, fallback, frameKey }: {
       style={avatarFrameOpeningStyle(frameKey)}
     >
       <span className="se-avatar-portrait__face">
-        <AvatarFace imageUrl={imageUrl} avatar={avatar} fallback={fallback} />
+        <AvatarFace imageUrl={imageUrl} avatar={avatar} fallback={fallback} live={live} />
       </span>
       {frameArt ? <img className="se-avatar-portrait__art" src={frameArt} alt="" /> : null}
     </span>
@@ -167,7 +180,10 @@ export function AvatarPortrait({ imageUrl, avatar, fallback, frameKey }: {
 }
 
 const INK = '#07100a';
-const JUMPSUIT_ORANGE = '#e8742a';
+const FIXED_SHIRT_COLORS: Partial<Record<AvatarParts['shirt'], string>> = {
+  'prison-jumpsuit': '#e8742a',
+  'heist-parka': '#d3e6f0',
+};
 
 type Body = { left: number; shoulderX: number; shoulderY: number; neckX: number; neckY: number; neck: string };
 type Ctx = {
@@ -291,6 +307,40 @@ function Background({ background, ctx }: { background: AvatarParts['background']
   );
 }
 
+/* Auras ------------------------------------------------------------------ */
+
+/** Snowflakes as [x, y, r]; drawn twice, a canvas apart, so the fall loops without a seam. */
+const FLAKES = [[8, 10, 1.6], [22, 34, 1.1], [36, 6, 1.4], [50, 52, 1], [70, 20, 1.5], [86, 44, 1.1], [100, 8, 1.3], [114, 30, 1.7],
+  [16, 70, 1.2], [30, 96, 1.5], [96, 78, 1.4], [108, 104, 1.1], [120, 64, 1.2], [4, 116, 1.4], [60, 88, 0.9], [78, 112, 1.3]] as const;
+
+/** Behind the body, over the background. The motion lives in profile.css and only runs on a live portrait. */
+function Aura({ style }: { style: AvatarParts['aura'] }) {
+  switch (style) {
+    case 'neon-glow':
+      return (
+        <g className="se-avatar-aura se-avatar-aura--neon">
+          <ellipse cx="64" cy="66" rx="50" ry="46" fill="none" stroke="#b46bff" strokeWidth="7" opacity=".28" />
+          <ellipse cx="64" cy="66" rx="44" ry="40" fill="none" stroke="#3ce0d0" strokeWidth="4" opacity=".35" />
+          <ellipse cx="64" cy="66" rx="44" ry="40" fill="none" stroke="#e8fffb" strokeWidth="1.1" opacity=".8" />
+          <path d="M14 126 Q24 96 40 90 M114 126 Q104 96 88 90" fill="none" stroke="#b46bff" strokeWidth="2.2" opacity=".7" strokeLinecap="round" />
+        </g>
+      );
+    case 'snowfall': {
+      const flakes = FLAKES.map(([x, y, r]) => <circle key={`${x}-${y}`} cx={x} cy={y} r={r} />);
+      return (
+        <g className="se-avatar-aura se-avatar-aura--snow" fill="#f4fbff" opacity=".9">
+          <g className="se-avatar-aura__fall">
+            {flakes}
+            <g transform="translate(0 -128)">{flakes}</g>
+          </g>
+        </g>
+      );
+    }
+    default:
+      return null;
+  }
+}
+
 /* Clothes ---------------------------------------------------------------- */
 
 function Shirt({ style, ctx }: { style: AvatarParts['shirt']; ctx: Ctx }) {
@@ -380,6 +430,42 @@ function Shirt({ style, ctx }: { style: AvatarParts['shirt']; ctx: Ctx }) {
           </Mirrored>
           <path d={`M64 ${body.neckY + 12} V126`} fill="none" stroke={shade(shirt, -0.5)} strokeWidth="1.4" strokeDasharray="1.6 1" />
           <text x="64" y="117" textAnchor="middle" fontSize="7.4" fontWeight="900" letterSpacing=".6" fontFamily="Arial Black, Arial, sans-serif" fill="#1b1d22" opacity=".78" stroke="none">COUNTY</text>
+          {folds}
+        </>
+      );
+    }
+    case 'fur-coat': {
+      // A long coat open over a dark shirt, a deep fur collar round the shoulders, brass buttons.
+      const fur = '#efe3cc';
+      const collar = [[40, 94], [45, 90], [50, 89], [55, 91], [60, 96], [68, 96], [73, 91], [78, 89], [83, 90], [88, 94], [38, 99], [90, 99]];
+      return (
+        <>
+          <path d={bodyPath(body)} fill={ref('shirt')} />
+          <path d={`M${body.neckX} ${body.neckY} Q64 ${body.neckY + 4} ${128 - body.neckX} ${body.neckY} L70 126 L58 126 Z`} fill="#1a1c22" />
+          {neck}
+          <path d={`M${body.neckX - 2} ${body.neckY + 2} L50 126 M${130 - body.neckX} ${body.neckY + 2} L78 126`} fill="none" stroke={shade(shirt, -0.5)} strokeWidth="1.4" />
+          <g fill={fur} stroke={shade(fur, -0.4)} strokeWidth=".9">
+            {collar.map(([cx, cy]) => <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="4.6" />)}
+          </g>
+          <g fill={ref('gold')} stroke="#3a2a05" strokeWidth=".7">
+            <circle cx="52" cy="110" r="1.6" /><circle cx="52" cy="119" r="1.6" /><circle cx="76" cy="110" r="1.6" /><circle cx="76" cy="119" r="1.6" />
+          </g>
+          {folds}
+        </>
+      );
+    }
+    case 'heist-parka': {
+      // Quilted frost-white padding, a zip, and a fur-trimmed stand collar.
+      const trim = '#f6f2ea';
+      return (
+        <>
+          <path d={bodyPath(body)} fill={ref('shirt')} />
+          <path d="M30 104 Q64 98 98 104 M24 114 Q64 108 104 114 M20 123 Q64 117 108 123" fill="none" stroke={shade(shirt, -0.3)} strokeWidth="1.1" />
+          {neck}
+          <path d={`M${body.neckX - 6} ${body.neckY - 2} Q64 ${body.neckY + 12} ${134 - body.neckX} ${body.neckY - 2} L${136 - body.neckX} ${body.neckY + 6} Q64 ${body.neckY + 20} ${body.neckX - 8} ${body.neckY + 6} Z`} fill={trim} stroke={shade(trim, -0.4)} strokeWidth="1" />
+          <path d={`M${body.neckX - 6} ${body.neckY + 1} Q64 ${body.neckY + 14} ${134 - body.neckX} ${body.neckY + 1}`} fill="none" stroke="#fff" strokeWidth="1.6" strokeDasharray="1.6 1.4" opacity=".9" />
+          <path d={`M64 ${body.neckY + 14} V126`} fill="none" stroke="#5a6f7c" strokeWidth="1.4" />
+          <rect x="62.4" y={body.neckY + 16} width="3.2" height="5" rx="1" fill="#8aa0ad" stroke="#3a4a54" strokeWidth=".7" />
           {folds}
         </>
       );
@@ -915,6 +1001,15 @@ function Mask({ style, ctx }: { style: AvatarParts['mask']; ctx: Ctx }) {
           <path d="M50.6 62 Q56 59 60 60.4 M77.4 62 Q72 59 68 60.4" fill="none" stroke={shade(mask, 0.45)} strokeOpacity=".5" strokeWidth="1.2" />
         </>
       );
+    case 'neon-visor':
+      return (
+        <>
+          <path d="M44 53 L41 55 M84 53 L87 55" fill="none" stroke="#1b1d22" strokeWidth="2.4" />
+          <path d="M44.4 48.6 Q64 45 83.6 48.6 Q85 54 82 59 Q64 61.6 46 59 Q43 54 44.4 48.6 Z" fill={ref('visor')} fillOpacity=".88" />
+          <path d="M46 50.6 Q64 47.6 82 50.6" fill="none" stroke="#e8fffb" strokeOpacity=".8" strokeWidth="1" />
+          <path d="M45.4 58 Q64 60.4 82.6 58" fill="none" stroke="#3ce0d0" strokeWidth="1.2" />
+        </>
+      );
     default:
       return null;
   }
@@ -976,6 +1071,16 @@ function Earrings({ style, ctx }: { style: AvatarParts['earrings']; ctx: Ctx }) 
           <Mirrored>
             <circle cx="44.4" cy="69" r="4" fill="none" stroke={INK} strokeWidth="3" />
             <circle cx="44.4" cy="69" r="4" fill="none" stroke={ref('gold')} strokeWidth="1.8" />
+          </Mirrored>
+        </g>
+      );
+    case 'crown-drop':
+      return (
+        <g filter={ref('shadow')}>
+          <Mirrored>
+            <path d="M44.6 64.6 V67" stroke="#3a2a05" strokeWidth=".8" />
+            <path d="M41.8 73.6 L41.4 68.2 L43.2 69.8 L44.6 67.2 L46 69.8 L47.8 68.2 L47.4 73.6 Z" fill={ref('gold')} stroke="#3a2a05" strokeWidth=".7" strokeLinejoin="round" />
+            <circle cx="44.6" cy="71.8" r=".8" fill="#14100a" />
           </Mirrored>
         </g>
       );

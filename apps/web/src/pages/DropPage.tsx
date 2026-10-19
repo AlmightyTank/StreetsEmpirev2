@@ -130,7 +130,7 @@ export function DropArt({ item, size = 'md' }: { item: DropItemDto; size?: 'sm' 
     const parts = { ...(builtAvatar ?? DEFAULT_AVATAR_PARTS.boy), [preview.part]: preview.option } as AvatarParts;
     return (
       <div className={`se-drop-art se-drop-art--avatar se-drop-art--${size}`} role="img" aria-label={`${item.name} on your avatar`}>
-        <span className="se-drop-avatar"><BuiltAvatar parts={parts} /></span>
+        <span className="se-drop-avatar"><BuiltAvatar parts={parts} live={size !== 'sm'} /></span>
       </div>
     );
   }

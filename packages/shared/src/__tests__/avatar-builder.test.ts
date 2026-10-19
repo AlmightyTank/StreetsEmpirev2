@@ -82,8 +82,8 @@ describe('readAvatarParts', () => {
 describe('avatar wearables', () => {
   const none = new Set<string>();
 
-  it('reads an avatar saved before hats, grills and the earrings slot as wearing none', () => {
-    const { headwear: _h, grill: _g, earrings: _e, ...before } = DEFAULT_AVATAR_PARTS.boy;
+  it('reads an avatar saved before hats, grills, auras and the earrings slot as wearing none', () => {
+    const { headwear: _h, grill: _g, earrings: _e, aura: _a, ...before } = DEFAULT_AVATAR_PARTS.boy;
     expect(avatarPartsSchema.parse(before)).toEqual(DEFAULT_AVATAR_PARTS.boy);
     expect(readAvatarParts(before)).toEqual(DEFAULT_AVATAR_PARTS.boy);
   });

@@ -1,4 +1,4 @@
-import { AVATAR_WEARABLES, DROP_ITEMS, STREET_PASS_S1, classicOgStreetPassA } from '@streets/rulesets';
+import { AVATAR_WEARABLES, DROP_BUNDLES, DROP_ITEMS, STREET_PASS_S1, classicOgStreetPassA } from '@streets/rulesets';
 import { AVATAR_LOCKED_OPTIONS, avatarUnlockStyleKey } from '@streets/shared';
 import { describe, expect, it } from 'vitest';
 import type { Db } from '../../utils/db.js';
@@ -33,7 +33,13 @@ describe('avatar wearable catalog', () => {
 
   it('previews each Drop wearable as the piece it unlocks', () => {
     const wearables = Object.values(DROP_ITEMS).filter((item) => item.kind === 'AVATAR_PART');
-    expect(wearables.map((item) => item.key)).toEqual(['drop-kingpin-luxe-crown']);
+    expect(wearables.map((item) => item.key)).toEqual([
+      'drop-kingpin-luxe-crown', 'drop-kingpin-luxe-fur-coat', 'drop-kingpin-luxe-crown-earrings',
+      'drop-neon-underworld-visor', 'drop-neon-underworld-glow',
+      'drop-winter-heist-parka', 'drop-winter-heist-snowfall',
+    ]);
+    // Each set's bundle carries its avatar pieces.
+    for (const item of wearables) expect(DROP_BUNDLES[`drop-${item.collection}-bundle`]!.itemKeys).toContain(item.key);
     for (const item of wearables) {
       const [part, option] = item.styleKey!.split(':');
       expect(item.preview).toEqual({ type: 'AVATAR', part, option });
