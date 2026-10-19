@@ -4,7 +4,7 @@ import type { FastifyInstance } from 'fastify';
 import type { Round } from '@prisma/client';
 import { classicOgV22A, type Ruleset } from '@streets/rulesets';
 import { startingStock } from '@streets/rules-engine';
-import { ACCOUNT_TRUST_GATES, experienceRequiredForLevel, experienceTitlesBetween } from '@streets/shared';
+import { ACCOUNT_TRUST_GATES, TURN_EXPERIENCE_FULL_PER_DAY, experienceRequiredForLevel, experienceTitlesBetween, seasonFinishExperience } from '@streets/shared';
 
 /**
  * Account level rewards and trust gates on PostgreSQL: Crowns paid once per
@@ -45,6 +45,7 @@ describe.runIf(process.env.ACCOUNT_LEVEL_INTEGRATION === '1')('account levels wi
     const service = await experience();
     return app.prisma.$transaction((tx) => service.award(tx, { roundPlayerId, sourceKey, source: 'TEST', amount, awardedAt: new Date() }));
   };
+  const doubleXp = async () => (await import('../double-xp-weekend.service.js')).DoubleXpWeekendService.isActive(app.prisma, new Date());
   const levelCrowns = (accountId: string) => app.prisma.crownLedgerEntry.findMany({
     where: { accountId, source: 'account-level' }, orderBy: { delta: 'asc' }, select: { delta: true, roundId: true, externalRef: true },
   });
@@ -202,5 +203,41 @@ describe.runIf(process.env.ACCOUNT_LEVEL_INTEGRATION === '1')('account levels wi
     expect(board.entries[1]).toMatchObject({ rank: 2, isYou: true, publicPimpId: mid.publicPimpId });
     expect(board.me).toEqual({ rank: 2, xp: 8_000_000 });
     expect((await service.yearlyLeaderboard(app.prisma, year - 1, mid.accountId)).me).toBeNull();
+  });
+
+  it('pays season finish XP once, by final rank, only to players who played', async () => {
+    const winner = await makePlayer();
+    const idle = await makePlayer();
+    await award(winner.id, 2_000);
+    await app.prisma.roundPlayer.update({ where: { id: winner.id }, data: { nationalRank: 1 } });
+    const service = await experience();
+    const before = (await app.prisma.account.findUniqueOrThrow({ where: { id: winner.accountId } })).experiencePoints;
+    await app.prisma.$transaction((tx) => service.awardSeasonFinish(tx, round, new Date()));
+    await app.prisma.$transaction((tx) => service.awardSeasonFinish(tx, round, new Date()));
+    const after = (await app.prisma.account.findUniqueOrThrow({ where: { id: winner.accountId } })).experiencePoints;
+    expect(after - before).toBe(seasonFinishExperience(1) * (await doubleXp() ? 2 : 1));
+    expect((await app.prisma.account.findUniqueOrThrow({ where: { id: idle.accountId } })).experiencePoints).toBe(0);
+  });
+
+  it('halves turn XP past the daily allowance and resets with the next window', async () => {
+    const player = await makePlayer();
+    const { StreetPassCredService } = await import('../street-pass-cred.service.js');
+    const now = new Date();
+    const spend = (turns: number, at: Date) => app.prisma.$transaction((tx) => StreetPassCredService.creditTurns(tx, player.id, rules, turns, at, randomUUID()));
+    const xp = async () => (await app.prisma.account.findUniqueOrThrow({ where: { id: player.accountId } })).experiencePoints;
+    const factor = await doubleXp() ? 2 : 1;
+    await spend(TURN_EXPERIENCE_FULL_PER_DAY, now);
+    expect(await xp()).toBe(TURN_EXPERIENCE_FULL_PER_DAY * factor);
+    await spend(100, now);
+    expect(await xp()).toBe((TURN_EXPERIENCE_FULL_PER_DAY + 50) * factor);
+  });
+
+  it('pays the intro once, however often it is replayed', async () => {
+    const player = await makePlayer();
+    const { OnboardingService } = await import('../onboarding.service.js');
+    await OnboardingService.update(app.prisma, player.accountId, { action: 'complete-intro' });
+    await OnboardingService.update(app.prisma, player.accountId, { action: 'replay' });
+    await OnboardingService.update(app.prisma, player.accountId, { action: 'complete-intro' });
+    expect(await app.prisma.playerExperienceEvent.count({ where: { accountId: player.accountId, source: 'ONBOARDING' } })).toBe(1);
   });
 });

@@ -2,6 +2,10 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { loadRuleset, DEFAULT_RULESET_ID } from '@streets/rules-engine';
 import type { Db } from '../../utils/db.js';
 import { RingService } from '../ring.service.js';
+// Account XP has its own tests; here it only needs to accept the award.
+vi.mock('../player-experience.service.js', () => ({
+  PlayerExperienceService: { award: vi.fn(async () => ({ awardedXp: 0, totalXp: 0, level: 1, unlocked: [] })) },
+}));
 
 vi.mock('../net-worth.service.js', () => ({
   NetWorthService: { calculate: () => 9_999_999n },

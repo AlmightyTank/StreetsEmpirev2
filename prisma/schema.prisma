@@ -133,6 +133,9 @@ model Account {
   surveySubmissions                SurveySubmission[]
   experienceEvents                 PlayerExperienceEvent[]
   experiencePoints                 Int                               @default(0)
+  /// Turn XP taper: the daily window being counted and the turns spent in it.
+  turnXpWindowStartsAt             DateTime?
+  turnXpTurnsInWindow              Int                               @default(0)
   /// When the player last changed their own pimp name. Null until the first change, which is free.
   usernameChangedAt                DateTime?
   usernameChanges                  AccountUsernameChange[]

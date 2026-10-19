@@ -3,6 +3,10 @@ import type { PrismaClient, Round } from '@prisma/client';
 
 // Crown milestones have their own tests (drop.service.test.ts); this file is about stamps.
 vi.mock('../crown-earn.service.js', () => ({ CrownEarnService: { onCheckIn: async () => 0 } }));
+// Account XP has its own tests; here it only needs to accept the award.
+vi.mock('../player-experience.service.js', () => ({
+  PlayerExperienceService: { award: vi.fn(async () => ({ awardedXp: 0, totalXp: 0, level: 1, unlocked: [] })) },
+}));
 const { RoundRollCallService } = await import('../round-roll-call.service.js');
 
 const START = new Date('2026-10-01T18:00:00Z');

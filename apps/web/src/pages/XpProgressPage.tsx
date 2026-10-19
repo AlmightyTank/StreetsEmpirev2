@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ACCOUNT_TRUST_GATES, EXPERIENCE_LEVEL_CROWNS, EXPERIENCE_LEVEL_REWARDS, PRESTIGE_LEVELS, accountGateOpen, accountLevelBadge, experienceCrownMilestones, experienceRequiredForLevel, experienceTitlesBetween, levelRewardsAt, formatCents, formatNumber, type PlayerExperienceDto, type PlayerExperienceEventDto, type PublicCareerDto, type XpLeaderboardDto } from '@streets/shared';
+import { ACCOUNT_TRUST_GATES, EXPERIENCE_LEVEL_CROWNS, EXPERIENCE_LEVEL_REWARDS, PRESTIGE_LEVELS, accountGateOpen, accountLevelBadge, experienceCrownMilestones, experienceRequiredForLevel, experienceSourceLabel, experienceTitlesBetween, levelRewardsAt, formatCents, formatNumber, type PlayerExperienceDto, type PlayerExperienceEventDto, type PublicCareerDto, type XpLeaderboardDto } from '@streets/shared';
 import { communityApi } from '../api/community.js';
 import { dropApi } from '../api/drop.js';
 import { gameApi } from '../api/game.js';
@@ -438,7 +438,7 @@ export function XpProgressPage() {
               {xpEvents.map((event) => (
                 <li className="se-xp-log__item" key={event.id}>
                   <div className="se-xp-log__copy">
-                    <strong>{event.source}</strong>
+                    <strong>{experienceSourceLabel(event.source)}</strong>
                     <time dateTime={event.awardedAt}>{formatWhen(event.awardedAt)}</time>
                   </div>
                   <span className="se-xp-log__amount">+{formatNumber(event.amount)} XP</span>

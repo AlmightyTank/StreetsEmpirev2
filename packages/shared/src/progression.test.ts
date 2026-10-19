@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   ACCOUNT_TRUST_GATES,
+  experienceSourceLabel,
+  seasonFinishExperience,
+  turnExperienceFor,
   accountGateOpen,
   accountLevelBadge,
   experienceTitlesBetween,
@@ -96,5 +99,29 @@ describe('account experience progression', () => {
     expect(accountGateOpen({ level: 1 }, 'casino')).toBe(false);
     expect(accountGateOpen({ level: ACCOUNT_TRUST_GATES.casino.level }, 'casino')).toBe(true);
     expect(accountGateOpen(null, 'casino')).toBe(false);
+  });
+
+  it('pays full turn XP for the first 300 turns of the day, then half, exactly over any split', () => {
+    expect(turnExperienceFor(0, 300)).toBe(300);
+    expect(turnExperienceFor(300, 100)).toBe(50);
+    expect(turnExperienceFor(250, 100)).toBe(50 + 25);
+    let total = 0;
+    for (let spent = 0; spent < 576; spent += 1) total += turnExperienceFor(spent, 1);
+    expect(total).toBe(turnExperienceFor(0, 576));
+  });
+
+  it('stacks season finish bonuses by final national rank', () => {
+    expect(seasonFinishExperience(null)).toBe(500);
+    expect(seasonFinishExperience(40)).toBe(500);
+    expect(seasonFinishExperience(10)).toBe(1_500);
+    expect(seasonFinishExperience(3)).toBe(3_000);
+    expect(seasonFinishExperience(1)).toBe(5_500);
+  });
+
+  it('labels XP log sources for players', () => {
+    expect(experienceSourceLabel('TURN_SPEND')).toBe('Turns spent');
+    expect(experienceSourceLabel('QUEST_DAILY')).toBe('Daily contract');
+    expect(experienceSourceLabel('QUEST_STORY')).toBe('Job finished');
+    expect(experienceSourceLabel('SOMETHING_NEW')).toBe('SOMETHING_NEW');
   });
 });

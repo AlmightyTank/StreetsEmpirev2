@@ -88,6 +88,71 @@ export function questExperience(questType: string): number {
 }
 
 /**
+ * XP beyond turns and quests, so a level says more than how many turns were
+ * burned. Each pays once per its own key (a day, a season, an egg).
+ */
+export const ACTIVITY_EXPERIENCE = {
+  /** First login check-in of each round day. */
+  checkIn: 25,
+  /** Every Round Roll Call day checked in. */
+  rollCallComplete: 300,
+  /** Finishing the first-run intro. Once per account. */
+  onboardingIntro: 150,
+  /** A newly found easter egg or Hidden Streets secret. */
+  discovery: 100,
+} as const;
+
+/** Season close XP, cumulative: finishing, then national top 10, podium and the win. */
+export const SEASON_FINISH_EXPERIENCE = {
+  finished: 500,
+  topTen: 1_000,
+  podium: 1_500,
+  winner: 2_500,
+  /** XP the account must have earned during the round to count as having played it. */
+  minRoundXp: 1_000,
+} as const;
+
+export function seasonFinishExperience(nationalRank: number | null | undefined): number {
+  const { finished, topTen, podium, winner } = SEASON_FINISH_EXPERIENCE;
+  if (!nationalRank || nationalRank < 1) return finished;
+  return finished + (nationalRank <= 10 ? topTen : 0) + (nationalRank <= 3 ? podium : 0) + (nationalRank === 1 ? winner : 0);
+}
+
+const EXPERIENCE_SOURCE_LABELS: Record<string, string> = {
+  TURN_SPEND: 'Turns spent',
+  CHECK_IN: 'Daily check-in',
+  ROLL_CALL_COMPLETE: 'Round Roll Call complete',
+  ONBOARDING: 'Finished the intro',
+  DISCOVERY: 'Secret discovered',
+  SEASON_FINISH: 'Season finish',
+  MENTOR: 'Mentoring a new player',
+};
+
+/** Readable label for an XP log row's source code, e.g. QUEST_DAILY -> "Daily contract". */
+export function experienceSourceLabel(source: string): string {
+  if (EXPERIENCE_SOURCE_LABELS[source]) return EXPERIENCE_SOURCE_LABELS[source]!;
+  if (source.startsWith('QUEST_')) {
+    const type = source.slice(6);
+    const named: Record<string, string> = { DAILY: 'Daily contract', WEEKLY: 'Weekly contract', SEASON: 'Season quest', CITY_CONTRACT: 'City contract', EVENT: 'Event contract', ALLIANCE: 'Alliance contract' };
+    return named[type] ?? 'Job finished';
+  }
+  return source;
+}
+
+/** Turns a day at full XP; turns past this in the same daily window pay half. */
+export const TURN_EXPERIENCE_FULL_PER_DAY = 300;
+
+function turnExperienceTotal(turns: number): number {
+  const safe = Math.max(0, Math.floor(turns));
+  return Math.min(safe, TURN_EXPERIENCE_FULL_PER_DAY) + Math.floor(Math.max(0, safe - TURN_EXPERIENCE_FULL_PER_DAY) / 2);
+}
+
+/** XP for `turns` spent after `turnsBefore` already spent in today's window. */
+export function turnExperienceFor(turnsBefore: number, turns: number): number {
+  return (turnExperienceTotal(turnsBefore + turns) - turnExperienceTotal(turnsBefore)) * EXPERIENCE_PER_TURN;
+}
+
+/**
  * Crowns paid once per account when it reaches a level: a small payout every
  * `every` levels and a bigger one every `majorEvery`, with no top level. Paid
  * outside the per-round earn cap, since each one can only ever land once.

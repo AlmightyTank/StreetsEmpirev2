@@ -1,5 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import {
+  ACTIVITY_EXPERIENCE,
   EASTER_EGGS,
   ITEM_COSMETIC_STYLES,
   easterEggDayNear,
@@ -10,6 +11,7 @@ import {
 import type { Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { createPlayerActivity } from './in-app-notification.service.js';
+import { PlayerExperienceService } from './player-experience.service.js';
 
 /** Stored as the unlock's source, so an audit can tell eggs from quest rewards. */
 const SOURCE_RULESET_ID = 'easter-eggs';
@@ -62,6 +64,11 @@ export const EasterEggService = {
       skipDuplicates: true,
     });
     const isNew = inserted.count > 0;
+    if (isNew) {
+      await PlayerExperienceService.award(db, {
+        accountId: input.accountId, sourceKey: `discovery:${input.id}`, source: 'DISCOVERY', amount: ACTIVITY_EXPERIENCE.discovery, awardedAt: at,
+      });
+    }
     // Its own row, so an account that found the egg before the style shipped
     // still gets the style the next time it finds the egg.
     const collection = collectionFor(egg);

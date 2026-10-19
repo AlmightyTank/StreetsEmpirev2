@@ -1,5 +1,5 @@
-import type { PrismaClient } from '@prisma/client';
-import { experienceLevelFor, experienceTitlesBetween, playerExperienceDto, type ExperienceLevelReward, type PlayerExperienceDto, type PlayerExperienceEventDto, type XpLeaderboardDto } from '@streets/shared';
+import type { PrismaClient, Round } from '@prisma/client';
+import { SEASON_FINISH_EXPERIENCE, experienceLevelFor, experienceTitlesBetween, seasonFinishExperience, playerExperienceDto, type ExperienceLevelReward, type PlayerExperienceDto, type PlayerExperienceEventDto, type XpLeaderboardDto } from '@streets/shared';
 import type { Db } from '../utils/db.js';
 import { CrownEarnService } from './crown-earn.service.js';
 import { RoundService } from './round.service.js';
@@ -30,6 +30,39 @@ export const PlayerExperienceService = {
     const rows = await db.account.findMany({ where: { id: { in: ids } }, select: { id: true, experiencePoints: true } });
     for (const row of rows) out.set(row.id, experienceLevelFor(row.experiencePoints));
     return out;
+  },
+
+  /**
+   * Season close: XP for finishing, with bonuses for a national top 10, podium
+   * and the win. Only players who earned SEASON_FINISH_EXPERIENCE.minRoundXp
+   * during the round count, so an idle sign-up gets nothing. Once per account
+   * and round. Runs in the round close transaction after the final standings.
+   */
+  async awardSeasonFinish(tx: Db, round: Pick<Round, 'id' | 'startsAt'>, at: Date): Promise<number> {
+    const players = await tx.roundPlayer.findMany({
+      where: { roundId: round.id, account: { isActive: true } },
+      select: { id: true, accountId: true, nationalRank: true },
+    });
+    if (!players.length) return 0;
+    const earned = await tx.playerExperienceEvent.groupBy({
+      by: ['accountId'],
+      where: { accountId: { in: players.map((player) => player.accountId) }, awardedAt: { gte: round.startsAt, lte: at } },
+      _sum: { amount: true },
+    });
+    const played = new Set(earned.filter((row) => (row._sum.amount ?? 0) >= SEASON_FINISH_EXPERIENCE.minRoundXp).map((row) => row.accountId));
+    let awarded = 0;
+    for (const player of players) {
+      if (!played.has(player.accountId)) continue;
+      const result = await PlayerExperienceService.award(tx, {
+        roundPlayerId: player.id,
+        sourceKey: `season-finish:${round.id}`,
+        source: 'SEASON_FINISH',
+        amount: seasonFinishExperience(player.nationalRank),
+        awardedAt: at,
+      });
+      if (result.awardedXp > 0) awarded += 1;
+    }
+    return awarded;
   },
 
   /** Endgame board: account XP earned in one UTC calendar year, active accounts only. */
@@ -106,16 +139,15 @@ export const PlayerExperienceService = {
    */
   async award(
     tx: Db,
-    input: { roundPlayerId: string; sourceKey: string; source: string; amount: number; awardedAt: Date },
+    input: ({ roundPlayerId: string; accountId?: never } | { accountId: string; roundPlayerId?: never }) & { sourceKey: string; source: string; amount: number; awardedAt: Date },
   ): Promise<{ awardedXp: number; totalXp: number; level: number; unlocked: ExperienceLevelReward[] }> {
     const baseAmount = Math.max(0, Math.floor(input.amount));
     const amount = baseAmount * (await DoubleXpWeekendService.isActive(tx, input.awardedAt) ? 2 : 1);
     if (amount <= 0) return { awardedXp: 0, totalXp: 0, level: 1, unlocked: [] };
 
-    const player = await tx.roundPlayer.findUnique({
-      where: { id: input.roundPlayerId },
-      select: { accountId: true },
-    });
+    const player = input.accountId
+      ? { accountId: input.accountId }
+      : await tx.roundPlayer.findUnique({ where: { id: input.roundPlayerId }, select: { accountId: true } });
     if (!player) return { awardedXp: 0, totalXp: 0, level: 1, unlocked: [] };
 
     const inserted = await tx.playerExperienceEvent.createMany({

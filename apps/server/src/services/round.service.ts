@@ -7,6 +7,7 @@ import { PlayerStateService } from './player-state.service.js';
 import { TurfCrackdownService } from './turf-crackdown.service.js';
 import { TurfWarSettlementService } from './turf-war-settle.service.js';
 import { StreetPassService } from './street-pass.service.js';
+import { PlayerExperienceService } from './player-experience.service.js';
 import { RoundRollCallCosmeticService } from './round-roll-call-cosmetic.service.js';
 import { RoundAftermathService } from './round-aftermath.service.js';
 import { EmpireLegacyService } from './empire-legacy.service.js';
@@ -187,6 +188,8 @@ export const RoundService = {
       await PlayerStateService.settleInTransaction(tx, player.id, { now: freezeAt, markActive: false });
     }
     await freezeFinalStandings(tx, round.id, freezeAt);
+    // Account XP for finishing the season, with placement bonuses from the final standings.
+    await PlayerExperienceService.awardSeasonFinish(tx, round, freezeAt);
     // Street Pass: a reached, unclaimed permanent cosmetic tier is granted; gameplay rewards expire.
     await StreetPassService.grantUnclaimedCosmetics(tx, round.id, loadRulesetForRound(round), freezeAt);
     // Round Roll Call: permanent looks survive even an unclaimed final prize; gameplay payouts do not.
