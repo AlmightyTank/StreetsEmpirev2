@@ -48,6 +48,28 @@ and **Staff** lists everyone with a role and every change. The rules:
 | Message reports, wire posts, notes | ✅ | ✅ | ✅ | ✅ | |
 | Bug reports, support tickets, account lookup | ✅ | ✅ | ✅ | ✅ | ✅ |
 
+### Staff roles on Discord
+
+The bot gives each linked staff member the Discord role for their game role and takes
+away any staff role they no longer hold. Staff must link Discord for this to work; the
+Staff page flags anyone who has not.
+
+1. Create the five roles in Discord by hand (Founder, Admin, Mod, JR Mod, Helper) and set
+   what each may do in Discord there. The bot only manages who holds them.
+2. Drag the bot's role above Admin, Mod, JR Mod and Helper. Leave Founder above the bot:
+   the bot only checks the Founder role and reports when it is wrong.
+3. Copy each role's ID into `DISCORD_STAFF_ROLE_IDS` and set `DISCORD_STAFF_SYNC="report"`.
+   Restart the bot. It posts every difference to the staff channel and changes nothing.
+4. Fix anything unexpected (give or take roles in the game, or by hand in Discord), then
+   set `DISCORD_STAFF_SYNC="enforce"` and restart. From then on, a role change in the game
+   reaches Discord within a minute, and a staff role added by hand in Discord is removed
+   on the next pass (every `DISCORD_SYNC_MINUTES`). Every change is posted to the staff channel.
+
+Roles are matched by ID, never by name, so a role someone names "Admin" is ignored. Forum
+groups named like a staff role (Admin, Mod...) stop being mirrored as `Forum <group>` roles
+once staff roles sync; delete any old `Forum Admin` / `Forum Mod` roles by hand. A bot in
+`beta-tester-only` mode never touches staff roles.
+
 The full map is `packages/shared/src/staff.ts`. `isAdmin` on an account stays
 true for Founder and Admin; a database trigger keeps it in step with `staffRole`.
 

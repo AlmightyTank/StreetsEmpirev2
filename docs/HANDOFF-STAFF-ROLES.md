@@ -7,7 +7,9 @@ every decision) and the "Getting in" section of [ADMIN-RUNBOOK.md](ADMIN-RUNBOOK
 
 - **Stage A is built and on `beta`** (commits `1f145f7`, `d6ab77c`): game-side roles,
   permissions, the Staff page and the console script.
-- **Stages B-E are not started.** B (Discord sync) is next.
+- **Stage B is built**: Discord staff roles follow the game (see below). It ships switched
+  off: set `DISCORD_STAFF_ROLE_IDS` and `DISCORD_STAFF_SYNC` as the runbook says.
+- **Stages C-E are not started.** C (`/staff` command) is next.
 - **One manual step after deploy:** `npm run admin -- <owner> --founder` on the server.
   Until then every former admin is a plain Admin, and Admins cannot change each other.
 
@@ -38,23 +40,29 @@ every decision) and the "Getting in" section of [ADMIN-RUNBOOK.md](ADMIN-RUNBOOK
 | Console | `scripts/ops/set-admin.ts` (`--role`, `--founder`, `--off`, `--list`) |
 | Integration tests | `apps/server/src/services/__tests__/staff-roles.integration.test.ts` |
 
-## Next: stage B (Discord sync)
+## Stage B (built): Discord sync
 
-1. Add `staff:<role>` keys to `roleKeysFor` in `apps/server/src/services/discord-bot.service.ts`.
-2. In the bot, add the staff roles to the managed roles, matched by **ID from config**
-   (`DISCORD_STAFF_ROLE_IDS=founder:<id>,admin:<id>,mod:<id>,jr-mod:<id>,helper:<id>`)
-   instead of by name. See `apps/discord-bot/src/roles.ts`, `sync.ts` and `config.ts`.
-3. The Founder role is checked, never assigned. The bot can only assign roles below its
-   own, so only report drift on it.
-4. Queue `queueDiscordRoleResync` from `setStaffRole` so a demotion lands in seconds.
-5. Keep staff forum groups out of the `Forum <group>` Discord mirror.
-6. Post drift corrections to the staff channel. Run a one-time bootstrap report before
-   enforcement, behind a flag.
-7. The bot's staff buttons already use capabilities through the server
-   (`support.service.ts`, `admin-moderation.service.ts`, `support-ticket.service.ts`).
+| Piece | Where |
+|---|---|
+| Staff role keys (`staff:founder`, `staff:jr-mod`...) | `staffRoleKey` in `packages/shared/src/staff.ts`; `roleKeysFor` / `rolesFor` in `apps/server/src/services/discord-bot.service.ts` |
+| Resync within a minute of a role change | `setStaffRole` queues `queueDiscordRoleResync` and wakes the bot; the console script queues one too |
+| Roles by ID, Founder check-only | `staffRoles` in `apps/discord-bot/src/roles.ts` |
+| off / report / enforce, change and difference events | `RoleSync` in `apps/discord-bot/src/sync.ts`; types and staff channel text in `apps/discord-bot/src/staff-sync.ts` |
+| Config | `DISCORD_STAFF_SYNC`, `DISCORD_STAFF_ROLE_IDS` in `apps/discord-bot/src/config.ts` |
+| Forum mirror excludes staff-named groups | `withoutStaffForumGroups` in `roles.ts`, applied in `index.ts` |
+| Tests | `apps/discord-bot/src/__tests__/staff-sync.test.ts` (fake guild) |
 
-Stage C (`/staff` command) should call `setStaffRole` with `source: 'DISCORD'`, so the
-rank rules and the audit trail stay in one place.
+Not done in B: the Staff page shows only whether Discord is linked, not whether the bot
+has applied the role. The bot reports to the staff channel instead.
+
+## Next: stage C (`/staff` command)
+
+`/staff set user:@member role:<...> reason:<...>`, `/staff remove`, `/staff list`,
+`/staff sync`. The bot only relays: add an internal endpoint (beside the other
+`/api/internal/discord/*` routes, bot-token auth) that resolves the caller's linked
+account and calls `AdminAccountService.setStaffRole(..., source: 'DISCORD')`, so the rank
+rules and the audit trail stay in one place. Founder is never an option. Replies are
+ephemeral, with a public line in the staff channel.
 
 ## Working in this repo
 

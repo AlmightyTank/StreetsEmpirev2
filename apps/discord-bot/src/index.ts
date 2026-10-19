@@ -31,7 +31,8 @@ import {
 } from './format.js';
 import { createGameApi, type City } from './game-api.js';
 import { Cooldowns } from './lookup.js';
-import { betaTesterRoles, managedRoles, parseForumGroupList } from './roles.js';
+import { betaTesterRoles, managedRoles, parseForumGroupList, staffRoles, withoutStaffForumGroups } from './roles.js';
+import { staffSyncMessages, type StaffSyncEvent } from './staff-sync.js';
 import { startPoller } from './schedule.js';
 import { RoleSync } from './sync.js';
 import { startBotPresence } from './presence.js';
@@ -45,9 +46,18 @@ import { moderateMessage } from './content-moderation.js';
 
 const config = loadConfig();
 const api = createGameApi({ baseUrl: config.GAME_API_URL, token: config.DISCORD_BOT_API_TOKEN });
-const forumGroups = parseForumGroupList(config.DISCORD_FORUM_GROUPS);
 const betaTesterOnly = config.DISCORD_ROLE_SYNC_MODE === 'beta-tester-only';
-const managed = betaTesterOnly ? betaTesterRoles() : managedRoles(forumGroups);
+// Staff roles follow the game only in full sync mode: a beta bot sharing the server must not touch them.
+const staffMode = betaTesterOnly ? 'off' : config.DISCORD_STAFF_SYNC;
+const staff = staffMode === 'off' ? { roles: [], problems: [] } : staffRoles(config.DISCORD_STAFF_ROLE_IDS);
+for (const problem of staff.problems) console.warn(`DISCORD_STAFF_ROLE_IDS: ${problem}`);
+if (staffMode !== 'off' && !staff.roles.length) console.warn(`DISCORD_STAFF_SYNC=${staffMode} but DISCORD_STAFF_ROLE_IDS names no roles, so staff roles are not synced.`);
+const parsedForumGroups = parseForumGroupList(config.DISCORD_FORUM_GROUPS);
+const forumGroups = staff.roles.length ? withoutStaffForumGroups(parsedForumGroups) : parsedForumGroups;
+if (forumGroups.length < parsedForumGroups.length) {
+  console.log(`Not mirroring forum groups ${parsedForumGroups.filter((group) => !forumGroups.includes(group)).join(', ')}: staff roles sync instead.`);
+}
+const managed = betaTesterOnly ? betaTesterRoles() : [...managedRoles(forumGroups), ...staff.roles];
 
 // GuildMembers is a privileged intent: enable "Server Members Intent" in the developer portal.
 const client = new Client({
@@ -56,6 +66,7 @@ const client = new Client({
 });
 
 let sync: RoleSync | null = null;
+let staffSyncPoster: ((events: StaffSyncEvent[]) => Promise<void>) | null = null;
 let stopPushServer: (() => Promise<void>) | null = null;
 
 let cityCache: { cities: City[]; fetchedAt: number } | null = null;
@@ -73,6 +84,7 @@ const deps: CommandDeps = {
   api,
   origin: config.frontendOrigin,
   getSync: () => sync,
+  onStaffSync: (events) => void staffSyncPoster?.(events),
   getCities,
   managed,
   syncCooldowns: new Cooldowns(60_000),
@@ -84,6 +96,17 @@ client.rest.on(RESTEvents.RateLimited, (info) => {
 });
 
 /** A configured text channel the bot can post in, or why it can't. */
+/** Staff role changes and differences go to the staff channel, or the log when it is unset or broken. */
+async function postStaffSync(guild: Guild, events: StaffSyncEvent[], mode: typeof staffMode): Promise<void> {
+  const messages = staffSyncMessages(events, mode);
+  if (!messages.length) return;
+  const { channel, problem } = await checkPostChannel(guild, config.DISCORD_STAFF_CHANNEL_ID, 'DISCORD_STAFF_CHANNEL_ID');
+  for (const content of messages) {
+    if (channel) await channel.send({ content, allowedMentions: { parse: [] } }).catch((error: unknown) => console.warn('Could not post staff role sync:', error));
+    else console.log(`${content}\n(${problem})`);
+  }
+}
+
 async function checkPostChannel(
   guild: Guild,
   channelId: string,
@@ -444,9 +467,11 @@ client.once(Events.ClientReady, async (ready) => {
     await guild.commands.set(commandData);
     void getCities();
 
-    const roleSync = new RoleSync(guild, managed, api, { allianceRoles: !betaTesterOnly });
+    const roleSync = new RoleSync(guild, managed, api, { allianceRoles: !betaTesterOnly, staff: staff.roles.length ? staffMode : 'off' });
     sync = roleSync;
+    staffSyncPoster = (events) => postStaffSync(guild, events, staffMode);
     console.log(`StreetsEmpire bot ready as ${ready.user.tag} in ${guild.name} with ${commandData.length} commands; syncing ${betaTesterOnly ? 'beta tester role only' : 'roles'} every ${config.DISCORD_SYNC_MINUTES} min.`);
+    if (staff.roles.length) console.log(`Staff roles: ${staffMode} (${staff.roles.map((role) => role.name).join(', ')}).`);
 
     // Rotating presence: one clickable Twitch card plus plain custom statuses
     // for new features, cosmetics, the Supporter page, and anonymous live-game highlights.
@@ -466,6 +491,7 @@ client.once(Events.ClientReady, async (ready) => {
     startPoller('Role sync', config.DISCORD_SYNC_MINUTES * 60_000, async () => {
       const summary = await roleSync.syncAll();
       if (summary) console.log(`Role sync: ${summary.members} members, ${summary.added} roles added, ${summary.removed} removed, ${summary.failed} failed.`);
+      if (summary) await postStaffSync(guild, summary.staff, staffMode);
     });
 
     // Checked on every run, so fixing the channel or its permissions needs no restart.
@@ -515,9 +541,13 @@ client.once(Events.ClientReady, async (ready) => {
       if (claim.all) {
         const summary = await roleSync.syncAll();
         if (summary) console.log(`Admin resync: ${summary.members} members, ${summary.added} roles added, ${summary.removed} removed, ${summary.failed} failed.`);
+        if (summary) await postStaffSync(guild, summary.staff, staffMode);
       } else if (claim.discordIds.length) {
         const members = await guild.members.fetch({ user: claim.discordIds }).catch(() => null);
-        if (members?.size) await roleSync.syncMembers([...members.values()]);
+        if (members?.size) {
+          const results = await roleSync.syncMembers([...members.values()]);
+          await postStaffSync(guild, [...roleSync.takeStaffProblems(), ...results.flatMap((result) => result.staff)], staffMode);
+        }
         console.log(`Admin resync: ${members?.size ?? 0} of ${claim.discordIds.length} requested members synced.`);
       }
     });
@@ -620,7 +650,9 @@ client.once(Events.ClientReady, async (ready) => {
 
 client.on(Events.GuildMemberAdd, (member) => {
   if (member.guild.id !== config.DISCORD_GUILD_ID || !sync) return;
-  sync.syncMembers([member]).catch((error: unknown) => console.error(`Role sync failed for new member ${member.id}:`, error));
+  sync.syncMembers([member])
+    .then((results) => staffSyncPoster?.(results.flatMap((result) => result.staff)))
+    .catch((error: unknown) => console.error(`Role sync failed for new member ${member.id}:`, error));
 });
 
 // OpenAI is a post-send safety net. Discord AutoMod should remain enabled for
