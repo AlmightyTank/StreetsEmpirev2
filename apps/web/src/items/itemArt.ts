@@ -78,6 +78,8 @@ export const ITEM_ART = {
   // Rewards that are not store items
   CASH: { name: 'Cash', shortName: 'Cash', category: 'CURRENCY', rarity: 'UNCOMMON', file: 'cash.svg', cells: ONE },
   TURNS: { name: 'Turns', shortName: 'Turns', category: 'CURRENCY', rarity: 'UNCOMMON', file: 'turns.svg', cells: ONE },
+  // The Drop's account currency, e.g. free Crowns on the Street Pass.
+  CROWNS: { name: 'Crowns', shortName: 'Crowns', category: 'CURRENCY', rarity: 'RARE', file: 'crowns.svg', cells: ONE },
 
   // Street Pass Season 1 cosmetics, keyed by cosmetic key
   'street-pass-s1-fresh-face': { name: 'Fresh Face · Season 1', shortName: 'Fresh Face', category: 'COSMETIC', rarity: 'RARE', file: 'street-pass-s1-fresh-face.svg', cells: ONE },
@@ -150,6 +152,8 @@ export function rewardArtKey(reward: { kind: string; key: string | null; amount?
       return 'CASH';
     case 'TURNS':
       return 'TURNS';
+    case 'CROWNS':
+      return 'CROWNS';
     case 'ITEM':
       if (!reward.key) return null;
       if (Object.hasOwn(REWARD_FIELD_ART, reward.key)) return REWARD_FIELD_ART[reward.key] ?? null;
