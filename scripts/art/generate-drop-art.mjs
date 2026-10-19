@@ -1800,6 +1800,214 @@ Object.assign(recipes, {
   },
 });
 
+
+/* ---------- Movie homages (original names and art; no film names, logos or characters) ---------- */
+
+const NITROUS = '#2f9bff';
+const TUNER = '#ff7a1a';
+const FLUX = '#4fd2ff';
+const MOSSY = '#7aa83a';
+
+Object.assign(recipes, {
+  /* Quarter Mile */
+  'sedan-quarter-mile': async () => {
+    let svg = await load('sedan');
+    svg = restop(svg, 'paint', ['#ffb066', TUNER, '#c2500a', '#5a2204']);
+    svg = restop(svg, 'glass', ['#2a3a4a', '#0e1620', '#05080c']);
+    svg = restop(svg, 'rim', ['#e1e6ec', '#5a5f66', '#1c1e22']);
+    svg = recolor(svg, { '#5e4e35': '#000000', '#c2ad85': '#111111', '#9aa2ab': '#3a3e45' });
+    return decorate(svg, {
+      over: [
+        // Livery: swooping black graphics and a racing number.
+        '<path d="M60 86 Q110 66 170 82 Q200 90 236 80 L236 86 Q200 96 168 88 Q112 74 64 92 Z" fill="#111111" opacity=".9"/>',
+        `<path d="M66 89 Q112 72 166 85" stroke="${NITROUS}" stroke-width="1.6" fill="none"/>`,
+        // Big rear wing.
+        '<path d="M22 62 V52 M36 61 V52" stroke="#111" stroke-width="2.2"/><path d="M8 48 H50 L47 53 H11 Z" fill="#111" stroke="#000" stroke-width=".8"/>',
+        // Nitrous bottles in the back window.
+        `<g transform="translate(150 47)">${[0, 7, 14].map((x) => `<rect x="${x}" y="0" width="5" height="10" rx="2" fill="${NITROUS}" stroke="#0a2a4a" stroke-width=".6"/>`).join('')}</g>`,
+        rings(SEDAN_WHEELS, `<circle r="12" stroke="${NITROUS}" stroke-width="1.2"/>`),
+      ].join('\n    '),
+    });
+  },
+  'low-rider-quarter-mile': async () => {
+    let svg = await load('low-rider');
+    svg = restop(svg, 'paint', ['#4a4e56', '#1c1e22', '#0b0c0e', '#020203']);
+    svg = restop(svg, 'roof', ['#1c1e22', '#050505']);
+    svg = restop(svg, 'door', ['#2a2d32', '#0b0c0e']);
+    svg = restop(svg, 'primer', [['#262b3a', 0], ['#262b3a', 0]]);
+    svg = recolor(svg, { '#e02a3a': '#c9ced4', '#16384a': '#1c1e22' });
+    return decorate(svg, {
+      over: [
+        // Supercharger through the hood, with a scoop and belt.
+        '<rect x="196" y="48" width="26" height="14" rx="2" fill="#c9ced4" stroke="#1e2024" stroke-width="1"/>',
+        '<path d="M198 52 H220 M198 56 H220" stroke="#5a5f66" stroke-width="1"/>',
+        '<path d="M200 48 L204 38 H216 L220 48 Z" fill="#9aa0a6" stroke="#1e2024" stroke-width="1"/>',
+        '<path d="M14 73.4 L244 76.4" stroke="#c9ced4" stroke-opacity=".5" stroke-width=".8" fill="none"/>',
+        // Fat rear tyre walls.
+        rings([[77, 91]], '<circle r="16.4" stroke="#0b0c0e" stroke-width="3"/>'),
+      ].join('\n    '),
+    });
+  },
+  'thug-quarter-mile': async () => {
+    let svg = await load('thug');
+    svg = repattern(svg, 'plaid', '<rect width="14" height="14" fill="#1e2024"/>');
+    svg = restop(svg, 'tank', ['#ffffff', '#e1e4e8']);
+    svg = restop(svg, 'band', ['#4d2b16', '#3a1f10']);
+    svg = restop(svg, 'gold', ['#ffffff', '#c9ced4', '#5f666d']);
+    svg = recolor(svg, { '#e9fff0': '#4d2b16', '#b5f5c5': '#6a3a20', '#6ee095': '#ffffff', '#3a2a05': '#3a3e45' });
+    // A bare tank: hide the jacket by painting it as arms.
+    svg = repattern(svg, 'plaid', '<rect width="14" height="14" fill="#7a4a2a"/>');
+    return decorate(svg, {
+      over: [
+        // A cross on the chain.
+        '<path d="M64 94 V108 M58.5 98.5 H69.5" stroke="#c9ced4" stroke-width="2.6" stroke-linecap="round"/>',
+        '<path d="M18 112 Q24 106 30 108 M98 108 Q104 106 110 112" stroke="#5a3418" stroke-width="1" fill="none"/>',
+      ].join('\n  '),
+    });
+  },
+  'hoe-quarter-mile': async () => {
+    let svg = await load('hoe');
+    svg = hoeCoat(svg, ['#4a4e56', '#1c1e22', '#050505'], '<path d="M0 7 L7 0" stroke="#3a3e45" stroke-width=".3" opacity=".6"/>');
+    svg = recolor(svg, { '#5a060c': '#000000', '#17131a': '#2a2d32', '#3d3346': TUNER });
+    return decorate(svg, {
+      over: [
+        `<path d="M10 110 Q18 96 34 90 M118 110 Q110 96 94 90" stroke="${TUNER}" stroke-width="2.2" fill="none"/>`,
+        // Aviators.
+        '<path d="M48 50 Q55 48 61 50 Q61 58 55 58 Q48 57 48 50 Z M67 50 Q73 48 80 50 Q80 57 73 58 Q67 58 67 50 Z" fill="#3a2a10" fill-opacity=".85" stroke="#c9ced4" stroke-width=".9"/>',
+        '<path d="M61 51 Q64 49.4 67 51" stroke="#c9ced4" stroke-width=".9" fill="none"/>',
+      ].join('\n  '),
+    });
+  },
+  'tek9-quarter-mile': async () => {
+    let svg = await load('tek9');
+    svg = restop(svg, 'steel', ['#6ab8ff', NITROUS, '#1f6fc0']);
+    svg = restop(svg, 'shroud', ['#4fa8ff', '#1f6fc0', '#0e3a6a']);
+    svg = restop(svg, 'poly', ['#1e2024', '#0b0c0e']);
+    return decorate(svg, { over: ['<path d="M60 52 H160 M60 57 H160" stroke="#ffffff" stroke-width="2"/>'].join('\n  ') });
+  },
+
+  /* 88 Club */
+  'van-88-club': async () => {
+    let svg = await load('van');
+    svg = restop(svg, 'paint', ['#f4f6f8', '#c9ced4', '#8a93a3', '#4a5262']);
+    svg = restop(svg, 'decal', ['#1e2024', '#0b0c0e']);
+    svg = restop(svg, 'rust', [['#000000', 0], ['#000000', 0]]);
+    svg = recolor(svg, { '#b8bcba': FLUX });
+    return decorate(svg, {
+      defs: `<filter id="fg" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2.2"/></filter><linearGradient id="fire" x1="1" y1="0" x2="0" y2="0"><stop offset="0" stop-color="#ffe066"/><stop offset=".5" stop-color="#ff7a2a"/><stop offset="1" stop-color="#e02a1a" stop-opacity="0"/></linearGradient>`,
+      over: [
+        // Coils and cables down the side, glowing flux blue.
+        `<path d="M48 54 H96 M48 62 H96" stroke="${FLUX}" stroke-width="2" filter="url(#fg)"/><path d="M48 54 H96 M48 62 H96" stroke="#e8faff" stroke-width=".8"/>`,
+        '<path d="M100 40 Q120 36 130 50 T160 60" stroke="#2a2d32" stroke-width="2" fill="none"/>',
+        `<g fill="none" stroke="${FLUX}" stroke-width="1.4">${[110, 118, 126, 134].map((x) => `<circle cx="${x}" cy="72" r="3"/>`).join('')}</g>`,
+        // Twin fire trails behind the tyres.
+        '<path d="M-20 101 H48 M-20 107 H50" stroke="url(#fire)" stroke-width="4" stroke-linecap="round"/>',
+      ].join('\n    '),
+    });
+  },
+  'thug-88-club': async () => {
+    let svg = await load('thug');
+    svg = repattern(svg, 'plaid', '<rect width="14" height="14" fill="#4a6fa5"/><path d="M0 3 H14 M0 10 H14" stroke="#6a8fc5" stroke-width=".5"/>');
+    svg = restop(svg, 'tank', ['#e8443a', '#a11c1c']);
+    svg = restop(svg, 'band', ['#4d2b16', '#3a1f10']);
+    svg = recolor(svg, { '#e9fff0': '#4d2b16', '#b5f5c5': '#6a3a20', '#6ee095': '#ffffff' });
+    return decorate(svg, {
+      over: [
+        // Puffer vest quilting over the denim.
+        '<path d="M46 94 H82 M45 102 H83 M44 110 H84 M44 118 H84" stroke="#7a1010" stroke-width="1"/>',
+        '<path d="M64 88 V126" stroke="#c9ced4" stroke-width="1.2" stroke-dasharray="1.2 .8"/>',
+        // Calculator watch.
+        '<rect x="20" y="118" width="8" height="6" rx="1" fill="#1e2024" stroke="#000" stroke-width=".5"/><rect x="21" y="119" width="6" height="2" fill="#9acf9a"/>',
+      ].join('\n  '),
+    });
+  },
+  'hoe-88-club': async () => {
+    let svg = await load('hoe');
+    svg = hoeCoat(svg, ['#e8f4ff', '#bcdcf6', '#7aa6cc'], '<path d="M0 7 Q3.5 5 7 7" stroke="#ffffff" stroke-width=".35" fill="none" opacity=".6"/>');
+    svg = recolor(svg, { '#5a060c': '#5a7aa0', '#17131a': '#9ac8ee', '#3d3346': '#ffffff' });
+    return decorate(svg, {
+      over: [
+        '<path d="M44 112 Q64 120 84 112 L86 136 H42 Z" fill="#bcdcf6" stroke="#7aa6cc" stroke-width=".8"/>',
+        '<g transform="translate(76 94)"><circle r="3.6" fill="#ff8ab0" stroke="#c95680" stroke-width=".6"/><circle r="1.4" fill="#ffd166"/></g>',
+        '<path d="M74 20 Q80 16 86 20 L80 24 Z" fill="#ffffff" stroke="#7aa6cc" stroke-width=".6"/>',
+      ].join('\n  '),
+    });
+  },
+  'pistol-88-club': async () => {
+    let svg = await load('pistol');
+    svg = restop(svg, 'slide', ['#ffffff', '#c9ced4', '#7d848c']);
+    svg = restop(svg, 'grip', ['#3a3e45', '#1c1e22']);
+    return decorate(svg, {
+      defs: '<filter id="fg" x="-30%" y="-100%" width="160%" height="300%"><feGaussianBlur stdDeviation="1.6"/></filter>',
+      over: [
+        `<path d="M30 46 H104" stroke="${FLUX}" stroke-width="3" filter="url(#fg)"/>`,
+        `<path d="M30 46 q3 -3 6 0 t6 0 t6 0 t6 0 t6 0 t6 0 t6 0 t6 0 t6 0 t6 0 t6 0 t6 0" stroke="#e8faff" stroke-width="1" fill="none"/>`,
+      ].join('\n  '),
+    });
+  },
+
+  /* Swamp Kingdom */
+  'van-swamp-kingdom': async () => {
+    let svg = await load('van');
+    svg = restop(svg, 'paint', ['#a8845e', '#7a5a3a', '#4a3420', '#241a0e']);
+    svg = restop(svg, 'decal', ['#f4ead8', '#d9c9a8']);
+    svg = restop(svg, 'rust', [['#4a6b2a', 0.9], ['#4a6b2a', 0.5], ['#4a6b2a', 0]]);
+    svg = restop(svg, 'steel', ['#e8c98a', '#b8862f', '#6a4a14']);
+    svg = recolor(svg, { '#b8bcba': '#5a3a1a' });
+    const planks = Array.from({ length: 6 }, (_, index) => `M14 ${36 + index * 9} H166`).join(' ');
+    return decorate(svg, {
+      over: [
+        `<path d="${planks}" stroke="#3a2614" stroke-opacity=".6" stroke-width="1"/>`,
+        // A KEEP OUT sign on the panel.
+        '<text x="71" y="62" text-anchor="middle" font-family="Georgia, serif" font-size="9" font-weight="700" fill="#7a1010">KEEP OUT</text>',
+        // Curled gold trim and moss.
+        '<path d="M14 30 Q20 24 26 30 T38 30 M156 30 Q162 24 168 30" stroke="#e8c98a" stroke-width="1.6" fill="none"/>',
+        `<path d="M20 86 q6 -6 12 0 q6 -6 12 0 M120 86 q6 -6 12 0" stroke="${MOSSY}" stroke-width="2.4" fill="none"/>`,
+      ].join('\n    '),
+    });
+  },
+  'thug-swamp-kingdom': async () => {
+    let svg = await load('thug');
+    svg = repattern(svg, 'plaid', '<rect width="14" height="14" fill="#6a4a2a"/><path d="M0 4 H14 M0 10 H14" stroke="#5a3a1e" stroke-width=".8"/>');
+    svg = restop(svg, 'tank', ['#d9c9a0', '#b8a676']);
+    svg = restop(svg, 'band', ['#4d2b16', '#3a1f10']);
+    svg = recolor(svg, { '#e9fff0': '#4d2b16', '#b5f5c5': '#6a3a20', '#6ee095': '#ffffff' });
+    return decorate(svg, {
+      over: [
+        // Burlap weave and a rope belt.
+        '<path d="M48 96 H80 M47 104 H81 M46 112 H82" stroke="#a8946a" stroke-width=".7" opacity=".8"/>',
+        '<path d="M44 118 Q64 122 84 118" stroke="#c9a66a" stroke-width="2.6" fill="none" stroke-dasharray="1.6 .6"/>',
+      ].join('\n  '),
+    });
+  },
+  'hoe-swamp-kingdom': async () => {
+    let svg = await load('hoe');
+    svg = hoeCoat(svg, ['#9ac85a', MOSSY, '#3e5a1a'], '<path d="M0 7 Q3.5 5 7 7" stroke="#b6e05a" stroke-width=".35" fill="none" opacity=".5"/>');
+    svg = recolor(svg, { '#5a060c': '#2a3a10', '#17131a': '#557a24', '#3d3346': '#e8c98a' });
+    return decorate(svg, {
+      over: [
+        '<path d="M47 86 Q55 90 56 103 L53 136 M81 86 Q73 90 72 103 L75 136" stroke="#e8c98a" stroke-width="1.6" fill="none"/>',
+        '<path d="M56 18 L58 12 L61 15 L64 10 L67 15 L70 12 L72 18 Q64 16 56 18 Z" fill="#e8c98a" stroke="#8a6508" stroke-width=".7" stroke-linejoin="round"/>',
+      ].join('\n  '),
+    });
+  },
+  'shotgun-swamp-kingdom': async () => {
+    let svg = await load('shotgun');
+    svg = restop(svg, 'barrel', ['#e8c98a', '#b8862f', '#6a4a14']);
+    svg = restop(svg, 'steel', ['#c9a66a', '#8a6a3a', '#4a3418']);
+    svg = restop(svg, 'wood', ['#8a5a30', '#5a3a1a', '#2e1c0a']);
+    return decorate(svg, {
+      over: [
+        // A flared blunderbuss muzzle and ivy round the barrel.
+        '<path d="M240 42 L252 37 V62 L240 57 Z" fill="#b8862f" stroke="#4a3418" stroke-width="1"/>',
+        `<path d="M130 48 q6 6 12 0 t12 0 t12 0 t12 0 t12 0 t12 0" stroke="${MOSSY}" stroke-width="1.4" fill="none"/>`,
+        `<g fill="${MOSSY}">${[136, 160, 184, 208].map((x) => `<ellipse cx="${x}" cy="46" rx="2.4" ry="1.4" transform="rotate(-30 ${x} 46)"/>`).join('')}</g>`,
+        '<path d="M20 62 q8 -4 16 0 M28 74 q8 -4 16 0" stroke="#3a2210" stroke-width=".8" fill="none"/>',
+      ].join('\n  '),
+    });
+  },
+});
+
 await mkdir(outDir, { recursive: true });
 for (const [name, recipe] of Object.entries(recipes)) {
   const svg = await recipe();

@@ -176,6 +176,7 @@ export const DROP_ART_FILES = {
     'graveyard-shift-sedan': 'cosmetics/drop/sedan-graveyard-shift.svg',
     'taxi-hustle-sedan': 'cosmetics/drop/sedan-taxi-hustle.svg',
     'two-tone-classic-sedan': 'cosmetics/drop/sedan-two-tone.svg',
+    'quarter-mile-sedan': 'cosmetics/drop/sedan-quarter-mile.svg',
   },
   LOW_RIDER: {
     'neon-underworld-low-rider': 'cosmetics/drop/low-rider-neon-underworld.svg',
@@ -185,6 +186,7 @@ export const DROP_ART_FILES = {
     'heartbreaker-low-rider': 'cosmetics/drop/low-rider-heartbreaker.svg',
     'lime-flake-low-rider': 'cosmetics/drop/low-rider-lime-flake.svg',
     'hot-flames-low-rider': 'cosmetics/drop/low-rider-hot-flames.svg',
+    'quarter-mile-low-rider': 'cosmetics/drop/low-rider-quarter-mile.svg',
   },
   VAN: {
     'winter-heist-van': 'cosmetics/drop/van-winter-heist.svg',
@@ -196,6 +198,8 @@ export const DROP_ART_FILES = {
     'block-party-van': 'cosmetics/drop/van-block-party.svg',
     'pipe-dreams-van': 'cosmetics/drop/van-pipe-dreams.svg',
     'flower-power-van': 'cosmetics/drop/van-flower-power.svg',
+    '88-club-van': 'cosmetics/drop/van-88-club.svg',
+    'swamp-kingdom-van': 'cosmetics/drop/van-swamp-kingdom.svg',
   },
   PISTOL: {
     'biscayne-sunset-pistol': 'cosmetics/drop/pistol-biscayne-sunset.svg',
@@ -203,6 +207,7 @@ export const DROP_ART_FILES = {
     'snake-eyes-pistol': 'cosmetics/drop/pistol-snake-eyes.svg',
     'graveyard-shift-pistol': 'cosmetics/drop/pistol-graveyard-shift.svg',
     'tiger-stripe-pistol': 'cosmetics/drop/pistol-tiger-stripe.svg',
+    '88-club-pistol': 'cosmetics/drop/pistol-88-club.svg',
   },
   SHOTGUN: {
     'winter-heist-shotgun': 'cosmetics/drop/shotgun-winter-heist.svg',
@@ -210,6 +215,7 @@ export const DROP_ART_FILES = {
     'bayou-smoke-shotgun': 'cosmetics/drop/shotgun-bayou-smoke.svg',
     'block-party-shotgun': 'cosmetics/drop/shotgun-block-party.svg',
     'rust-bucket-shotgun': 'cosmetics/drop/shotgun-rust-bucket.svg',
+    'swamp-kingdom-shotgun': 'cosmetics/drop/shotgun-swamp-kingdom.svg',
   },
   TEK9: {
     'neon-underworld-tek9': 'cosmetics/drop/tek9-neon-underworld.svg',
@@ -218,6 +224,7 @@ export const DROP_ART_FILES = {
     'naughty-list-tek9': 'cosmetics/drop/tek9-naughty-list.svg',
     'heartbreaker-tek9': 'cosmetics/drop/tek9-heartbreaker.svg',
     'bubblegum-tek9': 'cosmetics/drop/tek9-bubblegum.svg',
+    'quarter-mile-tek9': 'cosmetics/drop/tek9-quarter-mile.svg',
   },
   AK47: {
     'velvet-speakeasy-ak47': 'cosmetics/drop/ak47-velvet-speakeasy.svg',
@@ -248,6 +255,9 @@ export const DROP_ART_FILES = {
     'block-party-thug': 'cosmetics/drop/thug-block-party.svg',
     'velour-tracksuit-thug': 'cosmetics/drop/thug-velour-tracksuit.svg',
     'bowling-shirt-thug': 'cosmetics/drop/thug-bowling-shirt.svg',
+    'quarter-mile-thug': 'cosmetics/drop/thug-quarter-mile.svg',
+    '88-club-thug': 'cosmetics/drop/thug-88-club.svg',
+    'swamp-kingdom-thug': 'cosmetics/drop/thug-swamp-kingdom.svg',
   },
   HOE: {
     'kingpin-luxe-hoe': 'cosmetics/drop/hoe-kingpin-luxe.svg',
@@ -271,6 +281,9 @@ export const DROP_ART_FILES = {
     'block-party-hoe': 'cosmetics/drop/hoe-block-party.svg',
     'leopard-coat-hoe': 'cosmetics/drop/hoe-leopard-coat.svg',
     'tie-dye-hoe': 'cosmetics/drop/hoe-tie-dye.svg',
+    'quarter-mile-hoe': 'cosmetics/drop/hoe-quarter-mile.svg',
+    '88-club-hoe': 'cosmetics/drop/hoe-88-club.svg',
+    'swamp-kingdom-hoe': 'cosmetics/drop/hoe-swamp-kingdom.svg',
   },
 } as const satisfies Partial<Record<ItemArtKey, Partial<Record<ItemCosmeticStyleKey, string>>>>;
 

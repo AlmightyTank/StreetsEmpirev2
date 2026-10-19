@@ -228,6 +228,33 @@
 .se-profile-hover-card[data-accent="bubblegum-pink"] { --se-hover-accent: #ffa6e6; }
 .se-profile-hover-card[data-accent="mustard-yellow"] { --se-hover-accent: #f0cd4a; }
 .se-profile-hover-card[data-accent="block-party-mango"] { --se-hover-accent: #ffcd66; }
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--nitrous-blue {
+  --se-accent: #2f9bff;
+  --se-accent-dim: #1f6fc0;
+  --se-accent-hover: #6ab8ff;
+  --se-accent-rgb: 47, 155, 255;
+}
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--flux-blue {
+  --se-accent: #4fd2ff;
+  --se-accent-dim: #2a9bc2;
+  --se-accent-hover: #8ae4ff;
+  --se-accent-rgb: 79, 210, 255;
+}
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--swamp-moss {
+  --se-accent: #7aa83a;
+  --se-accent-dim: #557a24;
+  --se-accent-hover: #a2c96a;
+  --se-accent-rgb: 122, 168, 58;
+}
+.se-profile-accent--nitrous-blue { --se-profile-accent: #2f9bff; }
+.se-profile-accent--flux-blue { --se-profile-accent: #4fd2ff; }
+.se-profile-accent--swamp-moss { --se-profile-accent: #7aa83a; }
+.se-swatch--nitrous-blue { --se-swatch: #2f9bff; }
+.se-swatch--flux-blue { --se-swatch: #4fd2ff; }
+.se-swatch--swamp-moss { --se-swatch: #7aa83a; }
+.se-profile-hover-card[data-accent="nitrous-blue"] { --se-hover-accent: #6ab8ff; }
+.se-profile-hover-card[data-accent="flux-blue"] { --se-hover-accent: #8ae4ff; }
+.se-profile-hover-card[data-accent="swamp-moss"] { --se-hover-accent: #a2c96a; }
 .se-profile-hover-card[data-accent="felt-green"] { --se-hover-accent: #4fcc8e; }
 
 /* ---------- Wallet, packs, skips ---------- */

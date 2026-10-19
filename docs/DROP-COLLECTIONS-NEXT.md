@@ -1,4 +1,4 @@
-# The Drop: the next sixteen collections
+# The Drop: the next nineteen collections
 
 Launch catalogue and rules: [THE-DROP.md](THE-DROP.md).
 
@@ -63,6 +63,28 @@ Where each piece lives:
   `apps/web/src/items/itemCosmeticArt.ts`.
 - Accents in `apps/web/src/styles/drop.css`; frames in `drop-art.css`; shells in
   `drop-shells.css` with scenes in `apps/web/src/components/theme-scenes/`.
+
+## Movie homages (3, evergreen)
+
+Added 2026-10-19 and in rotation like the evergreen sets. Each is an original
+homage to a film genre's look: **no film names, logos, characters, likenesses,
+quotes or music**, so nothing here leans on anyone else's trademark or
+copyright. Keep it that way when adding to them.
+
+| Collection | Nod to | Palette | Vehicle | Crew | Weapon | Title | Bundle (list) |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Quarter Mile | street racing | nitrous blue `#2f9bff`, burnt orange, black | Sedan (tuner) + Low-Rider (muscle car) | Thug + Hoe | Tek-9 | Ride or Die | 2,800 (6,000) |
+| 88 Club | time travel | flux blue `#4fd2ff`, brushed steel, fire trails | Van | Thug + Hoe | Pistol | Ahead of Time | 2,750 (4,950) |
+| Swamp Kingdom | fairy-tale swamp | moss `#7aa83a`, mud brown, storybook gold | Van | Thug + Hoe | Shotgun | Got Layers | 2,750 (4,900) |
+
+- **Quarter Mile** is the only set with two rides. Frame: a ring of start-tree
+  bulbs with a green light. Shell: a drag strip at night, the start tree
+  counting down, light trails.
+- **88 Club** frame: a clock face stopped at 10:04. Shell: a town-square clock
+  tower in a storm, a slow-glowing bolt (never a flash) and twin fire trails.
+- **Swamp Kingdom** frame: a vine ring with a gold crown. Shell: a crooked
+  outhouse with a KEEP OUT sign, a castle on the hill and a small dragon
+  circling it.
 
 ## Holiday sets (built, held)
 

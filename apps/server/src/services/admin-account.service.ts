@@ -34,6 +34,8 @@ import { sendCurrentEmailVerification, sendTwoFactorNotice } from './email.servi
 import { TwoFactorService } from './two-factor.service.js';
 import { deletedAccountIdentity, eraseAccount } from './account-data.service.js';
 import { SupporterService } from './supporter.service.js';
+import { wakeDiscordBot } from './discord-bot-push.service.js';
+import { queueDiscordRoleResync } from './discord-resync.service.js';
 
 export { deletedAccountIdentity };
 
@@ -707,8 +709,11 @@ export const AdminAccountService = {
           source,
         },
       });
+      // Discord follows in seconds rather than on the bot's next full pass.
+      await queueDiscordRoleResync(tx, { accountIds: [before.id] }, `Staff role: ${actor.username}`);
       return { account, detail: { fromRole: from, toRole: role, source } };
     });
+    wakeDiscordBot('resync');
     return detailFor(prisma, actor, accountId);
   },
 

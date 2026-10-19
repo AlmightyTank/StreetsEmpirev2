@@ -63,6 +63,14 @@ const schema = z.object({
    * beta-tester-only: sync only the fixed Beta Tester role.
    */
   DISCORD_ROLE_SYNC_MODE: z.enum(['full', 'beta-tester-only']).default('full'),
+  /**
+   * Staff roles (Founder, Admin, Mod, JR Mod, Helper) follow the game. off: untouched.
+   * report: differences are posted to the staff channel, nothing changes. enforce: synced.
+   * Only in full role sync mode.
+   */
+  DISCORD_STAFF_SYNC: z.enum(['off', 'report', 'enforce']).default('off'),
+  /** "founder:<role id>,admin:<id>,mod:<id>,jr-mod:<id>,helper:<id>". Roles left out are not synced. */
+  DISCORD_STAFF_ROLE_IDS: z.string().default(''),
 });
 
 export type BotConfig = z.infer<typeof schema> & { frontendOrigin: string; betaMode: boolean };

@@ -1,6 +1,6 @@
 # Brainstorm - Staff roles synced across game, Discord and forum
 
-Status: **Stage A built** (game roles, permissions, Staff page). Stages B-E are still a plan.
+Status: **Stages A and B built** (game roles, permissions, Staff page; Discord sync). Stages C-E are still a plan.
 
 Five staff roles - **Founder, Admin, Mod, JR Mod, Helper** - set in one place and
 mirrored to the game, Discord and the Flarum forum.

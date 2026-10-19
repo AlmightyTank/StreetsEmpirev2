@@ -22,6 +22,14 @@ export function staffRank(role: StaffRole | null | undefined): number {
   return role ? RANK[role] : 0;
 }
 
+/**
+ * The Discord role key for a staff role, as the game sends it to the bot: staff:founder,
+ * staff:admin, staff:mod, staff:jr-mod, staff:helper.
+ */
+export function staffRoleKey(role: StaffRole): string {
+  return `staff:${role.toLowerCase().replace('_', '-')}`;
+}
+
 export function isStaffRole(value: unknown): value is StaffRole {
   return typeof value === 'string' && (STAFF_ROLES as readonly string[]).includes(value);
 }

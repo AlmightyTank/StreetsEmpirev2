@@ -199,6 +199,10 @@ async function main(): Promise<void> {
         source: 'CONSOLE',
       },
     });
+    // The Discord bot picks this up on its next resync check (a minute or so).
+    if (account.discordId && process.env.DISCORD_BOT_API_TOKEN) {
+      await tx.discordResyncRequest.create({ data: { discordId: account.discordId, requestedByUsername: actorUsername } });
+    }
     await tx.adminAuditLog.create({
       data: {
         actorAccountId: null,
