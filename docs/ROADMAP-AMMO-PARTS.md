@@ -83,7 +83,7 @@ Every vehicle that leaves on a run or boss trip pays a cash fee (fuel and upkeep
 | Low-rider | $5,000 | 100% | $65 |
 | Van | $8,500 | 150% | $130 |
 
-A run with too little cash for its fleet fee is refused at launch, like any other unaffordable action; a run already out is never stranded.
+A run with too little cash for its fleet fee is refused at launch, like any other unaffordable action; a run already out is never stranded. The run preview shows the fee per vehicle and the fleet total.
 
 A van carries the most but costs 4× a sedan to run, so fleet choice is a real trade-off.
 
@@ -99,8 +99,6 @@ Today repairs are cash only (damaged: sedan $500, low-rider $750, van $1,250; di
 - With parts, a repair costs less than today's cash price (a damaged van: 20 × $8 + $700 = $860 vs $1,250).
 - **Without parts** a repair still works at 1.5× today's cash price and takes longer. Nobody is ever stuck in the garage.
 - Existing garage discounts (Auto Garage, Road Saints MC) apply to the cash part only.
-
-- The run preview shows the cash fee per vehicle and the fleet total.
 
 ### Buying parts
 Sold at Charlie's alongside vehicles, in bulk:
