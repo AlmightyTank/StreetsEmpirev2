@@ -44,6 +44,7 @@ import { PayoutService } from '../services/payout.service.js';
 import { ProductionService } from '../services/production.service.js';
 import { HandcraftedQuestService } from '../services/handcrafted-quest.service.js';
 import { StreetPassService } from '../services/street-pass.service.js';
+import { RoundRollCallService } from '../services/round-roll-call.service.js';
 import { TimedFavorService } from '../services/timed-favor.service.js';
 import { SingleUseFavorService } from '../services/single-use-favor.service.js';
 import { ScoutService } from '../services/scout.service.js';
@@ -181,10 +182,11 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
       markActive: !isBackground,
     });
 
-    const [playerCount, recentActivity, streetPass, law, pendingEncounters] = await Promise.all([
+    const [playerCount, recentActivity, streetPass, roundRollCall, law, pendingEncounters] = await Promise.all([
       RoundService.playerCount(fastify.prisma, round.id),
       ActivityService.recent(fastify.prisma, existing.id, RECENT_ACTIVITY_LIMIT),
       StreetPassService.summary(fastify.prisma, existing.id, settled.ruleset),
+      RoundRollCallService.summary(fastify.prisma, settled.round, existing.id),
       LawService.summary(fastify.prisma, existing.id, settled.ruleset),
       RandomEncounterService.pendingForPlayer(fastify.prisma, existing.id, new Date(), settled.ruleset),
     ]);
@@ -204,7 +206,7 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
       recentActivity,
     });
     const experience = await PlayerExperienceService.view(fastify.prisma, settled.player.accountId);
-    return { ...snapshot, player: { ...snapshot.player, streetPass, experience, ...(law ? { law } : {}) } };
+    return { ...snapshot, player: { ...snapshot.player, streetPass, roundRollCall, experience, ...(law ? { law } : {}) } };
   });
 
   /**

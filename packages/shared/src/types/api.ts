@@ -1087,6 +1087,8 @@ export interface RoundPlayerDto {
   pendingEncounters: RandomEncounterDto[];
   /** Street Pass summary for the nav badge. Absent or null on rounds without a pass. */
   streetPass?: { tier: number; tierCount: number; claimable: number } | null;
+  /** Round Roll Call rewards ready to collect, for the nav badge. Absent or null on rounds without a track. */
+  roundRollCall?: { claimable: number } | null;
   /** 1.3.0-A. The worst Case the player has anywhere. Absent or null on rounds without the law. */
   law?: LawSummaryDto | null;
   /** Lifetime account XP; does not reset between rounds. */

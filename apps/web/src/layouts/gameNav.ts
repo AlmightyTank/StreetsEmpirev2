@@ -564,6 +564,15 @@ export function useNavBadges(pathname: string, search = ''): Record<string, NavB
     };
   }
 
+  const rollCallReady = me.roundRollCall?.claimable ?? 0;
+  if (rollCallReady > 0) {
+    badges['roll-call'] = {
+      tone: 'info',
+      text: badgeCount(rollCallReady),
+      label: `${rollCallReady} Roll Call reward${rollCallReady === 1 ? '' : 's'} ready to claim`,
+    };
+  }
+
   if (consoleUnread > 0) {
     badges.console = {
       tone: 'info',
