@@ -91,6 +91,13 @@ import { landingPath, useSession } from './stores/session.js';
 
 const UiGalleryPage = import.meta.env.DEV ? lazy(() => import('./pages/UiGalleryPage.js').then((module) => ({ default: module.UiGalleryPage }))) : null;
 
+/** Roll Call used to live on Street Pass; old #round-roll-call links land on its own page. */
+function StreetPassRoute() {
+  const { hash } = useLocation();
+  if (hash === '#round-roll-call') return <Navigate to="/game/roll-call" replace />;
+  return <StreetPassPage />;
+}
+
 function SurveyRedirect() {
   const { search } = useLocation();
   return <Navigate to={`/game/news${search}#surveys`} replace />;
@@ -211,7 +218,7 @@ export function App() {
         {/* 0.4.0-E: products are traded at Pip's; old links land there. */}
         <Route path="products" element={<Navigate to="/game/stores/pip" replace />} />
         <Route path="produce" element={<Protected><LiveRound><ProducePage /></LiveRound></Protected>} />
-        <Route path="street-pass" element={<Protected><LiveRound><StreetPassPage /></LiveRound></Protected>} />
+        <Route path="street-pass" element={<Protected><LiveRound><StreetPassRoute /></LiveRound></Protected>} />
         <Route path="roll-call" element={<Protected><LiveRound><RoundRollCallPage /></LiveRound></Protected>} />
         {/* The Collection page was retired; cosmetics are equipped from Account. */}
         <Route path="collection" element={<Navigate to="/account" replace />} />
