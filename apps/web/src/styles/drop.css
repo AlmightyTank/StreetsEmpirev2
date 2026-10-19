@@ -173,6 +173,60 @@
 .se-profile-hover-card[data-accent="ghost-green"] { --se-hover-accent: #c8f8dc; }
 .se-profile-hover-card[data-accent="candy-red"] { --se-hover-accent: #f06a6a; }
 .se-profile-hover-card[data-accent="heartbreak-rose"] { --se-hover-accent: #ff8299; }
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--money-green {
+  --se-accent: #4caf50;
+  --se-accent-dim: #357a38;
+  --se-accent-hover: #7ccc7f;
+  --se-accent-rgb: 76, 175, 80;
+}
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--blood-orange {
+  --se-accent: #ff5f1f;
+  --se-accent-dim: #c24412;
+  --se-accent-hover: #ff8a5a;
+  --se-accent-rgb: 255, 95, 31;
+}
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--steel-silver {
+  --se-accent: #b8c4d0;
+  --se-accent-dim: #8794a2;
+  --se-accent-hover: #d6dee6;
+  --se-accent-rgb: 184, 196, 208;
+}
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--cobalt-blue {
+  --se-accent: #2f6bff;
+  --se-accent-dim: #1f4bc0;
+  --se-accent-hover: #6a95ff;
+  --se-accent-rgb: 47, 107, 255;
+}
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--bubblegum-pink {
+  --se-accent: #ff7ad9;
+  --se-accent-dim: #c9529f;
+  --se-accent-hover: #ffa6e6;
+  --se-accent-rgb: 255, 122, 217;
+}
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--mustard-yellow {
+  --se-accent: #e3b505;
+  --se-accent-dim: #a88604;
+  --se-accent-hover: #f0cd4a;
+  --se-accent-rgb: 227, 181, 5;
+}
+.se-profile-accent--money-green { --se-profile-accent: #4caf50; }
+.se-profile-accent--blood-orange { --se-profile-accent: #ff5f1f; }
+.se-profile-accent--steel-silver { --se-profile-accent: #b8c4d0; }
+.se-profile-accent--cobalt-blue { --se-profile-accent: #2f6bff; }
+.se-profile-accent--bubblegum-pink { --se-profile-accent: #ff7ad9; }
+.se-profile-accent--mustard-yellow { --se-profile-accent: #e3b505; }
+.se-swatch--money-green { --se-swatch: #4caf50; }
+.se-swatch--blood-orange { --se-swatch: #ff5f1f; }
+.se-swatch--steel-silver { --se-swatch: #b8c4d0; }
+.se-swatch--cobalt-blue { --se-swatch: #2f6bff; }
+.se-swatch--bubblegum-pink { --se-swatch: #ff7ad9; }
+.se-swatch--mustard-yellow { --se-swatch: #e3b505; }
+.se-profile-hover-card[data-accent="money-green"] { --se-hover-accent: #7ccc7f; }
+.se-profile-hover-card[data-accent="blood-orange"] { --se-hover-accent: #ff8a5a; }
+.se-profile-hover-card[data-accent="steel-silver"] { --se-hover-accent: #d6dee6; }
+.se-profile-hover-card[data-accent="cobalt-blue"] { --se-hover-accent: #6a95ff; }
+.se-profile-hover-card[data-accent="bubblegum-pink"] { --se-hover-accent: #ffa6e6; }
+.se-profile-hover-card[data-accent="mustard-yellow"] { --se-hover-accent: #f0cd4a; }
 .se-profile-hover-card[data-accent="block-party-mango"] { --se-hover-accent: #ffcd66; }
 .se-profile-hover-card[data-accent="felt-green"] { --se-hover-accent: #4fcc8e; }
 

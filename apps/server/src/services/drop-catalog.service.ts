@@ -193,7 +193,10 @@ export async function rotationAt(db: Db | PrismaClient, settings: DropSettingsVa
   const adminFeatured = offers.some((offer) => offer.slot === 'FEATURED');
   const liveCollections = Object.keys(DROP_COLLECTIONS).filter((collection) =>
     Object.values(DROP_ITEMS).some((item) => item.collection === collection && isLive(catalog, item.key)));
-  const seasonal = (collection: string) => Boolean((DROP_COLLECTIONS as Readonly<Record<string, { season?: string }>>)[collection]?.season);
+  const definitionOf = (collection: string) => (DROP_COLLECTIONS as Readonly<Record<string, { season?: string; singles?: boolean }>>)[collection];
+  const seasonal = (collection: string) => Boolean(definitionOf(collection)?.season);
+  // Street Singles have no set to show off, so they never take a featured slot.
+  const featurable = liveCollections.filter((collection) => !definitionOf(collection)?.singles);
   const featuredCollections = adminFeatured
     ? [...new Set(offers.filter((offer) => offer.slot === 'FEATURED')
       .map((offer) => DROP_ITEMS[offer.refKey]?.collection ?? DROP_BUNDLES[offer.refKey]?.collection)
@@ -201,8 +204,8 @@ export async function rotationAt(db: Db | PrismaClient, settings: DropSettingsVa
     : settings.autoFeatured
       ? [
         // A live holiday set always takes a featured slot; the rest cycle week by week.
-        ...liveCollections.filter(seasonal),
-        ...featuredCollectionsFor(week.index, liveCollections.filter((collection) => !seasonal(collection))),
+        ...featurable.filter(seasonal),
+        ...featuredCollectionsFor(week.index, featurable.filter((collection) => !seasonal(collection))),
       ].slice(0, DROP_FEATURED_SETS)
       : [];
 

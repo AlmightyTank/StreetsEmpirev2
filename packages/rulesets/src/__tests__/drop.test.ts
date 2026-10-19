@@ -24,16 +24,22 @@ import {
   discountedDropPrice,
   dropDefaultState,
   featuredCollectionsFor,
+  evergreenDropCollections,
 } from '../index.js';
 
 const items = Object.values(DROP_ITEMS);
 const bundles = Object.values(DROP_BUNDLES);
 
 describe('The Drop catalogue', () => {
-  it('ships nineteen collections, at least 18 SKUs, a shell theme each and a bundle per collection', () => {
-    expect(Object.keys(DROP_COLLECTIONS)).toHaveLength(19);
+  it('ships nineteen sets with a shell theme and a bundle each, plus Street Singles', () => {
+    expect(Object.keys(DROP_COLLECTIONS)).toHaveLength(20);
     expect(items.length).toBeGreaterThanOrEqual(18);
-    for (const collection of Object.keys(DROP_COLLECTIONS)) {
+    const singles = items.filter((item) => item.collection === 'street-singles');
+    expect(singles).toHaveLength(30);
+    expect(singles.some((item) => item.kind === 'SITE_THEME')).toBe(false);
+    expect(bundles.some((bundle) => bundle.collection === 'street-singles')).toBe(false);
+    expect(evergreenDropCollections()).not.toContain('street-singles');
+    for (const collection of Object.keys(DROP_COLLECTIONS).filter((key) => key !== 'street-singles')) {
       expect(items.filter((item) => item.collection === collection).length).toBeGreaterThanOrEqual(7);
       expect(items.filter((item) => item.collection === collection && item.kind === 'SITE_THEME')).toHaveLength(1);
       expect(bundles.filter((bundle) => bundle.collection === collection)).toHaveLength(1);

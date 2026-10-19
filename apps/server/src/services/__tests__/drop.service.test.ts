@@ -140,6 +140,19 @@ describe('Drop purchases', () => {
     }
   });
 
+  it('never features Street Singles but puts them in the daily picks', async () => {
+    const db = fakeDb();
+    const catalog = await loadCatalog(db as never, now);
+    let dailySingles = 0;
+    for (let day = 0; day < 28; day++) {
+      const at = new Date(now.getTime() + day * 86_400_000);
+      const offers = (await rotationAt(db as never, { ...DEFAULT_DROP_SETTINGS }, catalog, at)).offers;
+      expect(offers.some((offer) => offer.slot === 'FEATURED' && offer.refKey.startsWith('drop-street-singles-'))).toBe(false);
+      dailySingles += offers.filter((offer) => offer.slot === 'DAILY' && offer.refKey.startsWith('drop-street-singles-')).length;
+    }
+    expect(dailySingles).toBeGreaterThan(0);
+  });
+
   it('puts Graveyard Shift live and in a featured slot through its Halloween window', async () => {
     const db = fakeDb();
     const halloween = new Date('2026-10-31T18:00:00Z');

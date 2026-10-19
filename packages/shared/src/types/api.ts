@@ -240,7 +240,13 @@ export type ProfileAccent =
   | 'ghost-green'
   | 'candy-red'
   | 'heartbreak-rose'
-  | 'block-party-mango';
+  | 'block-party-mango'
+  | 'money-green'
+  | 'blood-orange'
+  | 'steel-silver'
+  | 'cobalt-blue'
+  | 'bubblegum-pink'
+  | 'mustard-yellow';
 export type UiDensity = 'comfortable' | 'compact';
 export type MoneyFormat = 'full' | 'compact';
 export type DefaultLanding = 'game' | 'profile' | 'rankings' | 'news';

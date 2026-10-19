@@ -214,6 +214,12 @@ export const profileAccentSchema = z.enum([
   'candy-red',
   'heartbreak-rose',
   'block-party-mango',
+  'money-green',
+  'blood-orange',
+  'steel-silver',
+  'cobalt-blue',
+  'bubblegum-pink',
+  'mustard-yellow',
 ]);
 export const CREW_NAME_MIN = 3;
 export const CREW_NAME_MAX = 32;
@@ -364,6 +370,20 @@ export const itemCosmeticStyleSchema = z.enum([
   'block-party-thug',
   'block-party-hoe',
   'block-party-shotgun',
+  'taxi-hustle-sedan',
+  'two-tone-classic-sedan',
+  'lime-flake-low-rider',
+  'hot-flames-low-rider',
+  'pipe-dreams-van',
+  'flower-power-van',
+  'tiger-stripe-pistol',
+  'damascus-ak47',
+  'rust-bucket-shotgun',
+  'bubblegum-tek9',
+  'velour-tracksuit-thug',
+  'bowling-shirt-thug',
+  'leopard-coat-hoe',
+  'tie-dye-hoe',
 ]);
 
 export const crewCosmeticStyleSchema = itemCosmeticStyleSchema.refine(
