@@ -1469,6 +1469,7 @@
 /* Discovery cards have no badge art, so drop the reserved art gutter. */
 .se-profile-achievements .se-ach.se-ach--discovery { padding-left: 9px; }
 .se-ach--tier-hidden { border-left-color: #6899f3; }
+.se-ach--tier-hidden .se-ach__rarity { color: #6899f3; }
 .se-ach--tier-legendary { border-left-color: #f1b622; }
 .se-ach--tier-legendary .se-ach__rarity { color: #f1b622; }
 .se-ach--discovery .se-ach__top { flex-wrap: wrap; gap: 2px 8px; }
