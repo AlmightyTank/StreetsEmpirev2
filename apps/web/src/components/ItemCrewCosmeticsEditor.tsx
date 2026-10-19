@@ -143,10 +143,8 @@ export function ItemCrewCosmeticsEditor({
           onChange={(event) => onChange({ ...settings, activeCrewBannerKey: event.target.value || null })}
         >
           <option value="">Classic · no banner</option>
-          {bannerStyles.map((banner) => (
-            <option key={banner.key} value={banner.key} disabled={banner.locked}>
-              {banner.locked ? `${banner.label} (locked)` : banner.label}
-            </option>
+          {bannerStyles.filter((banner) => !banner.locked || banner.key === settings.activeCrewBannerKey).map((banner) => (
+            <option key={banner.key} value={banner.key}>{banner.label}</option>
           ))}
         </select>
       </div>
