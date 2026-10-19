@@ -12,6 +12,31 @@ import { z } from 'zod';
  * The catalog only names parts and colors. The web client draws them.
  */
 
+/**
+ * Cities with a skyline backdrop, earned by holding turf there when a round
+ * ends. Unlock keys are `avatar-skyline-<slug>`; the art is in BuiltAvatar.
+ */
+export const AVATAR_SKYLINE_CITIES = [
+  { slug: 'new-york-city', name: 'New York City' },
+  { slug: 'detroit', name: 'Detroit' },
+  { slug: 'miami-beach', name: 'Miami Beach' },
+  { slug: 'seattle', name: 'Seattle' },
+  { slug: 'beverly-hills', name: 'Beverly Hills' },
+  { slug: 'las-vegas', name: 'Las Vegas' },
+  { slug: 'los-angeles', name: 'Los Angeles' },
+  { slug: 'atlanta', name: 'Atlanta' },
+  { slug: 'san-francisco', name: 'San Francisco' },
+  { slug: 'chicago', name: 'Chicago' },
+  { slug: 'tulsa', name: 'Tulsa' },
+  { slug: 'dallas', name: 'Dallas' },
+] as const;
+
+export type AvatarSkylineCity = (typeof AVATAR_SKYLINE_CITIES)[number]['slug'];
+
+export function avatarSkylineUnlockKey(slug: string): string {
+  return `avatar-skyline-${slug}`;
+}
+
 /** Unlock keys for the locked wearables. Each is an AccountCosmeticUnlock key. */
 export const AVATAR_UNLOCKS = {
   kingpinCrown: 'drop-kingpin-luxe-crown',
@@ -24,7 +49,19 @@ export const AVATAR_UNLOCKS = {
   neonGlow: 'drop-neon-underworld-glow',
   heistParka: 'drop-winter-heist-parka',
   heistSnowfall: 'drop-winter-heist-snowfall',
+  scar: 'avatar-scar',
+  dice: 'avatar-dice',
+  briefcase: 'avatar-briefcase',
+  laurel: 'avatar-top-ten-laurel',
+  diamondStuds: 'avatar-top-three-diamonds',
 } as const;
+
+const skylineOptions = AVATAR_SKYLINE_CITIES.map((city) => ({
+  key: `skyline-${city.slug}` as `skyline-${AvatarSkylineCity}`,
+  label: `${city.name} skyline`,
+  unlock: avatarSkylineUnlockKey(city.slug),
+  unlockHint: `Hold turf in ${city.name} when a round ends.`,
+}));
 
 export const AVATAR_PART_OPTIONS = {
   base: [
@@ -171,6 +208,7 @@ export const AVATAR_PART_OPTIONS = {
     { key: 'studs', label: 'Stud earrings' },
     { key: 'hoops', label: 'Hoop earrings' },
     { key: 'crown-drop', label: 'Crown drops', unlock: AVATAR_UNLOCKS.kingpinCrownEarrings, unlockHint: 'The Drop: Kingpin Luxe, 250 Crowns.' },
+    { key: 'diamond-studs', label: 'Diamond studs', unlock: AVATAR_UNLOCKS.diamondStuds, unlockHint: 'Finish a round in the national top 3.' },
   ],
   /** Drawn over the hair. Tall hair is cut down to fit under a hat. */
   headwear: [
@@ -180,6 +218,25 @@ export const AVATAR_PART_OPTIONS = {
     { key: 'snapback', label: 'Snapback', unlock: AVATAR_UNLOCKS.snapback, unlockHint: 'Street Pass Season 1, tier 4.' },
     { key: 'santa-hat', label: 'Santa hat', unlock: AVATAR_UNLOCKS.santaHat, hidden: true, unlockHint: 'A Christmas good deed on the road.' },
     { key: 'kingpin-crown', label: 'Kingpin crown', unlock: AVATAR_UNLOCKS.kingpinCrown, unlockHint: 'The Drop: Kingpin Luxe, 300 Crowns.' },
+    // A wreath, not a hat: hair stays as it is under it.
+    { key: 'laurel', label: 'Top 10 laurel', unlock: AVATAR_UNLOCKS.laurel, unlockHint: 'Finish a round in the national top 10.' },
+  ],
+  /** Marks on the skin, under facial hair and masks. */
+  faceMark: [
+    { key: 'none', label: 'None' },
+    { key: 'freckles', label: 'Freckles' },
+    { key: 'beauty-mark', label: 'Beauty mark' },
+    { key: 'bandage', label: 'Bandage' },
+    { key: 'scar', label: 'Scar', unlock: AVATAR_UNLOCKS.scar, unlockHint: 'Lose a raid as the defender.' },
+  ],
+  /** Held up in front of the shoulder. */
+  prop: [
+    { key: 'none', label: 'None' },
+    { key: 'phone', label: 'Phone' },
+    { key: 'rose', label: 'Rose' },
+    { key: 'cash', label: 'Cash stack' },
+    { key: 'dice', label: 'Gold dice', unlock: AVATAR_UNLOCKS.dice, unlockHint: 'Hit a jackpot or a mega win at the casino.' },
+    { key: 'briefcase', label: 'Briefcase', unlock: AVATAR_UNLOCKS.briefcase, unlockHint: 'Pay off a loan.' },
   ],
   /** Drawn behind the body, over the background. Animated on large portraits; still under reduced motion. */
   aura: [
@@ -205,6 +262,7 @@ export const AVATAR_PART_OPTIONS = {
     { key: 'concrete', label: 'Concrete' },
     { key: 'brick', label: 'Brick wall' },
     { key: 'city', label: 'City at night' },
+    ...skylineOptions,
   ],
 } as const;
 
@@ -234,6 +292,8 @@ export const DEFAULT_AVATAR_PARTS: Record<AvatarBase, AvatarParts> = {
     headwear: 'none',
     grill: 'none',
     aura: 'none',
+    faceMark: 'none',
+    prop: 'none',
     background: 'brick',
   },
   girl: {
@@ -256,6 +316,8 @@ export const DEFAULT_AVATAR_PARTS: Record<AvatarBase, AvatarParts> = {
     headwear: 'none',
     grill: 'none',
     aura: 'none',
+    faceMark: 'none',
+    prop: 'none',
     background: 'city',
   },
 };
@@ -294,6 +356,8 @@ export const avatarPartsSchema = z.preprocess(withEarringsSlot, z.object({
   headwear: partEnum('headwear').default('none'),
   grill: partEnum('grill').default('none'),
   aura: partEnum('aura').default('none'),
+  faceMark: partEnum('faceMark').default('none'),
+  prop: partEnum('prop').default('none'),
   background: partEnum('background'),
 }).strict()) as unknown as z.ZodType<AvatarParts, z.ZodTypeDef, unknown>;
 

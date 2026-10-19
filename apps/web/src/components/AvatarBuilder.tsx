@@ -33,6 +33,8 @@ const PART_LABELS: Record<AvatarPartKey, string> = {
   headwear: 'Hat',
   grill: 'Grill',
   aura: 'Aura',
+  faceMark: 'Face mark',
+  prop: 'In hand',
   background: 'Background',
 };
 
@@ -50,10 +52,10 @@ const TABS: { key: string; label: string; parts: AvatarPartKey[] }[] = [
   { key: 'headwear', label: 'Hats', parts: ['headwear'] },
   { key: 'eyes', label: 'Eyes', parts: ['eyes', 'eyeColor', 'brows'] },
   { key: 'face', label: 'Nose & mouth', parts: ['nose', 'mouth'] },
-  { key: 'facial-hair', label: 'Facial hair', parts: ['facialHair'] },
+  { key: 'facial-hair', label: 'Facial hair & marks', parts: ['facialHair', 'faceMark'] },
   { key: 'shirt', label: 'Shirt', parts: ['shirt', 'shirtColor'] },
   { key: 'mask', label: 'Mask', parts: ['mask', 'maskColor'] },
-  { key: 'extras', label: 'Extras', parts: ['accessory', 'earrings', 'grill'] },
+  { key: 'extras', label: 'Extras', parts: ['accessory', 'earrings', 'grill', 'prop'] },
   { key: 'background', label: 'Background', parts: ['background', 'aura'] },
 ];
 
@@ -113,6 +115,8 @@ function randomParts(base: AvatarBase, owned: ReadonlySet<string>): AvatarParts 
     headwear: Math.random() < 0.7 ? 'none' : parts.headwear,
     grill: Math.random() < 0.8 ? 'none' : parts.grill,
     aura: Math.random() < 0.8 ? 'none' : parts.aura,
+    faceMark: Math.random() < 0.7 ? 'none' : parts.faceMark,
+    prop: Math.random() < 0.7 ? 'none' : parts.prop,
     // Mostly a style cut for the base, with the odd crossover.
     hair: Math.random() < 0.8 ? randomHair(base) : parts.hair,
   };
