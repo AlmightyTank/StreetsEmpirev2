@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { PrismaClient } from '@prisma/client';
-import { CROWN_EARN_RULES, DROP_BUNDLES, DROP_ITEMS, bundleListPrice, dropDailyWindow, dropWeeklyWindow, featuredCollectionFor, discountedDropPrice } from '@streets/rulesets';
+import { CROWN_EARN_RULES, DROP_BUNDLES, DROP_ITEMS, bundleListPrice, dropDailyWindow, dropWeeklyWindow, featuredCollectionsFor, discountedDropPrice } from '@streets/rulesets';
 import type { StripeEvent } from '../stripe.client.js';
 
 vi.mock('../round.service.js', () => ({ RoundService: { getCurrent: async () => null } }));
@@ -124,12 +124,13 @@ describe('Drop purchases', () => {
   const now = new Date('2026-10-18T12:00:00Z');
 
   async function liveOffers(db: Row) {
-    return (await rotationAt(db as never, { ...DEFAULT_DROP_SETTINGS }, await loadCatalog(db as never), now)).offers;
+    return (await rotationAt(db as never, { ...DEFAULT_DROP_SETTINGS }, await loadCatalog(db as never, now), now)).offers;
   }
 
   it('keeps held holiday sets out of the catalog, the rotation and the storefront', async () => {
     const db = fakeDb();
-    const catalog = await loadCatalog(db as never);
+    // The day before Graveyard Shift's Halloween window opens.
+    const catalog = await loadCatalog(db as never, now);
     expect(catalog.get('drop-naughty-list-van')?.state).toBe('DRAFT');
     expect(catalog.get('drop-naughty-list-bundle')?.state).toBe('DRAFT');
     expect(catalog.get('drop-snake-eyes-sedan')?.state).toBe('LIVE');
@@ -139,20 +140,40 @@ describe('Drop purchases', () => {
     }
   });
 
+  it('puts Graveyard Shift live and in a featured slot through its Halloween window', async () => {
+    const db = fakeDb();
+    const halloween = new Date('2026-10-31T18:00:00Z');
+    const catalog = await loadCatalog(db as never, halloween);
+    expect(catalog.get('drop-graveyard-shift-bundle')?.state).toBe('LIVE');
+    expect(catalog.get('drop-naughty-list-bundle')?.state).toBe('DRAFT');
+    const offers = (await rotationAt(db as never, { ...DEFAULT_DROP_SETTINGS }, catalog, halloween)).offers.filter((offer) => offer.slot === 'FEATURED');
+    const collections = new Set(offers.map((offer) => (DROP_ITEMS[offer.refKey] ?? DROP_BUNDLES[offer.refKey])!.collection));
+    expect(collections.size).toBe(2);
+    expect(collections.has('graveyard-shift')).toBe(true);
+    const after = await loadCatalog(db as never, new Date('2026-11-03T00:00:00Z'));
+    expect(after.get('drop-graveyard-shift-bundle')?.state).toBe('DRAFT');
+  });
+
   it('releases a holiday set once an admin catalog entry makes it Live', async () => {
     const db = fakeDb();
     db.state.catalog.push({ key: 'drop-heartbreaker-thug', state: 'LIVE', priceCrowns: null, returnPolicy: 'MAY_RETURN', inDailyPool: true, homepageSlot: null });
-    const catalog = await loadCatalog(db as never);
+    const catalog = await loadCatalog(db as never, now);
     expect(catalog.get('drop-heartbreaker-thug')?.state).toBe('LIVE');
     expect(catalog.get('drop-heartbreaker-hoe')?.state).toBe('DRAFT');
   });
 
-  it('sells the featured collection and daily picks, and refuses an offer from yesterday', async () => {
+  it('features two sets, each as its bundle and pieces, and refuses an offer from yesterday', async () => {
     const db = fakeDb();
     const offers = await liveOffers(db);
-    const featured = featuredCollectionFor(dropWeeklyWindow(now).index);
-    expect(offers.filter((offer) => offer.slot === 'FEATURED').every((offer) =>
-      (DROP_ITEMS[offer.refKey] ?? DROP_BUNDLES[offer.refKey])!.collection === featured)).toBe(true);
+    const featured = featuredCollectionsFor(dropWeeklyWindow(now).index);
+    expect(featured).toHaveLength(2);
+    const featuredOffers = offers.filter((offer) => offer.slot === 'FEATURED');
+    expect(new Set(featuredOffers.map((offer) => (DROP_ITEMS[offer.refKey] ?? DROP_BUNDLES[offer.refKey])!.collection))).toEqual(new Set(featured));
+    for (const collection of featured) {
+      expect(featuredOffers.some((offer) => offer.refKey === `drop-${collection}-bundle`), collection).toBe(true);
+      expect(featuredOffers.filter((offer) => offer.kind === 'ITEM' && DROP_ITEMS[offer.refKey]!.collection === collection).length)
+        .toBe(Object.values(DROP_ITEMS).filter((item) => item.collection === collection).length);
+    }
     expect(offers.filter((offer) => offer.slot === 'DAILY')).toHaveLength(DEFAULT_DROP_SETTINGS.dailyOfferCount);
     const yesterday = `rot:D:${dropDailyWindow(new Date(now.getTime() - 86_400_000)).key}:${Object.keys(DROP_ITEMS)[0]}`;
     await expect(resolveOffer(db as never, yesterday, now)).rejects.toMatchObject({ code: 'DROP_OFFER_EXPIRED' });
@@ -160,7 +181,7 @@ describe('Drop purchases', () => {
 
   it('orders featured and permanent catalog offers by their curated homepage slots', async () => {
     const db = fakeDb();
-    const featured = featuredCollectionFor(dropWeeklyWindow(now).index);
+    const featured = featuredCollectionsFor(dropWeeklyWindow(now).index)[0];
     const featuredKeys = Object.values(DROP_ITEMS).filter((item) => item.collection === featured).slice(0, 2).map((item) => item.key);
     db.state.catalog.push(
       { key: featuredKeys[0], kind: 'ITEM', homepageSlot: 2, state: 'LIVE' },

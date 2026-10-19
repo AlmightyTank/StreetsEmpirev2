@@ -250,3 +250,9 @@
 @media (pointer: coarse) {
   .se-pass-hero__skip { min-height: 44px; }
 }
+
+/* Two featured sets side by side; each hero stacks its art under its copy. */
+.se-drop-heroes { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--se-drop-gap); }
+.se-drop-heroes--pair { grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); }
+.se-drop-heroes--pair .se-drop-hero { grid-template-columns: minmax(0, 1fr); }
+.se-drop-heroes--pair .se-drop-hero__art { justify-content: flex-start; }

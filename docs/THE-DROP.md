@@ -102,10 +102,11 @@ All computed on the server clock for every request and every purchase
 (`rotationAt` in `drop-catalog.service.ts`), so a window boundary switches
 offers exactly once and an expired offer id is refused.
 
-- **Featured:** one collection a week, Monday 00:00 UTC (plus the reset hour),
-  cycling through collections with a live item. An admin Featured offer
-  replaces it.
-- **Daily:** `dailyOfferCount` items (default 4) picked deterministically per
+- **Featured:** two sets a week, Monday 00:00 UTC (plus the reset hour), each
+  shown as its bundle and every piece in it, cycling in pairs through
+  collections with a live item. A live holiday set always takes one of the
+  two slots. An admin Featured offer replaces both.
+- **Daily:** `dailyOfferCount` random items (default 8) picked deterministically per
   UTC day from the daily pool, excluding anything already on sale.
 - **Permanent catalog:** entries whose return policy is Permanent.
 - **Admin offers:** scheduled windows with their own price and badge. Shown as

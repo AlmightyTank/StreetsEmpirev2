@@ -370,8 +370,8 @@ function ShopView() {
     const ordered = lead ? [lead, ...sorted.filter((offer) => offer !== lead)] : sorted;
     return ordered.map((offer) => card(offer, offer === lead ? 'large' : offer.kind === 'BUNDLE' ? 'wide' : 'normal'));
   };
-  const featured = data.featured.collection;
-  const featuredItems = featured ? data.items.filter((item) => item.collection === featured.key && item.preview.type === 'ITEM').slice(0, 3) : [];
+  // Two featured sets at a time; older servers send only `collection`.
+  const heroes = data.featured.collections ?? (data.featured.collection ? [data.featured.collection] : []);
   const featuredOffers = section('FEATURED');
   const featuredGroups = [...new Set(featuredOffers.map(collectionOf))].map((key) => ({
     key,
@@ -382,26 +382,30 @@ function ShopView() {
 
   return (
     <DropFrame wallet={data.wallet} timer={<>Shop resets in <b>{countdown(data.daily.resetsAt, now)}</b></>}>
-      {featured ? (
-        <section className="se-drop-hero" style={{ ['--se-drop-collection' as string]: featured.accent }} aria-labelledby="drop-featured-title">
-          <div className="se-drop-hero__copy">
-            <span className="se-drop-hero__kicker">Featured set</span>
-            <h2 id="drop-featured-title">{featured.name}</h2>
-            <p className="se-drop-hero__tagline">{featured.tagline}</p>
-            <p className="se-drop-hero__desc">{featured.description}</p>
-            <div className="se-drop-hero__actions">
-              <span className="se-drop-timer">Ends in <b>{countdown(data.featured.endsAt, now)}</b></span>
-              {featuredGroups.some((group) => group.key === featured.key) ? (
-                <button type="button" className="se-drop-cta" onClick={() => document.getElementById(`drop-set-${featured.key}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>
-                  Shop the set
-                </button>
-              ) : null}
-            </div>
-          </div>
-          <div className="se-drop-hero__art" aria-hidden="true">
-            {featuredItems.map((item) => <DropArt key={item.key} item={item} size="md" />)}
-          </div>
-        </section>
+      {heroes.length ? (
+        <div className={`se-drop-heroes${heroes.length > 1 ? ' se-drop-heroes--pair' : ''}`}>
+          {heroes.map((hero) => (
+            <section key={hero.key} className="se-drop-hero" style={{ ['--se-drop-collection' as string]: hero.accent }} aria-labelledby={`drop-featured-${hero.key}`}>
+              <div className="se-drop-hero__copy">
+                <span className="se-drop-hero__kicker">Featured set</span>
+                <h2 id={`drop-featured-${hero.key}`}>{hero.name}</h2>
+                <p className="se-drop-hero__tagline">{hero.tagline}</p>
+                <p className="se-drop-hero__desc">{hero.description}</p>
+                <div className="se-drop-hero__actions">
+                  <span className="se-drop-timer">Ends in <b>{countdown(data.featured.endsAt, now)}</b></span>
+                  {featuredGroups.some((group) => group.key === hero.key) ? (
+                    <button type="button" className="se-drop-cta" onClick={() => document.getElementById(`drop-set-${hero.key}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>
+                      Shop the set
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+              <div className="se-drop-hero__art" aria-hidden="true">
+                {data.items.filter((item) => item.collection === hero.key && item.preview.type === 'ITEM').slice(0, 3).map((item) => <DropArt key={item.key} item={item} size="md" />)}
+              </div>
+            </section>
+          ))}
+        </div>
       ) : null}
 
       <div className="se-drop-filters">

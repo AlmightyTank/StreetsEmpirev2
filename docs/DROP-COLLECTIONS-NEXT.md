@@ -76,6 +76,11 @@ start as **Draft** (`dropDefaultState` in `packages/rulesets/src/drop.ts`):
   locked, until someone owns one.
 - Admins can still preview every piece from the admin Drop page.
 
+**Release windows in code:** a holiday collection can also carry `windows`
+(UTC dates) in `drop.ts`; inside one it is Live and featured without any admin
+step. Graveyard Shift has one for Halloween 2026: 19 October to 3 November
+(00:00 UTC), then it is held again.
+
 **To release one in its month:** in the admin Drop page, set the collection's
 entries (its items and its bundle) to Live, or Scheduled with a start time, and
 add a Featured offer for the window if you want it on the hero. Set them back

@@ -136,7 +136,8 @@ export interface DropStorefrontDto {
   wallet: DropWalletDto | null;
   /** The discount this account gets on Drop prices right now, or null. */
   discount: DropDiscountDto | null;
-  featured: { collection: DropCollectionDto | null; endsAt: string };
+  /** `collection` is the first featured set, kept for older clients; `collections` lists all of them in order. */
+  featured: { collection: DropCollectionDto | null; collections: DropCollectionDto[]; endsAt: string };
   daily: { resetsAt: string };
   collections: DropCollectionDto[];
   items: DropItemDto[];

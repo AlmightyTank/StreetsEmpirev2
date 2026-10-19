@@ -23,6 +23,7 @@ import {
   BIRTHDAY_DISCOUNT_PERCENT,
   discountedDropPrice,
   dropDefaultState,
+  featuredCollectionsFor,
 } from '../index.js';
 
 const items = Object.values(DROP_ITEMS);
@@ -165,8 +166,25 @@ describe('Holiday sets', () => {
     expect(holiday.map((collection) => collection.key)).toEqual(['graveyard-shift', 'naughty-list', 'heartbreaker', 'block-party']);
     for (const entry of [...items, ...bundles]) {
       const seasonal = holiday.some((collection) => collection.key === entry.collection);
-      expect(dropDefaultState(entry.key), entry.key).toBe(seasonal ? 'DRAFT' : 'LIVE');
+      expect(dropDefaultState(entry.key, new Date('2026-12-15T12:00:00Z')), entry.key).toBe(seasonal ? 'DRAFT' : 'LIVE');
     }
+  });
+
+  it('opens Graveyard Shift for its Halloween window only', () => {
+    expect(dropDefaultState('drop-graveyard-shift-sedan', new Date('2026-10-18T23:59:59Z'))).toBe('DRAFT');
+    expect(dropDefaultState('drop-graveyard-shift-sedan', new Date('2026-10-19T00:00:00Z'))).toBe('LIVE');
+    expect(dropDefaultState('drop-graveyard-shift-bundle', new Date('2026-11-02T23:59:59Z'))).toBe('LIVE');
+    expect(dropDefaultState('drop-graveyard-shift-bundle', new Date('2026-11-03T00:00:00Z'))).toBe('DRAFT');
+    expect(dropDefaultState('drop-heartbreaker-thug', new Date('2026-10-31T00:00:00Z'))).toBe('DRAFT');
+  });
+
+  it('features consecutive pairs so every set gets a turn', () => {
+    const sets = ['a', 'b', 'c', 'd', 'e'];
+    expect(featuredCollectionsFor(0, sets)).toEqual(['a', 'b']);
+    expect(featuredCollectionsFor(1, sets)).toEqual(['c', 'd']);
+    expect(featuredCollectionsFor(2, sets)).toEqual(['e', 'a']);
+    expect(featuredCollectionsFor(0, ['a'])).toEqual(['a']);
+    expect(featuredCollectionsFor(0, [])).toEqual([]);
   });
 });
 

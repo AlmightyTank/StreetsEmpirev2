@@ -28,6 +28,12 @@ export interface DropCollectionDefinition {
    * (Draft) and stay out of the shop until an admin releases them.
    */
   readonly season?: string;
+  /**
+   * A holiday set's release windows (UTC, from inclusive, until exclusive).
+   * Inside one it is Live and takes a Featured slot; outside, it is held again.
+   * An admin catalog entry still overrides either way.
+   */
+  readonly windows?: readonly { readonly from: string; readonly until: string }[];
 }
 
 /** What the detail page draws for an item. */
@@ -176,6 +182,8 @@ export const DROP_COLLECTIONS = {
     description: 'Moonlit cemetery work: bone white, moss, wrought iron and a cold ghost-green glow.',
     accent: '#a8f0c6',
     season: 'October–November',
+    // Halloween 2026: live now, through All Souls' Day.
+    windows: [{ from: '2026-10-19T00:00:00Z', until: '2026-11-03T00:00:00Z' }],
   },
   'naughty-list': {
     key: 'naughty-list',
@@ -1016,11 +1024,21 @@ export const DROP_BUNDLES: Readonly<Record<string, DropBundleDefinition>> = Obje
   bundleOf('block-party', 2700, 'All eight Block Party pieces: the Van, both crew outfits, the Shotgun finish, the frame, the accent, the shell theme and the Block Captain title.'),
 ].map((bundle) => [bundle.key, bundle]));
 
-/** Holiday sets start held (Draft); everything else starts Live. An admin catalog entry overrides either. */
-export function dropDefaultState(key: string): 'LIVE' | 'DRAFT' {
+/** Whether a holiday set is inside one of its release windows at `now`. */
+export function inReleaseWindow(collection: string, now: Date): boolean {
+  const definition = (DROP_COLLECTIONS as Readonly<Record<string, DropCollectionDefinition>>)[collection];
+  return Boolean(definition?.windows?.some((window) => now >= new Date(window.from) && now < new Date(window.until)));
+}
+
+/**
+ * The state a Drop entry has when no admin catalog entry sets one: everything
+ * Live, except holiday sets, which are held (Draft) outside their release windows.
+ */
+export function dropDefaultState(key: string, now: Date = new Date()): 'LIVE' | 'DRAFT' {
   const collection = (DROP_ITEMS[key] ?? DROP_BUNDLES[key])?.collection;
   const definition = collection ? (DROP_COLLECTIONS as Readonly<Record<string, DropCollectionDefinition>>)[collection] : undefined;
-  return definition?.season ? 'DRAFT' : 'LIVE';
+  if (!definition?.season) return 'LIVE';
+  return inReleaseWindow(definition.key, now) ? 'LIVE' : 'DRAFT';
 }
 
 export function dropItem(key: string): DropItemDefinition | null {
@@ -1184,6 +1202,19 @@ export function evergreenDropCollections(): string[] {
   return Object.values(DROP_COLLECTIONS as Readonly<Record<string, DropCollectionDefinition>>)
     .filter((collection) => !collection.season)
     .map((collection) => collection.key);
+}
+
+/** How many collections the shop features at once, each shown as its bundle and the pieces in it. */
+export const DROP_FEATURED_SETS = 2;
+
+/** This week's featured collections: consecutive pairs from the cycle, so every set gets its turn. */
+export function featuredCollectionsFor(weekIndex: number, collections: readonly string[] = evergreenDropCollections(), count = DROP_FEATURED_SETS): string[] {
+  if (!collections.length || count <= 0) return [];
+  const take = Math.min(count, collections.length);
+  return Array.from({ length: take }, (_, offset) => {
+    const index = weekIndex * take + offset;
+    return collections[((index % collections.length) + collections.length) % collections.length]!;
+  });
 }
 
 export function featuredCollectionFor(weekIndex: number, collections: readonly string[] = evergreenDropCollections()): string | null {
