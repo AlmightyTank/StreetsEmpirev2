@@ -805,11 +805,20 @@ Object.assign(recipes, {
   },
   'hoe-hazard-cook': async () => {
     let svg = await load('hoe');
-    // Lab-chic, not a hazmat suit: her own hair, a hazard-yellow coat trimmed in warning stripes.
+    // Not in a hazmat suit: her own hair, a hazard-yellow coat trimmed in warning stripes, and the fumes got to her.
     // Keeps the fur's fuzz (no hoeCoat) so it reads as a coat, not a slick suit.
     svg = restop(svg, 'fur', ['#fff38a', HAZARD, '#a88a00']);
     svg = repattern(svg, 'tufts', '<path d="M0 3.5 H7" stroke="#c9a700" stroke-width=".4" opacity=".7"/>');
     svg = recolor(svg, { '#5a060c': '#5a4a00', '#17131a': '#141416', '#3d3346': HAZARD });
+    // Infected by the cook: sickly skin, bruised lips, toxic eyes.
+    svg = restop(svg, 'skin', ['#dfe0b4', '#b9bc84', '#7f8650']);
+    svg = restop(svg, 'blush', [['#7fae3a', 0.55], ['#8fb04a', 0.3], ['#9ab45a', 0]]);
+    svg = restop(svg, 'contour', [['#4f5a2a', 0.55], ['#4f5a2a', 0]]);
+    svg = recolor(svg, {
+      '#6a3a26': '#3f4620', '#a8684e': '#6f7a3e', '#b0705a': '#6f7a3e', '#b2745a': '#6f7a3e', '#8a4a38': '#4f5a2a',
+      '#c8182c': '#6a3a5e', '#5e0a1c': '#2a1426', '#ff8a96': '#a07a9a',
+      '#3a6a8a': '#8cff3a', '#1d3a4e': '#2f6a10',
+    });
     const coat = 'M2 136 Q4 99 22 90 Q36 83 47 86 Q55 90 56 103 L53 136 Z M126 136 Q124 99 106 90 Q92 83 81 86 Q73 90 72 103 L75 136 Z';
     return decorate(svg, {
       defs: [
@@ -826,6 +835,13 @@ Object.assign(recipes, {
         '<path d="M62 27 H66" stroke="#141416" stroke-width="1.4"/><path d="M50.5 25 Q53 23.8 55.5 24.4 M68.5 25 Q71 23.8 73.5 24.4" stroke="#ffffff" stroke-width=".8" fill="none" stroke-linecap="round" opacity=".8"/>',
         // A warning-sign charm on the choker.
         `<path d="M64 88.6 L69 97 H59 Z" fill="${HAZARD}" stroke="#141416" stroke-width="1" stroke-linejoin="round"/><path d="M64 91.2 V94" stroke="#141416" stroke-width="1.1" stroke-linecap="round"/><circle cx="64" cy="95.4" r=".55" fill="#141416"/>`,
+        // Dark rings under the eyes, sores, and green veins up the neck.
+        '<path d="M50.6 56.2 Q55.5 60.4 60.2 56 M77.4 56.2 Q72.5 60.4 67.8 56" stroke="#3f2a3a" stroke-width="1.6" fill="none" stroke-linecap="round" opacity=".55"/>',
+        '<g fill="#c9d64a" stroke="#6a7a1a" stroke-width=".5"><circle cx="51.5" cy="63" r="1.3"/><circle cx="53.6" cy="65.6" r=".8"/><circle cx="76.8" cy="62.4" r="1"/><circle cx="68.6" cy="43.2" r=".9"/><circle cx="60" cy="84.6" r="1.1"/></g>',
+        '<g fill="#fff9c0" opacity=".8"><circle cx="51.1" cy="62.6" r=".4"/><circle cx="76.5" cy="62.1" r=".3"/><circle cx="59.6" cy="84.2" r=".35"/></g>',
+        '<path d="M58.5 86 Q60 82 58.8 79 Q60.2 77.6 59.6 75.8 M69.5 86.5 Q68 83 69.4 80 Q68.2 78.4 68.8 76.4" stroke="#4a8a2a" stroke-width=".7" fill="none" stroke-linecap="round" opacity=".75"/>',
+        // Toxic drool at the corner of the mouth.
+        '<path d="M70.6 67.6 Q71.4 70.6 70.8 73.6" stroke="#8cff3a" stroke-width="1.1" fill="none" stroke-linecap="round" opacity=".85"/><circle cx="70.8" cy="74.4" r=".9" fill="#8cff3a" opacity=".85"/>',
         // Yellow hoops.
         `<circle cx="45" cy="72" r="3.8" fill="none" stroke="${HAZARD}" stroke-width="1.3"/><circle cx="83" cy="72" r="3.8" fill="none" stroke="${HAZARD}" stroke-width="1.3"/>`,
       ].join('\n  '),
