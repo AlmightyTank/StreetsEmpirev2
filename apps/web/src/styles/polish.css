@@ -255,9 +255,6 @@ textarea.se-input {
 
 /* Keep theme.css's left stripe on achievement cards (accent / rarity / locked). */
 .se-ach { border-left-color: var(--se-accent-dim); }
-.se-ach--rare { border-left-color: #6899f3; }
-.se-ach--epic { border-left-color: #e576e1; }
-.se-ach--legendary { border-left-color: #f1b622; }
 .se-ach--locked,
 .se-ach--locked.se-ach--rare,
 .se-ach--locked.se-ach--epic,
