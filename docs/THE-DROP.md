@@ -285,4 +285,5 @@ The Stripe webhook now runs whenever `STRIPE_SECRET_KEY` and
 - [x] Phone, tablet and desktop layouts; Compact density; player accent; reduced motion.
 - [x] Independent kill switches.
 - [x] Admin changes and wallet adjustments audited.
-- [ ] Pack prices approved and the release version assigned.
+- [x] Pack prices approved (2026-10-19).
+- [ ] Release version assigned.
