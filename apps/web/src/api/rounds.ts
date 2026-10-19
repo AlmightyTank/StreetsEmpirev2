@@ -1,4 +1,4 @@
-import type { CrewLegendArchiveDto } from '@streets/shared';
+import type { CareerStoryBiographyDto, CrewLegendArchiveDto } from '@streets/shared';
 import type {
   RoundAftermathArchiveDto,
   AdminSeasonChecklistDto,
@@ -47,6 +47,7 @@ export const roundsApi = {
   ),
   aftermathAlliances: (roundId: string) => api.get<RoundAftermathAlliancesDto>(`/rounds/${encodeURIComponent(roundId)}/aftermath/alliances`),
   aftermathMine: (roundId: string) => api.get<RoundAftermathPersonalDto>(`/rounds/${encodeURIComponent(roundId)}/aftermath/me`),
+  aftermathCareerStories: (roundId: string) => api.get<{ biography: CareerStoryBiographyDto[] }>(`/rounds/${encodeURIComponent(roundId)}/aftermath/career-stories/me`),
   aftermathCrewLegends: (roundId: string) =>
     api.get<CrewLegendArchiveDto[]>(`/rounds/${encodeURIComponent(roundId)}/aftermath/crew-legends/me`),
   aftermathRecords: (roundId: string, category: RoundAftermathCategoryKey, page = 1, citySlug?: string) => api.get<RoundAftermathRecordsDto>(

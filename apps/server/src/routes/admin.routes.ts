@@ -63,6 +63,7 @@ import { AdminSportsbookService } from '../services/admin-sportsbook.service.js'
 import { AdminFactionService } from '../services/admin-faction.service.js';
 import { ADMIN_VEHICLE_MAX, AdminVehicleService } from '../services/admin-vehicle.service.js';
 import { AdminLawService } from '../services/admin-law.service.js';
+import { AdminCareerStoryService } from '../services/admin-career-story.service.js';
 import { AdminTurfService } from '../services/admin-turf.service.js';
 import { BugReportService } from '../services/support.service.js';
 import { AdminCommunityService } from '../services/admin-community.service.js';
@@ -443,6 +444,14 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
   const viewerRole = (request: FastifyRequest) => staffRoleOf(request.auth!.account)!;
 
   // Staff roles
+
+  fastify.get('/career-stories/catalog', async () => AdminCareerStoryService.catalog());
+  fastify.get('/career-stories/preview', async (request) => AdminCareerStoryService.preview(request.query as { career: string; chapterKey: string; branchKey?: string }));
+  fastify.post('/career-stories/test-trigger', async (request) => AdminCareerStoryService.testTrigger(request.body as { career: string; chapterKey: string; branchKey?: string }));
+  fastify.get('/career-stories/round/:roundId', async (request) => {
+    const { roundId } = request.params as { roundId: string };
+    return AdminCareerStoryService.round(fastify.prisma, roundId);
+  });
 
   fastify.get('/staff', async (request) => StaffService.list(fastify.prisma, viewerRole(request)));
 

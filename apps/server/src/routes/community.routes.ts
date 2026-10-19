@@ -101,6 +101,8 @@ const communityRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.get('/career-story/portfolio', { preHandler: fastify.requireAuth }, async (request) => ({ portfolio: await CareerStoryService.portfolio(fastify.prisma, request.auth!.account.id) }));
 
+  fastify.get('/career-story/biography', { preHandler: fastify.requireAuth }, async (request) => ({ biography: await CareerStoryService.biography(fastify.prisma, request.auth!.account.id) }));
+
   fastify.get('/career-story/portfolio/public/:publicPimpId', { preHandler: fastify.requireAuth }, async (request) => {
     const publicPimpId = Number((request.params as { publicPimpId?: string }).publicPimpId);
     if (!Number.isSafeInteger(publicPimpId) || publicPimpId < 1) throw AppError.badRequest('INVALID_PIMP_ID', 'That pimp number is not valid.');

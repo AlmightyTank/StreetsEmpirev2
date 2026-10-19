@@ -43,6 +43,11 @@ export interface CareerStoryChapterProgressDto {
   completed: boolean;
   objectiveKey: string;
   claimedSourceIds: string[];
+  title: string;
+  summary: string;
+  sourceKind: CareerStorySourceKind;
+  branches: CareerStoryBranchDefinition[];
+  chosenBranchKey: string | null;
 }
 
 export interface CareerStoryActiveDto {
@@ -60,4 +65,29 @@ export interface CareerStoryArchiveDto {
   finaleEarned: boolean;
   title: string;
   visibility: 'PUBLIC' | 'PRIVATE';
+  provenance: {
+    catalogVersion?: string;
+    chapterKey?: string;
+    branchKey?: string;
+    rewardKind?: CareerStoryRewardKind;
+    rewardKey?: string;
+    sourceId?: string;
+    settledAt?: string;
+  };
+}
+
+export interface CareerStoryBiographyDto {
+  career: CareerIdentityKey;
+  title: string;
+  status: 'COMPLETE' | 'PARTIAL' | 'ARCHIVED';
+  completedChapters: number;
+  finaleEarned: boolean;
+  recognition: string | null;
+}
+
+export interface CareerStoryCrossoverDto {
+  kind: 'CASE' | 'CREW' | 'FACTION' | 'CITY_MEMORY';
+  sourceId: string;
+  label: string;
+  available: boolean;
 }

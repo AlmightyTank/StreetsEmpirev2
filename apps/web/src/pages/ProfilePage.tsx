@@ -9,6 +9,8 @@ import type {
   PublicStatSheetDto,
   SecretCollectionDto,
   DiscoveredSecretDto,
+  CareerStoryActiveDto,
+  CareerStoryArchiveDto,
 } from '@streets/shared';
 import { formatCents, formatNumber, profileNameParts, SIGNATURE_CARD_FRAME_KEY } from '@streets/shared';
 import { communityApi } from '../api/community.js';
@@ -18,6 +20,7 @@ import { Alert } from '../components/Alert.js';
 import { AllianceTag } from '../components/AllianceTag.js';
 import { ContactButton } from '../components/ContactButton.js';
 import { CareerGuidance, CareerMetricStrip, CareerNavigation } from '../components/CareerExperience.js';
+import { CareerStoryPanel } from '../components/CareerStoryPanel.js';
 import { HideoutRoomChips } from '../components/HideoutRoomChips.js';
 import { ProfileBadgeArt } from '../components/ProfileBadgeArt.js';
 import { ProfileBadges } from '../components/ProfileBadges.js';
@@ -624,6 +627,8 @@ export function ProfilePage() {
   const target = params.publicPimpId ? Number(params.publicPimpId) : me?.publicPimpId;
   const [player, setPlayer] = useState<PublicPlayerProfileDto | null>(null);
   const [career, setCareer] = useState<PublicCareerDto | null>(null);
+  const [careerStory, setCareerStory] = useState<CareerStoryActiveDto | null>(null);
+  const [careerStoryPortfolio, setCareerStoryPortfolio] = useState<CareerStoryArchiveDto[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [showLockedAchievements, setShowLockedAchievements] = useState(false);
   const [achievementStatusFilter, setAchievementStatusFilter] = useState<AchievementStatusFilter>('all');
@@ -653,12 +658,15 @@ export function ProfilePage() {
       let active = true;
       setPlayer(null);
       setCareer(null);
+      setCareerStory(null);
+      setCareerStoryPortfolio([]);
       setError(null);
       (params.forumUserId ? communityApi.forumProfile(params.forumUserId) : communityApi.profile(target!))
         .then((response) => {
           if (!active) return;
           setPlayer(response.player);
-          setCareer(response.player.career);
+           setCareer(response.player.career);
+           void communityApi.publicCareerStoryPortfolio(response.player.publicPimpId).then((result) => { if (active) setCareerStoryPortfolio(result.portfolio); }).catch(() => undefined);
         })
         .catch((caught: unknown) => {
           if (active) setError(caught instanceof ApiError ? caught.message : 'Could not load that profile.');
@@ -669,9 +677,11 @@ export function ProfilePage() {
     let active = true;
     setPlayer(null);
     setCareer(null);
+    setCareerStory(null);
+    setCareerStoryPortfolio([]);
     setError(null);
-    communityApi.career()
-      .then((response) => { if (active) setCareer(response.career); })
+    Promise.all([communityApi.career(), communityApi.careerStory(), communityApi.careerStoryPortfolio()])
+      .then(([response, storyResponse, portfolioResponse]) => { if (active) { setCareer(response.career); setCareerStory(storyResponse.story); setCareerStoryPortfolio(portfolioResponse.portfolio); } })
       .catch((caught: unknown) => {
         if (active) setError(caught instanceof ApiError ? caught.message : 'Could not load your season history.');
       });
@@ -790,6 +800,8 @@ export function ProfilePage() {
         ) : null}
 
         {!player && career ? <SeasonHistory career={career} isOwner onLegacyEntriesChange={updateLegacyEntries} /> : null}
+        {isOwnProfileRoute ? <CareerStoryPanel story={careerStory} portfolio={careerStoryPortfolio} owner onChanged={() => void communityApi.careerStory().then((result) => setCareerStory(result.story))} /> : null}
+        {player && !isYou ? <CareerStoryPanel story={null} portfolio={careerStoryPortfolio} /> : null}
         {!player && sheetChoices.length ? <StatSheetPanel key="career" choices={sheetChoices} /> : null}
 
         {player ? (

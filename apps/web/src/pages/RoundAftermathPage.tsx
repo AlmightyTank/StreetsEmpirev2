@@ -11,6 +11,7 @@ import type {
   RoundAftermathPersonalDto,
   CrewLegendArchiveDto,
   RoundAftermathRecordsDto,
+  CareerStoryBiographyDto,
 } from '@streets/shared';
 import { formatNumber } from '@streets/shared';
 import { ApiError } from '../api/client.js';
@@ -209,6 +210,7 @@ export function RoundAftermathPage() {
   const [alliances, setAlliances] = useState<RoundAftermathAlliancesDto | null>(null);
   const [personal, setPersonal] = useState<RoundAftermathPersonalDto | null>(null);
   const [crewLegends, setCrewLegends] = useState<CrewLegendArchiveDto[]>([]);
+  const [careerBiography, setCareerBiography] = useState<CareerStoryBiographyDto[]>([]);
   const [records, setRecords] = useState<RoundAftermathRecordsDto | null>(null);
   const [tab, setTab] = useState<TabKey>(() => isTabKey(searchParams.get('view')) ? searchParams.get('view') as TabKey : 'summary');
   const [recordsCategory, setRecordsCategory] = useState<RoundAftermathCategoryKey>(() =>
@@ -320,6 +322,7 @@ export function RoundAftermathPage() {
     let current = true;
     setPersonal(null);
     setCrewLegends([]);
+    setCareerBiography([]);
     setPersonalError(null);
     if (tab !== 'me' || !overview) return () => { current = false; };
     void roundsApi.aftermathCrewLegends(roundId)
@@ -335,6 +338,9 @@ export function RoundAftermathPage() {
           setPersonalError(caught instanceof ApiError ? caught.message : 'Could not load your personal report.');
         }
       });
+    void roundsApi.aftermathCareerStories(roundId)
+      .then((result) => { if (current) setCareerBiography(result.biography); })
+      .catch(() => { if (current) setCareerBiography([]); });
     return () => { current = false; };
   }, [roundId, overview, tab]);
 
@@ -580,6 +586,16 @@ export function RoundAftermathPage() {
                 </div>
               </article>)}
             </div>
+          </section> : null}
+          {careerBiography.length ? <section className="se-aftermath-board se-career-story-aftermath" aria-labelledby="se-career-story-aftermath-title">
+            <header className="se-aftermath-sectionhead">
+              <div><span className="se-eyebrow">Career archive · persisted facts</span><h3 id="se-career-story-aftermath-title">Career storylines</h3></div>
+            </header>
+            <div className="se-career-story-aftermath__list">{careerBiography.map((biography) => <article key={`${biography.career}-${biography.title}`}>
+              <strong>{biography.title}</strong>
+              <span>{biography.status === 'COMPLETE' ? 'Finale earned' : biography.status === 'PARTIAL' ? 'Partial record' : 'Archived record'} · {biography.completedChapters} verified chapters</span>
+              <p>{biography.recognition ?? 'No unearned finale is shown.'}</p>
+            </article>)}</div>
           </section> : null}
           <section className="se-aftermath-board" aria-label="Milestones and personal bests">
             <div className="se-aftermath-personal-panels">
