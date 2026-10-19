@@ -38,6 +38,7 @@ export function routeIdentity(pathname: string): string {
   if (path === '/game/hideout') return 'hideout';
   if (path === '/game/produce') return 'produce';
   if (path === '/game/street-pass') return 'street-pass';
+  if (path === '/game/roll-call') return 'roll-call';
   if (path === '/game/supporter') return 'supporter';
   if (path.startsWith('/game/stores/')) return 'store-detail';
   if (path === '/game/stores') return 'stores';
