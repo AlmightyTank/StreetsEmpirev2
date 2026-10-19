@@ -139,6 +139,20 @@ export function experienceSourceLabel(source: string): string {
   return source;
 }
 
+/**
+ * Mentoring: a new player names one seasoned mentor, who earns XP each time the
+ * mentee reaches a milestone level. A mentee needs real play to hit them, so
+ * alts are slow to farm, and a mentor takes at most `maxMentees`.
+ */
+export const MENTORING = {
+  mentorMinLevel: 20,
+  /** A mentee can name a mentor only below this level, and before finishing a season. */
+  menteeBelowLevel: 5,
+  maxMentees: 5,
+  milestones: [5, 10, 15, 20] as readonly number[],
+  mentorXp: 250,
+} as const;
+
 /** Turns a day at full XP; turns past this in the same daily window pay half. */
 export const TURN_EXPERIENCE_FULL_PER_DAY = 300;
 

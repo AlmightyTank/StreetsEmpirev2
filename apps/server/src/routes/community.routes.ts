@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { toActivityDto } from '../game/dto.js';
 import { ActivityService } from '../services/activity.service.js';
+import { MentoringService } from '../services/mentoring.service.js';
 import { PlayerExperienceService } from '../services/player-experience.service.js';
 import { CommunityService } from '../services/community.service.js';
 import { PlayerStateService } from '../services/player-state.service.js';
@@ -46,6 +47,15 @@ const communityRoutes: FastifyPluginAsync = async (fastify) => {
 
   /** 0.3.0-A: public past-round podiums. */
   fastify.get('/hall-of-fame', async () => CommunityService.hallOfFame(fastify.prisma));
+
+  // Mentoring: a new player names a seasoned mentor, who earns XP as they level.
+  fastify.get('/mentoring', { preHandler: fastify.requireAuth }, async (request) => MentoringService.view(fastify.prisma, request.auth!.account.id));
+  fastify.post('/mentoring', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = request.body as { mentorPublicPimpId?: unknown } | null;
+    const id = Number(body?.mentorPublicPimpId);
+    if (!Number.isSafeInteger(id) || id <= 0) throw AppError.badRequest('VALIDATION_FAILED', 'Enter the player number of your mentor.');
+    return MentoringService.choose(fastify.prisma, request.auth!.account.id, id);
+  });
 
   // Endgame: account XP earned this calendar year (or ?year=YYYY), across every round.
   fastify.get('/xp-leaderboard', { preHandler: fastify.requireAuth }, async (request) => {

@@ -516,7 +516,7 @@ export function CasinoPage() {
       <div className={'se-casino' + (activeGame ? ' se-casino--table' : ' se-casino--lobby')}>
         {locked ? (
           <Alert tone="info" title={`Opens at account level ${ACCOUNT_TRUST_GATES[lockedGate].level}`}>
-            You are level {experience!.level}. {ACCOUNT_TRUST_GATES[lockedGate].label} unlocks after a few levels of play: spend turns and finish jobs to earn XP. <Link to="/game/xp-progress">See your level track</Link>.
+            You are level {experience!.level}. The {lockedGate === 'sportsbook' ? 'sportsbook' : 'casino'} opens after a few levels of play: spend turns and finish jobs to earn XP. <Link to="/game/xp-progress">See your level track</Link>.
           </Alert>
         ) : null}
         {activeInfo ? (

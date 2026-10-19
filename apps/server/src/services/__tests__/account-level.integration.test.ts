@@ -4,7 +4,7 @@ import type { FastifyInstance } from 'fastify';
 import type { Round } from '@prisma/client';
 import { classicOgV22A, type Ruleset } from '@streets/rulesets';
 import { startingStock } from '@streets/rules-engine';
-import { ACCOUNT_TRUST_GATES, TURN_EXPERIENCE_FULL_PER_DAY, experienceRequiredForLevel, experienceTitlesBetween, seasonFinishExperience } from '@streets/shared';
+import { ACCOUNT_TRUST_GATES, MENTORING, TURN_EXPERIENCE_FULL_PER_DAY, experienceRequiredForLevel, experienceTitlesBetween, seasonFinishExperience } from '@streets/shared';
 
 /**
  * Account level rewards and trust gates on PostgreSQL: Crowns paid once per
@@ -239,5 +239,35 @@ describe.runIf(process.env.ACCOUNT_LEVEL_INTEGRATION === '1')('account levels wi
     await OnboardingService.update(app.prisma, player.accountId, { action: 'replay' });
     await OnboardingService.update(app.prisma, player.accountId, { action: 'complete-intro' });
     expect(await app.prisma.playerExperienceEvent.count({ where: { accountId: player.accountId, source: 'ONBOARDING' } })).toBe(1);
+  });
+
+  it('lets a new player name a seasoned mentor, who earns XP at each milestone once', async () => {
+    const { MentoringService } = await import('../mentoring.service.js');
+    const mentor = await makePlayer(experienceRequiredForLevel(MENTORING.mentorMinLevel));
+    const junior = await makePlayer(experienceRequiredForLevel(MENTORING.mentorMinLevel - 1));
+    const mentee = await makePlayer();
+    const senior = await makePlayer(experienceRequiredForLevel(MENTORING.menteeBelowLevel));
+
+    await expect(MentoringService.choose(app.prisma, mentee.accountId, junior.publicPimpId)).rejects.toMatchObject({ code: 'MENTOR_TOO_JUNIOR' });
+    await expect(MentoringService.choose(app.prisma, senior.accountId, mentor.publicPimpId)).rejects.toMatchObject({ code: 'MENTEE_TOO_SENIOR' });
+    await expect(MentoringService.choose(app.prisma, mentor.accountId, mentor.publicPimpId)).rejects.toMatchObject({ code: 'MENTOR_SELF' });
+    const view = await MentoringService.choose(app.prisma, mentee.accountId, mentor.publicPimpId);
+    expect(view).toMatchObject({ mentor: { publicPimpId: mentor.publicPimpId }, canChooseMentor: false });
+    await expect(MentoringService.choose(app.prisma, mentee.accountId, mentor.publicPimpId)).rejects.toMatchObject({ code: 'MENTOR_ALREADY_CHOSEN' });
+
+    const mentorXp = async () => (await app.prisma.playerExperienceEvent.findMany({ where: { accountId: mentor.accountId, source: 'MENTOR' }, select: { sourceKey: true } })).map((row) => row.sourceKey).sort();
+    await award(mentee.id, experienceRequiredForLevel(10));
+    expect(await mentorXp()).toEqual([`mentor:${mentee.accountId}:10`, `mentor:${mentee.accountId}:5`].sort());
+    await award(mentee.id, 10);
+    expect(await mentorXp()).toHaveLength(2);
+    expect((await MentoringService.view(app.prisma, mentor.accountId)).mentees).toEqual([expect.objectContaining({ level: 10, milestonesReached: 2 })]);
+  });
+
+  it('caps how many players one mentor takes', async () => {
+    const { MentoringService } = await import('../mentoring.service.js');
+    const mentor = await makePlayer(experienceRequiredForLevel(MENTORING.mentorMinLevel));
+    for (let i = 0; i < MENTORING.maxMentees; i += 1) await MentoringService.choose(app.prisma, (await makePlayer()).accountId, mentor.publicPimpId);
+    await expect(MentoringService.choose(app.prisma, (await makePlayer()).accountId, mentor.publicPimpId)).rejects.toMatchObject({ code: 'MENTOR_FULL' });
+    expect((await MentoringService.view(app.prisma, mentor.accountId)).canMentor).toBe(false);
   });
 });

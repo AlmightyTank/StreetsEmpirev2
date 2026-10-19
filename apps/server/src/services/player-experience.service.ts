@@ -1,7 +1,8 @@
 import type { PrismaClient, Round } from '@prisma/client';
-import { SEASON_FINISH_EXPERIENCE, experienceLevelFor, experienceTitlesBetween, seasonFinishExperience, playerExperienceDto, type ExperienceLevelReward, type PlayerExperienceDto, type PlayerExperienceEventDto, type XpLeaderboardDto } from '@streets/shared';
+import { MENTORING, SEASON_FINISH_EXPERIENCE, experienceLevelFor, experienceTitlesBetween, seasonFinishExperience, playerExperienceDto, type ExperienceLevelReward, type PlayerExperienceDto, type PlayerExperienceEventDto, type XpLeaderboardDto } from '@streets/shared';
 import type { Db } from '../utils/db.js';
 import { CrownEarnService } from './crown-earn.service.js';
+import { MentoringService } from './mentoring.service.js';
 import { RoundService } from './round.service.js';
 import { DoubleXpWeekendService } from './double-xp-weekend.service.js';
 
@@ -196,6 +197,17 @@ export const PlayerExperienceService = {
       });
       // Crowns for every milestone up to the new level; already-paid ones are skipped.
       await CrownEarnService.onLevelReached(tx, player.accountId, level);
+      // Mentoring: the mentor earns XP for each milestone level this account just reached.
+      const mentoring = await MentoringService.milestonesFor(tx, player.accountId, previousLevel, level);
+      for (const milestone of mentoring?.milestones ?? []) {
+        await PlayerExperienceService.award(tx, {
+          accountId: mentoring!.mentorAccountId,
+          sourceKey: `mentor:${player.accountId}:${milestone}`,
+          source: 'MENTOR',
+          amount: MENTORING.mentorXp,
+          awardedAt: input.awardedAt,
+        });
+      }
     }
 
     return { awardedXp: amount, totalXp, level, unlocked };

@@ -1,10 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { ACCOUNT_TRUST_GATES, EXPERIENCE_LEVEL_CROWNS, EXPERIENCE_LEVEL_REWARDS, PRESTIGE_LEVELS, accountGateOpen, accountLevelBadge, experienceCrownMilestones, experienceRequiredForLevel, experienceSourceLabel, experienceTitlesBetween, levelRewardsAt, formatCents, formatNumber, type PlayerExperienceDto, type PlayerExperienceEventDto, type PublicCareerDto, type XpLeaderboardDto } from '@streets/shared';
+import { ACCOUNT_TRUST_GATES, EXPERIENCE_LEVEL_CROWNS, MENTORING, EXPERIENCE_LEVEL_REWARDS, PRESTIGE_LEVELS, accountGateOpen, accountLevelBadge, experienceCrownMilestones, experienceRequiredForLevel, experienceSourceLabel, experienceTitlesBetween, levelRewardsAt, formatCents, formatNumber, type PlayerExperienceDto, type PlayerExperienceEventDto, type MentoringDto, type PublicCareerDto, type XpLeaderboardDto } from '@streets/shared';
 import { communityApi } from '../api/community.js';
 import { dropApi } from '../api/drop.js';
 import { gameApi } from '../api/game.js';
 import { CareerGuidance, CareerMetricStrip, CareerNavigation } from '../components/CareerExperience.js';
+import { ApiError } from '../api/client.js';
+import { Button } from '../components/Button.js';
+import { Field } from '../components/Field.js';
 import { LevelChip } from '../components/LevelChip.js';
 import { Panel, Row, Stat } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
@@ -40,6 +43,34 @@ export function XpProgressPage() {
   const lastObservedXp = useRef<{ accountId: string; totalXp: number } | null>(null);
   const [dropEnabled, setDropEnabled] = useState(false);
   const [leaderboard, setLeaderboard] = useState<XpLeaderboardDto | null>(null);
+  const [mentoring, setMentoring] = useState<MentoringDto | null>(null);
+  const [mentorId, setMentorId] = useState('');
+  const [mentorError, setMentorError] = useState<string | null>(null);
+  const [mentorBusy, setMentorBusy] = useState(false);
+  const myPimpId = useSession((state) => state.me?.publicPimpId ?? null);
+
+  useEffect(() => {
+    if (!accountId) return;
+    let active = true;
+    void communityApi.mentoring()
+      .then((view) => { if (active) setMentoring(view); })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, [accountId]);
+
+  async function chooseMentor(event: FormEvent) {
+    event.preventDefault();
+    setMentorError(null);
+    setMentorBusy(true);
+    try {
+      setMentoring(await communityApi.chooseMentor(Number(mentorId)));
+      setMentorId('');
+    } catch (error) {
+      setMentorError(error instanceof ApiError ? error.message : 'Could not set your mentor. Try again.');
+    } finally {
+      setMentorBusy(false);
+    }
+  }
 
   useEffect(() => {
     if (!accountId) return;
@@ -406,6 +437,38 @@ export function XpProgressPage() {
             })}
           </ol>
         </section>
+
+        {mentoring && (mentoring.mentor || mentoring.canChooseMentor || mentoring.canMentor || mentoring.mentees.length) ? (
+          <Panel title="Mentoring" className="se-xp-mentoring">
+            {mentoring.mentor ? (
+              <p>
+                Your mentor: {mentoring.mentor.publicPimpId ? <Link className="se-playerlink" to={`/game/players/${mentoring.mentor.publicPimpId}`}>{mentoring.mentor.displayName}</Link> : mentoring.mentor.displayName}
+                <LevelChip level={mentoring.mentor.level} />
+              </p>
+            ) : null}
+            {mentoring.canChooseMentor ? (
+              <form onSubmit={(event) => void chooseMentor(event)}>
+                <p className="se-hint">New here? Name a player at level {formatNumber(MENTORING.mentorMinLevel)} or above as your mentor. They earn XP each time you reach level {MENTORING.milestones.join(', ')}. You can choose once.</p>
+                <Field label="Mentor's player number" name="mentorPublicPimpId" inputMode="numeric" value={mentorId} onChange={(event) => setMentorId(event.target.value.replace(/\D/g, ''))} error={mentorError ?? undefined} />
+                <Button type="submit" variant="primary" loading={mentorBusy} disabledReason={mentorId ? null : 'Enter a player number.'}>Choose mentor</Button>
+              </form>
+            ) : null}
+            {mentoring.mentees.length ? (
+              <ol className="se-xp-upcoming__list">
+                {mentoring.mentees.map((mentee) => (
+                  <li key={`${mentee.displayName}-${mentee.publicPimpId ?? 'off'}`} className="se-xp-upcoming__item">
+                    <span className="se-xp-upcoming__level">Lv {formatNumber(mentee.level)}</span>
+                    <span className="se-xp-upcoming__rewards">{mentee.publicPimpId ? <Link className="se-playerlink" to={`/game/players/${mentee.publicPimpId}`}>{mentee.displayName}</Link> : mentee.displayName}</span>
+                    <span className="se-num">{formatNumber(mentee.milestonesReached)} / {formatNumber(MENTORING.milestones.length)} milestones</span>
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+            {mentoring.canMentor ? (
+              <p className="se-hint se-mt">You can mentor up to {formatNumber(MENTORING.maxMentees)} new players{myPimpId ? <>: they name you with your player number <strong>#{formatNumber(myPimpId)}</strong></> : null}. You earn {formatNumber(MENTORING.mentorXp)} XP each time one reaches level {MENTORING.milestones.join(', ')}.</p>
+            ) : null}
+          </Panel>
+        ) : null}
 
         {leaderboard ? (
           <Panel title={`${leaderboard.year} XP leaders`} className="se-xp-leaders" aside={leaderboard.me ? `You: #${formatNumber(leaderboard.me.rank)} · ${formatNumber(leaderboard.me.xp)} XP` : undefined}>
