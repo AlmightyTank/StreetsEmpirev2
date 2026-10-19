@@ -15,7 +15,7 @@ packs off everywhere until `DROP_CROWN_PACKS_ENABLED=true` with Stripe keys.
 | --- | --- |
 | Currency | Crowns, whole numbers only, one balance (earned and bought together; the ledger keeps the source). |
 | What Crowns buy | Drop cosmetics, Drop bundles and Street Pass level skips. Never cash, turns, guns, product, chips or odds. |
-| Street Pass skips | Any tier of the current round's Street Pass (decided 2026-10-18). 150 a tier, 1,200 for ten. A skip raises Cred to that tier; the player still claims each tier. |
+| Street Pass skips | Any tier of the current round's Street Pass (decided 2026-10-18). 125 a tier, 1,000 for ten. A skip raises Cred to that tier; the player still claims each tier. |
 | Drop Pass | Not built. The roadmap's optional cosmetic-only pass was replaced by Street Pass skips. |
 | Randomness | None. Every offer shows exactly what it grants and costs. |
 | Supporter discount | Active, paid supporters (Stripe `active`, or a Google Play subscription that is active, in grace or paid through) pay 10% less for items, bundles and Street Pass skips, rounded down, never below 1 Crown (decided 2026-10-18). Free trials pay full price. It applies after the bundle adjustment, ends when the membership does, and never touches Crown packs. A birthday week gives 15% instead ([BIRTHDAYS.md](BIRTHDAYS.md)); an account gets the larger discount, never both. Rule: `supporterDropPrice` in `packages/rulesets/src/drop.ts`; the order metadata records the discount and the pre-discount price. |
@@ -38,27 +38,26 @@ first; the twelve after them were added on 2026-10-18 and three movie homages
 
 | Collection | Vehicle | Crew | Weapon | Profile | Shell & accent | Title |
 | --- | --- | --- | --- | --- | --- | --- |
-| Kingpin Luxe | Sedan (800) | Thug (700), Hoe (700) | — | Frame (450) | Shell (1,250), Lacquer Brass accent (350) | Old Money (250) |
-| Neon Underworld | Low-Rider (850) | Thug (700), Hoe (700) | Tek-9 (600) | Frame (450) | Shell (1,250), Underworld Violet accent (350) | After Hours (250) |
-| Winter Heist | Van (800) | Crew set, both types (900) | Shotgun (550) | Frame (450) | Shell (1,200), Heist Frost accent (300) | Cold Case (200) |
-| Biscayne Sunset | Sedan (800) | Thug (700), Hoe (700) | Pistol (550) | Frame (450) | Shell (1,200), Flamingo Pink accent (300) | Ocean Drive (200) |
-| Velvet Speakeasy | Sedan (850) | Thug (700), Hoe (700) | AK-47 (600) | Frame (450) | Shell (1,250), Merlot Velvet accent (350) | Bootlegger (250) |
-| Platinum Funk | Low-Rider (850) | Thug (700), Hoe (700) | — | Frame (450) | Shell (1,250), Tangerine Funk accent (350) | Funk Royalty (250) |
-| Redline Syndicate | Sedan (850) | Thug (700), Hoe (700) | AK-47 (600) | Frame (450) | Shell (1,250), Redline Red accent (350) | Redline (250) |
-| Wet Paint | Low-Rider (800) | Thug (650), Hoe (650) | Pistol (550) | Frame (450) | Shell (1,200), Spray Mint accent (300) | All City (200) |
-| Hazard Cook | Van (800) | Crew set, both types (900) | Shotgun (550) | Frame (450) | Shell (1,200), Hazard Yellow accent (300) | The Chemist (250) |
-| Dockside | Van (800) | Thug (700), Hoe (700) | AK-47 (600) | Frame (450) | Shell (1,200), Harbour Blue accent (300) | Off the Books (200) |
-| Crown Jewels | Sedan (1,000) | Crew set, both types (1,000) | AK-47 (650) | Frame (500) | Shell (1,350), Sapphire accent (350) | Crowned (250) |
-| Bayou Smoke | Van (800) | Thug (700), Hoe (700) | Shotgun (550) | Frame (450) | Shell (1,200), Firefly Green accent (300) | Swamp King (200) |
-| Desert Mirage | Low-Rider (850) | Thug (700), Hoe (700) | Tek-9 (600) | Frame (450) | Shell (1,250), Turquoise Stone accent (350) | Dust Devil (250) |
-| Rewind | Van (800) | Thug (700), Hoe (700) | Tek-9 (550) | Frame (450) | Shell (1,200), Tracking Magenta accent (300) | Run It Back (200) |
-| Snake Eyes | Sedan (850) | Thug (700), Hoe (700) | Pistol (550) | Frame (450) | Shell (1,250), Card Felt accent (350) | Loaded Dice (250) |
-| Quarter Mile | Sedan (850), Low-Rider (850) | Thug (700), Hoe (700) | Tek-9 (600) | Frame (450) | Shell (1,250), Nitrous Blue accent (350) | Ride or Die (250) |
-| 88 Club | Van (800) | Thug (700), Hoe (700) | Pistol (550) | Frame (450) | Shell (1,200), Flux Blue accent (300) | Ahead of Time (250) |
-| Swamp Kingdom | Van (800) | Thug (700), Hoe (700) | Shotgun (550) | Frame (450) | Shell (1,200), Swamp Moss accent (300) | Got Layers (200) |
+| Kingpin Luxe | Sedan (700) | Thug (600), Hoe (600) | — | Frame (400) | Shell (1,050), Lacquer Brass accent (300) | Old Money (200) |
+| Neon Underworld | Low-Rider (700) | Thug (600), Hoe (600) | Tek-9 (500) | Frame (400) | Shell (1,050), Underworld Violet accent (300) | After Hours (200) |
+| Winter Heist | Van (700) | Crew set, both types (750) | Shotgun (450) | Frame (400) | Shell (1,000), Heist Frost accent (250) | Cold Case (150) |
+| Biscayne Sunset | Sedan (700) | Thug (600), Hoe (600) | Pistol (450) | Frame (400) | Shell (1,000), Flamingo Pink accent (250) | Ocean Drive (150) |
+| Velvet Speakeasy | Sedan (700) | Thug (600), Hoe (600) | AK-47 (500) | Frame (400) | Shell (1,050), Merlot Velvet accent (300) | Bootlegger (200) |
+| Platinum Funk | Low-Rider (700) | Thug (600), Hoe (600) | — | Frame (400) | Shell (1,050), Tangerine Funk accent (300) | Funk Royalty (200) |
+| Redline Syndicate | Sedan (700) | Thug (600), Hoe (600) | AK-47 (500) | Frame (400) | Shell (1,050), Redline Red accent (300) | Redline (200) |
+| Wet Paint | Low-Rider (700) | Thug (550), Hoe (550) | Pistol (450) | Frame (400) | Shell (1,000), Spray Mint accent (250) | All City (150) |
+| Hazard Cook | Van (700) | Crew set, both types (750) | Shotgun (450) | Frame (400) | Shell (1,000), Hazard Yellow accent (250) | The Chemist (200) |
+| Dockside | Van (700) | Thug (600), Hoe (600) | AK-47 (500) | Frame (400) | Shell (1,000), Harbour Blue accent (250) | Off the Books (150) |
+| Crown Jewels | Sedan (850) | Crew set, both types (850) | AK-47 (550) | Frame (450) | Shell (1,150), Sapphire accent (300) | Crowned (200) |
+| Bayou Smoke | Van (700) | Thug (600), Hoe (600) | Shotgun (450) | Frame (400) | Shell (1,000), Firefly Green accent (250) | Swamp King (150) |
+| Desert Mirage | Low-Rider (700) | Thug (600), Hoe (600) | Tek-9 (500) | Frame (400) | Shell (1,050), Turquoise Stone accent (300) | Dust Devil (200) |
+| Rewind | Van (700) | Thug (600), Hoe (600) | Tek-9 (450) | Frame (400) | Shell (1,000), Tracking Magenta accent (250) | Run It Back (150) |
+| Snake Eyes | Sedan (700) | Thug (600), Hoe (600) | Pistol (450) | Frame (400) | Shell (1,050), Card Felt accent (300) | Loaded Dice (200) |
+| Quarter Mile | Sedan (700), Low-Rider (700) | Thug (600), Hoe (600) | Tek-9 (500) | Frame (400) | Shell (1,050), Nitrous Blue accent (300) | Ride or Die (200) |
+| 88 Club | Van (700) | Thug (600), Hoe (600) | Pistol (450) | Frame (400) | Shell (1,000), Flux Blue accent (250) | Ahead of Time (200) |
+| Swamp Kingdom | Van (700) | Thug (600), Hoe (600) | Shotgun (450) | Frame (400) | Shell (1,000), Swamp Moss accent (250) | Got Layers (150) |
 
-Bundles: Kingpin Luxe 2,800 (list 4,500), Neon Underworld 2,800 (list 5,150),
-Winter Heist 2,750 (list 4,400), Biscayne Sunset 2,750 (list 4,900), Velvet Speakeasy 2,800 (list 5,150), Platinum Funk 2,650 (list 4,550), Redline Syndicate 2,800 (list 5,150), Wet Paint 2,700 (list 4,800), Hazard Cook 2,650 (list 4,450), Dockside 2,750 (list 4,950), Crown Jewels 2,800 (list 5,100), Bayou Smoke 2,750 (list 4,900), Desert Mirage 2,800 (list 5,150), Rewind 2,750 (list 4,900), Snake Eyes 2,800 (list 5,100), Quarter Mile 2,800 (list 6,000), 88 Club 2,750 (list 4,950), Swamp Kingdom 2,750 (list 4,900).
+Bundles: Kingpin Luxe 2,400 (list 3,850), Neon Underworld 2,400 (list 4,350), Winter Heist 2,350 (list 3,700), Biscayne Sunset 2,350 (list 4,150), Velvet Speakeasy 2,400 (list 4,350), Platinum Funk 2,250 (list 3,850), Redline Syndicate 2,400 (list 4,350), Wet Paint 2,300 (list 4,050), Hazard Cook 2,250 (list 3,750), Dockside 2,350 (list 4,200), Crown Jewels 2,400 (list 4,350), Bayou Smoke 2,350 (list 4,150), Desert Mirage 2,400 (list 4,350), Rewind 2,350 (list 4,150), Snake Eyes 2,400 (list 4,300), Graveyard Shift 2,400 (list 4,250), Naughty List 2,250 (list 3,700), Heartbreaker 2,400 (list 4,350), Block Party 2,300 (list 4,150), Quarter Mile 2,400 (list 5,050), 88 Club 2,350 (list 4,200), Swamp Kingdom 2,350 (list 4,150).
 
 ### Shell themes
 
