@@ -7,7 +7,7 @@ object GameConfig {
     val LIVE_ORIGIN: String = BuildConfig.LIVE_ORIGIN
 
     /** User-agent token the native shell appends; the website uses it to hide install prompts. */
-    const val NATIVE_UA_TOKEN = "StreetsEmpireAndroid/1.0.0"
+    const val NATIVE_UA_TOKEN = "StreetsEmpireAndroid/1.0.8"
 
     val LIVE_ENTRY: String = "$LIVE_ORIGIN/game"
     const val SUPPORTER_PRODUCT_ID = "supporter_monthly"
@@ -42,6 +42,14 @@ object GameConfig {
 
     fun isBillingUrl(uri: Uri): Boolean =
         uri.scheme == BILLING_SCHEME && uri.host == "billing"
+
+    /** Discord's explicit mobile-app handoff links; HTTPS OAuth stays in WebView. */
+    fun isDiscordAppUrl(rawUrl: String?): Boolean {
+        if (rawUrl.isNullOrBlank()) return false
+        return rawUrl.startsWith("discord://", ignoreCase = true) ||
+            rawUrl.startsWith("intent://", ignoreCase = true) &&
+            rawUrl.contains("scheme=discord", ignoreCase = true)
+    }
 
     fun isInAppUrl(rawUrl: String?): Boolean {
         if (rawUrl.isNullOrBlank()) return false

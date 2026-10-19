@@ -27,6 +27,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var webView: WebView
     private lateinit var swipeRefresh: SwipeRefreshLayout
+    private lateinit var landingView: View
     private lateinit var offlineView: View
     private lateinit var billing: PlayBillingManager
 
@@ -76,6 +77,7 @@ class MainActivity : AppCompatActivity() {
 
         webView = findViewById(R.id.web_view)
         swipeRefresh = findViewById(R.id.swipe_refresh)
+        landingView = findViewById(R.id.landing_view)
         offlineView = findViewById(R.id.offline_view)
         // User-agent detection can be changed or omitted by WebView providers.
         // Expose a tiny explicit marker so the website reliably selects Play
@@ -84,6 +86,9 @@ class MainActivity : AppCompatActivity() {
         findViewById<View>(R.id.btn_retry).setOnClickListener {
             offlineView.visibility = View.GONE
             webView.loadUrl(currentUrl())
+        }
+        findViewById<View>(R.id.btn_enter_city).setOnClickListener {
+            openGame()
         }
 
         billing = PlayBillingManager(
@@ -120,6 +125,10 @@ class MainActivity : AppCompatActivity() {
                     return true
                 }
                 val url = request.url.toString()
+                if (GameConfig.isDiscordAppUrl(url)) {
+                    openDiscordApp(url)
+                    return true
+                }
                 return if (GameConfig.isInAppUrl(url)) {
                     false // stay in the app
                 } else {
@@ -176,8 +185,11 @@ class MainActivity : AppCompatActivity() {
         })
 
         if (savedInstanceState == null) {
-            webView.loadUrl(currentUrl())
+            landingView.visibility = View.VISIBLE
+            swipeRefresh.visibility = View.GONE
         } else {
+            landingView.visibility = View.GONE
+            swipeRefresh.visibility = View.VISIBLE
             webView.restoreState(savedInstanceState)
         }
     }
@@ -194,6 +206,12 @@ class MainActivity : AppCompatActivity() {
             .appendQueryParameter("se_android", "1")
             .build()
             .toString()
+    }
+
+    private fun openGame() {
+        landingView.visibility = View.GONE
+        swipeRefresh.visibility = View.VISIBLE
+        webView.loadUrl(currentUrl())
     }
 
     private fun handleBillingUrl(uri: Uri) {
@@ -225,6 +243,29 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
         } catch (_: Exception) {
             // No browser available; stay on the current page.
+        }
+    }
+
+    /**
+     * Discord's mobile site can emit discord:// and intent:// links for the
+     * "open in Discord" step. Keep the OAuth authorize page in this WebView so
+     * its state/session cookies remain available to the callback, but hand off
+     * only the app-switch URL to the installed Discord app.
+     */
+    private fun openDiscordApp(url: String) {
+        try {
+            val intent = if (url.startsWith("intent:", ignoreCase = true)) {
+                Intent.parseUri(url, Intent.URI_INTENT_SCHEME)
+            } else {
+                Intent(Intent.ACTION_VIEW, Uri.parse(url))
+            }
+            intent.action = Intent.ACTION_VIEW
+            intent.setPackage("com.discord")
+            startActivity(intent)
+        } catch (_: Exception) {
+            // Discord may not be installed, or the intent may not be supported
+            // by this Discord build. Let Android choose another compatible app.
+            openExternal(url)
         }
     }
 

@@ -6,7 +6,8 @@ client and server rather than shipping a second copy of the game.
 
 - Live server only
 - Google Play monthly supporter subscription (`supporter_monthly`)
-- Game and Discord OAuth stay in-app; other links open in the browser
+- Game and Discord OAuth stay in-app; Discord's explicit mobile-app handoff
+  links open Discord Mobile and return to the in-app OAuth flow
 - Two-finger pull-to-refresh, reload, offline retry, file chooser, and WebView back history
 - HTTPS only and first-party cookie sessions
 
