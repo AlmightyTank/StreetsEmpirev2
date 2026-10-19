@@ -3,7 +3,7 @@
 Status: **Planned** · Target: **beta** · Scope: Combat, armed escorts, encounters, turf defense, gun store, garage service, Territory Rewards.
 
 ## Vision
-Guns stop being a one-time purchase. Every gun burns ammo every time it fires, and bigger guns burn a lot more of it. Ammo is cheap per round and sold in bulk, because players go through so much of it. Vehicles get a matching material, **parts**, for repairs.
+Guns stop being a one-time purchase. Every gun burns ammo every time it fires, and bigger guns burn a lot more of it. Ammo is cheap per round and sold in bulk, because players go through so much of it. Vehicles work the same way with **parts**: every run uses parts and cash, and bigger vehicles use more.
 
 Both apply only to new, versioned rulesets. Rounds pinned before them keep free-firing guns and cash-only repairs.
 
@@ -68,10 +68,53 @@ Running out has to hurt, without making an offline player helpless:
 
 ## Parts
 
-- One generic stock, `parts`, used by the garage.
-- **Repairs** take parts plus a reduced cash fee. Without parts a repair still works, at higher cash and longer time, so nobody is ever stuck.
-- Proposal: damaged = 5 parts, disabled = 20 parts; low-rider ×1, sedan ×1.5, van ×2.
-- **Sources:** small daily garage stock, the chop shop (strip your own disabled vehicles for parts), encounters, territory yields (industrial districts, Detroit).
+Vehicles work like guns: every run wears them down, and **bigger vehicles burn more parts and more cash**, both on the road and in the garage.
+
+### One parts stock, bigger vehicles use more
+- One generic stock: `parts`. No per-model parts.
+- Size follows cargo: sedan (65% cargo, 4 crew seats) < low-rider (100%) < van (150%).
+
+### Running cost per run
+Every vehicle that leaves on a run or boss trip spends parts and cash (fuel and upkeep) when it departs:
+
+| Vehicle | Price | Cargo | Parts per run | Cash per run | Total at $8/part |
+| --- | --- | --- | --- | --- | --- |
+| Sedan | $3,500 | 65% | 1 | $25 | $33 |
+| Low-rider | $5,000 | 100% | 2 | $50 | $66 |
+| Van | $8,500 | 150% | 4 | $100 | $132 |
+
+A van carries the most but costs 4× a sedan to run, so fleet choice is a real trade-off.
+
+### Repairs
+Today repairs are cash only (damaged: sedan $500, low-rider $750, van $1,250; disabled: $1,400 / $2,000 / $3,400). With parts:
+
+| Vehicle | Damaged | Disabled |
+| --- | --- | --- |
+| Sedan | 5 parts + $250 | 20 parts + $700 |
+| Low-rider | 10 parts + $400 | 40 parts + $1,000 |
+| Van | 20 parts + $700 | 80 parts + $1,700 |
+
+- With parts, a repair costs less than today's cash price (a damaged van: 20 × $8 + $700 = $860 vs $1,250).
+- **Without parts** a repair still works at 1.5× today's cash price and takes longer. Nobody is ever stuck in the garage.
+- Existing garage discounts (Auto Garage, Road Saints MC) apply to the cash part only.
+
+### Running dry on the road
+- A vehicle that leaves without its parts still drives, but runs **worn**: a higher chance of turning Damaged on that run (proposal: +50% of its normal trouble chance).
+- The run preview shows parts and cash to be spent per vehicle and warns when the fleet will leave worn.
+
+### Buying parts
+Sold at Charlie's alongside vehicles, in bulk:
+
+| Pack | Parts | Price | Per part |
+| --- | --- | --- | --- |
+| Box | 10 | $100 | $10 |
+| Crate | 100 | $800 | $8 |
+| Pallet | 1,000 | $7,000 | $7 |
+
+Daily stock on the existing restock clock (proposal: 2,000 parts).
+
+### Other sources
+The chop shop (strip your own disabled vehicles: sedan 10, low-rider 15, van 30 parts), encounters, and territory yields (industrial districts, Detroit).
 
 ## Slices
 
@@ -92,7 +135,9 @@ Running out has to hurt, without making an offline player helpless:
 - Armed escorts, turf/outpost defense and encounter gunfights spend ammo through the same allocation code.
 
 ### Slice E — Parts and garage
-- Repairs with and without parts; chop shop; vehicle simulation rerun.
+- Per-run parts and cash spend by vehicle size; worn vehicles' extra trouble chance.
+- Repairs with and without parts, scaled by size; chop shop; Charlie's parts packs.
+- Run preview shows parts and cash per vehicle; rerun vehicle simulations so each fleet choice stays viable.
 
 ### Slice F — Territory, balance and rollout
 - Ammo and parts in territory yields and tolls.
