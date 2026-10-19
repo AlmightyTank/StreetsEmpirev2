@@ -198,6 +198,13 @@ export const DROP_COLLECTIONS = {
     description: 'A fairytale gone muddy: a storybook swamp, an outhouse with a KEEP OUT sign, a castle on the hill and a dragon circling it.',
     accent: '#7aa83a',
   },
+  'zombie-apocalypse': {
+    key: 'zombie-apocalypse',
+    name: 'Zombie Apocalypse',
+    tagline: 'Board up. Load up. Keep moving.',
+    description: 'The city fell overnight. Your crew didn\'t: an armoured survivor van, scavenged gear, a barricaded street and the horde shambling in from the edge of town.',
+    accent: '#ff6b2c',
+  },
   'street-singles': {
     key: 'street-singles',
     name: 'Street Singles',
@@ -1148,6 +1155,48 @@ const ITEMS: readonly DropItemDefinition[] = [
     kind: 'TITLE_BADGE', rarity: 'uncommon', category: 'PROFILES', priceCrowns: 200,
     preview: { type: 'TITLE', title: 'Got Layers' },
   }),
+  // Zombie Apocalypse
+  // Zombie Apocalypse
+  item('zombie-apocalypse', 'van', {
+    name: 'Zombie Apocalypse Van', description: 'A survivor van armoured with welded plate and a ram plow, plywood over the windows, a roof cage and spare fuel cans. A Van look only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'VEHICLES', priceCrowns: 800, styleKey: 'zombie-apocalypse-van',
+    preview: { type: 'ITEM', items: ['VAN'] }, dresses: 'VAN',
+  }),
+  item('zombie-apocalypse', 'thug', {
+    name: 'Zombie Apocalypse Thug', description: 'A torn flannel shirt over a grimy tank, a shell bandolier across the chest and a bloodied bandage on the arm. A Thug outfit only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'CREW', priceCrowns: 700, styleKey: 'zombie-apocalypse-thug',
+    preview: { type: 'ITEM', items: ['THUG'] }, dresses: 'THUG',
+  }),
+  item('zombie-apocalypse', 'hoe', {
+    name: 'Zombie Apocalypse Hoe', description: 'A scuffed olive field jacket with a quarantine-orange armband and a walkie-talkie on the collar. A Hoe outfit only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'CREW', priceCrowns: 700, styleKey: 'zombie-apocalypse-hoe',
+    preview: { type: 'ITEM', items: ['HOE'] }, dresses: 'HOE',
+  }),
+  item('zombie-apocalypse', 'shotgun', {
+    name: 'Zombie Apocalypse Shotgun', description: 'A pump shotgun with duct-taped grips and barbed wire wrapped round the stock. A visual finish only; it never gives you a shotgun or the right to buy one.',
+    kind: 'ITEM_COLLECTION', rarity: 'rare', category: 'WEAPONS', priceCrowns: 550, styleKey: 'zombie-apocalypse-shotgun',
+    preview: { type: 'ITEM', items: ['SHOTGUN'] }, dresses: 'SHOTGUN',
+  }),
+  item('zombie-apocalypse', 'frame', {
+    name: 'Zombie Apocalypse Frame', description: 'A boarded-up window: nailed planks round the edge with a sick green glow seeping through the gaps. The glow holds still under reduced motion.',
+    kind: 'PROFILE_FRAME', rarity: 'epic', category: 'PROFILES', priceCrowns: 450, styleKey: 'zombie-apocalypse-frame',
+    preview: { type: 'FRAME' },
+  }),
+  item('zombie-apocalypse', 'accent', {
+    name: 'Quarantine Orange Accent', description: 'A quarantine-orange profile and banner accent.',
+    kind: 'ACCENT', rarity: 'rare', category: 'SHELLS', priceCrowns: 300, styleKey: 'quarantine-orange',
+    preview: { type: 'ACCENT', color: '#ff6b2c' },
+  }),
+  item('zombie-apocalypse', 'shell', {
+    name: 'Zombie Apocalypse Shell', description: 'The whole game after the outbreak: grimy concrete panels, quarantine-orange controls, a barricaded street, burnt-out cars and the horde shambling in on the skyline.',
+    kind: 'SITE_THEME', rarity: 'legendary', category: 'SHELLS', priceCrowns: 1200, styleKey: 'zombie-apocalypse-shell',
+    preview: { type: 'THEME' },
+  }),
+  item('zombie-apocalypse', 'title', {
+    name: 'Last One Standing', description: 'A Zombie Apocalypse title. Wear it as a title or feature it as a badge.',
+    kind: 'TITLE_BADGE', rarity: 'rare', category: 'PROFILES', priceCrowns: 250,
+    preview: { type: 'TITLE', title: 'Last One Standing' },
+  }),
   // Street Singles: one-off pieces with no set or bundle, for the daily picks.
   item('street-singles', 'taxi-hustle', {
     name: 'Taxi Hustle Sedan', description: 'Cab yellow with a checker stripe, a roof light and a meter in the window. Nobody looks twice at a taxi. A Sedan look only.',
@@ -1337,6 +1386,7 @@ export const DROP_BUNDLES: Readonly<Record<string, DropBundleDefinition>> = Obje
   bundleOf('quarter-mile', 2800, 'All nine Quarter Mile pieces: the Sedan, the Low-Rider, both crew outfits, the Tek-9 finish, the frame, the accent, the shell theme and the Ride or Die title.'),
   bundleOf('88-club', 2750, 'All eight 88 Club pieces: the Van, both crew outfits, the Pistol finish, the frame, the accent, the shell theme and the Ahead of Time title.'),
   bundleOf('swamp-kingdom', 2750, 'All eight Swamp Kingdom pieces: the Van, both crew outfits, the Shotgun finish, the frame, the accent, the shell theme and the Got Layers title.'),
+  bundleOf('zombie-apocalypse', 2750, 'All eight Zombie Apocalypse pieces: the Van, both crew outfits, the Shotgun finish, the frame, the accent, the shell theme and the Last One Standing title.'),
 ].map((bundle) => [bundle.key, bundle]));
 
 /** Whether a holiday set is inside one of its release windows at `now`. */

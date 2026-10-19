@@ -711,6 +711,38 @@
     linear-gradient(180deg, #141a0d, #0a0c06 62%);
 }
 
+.se-site-theme--zombie-apocalypse-shell {
+  --se-bg: #0a0b08;
+  --se-panel: #14160f;
+  --se-panel-hi: #1c1f15;
+  --se-line: rgba(255, 107, 44, 0.3);
+  --se-line-soft: rgba(255, 107, 44, 0.15);
+  --se-text: #f0eee4;
+  --se-text-dim: #b9b8a4;
+  --se-muted: #868670;
+  --se-accent: #ff6b2c;
+  --se-accent-dim: #c24a14;
+  --se-accent-hover: #ff9a66;
+  --se-accent-rgb: 255, 107, 44;
+  --se-accent-2: #9ccf4a;
+  --se-theme-panel-fill:
+    linear-gradient(150deg, rgba(255, 107, 44, 0.07), transparent 40%),
+    linear-gradient(180deg, rgba(28, 31, 21, 0.95), rgba(10, 11, 8, 0.96));
+  --se-theme-stat-fill:
+    linear-gradient(180deg, rgba(255, 107, 44, 0.07), rgba(156, 207, 74, 0.04)),
+    rgba(10, 11, 8, 0.96);
+  --se-theme-button-fill: linear-gradient(180deg, rgba(255, 107, 44, 0.12), rgba(10, 11, 8, 0.96));
+  --se-theme-head-fill:
+    linear-gradient(90deg, rgba(255, 107, 44, 0.18), rgba(156, 207, 74, 0.06) 55%, transparent),
+    linear-gradient(180deg, #1c1f15, #14160f);
+  --se-theme-topbar-layer:
+    linear-gradient(90deg, rgba(255, 107, 44, 0.14), transparent 32%, rgba(156, 207, 74, 0.1));
+  background-image:
+    radial-gradient(900px 520px at 94% 0%, rgba(255, 107, 44, 0.16), transparent 62%),
+    radial-gradient(720px 440px at 2% 100%, rgba(156, 207, 74, 0.09), transparent 60%),
+    linear-gradient(180deg, #14160f, #0a0b08 62%);
+}
+
 /* Shared component surfaces, the same contract as the other premium shells. */
 :is(
   .se-site-theme--kingpin-luxe-shell,
@@ -731,6 +763,7 @@
   .se-site-theme--quarter-mile-shell,
   .se-site-theme--88-club-shell,
   .se-site-theme--swamp-kingdom-shell,
+  .se-site-theme--zombie-apocalypse-shell,
   .se-site-theme--graveyard-shift-shell,
   .se-site-theme--naughty-list-shell,
   .se-site-theme--heartbreaker-shell,
@@ -760,6 +793,7 @@
   .se-site-theme--quarter-mile-shell,
   .se-site-theme--88-club-shell,
   .se-site-theme--swamp-kingdom-shell,
+  .se-site-theme--zombie-apocalypse-shell,
   .se-site-theme--graveyard-shift-shell,
   .se-site-theme--naughty-list-shell,
   .se-site-theme--heartbreaker-shell,
@@ -788,6 +822,7 @@
   .se-site-theme--quarter-mile-shell,
   .se-site-theme--88-club-shell,
   .se-site-theme--swamp-kingdom-shell,
+  .se-site-theme--zombie-apocalypse-shell,
   .se-site-theme--graveyard-shift-shell,
   .se-site-theme--naughty-list-shell,
   .se-site-theme--heartbreaker-shell,
@@ -816,6 +851,7 @@
   .se-site-theme--quarter-mile-shell,
   .se-site-theme--88-club-shell,
   .se-site-theme--swamp-kingdom-shell,
+  .se-site-theme--zombie-apocalypse-shell,
   .se-site-theme--graveyard-shift-shell,
   .se-site-theme--naughty-list-shell,
   .se-site-theme--heartbreaker-shell,
@@ -842,6 +878,7 @@
   .se-site-theme--quarter-mile-shell,
   .se-site-theme--88-club-shell,
   .se-site-theme--swamp-kingdom-shell,
+  .se-site-theme--zombie-apocalypse-shell,
   .se-site-theme--graveyard-shift-shell,
   .se-site-theme--naughty-list-shell,
   .se-site-theme--heartbreaker-shell,
@@ -868,6 +905,7 @@
   .se-site-theme--quarter-mile-shell,
   .se-site-theme--88-club-shell,
   .se-site-theme--swamp-kingdom-shell,
+  .se-site-theme--zombie-apocalypse-shell,
   .se-site-theme--graveyard-shift-shell,
   .se-site-theme--naughty-list-shell,
   .se-site-theme--heartbreaker-shell,
@@ -896,6 +934,7 @@
   .se-site-theme--quarter-mile-shell,
   .se-site-theme--88-club-shell,
   .se-site-theme--swamp-kingdom-shell,
+  .se-site-theme--zombie-apocalypse-shell,
   .se-site-theme--graveyard-shift-shell,
   .se-site-theme--naughty-list-shell,
   .se-site-theme--heartbreaker-shell,
@@ -923,6 +962,7 @@
   .se-site-theme--quarter-mile-shell,
   .se-site-theme--88-club-shell,
   .se-site-theme--swamp-kingdom-shell,
+  .se-site-theme--zombie-apocalypse-shell,
   .se-site-theme--graveyard-shift-shell,
   .se-site-theme--naughty-list-shell,
   .se-site-theme--heartbreaker-shell,
@@ -950,6 +990,7 @@
   .se-site-theme--quarter-mile-shell,
   .se-site-theme--88-club-shell,
   .se-site-theme--swamp-kingdom-shell,
+  .se-site-theme--zombie-apocalypse-shell,
   .se-site-theme--graveyard-shift-shell,
   .se-site-theme--naughty-list-shell,
   .se-site-theme--heartbreaker-shell,
@@ -977,6 +1018,7 @@
   .se-site-theme--quarter-mile-shell,
   .se-site-theme--88-club-shell,
   .se-site-theme--swamp-kingdom-shell,
+  .se-site-theme--zombie-apocalypse-shell,
   .se-site-theme--graveyard-shift-shell,
   .se-site-theme--naughty-list-shell,
   .se-site-theme--heartbreaker-shell,
@@ -1006,6 +1048,7 @@
   .se-site-theme--quarter-mile-shell,
   .se-site-theme--88-club-shell,
   .se-site-theme--swamp-kingdom-shell,
+  .se-site-theme--zombie-apocalypse-shell,
   .se-site-theme--graveyard-shift-shell,
   .se-site-theme--naughty-list-shell,
   .se-site-theme--heartbreaker-shell,
@@ -1034,6 +1077,7 @@
   .se-site-theme--quarter-mile-shell,
   .se-site-theme--88-club-shell,
   .se-site-theme--swamp-kingdom-shell,
+  .se-site-theme--zombie-apocalypse-shell,
   .se-site-theme--graveyard-shift-shell,
   .se-site-theme--naughty-list-shell,
   .se-site-theme--heartbreaker-shell,
@@ -1061,6 +1105,7 @@
   .se-site-theme--quarter-mile-shell,
   .se-site-theme--88-club-shell,
   .se-site-theme--swamp-kingdom-shell,
+  .se-site-theme--zombie-apocalypse-shell,
   .se-site-theme--graveyard-shift-shell,
   .se-site-theme--naughty-list-shell,
   .se-site-theme--heartbreaker-shell,
@@ -1103,6 +1148,7 @@
 .se-site-theme-decor--quarter-mile-shell { --se-pack-color: #2f9bff; }
 .se-site-theme-decor--88-club-shell { --se-pack-color: #4fd2ff; }
 .se-site-theme-decor--swamp-kingdom-shell { --se-pack-color: #7aa83a; }
+.se-site-theme-decor--zombie-apocalypse-shell { --se-pack-color: #ff6b2c; }
 .se-site-theme-decor--graveyard-shift-shell { --se-pack-color: #a8f0c6; }
 .se-site-theme-decor--naughty-list-shell { --se-pack-color: #e23a3a; }
 .se-site-theme-decor--heartbreaker-shell { --se-pack-color: #ff4d6d; }
@@ -1449,3 +1495,30 @@
   animation: se-sk-drift 10s ease-in-out infinite alternate;
 }
 @keyframes se-sk-drift { from { transform: translate3d(0, 0, 0); opacity: .2; } to { transform: translate3d(-24px, -20px, 0); opacity: .9; } }
+
+/* ---------- Zombie Apocalypse scene (the horde shambles slowly; nothing jumps out) ---------- */
+.se-za__sky {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 50vh;
+  background: radial-gradient(ellipse 60% 70% at 80% 0%, rgba(156, 207, 74, 0.12), transparent 70%);
+}
+.se-za__city { right: 0; bottom: 0; width: min(50vw, 680px); height: auto; }
+.se-za__smoke { animation: se-za-smoke 9s ease-in-out infinite alternate; }
+.se-za__horde svg {
+  position: absolute;
+  bottom: calc(min(50vw, 680px) * 0.143);
+  left: 100%;
+  width: calc(14px * var(--se-za-scale, 1));
+  height: auto;
+  opacity: .8;
+  animation-name: se-za-walk;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+.se-za__shamble { transform-box: fill-box; transform-origin: 50% 100%; animation: se-za-sway 1.8s ease-in-out infinite alternate; }
+@keyframes se-za-smoke { from { transform: translateX(0); opacity: .5; } to { transform: translateX(-8px); opacity: .9; } }
+@keyframes se-za-walk { from { transform: translateX(0); } to { transform: translateX(calc(-1 * min(50vw, 680px))); } }
+@keyframes se-za-sway { from { transform: rotate(-4deg); } to { transform: rotate(4deg); } }
+.se-reduced-motion .se-za__horde { display: none; }
+@media (prefers-reduced-motion: reduce) { .se-za__horde { display: none; } }

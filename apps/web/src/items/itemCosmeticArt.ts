@@ -200,6 +200,7 @@ export const DROP_ART_FILES = {
     'flower-power-van': 'cosmetics/drop/van-flower-power.svg',
     '88-club-van': 'cosmetics/drop/van-88-club.svg',
     'swamp-kingdom-van': 'cosmetics/drop/van-swamp-kingdom.svg',
+    'zombie-apocalypse-van': 'cosmetics/drop/van-zombie-apocalypse.svg',
   },
   PISTOL: {
     'biscayne-sunset-pistol': 'cosmetics/drop/pistol-biscayne-sunset.svg',
@@ -216,6 +217,7 @@ export const DROP_ART_FILES = {
     'block-party-shotgun': 'cosmetics/drop/shotgun-block-party.svg',
     'rust-bucket-shotgun': 'cosmetics/drop/shotgun-rust-bucket.svg',
     'swamp-kingdom-shotgun': 'cosmetics/drop/shotgun-swamp-kingdom.svg',
+    'zombie-apocalypse-shotgun': 'cosmetics/drop/shotgun-zombie-apocalypse.svg',
   },
   TEK9: {
     'neon-underworld-tek9': 'cosmetics/drop/tek9-neon-underworld.svg',
@@ -258,6 +260,7 @@ export const DROP_ART_FILES = {
     'quarter-mile-thug': 'cosmetics/drop/thug-quarter-mile.svg',
     '88-club-thug': 'cosmetics/drop/thug-88-club.svg',
     'swamp-kingdom-thug': 'cosmetics/drop/thug-swamp-kingdom.svg',
+    'zombie-apocalypse-thug': 'cosmetics/drop/thug-zombie-apocalypse.svg',
   },
   HOE: {
     'kingpin-luxe-hoe': 'cosmetics/drop/hoe-kingpin-luxe.svg',
@@ -284,6 +287,7 @@ export const DROP_ART_FILES = {
     'quarter-mile-hoe': 'cosmetics/drop/hoe-quarter-mile.svg',
     '88-club-hoe': 'cosmetics/drop/hoe-88-club.svg',
     'swamp-kingdom-hoe': 'cosmetics/drop/hoe-swamp-kingdom.svg',
+    'zombie-apocalypse-hoe': 'cosmetics/drop/hoe-zombie-apocalypse.svg',
   },
 } as const satisfies Partial<Record<ItemArtKey, Partial<Record<ItemCosmeticStyleKey, string>>>>;
 

@@ -240,6 +240,7 @@ export type ProfileAccent =
   | 'nitrous-blue'
   | 'flux-blue'
   | 'swamp-moss'
+  | 'quarantine-orange'
   | 'ghost-green'
   | 'candy-red'
   | 'heartbreak-rose'

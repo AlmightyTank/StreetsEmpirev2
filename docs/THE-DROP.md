@@ -24,16 +24,16 @@ packs off everywhere until `DROP_CROWN_PACKS_ENABLED=true` with Stripe keys.
 
 ## Catalogue
 
-Defined in code, `packages/rulesets/src/drop.ts`. Twenty-two collections,
-seven to nine SKUs each (171 in all), one bundle each, plus **Street Singles**: 30
+Defined in code, `packages/rulesets/src/drop.ts`. Twenty-three collections,
+seven to nine SKUs each (179 in all), one bundle each, plus **Street Singles**: 30
 one-off pieces (10 ride and gun looks, 4 outfits, 6 frames, 6 accents, 4
 titles) with no set, bundle or shell. Singles are never featured; they fill
-the random daily picks. Eighteen are in rotation; the
+the random daily picks. Nineteen are in rotation; the
 four holiday sets (Graveyard Shift, Naughty List, Heartbreaker, Block Party)
 are held as Draft and hidden until an admin releases them in their season (see
 [DROP-COLLECTIONS-NEXT.md](DROP-COLLECTIONS-NEXT.md)). The three launch sets came
 first; the twelve after them were added on 2026-10-18 and three movie homages
-(Quarter Mile, 88 Club, Swamp Kingdom) on 2026-10-19 (see
+(Quarter Mile, 88 Club, Swamp Kingdom) and Zombie Apocalypse on 2026-10-19 (see
 [DROP-COLLECTIONS-NEXT.md](DROP-COLLECTIONS-NEXT.md)):
 
 | Collection | Vehicle | Crew | Weapon | Profile | Shell & accent | Title |
@@ -56,9 +56,10 @@ first; the twelve after them were added on 2026-10-18 and three movie homages
 | Quarter Mile | Sedan (850), Low-Rider (850) | Thug (700), Hoe (700) | Tek-9 (600) | Frame (450) | Shell (1,250), Nitrous Blue accent (350) | Ride or Die (250) |
 | 88 Club | Van (800) | Thug (700), Hoe (700) | Pistol (550) | Frame (450) | Shell (1,200), Flux Blue accent (300) | Ahead of Time (250) |
 | Swamp Kingdom | Van (800) | Thug (700), Hoe (700) | Shotgun (550) | Frame (450) | Shell (1,200), Swamp Moss accent (300) | Got Layers (200) |
+| Zombie Apocalypse | Van (800) | Thug (700), Hoe (700) | Shotgun (550) | Frame (450) | Shell (1,200), Quarantine Orange accent (300) | Last One Standing (250) |
 
 Bundles: Kingpin Luxe 2,800 (list 4,500), Neon Underworld 2,800 (list 5,150),
-Winter Heist 2,750 (list 4,400), Biscayne Sunset 2,750 (list 4,900), Velvet Speakeasy 2,800 (list 5,150), Platinum Funk 2,650 (list 4,550), Redline Syndicate 2,800 (list 5,150), Wet Paint 2,700 (list 4,800), Hazard Cook 2,650 (list 4,450), Dockside 2,750 (list 4,950), Crown Jewels 2,800 (list 5,100), Bayou Smoke 2,750 (list 4,900), Desert Mirage 2,800 (list 5,150), Rewind 2,750 (list 4,900), Snake Eyes 2,800 (list 5,100), Quarter Mile 2,800 (list 6,000), 88 Club 2,750 (list 4,950), Swamp Kingdom 2,750 (list 4,900).
+Winter Heist 2,750 (list 4,400), Biscayne Sunset 2,750 (list 4,900), Velvet Speakeasy 2,800 (list 5,150), Platinum Funk 2,650 (list 4,550), Redline Syndicate 2,800 (list 5,150), Wet Paint 2,700 (list 4,800), Hazard Cook 2,650 (list 4,450), Dockside 2,750 (list 4,950), Crown Jewels 2,800 (list 5,100), Bayou Smoke 2,750 (list 4,900), Desert Mirage 2,800 (list 5,150), Rewind 2,750 (list 4,900), Snake Eyes 2,800 (list 5,100), Quarter Mile 2,800 (list 6,000), 88 Club 2,750 (list 4,950), Swamp Kingdom 2,750 (list 4,900), Zombie Apocalypse 2,750 (list 4,950).
 
 ### Shell themes
 

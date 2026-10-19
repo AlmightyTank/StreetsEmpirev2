@@ -2009,6 +2009,92 @@ Object.assign(recipes, {
 });
 
 await mkdir(outDir, { recursive: true });
+/* ---------- Zombie Apocalypse ---------- */
+
+const QUARANTINE = '#ff6b2c';
+const ROT = '#9ccf4a';
+
+Object.assign(recipes, {
+  'van-zombie-apocalypse': async () => {
+    let svg = await load('van');
+    svg = restop(svg, 'paint', ['#7a7f6a', '#555a48', '#3a3e30', '#1e2018']);
+    svg = restop(svg, 'decal', ['#2a2d22', '#1a1c14']);
+    svg = restop(svg, 'rust', [['#6a3a1a', 0.9], ['#6a3a1a', 0.5], ['#6a3a1a', 0]]);
+    svg = restop(svg, 'glass', ['#c9a66a', '#a8845e', '#6a4a2a']);
+    svg = recolor(svg, { '#b8bcba': '#3a3e30' });
+    const rivets = Array.from({ length: 14 }, (_, index) => `<circle cx="${20 + index * 11}" cy="${index % 2 ? 76 : 40}" r="1"/>`).join('');
+    return decorate(svg, {
+      over: [
+        // Welded plate seams and rivets.
+        '<path d="M14 40 H168 M14 76 H168 M30 30 V86 M116 30 V86" stroke="#1e2018" stroke-opacity=".7" stroke-width="1.4"/>',
+        `<g fill="#c9ced4" opacity=".6">${rivets}</g>`,
+        // Plywood over the windshield, nailed on crooked.
+        '<path d="M174 38 L200 34 L206 54 L176 58 Z" fill="#c9a66a" stroke="#6a4a2a" stroke-width="1"/>',
+        '<path d="M178 42 L202 39 M179 50 L205 47" stroke="#8a6a3a" stroke-width=".8"/><g fill="#3a3e45"><circle cx="177" cy="40" r=".9"/><circle cx="203" cy="37" r=".9"/><circle cx="178" cy="56" r=".9"/><circle cx="204" cy="52" r=".9"/></g>',
+        // Roof cage with fuel cans.
+        '<path d="M30 28 V18 H160 V28 M50 18 V28 M80 18 V28 M110 18 V28 M140 18 V28" stroke="#1e2018" stroke-width="2" fill="none"/>',
+        `<g stroke="#5a1a0a" stroke-width=".8"><rect x="58" y="10" width="12" height="16" rx="1.5" fill="#c23a1a"/><rect x="74" y="10" width="12" height="16" rx="1.5" fill="#c23a1a"/></g>`,
+        // A ram plow on the nose, and a quarantine stencil.
+        '<path d="M222 70 L246 62 L250 98 L226 100 Z" fill="#5a5f66" stroke="#1e2024" stroke-width="1.2"/><path d="M228 74 L246 68 M229 84 L248 78 M230 94 L249 89" stroke="#2a2d32" stroke-width="1.6"/>',
+        `<text x="71" y="61.5" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-size="9" font-weight="900" textLength="54" lengthAdjust="spacingAndGlyphs" fill="${QUARANTINE}" stroke="#1a0c06" stroke-width=".4" paint-order="stroke">SURVIVORS</text>`,
+        // Grime and a bloody handprint.
+        '<path d="M24 86 Q30 80 36 86 M130 86 Q138 78 146 86" stroke="#3a2a10" stroke-width="3" opacity=".6" fill="none"/>',
+        '<g fill="#7a1010" opacity=".75" transform="translate(140 50) rotate(12)"><ellipse rx="3.4" ry="4"/><rect x="-3.2" y="-10" width="1.3" height="6" rx=".6"/><rect x="-1.2" y="-11" width="1.3" height="7" rx=".6"/><rect x=".8" y="-10.5" width="1.3" height="6.5" rx=".6"/><rect x="2.6" y="-9" width="1.2" height="5" rx=".6"/></g>',
+      ].join('\n    '),
+    });
+  },
+  'thug-zombie-apocalypse': async () => {
+    let svg = await load('thug');
+    svg = repattern(svg, 'plaid', '<rect width="14" height="14" fill="#8a1c1c"/><path d="M0 3 H14 M0 10 H14 M3 0 V14 M10 0 V14" stroke="#1a0a0a" stroke-width="1.6"/><path d="M0 7 H14" stroke="#c23a2a" stroke-width=".5"/>');
+    svg = restop(svg, 'tank', ['#c9c2a8', '#9a937a']);
+    svg = restop(svg, 'band', ['#4d2b16', '#3a1f10']);
+    svg = recolor(svg, { '#e9fff0': '#4d2b16', '#b5f5c5': '#6a3a20', '#6ee095': '#ffffff' });
+    const shells = Array.from({ length: 6 }, (_, index) => `<rect x="${50 + index * 5}" y="${92 + index * 4.4}" width="3" height="5" rx=".8" transform="rotate(-40 ${51.5 + index * 5} ${94.5 + index * 4.4})"/>`).join('');
+    return decorate(svg, {
+      over: [
+        // Shell bandolier across the chest.
+        '<path d="M44 88 L86 126" stroke="#3a2614" stroke-width="7" stroke-linecap="round"/>',
+        `<g fill="#c23a1a" stroke="#5a1a0a" stroke-width=".4">${shells}</g>`,
+        // Grime on the tank, a torn hem and a bandage on the arm.
+        '<path d="M58 112 q4 3 8 0 M70 104 q3 2 6 0" stroke="#5a4a2a" stroke-width="1.4" opacity=".7" fill="none"/>',
+        '<path d="M18 118 L28 114 L30 120 L20 124 Z" fill="#e8e2d0" stroke="#9a937a" stroke-width=".6"/><circle cx="24" cy="119" r="1.6" fill="#a11c1c" opacity=".8"/>',
+      ].join('\n  '),
+    });
+  },
+  'hoe-zombie-apocalypse': async () => {
+    let svg = await load('hoe');
+    svg = hoeCoat(svg, ['#7a7f5a', '#555a3a', '#2e3220'], '<path d="M0 7 L7 0" stroke="#3a3e28" stroke-width=".3" opacity=".6"/>');
+    svg = recolor(svg, { '#5a060c': '#2e3220', '#17131a': '#3a3e28', '#3d3346': '#c9c2a8' });
+    return decorate(svg, {
+      over: [
+        // Quarantine armband and a walkie-talkie on the collar.
+        `<path d="M14 116 L30 110 L32 118 L16 124 Z" fill="${QUARANTINE}" stroke="#8a2a0a" stroke-width=".7"/>`,
+        '<path d="M19 117 L27 114" stroke="#ffffff" stroke-width="1"/>',
+        '<g transform="translate(80 92)"><rect width="7" height="11" rx="1.2" fill="#1e2024" stroke="#000" stroke-width=".5"/><path d="M2 0 V-6" stroke="#1e2024" stroke-width="1.4"/><circle cx="3.5" cy="7" r="1.4" fill="#5a5f66"/><rect x="1.4" y="1.6" width="4.2" height="2" fill="' + ROT + '"/></g>',
+        // Scuffs and a torn pocket flap.
+        '<path d="M46 118 L52 116 L54 122 M74 120 q4 -3 8 0" stroke="#2e3220" stroke-width="1" fill="none"/>',
+      ].join('\n  '),
+    });
+  },
+  'shotgun-zombie-apocalypse': async () => {
+    let svg = await load('shotgun');
+    svg = restop(svg, 'barrel', ['#6a6e72', '#3a3e42', '#16191c']);
+    svg = restop(svg, 'steel', ['#5a5e62', '#30343a', '#121416']);
+    svg = restop(svg, 'wood', ['#8a7a5a', '#5a4a30', '#2e2414']);
+    return decorate(svg, {
+      over: [
+        // Barbed wire round the stock.
+        '<path d="M14 58 Q30 50 46 60 T78 54 M12 70 Q28 62 44 72 T74 66" stroke="#9aa3ab" stroke-width="1.1" fill="none"/>',
+        `<g stroke="#9aa3ab" stroke-width="1">${[[22, 55], [38, 57], [56, 58], [22, 67], [36, 69], [54, 69]].map(([x, y]) => `<path d="M${x - 2} ${y - 2} L${x + 2} ${y + 2} M${x + 2} ${y - 2} L${x - 2} ${y + 2}"/>`).join('')}</g>`,
+        // Duct tape on the grip and the pump.
+        '<path d="M64 48 L76 47 L77 66 L65 68 Z" fill="#a8acb0" stroke="#5a5e62" stroke-width=".6" opacity=".95"/>',
+        '<path d="M150 50 H172 V60 H150 Z" fill="#a8acb0" stroke="#5a5e62" stroke-width=".6" opacity=".95"/>',
+        `<path d="M200 46 H232" stroke="${QUARANTINE}" stroke-width="2.2"/>`,
+      ].join('\n  '),
+    });
+  },
+});
+
 for (const [name, recipe] of Object.entries(recipes)) {
   const svg = await recipe();
   const header = `<!-- The Drop: ${name}. Generated by scripts/art/generate-drop-art.mjs from the Classic geometry. -->\n`;

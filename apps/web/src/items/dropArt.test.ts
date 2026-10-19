@@ -53,7 +53,7 @@ describe('The Drop art', () => {
     expect(crewCosmeticLoadoutSchema.safeParse({ THUG: 'winter-heist-crew', HOE: 'winter-heist-crew' }).success).toBe(true);
     expect(crewCosmeticLoadoutSchema.safeParse({ THUG: 'classic', HOE: 'neon-underworld-thug' }).success).toBe(false);
     const accents = Object.values(DROP_ITEMS).filter((item) => item.kind === 'ACCENT').map((item) => item.styleKey!);
-    expect(accents).toHaveLength(28);
+    expect(accents).toHaveLength(29);
     for (const accent of accents) expect(profileAccentSchema.safeParse(accent).success, accent).toBe(true);
   });
 });
@@ -72,7 +72,7 @@ describe('The Drop shell themes', () => {
     const css = readFileSync(path.resolve(import.meta.dirname, '../styles/drop-shells.css'), 'utf8');
     const decor = readFileSync(path.resolve(import.meta.dirname, '../components/SiteThemeDecor.tsx'), 'utf8');
     const shells = Object.values(DROP_ITEMS).filter((item) => item.kind === 'SITE_THEME');
-    expect(shells).toHaveLength(22);
+    expect(shells).toHaveLength(23);
     for (const shell of shells) {
       expect(css).toContain(`.se-site-theme--${shell.styleKey} {`);
       expect(css).toContain(`.se-site-theme-decor--${shell.styleKey}`);

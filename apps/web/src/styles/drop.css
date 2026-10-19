@@ -255,6 +255,15 @@
 .se-profile-hover-card[data-accent="nitrous-blue"] { --se-hover-accent: #6ab8ff; }
 .se-profile-hover-card[data-accent="flux-blue"] { --se-hover-accent: #8ae4ff; }
 .se-profile-hover-card[data-accent="swamp-moss"] { --se-hover-accent: #a2c96a; }
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--quarantine-orange {
+  --se-accent: #ff6b2c;
+  --se-accent-dim: #c24a14;
+  --se-accent-hover: #ff9a66;
+  --se-accent-rgb: 255, 107, 44;
+}
+.se-profile-accent--quarantine-orange { --se-profile-accent: #ff6b2c; }
+.se-swatch--quarantine-orange { --se-swatch: #ff6b2c; }
+.se-profile-hover-card[data-accent="quarantine-orange"] { --se-hover-accent: #ff9a66; }
 .se-profile-hover-card[data-accent="felt-green"] { --se-hover-accent: #4fcc8e; }
 
 /* ---------- Wallet, packs, skips ---------- */

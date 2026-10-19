@@ -1,4 +1,4 @@
-# The Drop: the next nineteen collections
+# The Drop: the next twenty collections
 
 Launch catalogue and rules: [THE-DROP.md](THE-DROP.md).
 
@@ -85,6 +85,28 @@ copyright. Keep it that way when adding to them.
 - **Swamp Kingdom** frame: a vine ring with a gold crown. Shell: a crooked
   outhouse with a KEEP OUT sign, a castle on the hill and a small dragon
   circling it.
+
+## Zombie Apocalypse (evergreen)
+
+Added 2026-10-19 and in rotation. The city fell and the crew didn't:
+survivors, scavenged gear and a barricaded street. It stays clear of Hazard
+Cook (whose thug is the infected one) and Graveyard Shift (the Halloween
+cemetery set): no hazmat, no ghosts, no moon.
+
+| Palette | Vehicle | Crew | Weapon | Title | Bundle (list) |
+| --- | --- | --- | --- | --- | --- |
+| quarantine orange `#ff6b2c`, grimy olive, sick green `#9ccf4a` | Van (armoured survivor van) | Thug + Hoe | Shotgun | Last One Standing | 2,750 (4,950) |
+
+- **Van:** welded plate, a ram plow, plywood over the windshield, a roof cage
+  with fuel cans and a SURVIVORS stencil.
+- **Thug:** torn red flannel, a shell bandolier, a bandaged arm. **Hoe:** olive
+  field jacket, quarantine armband, a walkie-talkie on the collar.
+- **Shotgun:** duct-taped grip and pump, barbed wire round the stock.
+- **Frame:** a boarded-up window with a green glow through the gaps.
+- **Shell:** a broken skyline with one tower smoking, a barricade of a wrecked
+  car, plywood, sandbags and a QUARANTINE sign, and the horde shambling slowly
+  along the horizon. It's nothing that jumps out, and the horde is hidden under
+  reduced motion.
 
 ## Holiday sets (built, held)
 

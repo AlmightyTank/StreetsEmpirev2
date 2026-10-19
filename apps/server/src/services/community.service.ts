@@ -659,6 +659,7 @@ function profileAccent(value: string | null | undefined): ProfileAccent {
     'nitrous-blue',
     'flux-blue',
     'swamp-moss',
+    'quarantine-orange',
     'ghost-green',
     'candy-red',
     'heartbreak-rose',
