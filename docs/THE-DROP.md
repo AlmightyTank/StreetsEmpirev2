@@ -53,10 +53,10 @@ first; the twelve after them were added on 2026-10-18 and three movie homages
 | Desert Mirage | Low-Rider (700) | Thug (600), Hoe (600) | Tek-9 (500) | Frame (400) | Shell (1,050), Turquoise Stone accent (300) | Dust Devil (200) |
 | Rewind | Van (700) | Thug (600), Hoe (600) | Tek-9 (450) | Frame (400) | Shell (1,000), Tracking Magenta accent (250) | Run It Back (150) |
 | Snake Eyes | Sedan (700) | Thug (600), Hoe (600) | Pistol (450) | Frame (400) | Shell (1,050), Card Felt accent (300) | Loaded Dice (200) |
-| Graveyard Shift (seasonal, held as Draft) | Sedan (700) | Thug (600), Hoe (600) | Pistol (450) | Frame (400) | Shell (1,050), Ghost Green accent (250) | Night Shift (200) |
-| Naughty List (seasonal, held as Draft) | Van (700) | Crew set, both types (750) | Tek-9 (450) | Frame (400) | Shell (1,000), Candy Red accent (250) | Coal Collector (150) |
-| Heartbreaker (seasonal, held as Draft) | Low-Rider (700) | Thug (600), Hoe (600) | Tek-9 (500) | Frame (400) | Shell (1,050), Heartbreak Rose accent (300) | Cold Hearted (200) |
-| Block Party (seasonal, held as Draft) | Van (700) | Thug (600), Hoe (600) | Shotgun (450) | Frame (400) | Shell (1,000), Mango Heat accent (250) | Block Captain (150) |
+| Graveyard Shift | Sedan (700) | Thug (600), Hoe (600) | Pistol (450) | Frame (400) | Shell (1,050), Ghost Green accent (250) | Night Shift (200) |
+| Naughty List | Van (700) | Crew set, both types (750) | Tek-9 (450) | Frame (400) | Shell (1,000), Candy Red accent (250) | Coal Collector (150) |
+| Heartbreaker | Low-Rider (700) | Thug (600), Hoe (600) | Tek-9 (500) | Frame (400) | Shell (1,050), Heartbreak Rose accent (300) | Cold Hearted (200) |
+| Block Party | Van (700) | Thug (600), Hoe (600) | Shotgun (450) | Frame (400) | Shell (1,000), Mango Heat accent (250) | Block Captain (150) |
 | Quarter Mile | Sedan (700), Low-Rider (700) | Thug (600), Hoe (600) | Tek-9 (500) | Frame (400) | Shell (1,050), Nitrous Blue accent (300) | Ride or Die (200) |
 | 88 Club | Van (700) | Thug (600), Hoe (600) | Pistol (450) | Frame (400) | Shell (1,000), Flux Blue accent (250) | Ahead of Time (200) |
 | Swamp Kingdom | Van (700) | Thug (600), Hoe (600) | Shotgun (450) | Frame (400) | Shell (1,000), Swamp Moss accent (250) | Got Layers (150) |
