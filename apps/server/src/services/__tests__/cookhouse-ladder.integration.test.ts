@@ -42,7 +42,7 @@ describe.runIf(process.env.PRODUCT_INTEGRATION === '1')('cookhouse ladder with P
     vi.spyOn(RoundService, 'getCurrent').mockImplementation(current);
 
     const name = `ladder_${randomUUID().slice(0, 6)}`;
-    const registered = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { username: name, email: `${name}@example.invalid`, password: randomUUID() } });
+    const registered = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { birthDate: '1990-01-01', ageConfirmed: true, username: name, email: `${name}@example.invalid`, password: randomUUID() } });
     accountId = registered.json().account.id;
     cookie = registered.cookies.map((entry) => `${entry.name}=${entry.value}`).join('; ');
     const data = {
@@ -179,7 +179,7 @@ describe.runIf(process.env.PRODUCT_INTEGRATION === '1')('cookhouse ladder with P
 
   it('lets support inspect recipe access and grant or revoke an unlock, audited', async () => {
     const adminName = `ladder_admin_${randomUUID().slice(0, 6)}`;
-    const registered = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { username: adminName, email: `${adminName}@example.invalid`, password: randomUUID() } });
+    const registered = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { birthDate: '1990-01-01', ageConfirmed: true, username: adminName, email: `${adminName}@example.invalid`, password: randomUUID() } });
     const admin = registered.json().account as { id: string; username: string };
     try {
       const recipe = (player: Awaited<ReturnType<typeof AdminPlayerService.inspect>>, product: string) =>

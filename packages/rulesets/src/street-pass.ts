@@ -31,6 +31,7 @@ export function isItemRewardField(key: string | undefined): key is ItemRewardFie
 }
 
 const cash = (dollars: number): QuestRewardDefinition => ({ kind: 'CASH', amount: dollars * 100 });
+const crowns = (amount: number): QuestRewardDefinition => ({ kind: 'CROWNS', amount });
 const turns = (amount: number): QuestRewardDefinition => ({ kind: 'TURNS', amount });
 const item = (key: string, amount: number): QuestRewardDefinition => ({ kind: 'ITEM', key, amount });
 const product = (key: string, amount: number): QuestRewardDefinition => ({ kind: 'PRODUCT', key, amount });
@@ -293,7 +294,7 @@ export const STREET_PASS_S1 = {
   },
   lateJoin: { bonusPercentPerWeek: 15, maxBonusPercent: 45 },
   tiers: [
-    { tier: 1, rewards: [cash(20_000)] },
+    { tier: 1, rewards: [cash(20_000), crowns(100)] },
     { tier: 2, rewards: [item('condoms', 1000)] },
     { tier: 3, rewards: [item('whores', 3)] },
     { tier: 4, rewards: [turns(25)] },
@@ -302,7 +303,7 @@ export const STREET_PASS_S1 = {
     { tier: 7, rewards: [item('medicine', 50)] },
     { tier: 8, rewards: [cash(50_000), cosmetic('street-pass-s1-urban-ghost'), cosmetic('street-pass-s1-chrome-serpent-theme'), cosmetic('street-pass-s1-chrome-serpent-frame')] },
     { tier: 9, rewards: [product('WEED', 250)] },
-    { tier: 10, rewards: [item('shotguns', 3), item('whores', 5), cosmetic('street-pass-s1-fresh-face'), cosmetic('street-pass-s1-phantom-convoy-theme'), cosmetic('street-pass-s1-phantom-convoy-frame')] },
+    { tier: 10, rewards: [item('shotguns', 3), item('whores', 5), crowns(100), cosmetic('street-pass-s1-fresh-face'), cosmetic('street-pass-s1-phantom-convoy-theme'), cosmetic('street-pass-s1-phantom-convoy-frame')] },
     { tier: 11, rewards: [turns(40)] },
     { tier: 12, rewards: [favor('STREET_FRENZY'), cosmetic('street-pass-s1-lantern-district-theme'), cosmetic('street-pass-s1-lantern-district-frame')] },
     { tier: 13, rewards: [item('thugs', 10)] },
@@ -312,7 +313,7 @@ export const STREET_PASS_S1 = {
     { tier: 17, rewards: [favor('COOKHOUSE_RUSH')] },
     { tier: 18, rewards: [product('METH', 200), cosmetic('street-pass-s1-midnight-ops'), cosmetic('street-pass-s1-block-sovereign-theme'), cosmetic('street-pass-s1-block-sovereign-frame')] },
     { tier: 19, rewards: [turns(60)] },
-    { tier: 20, rewards: [item('tek9s', 2), item('lowRiders', 1), cosmetic('street-pass-s1-made-man'), cosmetic('street-pass-s1-gilded-house-theme'), cosmetic('street-pass-s1-gilded-house-frame')] },
+    { tier: 20, rewards: [item('tek9s', 2), item('lowRiders', 1), crowns(100), cosmetic('street-pass-s1-made-man'), cosmetic('street-pass-s1-gilded-house-theme'), cosmetic('street-pass-s1-gilded-house-frame')] },
     { tier: 21, rewards: [cash(150_000)] },
     { tier: 22, rewards: [product('COCAINE', 150)] },
     { tier: 23, rewards: [favor('BURNER_PHONE', 2)] },
@@ -410,6 +411,7 @@ export function streetPassProblems(rules: StreetPassRules, ruleset: Ruleset): st
       const at = `${where} tier ${tier.tier}: ${reward.kind}${reward.key ? ` ${reward.key}` : ''}`;
       switch (reward.kind) {
         case 'CASH':
+        case 'CROWNS':
         case 'TURNS':
           if (!isWhole(reward.amount, 1)) problems.push(`${at} needs a positive whole amount`);
           break;

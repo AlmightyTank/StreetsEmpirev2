@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { env } from '../config/env.js';
 import { AppError } from '../utils/errors.js';
 import { AdminAuditService, type AuditActor } from './admin-audit.service.js';
+import { assertStaffMayActOn } from './staff-guard.js';
 import { forumUserIdSchema } from './forum-proof.js';
 
 /**
@@ -91,6 +92,7 @@ export const ForumModerationService = {
     const chosen = ADMIN_SUSPENSION_LENGTHS.find((option) => option.key === length);
     if (!chosen) throw AppError.badRequest('SUSPENSION_LENGTH_UNKNOWN', 'Pick one of the offered suspension lengths.');
     const user = await linkedForumUser(prisma, accountId);
+    await assertStaffMayActOn(prisma, actor, accountId, 'accounts.suspend');
     const until = new Date(now.getTime() + chosen.hours * 60 * 60_000);
     await write(user.forumUserId, { suspendedUntil: until.toISOString(), suspendReason: reason, suspendMessage: reason }, fetcher);
     const after = await read(user.forumUserId, fetcher);
@@ -108,6 +110,7 @@ export const ForumModerationService = {
 
   async lift(prisma: PrismaClient, actor: AuditActor, accountId: string, reason: string, fetcher: typeof fetch = fetch): Promise<void> {
     const user = await linkedForumUser(prisma, accountId);
+    await assertStaffMayActOn(prisma, actor, accountId, 'accounts.suspend');
     const before = await read(user.forumUserId, fetcher);
     if (before.ok && !before.suspendedUntil) throw AppError.conflict('FORUM_NOT_SUSPENDED', `${user.forumUsername} is not suspended on the forum.`);
     await write(user.forumUserId, { suspendedUntil: null, suspendReason: null, suspendMessage: null }, fetcher);

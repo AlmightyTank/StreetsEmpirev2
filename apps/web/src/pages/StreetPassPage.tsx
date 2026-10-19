@@ -4,7 +4,6 @@ import type { ItemCosmeticStyleKey, QuestRewardDto, StreetPassClaimResult, Stree
 import { formatNumber, formatProfileName, profileNameParts } from '@streets/shared';
 import { streetPassApi } from '../api/streetPass.js';
 import { Alert } from '../components/Alert.js';
-import { RoundRollCallPanel } from '../components/RoundRollCall.js';
 import { Button } from '../components/Button.js';
 import { CareerGuidance, CareerMetricStrip, CareerNavigation } from '../components/CareerExperience.js';
 import { ItemTile } from '../components/ItemTile.js';
@@ -160,6 +159,7 @@ function CosmeticRewardPreviewCarousel({ previews }: { previews: CosmeticPreview
       <article
         className={`se-pass-theme-preview se-pass-theme-preview--${active.kind} se-pass-theme-preview--${active.key}`}
         aria-label={`${active.label} preview`}
+        data-no-tab-swipe
         onPointerDown={(event) => {
           if (event.pointerType === 'mouse' && event.button !== 0) return;
           swipeStart.current = { x: event.clientX, y: event.clientY };
@@ -399,8 +399,6 @@ export function StreetPassPage() {
             </div>
           ) : null}
         </header>
-
-        <RoundRollCallPanel />
 
         {loadError ? (
           <Alert>

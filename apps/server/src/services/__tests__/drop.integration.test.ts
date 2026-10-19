@@ -101,4 +101,23 @@ describe.runIf(process.env.DROP_INTEGRATION === '1')('The Drop with PostgreSQL',
     const wallet = await app.inject({ method: 'GET', url: '/api/drop/wallet' });
     expect(wallet.statusCode).toBe(401);
   });
+
+  it('charges paid supporters 10% less, and free trials the full price', async () => {
+    const { discountedDropPrice } = await import('@streets/rulesets');
+    for (const [status, discounted] of [['active', true], ['trialing', false]] as const) {
+      const { id, cookie } = await makeAccount();
+      await grant(id, 10_000);
+      await app.prisma.supporterMembership.create({ data: { accountId: id, stripeCustomerId: `cus_test_${randomUUID()}`, status } });
+      const store = await app.inject({ method: 'GET', url: '/api/drop', headers: { cookie } });
+      expect(store.json().discount).toEqual(discounted ? { percent: 10, reason: 'SUPPORTER', endsAt: null } : null);
+      const offer = (store.json().offers as Array<{ id: string; kind: string; state: string; priceCrowns: number; basePriceCrowns: number }>)
+        .find((candidate) => candidate.kind === 'ITEM' && candidate.state === 'AVAILABLE')!;
+      expect(offer.priceCrowns).toBe(discounted ? discountedDropPrice(offer.basePriceCrowns, 10) : offer.basePriceCrowns);
+      const bought = await app.inject({ method: 'POST', url: '/api/drop/purchase', headers: { cookie }, payload: { offerId: offer.id, actionId: randomUUID() } });
+      expect(bought.statusCode, bought.body).toBe(200);
+      expect(bought.json().order.priceCrowns).toBe(offer.priceCrowns);
+      const row = await app.prisma.crownWallet.findUniqueOrThrow({ where: { accountId: id } });
+      expect(row.balance).toBe(10_000 - offer.priceCrowns);
+    }
+  });
 });

@@ -29,7 +29,7 @@ describe.runIf(process.env.AUTH_INTEGRATION === '1')('account email auth with Po
     const registered = await app.inject({
       method: 'POST',
       url: '/api/auth/register',
-      payload: { username: name, email, password: oldPassword },
+      payload: { ageConfirmed: true, username: name, email, password: oldPassword },
     });
     expect(registered.statusCode).toBe(201);
     accountId = registered.json().account.id;

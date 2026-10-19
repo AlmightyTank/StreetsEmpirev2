@@ -278,6 +278,14 @@ const openTicketSchema = z.union([
 ]);
 const closedTicketSchema = z.object({ ticket: ticketSchema });
 const staffCheckSchema = z.object({ admin: z.boolean() });
+const staffRoleSchema = z.enum(['FOUNDER', 'ADMIN', 'MOD', 'JR_MOD', 'HELPER']);
+export type StaffRoleName = z.infer<typeof staffRoleSchema>;
+const staffRoleSetSchema = z.object({ username: z.string(), fromRole: staffRoleSchema.nullable(), toRole: staffRoleSchema.nullable() });
+export type StaffRoleSet = z.infer<typeof staffRoleSetSchema>;
+const staffRosterSchema = z.object({
+  members: z.array(z.object({ username: z.string(), staffRole: staffRoleSchema, discordId: z.string().nullable(), forumLinked: z.boolean(), isActive: z.boolean() })),
+});
+export type StaffRoster = z.infer<typeof staffRosterSchema>;
 
 const newsCreatedSchema = z.object({ id: z.string(), title: z.string(), url: z.string().url(), roundName: z.string().nullable() });
 
@@ -684,6 +692,11 @@ export function createGameApi(options: { baseUrl: string; token: string; fetch?:
       (await call(reportActedSchema, `/api/internal/discord/message-reports/${encodeURIComponent(reportId)}/act`, { method: 'POST', body: input })).report,
     /** Whether a member may use staff buttons: a linked, active game admin. */
     isStaff: async (discordId: string) => (await call(staffCheckSchema, `/api/internal/discord/staff?${query({ discordId })}`)).admin,
+    /** /staff set and /staff remove; the game checks the caller's rank and audits it. */
+    setStaffRole: (input: { discordId: string; targetDiscordId: string; role: Exclude<StaffRoleName, 'FOUNDER'> | null; reason: string }) =>
+      call(staffRoleSetSchema, '/api/internal/discord/staff-roles', { method: 'POST', body: input }),
+    /** /staff list; Helpers and up. */
+    staffRoster: (discordId: string) => call(staffRosterSchema, `/api/internal/discord/staff-roles?${query({ discordId })}`),
     /** /support: their open ticket, or a new one with staff-only context. */
     openTicket: (input: { discordId: string; discordName: string; subject: string }) =>
       call(openTicketSchema, '/api/internal/discord/support-tickets', { method: 'POST', body: input }),

@@ -36,6 +36,8 @@ import { showBugForm } from './staff.js';
 import { statusEmbed } from './status.js';
 import { showTicketForm } from './support.js';
 import type { RoleSync } from './sync.js';
+import type { StaffSyncEvent } from './staff-sync.js';
+import { STAFF_COMMAND_ROLES, STAFF_LABELS, staffRoleSetLine, staffRoleSetText, staffRosterEmbed } from './staff-command.js';
 
 export const commandData = [
   new SlashCommandBuilder()
@@ -122,6 +124,29 @@ export const commandData = [
       .setRequired(true)
       .addChoices({ name: 'On', value: 'on' }, { name: 'Off', value: 'off' })),
   new SlashCommandBuilder()
+    .setName('staff')
+    .setDescription('Staff: give, change or remove staff roles (the game checks your rank)')
+    .addSubcommand((sub) => sub
+      .setName('set')
+      .setDescription('Give a member a staff role, or change theirs')
+      .addUserOption((option) => option.setName('user').setDescription('The member').setRequired(true))
+      .addStringOption((option) => option
+        .setName('role')
+        .setDescription('The staff role')
+        .setRequired(true)
+        .addChoices(...STAFF_COMMAND_ROLES.map((role) => ({ name: STAFF_LABELS[role], value: role }))))
+      .addStringOption((option) => option.setName('reason').setDescription('Saved to the audit log').setRequired(true).setMinLength(5).setMaxLength(500)))
+    .addSubcommand((sub) => sub
+      .setName('remove')
+      .setDescription("Take a member's staff role away")
+      .addUserOption((option) => option.setName('user').setDescription('The member').setRequired(true))
+      .addStringOption((option) => option.setName('reason').setDescription('Saved to the audit log').setRequired(true).setMinLength(5).setMaxLength(500)))
+    .addSubcommand((sub) => sub.setName('list').setDescription('Everyone with a staff role'))
+    .addSubcommand((sub) => sub
+      .setName('sync')
+      .setDescription("Re-check a member's Discord roles against the game now")
+      .addUserOption((option) => option.setName('user').setDescription('The member').setRequired(true))),
+  new SlashCommandBuilder()
     .setName('announce')
     .setDescription('Game admins: post StreetsEmpire news from Discord')
     .addStringOption((option) => option.setName('title').setDescription('News title').setRequired(true).setMaxLength(120))
@@ -151,12 +176,16 @@ export const commandData = [
 ].map((command) => command.toJSON());
 
 /** Replies only the caller sees. */
-export const PRIVATE_COMMANDS: ReadonlySet<string> = new Set(['alerts', 'announce', 'bug', 'link', 'remind', 'stats', 'support', 'sync', 'help', 'syncall']);
+export const PRIVATE_COMMANDS: ReadonlySet<string> = new Set(['alerts', 'announce', 'bug', 'link', 'remind', 'stats', 'staff', 'support', 'sync', 'help', 'syncall']);
 
 export interface CommandDeps {
   api: GameApi;
   origin: string;
   getSync: () => RoleSync | null;
+  /** Staff role changes a /sync or /syncall made, for the staff channel. */
+  onStaffSync?: (events: StaffSyncEvent[]) => void;
+  /** A public line for the staff channel, after /staff changed a role. */
+  onStaffCommand?: (line: string) => void;
   getCities: () => Promise<City[]>;
   managed: ManagedRole[];
   syncCooldowns: Cooldowns;
@@ -176,13 +205,62 @@ export function errorReply(error: unknown, origin: string, self: boolean): strin
     }
     return error.message;
   }
+  // The game writes refusals (not allowed, outranked, already done) for the person asking.
+  if (isRefusal(error)) return error.message;
   return 'StreetsEmpire is not answering right now. Try again in a minute.';
+}
+
+function isRefusal(error: unknown): error is GameApiError {
+  return error instanceof GameApiError && [400, 403, 409].includes(error.status);
 }
 
 /** Marks a lookup of the caller's own account, so "not linked" can say how to link. */
 class SelfLookupError extends Error {
   constructor(readonly inner: unknown) {
     super('Self lookup failed');
+  }
+}
+
+/** /staff: set, remove, list, sync. Every check happens in the game; this only relays. */
+async function staffCommand(interaction: ChatInputCommandInteraction, deps: CommandDeps): Promise<Reply> {
+  const { api } = deps;
+  const sub = interaction.options.getSubcommand();
+  if (sub === 'list') return { embeds: [staffRosterEmbed(await self(() => api.staffRoster(interaction.user.id)))] };
+
+  const target = interaction.options.getUser('user', true);
+  if (sub === 'sync') {
+    if (!(await self(() => api.isStaff(interaction.user.id)))) return { content: 'Only StreetsEmpire staff can do that.' };
+    const sync = deps.getSync();
+    if (!sync || !interaction.guild) return STARTING;
+    const member = await interaction.guild.members.fetch(target.id).catch(() => null);
+    if (!member) return { content: 'That member is not in this server.' };
+    const result = await sync.syncMember(member);
+    deps.onStaffSync?.([...sync.takeStaffProblems(), ...result.staff]);
+    return { content: result.failed ? "Couldn't update their roles. The bot's role may need to be higher." : syncMemberText(result) };
+  }
+
+  const reason = interaction.options.getString('reason', true);
+  const role = sub === 'set' ? interaction.options.getString('role', true) as (typeof STAFF_COMMAND_ROLES)[number] : null;
+  if (role && !STAFF_COMMAND_ROLES.includes(role)) return { content: 'Pick one of the offered roles.' };
+  const result = await self(() => api.setStaffRole({ discordId: interaction.user.id, targetDiscordId: target.id, role, reason }));
+  deps.onStaffCommand?.(staffRoleSetLine(interaction.user.id, target.id, result, reason));
+  // The game also asks for a resync; doing it here makes the role show at once.
+  const member = await interaction.guild?.members.fetch(target.id).catch(() => null);
+  const sync = deps.getSync();
+  if (member && sync) {
+    const synced = await sync.syncMember(member).catch(() => null);
+    if (synced) deps.onStaffSync?.(synced.staff);
+  }
+  return { content: staffRoleSetText(result) };
+}
+
+/** Runs a game call made as the caller, so "not linked" can tell them how to link. */
+async function self<T>(call: () => Promise<T>): Promise<T> {
+  try {
+    return await call();
+  } catch (error) {
+    if (error instanceof GameApiError && error.code === 'DISCORD_NOT_LINKED') throw new SelfLookupError(error);
+    throw error;
   }
 }
 
@@ -339,12 +417,16 @@ async function run(interaction: ChatInputCommandInteraction, deps: CommandDeps):
       const sync = deps.getSync();
       if (!sync || !interaction.guild) return STARTING;
       const result = await sync.syncMember(await interaction.guild.members.fetch(interaction.user.id));
+      deps.onStaffSync?.([...sync.takeStaffProblems(), ...result.staff]);
       if (result.failed) return { content: "Couldn't update your roles. A mod may need to move the bot's role higher." };
       return { content: syncMemberText(result) };
     }
 
     case 'help':
       return { embeds: [helpEmbed(origin)] };
+
+    case 'staff':
+      return staffCommand(interaction, deps);
 
     case 'syncall': {
       if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageRoles)) {
@@ -353,6 +435,7 @@ async function run(interaction: ChatInputCommandInteraction, deps: CommandDeps):
       const sync = deps.getSync();
       if (!sync) return STARTING;
       const summary = await sync.syncAll();
+      if (summary) deps.onStaffSync?.(summary.staff);
       return { content: summary ? syncAllText(summary) : 'A full sync is already running. Try again when it finishes.' };
     }
 
@@ -388,7 +471,7 @@ export async function handleCommand(interaction: ChatInputCommandInteraction, de
   } catch (caught) {
     const self = caught instanceof SelfLookupError;
     const error = self ? caught.inner : caught;
-    if (!(error instanceof GameApiError && error.status === 404)) console.error(`/${interaction.commandName} failed:`, error);
+    if (!(error instanceof GameApiError && error.status === 404) && !isRefusal(error)) console.error(`/${interaction.commandName} failed:`, error);
     reply = { content: errorReply(error, deps.origin, self) };
   }
 

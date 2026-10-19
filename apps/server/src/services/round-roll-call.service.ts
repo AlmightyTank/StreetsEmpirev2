@@ -94,6 +94,21 @@ export const RoundRollCallService = {
   },
 
   /**
+   * Nav badge summary: reached rewards not yet collected. Mirrors the board's
+   * claimable rule (active window, tier within earned stamps, no receipt).
+   * Null on rounds too short for a Roll Call track.
+   */
+  async summary(db: Db | PrismaClient, round: Round, roundPlayerId: string, now = new Date()): Promise<{ claimable: number } | null> {
+    const clock = roundRollCallClock(round, now);
+    if (clock.requiredStamps === 0) return null;
+    if (!clock.active) return { claimable: 0 };
+    const checkIns = await db.roundLoginCheckIn.count({ where: { roundPlayerId } });
+    const stamps = Math.min(clock.requiredStamps, checkIns);
+    const claimed = await db.roundLoginRewardClaim.count({ where: { roundPlayerId, tier: { lte: stamps } } });
+    return { claimable: Math.max(0, stamps - claimed) };
+  },
+
+  /**
    * Only authenticated, joined players can call this through the game route.
    * Shared round lock serializes with early closure without blocking other check-ins; the unique
    * (roundPlayerId, dayIndex) key protects against tabs, retries and races.

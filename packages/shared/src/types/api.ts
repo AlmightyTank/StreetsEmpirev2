@@ -1,3 +1,4 @@
+import type { StaffCapability, StaffRole } from '../staff.js';
 import type { HeatDto, TripHeatDto, TurfSummaryDto, TurfTripDto, WorkSupplyPlanDto } from './playing-together.js';
 import type { LawSummaryDto } from './law.js';
 import type { CrewCosmeticLoadout, ItemCosmeticLoadout } from '../cosmetics.js';
@@ -150,7 +151,12 @@ export interface AccountDto {
   emailVerifiedAt: string | null;
   discordLinked: boolean;
   discordUsername: string | null;
+  /** True for Founder and Admin. */
   isAdmin: boolean;
+  /** Null for players. */
+  staffRole: StaffRole | null;
+  /** What this account's staff role may do in the admin panel. Empty for players. */
+  staffCapabilities: StaffCapability[];
   createdAt: string;
   lastLoginAt: string | null;
   /** True until this account may play: verify the email, or sign in with Discord. */
@@ -160,8 +166,8 @@ export interface AccountDto {
   /** Private birth date has not been collected. Exact birthday is never sent in session DTOs. */
   birthDateRequired: boolean;
   /**
-   * rc.2. An admin signed in with a password while admin tools require a Discord
-   * sign-in: the admin pages are closed until they sign in with Discord.
+   * rc.2. A staff member signed in with a password while admin tools require a second
+   * factor: the admin pages are closed until they prove one.
    */
   adminSignInRequired: boolean;
   /** rc.3. Sign-in asks for an authenticator code. */
@@ -218,7 +224,33 @@ export type ProfileAccent =
   | 'supporter-crimson'
   | 'luxe-lacquer'
   | 'underworld-violet'
-  | 'heist-frost';
+  | 'heist-frost'
+  | 'biscayne-flamingo'
+  | 'speakeasy-merlot'
+  | 'funk-tangerine'
+  | 'redline-red'
+  | 'wet-paint-mint'
+  | 'hazard-yellow'
+  | 'dockside-harbor'
+  | 'jewel-sapphire'
+  | 'bayou-firefly'
+  | 'mirage-turquoise'
+  | 'rewind-magenta'
+  | 'felt-green'
+  | 'nitrous-blue'
+  | 'flux-blue'
+  | 'swamp-moss'
+  | 'quarantine-orange'
+  | 'ghost-green'
+  | 'candy-red'
+  | 'heartbreak-rose'
+  | 'block-party-mango'
+  | 'money-green'
+  | 'blood-orange'
+  | 'steel-silver'
+  | 'cobalt-blue'
+  | 'bubblegum-pink'
+  | 'mustard-yellow';
 export type UiDensity = 'comfortable' | 'compact';
 export type MoneyFormat = 'full' | 'compact';
 export type DefaultLanding = 'game' | 'profile' | 'rankings' | 'news';
@@ -272,6 +304,8 @@ export interface AccountProfileSettingsDto {
   profileAvatar?: AvatarParts | null;
   /** Direct HTTPS image URL used for the public profile banner/background. */
   profileBannerUrl: string | null;
+  /** Slice C. Selected owned crew banner; optional for older clients. */
+  activeCrewBannerKey?: string | null;
   profileEffect: ProfileEffect;
   activeProfileFrameKey: string | null;
   /** Independently equipped avatar frame. Optional for older clients. */
@@ -287,10 +321,14 @@ export interface AccountProfileSettingsDto {
   showThemeOnProfile?: boolean;
   /** Slice E. Visitors see this player's item and crew look on their profile. Optional for older clients. */
   showLookOnProfile?: boolean;
+  /** Slice E. Opt-in decorative cosmetics on the linked forum account. */
+  forumCosmeticsVisible?: boolean;
   /** Account-private optional crew personality cards, off by default. */
   showCrewMoments?: boolean;
   /** Optional player-only milestone celebrations; default false. */
   showCrewCelebrations?: boolean;
+  /** Birthdays: a cake on the name on the day. Opt-in, off by default. */
+  showBirthdayCake?: boolean;
   featuredBadgeKeys: string[];
   profileAccent: ProfileAccent;
   uiDensity: UiDensity;
@@ -323,6 +361,8 @@ export interface AccountProfileSettingsResponseDto {
     /** Universal item/crew skins, locked ones included. Optional so older fixture payloads stay valid. */
     itemStyles?: CollectionOptionDto[];
     crewStyles?: CollectionOptionDto[];
+    /** Slice C. Owned crew banners, with locked previews included. */
+    crewBanners?: CollectionOptionDto[];
     densities: CosmeticOptionDto[];
     moneyFormats: CosmeticOptionDto[];
     defaultLandings: CosmeticOptionDto[];
@@ -1047,6 +1087,8 @@ export interface RoundPlayerDto {
   pendingEncounters: RandomEncounterDto[];
   /** Street Pass summary for the nav badge. Absent or null on rounds without a pass. */
   streetPass?: { tier: number; tierCount: number; claimable: number } | null;
+  /** Round Roll Call rewards ready to collect, for the nav badge. Absent or null on rounds without a track. */
+  roundRollCall?: { claimable: number } | null;
   /** 1.3.0-A. The worst Case the player has anywhere. Absent or null on rounds without the law. */
   law?: LawSummaryDto | null;
   /** Lifetime account XP; does not reset between rounds. */
@@ -2230,6 +2272,61 @@ export interface SupporterStatusDto {
   } | null;
   /** Monthly drops and tenure badges the account holds, newest first. */
   dropsHeld: { month: string; name: string }[];
+}
+
+export type SupporterBenefitState = 'AVAILABLE_NOW' | 'ACTIVE_PAID' | 'EARNED_PERMANENTLY' | 'COMING_LATER' | 'NOT_AVAILABLE';
+export interface SupporterBenefitsDto {
+  activePaid: boolean;
+  earnedPermanently: boolean;
+  queue: { eligible: boolean; state: SupporterBenefitState; capacityGateEnabled: boolean; priorityEnabled: boolean };
+  monthlyDrop: { name: string; held: boolean; state: SupporterBenefitState } | null;
+  cosmetics: { key: string; name: string; kind: string; owned: boolean; state: SupporterBenefitState }[];
+  forum: { linked: boolean; visible: boolean; syncMode: 'pull-through'; state: SupporterBenefitState };
+}
+export interface AdminSupporterBenefitsDiagnosticsDto {
+  linkedForumAccounts: number;
+  optedInForumAccounts: number;
+  activePaidAccounts: number;
+  permanentlyRewardedAccounts: number;
+  permanentlyOwnedCosmetics: number;
+  queue: { capacityGateEnabled: boolean; priorityEnabled: boolean };
+  forum: { mode: 'pull-through'; writesToFlarum: false };
+}
+
+/** The account-scoped capacity waiting-room state. Position is intentionally approximate between polls. */
+export type AdmissionStatusDto =
+  | { state: 'disabled' }
+  | { state: 'not-queued' }
+  | { state: 'queued'; position: number; lane: 'SUPPORTER' | 'STANDARD'; enqueuedAt: string }
+  | { state: 'admitted'; expiresAt: string };
+
+export type InsightMetricStatus = 'AVAILABLE' | 'NOT_RECORDED';
+export interface InsightMetricDto {
+  value: number | null;
+  status: InsightMetricStatus;
+}
+export interface EmpireInsightsRoundDto {
+  id: string;
+  name: string;
+  status: RoundStatus;
+  startsAt: string;
+  endsAt: string;
+  metrics: {
+    street: { turnsWorked: InsightMetricDto; streetEarningsCents: InsightMetricDto; recruitsFound: InsightMetricDto; peakCrew: InsightMetricDto };
+    combat: { raidsWon: InsightMetricDto; raidsLost: InsightMetricDto; defensesHeld: InsightMetricDto; defensesLost: InsightMetricDto; driveBysLanded: InsightMetricDto; thugsDefeated: InsightMetricDto; cashStolenCents: InsightMetricDto; biggestRaidCents: InsightMetricDto };
+    turf: { blocksCaptured: InsightMetricDto; blocksLost: InsightMetricDto; blockHours: InsightMetricDto; citiesControlled: InsightMetricDto };
+    travel: { runsCompleted: InsightMetricDto; driveHours: InsightMetricDto; cargoMoved: InsightMetricDto; convoyAttacksWon: InsightMetricDto };
+    economy: { productProduced: InsightMetricDto; productSold: InsightMetricDto; largestTransactionCents: InsightMetricDto; traderReputation: InsightMetricDto };
+    business: { businessBuilds: InsightMetricDto; businessIncomeCents: InsightMetricDto; racketsStarted: InsightMetricDto; launderedHeat: InsightMetricDto; businessesTorched: InsightMetricDto; blockWarsDeclared: InsightMetricDto; blockWarAttackWins: InsightMetricDto; blockWarDefenseWins: InsightMetricDto; blockWarTakes: InsightMetricDto; blockWarSacks: InsightMetricDto };
+    casino: { casinoRatedWagers: InsightMetricDto; casinoTheoCents: InsightMetricDto; casinoCitiesPlayed: InsightMetricDto; casinoVipWagers: InsightMetricDto; casinoCompsCents: InsightMetricDto; casinoJackpots: InsightMetricDto; casinoBiggestWinCents: InsightMetricDto };
+    law: { lawSeason: InsightMetricDto; lawPeakStage: InsightMetricDto; lawWarrantsServed: InsightMetricDto };
+    factions: { factionsConnected: InsightMetricDto; factionsInnerCircle: InsightMetricDto };
+  };
+}
+export interface EmpireInsightsDto {
+  supporter: true;
+  generatedAt: string;
+  rounds: EmpireInsightsRoundDto[];
 }
 
 export interface SupporterPollOptionDto {

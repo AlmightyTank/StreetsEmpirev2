@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { PrismaClient } from '@prisma/client';
-import { CROWN_EARN_RULES, DROP_BUNDLES, DROP_ITEMS, bundleListPrice, dropDailyWindow, dropWeeklyWindow, featuredCollectionFor } from '@streets/rulesets';
+import { CROWN_EARN_RULES, DROP_BUNDLES, DROP_ITEMS, bundleListPrice, dropDailyWindow, dropWeeklyWindow, featuredCollectionsFor, discountedDropPrice } from '@streets/rulesets';
 import type { StripeEvent } from '../stripe.client.js';
 
 vi.mock('../round.service.js', () => ({ RoundService: { getCurrent: async () => null } }));
@@ -24,6 +24,8 @@ function fakeDb() {
     unlocks: [] as Row[],
     offers: [] as Row[],
     catalog: [] as Row[],
+    memberships: [] as Row[],
+    birthDates: new Map<string, Date>(),
   };
   let id = 0;
   const next = (prefix: string) => `${prefix}_${++id}`;
@@ -74,6 +76,9 @@ function fakeDb() {
         return row;
       },
     },
+    account: { findUnique: async ({ where }: Row) => (state.birthDates.has(where.id) ? { birthDate: state.birthDates.get(where.id) } : null) },
+    supporterMembership: { findMany: async ({ where }: Row) => state.memberships.filter((row) => matches(row, { accountId: where.accountId, status: where.status })) },
+    googlePlaySupporterSubscription: { findMany: async () => [] },
     accountCosmeticUnlock: {
       findMany: async ({ where }: Row) => state.unlocks.filter((row) => matches(row, where)),
       create: async ({ data }: Row) => { state.unlocks.push(data); return data; },
@@ -119,15 +124,69 @@ describe('Drop purchases', () => {
   const now = new Date('2026-10-18T12:00:00Z');
 
   async function liveOffers(db: Row) {
-    return (await rotationAt(db as never, { ...DEFAULT_DROP_SETTINGS }, await loadCatalog(db as never), now)).offers;
+    return (await rotationAt(db as never, { ...DEFAULT_DROP_SETTINGS }, await loadCatalog(db as never, now), now)).offers;
   }
 
-  it('sells the featured collection and daily picks, and refuses an offer from yesterday', async () => {
+  it('keeps held holiday sets out of the catalog, the rotation and the storefront', async () => {
+    const db = fakeDb();
+    // The day before Graveyard Shift's Halloween window opens.
+    const catalog = await loadCatalog(db as never, now);
+    expect(catalog.get('drop-naughty-list-van')?.state).toBe('DRAFT');
+    expect(catalog.get('drop-naughty-list-bundle')?.state).toBe('DRAFT');
+    expect(catalog.get('drop-snake-eyes-sedan')?.state).toBe('LIVE');
+    for (let day = 0; day < 21; day++) {
+      const offers = (await rotationAt(db as never, { ...DEFAULT_DROP_SETTINGS }, catalog, new Date(now.getTime() + day * 86_400_000))).offers;
+      expect(offers.some((offer) => /graveyard-shift|naughty-list|heartbreaker|block-party/.test(offer.refKey))).toBe(false);
+    }
+  });
+
+  it('never features Street Singles but puts them in the daily picks', async () => {
+    const db = fakeDb();
+    const catalog = await loadCatalog(db as never, now);
+    let dailySingles = 0;
+    for (let day = 0; day < 28; day++) {
+      const at = new Date(now.getTime() + day * 86_400_000);
+      const offers = (await rotationAt(db as never, { ...DEFAULT_DROP_SETTINGS }, catalog, at)).offers;
+      expect(offers.some((offer) => offer.slot === 'FEATURED' && offer.refKey.startsWith('drop-street-singles-'))).toBe(false);
+      dailySingles += offers.filter((offer) => offer.slot === 'DAILY' && offer.refKey.startsWith('drop-street-singles-')).length;
+    }
+    expect(dailySingles).toBeGreaterThan(0);
+  });
+
+  it('puts Graveyard Shift live and in a featured slot through its Halloween window', async () => {
+    const db = fakeDb();
+    const halloween = new Date('2026-10-31T18:00:00Z');
+    const catalog = await loadCatalog(db as never, halloween);
+    expect(catalog.get('drop-graveyard-shift-bundle')?.state).toBe('LIVE');
+    expect(catalog.get('drop-naughty-list-bundle')?.state).toBe('DRAFT');
+    const offers = (await rotationAt(db as never, { ...DEFAULT_DROP_SETTINGS }, catalog, halloween)).offers.filter((offer) => offer.slot === 'FEATURED');
+    const collections = new Set(offers.map((offer) => (DROP_ITEMS[offer.refKey] ?? DROP_BUNDLES[offer.refKey])!.collection));
+    expect(collections.size).toBe(2);
+    expect(collections.has('graveyard-shift')).toBe(true);
+    const after = await loadCatalog(db as never, new Date('2026-11-03T00:00:00Z'));
+    expect(after.get('drop-graveyard-shift-bundle')?.state).toBe('DRAFT');
+  });
+
+  it('releases a holiday set once an admin catalog entry makes it Live', async () => {
+    const db = fakeDb();
+    db.state.catalog.push({ key: 'drop-heartbreaker-thug', state: 'LIVE', priceCrowns: null, returnPolicy: 'MAY_RETURN', inDailyPool: true, homepageSlot: null });
+    const catalog = await loadCatalog(db as never, now);
+    expect(catalog.get('drop-heartbreaker-thug')?.state).toBe('LIVE');
+    expect(catalog.get('drop-heartbreaker-hoe')?.state).toBe('DRAFT');
+  });
+
+  it('features two sets, each as its bundle and pieces, and refuses an offer from yesterday', async () => {
     const db = fakeDb();
     const offers = await liveOffers(db);
-    const featured = featuredCollectionFor(dropWeeklyWindow(now).index);
-    expect(offers.filter((offer) => offer.slot === 'FEATURED').every((offer) =>
-      (DROP_ITEMS[offer.refKey] ?? DROP_BUNDLES[offer.refKey])!.collection === featured)).toBe(true);
+    const featured = featuredCollectionsFor(dropWeeklyWindow(now).index);
+    expect(featured).toHaveLength(2);
+    const featuredOffers = offers.filter((offer) => offer.slot === 'FEATURED');
+    expect(new Set(featuredOffers.map((offer) => (DROP_ITEMS[offer.refKey] ?? DROP_BUNDLES[offer.refKey])!.collection))).toEqual(new Set(featured));
+    for (const collection of featured) {
+      expect(featuredOffers.some((offer) => offer.refKey === `drop-${collection}-bundle`), collection).toBe(true);
+      expect(featuredOffers.filter((offer) => offer.kind === 'ITEM' && DROP_ITEMS[offer.refKey]!.collection === collection).length)
+        .toBe(Object.values(DROP_ITEMS).filter((item) => item.collection === collection).length);
+    }
     expect(offers.filter((offer) => offer.slot === 'DAILY')).toHaveLength(DEFAULT_DROP_SETTINGS.dailyOfferCount);
     const yesterday = `rot:D:${dropDailyWindow(new Date(now.getTime() - 86_400_000)).key}:${Object.keys(DROP_ITEMS)[0]}`;
     await expect(resolveOffer(db as never, yesterday, now)).rejects.toMatchObject({ code: 'DROP_OFFER_EXPIRED' });
@@ -135,7 +194,7 @@ describe('Drop purchases', () => {
 
   it('orders featured and permanent catalog offers by their curated homepage slots', async () => {
     const db = fakeDb();
-    const featured = featuredCollectionFor(dropWeeklyWindow(now).index);
+    const featured = featuredCollectionsFor(dropWeeklyWindow(now).index)[0];
     const featuredKeys = Object.values(DROP_ITEMS).filter((item) => item.collection === featured).slice(0, 2).map((item) => item.key);
     db.state.catalog.push(
       { key: featuredKeys[0], kind: 'ITEM', homepageSlot: 2, state: 'LIVE' },
@@ -187,17 +246,54 @@ describe('Drop purchases', () => {
     expect(result.order.grantedKeys).toEqual(bundle.itemKeys.slice(1));
     expect(db.state.unlocks.filter((row: Row) => row.key === ownedKey)).toHaveLength(1);
   });
+
+  it('takes the supporter discount off after the bundle cut, and records it', async () => {
+    const db = fakeDb();
+    db.state.memberships.push({ accountId: 'acc', status: 'active' });
+    const bundleOffer = (await liveOffers(db)).find((candidate) => candidate.kind === 'BUNDLE')!;
+    const bundle = DROP_BUNDLES[bundleOffer.refKey]!;
+    const ownedKey = bundle.itemKeys[0]!;
+    db.state.unlocks.push({ accountId: 'acc', key: ownedKey });
+    await credit(db, 'acc', 10_000, 'seed');
+    const result = await DropPurchaseService.purchase(prisma(db), 'acc', { offerId: bundleOffer.id, actionId: 'action-0005' }, now);
+    const list = bundleListPrice(bundle);
+    const cut = Math.ceil((bundle.priceCrowns * (list - DROP_ITEMS[ownedKey]!.priceCrowns)) / list);
+    expect(result.order.priceCrowns).toBe(discountedDropPrice(cut, 10));
+    expect(db.state.orders[0].metadata).toMatchObject({ discountPercent: 10, discountReason: 'SUPPORTER', priceBeforeDiscount: cut });
+    expect(db.state.wallets.get('acc').balance).toBe(10_000 - discountedDropPrice(cut, 10));
+  });
+
+  it('gives the birthday week 15% instead of a supporter 10%, never both', async () => {
+    const db = fakeDb();
+    db.state.memberships.push({ accountId: 'acc', status: 'active' });
+    const today = new Date(now.getTime());
+    db.state.birthDates.set('acc', new Date(Date.UTC(1990, today.getUTCMonth(), today.getUTCDate())));
+    const offer = (await liveOffers(db)).find((candidate) => candidate.kind === 'ITEM')!;
+    await credit(db, 'acc', 10_000, 'seed');
+    const result = await DropPurchaseService.purchase(prisma(db), 'acc', { offerId: offer.id, actionId: 'action-0007' }, now);
+    expect(result.order.priceCrowns).toBe(discountedDropPrice(DROP_ITEMS[offer.refKey]!.priceCrowns, 15));
+    expect(db.state.orders[0].metadata).toMatchObject({ discountPercent: 15, discountReason: 'BIRTHDAY' });
+  });
+
+  it('charges a free trial the full price', async () => {
+    const db = fakeDb();
+    db.state.memberships.push({ accountId: 'acc', status: 'trialing' });
+    const offer = (await liveOffers(db)).find((candidate) => candidate.kind === 'ITEM')!;
+    await credit(db, 'acc', 10_000, 'seed');
+    const result = await DropPurchaseService.purchase(prisma(db), 'acc', { offerId: offer.id, actionId: 'action-0006' }, now);
+    expect(result.order.priceCrowns).toBe(DROP_ITEMS[offer.refKey]!.priceCrowns);
+  });
 });
 
 describe('Crown packs (Stripe)', () => {
   const at = 1_792_000_000;
   const order = (overrides: Row = {}) => ({
-    id: 'cpo_1', accountId: 'acc', provider: 'stripe', packId: 'boss', crowns: 2800, amountCents: 2299, currency: 'usd',
+    id: 'cpo_1', accountId: 'acc', provider: 'stripe', packId: 'boss', crowns: 2800, amountCents: 1949, currency: 'usd',
     status: 'pending', checkoutSessionId: 'cs_1', providerPaymentId: null, ...overrides,
   });
   const event = (type: string, object: Row, idSuffix = '1'): StripeEvent => ({ id: `evt_${type}_${idSuffix}`, type, created: at, data: { object } });
   const paid = (overrides: Row = {}) => event('checkout.session.completed', {
-    id: 'cs_1', mode: 'payment', payment_status: 'paid', amount_total: 2299, currency: 'usd', payment_intent: 'pi_1',
+    id: 'cs_1', mode: 'payment', payment_status: 'paid', amount_total: 1949, currency: 'usd', payment_intent: 'pi_1',
     metadata: { kind: 'crown-pack', accountId: 'acc', packId: 'boss', orderId: 'cpo_1' }, ...overrides,
   });
 

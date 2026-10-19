@@ -16,12 +16,15 @@ import {
  * several back-to-back seasons, when they clear the trust gates, and how many
  * Crowns the level milestones pay. XP sources are the live ones: turns spent
  * and finished quests (see street-pass-cred.service.ts). Player types match
- * `qa:street-pass`; turns per day top out at the ruleset's regen.
+ * `qa:street-pass`; turns per day top out at the ruleset's regen. Each season
+ * includes one Double XP Weekend.
  *
  *   npm run qa:account-xp -- [--ruleset <id>] [--seasons 4] [--output report.md] [--quiet]
  */
 
 const DAYS = 28;
+/** One Double XP Weekend a month (Friday to Sunday, 2x account XP); modelled on the third weekend. */
+const DOUBLE_XP_DAYS = new Set([19, 20, 21]);
 
 interface Archetype {
   name: string;
@@ -86,7 +89,7 @@ function xpByDay(ruleset: Ruleset, player: Archetype, quests: { oneTime: number;
       jobsDone = jobsByToday;
       if (day === activeDays[activeDays.length - 1]) xp += Math.round(quests.season * player.seasonShare) * questExperience('SEASON');
     }
-    out.push(xp);
+    out.push(DOUBLE_XP_DAYS.has(day) ? xp * 2 : xp);
   }
   return out;
 }
@@ -131,7 +134,8 @@ log(`# Account XP pacing · ${rulesetId}`);
 log();
 log(`${DAYS}-day seasons, played back to back. ${quests.oneTime} one-time Jobs and ${quests.season} season quests a round. `
   + `XP: ${EXPERIENCE_PER_TURN}/turn (regen ${ruleset.turns.amountPerInterval} per ${ruleset.turns.intervalMinutes} min, ${ruleset.round.startingPlayer.turns} to start), `
-  + `daily ${questExperience('DAILY')}, weekly ${questExperience('WEEKLY')}, city/event/alliance ${questExperience('CITY_CONTRACT')}, Job ${questExperience('STORY')}, season ${questExperience('SEASON')}.`);
+  + `daily ${questExperience('DAILY')}, weekly ${questExperience('WEEKLY')}, city/event/alliance ${questExperience('CITY_CONTRACT')}, Job ${questExperience('STORY')}, season ${questExperience('SEASON')}. `
+  + `Double XP on days ${[...DOUBLE_XP_DAYS].join(', ')} of each season.`);
 
 const timelines = new Map(ARCHETYPES.map((player) => {
   const round = xpByDay(ruleset, player, quests);

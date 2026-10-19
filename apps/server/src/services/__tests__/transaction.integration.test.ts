@@ -27,6 +27,8 @@ describe.runIf(process.env.TRANSACTION_INTEGRATION === '1')(
         method: 'POST',
         url: '/api/auth/register',
         payload: {
+          birthDate: '1990-01-01',
+          ageConfirmed: true,
           username: name,
           email: `${name}@example.invalid`,
           password: randomUUID(),

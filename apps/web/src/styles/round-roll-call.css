@@ -13,7 +13,7 @@
   scroll-margin-top: 90px;
 }
 .se-rollcall__heading { display: flex; align-items: start; justify-content: space-between; gap: 16px; }
-.se-rollcall__heading h2 { font-size: clamp(21px, 3vw, 30px); line-height: 1.1; margin: 5px 0 8px; }
+.se-rollcall__heading h1 { font-size: clamp(21px, 3vw, 30px); line-height: 1.1; margin: 5px 0 8px; }
 .se-rollcall__heading p { margin: 0; color: var(--se-text-dim); max-width: 650px; font-size: 13px; line-height: 1.55; }
 .se-rollcall__counter { flex-shrink: 0; font: 800 clamp(20px, 4vw, 30px)/1 var(--se-mono); color: var(--se-accent); white-space: nowrap; }
 .se-rollcall__counter span { font-size: 15px; color: var(--se-text-dim); }
@@ -169,4 +169,9 @@
 @media (max-width: 480px) {
   .se-rollcall__catchup { align-items: stretch; }
   .se-rollcall__catchup button { width: 100%; min-height: 44px; }
+}
+
+.se-rollcall-page {
+  display: grid;
+  gap: 16px;
 }

@@ -91,8 +91,8 @@ export interface DiscordStaffPostDto {
 type Db = PrismaClient | Prisma.TransactionClient;
 
 /** The active account behind a Discord user, for /bug and the staff buttons. */
-export async function linkedDiscordAccount(prisma: PrismaClient, discordId: string): Promise<Pick<Account, 'id' | 'username' | 'isAdmin'>> {
-  const account = await prisma.account.findFirst({ where: { discordId, isActive: true }, select: { id: true, username: true, isAdmin: true } });
+export async function linkedDiscordAccount(prisma: PrismaClient, discordId: string): Promise<Pick<Account, 'id' | 'username' | 'isAdmin' | 'staffRole'>> {
+  const account = await prisma.account.findFirst({ where: { discordId, isActive: true }, select: { id: true, username: true, isAdmin: true, staffRole: true } });
   if (!account) throw AppError.notFound('DISCORD_NOT_LINKED', 'That Discord account is not linked to a StreetsEmpire account.');
   return account;
 }

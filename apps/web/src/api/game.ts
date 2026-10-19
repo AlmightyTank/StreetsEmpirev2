@@ -25,6 +25,9 @@ export const gameApi = {
         noteRoundRollCallContinuity(checkIn);
         if (checkIn.recorded) {
           publishRoundRollCallStamp({ stamps: checkIn.stamps, requiredStamps: checkIn.requiredStamps });
+          // The snapshot was read before this stamp; count its new reward so the badge is current.
+          const rollCall = snapshot.player.roundRollCall;
+          if (rollCall) snapshot.player.roundRollCall = { claimable: rollCall.claimable + 1 };
         }
       } catch {
         // A transient attendance error must never prevent the game from opening.

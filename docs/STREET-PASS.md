@@ -74,7 +74,7 @@ testing, not final.
 
 | Tier | Reward |
 | --- | --- |
-| 1 | $20,000 |
+| 1 | $20,000 + **100 Crowns** |
 | 2 | 1,000 condoms |
 | 3 | 3 hoes |
 | 4 | 25 turns |
@@ -83,7 +83,7 @@ testing, not final.
 | 7 | 50 medicine |
 | ★ 8 | $50,000 + **Urban Ghost** collection + **Chrome Serpent** theme pack |
 | 9 | 250 weed |
-| ★ 10 | 3 shotguns + 5 hoes + **Fresh Face** title + **Phantom Convoy** theme pack |
+| ★ 10 | 3 shotguns + 5 hoes + **100 Crowns** + **Fresh Face** title + **Phantom Convoy** theme pack |
 | 11 | 40 turns |
 | ★ 12 | Street Frenzy + **Lantern District** theme pack |
 | 13 | 10 thugs |
@@ -93,7 +93,7 @@ testing, not final.
 | 17 | Cookhouse Rush |
 | ★ 18 | 200 meth + **Midnight Ops** collection + **Block Sovereign** theme pack |
 | 19 | 60 turns |
-| ★ 20 | 2 Tek-9s + 1 Low-Rider + **Made Man** title + **Gilded House** theme pack |
+| ★ 20 | 2 Tek-9s + 1 Low-Rider + **100 Crowns** + **Made Man** title + **Gilded House** theme pack |
 | 21 | $150,000 |
 | 22 | 150 cocaine |
 | 23 | 2 Burner Phones |
@@ -105,7 +105,7 @@ testing, not final.
 | 29 | 2 AK-47s + 1 Low-Rider |
 | ★ 30 | **Kingpin** title + season badge + season profile frame (all permanent) |
 
-A full pass is worth about **$520,000 cash, 28 hoes, 30 thugs, 225 turns,
+A full pass is worth about **$520,000 cash, 300 Crowns, 28 hoes, 30 thugs, 225 turns,
 2 Low-Riders, 25 pistols, 3 shotguns, 2 Tek-9s, 2 AK-47s**, plus supplies,
 product and six favors. Cash was doubled after the balance run (it started at
 $260,000).

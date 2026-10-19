@@ -7,7 +7,7 @@ client and server rather than shipping a second copy of the game.
 - Live server only
 - Google Play monthly supporter subscription (`supporter_monthly`)
 - Game and Discord OAuth stay in-app; other links open in the browser
-- Pull-to-refresh, reload, offline retry, file chooser, and WebView back history
+- Two-finger pull-to-refresh, reload, offline retry, file chooser, and WebView back history
 - HTTPS only and first-party cookie sessions
 
 ## Open and build
@@ -46,7 +46,17 @@ will be at `app/build/outputs/native-debug-symbols/productionRelease/` and can b
 uploaded in Play Console alongside the matching artifact. The current
 `androidx.graphics.path` prebuilt library does not provide separate symbol
 metadata, so this project may still show Play Console's native-symbol warning;
-that warning is informational and does not block testing or release.
+that warning is informational and does not block testing or release. To clear
+it, build the symbols ZIP and upload it on the bundle's page in Play Console
+(App bundle explorer → select the version → Downloads → Native debug symbols):
+
+```powershell
+.\gradlew.bat :app:zipProductionReleaseNativeSymbols
+```
+
+The ZIP is written to
+`app/build/outputs/native-debug-symbols-upload/productionRelease/native-debug-symbols.zip`
+(use `zipBetaReleaseNativeSymbols` for the beta flavor).
 If any signing variable is missing, Gradle intentionally produces an unsigned
 artifact instead. Verify the signing report before uploading. The app targets
 SDK 36 and has application ID `dev.streetsempire.app`.

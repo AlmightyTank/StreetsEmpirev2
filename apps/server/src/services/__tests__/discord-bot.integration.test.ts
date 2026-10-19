@@ -20,7 +20,7 @@ describe.runIf(process.env.DISCORD_BOT_INTEGRATION === '1')('Discord bot interna
     app = await (await import('../../app.js')).buildApp();
     for (let i = 0; i < 3; i++) {
       const username = `bot_${randomUUID().slice(0, 8)}`;
-      const response = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { username, email: `${username}@example.invalid`, password: randomUUID() } });
+      const response = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { ageConfirmed: true, username, email: `${username}@example.invalid`, password: randomUUID() } });
       expect(response.statusCode, response.body).toBe(201);
       const discordId = snowflake();
       await app.prisma.account.update({ where: { id: response.json().account.id }, data: { discordId, discordUsername: username } });
@@ -68,6 +68,12 @@ describe.runIf(process.env.DISCORD_BOT_INTEGRATION === '1')('Discord bot interna
     expect(members[accounts[1]!.discordId]).toEqual(['linked', 'player', 'top-10']);
     expect(members[accounts[2]!.discordId]).toEqual(['linked']);
     expect(members).not.toHaveProperty(unknown);
+
+    // Staff carry their role key for the bot's staff sync.
+    await app.prisma.account.update({ where: { id: accounts[2]!.id }, data: { staffRole: 'MOD' } });
+    const staff = await app.inject({ method: 'POST', url: '/api/internal/discord/roles', headers: auth(), payload: { discordIds: [accounts[2]!.discordId] } });
+    expect(staff.json().members[accounts[2]!.discordId]).toEqual(['linked', 'staff:mod']);
+    await app.prisma.account.update({ where: { id: accounts[2]!.id }, data: { staffRole: null } });
 
     for (const payload of [{ discordIds: [] }, { discordIds: ['not-a-snowflake'] }, { discordIds: [unknown], extra: true }]) {
       expect((await app.inject({ method: 'POST', url: '/api/internal/discord/roles', headers: auth(), payload })).statusCode).toBe(400);

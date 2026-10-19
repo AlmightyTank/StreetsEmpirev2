@@ -21,7 +21,7 @@ describe.runIf(process.env.ADMIN_INTEGRATION === '1')('Admin corrections and sig
 
   async function register(label: string): Promise<Who> {
     const username = `${label}_${randomUUID().slice(0, 8)}`;
-    const response = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { username, email: `${username}@example.invalid`, password: randomUUID() } });
+    const response = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { ageConfirmed: true, username, email: `${username}@example.invalid`, password: randomUUID() } });
     expect(response.statusCode, response.body).toBe(201);
     const accountId = response.json().account.id as string;
     accountIds.push(accountId);

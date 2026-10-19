@@ -1,4 +1,4 @@
-import type { FastifyPluginAsync } from 'fastify';
+import type { FastifyPluginAsync, FastifyRequest } from 'fastify';
 import {
   ADMIN_COMMS_MUTE_LENGTHS,
   ADMIN_GRANT_CAPS,
@@ -13,12 +13,16 @@ import {
   adminSurveyResultsQuerySchema,
   usernameSchema,
   ADMIN_DISCORD_TIMEOUT_LENGTHS,
+  STAFF_ROLES,
+  type StaffCapability,
   type AdminCommsMuteLength,
   type AdminDiscordTimeoutLength,
   type AdminSuspensionLength,
 } from '@streets/shared';
 import { z } from 'zod';
 import { AdminAccountService } from '../services/admin-account.service.js';
+import { StaffService } from '../services/staff.service.js';
+import { staffRoleOf } from '../auth/play-access.js';
 import { AdminAuditService } from '../services/admin-audit.service.js';
 import { AppError } from '../utils/errors.js';
 import { AdminModerationService } from '../services/admin-moderation.service.js';
@@ -69,6 +73,9 @@ import { MonitoringService } from '../services/monitoring.service.js';
 import { AdminEventService } from '../services/admin-event.service.js';
 import { HiddenStreetsAdminService } from '../services/hidden-streets-admin.service.js';
 import { parseBody } from '../utils/validate.js';
+import { AdmissionService } from '../services/admission.service.js';
+import { ActiveSupporterService } from '../services/active-supporter.service.js';
+import { SupporterBenefitsService } from '../services/supporter-benefits.service.js';
 
 const isoDate = z.coerce.date();
 const id = z.string().min(1).max(64);
@@ -198,6 +205,7 @@ const startRoundSchema = z.object({ confirmHandoff: z.boolean().optional() }).st
 const revokeSessionsSchema = z.object({ reason, sessionId: id.optional() }).strict();
 const renameSchema = z.object({ reason, username: usernameSchema }).strict();
 const adminRoleSchema = z.object({ reason, isAdmin: z.boolean() }).strict();
+const staffRoleSchema = z.object({ reason, role: z.enum(STAFF_ROLES).nullable() }).strict();
 const betaAccessSchema = z.object({ reason, approved: z.boolean() }).strict();
 const deleteAccountSchema = z.object({
   reason,
@@ -371,13 +379,88 @@ const auditQuery = z.object({
 }).strict();
 
 const auditExportQuery = auditQuery.omit({ before: true }).strict();
+const admissionConfigSchema = z.object({
+  roundId: id,
+  enabled: z.boolean().optional(),
+  supporterPriority: z.boolean().optional(),
+  capacity: z.number().int().min(1).max(1_000_000).nullable().optional(),
+  reason,
+}).strict();
 
 /**
- * 0.3.0-B admin API. The admin guard is a hook on this whole plugin, so a
+ * The routes staff below Admin may use, and the capability each needs. A route not
+ * listed needs the admin capability, so a new route is admin-only until it is added
+ * here. Services re-check the actor and the target's rank on top of this.
+ */
+const STAFF_ROUTE_CAPABILITIES: Partial<Record<string, StaffCapability>> = {
+  'GET /staff': 'staff.view',
+  'POST /accounts/:accountId/staff-role': 'staff.assign',
+  'GET /accounts': 'accounts.view',
+  'GET /accounts/:accountId': 'accounts.view',
+  'GET /accounts/:accountId/community': 'accounts.mute',
+  'POST /accounts/:accountId/notes': 'accounts.notes',
+  'POST /accounts/:accountId/comms-mute': 'accounts.mute',
+  'POST /accounts/:accountId/comms-mute/lift': 'accounts.mute',
+  'POST /accounts/:accountId/discord-timeout': 'accounts.mute',
+  'POST /accounts/:accountId/discord-timeout/lift': 'accounts.mute',
+  'POST /accounts/:accountId/suspend': 'accounts.suspend',
+  'POST /accounts/:accountId/suspend/lift': 'accounts.suspend',
+  'POST /accounts/:accountId/sessions/revoke': 'accounts.suspend',
+  'POST /accounts/:accountId/forum-suspend': 'accounts.suspend',
+  'POST /accounts/:accountId/forum-suspend/lift': 'accounts.suspend',
+  'POST /accounts/:accountId/ban': 'accounts.ban',
+  'POST /accounts/:accountId/unban': 'accounts.ban',
+  'POST /accounts/:accountId/rename': 'accounts.rename',
+  'POST /accounts/:accountId/reset-profile': 'accounts.rename',
+  'GET /reports': 'reports.handle',
+  'POST /reports/:reportId/open': 'reports.handle',
+  'POST /reports/:reportId/resolve': 'reports.handle',
+  'POST /wire/:postId/remove': 'reports.handle',
+  'POST /crew-legends/moderate': 'reports.handle',
+  'GET /bug-reports': 'bugs.triage',
+  'POST /bug-reports/:reportId/resolve': 'bugs.triage',
+};
+
+/** The routes listed above, for the test that checks each one exists. */
+export const STAFF_ROUTES = Object.keys(STAFF_ROUTE_CAPABILITIES);
+
+/** The capability a request to this plugin needs. */
+export function staffCapabilityFor(method: string, path: string): StaffCapability {
+  return STAFF_ROUTE_CAPABILITIES[`${method} ${path}`] ?? 'admin';
+}
+
+/**
+ * 0.3.0-B admin API. The staff guard is a hook on this whole plugin, so a
  * route added here cannot forget it. Every change writes an audit record.
  */
 const adminRoutes: FastifyPluginAsync = async (fastify) => {
-  fastify.addHook('onRequest', fastify.requireAdmin);
+  fastify.addHook('onRequest', async (request, reply) => {
+    const path = (request.routeOptions.url ?? '').slice(fastify.prefix.length);
+    await fastify.requireStaff(staffCapabilityFor(request.method, path))(request, reply);
+  });
+
+  // The hook above has already checked the caller is staff.
+  const viewerRole = (request: FastifyRequest) => staffRoleOf(request.auth!.account)!;
+
+  // Staff roles
+
+  fastify.get('/staff', async (request) => StaffService.list(fastify.prisma, viewerRole(request)));
+
+  fastify.post('/accounts/:accountId/staff-role', async (request) => {
+    const { accountId } = parseBody(accountParams, request.params);
+    const body = parseBody(staffRoleSchema, request.body ?? {});
+    return AdminAccountService.setStaffRole(fastify.prisma, request.auth!.account, accountId, body.role, body.reason);
+  });
+
+  fastify.get('/forum/cosmetics', async () => {
+    const [linked, opted, activeLinked] = await Promise.all([
+      fastify.prisma.forumLink.count(),
+      fastify.prisma.accountProfile.count({ where: { forumCosmeticsVisible: true } }),
+      fastify.prisma.forumLink.findMany({ select: { accountId: true } }).then(async (rows) =>
+        (await ActiveSupporterService.accountIds(fastify.prisma, rows.map((row) => row.accountId))).size),
+    ]);
+    return { linkedAccounts: linked, optedInAccounts: opted, currentlyActiveLinkedAccounts: activeLinked, mode: 'pull-through', writesToFlarum: false };
+  });
 
   // 2.1.0-E. Moderator-only suppression of live or archived preset names.
   fastify.post('/crew-legends/moderate', async (request) => {
@@ -701,11 +784,11 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
 
   // Accounts
 
-  fastify.get('/accounts', async (request) => AdminAccountService.search(fastify.prisma, parseBody(accountSearchQuery, request.query)));
+  fastify.get('/accounts', async (request) => AdminAccountService.search(fastify.prisma, parseBody(accountSearchQuery, request.query), viewerRole(request)));
 
   fastify.get('/accounts/:accountId', async (request) => {
     const { accountId } = parseBody(accountParams, request.params);
-    return AdminAccountService.detail(fastify.prisma, accountId);
+    return AdminAccountService.detail(fastify.prisma, accountId, viewerRole(request));
   });
 
   fastify.post('/accounts/:accountId/deactivate', async (request) => {
@@ -848,7 +931,8 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post('/accounts/:accountId/admin', async (request) => {
     const { accountId } = parseBody(accountParams, request.params);
     const body = parseBody(adminRoleSchema, request.body ?? {});
-    return AdminAccountService.setAdmin(fastify.prisma, request.auth!.account, accountId, body.isAdmin, body.reason);
+    // Before staff roles: grant makes an Admin, revoke takes every staff role away.
+    return AdminAccountService.setStaffRole(fastify.prisma, request.auth!.account, accountId, body.isAdmin ? 'ADMIN' : null, body.reason);
   });
 
   fastify.post('/accounts/:accountId/beta-access', async (request) => {
@@ -864,6 +948,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
   });
 
   fastify.get('/supporters', async () => AdminSupporterService.list(fastify.prisma));
+  fastify.get('/supporters/benefits', async () => SupporterBenefitsService.diagnostics(fastify.prisma));
 
   fastify.post('/supporters/grant', async (request) => {
     const body = parseBody(supporterGrantSchema, request.body ?? {});
@@ -881,6 +966,45 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post('/supporters/polls', async (request) => {
     const body = parseBody(supporterPollSchema, request.body ?? {});
     return SupporterPollService.stage(fastify.prisma, request.auth!.account, body);
+  });
+
+  fastify.get('/admission/:roundId', async (request) => {
+    const { roundId } = parseBody(z.object({ roundId: id }).strict(), request.params);
+    return AdmissionService.adminSnapshot(fastify.prisma, roundId);
+  });
+
+  fastify.put('/admission', async (request) => {
+    const body = parseBody(admissionConfigSchema, request.body ?? {});
+    const before = await AdmissionService.adminSnapshot(fastify.prisma, body.roundId);
+    const after = await fastify.prisma.$transaction(async (tx) => {
+      const updated = await AdmissionService.configure(tx as never, body.roundId, {
+        enabled: body.enabled,
+        supporterPriority: body.supporterPriority,
+        capacity: body.capacity,
+      });
+      await AdminAuditService.record(tx, request.auth!.account, {
+        action: 'admission.configure', targetType: 'round', targetId: body.roundId, reason: body.reason,
+        before: before.settings, after: updated,
+      });
+      return updated;
+    });
+    return after;
+  });
+
+  fastify.post('/admission/clear', async (request) => {
+    const body = parseBody(reasonBody.extend({ roundId: id }), request.body ?? {});
+    const result = await fastify.prisma.$transaction(async (tx) => {
+      const [leases, tickets] = await Promise.all([
+        tx.admissionLease.deleteMany({ where: { roundId: body.roundId } }),
+        tx.admissionTicket.deleteMany({ where: { roundId: body.roundId } }),
+      ]);
+      await AdminAuditService.record(tx, request.auth!.account, {
+        action: 'admission.clear', targetType: 'round', targetId: body.roundId, reason: body.reason,
+        after: { leases: leases.count, tickets: tickets.count },
+      });
+      return { leases: leases.count, tickets: tickets.count };
+    });
+    return result;
   });
 
   fastify.post('/accounts/:accountId/email/resend', async (request) => {

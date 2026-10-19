@@ -349,6 +349,8 @@ Rewards should favor cosmetics, trophies and recognition over permanent competit
 
 ## 1.9 — Community & Supporter Features
 
+**Detailed implementation plan:** [Supporter Expansion Roadmap — Slices A–F](ROADMAP-SUPPORTER-EXPANSION.md) (priority login queue, personal statistics, crew banners, exclusive themes, forum cosmetics and release QA). This is a planned beta roadmap, not a claim that the new features are already live.
+
 ### Theme
 
 Give players ways to support StreetsEmpire without turning payment into competitive advantage.

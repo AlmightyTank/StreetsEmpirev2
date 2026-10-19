@@ -6,6 +6,7 @@ import { forumUserIdSchema } from '../services/forum-proof.js';
 import { ProfileBadgeService } from '../services/profile-badges.service.js';
 import { AppError } from '../utils/errors.js';
 import { parseBody } from '../utils/validate.js';
+import { ForumCosmeticsService } from '../services/forum-cosmetics.service.js';
 
 const finishSchema = z.object({ proof: z.string().min(1).max(4096) }).strict();
 
@@ -36,6 +37,11 @@ const forumRoutes: FastifyPluginAsync = async (fastify) => {
   });
   fastify.post('/unlink', { preHandler: [fastify.requireAuth, requireGameOrigin] }, async (request) =>
     ForumLinkService.unlink(fastify.prisma, request.auth!.account.id));
+  fastify.put('/cosmetics-visibility', { preHandler: [fastify.requireAuth, requireGameOrigin] }, async (request) => {
+    const input = parseBody(z.object({ visible: z.boolean() }).strict(), request.body);
+    await fastify.prisma.accountProfile.upsert({ where: { accountId: request.auth!.account.id }, create: { accountId: request.auth!.account.id, forumCosmeticsVisible: input.visible }, update: { forumCosmeticsVisible: input.visible } });
+    return ForumCosmeticsService.forAccount(fastify.prisma, request.auth!.account.id);
+  });
 
   // Public, explicitly consented link and badges only (titles and rarity, never
   // crew, weapons or cash). No game IDs, emails, or Discord IDs.
@@ -53,7 +59,8 @@ const forumRoutes: FastifyPluginAsync = async (fastify) => {
       // Badges are decoration; a failure must not hide the Game Profile link.
       request.log.warn({ err: error, accountId: link.accountId }, 'forum badge lookup failed');
     }
-    return { profileUrl: new URL(`/game/forum/${forumUserId}`, env.frontendOrigin).toString(), badges };
+    const forumCosmetics = await ForumCosmeticsService.forAccount(fastify.prisma, link.accountId);
+    return { profileUrl: new URL(`/game/forum/${forumUserId}`, env.frontendOrigin).toString(), badges, forumCosmetics: forumCosmetics.visible ? forumCosmetics : null };
   });
 };
 export default forumRoutes;

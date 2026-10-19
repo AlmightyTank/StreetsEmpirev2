@@ -53,11 +53,9 @@ describe('SupporterService', () => {
     const added = await SupporterService.grant(db as unknown as Db, 'account-1', at);
 
     expect(added).toEqual(Object.keys(SUPPORTER_COSMETICS));
-    expect(db.rows.map((row) => [row.kind, row.styleKey, row.sourceQuestKey])).toEqual([
-      ['ITEM_COLLECTION', 'midnight-chrome', 'supporter'],
-      ['PROFILE_FRAME', 'midnight-chrome-frame', 'supporter'],
-      ['ACCENT', 'supporter-crimson', 'supporter'],
-    ]);
+    expect(db.rows.map((row) => [row.kind, row.styleKey, row.sourceQuestKey])).toEqual(
+      Object.values(SUPPORTER_COSMETICS).map((cosmetic) => [cosmetic.kind, cosmetic.styleKey, 'supporter']),
+    );
     expect(await SupporterService.since(db as unknown as Db, 'account-1')).toEqual(at);
   });
 
@@ -66,7 +64,7 @@ describe('SupporterService', () => {
     await SupporterService.grant(db as unknown as Db, 'account-1');
 
     expect(await SupporterService.grant(db as unknown as Db, 'account-1')).toEqual([]);
-    expect(db.rows).toHaveLength(3);
+    expect(db.rows).toHaveLength(Object.keys(SUPPORTER_COSMETICS).length);
   });
 
   it('reports no supporter date for an account that was never granted', async () => {

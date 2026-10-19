@@ -198,6 +198,17 @@
   filter: saturate(1.08);
 }
 
+.se-profile-pagehead__banner[data-crew-banner="midnight-chrome-crew-banner"] {
+  background:
+    linear-gradient(90deg, rgba(8, 10, 14, .94), rgba(28, 32, 40, .68) 48%, rgba(8, 10, 14, .88)),
+    linear-gradient(135deg, #252a33, #8e96a3 48%, #151820 49%, #4b5361);
+}
+.se-profile-pagehead__banner[data-crew-banner="midnight-chrome-crew-banner-night"] {
+  background:
+    linear-gradient(90deg, rgba(3, 5, 10, .96), rgba(16, 27, 43, .68) 48%, rgba(3, 5, 10, .92)),
+    linear-gradient(160deg, #101522, #506782 52%, #080c14 53%, #2b3548);
+}
+
 .se-profile-pagehead__banner::after {
   content: '';
   position: absolute;
@@ -1454,3 +1465,21 @@
   color: var(--se-muted);
   font-size: .82rem;
 }
+
+/* Discovery cards have no badge art, so drop the reserved art gutter. */
+.se-profile-achievements .se-ach.se-ach--discovery { padding-left: 9px; }
+.se-ach--tier-obvious { border-left-color: var(--se-line); }
+.se-ach--tier-obvious .se-ach__rarity { color: var(--se-muted); }
+.se-ach--tier-hidden { border-left-color: #6899f3; }
+.se-ach--tier-hidden .se-ach__rarity { color: #6899f3; }
+.se-ach--tier-legendary { border-left-color: #f1b622; }
+.se-ach--tier-legendary .se-ach__rarity { color: #f1b622; }
+.se-ach--discovery .se-ach__top { flex-wrap: wrap; gap: 2px 8px; }
+.se-ach--discovery .se-ach__cat,
+.se-ach--discovery .se-ach__rarity { white-space: nowrap; }
+.se-discovery-clues { list-style: none; display: grid; gap: 6px; margin: 0; padding: 0; }
+.se-discovery-clue { display: grid; gap: 3px; }
+.se-discovery-clue__label { color: var(--se-text); font-size: 10px; line-height: 1.35; }
+.se-discovery-families { list-style: none; display: grid; gap: 4px; margin: 0; padding: 0; font-size: 11px; color: var(--se-muted); }
+.se-ach--discovery > .se-btn { margin-top: auto; align-self: flex-start; }
+.se-profile-achievements .se-ach.se-ach--trophy { min-height: 0; }

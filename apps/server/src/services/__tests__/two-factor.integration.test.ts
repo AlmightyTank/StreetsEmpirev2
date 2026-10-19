@@ -32,7 +32,7 @@ describe.runIf(process.env.AUTH_INTEGRATION === '1')('two-step sign-in (rc.3), w
   const register = async () => {
     const name = `twostep${randomUUID().slice(0, 8)}`;
     const password = randomUUID();
-    const response = await app.inject({ remoteAddress: ip, method: 'POST', url: '/api/auth/register', payload: { username: name, email: `${name}@example.invalid`, password } });
+    const response = await app.inject({ remoteAddress: ip, method: 'POST', url: '/api/auth/register', payload: { ageConfirmed: true, username: name, email: `${name}@example.invalid`, password } });
     expect(response.statusCode, response.body).toBe(201);
     accountIds.push(response.json().account.id);
     return { id: response.json().account.id as string, name, email: `${name}@example.invalid`, password, cookie: cookiesOf(response) };

@@ -45,11 +45,13 @@ export function ItemCrewCosmeticsEditor({
   settings,
   styles,
   crewStyles,
+  bannerStyles,
   onChange,
 }: {
   settings: AccountProfileSettingsDto;
   styles: readonly CollectionOptionDto[];
   crewStyles: readonly CollectionOptionDto[];
+  bannerStyles: readonly CollectionOptionDto[];
   onChange: (settings: AccountProfileSettingsDto) => void;
 }) {
   const locked = styles.filter((style) => style.locked);
@@ -140,6 +142,25 @@ export function ItemCrewCosmeticsEditor({
             );
           })}
         </div>
+      </div>
+
+      <div className="se-cosmetic-locker__group">
+        <h4>Exclusive crew banners</h4>
+        <p className="se-hint">A compact art treatment for your crew header and profile. It never changes tiles, hit targets, team colors or gameplay.</p>
+        <label className="se-label" htmlFor="crew-banner">Crew banner</label>
+        <select
+          id="crew-banner"
+          className="se-input"
+          value={settings.activeCrewBannerKey ?? ''}
+          onChange={(event) => onChange({ ...settings, activeCrewBannerKey: event.target.value || null })}
+        >
+          <option value="">Classic · no banner</option>
+          {bannerStyles.map((banner) => (
+            <option key={banner.key} value={banner.key} disabled={banner.locked}>
+              {banner.locked ? `${banner.label} (locked)` : banner.label}
+            </option>
+          ))}
+        </select>
       </div>
     </section>
   );

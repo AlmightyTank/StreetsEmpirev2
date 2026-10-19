@@ -274,7 +274,7 @@ export function RoundRollCallPanel() {
       <header className="se-rollcall__heading">
         <div>
           <span className="se-eyebrow">Free round attendance · no consecutive streak</span>
-          <h2>Round Roll Call</h2>
+          <h1>Round Roll Call</h1>
           <p>Show up, earn one stamp for each eligible round day, and claim your rewards. Missed days and game updates never erase stamps you already earned.</p>
         </div>
         {board && board.requiredStamps > 0 ? (
@@ -409,14 +409,14 @@ export function RoundRollCallPanel() {
           <RollCallFinalePreview target={board.requiredStamps} completed={board.completed} owned={board.grandPrize.unlocked} />
           {board.grandPrize.unlocked ? (
             <p className="se-rollcall__equipped" role="status">
-              Permanent Obsidian Signal collection earned. <Link to="/account">Equip the theme and crew outfits</Link> or <Link to="/game/collection">view your collection</Link>.
+              Permanent Obsidian Signal collection earned. <Link to="/account">Equip the theme and crew outfits</Link>.
             </p>
           ) : null}
           <p className="se-rollcall__footnote">
             Seven missed days are already built into the round schedule. Earn one stamp per eligible day;
             completing all stamps is required for the exclusive cosmetic collection.
             Gameplay rewards are capped and never include weapons or permanent power.
-            <Link to="/game/collection"> View your existing cosmetics.</Link>
+            <Link to="/account"> View your existing cosmetics.</Link>
           </p>
         </>
       ) : null}
@@ -444,9 +444,9 @@ export function RoundRollCallNotice() {
       <span className="se-rollcall-notice__icon" aria-hidden="true">✦</span>
       <div>
         <strong>Roll Call checked in · {notice.stamps} / {notice.requiredStamps}</strong>
-        <span>Today’s attendance is recorded. Your rewards are on Street Pass.</span>
+        <span>Today’s attendance is recorded. Your rewards are on Roll Call.</span>
       </div>
-      <Link to="/game/street-pass#round-roll-call" onClick={() => setNotice(null)}>View rewards</Link>
+      <Link to="/game/roll-call" onClick={() => setNotice(null)}>View rewards</Link>
       <button type="button" className="se-rollcall-notice__close" onClick={() => setNotice(null)} aria-label="Dismiss Roll Call notification">×</button>
     </div>
   );

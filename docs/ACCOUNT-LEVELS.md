@@ -33,13 +33,13 @@ and message staff. Staff (`isAdmin`) skip both gates. The checks live in
 ## Pace
 
 `npm run qa:account-xp` (also a `qa:release` step) models four player types over
-back-to-back seasons. It fails if starting turns alone clear a gate, if a casual
+back-to-back seasons, each with one Double XP Weekend. It fails if starting turns alone clear a gate, if a casual
 player cannot message by day 2 or found an alliance by day 4, or if any player
 earns more than half the round's play cap in level Crowns in one season. See
 [ACCOUNT-XP-PACING.md](ACCOUNT-XP-PACING.md) for the latest run.
 
-Main finding: the curve is fast at the top. A hardcore player reaches level 43
+Main finding: the curve is fast at the top. A hardcore player reaches level 45
 in their first season and 50 about five weeks in. An active player reaches 50
-early in season 3. The Crowns schedule is open-ended for this reason. If the
+at the end of season 2. The Crowns schedule is open-ended for this reason. If the
 titles should last longer, the curve or the title levels need to change, and
 existing levels would move with them.

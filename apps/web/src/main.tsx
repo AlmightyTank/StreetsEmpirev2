@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 // 1. Foundation: authoritative tokens and reset.
+import './styles/fonts.css';
 import './styles/theme.css';
 // 2. Shared components and compatibility composition.
 import './styles/community.css';
@@ -34,8 +35,10 @@ import './styles/street-pass.css';
 import './styles/round-roll-call.css';
 import './styles/supporter.css';
 import './styles/drop.css';
+import './styles/drop-shop.css';
 import './styles/drop-art.css';
 import './styles/drop-shells.css';
+import './styles/birthday.css';
 import './styles/travel.css';
 import './styles/city-blocks.css';
 import './styles/operations.css';
@@ -61,7 +64,6 @@ import './styles/action-readiness-accessibility.css';
 import './styles/empire-management.css';
 import './styles/economy-experience.css';
 import './styles/career-experience.css';
-import './styles/collection.css';
 import './styles/social-experience.css';
 import './styles/admin-workspace.css';
 import './styles/dashboard-cinematic.css';

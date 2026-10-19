@@ -1,7 +1,7 @@
-import type { AdminAccountSummaryDto, AdminAuditEntryDto, AdminSuspensionDto } from '@streets/shared';
+import { STAFF_ROLE_LABELS, type AdminAccountSummaryDto, type AdminAuditEntryDto, type AdminSuspensionDto } from '@streets/shared';
 import { adminWhen, snapshotJson } from '../utils/admin.js';
 
-type TaggedAccount = Pick<AdminAccountSummaryDto, 'isActive' | 'isAdmin' | 'emailVerified'> & { betaApproved?: boolean; suspension?: AdminSuspensionDto | null; ban?: AdminAccountSummaryDto['ban'] };
+type TaggedAccount = Pick<AdminAccountSummaryDto, 'isActive' | 'isAdmin' | 'emailVerified'> & { staffRole?: AdminAccountSummaryDto['staffRole']; betaApproved?: boolean; suspension?: AdminSuspensionDto | null; ban?: AdminAccountSummaryDto['ban'] };
 
 export function AccountTags({ account }: { account: TaggedAccount }) {
   const suspension = account.suspension ?? null;
@@ -18,7 +18,8 @@ export function AccountTags({ account }: { account: TaggedAccount }) {
           Suspended to {adminWhen(suspension.until)}
         </span>
       ) : null}
-      {account.isAdmin ? <span className="se-tag se-tag--warn">Admin</span> : null}
+      {account.staffRole ? <span className="se-tag se-tag--warn">{STAFF_ROLE_LABELS[account.staffRole]}</span>
+        : account.isAdmin ? <span className="se-tag se-tag--warn">Admin</span> : null}
       {account.betaApproved ? <span className="se-tag se-tag--good">Beta approved</span> : null}
       {account.emailVerified ? null : <span className="se-tag">Unverified</span>}
     </span>
@@ -45,7 +46,8 @@ export function AuditEntryList({ entries, names, empty = 'No admin actions yet.'
             {entry.targetId ? ` ${names?.get(entry.targetId) ?? entry.targetId}` : ''}
           </p>
           {entry.reason ? <p className="se-hint">Reason: {entry.reason}</p> : null}
-          <details className="se-admin-snapshot">
+          {/* Snapshots are left out for staff below Admin: they carry private fields. */}
+          {entry.before === null && entry.after === null ? null : <details className="se-admin-snapshot">
             <summary>Before and after</summary>
             <div className="se-admin-snapshot__grid">
               <div>
@@ -57,7 +59,7 @@ export function AuditEntryList({ entries, names, empty = 'No admin actions yet.'
                 <pre className="se-admin-json">{snapshotJson(entry.after)}</pre>
               </div>
             </div>
-          </details>
+          </details>}
         </li>
       ))}
     </ol>

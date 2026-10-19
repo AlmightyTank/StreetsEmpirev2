@@ -1,5 +1,6 @@
 import type { City, Prisma, PrismaClient } from '@prisma/client';
 import { RelocationService } from './relocation.service.js';
+import { birthdayLookOptions, showsBirthdayCake } from './birthday.service.js';
 import { factionTier, factionTierName, factionTierRank, loadRulesetForRound, type Ruleset } from '@streets/rules-engine';
 import type { FactionKey } from '@streets/rulesets';
 import { rulesets, SUPPORTER_COSMETICS } from '@streets/rulesets';
@@ -643,6 +644,32 @@ function profileAccent(value: string | null | undefined): ProfileAccent {
     'luxe-lacquer',
     'underworld-violet',
     'heist-frost',
+    'biscayne-flamingo',
+    'speakeasy-merlot',
+    'funk-tangerine',
+    'redline-red',
+    'wet-paint-mint',
+    'hazard-yellow',
+    'dockside-harbor',
+    'jewel-sapphire',
+    'bayou-firefly',
+    'mirage-turquoise',
+    'rewind-magenta',
+    'felt-green',
+    'nitrous-blue',
+    'flux-blue',
+    'swamp-moss',
+    'quarantine-orange',
+    'ghost-green',
+    'candy-red',
+    'heartbreak-rose',
+    'block-party-mango',
+    'money-green',
+    'blood-orange',
+    'steel-silver',
+    'cobalt-blue',
+    'bubblegum-pink',
+    'mustard-yellow',
   ].includes(value ?? '')
     ? value as ProfileAccent
     : 'default';
@@ -1140,6 +1167,9 @@ export const CommunityService = {
         if (!earnedFramesWithCatalog.some((known) => known.key === option.key)) earnedFramesWithCatalog.push(option);
       }
     }
+    // On the player's birthday the day-only frame is theirs to wear, as in their settings.
+    const birthdayLook = await birthdayLookOptions(prisma, player.accountId, now);
+    earnedFramesWithCatalog.push(...birthdayLook.frames);
     const frameOptions = withThemeCompanionFrames(earnedFramesWithCatalog, themeOptionsWithCatalog);
     const career = await loadCareerForAccount(prisma, player.accountId, {
       currentRoundId: roundId,
@@ -1243,6 +1273,7 @@ export const CommunityService = {
       isYou,
       isSupporter: context.isSupporter,
       supporterSince: context.supporterSince,
+      birthdayToday: await showsBirthdayCake(prisma, player.accountId, profileSettings?.showBirthdayCake, now),
       ...(ruleset.factionPublic ? { factionAlignment: await factionAlignment(prisma, player.id, ruleset) } : {}),
     };
   },

@@ -6,6 +6,9 @@
 .se-item-tile {
   --se-item-cell: 72px;
   --se-item-tint: 120, 130, 145;
+  --se-item-border: rgba(var(--se-item-tint), 0.55);
+  --se-item-border-strong: rgba(var(--se-item-tint), 0.95);
+  --se-item-glow: rgba(var(--se-item-tint), 0.35);
 
   position: relative;
   display: inline-block;
@@ -14,14 +17,14 @@
   height: calc(var(--se-item-cell) * var(--se-item-h, 1));
   margin: 0;
   overflow: hidden;
-  border: 1px solid rgba(var(--se-item-tint), 0.55);
-  background-color: #101318;
+   border: 1px solid var(--se-item-border);
+   background-color: var(--se-item-surface);
   background-image:
     radial-gradient(ellipse at 50% 45%, rgba(var(--se-item-tint), 0.32), rgba(var(--se-item-tint), 0.06) 70%),
     linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
   background-size: auto, 8px 8px, 8px 8px;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.6), inset 0 -12px 18px rgba(0, 0, 0, 0.35);
+   box-shadow: var(--se-item-shadow);
   user-select: none;
 }
 
@@ -230,4 +233,154 @@
   .se-cosmetic-locker__grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* Click-to-enlarge: every tile opens a full-size view of its art and skin. */
+.se-item-tile--zoomable {
+  cursor: zoom-in;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.se-item-tile--zoomable img {
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.se-item-tile--zoomable:hover {
+  border-color: var(--se-item-border-strong);
+  box-shadow: var(--se-item-shadow), 0 0 10px var(--se-item-glow);
+}
+
+/* The art leans in on hover and presses down on tap, hinting it can be opened. */
+.se-item-tile--zoomable:hover img { transform: scale(1.06); }
+.se-item-tile--zoomable:active img { transform: scale(0.97); transition-duration: 0.08s; }
+
+.se-item-tile--zoomable:focus-visible {
+  outline: 2px solid var(--se-item-border-strong);
+  outline-offset: 2px;
+}
+
+.se-item-zoom {
+  position: fixed;
+  inset: 0;
+  /* Above the profile hover layer (3000) and every page overlay. */
+  z-index: 4000;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: var(--se-overlay-bg);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+  cursor: zoom-out;
+}
+
+.se-item-zoom__box {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(560px, 100%);
+  max-height: calc(100dvh - 32px);
+  padding: 16px;
+  overflow: auto;
+  border: 1px solid var(--se-line);
+  border-radius: 6px;
+  background: var(--se-panel);
+  box-shadow: var(--se-shadow-overlay);
+  cursor: default;
+}
+
+.se-item-zoom__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.se-item-zoom__head h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  line-height: 1.25;
+}
+
+.se-item-zoom__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 0;
+  color: var(--se-muted);
+  font: 600 12px/1.3 var(--se-mono, monospace);
+}
+
+.se-item-zoom__rarity {
+  padding: 1px 6px;
+  border: 1px solid rgba(var(--se-item-tint), 0.7);
+  border-radius: 3px;
+  color: rgb(var(--se-item-tint));
+  text-transform: uppercase;
+}
+
+.se-item-zoom__close {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--se-line);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--se-text);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.se-item-zoom__close:hover,
+.se-item-zoom__close:focus-visible {
+  background: color-mix(in srgb, var(--se-text) 8%, transparent);
+}
+
+/* Same stash-grid cell as a tile, scaled to fill the box at the item's own shape. */
+.se-item-zoom__stage {
+  --se-item-border: rgba(var(--se-item-tint), 0.55);
+  position: relative;
+  width: 100%;
+  max-height: calc(100dvh - 200px);
+  aspect-ratio: var(--se-item-w, 1) / var(--se-item-h, 1);
+  margin: 0 auto;
+  transform-origin: 50% 50%;
+  will-change: transform;
+  border: 1px solid var(--se-item-border);
+  background-color: var(--se-item-surface);
+  background-image:
+    radial-gradient(ellipse at 50% 45%, rgba(var(--se-item-tint), 0.32), rgba(var(--se-item-tint), 0.06) 70%),
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: auto, 24px 24px, 24px 24px;
+  box-shadow: var(--se-item-shadow);
+}
+
+.se-item-zoom__stage img {
+  position: absolute;
+  inset: 5%;
+  width: 90%;
+  height: 90%;
+  object-fit: contain;
+  user-select: none;
+  transition: opacity 0.18s ease;
+}
+
+/* The vector master waits invisible until it has loaded, then swaps in for the tile's raster. */
+.se-item-zoom__sharp { opacity: 0; }
+.se-item-zoom__stage--sharp .se-item-zoom__sharp { opacity: 1; }
+.se-item-zoom__stage--sharp img:not(.se-item-zoom__sharp) { opacity: 0; }
+
+.se-item-zoom__desc {
+  margin: 0;
+  color: var(--se-muted);
+  font-size: 0.9rem;
+}
+
+/* Open/close motion runs in ItemZoom.tsx and is skipped for reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  .se-item-tile--zoomable img,
+  .se-item-tile--zoomable:hover img,
+  .se-item-tile--zoomable:active img { transition: none; transform: none; }
 }

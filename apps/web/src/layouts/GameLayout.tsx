@@ -5,6 +5,7 @@ import { ConnectionBanner } from '../components/ConnectionBanner.js';
 import { RoundRollCallNotice } from '../components/RoundRollCall.js';
 import { TrackedQuests } from '../components/TrackedQuests.js';
 import { IntroDialog } from '../components/onboarding/IntroDialog.js';
+import { BirthdayGift } from '../components/BirthdayGift.js';
 import { TourOverlay } from '../components/onboarding/TourOverlay.js';
 import { PageGuide } from '../components/onboarding/PageGuide.js';
 import { useOnboarding } from '../stores/onboarding.js';
@@ -12,16 +13,20 @@ import { NavIcon } from '../components/NavIcon.js';
 import { usePageFreshness } from '../hooks/usePageFreshness.js';
 import { useGamePresence } from '../hooks/useGamePresence.js';
 import { useStaleGameReload } from '../hooks/useStaleGameReload.js';
+import { useTabSwipe } from '../hooks/useTabSwipe.js';
 import { isMobileNavSwipe, isSheetDismissSwipe } from './mobileNavSwipe.js';
 import { useSession } from '../stores/session.js';
 import { PlayerProfileHoverLayer } from '../components/PlayerProfileHoverLayer.js';
 import { JokeDayBanner } from '../components/EasterEggs.js';
 import { CaseStoryAlerts } from '../components/CaseStoryAlerts.js';
+import { AdmissionGate } from '../components/AdmissionGate.js';
 import { AdminWorkspace } from '../components/AdminWorkspace.js';
+import { useStaff } from '../utils/staff.js';
 import { formatDuration } from '../utils/time.js';
 import { isPageScrollLocked } from '../utils/pageScrollLock.js';
 import { anchorScrollTop, isAnchorReady, preservedRouteScrollTarget, routeAnchorId, shouldPreserveRouteScroll } from '../utils/routeScroll.js';
 import {
+  adminSectionsFor,
   isCurrent,
   filterNavSections,
   useNavBadges,
@@ -619,9 +624,10 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
   useStaleGameReload();
   useGamePresence();
   usePageFreshness();
+  useTabSwipe();
   const round = useSession((s) => s.round);
   const experience = useSession((s) => s.me?.experience ?? null);
-  const isAdmin = useSession((s) => s.account?.isAdmin ?? false);
+  const { role: staffRole } = useStaff();
   const isBetaEnvironment = typeof window !== 'undefined' && window.location.hostname === 'beta.streetsempire.dev';
   const sections = useSections();
   const { pathname, search, hash, key } = useLocation();
@@ -706,10 +712,11 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
       <CaseStoryAlerts />
       <IntroDialog />
       <TourOverlay />
+      <BirthdayGift />
 
       <div className="se-gamegrid">
         <div className="se-gamemain">
-          {isAdmin && pathname.startsWith('/game/admin') ? <AdminWorkspace pathname={pathname} /> : null}
+          {staffRole && pathname.startsWith('/game/admin') ? <AdminWorkspace pathname={pathname} sections={adminSectionsFor(staffRole)} /> : null}
           <PageGuide />
           {children}
         </div>
@@ -734,8 +741,8 @@ export function GameLayout({ children }: { children: ReactNode }) {
  * routes stay transparent so InfoLayout can continue to render its public Shell.
  */
 export function GameRouteLayout() {
-  const me = useSession((state) => state.me);
+  const account = useSession((state) => state.account);
   // An account that may not play yet gets no game frame (and none of its polling).
   const blocked = useSession((state) => Boolean(state.account?.verificationRequired || state.account?.rulesAcceptanceRequired || state.account?.birthDateRequired));
-  return me && !blocked ? <><GameLayoutFrame><Outlet /></GameLayoutFrame><PlayerProfileHoverLayer /></> : <Outlet />;
+  return account && !blocked ? <><GameLayoutFrame><AdmissionGate /><Outlet /></GameLayoutFrame><PlayerProfileHoverLayer /></> : <Outlet />;
 }

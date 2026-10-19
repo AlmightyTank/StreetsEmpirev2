@@ -1,6 +1,6 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { RelocationService } from './relocation.service.js';
-import type { Prisma, PrismaClient, Round } from '@prisma/client';
+import type { Prisma, PrismaClient, Round, StaffRole } from '@prisma/client';
 import { loadRulesetForRound } from '@streets/rules-engine';
 import type { DistrictKey } from '@streets/rulesets';
 import type {
@@ -34,6 +34,8 @@ import type {
   PublicLegacyDto,
 } from '@streets/shared';
 import { z } from 'zod';
+import { staffRoleKey } from '@streets/shared';
+import { staffRoleOf } from '../auth/play-access.js';
 import { env } from '../config/env.js';
 import { ActiveSupporterService } from './active-supporter.service.js';
 import { toRoundPlayerDto } from '../game/dto.js';
@@ -72,8 +74,11 @@ export function roleKeysFor(input: {
   betaTester?: boolean;
   /** 0.3.0-C. The tag of the live alliance they are in this round. */
   allianceTag?: string | null;
+  /** Staff roles: the bot only acts on these when DISCORD_STAFF_SYNC is on. */
+  staffRole?: StaffRole | null;
 }): string[] {
   const keys = ['linked'];
+  if (input.staffRole) keys.push(staffRoleKey(input.staffRole));
   if (input.supporter) keys.push('supporter');
   if (input.betaTester) keys.push('beta-tester');
   if (input.inRound) keys.push('player');
@@ -629,7 +634,14 @@ export const DiscordBotService = {
   async rolesFor(prisma: PrismaClient, discordIds: string[]): Promise<Record<string, string[]>> {
     const accounts = await prisma.account.findMany({
       where: { discordId: { in: discordIds }, isActive: true },
-      select: { id: true, discordId: true, supporterMembership: { select: { status: true } }, forumLink: { select: { forumOrigin: true, forumUserId: true } } },
+      select: {
+        id: true,
+        discordId: true,
+        isAdmin: true,
+        staffRole: true,
+        supporterMembership: { select: { status: true } },
+        forumLink: { select: { forumOrigin: true, forumUserId: true } },
+      },
     });
     if (!accounts.length) return {};
 
@@ -668,6 +680,7 @@ export const DiscordBotService = {
         betaTester: env.betaTester.discordLinked,
         // Alliance roles only mean something while the round can still change.
         allianceTag: round && (round.status === 'ACTIVE' || round.status === 'REGISTRATION') ? allianceByAccount.get(account.id) ?? null : null,
+        staffRole: staffRoleOf(account),
       }),
     ]));
   },

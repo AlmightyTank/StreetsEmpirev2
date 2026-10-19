@@ -13,6 +13,7 @@ import type {
 import { formatCents, formatNumber, profileNameParts, SIGNATURE_CARD_FRAME_KEY } from '@streets/shared';
 import { communityApi } from '../api/community.js';
 import { ApiError } from '../api/client.js';
+import { BirthdayCake } from '../components/BirthdayCake.js';
 import { Alert } from '../components/Alert.js';
 import { AllianceTag } from '../components/AllianceTag.js';
 import { ContactButton } from '../components/ContactButton.js';
@@ -361,6 +362,11 @@ const secretStatusLabel: Record<string, string> = {
   LOCKED: 'Whisper',
 };
 
+function familyLabel(family: string): string {
+  return family.toLowerCase().split('_').filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+}
+
 const secretTierLabel: Record<string, string> = {
   OBVIOUS: 'Out in the open',
   HIDDEN: 'Hidden',
@@ -369,9 +375,9 @@ const secretTierLabel: Record<string, string> = {
 
 function DiscoveryCard({ secret }: { secret: DiscoveredSecretDto }) {
   return (
-    <li className="se-ach">
+    <li className={`se-ach se-ach--discovery se-ach--tier-${secret.discoveryTier.toLowerCase()}`}>
       <div className="se-ach__top">
-        <span className="se-ach__cat">{secret.family}</span>
+        <span className="se-ach__cat">{familyLabel(secret.family)}</span>
         <span className="se-ach__rarity">{secretTierLabel[secret.discoveryTier] ?? secret.discoveryTier}</span>
       </div>
       <h3 className="se-ach__title">{secret.title}</h3>
@@ -444,8 +450,8 @@ function DiscoveriesPanel({ discoveries }: { discoveries: SecretCollectionDto | 
           <ul className="se-discovery-families">
             {families.map((family) => (
               <li key={family.family}>
-                <span aria-label={`${family.family}: ${family.found} uncovered${family.undiscovered ? `, ${family.undiscovered} still hidden` : ', fully uncovered'}`}>
-                  {family.family} — {formatNumber(family.found)} uncovered{family.undiscovered ? `, ${formatNumber(family.undiscovered)} still hidden (?)` : ', fully uncovered'}
+                <span aria-label={`${familyLabel(family.family)}: ${family.found} uncovered${family.undiscovered ? `, ${family.undiscovered} still hidden` : ', fully uncovered'}`}>
+                  {familyLabel(family.family)} — {formatNumber(family.found)} uncovered{family.undiscovered ? `, ${formatNumber(family.undiscovered)} still hidden (?)` : ', fully uncovered'}
                 </span>
               </li>
             ))}
@@ -461,9 +467,9 @@ function DiscoveriesPanel({ discoveries }: { discoveries: SecretCollectionDto | 
           <p className="se-muted">Trophies survive every season reset.</p>
           <ul className="se-ach-grid">
             {trophies.map((trophy) => (
-              <li className="se-ach" key={trophy.key}>
+              <li className={`se-ach se-ach--discovery se-ach--trophy se-ach--${trophy.rarity.toLowerCase()}`} key={trophy.key}>
                 <div className="se-ach__top">
-                  <span className="se-ach__cat">{trophy.family ?? 'Secret'}</span>
+                  <span className="se-ach__cat">{trophy.family ? familyLabel(trophy.family) : 'Secret'}</span>
                   <span className="se-ach__rarity">{trophy.rarity}</span>
                 </div>
                 <h3 className="se-ach__title">{trophy.title}</h3>
@@ -719,7 +725,8 @@ export function ProfilePage() {
         >
           {player ? (
             <div
-              className={`se-profile-pagehead__banner${player.cosmetics.bannerUrl ? ' se-profile-pagehead__banner--uploaded' : ''}`}
+              className={`se-profile-pagehead__banner${player.cosmetics.bannerUrl ? ' se-profile-pagehead__banner--uploaded' : ''}${player.look?.crewBanner ? ' se-profile-pagehead__banner--crew' : ''}`}
+              data-crew-banner={player.look?.crewBanner ?? undefined}
               aria-hidden="true"
               style={player.cosmetics.bannerUrl ? { backgroundImage: `linear-gradient(90deg, rgba(5, 8, 12, 0.9), rgba(5, 8, 12, 0.58) 48%, rgba(5, 8, 12, 0.78)), url("${player.cosmetics.bannerUrl}")` } : undefined}
             />
@@ -738,7 +745,7 @@ export function ProfilePage() {
                     <span className={`se-profile-name__part se-profile-name__part--${part.kind}`} key={index}>
                       {player.isSupporter && index === parts.length - 1 ? <NameWithSupporterMark text={part.text} /> : part.text}
                     </span>
-                  ))}</span>{' '}</>
+                  ))}</span>{player.birthdayToday ? <BirthdayCake /> : null}{' '}</>
                   : account?.username ?? 'Profile'}
                 {player ? <span className="se-muted se-num">(#{player.publicPimpId})</span> : null}
               </h1>

@@ -143,7 +143,7 @@ describe.runIf(process.env.AUTH_INTEGRATION === '1')('Name holds at sign-up and 
     const response = await app.inject({
       method: 'POST',
       url: '/api/auth/register',
-      payload: { username: original.toUpperCase(), email: `${randomUUID()}@example.invalid`, password: `Pw-${randomUUID()}` },
+      payload: { ageConfirmed: true, username: original.toUpperCase(), email: `${randomUUID()}@example.invalid`, password: `Pw-${randomUUID()}` },
     });
     expect(response.statusCode, response.body).toBe(409);
     expect(response.json().error.code).toBe('USERNAME_HELD');
