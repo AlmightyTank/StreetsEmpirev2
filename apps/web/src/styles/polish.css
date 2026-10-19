@@ -253,6 +253,16 @@ textarea.se-input {
     rgba(7, 9, 12, 0.68);
 }
 
+/* Keep theme.css's left stripe on achievement cards (accent / rarity / locked). */
+.se-ach { border-left-color: var(--se-accent-dim); }
+.se-ach--rare { border-left-color: #6899f3; }
+.se-ach--epic { border-left-color: #e576e1; }
+.se-ach--legendary { border-left-color: #f1b622; }
+.se-ach--locked,
+.se-ach--locked.se-ach--rare,
+.se-ach--locked.se-ach--epic,
+.se-ach--locked.se-ach--legendary { border-left-color: var(--se-line); }
+
 .se-choice {
   transition: border-color 0.16s ease, background-color 0.16s ease, box-shadow 0.16s ease;
 }
