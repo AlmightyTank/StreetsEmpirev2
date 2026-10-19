@@ -4,22 +4,6 @@
  * casino.css; loaded after drop.css. Wallet, packs and skips stay in drop.css.
  */
 
-/* Barlow Condensed (SIL OFL 1.1, see assets/fonts/barlow-condensed/OFL.txt), bundled so nothing loads from a third party. */
-@font-face {
-  font-family: "Barlow Condensed";
-  font-style: italic;
-  font-weight: 800;
-  font-display: swap;
-  src: url("../assets/fonts/barlow-condensed/barlow-condensed-latin-800-italic.woff2") format("woff2");
-}
-@font-face {
-  font-family: "Barlow Condensed";
-  font-style: italic;
-  font-weight: 900;
-  font-display: swap;
-  src: url("../assets/fonts/barlow-condensed/barlow-condensed-latin-900-italic.woff2") format("woff2");
-}
-
 /* ---------- Page ---------- */
 /*
  * Item-shop presentation: rarity-filled tiles, sets with live countdowns, a
@@ -28,7 +12,7 @@
  */
 .se-drop {
   --se-drop-gap: 16px;
-  --se-drop-display: "Barlow Condensed", Impact, "Arial Narrow", system-ui, sans-serif;
+  --se-drop-display: var(--se-display);
   --se-drop-cta: #ffe14d;
   --se-drop-cta-ink: #1a1500;
   display: grid;

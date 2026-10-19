@@ -70,7 +70,7 @@
 }
 
 .se-game-pagehead__copy { position: relative; z-index: 1; min-width: 0; }
-.se-game-pagehead h1 { margin: var(--se-space-1) 0 0; font-size: clamp(1.5rem, 3vw, 2.25rem); line-height: 1.05; }
+.se-game-pagehead h1 { margin: var(--se-space-1) 0 0; font-family: var(--se-display); font-size: clamp(1.85rem, 3.6vw, 2.75rem); line-height: 1; }
 .se-game-pagehead p { max-width: 68ch; margin: var(--se-space-2) 0 0; color: var(--se-text-dim); }
 .se-game-pagehead__actions { display: flex; flex-wrap: wrap; gap: var(--se-space-2); margin-top: var(--se-space-4); }
 .se-game-pagehead__art { position: relative; z-index: 0; flex: none; color: var(--se-page-art-accent, var(--se-accent)); }

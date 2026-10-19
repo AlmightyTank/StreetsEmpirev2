@@ -1,0 +1,51 @@
+/*
+ * The game's typefaces, bundled with the app so nothing loads from a third
+ * party and the Android app works offline. All SIL OFL 1.1; the licences sit
+ * next to the files in src/assets/fonts. Latin subset only.
+ *
+ * Inter (variable, 100-900): body text and controls.
+ * Barlow Condensed (800/900, upright and italic): headings and display type.
+ * JetBrains Mono (variable, 100-800): numbers, stats and timers.
+ */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("../assets/fonts/inter/inter-latin-wght-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Barlow Condensed";
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("../assets/fonts/barlow-condensed/barlow-condensed-latin-800-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Barlow Condensed";
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  src: url("../assets/fonts/barlow-condensed/barlow-condensed-latin-900-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Barlow Condensed";
+  font-style: italic;
+  font-weight: 800;
+  font-display: swap;
+  src: url("../assets/fonts/barlow-condensed/barlow-condensed-latin-800-italic.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Barlow Condensed";
+  font-style: italic;
+  font-weight: 900;
+  font-display: swap;
+  src: url("../assets/fonts/barlow-condensed/barlow-condensed-latin-900-italic.woff2") format("woff2");
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 100 800;
+  font-display: swap;
+  src: url("../assets/fonts/jetbrains-mono/jetbrains-mono-latin-wght-normal.woff2") format("woff2");
+}

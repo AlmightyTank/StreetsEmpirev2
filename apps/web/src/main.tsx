@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 // 1. Foundation: authoritative tokens and reset.
+import './styles/fonts.css';
 import './styles/theme.css';
 // 2. Shared components and compatibility composition.
 import './styles/community.css';
