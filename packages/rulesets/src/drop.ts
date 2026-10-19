@@ -1457,11 +1457,11 @@ export interface CrownPackDefinition {
 
 /** Draft pricing from the roadmap. Not live until checkout is switched on. */
 export const CROWN_PACKS: readonly CrownPackDefinition[] = [
-  { id: 'starter', name: 'Starter', priceCents: 499, currency: 'usd', crowns: 500 },
-  { id: 'street', name: 'Street', priceCents: 899, currency: 'usd', crowns: 1_000 },
-  { id: 'boss', name: 'Boss', priceCents: 2_299, currency: 'usd', crowns: 2_800, featured: true },
-  { id: 'kingpin', name: 'Kingpin', priceCents: 3_699, currency: 'usd', crowns: 5_000 },
-  { id: 'empire', name: 'Empire', priceCents: 8_999, currency: 'usd', crowns: 13_500 },
+  { id: 'starter', name: 'Starter', priceCents: 399, currency: 'usd', crowns: 500 },
+  { id: 'street', name: 'Street', priceCents: 749, currency: 'usd', crowns: 1_000 },
+  { id: 'boss', name: 'Boss', priceCents: 1_949, currency: 'usd', crowns: 2_800, featured: true },
+  { id: 'kingpin', name: 'Kingpin', priceCents: 3_099, currency: 'usd', crowns: 5_000 },
+  { id: 'empire', name: 'Empire', priceCents: 7_499, currency: 'usd', crowns: 13_500 },
 ];
 
 export function crownPack(id: string): CrownPackDefinition | null {

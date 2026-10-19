@@ -288,12 +288,12 @@ describe('Drop purchases', () => {
 describe('Crown packs (Stripe)', () => {
   const at = 1_792_000_000;
   const order = (overrides: Row = {}) => ({
-    id: 'cpo_1', accountId: 'acc', provider: 'stripe', packId: 'boss', crowns: 2800, amountCents: 2299, currency: 'usd',
+    id: 'cpo_1', accountId: 'acc', provider: 'stripe', packId: 'boss', crowns: 2800, amountCents: 1949, currency: 'usd',
     status: 'pending', checkoutSessionId: 'cs_1', providerPaymentId: null, ...overrides,
   });
   const event = (type: string, object: Row, idSuffix = '1'): StripeEvent => ({ id: `evt_${type}_${idSuffix}`, type, created: at, data: { object } });
   const paid = (overrides: Row = {}) => event('checkout.session.completed', {
-    id: 'cs_1', mode: 'payment', payment_status: 'paid', amount_total: 2299, currency: 'usd', payment_intent: 'pi_1',
+    id: 'cs_1', mode: 'payment', payment_status: 'paid', amount_total: 1949, currency: 'usd', payment_intent: 'pi_1',
     metadata: { kind: 'crown-pack', accountId: 'acc', packId: 'boss', orderId: 'cpo_1' }, ...overrides,
   });
 

@@ -53,6 +53,10 @@ first; the twelve after them were added on 2026-10-18 and three movie homages
 | Desert Mirage | Low-Rider (700) | Thug (600), Hoe (600) | Tek-9 (500) | Frame (400) | Shell (1,050), Turquoise Stone accent (300) | Dust Devil (200) |
 | Rewind | Van (700) | Thug (600), Hoe (600) | Tek-9 (450) | Frame (400) | Shell (1,000), Tracking Magenta accent (250) | Run It Back (150) |
 | Snake Eyes | Sedan (700) | Thug (600), Hoe (600) | Pistol (450) | Frame (400) | Shell (1,050), Card Felt accent (300) | Loaded Dice (200) |
+| Graveyard Shift | Sedan (700) | Thug (600), Hoe (600) | Pistol (450) | Frame (400) | Shell (1,050), Ghost Green accent (250) | Night Shift (200) |
+| Naughty List | Van (700) | Crew set, both types (750) | Tek-9 (450) | Frame (400) | Shell (1,000), Candy Red accent (250) | Coal Collector (150) |
+| Heartbreaker | Low-Rider (700) | Thug (600), Hoe (600) | Tek-9 (500) | Frame (400) | Shell (1,050), Heartbreak Rose accent (300) | Cold Hearted (200) |
+| Block Party | Van (700) | Thug (600), Hoe (600) | Shotgun (450) | Frame (400) | Shell (1,000), Mango Heat accent (250) | Block Captain (150) |
 | Quarter Mile | Sedan (700), Low-Rider (700) | Thug (600), Hoe (600) | Tek-9 (500) | Frame (400) | Shell (1,050), Nitrous Blue accent (300) | Ride or Die (200) |
 | 88 Club | Van (700) | Thug (600), Hoe (600) | Pistol (450) | Frame (400) | Shell (1,000), Flux Blue accent (250) | Ahead of Time (200) |
 | Swamp Kingdom | Van (700) | Thug (600), Hoe (600) | Shotgun (450) | Frame (400) | Shell (1,000), Swamp Moss accent (250) | Got Layers (150) |
@@ -171,11 +175,11 @@ over; the cap starts again with the next round. Hooks:
 
 | Pack | Price | Crowns |
 | --- | --- | --- |
-| Starter | $4.99 | 500 |
-| Street | $8.99 | 1,000 |
-| Boss | $22.99 | 2,800 |
-| Kingpin | $36.99 | 5,000 |
-| Empire | $89.99 | 13,500 |
+| Starter | $3.99 | 500 |
+| Street | $7.49 | 1,000 |
+| Boss | $19.49 | 2,800 |
+| Kingpin | $30.99 | 5,000 |
+| Empire | $74.99 | 13,500 |
 
 Draft prices from the roadmap; change them in `CROWN_PACKS`.
 
@@ -264,7 +268,7 @@ The Stripe webhook now runs whenever `STRIPE_SECRET_KEY` and
 ### 2.2.18 launch approvals and disclosures
 
 - Release target: **2.2.18**.
-- Approved USD web Crown packs: Starter $4.99/500, Street $8.99/1,000, Boss $22.99/2,800, Kingpin $36.99/5,000, Empire $89.99/13,500. The server owns these amounts; clients never submit a price.
+- Approved USD web Crown packs: Starter $3.99/500, Street $7.49/1,000, Boss $19.49/2,800, Kingpin $30.99/5,000, Empire $74.99/13,500. The server owns these amounts; clients never submit a price.
 - Proposed player-facing disclosure copy (business/legal owner must approve before production): “Crowns are virtual currency for cosmetic items and cosmetic-only Street Pass skips in The Drop. Crowns do not provide competitive advantages, cannot be exchanged for cash, and are not transferable. Purchases are optional. Prices are shown in your store currency at checkout; taxes, local pricing, age limits, and refunds follow the payment platform and applicable law. Cosmetic purchases are permanent unless a platform or support refund process applies. Google Play purchases are processed by Google Play; web purchases are processed by Stripe.”
 - Add the Stripe endpoint `POST /api/internal/stripe/webhook` with: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired`, `charge.refunded`, `charge.dispute.created`, plus the existing supporter events `invoice.paid`, `customer.subscription.created`, `customer.subscription.updated`, and `customer.subscription.deleted`.
 - Google Play one-time Crown products are configured with `GOOGLE_PLAY_CROWN_PACK_PRODUCT_IDS=starter=...,...` before Android checkout is enabled. The app sends only a product ID and purchase token; the server verifies both with Google before crediting Crowns.
@@ -282,4 +286,5 @@ The Stripe webhook now runs whenever `STRIPE_SECRET_KEY` and
 - [x] Phone, tablet and desktop layouts; Compact density; player accent; reduced motion.
 - [x] Independent kill switches.
 - [x] Admin changes and wallet adjustments audited.
-- [ ] Pack prices approved and the release version assigned.
+- [x] Pack prices approved (2026-10-19).
+- [ ] Release version assigned.
