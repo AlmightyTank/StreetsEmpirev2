@@ -202,7 +202,7 @@ describe('Drop discounts', () => {
     expect(discountedDropPrice(155, SUPPORTER_DROP_DISCOUNT_PERCENT)).toBe(139);
     expect(discountedDropPrice(1, SUPPORTER_DROP_DISCOUNT_PERCENT)).toBe(1);
     expect(discountedDropPrice(0, SUPPORTER_DROP_DISCOUNT_PERCENT)).toBe(0);
-    expect(discountedDropPrice(streetPassSkipPrice(10), SUPPORTER_DROP_DISCOUNT_PERCENT)).toBe(1_080);
+    expect(discountedDropPrice(streetPassSkipPrice(10), SUPPORTER_DROP_DISCOUNT_PERCENT)).toBe(900);
   });
 
   it('ignores a zero or negative percent', () => {

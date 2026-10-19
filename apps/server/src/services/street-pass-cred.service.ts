@@ -11,6 +11,7 @@ import type { Db } from '../utils/db.js';
 import { dailyContractWindow } from './daily-contract.service.js';
 import { PlayerExperienceService } from './player-experience.service.js';
 import { CrownEarnService } from './crown-earn.service.js';
+import { DoubleXpWeekendService } from './double-xp-weekend.service.js';
 
 /**
  * Street Pass step 2: earning Street Cred. Every credit runs inside the
@@ -82,7 +83,8 @@ export const StreetPassCredService = {
     const base = rules.sources[credSourceForQuest(questType)];
     if (base <= 0) return 0;
     const progress = await progressFor(tx, roundPlayerId, rules);
-    const earned = streetPassCredWithBonus(base, progress.lateJoinBonusPercent);
+    const earned = streetPassCredWithBonus(base, progress.lateJoinBonusPercent)
+      * (await DoubleXpWeekendService.isActive(tx, now) ? 2 : 1);
     await tx.streetPassProgress.update({ where: { id: progress.id }, data: { cred: { increment: earned } } });
     return earned;
   },
@@ -110,7 +112,8 @@ export const StreetPassCredService = {
     const countedToday = sameWindow ? progress.turnCredInWindow : 0;
     const base = Math.max(0, Math.min(turnsSpent * rules.sources.perTurnSpent, rules.sources.dailyTurnCap - countedToday));
     if (base === 0 && sameWindow) return 0;
-    const earned = streetPassCredWithBonus(base, progress.lateJoinBonusPercent);
+    const earned = streetPassCredWithBonus(base, progress.lateJoinBonusPercent)
+      * (await DoubleXpWeekendService.isActive(tx, now) ? 2 : 1);
     await tx.streetPassProgress.update({
       where: { id: progress.id },
       data: {

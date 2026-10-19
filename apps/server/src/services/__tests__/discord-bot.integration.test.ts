@@ -69,6 +69,12 @@ describe.runIf(process.env.DISCORD_BOT_INTEGRATION === '1')('Discord bot interna
     expect(members[accounts[2]!.discordId]).toEqual(['linked']);
     expect(members).not.toHaveProperty(unknown);
 
+    // Staff carry their role key for the bot's staff sync.
+    await app.prisma.account.update({ where: { id: accounts[2]!.id }, data: { staffRole: 'MOD' } });
+    const staff = await app.inject({ method: 'POST', url: '/api/internal/discord/roles', headers: auth(), payload: { discordIds: [accounts[2]!.discordId] } });
+    expect(staff.json().members[accounts[2]!.discordId]).toEqual(['linked', 'staff:mod']);
+    await app.prisma.account.update({ where: { id: accounts[2]!.id }, data: { staffRole: null } });
+
     for (const payload of [{ discordIds: [] }, { discordIds: ['not-a-snowflake'] }, { discordIds: [unknown], extra: true }]) {
       expect((await app.inject({ method: 'POST', url: '/api/internal/discord/roles', headers: auth(), payload })).statusCode).toBe(400);
     }

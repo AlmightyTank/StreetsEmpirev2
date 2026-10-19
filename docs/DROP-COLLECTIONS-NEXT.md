@@ -27,7 +27,9 @@ Launch catalogue and rules: [THE-DROP.md](THE-DROP.md).
 - **Same price bands**: vehicle 800–850, crew outfit 650–700 (set 900), weapon
   550–600, frame 450, accent 300–350, shell 1,200–1,250, title 200–250. Crown
   Jewels is the flagship and sits a little higher (vehicle and crew set 1,000,
-  shell 1,350).
+  shell 1,350). These are the launch bands, and the tables below keep the
+  launch prices. Every Drop price was cut about 15% on 2026-10-19; current
+  prices are in [THE-DROP.md](THE-DROP.md).
 
 ## Built: twelve evergreen collections
 
@@ -66,16 +68,17 @@ Where each piece lives:
 
 ## Movie homages (3, evergreen)
 
-Added 2026-10-19 and in rotation like the evergreen sets. Each is an original
+Added 2026-10-19 and in rotation like the evergreen sets. Bundles below are
+at the reduced prices. Each is an original
 homage to a film genre's look: **no film names, logos, characters, likenesses,
 quotes or music**, so nothing here leans on anyone else's trademark or
 copyright. Keep it that way when adding to them.
 
 | Collection | Nod to | Palette | Vehicle | Crew | Weapon | Title | Bundle (list) |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Quarter Mile | street racing | nitrous blue `#2f9bff`, burnt orange, black | Sedan (tuner) + Low-Rider (muscle car) | Thug + Hoe | Tek-9 | Ride or Die | 2,800 (6,000) |
-| 88 Club | time travel | flux blue `#4fd2ff`, brushed steel, fire trails | Van | Thug + Hoe | Pistol | Ahead of Time | 2,750 (4,950) |
-| Swamp Kingdom | fairy-tale swamp | moss `#7aa83a`, mud brown, storybook gold | Van | Thug + Hoe | Shotgun | Got Layers | 2,750 (4,900) |
+| Quarter Mile | street racing | nitrous blue `#2f9bff`, burnt orange, black | Sedan (tuner) + Low-Rider (muscle car) | Thug + Hoe | Tek-9 | Ride or Die | 2,400 (5,050) |
+| 88 Club | time travel | flux blue `#4fd2ff`, brushed steel, fire trails | Van | Thug + Hoe | Pistol | Ahead of Time | 2,350 (4,200) |
+| Swamp Kingdom | fairy-tale swamp | moss `#7aa83a`, mud brown, storybook gold | Van | Thug + Hoe | Shotgun | Got Layers | 2,350 (4,150) |
 
 - **Quarter Mile** is the only set with two rides. Frame: a ring of start-tree
   bulbs with a green light. Shell: a drag strip at night, the start tree
@@ -95,7 +98,7 @@ cemetery set): no hazmat, no ghosts, no moon.
 
 | Palette | Vehicle | Crew | Weapon | Title | Bundle (list) |
 | --- | --- | --- | --- | --- | --- |
-| quarantine orange `#ff6b2c`, grimy olive, sick green `#9ccf4a` | Van (armoured survivor van) | Thug + Hoe | Shotgun | Last One Standing | 2,750 (4,950) |
+| quarantine orange `#ff6b2c`, grimy olive, sick green `#9ccf4a` | Van (armoured survivor van) | Thug + Hoe | Shotgun | Last One Standing | 2,350 (4,200) |
 
 - **Van:** welded plate, a ram plow, plywood over the windshield, a roof cage
   with fuel cans and a SURVIVORS stencil.

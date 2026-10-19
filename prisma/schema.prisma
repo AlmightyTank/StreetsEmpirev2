@@ -212,6 +212,21 @@ model PlayerExperienceEvent {
   @@index([accountId, awardedAt(sort: Desc)])
 }
 
+/// The server-selected monthly Double XP Weekend. The schedule is persisted so
+/// every request and every server instance uses the same weekend.
+model DoubleXpWeekend {
+  id          String   @id @default(cuid())
+  monthKey    String   @unique
+  startsAt    DateTime
+  endsAt      DateTime
+  announceAt  DateTime
+  newsId      String?  @unique
+  news        GameNews? @relation(fields: [newsId], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+
+  @@index([startsAt, endsAt])
+}
+
 /// 0.9.0-H. Private admin notes on an account. Never shown to the player.
 model AccountModerationNote {
   id String @id @default(cuid())
@@ -3700,6 +3715,8 @@ model GameNews {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
+
+  doubleXpWeekend DoubleXpWeekend?
 
   @@index([roundId, isPinned, publishedAt(sort: Desc)])
   @@index([discordEditQueuedAt])

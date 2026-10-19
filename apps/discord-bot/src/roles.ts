@@ -1,8 +1,14 @@
+import { STAFF_ROLES, STAFF_ROLE_LABELS, staffRoleKey } from '@streets/shared';
+
 /** A Discord role the bot owns, found or created by its exact name. No other roles are touched. */
 export interface ManagedRole {
   key: string;
   name: string;
   color: number | null;
+  /** Staff roles: found by this ID, never by name, and never created. */
+  id?: string;
+  /** Compared and reported, never added or removed (the Founder role sits above the bot). */
+  checkOnly?: boolean;
 }
 
 const FIXED_ROLES: ManagedRole[] = [
@@ -89,4 +95,43 @@ export function planRoleChanges(
     add: managedKeys.filter((key) => desired.has(key) && !current.has(key)),
     remove: managedKeys.filter((key) => !desired.has(key) && current.has(key)),
   };
+}
+
+/**
+ * DISCORD_STAFF_ROLE_IDS, e.g. "founder:123,admin:456,mod:789,jr-mod:...,helper:...", as
+ * managed roles in rank order. Staff roles are matched by ID because anyone who can make
+ * roles could make one called "Admin". Roles left out of the list are not synced.
+ */
+export function staffRoles(csv: string): { roles: ManagedRole[]; problems: string[] } {
+  const byName = new Map(STAFF_ROLES.map((role) => [staffRoleKey(role).slice('staff:'.length), role]));
+  const ids = new Map<string, string>();
+  const problems: string[] = [];
+  for (const raw of csv.split(',')) {
+    const entry = raw.trim();
+    if (!entry) continue;
+    const [name = '', id = '', ...rest] = entry.split(':').map((part) => part.trim());
+    const role = byName.get(name.toLowerCase());
+    if (!role) problems.push(`"${name}" is not a staff role. Use founder, admin, mod, jr-mod or helper.`);
+    else if (rest.length || !/^[0-9]{17,20}$/.test(id)) problems.push(`${STAFF_ROLE_LABELS[role]} needs a Discord role ID (17-20 digits), not "${id}".`);
+    else if ([...ids.values()].includes(id)) problems.push(`Role ID ${id} is listed twice.`);
+    else ids.set(role, id);
+  }
+  const roles = STAFF_ROLES.flatMap((role) => {
+    const id = ids.get(role);
+    return id ? [{ key: staffRoleKey(role), name: STAFF_ROLE_LABELS[role], color: null, id, ...(role === 'FOUNDER' ? { checkOnly: true } : {}) }] : [];
+  });
+  return { roles, problems };
+}
+
+export function isStaffKey(key: string): boolean {
+  return key.startsWith('staff:');
+}
+
+/**
+ * Forum groups named like a staff role ("Admin", "Mod"...) are left out of the
+ * "Forum <group>" mirror once staff roles sync, so nobody holds both "Forum Mod" and "Mod".
+ */
+export function withoutStaffForumGroups(groups: string[]): string[] {
+  const staffNames = new Set(Object.values(STAFF_ROLE_LABELS).map((label) => label.toLowerCase()));
+  return groups.filter((group) => !staffNames.has(group.toLowerCase()));
 }
