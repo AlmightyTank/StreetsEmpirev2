@@ -784,40 +784,86 @@ Object.assign(recipes, {
   },
   'thug-hazard-cook': async () => {
     let svg = await load('thug');
+    // Not in a hazmat suit either: warning-stripe work shirt, goggles pushed up, and the fumes got to him.
     svg = repattern(svg, 'plaid', '<rect width="14" height="14" fill="#f2cb00"/><path d="M0 7 H14" stroke="#c9a700" stroke-width=".6"/>');
-    svg = restop(svg, 'tank', ['#ffe45c', '#d9b400']);
+    svg = restop(svg, 'tank', ['#2a2d32', '#111316']);
     svg = restop(svg, 'band', ['#ffe45c', '#c9a700']);
     svg = restop(svg, 'gold', ['#f2f4f6', '#a9b0b8', '#5a6168']);
-    svg = restop(svg, 'lens', ['#eef8f6', '#8fb5ae', '#d4ebe7']);
-    svg = recolor(svg, { '#e9fff0': '#fff38a', '#b5f5c5': '#ffffff', '#6ee095': '#ffffff', '#3a2a05': '#3a3e45' });
+    svg = restop(svg, 'skin', ['#8f9c56', '#606e34', '#3a4520']);
+    svg = recolor(svg, { '#e9fff0': '#141416', '#b5f5c5': '#fff38a', '#4d2b16': '#2f3818', '#3a2a05': '#3a3e45', '#3a1f10': '#2a1426' });
+    // His shades come off so the eyes show.
+    const shades = '<path d="M45 52 H83 Q84 59 77 60 H69 L64 56 L59 60 H51 Q44 59 45 52 Z" fill="url(#lens)"/>';
+    if (!svg.includes(shades)) throw new Error('thug shades moved');
+    svg = svg.replace(shades, '').replace(/<path d="M49 54 L55 54 M68 54 L75 54"[^>]*\/>/, '');
+    const shirt = 'M10 126 Q12 100 32 92 L50 86 L56 94 L46 126 Z M118 126 Q116 100 96 92 L78 86 L72 94 L82 126 Z';
     return decorate(svg, {
+      defs: [
+        `<pattern id="hz" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="${HAZARD}"/><rect width="3" height="6" fill="#111111"/></pattern>`,
+        `<clipPath id="shirt"><path d="${shirt}"/></clipPath>`,
+      ].join('\n    '),
       over: [
-        // The hood seals around the face.
-        '<path d="M44 50 Q42 29 64 28 Q86 29 84 50 Q88 66 82 78 L76 82 Q86 66 82 52 Q80 36 64 36 Q48 36 46 52 Q42 66 52 82 L46 78 Q40 66 44 50 Z" fill="#ffd400" stroke="#7a6600" stroke-width="1.2"/>',
-        // Goggle strap and a respirator over the mouth.
-        '<path d="M44 55 H84" stroke="#141416" stroke-width="2" opacity=".85"/>',
-        '<path d="M54 64 Q64 60 74 64 L72 76 Q64 80 56 76 Z" fill="#26292e" stroke="#000" stroke-width="1"/>',
-        `<circle cx="52" cy="72" r="4.2" fill="#3a3e45" stroke="#000" stroke-width="1"/><circle cx="76" cy="72" r="4.2" fill="#3a3e45" stroke="#000" stroke-width="1"/><circle cx="52" cy="72" r="1.8" fill="${HAZARD}"/><circle cx="76" cy="72" r="1.8" fill="${HAZARD}"/>`,
-        // Taped seams.
-        '<path d="M64 90 V126 M14 110 H44 M84 110 H114" stroke="#c9ced4" stroke-width="2.2" opacity=".85"/>',
+        // Warning-stripe hem and placket edges.
+        '<g clip-path="url(#shirt)"><rect x="0" y="119" width="128" height="7" fill="url(#hz)"/><path d="M56 94 L46 126 M72 94 L82 126" stroke="url(#hz)" stroke-width="5"/></g>',
+        // Sunken, toxic eyes with dark rings.
+        '<path d="M49.5 58.2 Q55 62 60.5 58 M78.5 58.2 Q73 62 67.5 58" stroke="#1f1420" stroke-width="1.8" fill="none" stroke-linecap="round" opacity=".6"/>',
+        '<path d="M50 55.5 Q55 51.5 60 55.5 Q55 59 50 55.5 Z M78 55.5 Q73 51.5 68 55.5 Q73 59 78 55.5 Z" fill="#e8e4b0" stroke="#2f3818" stroke-width=".8"/>',
+        '<circle cx="55" cy="55.4" r="2" fill="#8cff3a"/><circle cx="73" cy="55.4" r="2" fill="#8cff3a"/><circle cx="55" cy="55.4" r=".9" fill="#0b0b0b"/><circle cx="73" cy="55.4" r=".9" fill="#0b0b0b"/>',
+        '<path d="M49 52.6 Q55 49.4 60.5 52 M79 52.6 Q73 49.4 67.5 52" stroke="#1b100a" stroke-width="1.4" fill="none" stroke-linecap="round"/>',
+        // Lab goggles pushed up on the bandana.
+        '<path d="M43 45 Q64 38 85 45" stroke="#141416" stroke-width="2.2" fill="none" stroke-linecap="round"/>',
+        '<rect x="49" y="37.5" width="13" height="8.5" rx="4.2" fill="#d4ebe7" fill-opacity=".6" stroke="#141416" stroke-width="1.4"/><rect x="66" y="37.5" width="13" height="8.5" rx="4.2" fill="#d4ebe7" fill-opacity=".6" stroke="#141416" stroke-width="1.4"/>',
+        '<path d="M62 41.8 H66" stroke="#141416" stroke-width="1.4"/><path d="M51.5 40 Q54 38.8 56.5 39.4 M68.5 40 Q71 38.8 73.5 39.4" stroke="#ffffff" stroke-width=".8" fill="none" stroke-linecap="round" opacity=".8"/>',
+        // Sores, green veins up the neck, and toxic drool.
+        '<g fill="#c9d64a" stroke="#4a5a10" stroke-width=".5"><circle cx="49.5" cy="65" r="1.3"/><circle cx="51.8" cy="68" r=".8"/><circle cx="78.6" cy="64" r="1.1"/><circle cx="59" cy="84" r="1"/></g>',
+        '<g fill="#fff9c0" opacity=".8"><circle cx="49.1" cy="64.6" r=".4"/><circle cx="78.3" cy="63.7" r=".35"/></g>',
+        '<path d="M57.8 89.5 Q59.2 87 58.6 84.6 Q58.1 82.8 58.9 81 M58.7 85.4 Q60.4 84.6 60.9 82.6 M58.4 83.2 Q57.4 82.2 57.2 80.8 M70.2 89.5 Q68.8 87 69.4 84.6 Q69.9 82.8 69.1 81 M69.3 85.4 Q67.6 84.6 67.1 82.6 M69.6 83.2 Q70.6 82.2 70.8 80.8" stroke="#8cff3a" stroke-width="1.8" fill="none" stroke-linecap="round" opacity=".15"/><path d="M57.8 89.5 Q59.2 87 58.6 84.6 Q58.1 82.8 58.9 81 M58.7 85.4 Q60.4 84.6 60.9 82.6 M58.4 83.2 Q57.4 82.2 57.2 80.8 M70.2 89.5 Q68.8 87 69.4 84.6 Q69.9 82.8 69.1 81 M69.3 85.4 Q67.6 84.6 67.1 82.6 M69.6 83.2 Q70.6 82.2 70.8 80.8" stroke="#2f6a1a" stroke-width=".6" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity=".8"/>',
+        '<path d="M67.8 74.6 Q68.5 76 68.1 77.4" stroke="#8cff3a" stroke-width="1.1" fill="none" stroke-linecap="round" opacity=".85"/><circle cx="68.1" cy="78" r=".8" fill="#8cff3a" opacity=".85"/>',
+        // A warning-sign charm on the chain.
+        `<path d="M64 94.2 L69.4 103.2 H58.6 Z" fill="${HAZARD}" stroke="#141416" stroke-width="1" stroke-linejoin="round"/><path d="M64 97 V100" stroke="#141416" stroke-width="1.1" stroke-linecap="round"/><circle cx="64" cy="101.5" r=".55" fill="#141416"/>`,
       ].join('\n  '),
     });
   },
   'hoe-hazard-cook': async () => {
     let svg = await load('hoe');
-    // The hood: her silhouette in sealed yellow, with seams for strands.
-    svg = restop(svg, 'hair', ['#c9a700', HAZARD, '#ffe45c', '#c9a700']);
-    svg = restop(svg, 'hairFront', ['#c9a700', HAZARD, '#ffe45c', '#c9a700']);
-    svg = recolor(svg, { '#8a6234': '#a88a00', '#9a7240': '#a88a00', '#ecd395': '#fff38a', '#fff3c4': '#fff38a', '#4a3018': '#5a4a00', '#5a3c1e': '#5a4a00' });
-    svg = hoeCoat(svg, ['#fff38a', HAZARD, '#a88a00'], '<path d="M0 3.5 H7" stroke="#c9a700" stroke-width=".4" opacity=".7"/>');
-    svg = recolor(svg, { '#5a060c': '#5a4a00', '#17131a': '#e6bf00', '#3d3346': '#141416' });
+    // Not in a hazmat suit: her own hair, a hazard-yellow coat trimmed in warning stripes, and the fumes got to her.
+    // Keeps the fur's fuzz (no hoeCoat) so it reads as a coat, not a slick suit.
+    svg = restop(svg, 'fur', ['#fff38a', HAZARD, '#a88a00']);
+    svg = repattern(svg, 'tufts', '<path d="M0 3.5 H7" stroke="#c9a700" stroke-width=".4" opacity=".7"/>');
+    svg = recolor(svg, { '#5a060c': '#5a4a00', '#17131a': '#141416', '#3d3346': HAZARD });
+    // Infected by the cook: sickly skin, bruised lips, toxic eyes.
+    svg = restop(svg, 'skin', ['#dfe0b4', '#b9bc84', '#7f8650']);
+    svg = restop(svg, 'blush', [['#7fae3a', 0.55], ['#8fb04a', 0.3], ['#9ab45a', 0]]);
+    svg = restop(svg, 'contour', [['#4f5a2a', 0.55], ['#4f5a2a', 0]]);
+    svg = recolor(svg, {
+      '#6a3a26': '#3f4620', '#a8684e': '#6f7a3e', '#b0705a': '#6f7a3e', '#b2745a': '#6f7a3e', '#8a4a38': '#4f5a2a',
+      '#c8182c': '#6a3a5e', '#5e0a1c': '#2a1426', '#ff8a96': '#a07a9a',
+      '#3a6a8a': '#8cff3a', '#1d3a4e': '#2f6a10',
+    });
+    const coat = 'M2 136 Q4 99 22 90 Q36 83 47 86 Q55 90 56 103 L53 136 Z M126 136 Q124 99 106 90 Q92 83 81 86 Q73 90 72 103 L75 136 Z';
     return decorate(svg, {
+      defs: [
+        `<pattern id="hz" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="${HAZARD}"/><rect width="3" height="6" fill="#111111"/></pattern>`,
+        `<clipPath id="coat"><path d="${coat}"/></clipPath>`,
+      ].join('\n    '),
       over: [
-        // Goggles and a respirator.
-        '<rect x="47" y="47" width="34" height="12" rx="6" fill="#d4ebe7" fill-opacity=".45" stroke="#141416" stroke-width="1.6"/><path d="M64 47 V59" stroke="#141416" stroke-width="1.2"/>',
-        '<path d="M56 64 Q64 61 72 64 L70.5 74 Q64 77.5 57.5 74 Z" fill="#26292e" stroke="#000" stroke-width="1"/>',
-        `<circle cx="55" cy="71" r="3.4" fill="#3a3e45" stroke="#000" stroke-width=".9"/><circle cx="73" cy="71" r="3.4" fill="#3a3e45" stroke="#000" stroke-width=".9"/><circle cx="55" cy="71" r="1.4" fill="${HAZARD}"/><circle cx="73" cy="71" r="1.4" fill="${HAZARD}"/>`,
-        '<path d="M64 98 V136 M8 120 H34 M94 120 H120" stroke="#c9ced4" stroke-width="2" opacity=".85"/>',
+        // Warning-stripe hem and lapel edges.
+        '<g clip-path="url(#coat)"><rect x="0" y="124" width="128" height="7" fill="url(#hz)"/><path d="M56 103 L53 136 M72 103 L75 136" stroke="url(#hz)" stroke-width="5"/></g>',
+        '<path d="M2 124 H54 M74 124 H126 M2 131 H54 M74 131 H126" stroke="#5a4a00" stroke-width=".7"/>',
+        // Lab goggles pushed up into her hair.
+        '<path d="M42 29 Q64 22 86 29" stroke="#141416" stroke-width="2.2" fill="none" stroke-linecap="round"/>',
+        '<rect x="48" y="22.5" width="14" height="9" rx="4.5" fill="#d4ebe7" fill-opacity=".6" stroke="#141416" stroke-width="1.4"/><rect x="66" y="22.5" width="14" height="9" rx="4.5" fill="#d4ebe7" fill-opacity=".6" stroke="#141416" stroke-width="1.4"/>',
+        '<path d="M62 27 H66" stroke="#141416" stroke-width="1.4"/><path d="M50.5 25 Q53 23.8 55.5 24.4 M68.5 25 Q71 23.8 73.5 24.4" stroke="#ffffff" stroke-width=".8" fill="none" stroke-linecap="round" opacity=".8"/>',
+        // A warning-sign charm on the choker.
+        `<path d="M64 88.6 L69 97 H59 Z" fill="${HAZARD}" stroke="#141416" stroke-width="1" stroke-linejoin="round"/><path d="M64 91.2 V94" stroke="#141416" stroke-width="1.1" stroke-linecap="round"/><circle cx="64" cy="95.4" r=".55" fill="#141416"/>`,
+        // Dark rings under the eyes, sores, and green veins up the neck.
+        '<path d="M50.6 56.2 Q55.5 60.4 60.2 56 M77.4 56.2 Q72.5 60.4 67.8 56" stroke="#3f2a3a" stroke-width="1.6" fill="none" stroke-linecap="round" opacity=".55"/>',
+        '<g fill="#c9d64a" stroke="#6a7a1a" stroke-width=".5"><circle cx="51.5" cy="63" r="1.3"/><circle cx="53.6" cy="65.6" r=".8"/><circle cx="76.8" cy="62.4" r="1"/><circle cx="68.6" cy="43.2" r=".9"/><circle cx="60" cy="84.6" r="1.1"/></g>',
+        '<g fill="#fff9c0" opacity=".8"><circle cx="51.1" cy="62.6" r=".4"/><circle cx="76.5" cy="62.1" r=".3"/><circle cx="59.6" cy="84.2" r=".35"/></g>',
+        '<path d="M57.4 86.4 Q58.7 84 58.2 81.8 Q57.8 80.4 58.5 79.2 M58.3 82.8 Q59.9 82 60.3 80.4 M70.6 86.4 Q69.3 84 69.8 81.8 Q70.2 80.4 69.5 79.2 M69.7 82.8 Q68.1 82 67.7 80.4" stroke="#8cff3a" stroke-width="1.8" fill="none" stroke-linecap="round" opacity=".15"/><path d="M57.4 86.4 Q58.7 84 58.2 81.8 Q57.8 80.4 58.5 79.2 M58.3 82.8 Q59.9 82 60.3 80.4 M70.6 86.4 Q69.3 84 69.8 81.8 Q70.2 80.4 69.5 79.2 M69.7 82.8 Q68.1 82 67.7 80.4" stroke="#2f6a1a" stroke-width=".6" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity=".8"/>',
+        // Toxic drool at the corner of the mouth.
+        '<path d="M70.6 67.6 Q71.4 70.6 70.8 73.6" stroke="#8cff3a" stroke-width="1.1" fill="none" stroke-linecap="round" opacity=".85"/><circle cx="70.8" cy="74.4" r=".9" fill="#8cff3a" opacity=".85"/>',
+        // Yellow hoops.
+        `<circle cx="45" cy="72" r="3.8" fill="none" stroke="${HAZARD}" stroke-width="1.3"/><circle cx="83" cy="72" r="3.8" fill="none" stroke="${HAZARD}" stroke-width="1.3"/>`,
       ].join('\n  '),
     });
   },

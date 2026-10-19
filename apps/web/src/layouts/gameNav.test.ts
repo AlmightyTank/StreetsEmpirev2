@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ADMIN_SECTIONS, adminSectionsFor, DEFAULT_TABS, filterNavSections, isCurrent, newPlayerSectionsFor, SECTIONS } from './gameNav.js';
+import { ADMIN_SECTIONS, adminOverviewSectionsFor, adminSectionsFor, DEFAULT_TABS, filterNavSections, isCurrent, newPlayerSectionsFor, SECTIONS } from './gameNav.js';
 
 const pages = SECTIONS.flatMap((section) => section.pages);
 const page = (key: string) => {
@@ -82,6 +82,14 @@ describe('admin workspace navigation', () => {
     expect(keys('JR_MOD')).toEqual(['admin-accounts', 'admin-staff', 'admin-reports', 'admin-bugs']);
     expect(keys('HELPER')).toEqual(['admin-accounts', 'admin-staff', 'admin-bugs']);
     expect(adminSectionsFor('HELPER').map((section) => section.id)).toEqual(['admin-players']);
+  });
+
+  it('condenses the admin sidebar to one destination per work area', () => {
+    const overview = adminOverviewSectionsFor('ADMIN');
+    expect(overview).toHaveLength(5);
+    expect(overview.flatMap((section) => section.pages)).toHaveLength(5);
+    expect(isCurrent(overview[1]!.pages[0]!, '/game/admin/accounts/account-id')).toBe(true);
+    expect(isCurrent(overview[0]!.pages[0]!, '/game/admin/rounds/round-id')).toBe(true);
   });
 });
 

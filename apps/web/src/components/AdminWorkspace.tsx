@@ -11,6 +11,8 @@ const PURPOSES: Record<string, string> = {
 
 /** `sections` is what the viewer's staff role may open; all of them by default. */
 export function AdminWorkspace({ pathname, sections = ADMIN_SECTIONS }: { pathname: string; sections?: readonly NavSection[] }) {
+  const activeSection = sections.find((section) => section.pages.some((page) => isCurrent(page, pathname)));
+  const tools = sections.flatMap((section) => section.pages.map((page) => ({ section, page })));
   return (
     <nav className="se-admin-workspace" aria-label="Admin workspace">
       <div className="se-admin-workspace__intro" aria-hidden="true">
@@ -34,6 +36,17 @@ export function AdminWorkspace({ pathname, sections = ADMIN_SECTIONS }: { pathna
           );
         })}
       </div>
+      <details className="se-admin-workspace__tools">
+        <summary>All admin tools{activeSection ? ` · ${activeSection.title.replace('Admin · ', '')}` : ''}</summary>
+        <div className="se-admin-workspace__tool-list">
+          {tools.map(({ section, page }) => (
+            <Link key={page.key} to={page.to} className={isCurrent(page, pathname) ? 'se-admin-workspace__tool--active' : undefined}>
+              <span>{page.label}</span>
+              <small>{section.title.replace('Admin · ', '')}</small>
+            </Link>
+          ))}
+        </div>
+      </details>
     </nav>
   );
 }
