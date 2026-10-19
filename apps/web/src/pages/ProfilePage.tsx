@@ -362,6 +362,11 @@ const secretStatusLabel: Record<string, string> = {
   LOCKED: 'Whisper',
 };
 
+function familyLabel(family: string): string {
+  return family.toLowerCase().split('_').filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+}
+
 const secretTierLabel: Record<string, string> = {
   OBVIOUS: 'Out in the open',
   HIDDEN: 'Hidden',
@@ -370,9 +375,9 @@ const secretTierLabel: Record<string, string> = {
 
 function DiscoveryCard({ secret }: { secret: DiscoveredSecretDto }) {
   return (
-    <li className="se-ach">
+    <li className={`se-ach se-ach--discovery se-ach--tier-${secret.discoveryTier.toLowerCase()}`}>
       <div className="se-ach__top">
-        <span className="se-ach__cat">{secret.family}</span>
+        <span className="se-ach__cat">{familyLabel(secret.family)}</span>
         <span className="se-ach__rarity">{secretTierLabel[secret.discoveryTier] ?? secret.discoveryTier}</span>
       </div>
       <h3 className="se-ach__title">{secret.title}</h3>
@@ -445,8 +450,8 @@ function DiscoveriesPanel({ discoveries }: { discoveries: SecretCollectionDto | 
           <ul className="se-discovery-families">
             {families.map((family) => (
               <li key={family.family}>
-                <span aria-label={`${family.family}: ${family.found} uncovered${family.undiscovered ? `, ${family.undiscovered} still hidden` : ', fully uncovered'}`}>
-                  {family.family} — {formatNumber(family.found)} uncovered{family.undiscovered ? `, ${formatNumber(family.undiscovered)} still hidden (?)` : ', fully uncovered'}
+                <span aria-label={`${familyLabel(family.family)}: ${family.found} uncovered${family.undiscovered ? `, ${family.undiscovered} still hidden` : ', fully uncovered'}`}>
+                  {familyLabel(family.family)} — {formatNumber(family.found)} uncovered{family.undiscovered ? `, ${formatNumber(family.undiscovered)} still hidden (?)` : ', fully uncovered'}
                 </span>
               </li>
             ))}
@@ -462,9 +467,9 @@ function DiscoveriesPanel({ discoveries }: { discoveries: SecretCollectionDto | 
           <p className="se-muted">Trophies survive every season reset.</p>
           <ul className="se-ach-grid">
             {trophies.map((trophy) => (
-              <li className="se-ach" key={trophy.key}>
+              <li className="se-ach se-ach--discovery" key={trophy.key}>
                 <div className="se-ach__top">
-                  <span className="se-ach__cat">{trophy.family ?? 'Secret'}</span>
+                  <span className="se-ach__cat">{trophy.family ? familyLabel(trophy.family) : 'Secret'}</span>
                   <span className="se-ach__rarity">{trophy.rarity}</span>
                 </div>
                 <h3 className="se-ach__title">{trophy.title}</h3>
