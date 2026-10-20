@@ -181,6 +181,69 @@ try {
   s.record(await admin.request('POST', '/api/auth/register', { ageConfirmed: true, birthDate: '1990-01-01', username: admin.name, email: `${admin.name}@example.invalid`, password: `password-${admin.name}` }));
   await prisma.account.update({ where: { usernameNormalized: admin.name.toLowerCase() }, data: { isAdmin: true } });
 
+  // Territory actions share the same scratch PostgreSQL/API instance. This deliberately
+  // overlaps access retries and cache collection against locked territory rows.
+  if (PLAYERS >= 4) {
+    const currentRound = (await players[0].request('GET', '/api/rounds/current')).json?.round;
+    const dbPlayers = await prisma.roundPlayer.findMany({ where: { roundId: currentRound.id }, orderBy: { publicPimpId: 'asc' }, take: 12, include: { city: true, account: { select: { usernameNormalized: true } } } });
+    if (dbPlayers.length >= 4) {
+      const ownerRows = dbPlayers.slice(0, Math.floor(dbPlayers.length / 2));
+      const visitorRows = dbPlayers.slice(ownerRows.length);
+      const ownerSuffix = randomUUID().slice(0, 5);
+      const visitorSuffix = randomUUID().slice(0, 5);
+      const ownerTag = `OWN${ownerSuffix.slice(0, 3).toUpperCase()}`;
+      const visitorTag = `VIS${visitorSuffix.slice(0, 3).toUpperCase()}`;
+      const ownerAlliance = await prisma.alliance.create({ data: { roundId: currentRound.id, name: `Territory Owners ${ownerSuffix}`, nameNormalized: `territoryowners${ownerSuffix}`, tag: ownerTag, tagNormalized: ownerTag.toLowerCase(), leaderId: ownerRows[0].id } });
+      const visitorAlliance = await prisma.alliance.create({ data: { roundId: currentRound.id, name: `Territory Visitors ${visitorSuffix}`, nameNormalized: `territoryvisitors${visitorSuffix}`, tag: visitorTag, tagNormalized: visitorTag.toLowerCase(), leaderId: visitorRows[0].id } });
+      await Promise.all([
+        prisma.roundPlayer.updateMany({ where: { id: { in: ownerRows.map((row) => row.id) } }, data: { allianceId: ownerAlliance.id } }),
+        prisma.roundPlayer.updateMany({ where: { id: { in: visitorRows.map((row) => row.id) } }, data: { allianceId: visitorAlliance.id } }),
+      ]);
+      await prisma.round.update({ where: { id: currentRound.id }, data: { rulesetId: 'classic-og-v2.4-a', rulesetVersion: '2.4.0-A', territoryPerksEnabled: true, territoryPerksCatalogVersion: 'territory-perks-v1' } });
+      const citySlug = ownerRows[0].city.slug;
+      const accessKey = ({ chicago: 'arms-dealer', detroit: 'motor-city-garage', 'las-vegas': 'private-card-room', 'new-york-city': 'wall-street-fixer', 'miami-beach': 'port-dock', 'los-angeles': 'studio-lot' })[citySlug];
+      if (!accessKey) throw new Error(`Territory load test needs a mapped city, got ${citySlug}.`);
+      const ownerPlayer = players.find((candidate) => candidate.name.toLowerCase() === ownerRows[0].account.usernameNormalized);
+      const now = new Date();
+      await ownerPlayer?.request('GET', '/api/game/cities');
+      await prisma.turf.updateMany({ where: { roundId: currentRound.id, cityId: ownerRows[0].cityId }, data: { holderId: ownerRows[0].id, cornerThugs: 1, heldSince: now, upkeepAt: now, localsAt: now, localsReclaimAt: null } });
+      await prisma.territoryYieldCache.upsert({
+        where: { roundId_scope_locationKey: { roundId: currentRound.id, scope: 'city', locationKey: citySlug } },
+        create: { roundId: currentRound.id, scope: 'city', locationKey: citySlug, ownerAllianceId: ownerAlliance.id, contents: { goods: {}, cashCents: 1_000_000, tollCents: 0 }, fractionalRemainders: {}, lastSettledAt: now, carryMillis: 0 },
+        update: { ownerAllianceId: ownerAlliance.id, contents: { goods: {}, cashCents: 1_000_000, tollCents: 0 }, lastSettledAt: now, carryMillis: 0 },
+      });
+      s = new Scenario('Territory: parallel access retries + cache collection', BUDGETS.burst, 'max');
+      const dupActionId = randomUUID();
+      const duplicateAccess = await Promise.all([0, 1].map(() => ownerPlayer.request('POST', '/api/game/alliance/empire/access', { scope: 'city', citySlug, accessKey, actionId: dupActionId })));
+      duplicateAccess.forEach((result) => s.record(result));
+      const paymentCount = await prisma.territoryTollPayment.count({ where: { roundId: currentRound.id, roundPlayerId: ownerRows[0].id, actionId: dupActionId } });
+      const ownerAccesses = await Promise.all(ownerRows.slice(1).map((row) => {
+        const player = players.find((candidate) => candidate.name.toLowerCase() === row.account.usernameNormalized);
+        return player?.request('POST', '/api/game/alliance/empire/access', { scope: 'city', citySlug, accessKey, actionId: randomUUID() });
+      }));
+      const visitorAccesses = await Promise.all(visitorRows.map((row) => {
+        const player = players.find((candidate) => candidate.name.toLowerCase() === row.account.usernameNormalized);
+        return player?.request('POST', '/api/game/alliance/empire/access', { scope: 'city', citySlug, accessKey, actionId: randomUUID() });
+      }));
+      [...ownerAccesses, ...visitorAccesses].filter(Boolean).forEach((result) => s.record(result));
+      const collects = await Promise.all(ownerRows.map((row) => {
+        const player = players.find((candidate) => candidate.name.toLowerCase() === row.account.usernameNormalized);
+        return player?.request('POST', '/api/game/alliance/empire/collect', { scope: 'city', citySlug, actionId: randomUUID() });
+      }));
+      collects.filter(Boolean).forEach((result) => s.record(result));
+      const ledger = await prisma.territoryYieldDailyLedger.findFirst({ where: { roundId: currentRound.id, allianceId: ownerAlliance.id } });
+      const cap = BigInt(25_000) * BigInt(ownerRows.length);
+      const collectionSuccesses = collects.filter((result) => result?.status < 300).length;
+      const capOk = collectionSuccesses > 0 && Boolean(ledger) && ledger.valueCents <= cap;
+      const expectedVisitorStatus = ['arms-dealer', 'private-card-room', 'port-dock'].includes(accessKey) ? 403 : 200;
+      const accessOk = duplicateAccess.every((result) => result.status < 300) && ownerAccesses.filter(Boolean).every((result) => result.status < 300) && visitorAccesses.filter(Boolean).every((result) => result.status === expectedVisitorStatus);
+      s.note = `duplicate access payments=${paymentCount} (expected 1); visitors=${visitorAccesses.filter(Boolean).map((result) => result.status).join(',')}; cache collections=${collectionSuccesses}; ledger=${ledger?.valueCents ?? 0}/${cap} cents; concurrency checks ${capOk && accessOk ? 'ok' : 'FAILED'}`;
+      s.finish();
+      if (paymentCount !== 1 || !capOk || !accessOk) s.statuses.set('500', (s.statuses.get('500') ?? 0) + 1);
+      scenarios.push(s);
+    }
+  }
+
   // Login spike: everyone signs in at the same moment.
   s = new Scenario('Login spike', BUDGETS.login);
   await Promise.all(players.map(async (player) => {

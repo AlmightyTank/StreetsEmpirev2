@@ -952,6 +952,8 @@ export interface RandomEncounterEntryRules {
   readonly lowRiders?: RandomEncounterNumberEffectRules;
   readonly choices?: readonly RandomEncounterChoiceRules[];
   readonly districts?: readonly DistrictKey[];
+  /** 2.4.0-F. Uses the existing encounter pipeline, gated by a versioned territory owner. */
+  readonly territory?: { readonly scope: 'DISTRICT' | 'CITY' | 'REGION'; readonly key: string; readonly minimumTier?: number };
   /** Optional UTC-only draw window; entries without one remain year-round. */
   readonly availableUtc?: { readonly startsAt: string; readonly endsAt: string };
 }
@@ -3151,6 +3153,8 @@ export interface Ruleset {
     };
   };
   readonly meta: RulesetMeta;
+  /** 2.4.0-A. Per-round catalog opt-in; the round feature flag must also be enabled. */
+  readonly territoryPerks?: { readonly catalogVersion: string; readonly enabled: boolean; readonly dailyYieldCapCentsPerMember: number };
   /** 3.0-A. Presence gates read-only city holdings; identity multipliers do not alter settlement. */
   readonly cityHoldings?: {
     readonly modifiers: {

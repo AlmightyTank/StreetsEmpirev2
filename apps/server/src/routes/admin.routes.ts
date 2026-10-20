@@ -65,6 +65,8 @@ import { ADMIN_VEHICLE_MAX, AdminVehicleService } from '../services/admin-vehicl
 import { AdminLawService } from '../services/admin-law.service.js';
 import { AdminCareerStoryService } from '../services/admin-career-story.service.js';
 import { AdminTurfService } from '../services/admin-turf.service.js';
+import { AdminTerritoryPerksService } from '../services/admin-territory-perks.service.js';
+import { AdminTerritoryTesterService } from '../services/admin-territory-tester.service.js';
 import { BugReportService } from '../services/support.service.js';
 import { AdminCommunityService } from '../services/admin-community.service.js';
 import { DiscordModerationService } from '../services/discord-moderation.service.js';
@@ -525,6 +527,27 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     const input = parseBody(updateStreetPassSchema, request.body ?? {});
     await AdminRoundService.updateStreetPass(fastify.prisma, request.auth!.account, roundId, input);
     return AdminHealthService.roundHealth(fastify.prisma, roundId);
+  });
+
+  fastify.post('/rounds/:roundId/territory-perks', async (request) => {
+    const { roundId } = parseBody(roundParams, request.params);
+    const { enabled } = parseBody(z.object({ enabled: z.boolean() }).strict(), request.body ?? {});
+    return { round: await AdminTerritoryPerksService.setEnabled(fastify.prisma, roundId, request.auth!.account.id, enabled) };
+  });
+
+  fastify.get('/territory-encounter-tester', async () => AdminTerritoryTesterService.index(fastify.prisma));
+  fastify.post('/territory-encounter-tester/accounts/:accountId', async (request) => {
+    const { accountId } = parseBody(z.object({ accountId: id }).strict(), request.params);
+    const input = parseBody(z.object({ enabled: z.boolean(), reason }).strict(), request.body ?? {});
+    return { account: await AdminTerritoryTesterService.setTestAccount(fastify.prisma, request.auth!.account, accountId, input.enabled, input.reason) };
+  });
+  fastify.post('/territory-encounter-tester/rewards', async (request) => {
+    const input = parseBody(z.object({ roundPlayerId: id, key: z.string().min(1).max(100), grant: z.boolean(), reason }).strict(), request.body ?? {});
+    return { reward: await AdminTerritoryTesterService.grantCosmetic(fastify.prisma, request.auth!.account, input.roundPlayerId, input.key, input.grant, input.reason) };
+  });
+  fastify.post('/territory-encounter-tester/simulate', async (request) => {
+    const input = parseBody(z.object({ roundPlayerId: id, trigger: z.enum(['SCOUT', 'PRODUCE', 'STORE', 'TURF', 'COMBAT', 'TRAVEL']), district: z.string().min(1).max(80).optional(), seed: z.string().trim().min(1).max(120) }).strict(), request.body ?? {});
+    return AdminTerritoryTesterService.simulate(fastify.prisma, request.auth!.account, input.roundPlayerId, input.trigger, input.district, input.seed);
   });
 
   fastify.get('/rounds/:roundId/ruleset-change', async (request) => {

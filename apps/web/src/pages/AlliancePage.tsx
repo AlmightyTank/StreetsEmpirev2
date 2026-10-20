@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import type { AllianceDetailDto, AllianceEventDto, AllianceRankingsDto, AllianceRecruitmentStatusDto, MyAllianceDto } from '@streets/shared';
+import type { AllianceDetailDto, AllianceEventDto, AllianceRankingsDto, AllianceRecruitmentStatusDto, MyAllianceDto, TerritoryEmpireDto } from '@streets/shared';
 import { ALLIANCE_DESCRIPTION_MAX, ALLIANCE_NAME_MAX, ALLIANCE_PITCH_MAX, ALLIANCE_TAG_MAX, formatCents, formatNumber } from '@streets/shared';
 import { allianceApi } from '../api/alliances.js';
 import { ApiError } from '../api/client.js';
@@ -15,6 +15,7 @@ import { Panel, Stat } from '../components/Panel.js';
 import { SocialNavigation } from '../components/SocialExperience.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { formatDate, formatDuration, formatWhen } from '../utils/time.js';
+import { useSession } from '../stores/session.js';
 
 function until(iso: string): string {
   return formatDuration(Math.max(0, new Date(iso).getTime() - Date.now()));
@@ -120,6 +121,10 @@ export function AlliancePage() {
   const [pitch, setPitch] = useState('');
   const [description, setDescription] = useState('');
   const [recruitmentStatus, setRecruitmentStatus] = useState<AllianceRecruitmentStatusDto>('CLOSED');
+  const [empire, setEmpire] = useState<TerritoryEmpireDto | null>(null);
+  const [territoryNotice, setTerritoryNotice] = useState<string | null>(null);
+  const me = useSession((state) => state.me);
+  const applyActionSnapshot = useSession((state) => state.applyActionSnapshot);
 
   useEffect(() => {
     allianceApi.mine().then(setData).catch((caught: unknown) => {
@@ -134,6 +139,10 @@ export function AlliancePage() {
         // Rankings are secondary to managing your own alliance; keep the main page usable.
         setRankingsError(caught instanceof ApiError ? caught.message : 'Could not load the alliance rankings.');
       });
+  }, []);
+
+  useEffect(() => {
+    allianceApi.empire().then(setEmpire).catch(() => setEmpire(null));
   }, []);
 
   useEffect(() => {
@@ -175,6 +184,52 @@ export function AlliancePage() {
   async function saveSettings(event: FormEvent) {
     event.preventDefault();
     await run(() => allianceApi.settings({ description, recruitmentStatus }));
+  }
+
+  async function chooseRegionalPower(regionKey: string) {
+    setBusy(true);
+    setError(null);
+    try {
+      setEmpire(await allianceApi.selectRegionalPower(regionKey));
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'Could not change the regional power.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function collectTerritoryYield(input: { scope: 'city' | 'district'; citySlug: string; district?: string }) {
+    setBusy(true);
+    setError(null);
+    setTerritoryNotice(null);
+    try {
+      const receipt = await allianceApi.collectTerritoryYield({ ...input, actionId: crypto.randomUUID() });
+      applyActionSnapshot(receipt.after, receipt.rankChanges);
+      setEmpire(await allianceApi.empire());
+      const goods = Object.entries(receipt.result.goods).map(([key, quantity]) => `${quantity} ${key}`).join(', ');
+      setTerritoryNotice(`Collected ${[goods, receipt.result.cashCents ? formatCents(receipt.result.cashCents) : '', receipt.result.tollCents ? `${formatCents(receipt.result.tollCents)} in tolls` : ''].filter(Boolean).join(' and ')} from ${input.district ? `${input.district.replaceAll('_', ' ')} · ` : ''}${input.citySlug.replaceAll('-', ' ')}.`);
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'Could not collect this territory cache.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function useTerritoryAccess(input: { scope: 'city' | 'district'; citySlug: string; district?: string; accessKey: string }) {
+    setBusy(true);
+    setError(null);
+    setTerritoryNotice(null);
+    try {
+      const receipt = await allianceApi.useTerritoryAccess({ ...input, actionId: crypto.randomUUID() });
+      sessionStorage.setItem(`se-territory-grant-${input.accessKey}`, receipt.result.grantId);
+      applyActionSnapshot(receipt.after, receipt.rankChanges);
+      setEmpire(await allianceApi.empire());
+      setTerritoryNotice(`Access granted to ${input.accessKey.replaceAll('-', ' ')}${receipt.result.chargedCents ? ` · ${formatCents(receipt.result.chargedCents)} paid into the holder's cache` : ' · alliance access'} .`);
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'Could not use this territory access point.');
+    } finally {
+      setBusy(false);
+    }
   }
 
   const waiting = busy ? 'Your last change is still going through.' : null;
@@ -365,6 +420,81 @@ export function AlliancePage() {
                 />
               </div>
             </section>
+
+            {empire ? (
+              <section className="se-alliance-section" aria-labelledby="territory-empire-heading">
+                <div className="se-alliance-sectionhead">
+                  <div>
+                    <span className="se-eyebrow">Territory command</span>
+                    <h2 id="territory-empire-heading">Empire overview</h2>
+                  </div>
+                  <span className="se-alliance-sectionhead__meta">{empire.enabled ? empire.catalogVersion : 'Round opt-in required'}</span>
+                </div>
+                {!empire.enabled ? <Panel title="Territory rewards" className="se-alliance-panel"><p className="se-muted">{empire.disabledReason}</p></Panel> : (
+                  <div className="se-alliance-ops">
+                    {territoryNotice ? <Alert tone="success">{territoryNotice}</Alert> : null}
+                    <Panel title="City control" aside={`${empire.cities.filter((city) => city.ownerTag === alliance?.tag).length} held`} className="se-alliance-panel">
+                      <div className="se-alliance-history">
+                        {empire.cities.map((city) => (
+                          <div key={city.slug} className="se-alliance-history__item">
+                            <strong>{city.name}</strong>
+                            <span>{city.ownerTag === alliance?.tag ? 'Your alliance controls' : city.ownerName ? `[${city.ownerTag}] ${city.ownerName} controls` : 'No alliance controls'} {city.controlledDistricts}/{city.eligibleDistricts} districts · {city.requirementPercent}% required</span>
+                            {city.perkKey ? <span className="se-muted">Perk: {city.perkKey.replaceAll('-', ' ')}</span> : null}
+                            {city.accessKey ? <span className="se-muted">Access: {city.accessKey.replaceAll('-', ' ')} · {city.accessTollCents ? `${formatCents(city.accessTollCents)} per use, ${formatCents(city.accessDailyTollCapCents)} daily cap` : 'holder access'}</span> : null}
+                            {city.accessKey && city.ownerAllianceId ? <Button type="button" className="se-btn se-btn--ghost se-btn--sm" disabledReason={busy ? waiting : me?.city.slug !== city.slug ? 'Travel to this city to use this access point.' : null} onClick={() => void useTerritoryAccess({ scope: 'city', citySlug: city.slug, accessKey: city.accessKey! })}>Use {city.accessKey.replaceAll('-', ' ')}{city.ownerAllianceId !== empire.allianceId && city.accessTollCents ? ` · ${formatCents(city.accessTollCents)}` : ''}</Button> : null}
+                            {city.cache ? <span className="se-muted">Local cache: {Object.entries(city.cache.goods).map(([key, value]) => `${value} ${key}`).join(', ') || 'empty'} · ${formatCents(city.cache.cashCents)}{city.cache.tollCents ? ` · ${formatCents(city.cache.tollCents)} tolls` : ''}</span> : null}
+                            {city.ownerAllianceId === empire.allianceId && city.cache && (Object.values(city.cache.goods).some((value) => value > 0) || city.cache.cashCents > 0 || city.cache.tollCents > 0) ? (
+                              <Button
+                                type="button"
+                                className="se-btn se-btn--ghost se-btn--sm"
+                                disabledReason={busy ? waiting : me?.city.slug !== city.slug ? 'Travel to this city to collect its cache.' : (me?.turns.turns ?? 0) < 1 ? 'Collecting costs 1 turn.' : null}
+                                onClick={() => void collectTerritoryYield({ scope: 'city', citySlug: city.slug })}
+                              >Collect cache · 1 turn</Button>
+                            ) : null}
+                            {city.districts.map((district) => {
+                              const cache = district.cache;
+                              const hasCache = cache && (Object.values(cache.goods).some((value) => value > 0) || cache.cashCents > 0 || cache.tollCents > 0);
+                              return (
+                                <div key={district.key} className="se-alliance-history__item">
+                                  <span>{district.key.replaceAll('_', ' ')} district{district.ownerAllianceId === empire.allianceId ? ' · held' : ''}</span>
+                                  {district.accessKey ? <span className="se-muted">{district.accessKey.replaceAll('-', ' ')} · {district.accessTollCents ? `${formatCents(district.accessTollCents)} per use, ${formatCents(district.accessDailyTollCapCents)} daily cap` : 'holder access'}</span> : null}
+                                  {district.accessKey && district.ownerAllianceId ? <Button type="button" className="se-btn se-btn--ghost se-btn--sm" disabledReason={busy ? waiting : me?.city.slug !== city.slug ? 'Travel to this city to use this access point.' : null} onClick={() => void useTerritoryAccess({ scope: 'district', citySlug: city.slug, district: district.key, accessKey: district.accessKey! })}>Use {district.accessKey.replaceAll('-', ' ')}{district.ownerAllianceId !== empire.allianceId && district.accessTollCents ? ` · ${formatCents(district.accessTollCents)}` : ''}</Button> : null}
+                                  {hasCache ? <span className="se-muted">Cache: {Object.entries(cache.goods).map(([key, value]) => `${value} ${key}`).join(', ') || 'empty'} · {formatCents(cache.cashCents)}{cache.tollCents ? ` · ${formatCents(cache.tollCents)} tolls` : ''}</span> : null}
+                                  {hasCache && district.ownerAllianceId === empire.allianceId ? (
+                                    <Button type="button" className="se-btn se-btn--ghost se-btn--sm" disabledReason={busy ? waiting : me?.city.slug !== city.slug ? 'Travel to this city to collect its cache.' : (me?.turns.turns ?? 0) < 1 ? 'Collecting costs 1 turn.' : null} onClick={() => void collectTerritoryYield({ scope: 'district', citySlug: city.slug, district: district.key })}>Collect district cache · 1 turn</Button>
+                                  ) : null}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ))}
+                      </div>
+                    </Panel>
+                    <Panel title="Regional power" aside={empire.selectedRegionKey ? `Selected: ${empire.selectedRegionKey.replaceAll('_', ' ')}` : 'No power selected'} className="se-alliance-panel">
+                      <div className="se-alliance-history">
+                        {empire.regions.map((region) => (
+                          <div key={region.key} className="se-alliance-history__item">
+                            <strong>{region.key.replaceAll('_', ' ')}</strong>
+                            <span>{region.controlledCities}/{region.citySlugs.length} cities · tier {region.currentTier}/{region.tierThresholds.length}{region.nextThreshold ? ` · next at ${region.nextThreshold}` : ' · maximum tier'}</span>
+                            <span className="se-muted">{region.perkKey.replaceAll('-', ' ')}{region.selected ? ' · active' : ''}</span>
+                            {empire.canSelectRegionalPower && region.controlledCities > 0 ? (
+                              region.selected
+                                ? <span className="se-tag se-tag--good">Active</span>
+                                : <Button
+                                    type="button"
+                                    className="se-btn se-btn--ghost se-btn--sm"
+                                    disabledReason={busy ? waiting : empire.regionalPowerChangeAvailableAt && new Date(empire.regionalPowerChangeAvailableAt).getTime() > Date.now() ? `Available ${formatWhen(empire.regionalPowerChangeAvailableAt)}` : null}
+                                    onClick={() => void chooseRegionalPower(region.key)}
+                                  >Activate this power</Button>
+                            ) : null}
+                          </div>
+                        ))}
+                      </div>
+                    </Panel>
+                  </div>
+                )}
+              </section>
+            ) : null}
 
             <section className="se-alliance-section">
               <div className="se-alliance-sectionhead">

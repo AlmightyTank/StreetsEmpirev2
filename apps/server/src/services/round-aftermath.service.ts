@@ -1,6 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { AppError } from '../utils/errors.js';
+import { finalizeTerritoryMilestones } from './territory-milestone.service.js';
 import type { Db } from '../utils/db.js';
 
 export const ROUND_AFTERMATH_SCHEMA_VERSION = 4;
@@ -388,6 +389,10 @@ export const RoundAftermathService = {
       alliances,
     );
 
+    const territoryAwards = await finalizeTerritoryMilestones(tx, { roundId, cutoffAt });
+    const globalAggregate = territoryAwards
+      ? JSON.parse(JSON.stringify({ ...aggregates.globalAggregate, territoryAwards })) as Prisma.InputJsonObject
+      : aggregates.globalAggregate;
     await tx.roundAftermathReport.create({
       data: {
         roundId,
@@ -398,6 +403,7 @@ export const RoundAftermathService = {
         finalizedAt: new Date(),
         sourceProvenance: SOURCE_PROVENANCE,
         ...aggregates,
+        globalAggregate,
       },
     });
   },

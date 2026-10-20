@@ -1,5 +1,5 @@
 import type { AllianceTagDto } from './alliance.js';
-import type { QuestLinkDto, QuestLockDto, RandomEncounterDto } from './api.js';
+import type { QuestLinkDto, QuestLockDto, RandomEncounterDto, TerritoryModifierReceiptDto } from './api.js';
 import type { AvatarParts } from '../avatar-builder.js';
 
 /** 0.3.0-D. Limits that keep the wire and the rolodex small. Not balance, so they live here. */
@@ -572,6 +572,9 @@ export interface TurfBattleReportDto {
   /** An ally may commit but fail the ruleset's show-up roll. Null for attacker/defender. */
   showedUp: boolean | null;
   strength: { attacker: number; defender: number } | null;
+  territoryModifierReceipts?: TerritoryModifierReceiptDto[];
+  /** Cache contents exposed to the attacker when a turf push flips this block. */
+  territoryCacheRaidReceipt?: { fromAllianceId: string | null; toAllianceId: string | null; retainedBasisPoints: number; goods: Record<string, number>; cashCents: number; tollCents: number };
   shieldUntil: string | null;
   revengeUntil: string | null;
   /** 0.6.0-D. Positive for the attacker, negative for the defender; empty on home turf. */
@@ -1404,6 +1407,7 @@ export interface RelocationResult {
   /** 0.7.0-D. Garage discount on this move. */
   garageFeeDiscountPercent?: number;
   garageSavingsCents?: number;
+  territoryModifierReceipts?: TerritoryModifierReceiptDto[];
   arrivesAt: string;
   /** 0.6.0-D. What will happen to held turf on arrival. */
   turfPlan: RelocationTurfPlanDto;

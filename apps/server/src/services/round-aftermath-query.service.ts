@@ -203,6 +203,11 @@ const globalSchema = z.object({
   playerHeldTurfBlocks: z.number().int().nonnegative(),
   activeBusinessesHeld: z.number().int().nonnegative(),
   crimeActions: z.number().int().nonnegative(),
+  territoryAwards: z.object({
+    regions: z.array(z.object({ regionKey: z.string(), allianceId: z.string(), highestTier: z.number().int().positive() })),
+    nationalKingpinAllianceId: z.string().nullable(),
+    awards: z.array(z.object({ allianceId: z.string(), awardKey: z.string(), scopeKey: z.string() })),
+  }).optional(),
 }).strict();
 
 const citySchema = z.object({

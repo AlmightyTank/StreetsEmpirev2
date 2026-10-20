@@ -22,7 +22,7 @@ function formatCents(value: string): string {
   return `${cents < 0n ? '-' : ''}$${(absolute / 100n).toLocaleString('en-US')}`;
 }
 
-function metric(round: RoundAftermathOverviewDto, key: keyof NonNullable<RoundAftermathOverviewDto['global']>): string {
+function metric(round: RoundAftermathOverviewDto, key: Exclude<keyof NonNullable<RoundAftermathOverviewDto['global']>, 'territoryAwards'>): string {
   const value = round.global?.[key];
   if (value === undefined || value === null) return 'Not available';
   return typeof value === 'string' ? formatCents(value) : formatNumber(value);

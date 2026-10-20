@@ -452,3 +452,12 @@
   .se-profile-frame--zombie-apocalypse-frame::before,
   .se-drop-frame--zombie-apocalypse-frame::after { animation: none; }
 }
+
+/* 2.4.0-F. Permanent National Kingpin prestige frame. */
+.se-profile-frame--territory-national-kingpin-frame { --se-theme-frame: #e4bd63; border-color: #e4bd63; box-shadow: inset 0 0 0 3px #211a0b, inset 0 0 24px #e4bd631f, 0 0 20px #e4bd6340; }
+.se-drop-frame--territory-national-kingpin-frame { --se-drop-ring: #e4bd63; box-shadow: 0 0 0 3px #0b0b0f, 0 0 0 6px #6f5420, 0 0 0 9px #e4bd63, 0 0 24px #e4bd6366; }
+.se-profile-frame--territory-national-kingpin-frame::before { inset: 0; background: linear-gradient(115deg, transparent 0 34%, #fff5d422 48%, transparent 62%), radial-gradient(circle at 50% 0, #ffe9a655 0 2px, transparent 3px); background-size: 240% 100%, 100% 100%; animation: se-territory-crown-glint 5s ease-in-out infinite; }
+.se-profile-frame--territory-national-kingpin-frame::after { inset: 2px; border: 1px solid color-mix(in srgb, var(--se-theme-frame) 75%, white); }
+@keyframes se-territory-crown-glint { 0%, 100% { background-position: 100% 0, 0 0; } 50% { background-position: 0 0, 0 0; } }
+.se-reduced-motion .se-profile-frame--territory-national-kingpin-frame::before { animation: none; }
+@media (prefers-reduced-motion: reduce) { .se-profile-frame--territory-national-kingpin-frame::before { animation: none; } }

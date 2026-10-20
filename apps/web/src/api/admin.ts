@@ -134,6 +134,10 @@ export const adminApi = {
     api.get<AdminRulesetChangeDto>(`${roundPath(roundId, 'ruleset-change')}${queryString({ rulesetId })}`),
   changeRuleset: (roundId: string, input: AdminChangeRulesetInput) => api.post<AdminRoundResultDto>(roundPath(roundId, 'ruleset'), input),
   closeExpiredRounds: () => api.post<AdminCloseExpiredResultDto>('/admin/rounds/close-expired'),
+  territoryEncounterTester: () => api.get<{ enabled: true; accounts: Array<{ id: string; username: string; territoryTestAccount: boolean }>; pools: Record<string, Array<{ key: string; title: string; territory?: unknown }>> }>('/admin/territory-encounter-tester'),
+  setTerritoryTestAccount: (accountId: string, enabled: boolean, reason: string) => api.post('/admin/territory-encounter-tester/accounts/' + enc(accountId), { enabled, reason }),
+  territoryTestReward: (roundPlayerId: string, key: string, grant: boolean, reason: string) => api.post('/admin/territory-encounter-tester/rewards', { roundPlayerId, key, grant, reason }),
+  simulateTerritoryEncounter: (input: { roundPlayerId: string; trigger: string; district?: string; seed: string }) => api.post<unknown>('/admin/territory-encounter-tester/simulate', input),
 
   questContent: (roundId: string) =>
     api.get<AdminQuestContentDto>(`/admin/quest-content${queryString({ roundId })}`),

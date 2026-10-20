@@ -324,6 +324,12 @@ function TurfReports({ city }: { city: CityCharacterDto }) {
                 {Object.entries(report.outpostLoot.products).map(([key, quantity]) => ` · ${formatNumber(quantity)} ${key.toLowerCase()}`).join('')}
               </span>
             ) : null}
+            {report.territoryCacheRaidReceipt ? (
+              <span className="se-hint">
+                Territory cache exposed to the incoming alliance ({report.territoryCacheRaidReceipt.retainedBasisPoints / 100}% retained): {formatCentsExact(report.territoryCacheRaidReceipt.cashCents + report.territoryCacheRaidReceipt.tollCents)} cash/tolls
+                {Object.entries(report.territoryCacheRaidReceipt.goods).map(([key, quantity]) => ` · ${formatNumber(quantity)} ${key.toLowerCase()}`).join('')}
+              </span>
+            ) : null}
           </li>
         );
       })}

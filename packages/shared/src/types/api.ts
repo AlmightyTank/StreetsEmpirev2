@@ -1432,6 +1432,7 @@ export interface ScoutResult {
   favorIncomePercent?: number;
   favorRecruitmentPercent?: number;
   cityConditionBonusPercent?: number;
+  territoryModifierReceipts?: TerritoryModifierReceiptDto[];
   payoutPercent: number;
 
   /** Crack-only compatibility field. On product rounds, this is the Crack slice of productsFound. */
@@ -1489,6 +1490,15 @@ export interface ProduceCrackResult {
   hideoutBonusProduct?: number;
   favorProductionPercent?: number;
   cityConditionBonusPercent?: number;
+  /** 2.4.0-B. Server-authoritative territory modifiers applied to this batch. */
+  territoryModifierReceipts?: Array<{
+    effectId: string;
+    action: string;
+    valueBasisPoints: number;
+    multiplierBasisPoints: number;
+    capBasisPoints: number;
+    sources: Array<{ id: string; label: string; valueBasisPoints: number }>;
+  }>;
   crackProduced: number;
   hideoutBonusCrack?: number;
   ingredientCents: number;
@@ -1536,6 +1546,79 @@ export interface ProduceCrackResult {
 
   turnsUsed: number;
   turnsRemaining: number;
+}
+
+/** 2.4.0-E. Read-only, server-derived Alliance > Empire view. */
+export interface TerritoryEmpireDto {
+  enabled: boolean;
+  catalogVersion: string | null;
+  disabledReason?: string;
+  allianceId: string | null;
+  canSelectRegionalPower: boolean;
+  selectedRegionKey: string | null;
+  regionalPowerChangeAvailableAt: string | null;
+  cities: Array<{
+    slug: string;
+    name: string;
+    controlledDistricts: number;
+    eligibleDistricts: number;
+    ownerAllianceId: string | null;
+    ownerName: string | null;
+    ownerTag: string | null;
+    requirementPercent: number;
+    accessKey: string | null;
+    accessTollCents: number;
+    accessDailyTollCapCents: number;
+    perkKey: string | null;
+    cache: { goods: Record<string, number>; cashCents: number; tollCents: number } | null;
+    districts: Array<{
+      key: string;
+      ownerAllianceId: string | null;
+      accessKey: string | null;
+      accessTollCents: number;
+      accessDailyTollCapCents: number;
+      cache: { goods: Record<string, number>; cashCents: number; tollCents: number } | null;
+    }>;
+  }>;
+  regions: Array<{
+    key: string;
+    citySlugs: string[];
+    controlledCities: number;
+    currentTier: number;
+    nextThreshold: number | null;
+    tierThresholds: number[];
+    perkKey: string;
+    selected: boolean;
+  }>;
+}
+
+export interface TerritoryYieldCollection {
+  scope: 'city' | 'district';
+  citySlug: string;
+  district: string | null;
+  goods: Record<string, number>;
+  cashCents: number;
+  tollCents: number;
+  valueCents: number;
+  turnsUsed: number;
+}
+
+export interface TerritoryAccessUseResult {
+  accessKey: string;
+  locationKey: string;
+  allowed: true;
+  chargedCents: number;
+  ownerAllianceId: string;
+  grantId: string;
+}
+
+export interface TerritoryModifierReceiptDto {
+  effectId: string;
+  action: string;
+  valueBasisPoints: number;
+  multiplierBasisPoints: number;
+  capBasisPoints: number;
+  sources: Array<{ id: string; label: string; valueBasisPoints: number }>;
 }
 
 export interface PayoutResult {
@@ -2172,6 +2255,7 @@ export interface StoreTradeResult {
   unitCents: number;
   totalCents: number;
   cashChangeCents: number;
+  territoryModifierReceipts?: TerritoryModifierReceiptDto[];
   quantityChange: number;
   favorKey?: string;
   favorDiscountPercent?: number;

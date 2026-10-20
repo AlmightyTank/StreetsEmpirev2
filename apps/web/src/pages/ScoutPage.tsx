@@ -145,7 +145,14 @@ export function ScoutPage() {
     event.preventDefault();
     if (!canScout || typeof turns !== 'number') return;
 
-    await action.run((actionId) => actionsApi.scout({ district, turns, ...(scoutTeam.length ? { crewMemberIds: scoutTeam } : {}), actionId }));
+    const accessKey = me?.city.slug === 'miami-beach' ? 'port-dock' : null;
+    const grantStorageKey = accessKey ? `se-territory-grant-${accessKey}` : null;
+    const territoryAccessGrantId = grantStorageKey ? sessionStorage.getItem(grantStorageKey) ?? undefined : undefined;
+    await action.run(async (actionId) => {
+      const result = await actionsApi.scout({ district, turns, ...(scoutTeam.length ? { crewMemberIds: scoutTeam } : {}), ...(territoryAccessGrantId ? { territoryAccessGrantId } : {}), actionId });
+      if (territoryAccessGrantId && grantStorageKey) sessionStorage.removeItem(grantStorageKey);
+      return result;
+    });
   }
 
   async function resolveEncounter(choice: string) {

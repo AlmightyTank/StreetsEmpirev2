@@ -217,6 +217,8 @@ interface StoredTurfFight {
   allyBackup: number;
   defenders?: { corner: number; ownerBackup: number; allyCommitted: number; allyShowed: number };
   strength: { attacker: number; defender: number } | null;
+  territoryModifierReceipts?: TurfBattleReportDto['territoryModifierReceipts'];
+  territoryCacheRaidReceipt?: TurfBattleReportDto['territoryCacheRaidReceipt'];
   shieldUntil?: string | null;
   outpostLoot?: { cashCents: number; beer: number; products: Record<string, number> } | null;
 }
@@ -888,6 +890,8 @@ export const TurfService = {
         opponentWounds: role === 'attacker' ? result.defenderWounds : result.attackerWounds,
         showedUp: role === 'ally' ? myBackup?.showedUp ?? false : null,
         strength: result.strength,
+        ...(result.territoryModifierReceipts?.length ? { territoryModifierReceipts: result.territoryModifierReceipts } : {}),
+        ...(result.territoryCacheRaidReceipt ? { territoryCacheRaidReceipt: result.territoryCacheRaidReceipt } : {}),
         shieldUntil: result.shieldUntil ?? null,
         revengeUntil: revengeUntil?.toISOString() ?? null,
         outpostLoot: result.outpostLoot ?? null,

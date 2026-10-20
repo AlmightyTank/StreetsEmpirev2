@@ -43,6 +43,7 @@ export const turnsToSpendSchema = z
 export const scoutSchema = z.object({
   district: z.string().trim().min(1, 'Pick a district to scout.'),
   turns: turnsToSpendSchema,
+  territoryAccessGrantId: z.string().min(1).max(64).optional(),
   crewMemberIds: z.array(z.string().trim().min(1).max(64)).max(5).refine((ids) => new Set(ids).size === ids.length, 'Choose each crew member once.').optional(),
   actionId: actionIdSchema,
 }).strict();
@@ -198,6 +199,7 @@ export const storeTradeSchema = z.object({
   direction: z.enum(['buy', 'sell']),
   quantity: z.number({ invalid_type_error: 'Enter a quantity.' })
     .int('Quantity must be a whole number.').positive('Enter at least one.').max(MAX_ORDER_QUANTITY, 'That order is too large.'),
+  territoryAccessGrantId: z.string().min(1).max(64).optional(),
   actionId: actionIdSchema,
 });
 
@@ -209,6 +211,7 @@ export const storeCheckoutSchema = z.object({
   lines: z.array(storeCheckoutLineSchema)
     .min(1, 'Add something to the basket.')
     .max(20, 'Check out up to 20 lines at a time.'),
+  territoryAccessGrantId: z.string().min(1).max(64).optional(),
   actionId: actionIdSchema,
 });
 
