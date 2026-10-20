@@ -10,6 +10,7 @@ import type {
 import type { Ruleset, SupplyOfferRules, SupplySupplierRules } from '@streets/rulesets';
 import { ActionService } from './action.service.js';
 import { AppError } from '../utils/errors.js';
+import { PlayerSkillService } from './player-skill.service.js';
 
 type SupplyOrderRow = {
   id: string;
@@ -72,6 +73,7 @@ export const SupplyOrderService = {
     if (!config?.enabled || suppliers.length === 0) {
       return { enabled: false, maxOpenOrders: 0, openOrderCount: 0, suppliers: [], orders: [] };
     }
+    const skills = await PlayerSkillService.effects(prisma, player.id, ruleset.streetSkills);
 
     const [orders, openOrderCount] = await Promise.all([
       prisma.supplyOrder.findMany({
@@ -99,7 +101,7 @@ export const SupplyOrderService = {
       offers: Object.entries(supplier.offers).map(([productKey, offer]) => ({
         productKey,
         productName: productName(ruleset, productKey),
-        unitCostCents: offer.unitCostCents,
+        unitCostCents: Math.max(1, Math.round(skills.scale('SUPPLY_ORDER_PRICE', offer.unitCostCents))),
         minOrderQuantity: offer.minOrderQuantity,
         maxOrderQuantity: offer.maxOrderQuantity,
         availableQuantity: supplyByKey.get(`${supplier.key}:${productKey}`) ?? offer.stockPerRound,
@@ -108,7 +110,7 @@ export const SupplyOrderService = {
 
     return {
       enabled: true,
-      maxOpenOrders: config.maxOpenOrders ?? 1,
+      maxOpenOrders: (config.maxOpenOrders ?? 1) + (skills.has('SUPPLIERS_FRIEND') ? 2 : 0),
       openOrderCount,
       suppliers: supplierDtos,
       orders: orders.map((row) => supplyOrderDto(ruleset, row)),
@@ -120,7 +122,7 @@ export const SupplyOrderService = {
       action: 'SUPPLY_ORDER',
       idempotencyScope: 'SUPPLY_ORDER',
       actionId: input.actionId,
-      execute: async ({ tx, current, round, ruleset, now }) => {
+      execute: async ({ tx, current, round, ruleset, now, skills }) => {
         const config = ruleset.supplyNetwork;
         const supplier = supplierRules(ruleset, input.supplierKey);
         const offer = supplier && offerRules(supplier, input.productKey);
@@ -154,11 +156,15 @@ export const SupplyOrderService = {
         const openOrderCount = await tx.supplyOrder.count({
           where: { roundPlayerId, status: { in: ['OPEN', 'PARTIALLY_COLLECTED'] } },
         });
-        if (openOrderCount >= maxOpenOrders) {
-          throw AppError.conflict('SUPPLY_ORDER_LIMIT', `You can have up to ${maxOpenOrders} paid orders waiting for pickup.`);
+        // Supplier's Friend: room for two more orders waiting at once.
+        const openOrderLimit = maxOpenOrders + (skills.has('SUPPLIERS_FRIEND') ? 2 : 0);
+        if (openOrderCount >= openOrderLimit) {
+          throw AppError.conflict('SUPPLY_ORDER_LIMIT', `You can have up to ${openOrderLimit} paid orders waiting for pickup.`);
         }
 
-        const totalPaidCents = BigInt(offer.unitCostCents) * BigInt(input.quantity);
+        // Connections: the supplier knocks a little off the unit price.
+        const unitCostCents = Math.max(1, Math.round(skills.scale('SUPPLY_ORDER_PRICE', offer.unitCostCents)));
+        const totalPaidCents = BigInt(unitCostCents) * BigInt(input.quantity);
         if (totalPaidCents > current.cashCents) {
           throw AppError.badRequest(
             'NOT_ENOUGH_CASH',
@@ -188,7 +194,7 @@ export const SupplyOrderService = {
             productKey: input.productKey,
             quantityOrdered: input.quantity,
             quantityCollected: 0,
-            unitCostCents: offer.unitCostCents,
+            unitCostCents,
             totalPaidCents,
             status: 'OPEN',
             requestKey: input.requestKey,
@@ -204,7 +210,7 @@ export const SupplyOrderService = {
             toLocation: `order:${order.id}`,
             orderId: order.id,
             requestKey: `${input.requestKey}:ORDERED`,
-            metadata: { supplierCitySlug: supplier.citySlug, unitCostCents: offer.unitCostCents },
+            metadata: { supplierCitySlug: supplier.citySlug, unitCostCents },
           },
         });
 
@@ -222,7 +228,7 @@ export const SupplyOrderService = {
               supplierCitySlug: supplier.citySlug,
               productKey: input.productKey,
               quantity: input.quantity,
-              unitCostCents: offer.unitCostCents,
+              unitCostCents,
             },
           }],
           activity: {

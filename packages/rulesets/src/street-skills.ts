@@ -1,20 +1,49 @@
-/** Street skill catalog. Slice B adds passive effects; choices remain deferred. */
+/** Street skill catalog: XP sources, passives, milestone perks and caps. */
 export const STREET_SKILL_KEYS = ['HUSTLE', 'MUSCLE', 'WHEELS', 'FIXER', 'CONNECTIONS', 'LUCK'] as const;
 export type StreetSkillKey = (typeof STREET_SKILL_KEYS)[number];
 
 export type StreetSkillModifierCategory = 'ECONOMY' | 'COMBAT' | 'COST' | 'HEAT' | 'RECOVERY' | 'VEHICLE' | 'LUCK';
 
+/**
+ * What a passive or perk changes. Caps apply per effect, so two different
+ * costs (or heat gained and heat cooling) never eat into each other's cap.
+ */
+export type StreetSkillEffectId =
+  | 'CREW_INCOME' | 'STORE_SELL_PRICE' | 'CREW_WORK_HAPPINESS' | 'BULK_SALE_PRICE' | 'BUSINESS_INCOME' | 'LOAN_FEE'
+  | 'FIGHT_WOUNDS' | 'AMMO_PER_FIGHT' | 'DEFENSE_STRENGTH' | 'ATTACK_STRENGTH' | 'WOUND_RECOVERY_TIME' | 'LOOT_TAKEN' | 'LOOT_LOST'
+  | 'RUN_FEES' | 'VEHICLE_DAMAGE' | 'TRAVEL_TIME' | 'CARGO' | 'REPAIR_COST' | 'POLICE_STOPS' | 'ESCORT_STRENGTH'
+  | 'HEAT_GAIN' | 'HEAT_COOLING' | 'FIGHT_HEAT' | 'LAWYER_FEE' | 'EVIDENCE_GAIN' | 'CASE_COOLING'
+  | 'TOLLS' | 'SUPPLY_ORDER_PRICE' | 'STANDING_GAIN' | 'JOB_CASH'
+  | 'ENCOUNTER_GAINS' | 'GOOD_ENCOUNTER_WEIGHT' | 'RARE_ENCOUNTER_WEIGHT' | 'ENCOUNTER_LOSSES' | 'GOOD_ENCOUNTER_GAINS' | 'BAD_ENCOUNTER_WEIGHT';
+
+export interface StreetSkillEffect {
+  readonly effectId: StreetSkillEffectId;
+  readonly category: StreetSkillModifierCategory;
+  /** Percentage points. Reductions are negative. */
+  readonly percent: number;
+}
+
 export interface StreetSkillPassive {
-  readonly effectId: string;
+  readonly skill: StreetSkillKey;
+  readonly effectId: StreetSkillEffectId;
   readonly category: StreetSkillModifierCategory;
   readonly label: string;
+  /** Percent at the skill point cap; scales linearly from zero. */
   readonly maxPercent: number;
+  /** A system this passive needs that is not in the game yet. Until then it applies nothing. */
+  readonly requires?: string;
 }
 
 export interface StreetSkillMilestoneChoice {
   readonly key: string;
   readonly label: string;
   readonly description: string;
+  /** A capped percent effect. Perks without one are rule changes read with `has`. */
+  readonly effect?: StreetSkillEffect;
+  /** Offensive perks stop working against targets much smaller than you. */
+  readonly offensive?: true;
+  /** A system this perk needs that is not in the game yet. It cannot be chosen until then. */
+  readonly requires?: string;
 }
 
 export interface StreetSkillMilestone {
@@ -28,6 +57,7 @@ export interface StreetSkillSource {
   readonly label: string;
   readonly baseXp: number;
   readonly actionPrefixes: readonly string[];
+  /** Share of the XP a lost fight still pays. */
   readonly lossMultiplier?: number;
 }
 
@@ -45,18 +75,31 @@ export interface StreetSkillsRules {
     readonly reducedMultiplier: 1.5;
     readonly reducedDays: 3;
   };
+  /** Per-effect cap, by the effect's category. */
   readonly modifierCaps: readonly { readonly category: StreetSkillModifierCategory; readonly maxPercent: number }[];
+  /** Offensive perks apply only against a target worth at least this share of your net worth. */
+  readonly offensiveTargetNetWorthRatio: number;
+  /** Bulk Seller applies to product sales of at least this many units. */
+  readonly bulkSaleUnits: number;
+  /** Second Chance: the chance a bad encounter is rerolled once. */
+  readonly secondChancePercent: number;
   readonly passives: readonly StreetSkillPassive[];
   readonly milestones: Readonly<Partial<Record<StreetSkillKey, readonly StreetSkillMilestone[]>>>;
   readonly respec: { readonly baseCostCents: number; readonly cooldownHours: number };
   readonly sources: readonly StreetSkillSource[];
 }
 
+const AMMO = 'Ammo & Parts';
+const RUN_FEES = 'Ammo & Parts run fees';
+const TERRITORY = 'Territory Rewards';
+const ARMORY = 'Armory & Garage';
+
 export const STREET_SKILLS_V1: StreetSkillsRules = {
   enabled: true,
   totalPointCap: 100,
   skillPointCap: 40,
-  xpPerPoint: 100,
+  // 40 points cost 24,600 XP: about 25 days at the full-rate band, inside a 28-day round.
+  xpPerPoint: 30,
   dailyFullXp: 1_000,
   dailyHalfXp: 2_000,
   catchUp: { fullMultiplier: 2, fullDays: 3, reducedMultiplier: 1.5, reducedDays: 3 },
@@ -64,65 +107,134 @@ export const STREET_SKILLS_V1: StreetSkillsRules = {
     { category: 'ECONOMY', maxPercent: 12 },
     { category: 'COMBAT', maxPercent: 8 },
     { category: 'COST', maxPercent: 25 },
-    { category: 'HEAT', maxPercent: 15 },
+    { category: 'HEAT', maxPercent: 25 },
     { category: 'RECOVERY', maxPercent: 25 },
     { category: 'VEHICLE', maxPercent: 15 },
-    { category: 'LUCK', maxPercent: 10 },
+    { category: 'LUCK', maxPercent: 25 },
   ],
+  offensiveTargetNetWorthRatio: 0.5,
+  bulkSaleUnits: 100,
+  secondChancePercent: 50,
   passives: [
-    { effectId: 'HUSTLE_INCOME', category: 'ECONOMY', label: 'Hustle · crew and store income', maxPercent: 6 },
-    { effectId: 'MUSCLE_RECOVERY', category: 'RECOVERY', label: 'Muscle · wounded-thug recovery', maxPercent: -15 },
-    { effectId: 'MUSCLE_FIGHT_COST', category: 'COST', label: 'Muscle · fight rounds', maxPercent: -10 },
-    { effectId: 'WHEELS_RUN_FEES', category: 'COST', label: 'Wheels · run fees', maxPercent: -15 },
-    { effectId: 'WHEELS_VEHICLE_DAMAGE', category: 'VEHICLE', label: 'Wheels · vehicle damage chance', maxPercent: -10 },
-    { effectId: 'FIXER_HEAT_GAIN', category: 'HEAT', label: 'Fixer · heat gained', maxPercent: -15 },
-    { effectId: 'FIXER_HEAT_COOLING', category: 'HEAT', label: 'Fixer · heat cooling', maxPercent: 15 },
-    { effectId: 'CONNECTIONS_TOLLS', category: 'COST', label: 'Connections · territory tolls', maxPercent: -20 },
-    { effectId: 'CONNECTIONS_SUPPLY', category: 'COST', label: 'Connections · supply orders', maxPercent: -10 },
-    { effectId: 'LUCK_OUTCOMES', category: 'LUCK', label: 'Luck · favorable random outcomes', maxPercent: 10 },
+    { skill: 'HUSTLE', effectId: 'CREW_INCOME', category: 'ECONOMY', label: 'Hustle · crew income', maxPercent: 6 },
+    { skill: 'HUSTLE', effectId: 'STORE_SELL_PRICE', category: 'ECONOMY', label: 'Hustle · sale prices', maxPercent: 6 },
+    { skill: 'MUSCLE', effectId: 'FIGHT_WOUNDS', category: 'RECOVERY', label: 'Muscle · wounded thugs after fights', maxPercent: -15 },
+    { skill: 'MUSCLE', effectId: 'AMMO_PER_FIGHT', category: 'COST', label: 'Muscle · rounds per fight', maxPercent: -10, requires: AMMO },
+    { skill: 'WHEELS', effectId: 'RUN_FEES', category: 'COST', label: 'Wheels · run fees', maxPercent: -15, requires: RUN_FEES },
+    { skill: 'WHEELS', effectId: 'VEHICLE_DAMAGE', category: 'VEHICLE', label: 'Wheels · vehicle damage', maxPercent: -10 },
+    { skill: 'FIXER', effectId: 'HEAT_GAIN', category: 'HEAT', label: 'Fixer · heat gained', maxPercent: -15 },
+    { skill: 'FIXER', effectId: 'HEAT_COOLING', category: 'HEAT', label: 'Fixer · heat cooling', maxPercent: 15 },
+    { skill: 'CONNECTIONS', effectId: 'TOLLS', category: 'COST', label: 'Connections · territory tolls', maxPercent: -20, requires: TERRITORY },
+    { skill: 'CONNECTIONS', effectId: 'SUPPLY_ORDER_PRICE', category: 'COST', label: 'Connections · supply orders', maxPercent: -10 },
+    { skill: 'LUCK', effectId: 'ENCOUNTER_GAINS', category: 'LUCK', label: 'Luck · encounter windfalls', maxPercent: 10 },
   ],
   milestones: {
     HUSTLE: [
-      { threshold: 10, choices: [{ key: 'SWEET_TALKER', label: 'Sweet Talker', description: 'Crew happiness falls slower.' }, { key: 'BULK_SELLER', label: 'Bulk Seller', description: 'Better price on large product sales.' }] },
-      { threshold: 25, choices: [{ key: 'FRONT_MAN', label: 'Front Man', description: 'Increase business income.' }, { key: 'STREET_CREDIT', label: 'Street Credit', description: 'Improve loan terms.' }] },
-      { threshold: 40, choices: [{ key: 'KINGPINS_CUT', label: "Kingpin's Cut", description: 'Increase cash from territory caches.' }, { key: 'UNTAXED', label: 'Untaxed', description: 'Halve store sell-back losses.' }] },
+      { threshold: 10, choices: [
+        { key: 'SWEET_TALKER', label: 'Sweet Talker', description: 'Your crew works as if 10 points happier.', effect: { effectId: 'CREW_WORK_HAPPINESS', category: 'ECONOMY', percent: 10 } },
+        { key: 'BULK_SELLER', label: 'Bulk Seller', description: 'Product sales of 100+ units pay 5% more.', effect: { effectId: 'BULK_SALE_PRICE', category: 'ECONOMY', percent: 5 } },
+      ] },
+      { threshold: 25, choices: [
+        { key: 'FRONT_MAN', label: 'Front Man', description: 'Businesses earn 5% more.', effect: { effectId: 'BUSINESS_INCOME', category: 'ECONOMY', percent: 5 } },
+        { key: 'STREET_CREDIT', label: 'Street Credit', description: 'Loan contract fees are 10% lower.', effect: { effectId: 'LOAN_FEE', category: 'COST', percent: -10 } },
+      ] },
+      { threshold: 40, choices: [
+        { key: 'KINGPINS_CUT', label: "Kingpin's Cut", description: 'More cash from territory caches you collect.', requires: TERRITORY },
+        { key: 'UNTAXED', label: 'Untaxed', description: 'Selling back to a store loses half as much.' },
+      ] },
     ],
     MUSCLE: [
-      { threshold: 10, choices: [{ key: 'HOLD_THE_LINE', label: 'Hold the Line', description: 'Increase defense strength.' }, { key: 'HIT_FIRST', label: 'Hit First', description: 'Increase attack strength.' }] },
-      { threshold: 25, choices: [{ key: 'STEADY_HANDS', label: 'Steady Hands', description: 'Reduce gun jams and wear.' }, { key: 'FIELD_MEDIC', label: 'Field Medic', description: 'Recover wounded thugs faster.' }] },
-      { threshold: 40, choices: [{ key: 'COLLECTOR', label: 'Collector', description: 'Increase loot share.' }, { key: 'NOBODY_HOME', label: 'Nobody Home', description: 'Reduce loot taken when you lose.' }] },
+      { threshold: 10, choices: [
+        { key: 'HOLD_THE_LINE', label: 'Hold the Line', description: 'Defend at 4% more strength.', effect: { effectId: 'DEFENSE_STRENGTH', category: 'COMBAT', percent: 4 } },
+        { key: 'HIT_FIRST', label: 'Hit First', description: 'Attack at 4% more strength, against targets at least half your net worth.', offensive: true, effect: { effectId: 'ATTACK_STRENGTH', category: 'COMBAT', percent: 4 } },
+      ] },
+      { threshold: 25, choices: [
+        { key: 'STEADY_HANDS', label: 'Steady Hands', description: 'Fewer gun jams and slower gun wear.', requires: ARMORY },
+        { key: 'FIELD_MEDIC', label: 'Field Medic', description: 'Wounded thugs recover 25% faster.', effect: { effectId: 'WOUND_RECOVERY_TIME', category: 'RECOVERY', percent: -25 } },
+      ] },
+      { threshold: 40, choices: [
+        { key: 'COLLECTOR', label: 'Collector', description: 'Take 10% more loot from raids you win, against targets at least half your net worth.', offensive: true, effect: { effectId: 'LOOT_TAKEN', category: 'ECONOMY', percent: 10 } },
+        { key: 'NOBODY_HOME', label: 'Nobody Home', description: 'Lose 10% less loot when you are raided.', effect: { effectId: 'LOOT_LOST', category: 'ECONOMY', percent: -10 } },
+      ] },
     ],
     WHEELS: [
-      { threshold: 10, choices: [{ key: 'LIGHT_FOOT', label: 'Light Foot', description: 'Reduce travel time.' }, { key: 'PACKED_TIGHT', label: 'Packed Tight', description: 'Increase cargo capacity.' }] },
-      { threshold: 25, choices: [{ key: 'GREASE_MONKEY', label: 'Grease Monkey', description: 'Repairs use fewer parts.' }, { key: 'LOW_PROFILE', label: 'Low Profile', description: 'Reduce police stops.' }] },
-      { threshold: 40, choices: [{ key: 'WHEELMAN', label: 'Wheelman', description: 'Protect run vehicles from encounter gangs.' }, { key: 'CONVOY_BOSS', label: 'Convoy Boss', description: 'Improve escort guns on runs.' }] },
+      { threshold: 10, choices: [
+        { key: 'LIGHT_FOOT', label: 'Light Foot', description: 'Runs drive 10% faster.', effect: { effectId: 'TRAVEL_TIME', category: 'VEHICLE', percent: -10 } },
+        { key: 'PACKED_TIGHT', label: 'Packed Tight', description: 'Runs carry 10% more cargo.', effect: { effectId: 'CARGO', category: 'VEHICLE', percent: 10 } },
+      ] },
+      { threshold: 25, choices: [
+        { key: 'GREASE_MONKEY', label: 'Grease Monkey', description: 'Garage repairs and recoveries cost 20% less.', effect: { effectId: 'REPAIR_COST', category: 'COST', percent: -20 } },
+        { key: 'LOW_PROFILE', label: 'Low Profile', description: '10% fewer police stops on the road.', effect: { effectId: 'POLICE_STOPS', category: 'VEHICLE', percent: -10 } },
+      ] },
+      { threshold: 40, choices: [
+        { key: 'WHEELMAN', label: 'Wheelman', description: 'Street gangs never try to steal your ride.' },
+        { key: 'CONVOY_BOSS', label: 'Convoy Boss', description: 'Run escorts defend at 8% more strength.', effect: { effectId: 'ESCORT_STRENGTH', category: 'COMBAT', percent: 8 } },
+      ] },
     ],
     FIXER: [
-      { threshold: 10, choices: [{ key: 'CLEAN_HANDS', label: 'Clean Hands', description: 'Reduce heat from fights.' }, { key: 'LAWYERED_UP', label: 'Lawyered Up', description: 'Make lawyers cheaper.' }] },
-      { threshold: 25, choices: [{ key: 'QUIET_STREETS', label: 'Quiet Streets', description: 'Reduce evidence gain.' }, { key: 'PAPER_TRAIL', label: 'Paper Trail', description: 'Close cases faster.' }] },
-      { threshold: 40, choices: [{ key: 'GHOST', label: 'Ghost', description: 'Shorten the hot window on taken items.' }, { key: 'TRIPWIRE', label: 'Tripwire', description: 'Extend the recovery window on stolen items.' }] },
+      { threshold: 10, choices: [
+        { key: 'CLEAN_HANDS', label: 'Clean Hands', description: 'Fights draw 15% less heat.', effect: { effectId: 'FIGHT_HEAT', category: 'HEAT', percent: -15 } },
+        { key: 'LAWYERED_UP', label: 'Lawyered Up', description: 'Lawyers and retainers cost 15% less.', effect: { effectId: 'LAWYER_FEE', category: 'COST', percent: -15 } },
+      ] },
+      { threshold: 25, choices: [
+        { key: 'QUIET_STREETS', label: 'Quiet Streets', description: 'Evidence against you builds 15% slower.', effect: { effectId: 'EVIDENCE_GAIN', category: 'HEAT', percent: -15 } },
+        { key: 'PAPER_TRAIL', label: 'Paper Trail', description: 'Cases cool 20% faster.', effect: { effectId: 'CASE_COOLING', category: 'HEAT', percent: 20 } },
+      ] },
+      { threshold: 40, choices: [
+        { key: 'GHOST', label: 'Ghost', description: 'Taken items you hold stay hot 12h instead of 24h.', requires: ARMORY },
+        { key: 'TRIPWIRE', label: 'Tripwire', description: 'Your stolen items stay hot 36h, giving you longer to recover them.', requires: ARMORY },
+      ] },
     ],
     CONNECTIONS: [
-      { threshold: 10, choices: [{ key: 'REGULAR', label: 'Regular', description: 'Trader standing grows faster.' }, { key: 'PLUGGED_IN', label: 'Plugged In', description: 'Gain one extra job offer per day.' }] },
-      { threshold: 25, choices: [{ key: 'TOLL_BOOTH', label: 'Toll Booth', description: 'Increase tolls collected.' }, { key: 'FAST_PASS', label: 'Fast Pass', description: 'Halve non-holder access waits.' }] },
-      { threshold: 40, choices: [{ key: 'SUPPLIERS_FRIEND', label: "Supplier's Friend", description: 'Increase supply restock.' }, { key: 'INSIDE_LINE', label: 'Inside Line', description: 'Reveal locked-place ownership and tolls.' }] },
+      { threshold: 10, choices: [
+        { key: 'REGULAR', label: 'Regular', description: 'Trader and faction standing grows 25% faster.', effect: { effectId: 'STANDING_GAIN', category: 'ECONOMY', percent: 25 } },
+        { key: 'PLUGGED_IN', label: 'Plugged In', description: 'Jobs pay 10% more cash.', effect: { effectId: 'JOB_CASH', category: 'ECONOMY', percent: 10 } },
+      ] },
+      { threshold: 25, choices: [
+        { key: 'TOLL_BOOTH', label: 'Toll Booth', description: 'Collect more tolls on your alliance territory.', requires: TERRITORY },
+        { key: 'FAST_PASS', label: 'Fast Pass', description: 'Halve non-holder access waits.', requires: TERRITORY },
+      ] },
+      { threshold: 40, choices: [
+        { key: 'SUPPLIERS_FRIEND', label: "Supplier's Friend", description: 'Two more supply orders can wait for pickup at once.' },
+        { key: 'INSIDE_LINE', label: 'Inside Line', description: 'See who holds each locked place, and their toll, from any city.', requires: TERRITORY },
+      ] },
     ],
     LUCK: [
-      { threshold: 10, choices: [{ key: 'LUCKY_BREAK', label: 'Lucky Break', description: 'Improve favorable encounter outcomes.' }, { key: 'RARE_FIND', label: 'Rare Find', description: 'Improve rare-loot discovery.' }] },
-      { threshold: 25, choices: [{ key: 'FORTUNES_FAVOR', label: "Fortune's Favor", description: 'Reduce the severity of a bad random outcome.' }, { key: 'SECOND_CHANCE', label: 'Second Chance', description: 'Gain a small retry window on eligible events.' }] },
-      { threshold: 40, choices: [{ key: 'SERENDIPITY', label: 'Serendipity', description: 'Improve exceptional non-casino rewards.' }, { key: 'RABBITS_FOOT', label: "Rabbit's Foot", description: 'Reduce eligible random mishaps.' }] },
+      { threshold: 10, choices: [
+        { key: 'LUCKY_BREAK', label: 'Lucky Break', description: 'Good encounters come up 25% more often.', effect: { effectId: 'GOOD_ENCOUNTER_WEIGHT', category: 'LUCK', percent: 25 } },
+        { key: 'RARE_FIND', label: 'Rare Find', description: 'Rare encounters come up 25% more often.', effect: { effectId: 'RARE_ENCOUNTER_WEIGHT', category: 'LUCK', percent: 25 } },
+      ] },
+      { threshold: 25, choices: [
+        { key: 'FORTUNES_FAVOR', label: "Fortune's Favor", description: 'Encounters take 25% less from you.', effect: { effectId: 'ENCOUNTER_LOSSES', category: 'LUCK', percent: -25 } },
+        { key: 'SECOND_CHANCE', label: 'Second Chance', description: 'A bad encounter has a 50% chance to be rerolled once.' },
+      ] },
+      { threshold: 40, choices: [
+        { key: 'SERENDIPITY', label: 'Serendipity', description: 'Good encounters pay 15% more.', effect: { effectId: 'GOOD_ENCOUNTER_GAINS', category: 'LUCK', percent: 15 } },
+        { key: 'RABBITS_FOOT', label: "Rabbit's Foot", description: 'Bad encounters come up 25% less often.', effect: { effectId: 'BAD_ENCOUNTER_WEIGHT', category: 'LUCK', percent: -25 } },
+      ] },
     ],
   },
   respec: { baseCostCents: 2_500_000, cooldownHours: 24 },
   sources: [
-    { key: 'HUSTLE_EARN', skill: 'HUSTLE', label: 'Earning and selling', baseXp: 10, actionPrefixes: ['BUSINESS_', 'STORE_SELL', 'DEALER_', 'SALES_'] },
-    { key: 'MUSCLE_FIGHT', skill: 'MUSCLE', label: 'Combat action', baseXp: 10, lossMultiplier: 0.5, actionPrefixes: ['COMBAT_', 'RAID_', 'TURF_', 'BLOCK_WAR_', 'CONVOY_'] },
-    { key: 'WHEELS_RUN', skill: 'WHEELS', label: 'Run or vehicle action', baseXp: 10, actionPrefixes: ['RUN_', 'BOSS_TRIP_', 'VEHICLE_', 'GARAGE_', 'TRAVEL_'] },
-    { key: 'FIXER_LAW', skill: 'FIXER', label: 'Law and heat action', baseXp: 10, actionPrefixes: ['LAW_', 'CASE_', 'HEAT_', 'WARRANT_'] },
+    { key: 'HUSTLE_EARN', skill: 'HUSTLE', label: 'Earning and selling', baseXp: 10, actionPrefixes: ['BUSINESS_', 'STORE_SELL', 'DEALER_', 'SALES_', 'PRODUCE_'] },
+    { key: 'MUSCLE_FIGHT', skill: 'MUSCLE', label: 'Combat action', baseXp: 10, lossMultiplier: 0.5, actionPrefixes: ['COMBAT_', 'RAID', 'DRIVE_BY', 'SPECIAL_RAID', 'BOSS_HIT', 'TURF_', 'BLOCK_WAR_', 'CONVOY_'] },
+    { key: 'WHEELS_RUN', skill: 'WHEELS', label: 'Run or vehicle action', baseXp: 10, actionPrefixes: ['RUN_', 'TRIP_', 'BOSS_TRIP_', 'VEHICLE_', 'GARAGE_', 'TRAVEL_'] },
+    { key: 'FIXER_LAW', skill: 'FIXER', label: 'Law and heat action', baseXp: 10, actionPrefixes: ['LAW_', 'LAWYER_', 'CASE_', 'HEAT_', 'WARRANT_', 'OFFICIAL_', 'INFORMANT_'] },
     { key: 'CONNECTIONS_JOB', skill: 'CONNECTIONS', label: 'Job, supply, or toll action', baseXp: 10, actionPrefixes: ['QUEST_', 'JOB_', 'CONTACT_', 'SUPPLY_', 'TOLL_', 'REPUTATION_'] },
-    { key: 'LUCK_EVENT', skill: 'LUCK', label: 'Random event or loot action', baseXp: 10, actionPrefixes: ['ENCOUNTER_', 'RANDOM_', 'LOOT_', 'DROP_'] },
+    { key: 'LUCK_EVENT', skill: 'LUCK', label: 'Scouting, random event or loot action', baseXp: 10, actionPrefixes: ['SCOUT', 'ENCOUNTER_', 'RANDOM_', 'LOOT_', 'DROP_'] },
   ],
 };
+
+/** Every perk choice in the catalog, by key. */
+export function streetSkillPerk(rules: Pick<StreetSkillsRules, 'milestones'>, key: string): StreetSkillMilestoneChoice | null {
+  for (const milestones of Object.values(rules.milestones)) {
+    for (const milestone of milestones ?? []) {
+      const found = milestone.choices.find((choice) => choice.key === key);
+      if (found) return found;
+    }
+  }
+  return null;
+}
 
 /** Build the boss contribution(s) for one skill, scaling linearly to 40. */
 export function streetSkillPassiveModifiers(
@@ -130,10 +242,9 @@ export function streetSkillPassiveModifiers(
   points: number,
   rules: Pick<StreetSkillsRules, 'passives'> = STREET_SKILLS_V1,
 ): readonly StreetSkillPassive[] {
-  const factor = Math.max(0, Math.min(40, Math.floor(points))) / 40;
-  const effectPrefix = `${skill}_`;
+  const factor = Math.max(0, Math.min(STREET_SKILLS_V1.skillPointCap, Math.floor(points))) / STREET_SKILLS_V1.skillPointCap;
   return rules.passives
-    .filter((passive) => passive.effectId.startsWith(effectPrefix))
+    .filter((passive) => passive.skill === skill && !passive.requires)
     .map((passive) => ({ ...passive, maxPercent: passive.maxPercent * factor }));
 }
 
@@ -147,10 +258,20 @@ export function streetSkillXpForPoints(points: number, rules: Pick<StreetSkillsR
   return safe * (safe + 1) * rules.xpPerPoint / 2;
 }
 
-export function streetSkillPointsForXp(xp: number, rules: Pick<StreetSkillsRules, 'xpPerPoint' | 'skillPointCap'> = STREET_SKILLS_V1): number {
+/**
+ * Points a skill's XP buys, within the per-skill cap and whatever room the
+ * shared total cap leaves after the player's other skills. Points are never
+ * taken back once earned, so a full total cap freezes every skill.
+ */
+export function streetSkillPointsForXp(
+  xp: number,
+  rules: Pick<StreetSkillsRules, 'xpPerPoint' | 'skillPointCap'> & Partial<Pick<StreetSkillsRules, 'totalPointCap'>> = STREET_SKILLS_V1,
+  otherSkillPoints = 0,
+): number {
   const safe = Math.max(0, Math.floor(xp));
+  const cap = Math.min(rules.skillPointCap, Math.max(0, (rules.totalPointCap ?? Number.POSITIVE_INFINITY) - Math.max(0, otherSkillPoints)));
   let points = 0;
-  while (points < rules.skillPointCap && streetSkillXpForPoints(points + 1, rules) <= safe) points += 1;
+  while (points < cap && streetSkillXpForPoints(points + 1, rules) <= safe) points += 1;
   return points;
 }
 
@@ -222,7 +343,8 @@ export function simulateStreetSkillSeason(
     const windowXp = sameWindow ? window!.xp : 0;
     const earned = Math.max(1, Math.floor(streetSkillTaperedXp(base, windowXp, rules) * streetSkillCatchUpMultiplier(event.joinedAt, event.settledAt, rules)));
     xp[event.skill] += earned;
-    points[event.skill] = streetSkillPointsForXp(xp[event.skill], rules);
+    const others = STREET_SKILL_KEYS.reduce((sum, skill) => sum + (skill === event.skill ? 0 : points[skill]), 0);
+    points[event.skill] = Math.max(points[event.skill], streetSkillPointsForXp(xp[event.skill], rules, others));
     windows.set(event.skill, { startsAt: sameWindow ? window!.startsAt : event.settledAt, xp: windowXp + earned });
     awardedEvents += 1;
   }

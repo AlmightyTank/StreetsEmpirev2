@@ -1,5 +1,6 @@
 import { AppError } from '../utils/errors.js';
 import type { Db } from '../utils/db.js';
+import { PlayerSkillService } from './player-skill.service.js';
 
 export interface RecoverySettlement {
   recoveredThugs: number;
@@ -51,10 +52,15 @@ export const CombatRecoveryService = {
     };
   },
 
-  /** `battleId` is null for wounds from a 0.5.0-E convoy fight, which has no battle row. */
-  async add(tx: Db, roundPlayerId: string, battleId: string | null, thugs: number, recoverAt: Date): Promise<void> {
+  /**
+   * `battleId` is null for wounds from a 0.5.0-E convoy fight, which has no battle row.
+   * Field Medic shortens whatever is left of the wait from `now`.
+   */
+  async add(tx: Db, roundPlayerId: string, battleId: string | null, thugs: number, recoverAt: Date, now: Date = new Date()): Promise<void> {
     if (thugs <= 0) return;
-    await tx.combatInjury.create({ data: { roundPlayerId, battleId, thugs, recoverAt } });
+    const pct = recoverAt > now ? (await PlayerSkillService.effectsFor(tx, roundPlayerId)).percent('WOUND_RECOVERY_TIME') : 0;
+    const at = pct ? new Date(now.getTime() + Math.round((recoverAt.getTime() - now.getTime()) * (100 + pct) / 100)) : recoverAt;
+    await tx.combatInjury.create({ data: { roundPlayerId, battleId, thugs, recoverAt: at } });
   },
 
   async treat(

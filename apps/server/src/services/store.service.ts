@@ -56,6 +56,7 @@ import { tradeProductLine } from './product-market.service.js';
 import { PermanentUnlockService } from './permanent-unlock.service.js';
 import type { Db } from '../utils/db.js';
 import { CityConditionService } from './city-condition.service.js';
+import { NO_SKILL_EFFECTS, type SkillEffects } from './player-skill.service.js';
 
 const MAX_CITY_CONDITION_CASH_CENTS = BigInt(Number.MAX_SAFE_INTEGER);
 
@@ -85,6 +86,17 @@ type CatalogPlayer = RoundPlayer & { city: { slug: string } };
 function discountedBuyCents(buyCents: number, sellCents: number | null, discountPercent: number): number {
   const discounted = Math.floor(buyCents * (100 - Math.min(90, Math.max(0, discountPercent))) / 100);
   return sellCents === null ? Math.max(1, discounted) : Math.max(sellCents + 1, discounted);
+}
+
+/**
+ * Street skills on a store sale: Hustle's sale-price passive, and Untaxed, which
+ * halves what a sell-back loses against the buy price.
+ */
+export function skillSellCents(sellCents: number | null, buyCents: number, skills: SkillEffects): number | null {
+  if (sellCents === null || !skills.active) return sellCents;
+  let price = Math.floor(skills.scale('STORE_SELL_PRICE', sellCents));
+  if (skills.has('UNTAXED')) price = Math.max(price, sellCents + Math.floor((buyCents - sellCents) / 2));
+  return Math.min(buyCents - 1, Math.max(sellCents, price));
 }
 
 export function boostedSellCents(sellCents: number | null, buyCents: number, bonusPercent: number): number | null {
@@ -460,6 +472,7 @@ function quoteForLine(
   input: StoreCheckoutLineInput,
   effects: RacketEffects = {},
   nudges: StoreNudges = {},
+  skills: SkillEffects = NO_SKILL_EFFECTS,
 ): {
   buyUnitCents?: number;
   sellUnitCents?: number | null;
@@ -480,7 +493,9 @@ function quoteForLine(
   const relationship = relationshipPriceAdjustments(standings[trader]?.points ?? 0, ruleset, foundStore.key);
   // 1.1.0-C: a racket shades a store's price a little, on top of standing.
   const racket = racketStorePrice(ruleset, effects, foundStore.key, input.item);
-  const sellUnitCents = boostedSellCents(storeItem.sellCents, storeItem.buyCents, relationship.sellBonusPercent + racket.sellBonusPercent);
+  const boostedSell = boostedSellCents(storeItem.sellCents, storeItem.buyCents, relationship.sellBonusPercent + racket.sellBonusPercent);
+  // Skills only pay on a sale; the buy-side floor keeps reading the unskilled price.
+  const sellUnitCents = input.direction === 'sell' ? skillSellCents(boostedSell, storeItem.buyCents, skills) : boostedSell;
   const favorApplies = Boolean(
     discount
     && input.direction === 'buy'
@@ -651,7 +666,7 @@ export const StoreService = {
     return ActionService.run<StoreTradeResult>(prisma, roundPlayerId, {
       action: input.direction === 'buy' ? 'STORE_BUY' : 'STORE_SELL',
       actionId: input.actionId,
-      execute: async ({ tx, current, player, round, ruleset, standings, now }) => {
+      execute: async ({ tx, current, player, round, ruleset, standings, now, skills }) => {
         const foundStore = findStore(ruleset, input.store);
         const normalizedItem = input.item.trim().toUpperCase();
         const normalizedInput = { ...input, store: foundStore?.key ?? input.store.trim().toUpperCase(), item: normalizedItem };
@@ -667,7 +682,7 @@ export const StoreService = {
         const storeItem = foundStore && Object.hasOwn(foundStore.store.items, normalizedItem)
           ? foundStore.store.items[normalizedItem]
           : undefined;
-        const quote = quoteForLine(ruleset, standings, discount, foundStore, normalizedInput, readRacketEffects(player.racketEffects), await storeNudges(tx, roundPlayerId, ruleset));
+        const quote = quoteForLine(ruleset, standings, discount, foundStore, normalizedInput, readRacketEffects(player.racketEffects), await storeNudges(tx, roundPlayerId, ruleset), skills);
         // 1.5.0-E2: a Sedan or Van waits for its job from Wheels.
         if (storeItem?.vehicleClass && normalizedInput.direction === 'buy') {
           await PermanentUnlockService.assertCanBuyVehicle(tx, roundPlayerId, ruleset, storeItem.vehicleClass);
@@ -849,7 +864,7 @@ export const StoreService = {
     return ActionService.run<StoreCheckoutResult>(prisma, roundPlayerId, {
       action: 'STORE_CHECKOUT',
       actionId: input.actionId,
-      execute: async ({ tx, current, player, round, ruleset, standings, now }) => {
+      execute: async ({ tx, current, player, round, ruleset, standings, now, skills }) => {
         const armed = await SingleUseFavorService.matching(tx, roundPlayerId, ruleset, 'STORE_BUY_DISCOUNT');
         const discount: StoreDiscount | null = armed?.effect.kind === 'STORE_BUY_DISCOUNT'
           ? { id: armed.id, key: armed.key, effect: armed.effect }
@@ -873,7 +888,7 @@ export const StoreService = {
           // Pip's other products ride in the same basket, priced and stocked exactly as at his counter.
           if (normalized.store === 'PIP' && normalized.item !== 'CRACK' && productEconomy(ruleset, normalized.item)?.pip) {
             const product = await tradeProductLine(
-              { tx, roundPlayerId, player, round, ruleset, standings, now, cashCents: next.cashCents, sourceKey: `checkout:${input.actionId ?? now.toISOString()}:${index}`, creditPip: !creditedTraders.has('PIP') },
+              { tx, roundPlayerId, player, round, ruleset, standings, now, cashCents: next.cashCents, sourceKey: `checkout:${input.actionId ?? now.toISOString()}:${index}`, creditPip: !creditedTraders.has('PIP'), skills },
               { product: normalized.item, direction: normalized.direction, quantity: normalized.quantity },
             ).catch((error: unknown) => {
               if (error instanceof AppError) throw new AppError(error.statusCode, error.code, `Line ${index + 1}: ${error.message}`, error.fields);
@@ -917,7 +932,7 @@ export const StoreService = {
               throw error;
             });
           }
-          const quote = quoteForLine(ruleset, standings, discount, foundStore, normalized, readRacketEffects(player.racketEffects), nudges);
+          const quote = quoteForLine(ruleset, standings, discount, foundStore, normalized, readRacketEffects(player.racketEffects), nudges, skills);
           let trade;
           try {
             trade = calculateStoreTrade(

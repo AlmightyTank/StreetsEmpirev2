@@ -13,7 +13,8 @@ export interface StreetSkillMilestoneDto {
   threshold: number;
   unlocked: boolean;
   choice: string | null;
-  choices: Array<{ key: string; label: string; description: string }>;
+  /** `requires` names a system not in the game yet; that perk cannot be chosen until it ships. */
+  choices: Array<{ key: string; label: string; description: string; requires: string | null }>;
 }
 
 export interface StreetSkillProgressDto {
@@ -25,6 +26,7 @@ export interface StreetSkillProgressDto {
   choices: Record<string, string>;
   respecs: number;
   respecReadyAt: string | null;
+  respecCostCents: number;
   milestones: StreetSkillMilestoneDto[];
 }
 

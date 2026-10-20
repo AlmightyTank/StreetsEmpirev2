@@ -1,5 +1,6 @@
 import type { City, Prisma, PrismaClient, Round, RoundPlayer } from '@prisma/client';
-import { decayHeat, loadRulesetForRound, rulesetForCity, type Ruleset, type Standings } from '@streets/rules-engine';
+import { loadRulesetForRound, rulesetForCity, type Ruleset, type Standings } from '@streets/rules-engine';
+import { coolHeat, PlayerSkillService } from './player-skill.service.js';
 import { AppError } from '../utils/errors.js';
 import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { ActivityService } from './activity.service.js';
@@ -179,7 +180,9 @@ export const PlayerStateService = {
     const recovery = await CombatRecoveryService.settle(tx, roundPlayerId, now);
     // 1. Turns, and the shop shelves on the same clock. Heat cools on it too.
     const turns = TurnService.settle(rest, now, ruleset);
-    const heat = ruleset.heat ? decayHeat(rest.heat, turns.intervalsProcessed, ruleset.heat) : rest.heat;
+    const heat = ruleset.heat
+      ? coolHeat(rest.heat, turns.intervalsProcessed, ruleset.heat, await PlayerSkillService.effects(tx, roundPlayerId, ruleset.streetSkills))
+      : rest.heat;
     const recovered = { ...rest, woundedThugs: recovery.woundedThugs, heat };
     const standings = await ReputationService.load(tx, roundPlayerId, ruleset);
     const stock = StockService.settle(recovered, now, ruleset, standings);

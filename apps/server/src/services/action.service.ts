@@ -6,7 +6,7 @@ import type {
   Round,
   RoundPlayer,
 } from '@prisma/client';
-import { decayHeat, loadRulesetForRound, rulesetForCity, totalWeapons, type Ruleset, type Standings } from '@streets/rules-engine';
+import { loadRulesetForRound, rulesetForCity, totalWeapons, type Ruleset, type Standings } from '@streets/rules-engine';
 import type {
   GameActionResult,
   PlayerSnapshot,
@@ -14,7 +14,6 @@ import type {
   ResourceChange,
 } from '@streets/shared';
 import { streetSkillSourceForAction, type QuestDataValue } from '@streets/rulesets';
-import type { ModifierResolution } from '@streets/rules-engine';
 import { AppError } from '../utils/errors.js';
 import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { annotateLogContext } from '../utils/request-context.js';
@@ -48,7 +47,7 @@ import { LawWarrantService } from './law-warrant.service.js';
 import { CrewRosterService } from './crew-roster.service.js';
 import { CrewStaffingOrderService } from './crew-staffing-order.service.js';
 import { fitThugs } from './crew-availability.js';
-import { PlayerSkillService, type SkillXpAward } from './player-skill.service.js';
+import { coolHeat, PlayerSkillService, type SkillEffects, type SkillXpAward } from './player-skill.service.js';
 
 export { fitThugs, workingWhores } from './crew-availability.js';
 
@@ -182,8 +181,8 @@ export interface ActionContext {
   recovery: RecoverySettlement;
   /** 1.6.5-B. Net worth as it stands before the action, freshly calculated. */
   netWorthCents: bigint;
-  /** Slice B: shared, capped passives available to the settling action. */
-  modifiers?: ModifierResolution;
+  /** Street skill passives and perks. Ask for an effect where it applies; it lands on the receipt. */
+  skills: SkillEffects;
 }
 
 export interface ActionOutcome<T> {
@@ -487,6 +486,7 @@ export const ActionService = {
       // Turns first: an action always spends from a settled balance. The shop
       // shelves settle in the same breath, for the same reason.
       const turns = TurnService.settle(player, now, ruleset);
+      const skills = await PlayerSkillService.effects(tx, roundPlayerId, ruleset.streetSkills);
       const standings = await ReputationService.load(tx, roundPlayerId, ruleset);
       // Standing shortens a shop's wait, so it has to be read before the
       // shelves settle - never the cap, only the interval.
@@ -496,7 +496,7 @@ export const ActionService = {
         woundedThugs: recovery.woundedThugs,
         turns: turns.turns,
         // 0.4.0-C: Heat cools on the same clock turns regenerate on.
-        heat: ruleset.heat ? decayHeat(player.heat, turns.intervalsProcessed, ruleset.heat) : player.heat,
+        heat: ruleset.heat ? coolHeat(player.heat, turns.intervalsProcessed, ruleset.heat, skills) : player.heat,
         ...stock.counts,
       };
       assertPlayerState(current, ruleset, 'before');
@@ -513,10 +513,6 @@ export const ActionService = {
         netWorthCents: beforeNetWorth,
       });
 
-      const modifiers = ruleset.streetSkills
-        ? await PlayerSkillService.resolveModifiers(tx, { roundPlayerId, rules: ruleset.streetSkills })
-        : undefined;
-
       const outcome = await options.execute({
         tx,
         current,
@@ -530,23 +526,25 @@ export const ActionService = {
         standings,
         recovery,
         netWorthCents: beforeNetWorth,
-        modifiers,
+        skills,
       });
+      // Fixer: whatever Heat the action added comes in smaller.
+      const executed = withSkillHeat(current, outcome.next, skills);
 
       const trigger = encounterTriggerForAction(options.action);
       const actionEncounter = trigger ? await RandomEncounterService.action({
         tx,
         roundPlayerId,
-        next: outcome.next,
+        next: executed,
         ruleset,
-        turns: Math.max(0, current.turns - outcome.next.turns),
+        turns: Math.max(0, current.turns - executed.turns),
         now,
       }, trigger) : undefined;
       const staffing = await CrewStaffingOrderService.apply(tx, {
         roundPlayerId,
         ruleset,
         now,
-        state: actionEncounter?.next ?? outcome.next,
+        state: actionEncounter?.next ?? executed,
         player,
       });
       const next = staffing.next;
@@ -560,7 +558,7 @@ export const ActionService = {
       }
 
       if (outcome.reputation?.length) {
-        await ReputationService.write(tx, roundPlayerId, outcome.reputation);
+        await ReputationService.write(tx, roundPlayerId, withSkillStanding(outcome.reputation, standings, skills));
       }
       if (outcome.caseEvidence?.length && ruleset.law) {
         const key = options.actionId
@@ -707,9 +705,7 @@ export const ActionService = {
         after,
         changes: diff(before, after),
         result: outcome.result,
-        ...(modifiers && modifiers.receipts.some((receipt) => receipt.appliedPercent !== 0)
-          ? { modifiers: modifiers.receipts.filter((receipt) => receipt.appliedPercent !== 0) }
-          : {}),
+        ...(skills.receipts().length ? { modifiers: skills.receipts() } : {}),
         ...(actionEncounter?.encounter ? { encounter: actionEncounter.encounter } : {}),
         ...(staffing.fills.length ? { staffingOrders: staffing.fills } : {}),
         rankChanges,
@@ -730,6 +726,25 @@ export const ActionService = {
     });
   },
 };
+
+/** An action's next state with any Heat it added reduced by the Fixer's heat-gain passive. */
+export function withSkillHeat<S extends { heat: number }>(before: S, next: S, skills: SkillEffects): S {
+  const added = next.heat - before.heat;
+  if (added <= 0) return next;
+  const pct = skills.percent('HEAT_GAIN');
+  if (!pct) return next;
+  return { ...next, heat: before.heat + Math.round(added * (100 + pct) / 100) };
+}
+
+/** Standing an action raised, raised a little further by the Regular perk. */
+function withSkillStanding(changes: NonNullable<ActionOutcome<unknown>['reputation']>, standings: Standings, skills: SkillEffects): NonNullable<ActionOutcome<unknown>['reputation']> {
+  return changes.map((change) => {
+    const gained = change.points - (standings[change.trader]?.points ?? 0);
+    if (gained <= 0) return change;
+    const pct = skills.percent('STANDING_GAIN');
+    return pct ? { ...change, points: change.points + Math.ceil(gained * pct / 100) } : change;
+  });
+}
 
 function assertRoundPlayable(round: Round, now: Date): void {
   if (round.status !== 'ACTIVE' || round.endsAt.getTime() <= now.getTime()) {

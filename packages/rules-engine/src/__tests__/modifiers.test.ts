@@ -24,4 +24,17 @@ describe('shared modifier resolver', () => {
     expect(result.totals.COST).toBe(-25);
     expect(result.modifiers[1]).toMatchObject({ appliedPercent: -5, capped: true, label: 'Shortcut Routes' });
   });
+
+  it('caps each target on its own, so different costs and heat effects never share a cap', () => {
+    const result = resolveModifiers([
+      { effectId: 'TOLLS', target: 'TOLLS', category: 'COST', percent: -20, sourceId: 'street-skill:CONNECTIONS', label: 'Tolls' },
+      { effectId: 'SUPPLY', target: 'SUPPLY', category: 'COST', percent: -10, sourceId: 'street-skill:CONNECTIONS', label: 'Supply' },
+      { effectId: 'HEAT_GAIN', target: 'HEAT_GAIN', category: 'HEAT', percent: -15, sourceId: 'street-skill:FIXER', label: 'Gain' },
+      { effectId: 'HEAT_COOLING', target: 'HEAT_COOLING', category: 'HEAT', percent: 15, sourceId: 'street-skill:FIXER', label: 'Cooling' },
+      { effectId: 'TOLLS', target: 'TOLLS', category: 'COST', percent: -10, sourceId: 'territory:transit', label: 'Shortcut' },
+    ], [{ category: 'COST', maxPercent: 25 }, { category: 'HEAT', maxPercent: 25 }]);
+
+    expect(result.targets).toEqual({ TOLLS: -25, SUPPLY: -10, HEAT_GAIN: -15, HEAT_COOLING: 15 });
+    expect(result.modifiers.map((entry) => entry.appliedPercent)).toEqual([-20, -10, -15, 15, -5]);
+  });
 });

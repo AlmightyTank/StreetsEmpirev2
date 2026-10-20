@@ -26,7 +26,8 @@ import { PlayerStateService } from './player-state.service.js';
 import { CRACK, ProductInventoryService, productKeys } from './product-inventory.service.js';
 import { PermanentUnlockService } from './permanent-unlock.service.js';
 import { TimedFavorService } from './timed-favor.service.js';
-import { boostedSellCents, relationshipPriceAdjustments, storeMarketContext } from './store.service.js';
+import { boostedSellCents, relationshipPriceAdjustments, skillSellCents, storeMarketContext } from './store.service.js';
+import { NO_SKILL_EFFECTS, type SkillEffects } from './player-skill.service.js';
 import { HighMarketService } from './high-market.service.js';
 import type { EconomyLedgerWrite } from './economy-ledger.service.js';
 import type { ReputationChange } from './reputation.service.js';
@@ -89,6 +90,8 @@ export interface ProductLineContext {
   sourceKey: string;
   /** False when an earlier basket line already earned today's credit with Pip. */
   creditPip: boolean;
+  /** Street skills: Hustle's sale price, Bulk Seller and Untaxed. */
+  skills?: SkillEffects;
 }
 
 export interface ProductLineOutcome {
@@ -131,7 +134,16 @@ export async function tradeProductLine(
   const relationship = relationshipPriceAdjustments(standings.PIP?.points ?? 0, ruleset, 'PIP');
   // 1.1.0-C: Ecstasy demand and the like pay a little more on top of standing.
   const racketBonus = racketStorePrice(ruleset, readRacketEffects(player.racketEffects), 'PIP', input.product).sellBonusPercent;
-  const sellUnitCents = boostedSellCents(quote.sellCents, quote.buyCents, relationship.sellBonusPercent + racketBonus) ?? quote.sellCents;
+  const boostedSell = boostedSellCents(quote.sellCents, quote.buyCents, relationship.sellBonusPercent + racketBonus) ?? quote.sellCents;
+  const skills = ctx.skills ?? NO_SKILL_EFFECTS;
+  // Skills only pay on a sale; the buy-side floor keeps reading the unskilled price.
+  let sellUnitCents = boostedSell;
+  if (input.direction === 'sell' && skills.active) {
+    sellUnitCents = skillSellCents(boostedSell, quote.buyCents, skills) ?? boostedSell;
+    if (input.quantity >= (ruleset.streetSkills?.bulkSaleUnits ?? Number.POSITIVE_INFINITY)) {
+      sellUnitCents = Math.min(quote.buyCents - 1, Math.max(sellUnitCents, Math.floor(skills.scale('BULK_SALE_PRICE', sellUnitCents))));
+    }
+  }
   const nudge = input.direction === 'buy' ? await FactionService.nudge(tx, roundPlayerId, ruleset, 'PIP_PRODUCT') : null;
   const unnudgedBuyCents = discountedPipBuyCents(
     quote.buyCents,
@@ -335,9 +347,9 @@ export const ProductMarketService = {
     return ActionService.run<ProductTradeResult>(prisma, roundPlayerId, {
       action: input.direction === 'buy' ? 'STORE_BUY' : 'STORE_SELL',
       actionId: input.actionId,
-      execute: async ({ tx, current, player, round, ruleset, standings, now }) => {
+      execute: async ({ tx, current, player, round, ruleset, standings, now, skills }) => {
         const line = await tradeProductLine(
-          { tx, roundPlayerId, player, round, ruleset, standings, now, cashCents: current.cashCents, sourceKey: `product:${input.actionId ?? now.toISOString()}`, creditPip: true },
+          { tx, roundPlayerId, player, round, ruleset, standings, now, cashCents: current.cashCents, sourceKey: `product:${input.actionId ?? now.toISOString()}`, creditPip: true, skills },
           input,
         );
         return {

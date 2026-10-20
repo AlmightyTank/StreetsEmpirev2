@@ -66,6 +66,7 @@ import { BossHitService, scanBosses, type BossReconTarget } from './boss-hit.ser
 import { truceBlock, trucesFor } from './boss-presence.service.js';
 import { WorkSupplyService } from './work-supply.service.js';
 import { LawService } from './law.service.js';
+import { PlayerSkillService } from './player-skill.service.js';
 
 type Weapons = Record<WeaponKey, number>;
 /** A side of a convoy fight as it set out: morale, the guns it carries, and any supply boost. */
@@ -536,6 +537,9 @@ export const ConvoyService = {
           defenderBoost = { strength: supply.takeMultiplier, wounds: supply.woundMultiplier };
         }
       }
+      // Convoy Boss: the owner's escorts stand a little firmer.
+      const escortPercent = escorts > 0 ? (await PlayerSkillService.effects(tx, ownerId, ruleset.streetSkills)).percent('ESCORT_STRENGTH') : 0;
+      if (escortPercent) defenderBoost = { strength: (defenderBoost?.strength ?? 1) * (100 + escortPercent) / 100, wounds: defenderBoost?.wounds ?? 1 };
 
       const attackerCrew = tail.attackerCrew as unknown as CrewSnapshot;
       const rng = seededRng(hashParts(tail.id, 'convoy'));

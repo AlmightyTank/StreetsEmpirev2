@@ -26,6 +26,7 @@ import { OFFICIAL_TITLES } from './law-official.service.js';
 import { ProductInventoryService } from './product-inventory.service.js';
 import { crackdownPlan } from './turf-crackdown.service.js';
 import { localsOnBlock } from './turf.service.js';
+import { caseCooling } from './law.service.js';
 
 const HOUR_MS = 3_600_000;
 /** The Outfit only talks about a city's rackets when at least this many crews run them. */
@@ -293,9 +294,10 @@ async function civicWarnings(db: Db, base: Ruleset, player: PerkPlayer, leadPoin
   const rules = base.law;
   if (!rules) return [];
   const cases = await db.playerCase.findMany({ where: { roundPlayerId: player.id, caseHundredths: { gt: 0 } }, include: { city: { select: { slug: true, name: true } } } });
+  const cooling = await caseCooling(db, player.id, base);
   const lines: FactionWarning[] = [];
   for (const row of cases) {
-    const value = coolCase(row, now, rules, cityLaw(rules, row.city.slug).coolingSpeed);
+    const value = coolCase(row, now, rules, cityLaw(rules, row.city.slug).coolingSpeed * cooling);
     const next = WANTED_STAGES[WANTED_STAGES.indexOf(wantedStage(value, rules)) + 1];
     if (!next) continue;
     const gap = stageStartsAt(next, rules) - value;

@@ -1440,7 +1440,7 @@ export const HandcraftedQuestService = {
       action: 'QUEST_CLAIM',
       actionId: input.actionId,
       idempotencyScope: `QUEST_CLAIM:${key}`,
-      execute: async ({ tx, current, now, player, round }) => {
+      execute: async ({ tx, current, now, player, round, skills }) => {
         const communityEvent = isCommunityEventDefinition(ruleset.questDefinitions?.[key]);
         const seasonalEvent = usesFirstClassSeasonalEvents(ruleset) && isSeasonalEventDefinition(ruleset.questDefinitions?.[key]);
         if (communityEvent) {
@@ -1501,13 +1501,20 @@ export const HandcraftedQuestService = {
           ...(selectedBranch?.rewards ?? []),
         ];
         const questRewards = bumpRewardsForCompletedBonuses(listedRewards, finishedBonusCount(row));
+        const cashBeforeRewards = next.cashCents;
         await grantRewards({ tx, roundPlayerId, accountId: player.accountId, ruleset, now, sourceKey: key }, next, questRewards);
+        // Plugged In: the Job's cash comes in a little larger.
+        const rewardCash = next.cashCents - cashBeforeRewards;
+        const jobCashPercent = rewardCash > 0n ? skills.percent('JOB_CASH') : 0;
+        if (jobCashPercent) next.cashCents += rewardCash * BigInt(Math.round(jobCashPercent * 100)) / 10_000n;
         // 1.4.0-B: a one-time Job also pays standing to the factions it helps, and no others.
         const standingChanges: QuestClaimResult['standingChanges'] = [];
         // 1.4.0-C: a board contract pays its sponsor instead.
         for (const [factionKey, amount] of [...jobStanding(ruleset, key, questRewards, selectedBranch), ...boardStanding(ruleset, rulesetDefinition, row.rewardState), ...introduction]) {
           const source = rulesetDefinition.introduces ? 'INTRODUCTION' : contractBoard(rulesetDefinition) ? 'CONTRACT' : 'JOB';
-          const change = await FactionService.grant(tx, roundPlayerId, ruleset, factionKey, amount, source, `job:${row.id}:${factionKey}`, now);
+          // Regular: standing a Job pays grows a little faster.
+          const earned = amount > 0 ? Math.ceil(skills.scale('STANDING_GAIN', amount)) : amount;
+          const change = await FactionService.grant(tx, roundPlayerId, ruleset, factionKey, earned, source, `job:${row.id}:${factionKey}`, now);
           if (change) {
             const paid = change.after - change.before;
             const rivalName = (rival: FactionKey) => ruleset.factions?.[rival]?.name ?? rival;

@@ -4,7 +4,6 @@ import {
   bribeCentsPerPoint,
   businessIncomeCentsPerHour,
   CASE_SCALE,
-  decayHeat,
   isRacketKey,
   launderAllowance,
   launderDay,
@@ -38,6 +37,7 @@ import { EconomyLedgerService } from './economy-ledger.service.js';
 import { blockFatigueNow } from './block-war-settle.service.js';
 import { LawService } from './law.service.js';
 import { fitThugs as availableThugs } from './crew-availability.js';
+import { coolHeat, PlayerSkillService } from './player-skill.service.js';
 
 const HOUR_MS = 3_600_000;
 
@@ -197,6 +197,8 @@ export const BusinessService = {
    */
   async settlePlayer(tx: Db, roundPlayerId: string, ruleset: Ruleset, now = new Date(), rng: Rng = Math.random): Promise<BusinessSettlement | null> {
     if (!buildingOn(ruleset)) return null;
+    // Front Man: the businesses' takings come in a little larger.
+    const frontManPercent = (await PlayerSkillService.effects(tx, roundPlayerId, ruleset.streetSkills)).percent('BUSINESS_INCOME');
     const player = await tx.roundPlayer.findUniqueOrThrow({
       where: { id: roundPlayerId },
       select: {
@@ -392,6 +394,7 @@ export const BusinessService = {
         let earned = shutHours > 0
           ? BigInt(Math.floor((perHour * earningHours + racketPerHour * racketEarningHours) * staffed * suppliedShare))
           : BigInt(Math.floor((perHour + racketPerHour) * staffed * earningHours * suppliedShare));
+        if (frontManPercent && earned > 0n) earned += earned * BigInt(Math.round(frontManPercent * 100)) / 10_000n;
         const cap = BigInt(registerCapCents(ruleset, perHour + racketPerHour));
         // After a war, the winning side's ally takes the promised cut of the truce's income.
         if (earned > 0n && row.turf.warCutPlayerId && row.turf.warCutUntil && row.turf.warCutShare > 0 && earningHours > 0) {
@@ -464,7 +467,8 @@ export const BusinessService = {
     const heatData: { heat?: number; turns?: number; lastTurnCalculationAt?: Date; launderedDay?: string; launderedHeatToday?: number; launderedHeatRound?: number; launderedCaseDay?: string; launderedCaseToday?: number } = {};
     if (heatRules && rackets && (racketHeat > 0 || launders.length > 0)) {
       const regen = regenerateTurns({ turns: player.turns, lastTurnCalculationAt: player.lastTurnCalculationAt }, now, ruleset);
-      let heat = Math.min(heatRules.max, decayHeat(player.heat, regen.intervalsProcessed, heatRules) + roundStochastic(racketHeat, rng));
+      const cooled = coolHeat(player.heat, regen.intervalsProcessed, heatRules, await PlayerSkillService.effects(tx, roundPlayerId, ruleset.streetSkills));
+      let heat = Math.min(heatRules.max, cooled + roundStochastic(racketHeat, rng));
       const today = launderDay(now);
       let usedToday = player.launderedDay === today ? player.launderedHeatToday : 0;
       let usedRound = player.launderedHeatRound;

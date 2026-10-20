@@ -134,7 +134,12 @@ export const LoanService = {
           };
         }
 
-        const terms: ResolvedLoanTerms = typeof input.terms === 'function' ? await input.terms(rules, context) : input.terms;
+        const offered: ResolvedLoanTerms = typeof input.terms === 'function' ? await input.terms(rules, context) : input.terms;
+        // Street Credit: the contract fee comes down.
+        const feePercent = offered.contractFeeCents > 0n ? context.skills.percent('LOAN_FEE') : 0;
+        const terms: ResolvedLoanTerms = feePercent
+          ? { ...offered, contractFeeCents: offered.contractFeeCents * BigInt(Math.round((100 + feePercent) * 100)) / 10_000n }
+          : offered;
         // The limits are whatever the round's ruleset sets now, never a per-player snapshot.
         let quote;
         try {

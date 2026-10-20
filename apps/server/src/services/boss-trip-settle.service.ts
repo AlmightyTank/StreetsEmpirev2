@@ -2,7 +2,6 @@ import type { BossTrip, Prisma, PrismaClient } from '@prisma/client';
 import {
   bossHitLootCents,
   convoyCombatModel,
-  decayHeat,
   regenerateTurns,
   rulesetForCity,
   splitWounds,
@@ -25,6 +24,7 @@ import { EconomyLedgerService } from './economy-ledger.service.js';
 import { totalAwayWorth } from './run-settle.service.js';
 import { LawOfficialService } from './law-official.service.js';
 import { CrewRosterService } from './crew-roster.service.js';
+import { coolHeat, PlayerSkillService } from './player-skill.service.js';
 
 const cityName = (ruleset: Ruleset, slug: string) => ruleset.cities?.[slug]?.name ?? slug;
 const json = (value: unknown): Prisma.InputJsonValue => JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
@@ -183,7 +183,7 @@ async function checkFlightHome(tx: Db, ownerId: string, ruleset: Ruleset, trip: 
   // The Heat the boss carries at check-out: what is stored has only cooled to the last read.
   const home = rulesetForCity(ruleset, owner.city.slug);
   const cooled = regenerateTurns({ turns: owner.turns, lastTurnCalculationAt: owner.lastTurnCalculationAt }, trip.stayUntil, home).intervalsProcessed;
-  const heat = home.heat ? decayHeat(owner.heat, cooled, home.heat) : owner.heat;
+  const heat = home.heat ? coolHeat(owner.heat, cooled, home.heat, await PlayerSkillService.effects(tx, ownerId, ruleset.streetSkills)) : owner.heat;
   // 1.3.0-D: Customs on the payroll in the city being left looks the other way more often.
   const visiting = ruleset.law?.officials ? await tx.city.findUnique({ where: { slug: trip.city }, select: { id: true } }) : null;
   const customs = visiting ? await LawOfficialService.working(tx, ownerId, visiting.id, 'CUSTOMS', trip.stayUntil) : null;

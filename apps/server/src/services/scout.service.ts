@@ -153,7 +153,7 @@ export const ScoutService = {
       action: 'SCOUT',
       actionId: input.actionId,
 
-      execute: async ({ tx, current, whoreHappiness, thugHappiness, player, ruleset, round, now }) => {
+      execute: async ({ tx, current, whoreHappiness, thugHappiness, player, ruleset, round, now, skills }) => {
         const found = findDistrict(ruleset, input.district);
         if (!found) {
           throw AppError.badRequest(
@@ -225,7 +225,8 @@ export const ScoutService = {
         const outcome = calculateScout({
           supply,
           heat: current.heat,
-          player: { ...active, whoreHappiness, thugHappiness },
+          // Sweet Talker: the girls work as if a little happier.
+          player: { ...active, whoreHappiness: Math.min(100, whoreHappiness + skills.percent('CREW_WORK_HAPPINESS')), thugHappiness },
           turns: input.turns,
           ruleset: effectiveScoutRuleset,
           city: cityModifiers(ruleset, player.city.slug),
@@ -257,7 +258,10 @@ export const ScoutService = {
           ruleset,
           now,
         });
-        const turfTakeCents = outcome.pimpTakeCents + BigInt(turf.holdBonusCents - turf.taxPaidCents);
+        // Hustle: the crew's take comes in a little larger.
+        const crewIncomePercent = outcome.pimpTakeCents > 0n ? skills.percent('CREW_INCOME') : 0;
+        const crewTakeCents = outcome.pimpTakeCents + outcome.pimpTakeCents * BigInt(Math.round(crewIncomePercent * 100)) / 10_000n;
+        const turfTakeCents = crewTakeCents + BigInt(turf.holdBonusCents - turf.taxPaidCents);
         const hideoutBonusCents = hideoutBackOfficeBonusCents(turfTakeCents, ruleset, current);
         // Trips A: with the boss away, the lieutenant skims the take before it lands.
         const lieutenantCutCents = await BossTripSettleService.lieutenantCut(tx, roundPlayerId, ruleset, turfTakeCents + hideoutBonusCents, now);

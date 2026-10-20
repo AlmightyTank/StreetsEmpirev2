@@ -3,6 +3,7 @@ import type { Ruleset } from '@streets/rules-engine';
 import { cityLaw, coolCase, wantedStage } from '@streets/rules-engine';
 import { cityHoldingsEnabled } from '@streets/rulesets';
 import { propertyBehind } from './supply-property-settle.service.js';
+import { caseCooling } from './law.service.js';
 
 type HoldingModifiers = NonNullable<Ruleset['cityHoldings']>['modifiers'];
 const IDENTITY: HoldingModifiers = { dealerSalesPace: 1, demand: 1, upkeep: 1 };
@@ -17,6 +18,7 @@ export const CityHoldingsService = {
   async read(db: PrismaClient, ruleset: Ruleset, roundId: string, playerId: string, now: Date = new Date()) {
     if (!cityHoldingsEnabled(ruleset)) return null;
 
+    const cooling = await caseCooling(db, playerId, ruleset);
     const [corners, warehouses, safehouses, crews, pickups, cases] = await Promise.all([
       db.turf.findMany({
         where: { roundId, holderId: playerId },
@@ -83,7 +85,7 @@ export const CityHoldingsService = {
         pressure: (() => {
           const row = cases.find((entry) => entry.city.slug === citySlug);
           if (!ruleset.law || !row) return { casePoints: 0, stage: 'QUIET' };
-          const hundredths = coolCase(row, now, ruleset.law, cityLaw(ruleset.law, citySlug).coolingSpeed);
+          const hundredths = coolCase(row, now, ruleset.law, cityLaw(ruleset.law, citySlug).coolingSpeed * cooling);
           return { casePoints: hundredths / 100, stage: wantedStage(hundredths, ruleset.law) };
         })(),
       })),

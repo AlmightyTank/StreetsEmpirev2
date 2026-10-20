@@ -1,6 +1,6 @@
 # StreetsEmpire — Street Skills Roadmap (player skills)
 
-Status: **Planned** · Target: **beta** · Related: [Account levels](ACCOUNT-LEVELS.md) · [1.7.0 crew careers](ROADMAP-1.7.0.md) · [Territory Rewards](ROADMAP-TERRITORY-PERKS.md) · [Ammo & Parts](ROADMAP-AMMO-PARTS.md) · [Armory & Garage](ROADMAP-ARMORY-GARAGE.md)
+Status: **Built on beta (`classic-og-v2.3-a`)** · Target: **beta** · Related: [Account levels](ACCOUNT-LEVELS.md) · [1.7.0 crew careers](ROADMAP-1.7.0.md) · [Territory Rewards](ROADMAP-TERRITORY-PERKS.md) · [Ammo & Parts](ROADMAP-AMMO-PARTS.md) · [Armory & Garage](ROADMAP-ARMORY-GARAGE.md)
 
 ## Vision
 The boss gets better at what they actually do. A player who runs vans across the country every day becomes known for it; a player who lives in fights becomes the one rivals worry about. Street Skills give each player a recognizable style within a round, earned by playing, without becoming a stat-point RPG.
@@ -133,6 +133,35 @@ The skill catalog (XP sources, curve, caps, passives, milestone perks, taper, ca
 
 ### Slice E — Balance and rollout
 - Full-season simulation across solo and alliance players, late joiners and heavy attackers. Abuse tests for XP farming. Admin skill inspector. Staged opt-in on new rounds.
+
+## Built state (2.3.0-A)
+What the beta ruleset actually does, where it differs from the plan above.
+
+**Effects and caps.** Every passive and perk is applied at the point it changes: store and product sale prices, scouting income, business income, loan fees, raid/drive-by/special-raid strength, wounds and loot, fight Heat, Heat gained and cooled, wounded-thug recovery, run cargo and drive time, police stops, run vehicle damage, garage bills, convoy escorts, lawyers, evidence, case cooling, Job cash and standing, supply orders, and random encounters. Caps apply per effect rather than per category, so different costs (or Heat gained vs. Heat cooled) never share a cap. Action receipts list only the effects that action used.
+
+**XP.** Raids, drive-bys and special raids pay Muscle XP to both sides, with the loser getting half. Trips, lawyers, officials, informants, cooking and scouting earn XP (Scouting feeds Luck). The 100-point total cap is enforced: once the other skills leave no room, a skill stops gaining points.
+
+**Perks that changed from the plan, to fit systems in the game today:**
+| Perk | Plan | Built |
+| --- | --- | --- |
+| Sweet Talker | Crew happiness falls slower | Your crew works as if 10 points happier |
+| Grease Monkey | Repairs use fewer parts | Garage repairs and recoveries cost 20% less (until parts exist) |
+| Plugged In | One extra job offer a day | Jobs pay 10% more cash |
+| Supplier's Friend | Larger supply restock | Two more supply orders can wait for pickup at once |
+| Wheelman | Protect run vehicles from encounter gangs | Street gangs never try to steal your ride |
+
+**Waiting on unbuilt systems.** These show as "Coming with …" on the Skills page and cannot be chosen; the passives apply nothing:
+- Ammo & Parts: Muscle's rounds-per-fight passive; Wheels' run-fee passive.
+- Territory Rewards: Connections' toll passive; Kingpin's Cut, Toll Booth, Fast Pass, Inside Line.
+- Armory & Garage: Steady Hands, Ghost, Tripwire.
+
+Fixer 40 and Connections 25 have no choosable perk until those systems ship.
+
+**Curve.** The nth point costs n × 30 XP, so 10 points take 1,650 XP, 25 take 9,750 and 40 take 24,600. At the full-rate daily band (1,000 XP a skill) that is under 2 days, about 10 days and about 25 days: one maxed skill fits a 28-day round. A player who also uses the half-rate band reaches 40 in about 16 days. A skill's stored points catch up to the curve the next time it earns XP.
+
+**Heat and cases.** Fixer's cooling applies everywhere Heat cools: actions, settles, business, boss-trip and block-war settlements. Paper Trail applies everywhere a Case is read, including the admin round-wide law report.
+
+**Not yet covered.** Win/lose XP applies only to the fights resolved on the spot (raids, drive-bys, special raids); turf, block-war, boss-hit and convoy fights earn launch XP only.
 
 ## Out of scope
 - Skills carried between rounds or granted by account level.

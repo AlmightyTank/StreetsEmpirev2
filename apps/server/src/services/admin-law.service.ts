@@ -5,7 +5,7 @@ import type { AdminLawDto, AdminLawPlayerDto, WantedStageDto } from '@streets/sh
 import { AppError } from '../utils/errors.js';
 import { lockRoundPlayer } from '../utils/db.js';
 import { AdminAuditService, type AuditActor } from './admin-audit.service.js';
-import { LawService } from './law.service.js';
+import { caseCoolingByPlayer, LawService } from './law.service.js';
 import { LawOfficialService } from './law-official.service.js';
 import { LawWarrantService } from './law-warrant.service.js';
 
@@ -57,8 +57,9 @@ export const AdminLawService = {
     ]);
 
     const stages = new Map<string, { citySlug: string; cityName: string; counts: Record<WantedStageDto, number> }>();
+    const cooling = await caseCoolingByPlayer(prisma, roundId, ruleset);
     const standing = cases.map((row) => {
-      const hundredths = coolCase(row, now, rules, cityLaw(rules, row.city.slug).coolingSpeed);
+      const hundredths = coolCase(row, now, rules, cityLaw(rules, row.city.slug).coolingSpeed * cooling(row.roundPlayerId));
       const stage = wantedStage(hundredths, rules);
       const city = stages.get(row.city.slug) ?? { citySlug: row.city.slug, cityName: row.city.name, counts: emptyCounts() };
       city.counts[stage] += 1;
