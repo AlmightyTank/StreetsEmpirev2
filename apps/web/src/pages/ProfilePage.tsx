@@ -32,6 +32,7 @@ import { GameLayout } from '../layouts/GameLayout.js';
 import { usePageTheme } from '../stores/pageTheme.js';
 import { useSession } from '../stores/session.js';
 import { formatDate, formatElapsed } from '../utils/time.js';
+import { RivalryTimeline } from '../components/RivalryTimeline.js';
 
 const categoryName: Record<PublicAwardDto['category'], string> = {
   rank: 'Rank',
@@ -787,6 +788,10 @@ export function ProfilePage() {
         </div>
 
         {error ? <Alert>{error}</Alert> : null}
+
+        {isOwnProfileRoute ? (
+          <RivalryTimeline roundId={useSession.getState().round?.id ?? ''} />
+        ) : null}
 
         {isOwnProfileRoute ? (
           <CareerGuidance title="Public record and appearance settings">

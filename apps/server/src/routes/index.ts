@@ -34,6 +34,8 @@ import surveyRoutes from './survey.routes.js';
 import casinoRoutes from './casino.routes.js';
 import admissionRoutes from './admission.routes.js';
 import empireInsightsRoutes from './empire-insights.routes.js';
+import rivalryRoutes from './rivalry.routes.js';
+import adminRivalryRoutes from './admin-rivalry.routes.js';
 
 const routes: FastifyPluginAsync = async (fastify) => {
   await fastify.register(healthRoutes);
@@ -51,12 +53,14 @@ const routes: FastifyPluginAsync = async (fastify) => {
   await fastify.register(googlePlayRtdnRoutes, { prefix: '/internal/google-play' });
   await fastify.register(adminRoutes, { prefix: '/admin' });
   await fastify.register(adminLivingStoriesRoutes, { prefix: '/admin' });
+  await fastify.register(adminRivalryRoutes, { prefix: '/admin' });
   await fastify.register(adminOperationsRoutes, { prefix: '/admin' });
   await fastify.register(adminRoundRollCallRoutes, { prefix: '/admin' });
   await fastify.register(adminDropRoutes, { prefix: '/admin' });
   await fastify.register(dropRoutes, { prefix: '/drop' });
   await fastify.register(birthdayRoutes, { prefix: '/birthday' });
   await fastify.register(roundRoutes, { prefix: '/rounds' });
+  await fastify.register(rivalryRoutes, { prefix: '/rounds' });
   await fastify.register(roundAftermathRoutes, { prefix: '/rounds' });
   await fastify.register(roundInfoRoutes, { prefix: '/rounds' });
   await fastify.register(gameRoutes, { prefix: '/game' });

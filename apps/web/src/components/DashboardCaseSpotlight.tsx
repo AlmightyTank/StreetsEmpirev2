@@ -20,7 +20,7 @@ export function DashboardCaseSpotlight() {
     if (!playerId || !storiesEnabled) return;
     let mounted = true;
     const load = () => {
-      void caseFilesApi.page(1, 1, 20).then((data) => {
+      void caseFilesApi.page(1, 1, 12).then((data) => {
         if (!mounted) return;
         setCaseFile(nextCaseLead(data.active.concat(data.archived.filter((c) => c.status === 'SOLVED'))));
         setCount(data.active.length);

@@ -19,6 +19,8 @@ export * from './types/casino-tournament.js';
 export * from './types/law.js';
 export * from './types/community.js';
 export * from './types/admin.js';
+export * from './types/rivalries.js';
+export * from './schemas/rivalries.js';
 export * from './types/forum.js';
 export * from './types/combat.js';
 export * from './types/alliance.js';

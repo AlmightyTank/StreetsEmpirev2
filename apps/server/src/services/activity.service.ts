@@ -6,6 +6,7 @@ import { QuestProgressService } from './quest-progress.service.js';
 import { recordLivingCaseActivity } from './living-case-evidence.service.js';
 import { CareerStoryService } from './career-story.service.js';
 import { careerStorySourceFromActivity } from './career-story-source.service.js';
+import { RivalryAdapterService } from './rivalry-adapter.service.js';
 
 /**
  * Section 42. The player's own feed of what they did.
@@ -21,6 +22,7 @@ export const ActivityService = {
     payload: Prisma.InputJsonValue,
   ) {
     const activity = await createPlayerActivity(db, roundPlayerId, type, payload);
+    await RivalryAdapterService.fromActivity(db, roundPlayerId, type, payload);
     await QuestProgressService.recordActivity(db, activity);
     // Same authoritative action transaction, after its verified PlayerActivity
     // receipt has been committed to the transaction. No GET-time progress.

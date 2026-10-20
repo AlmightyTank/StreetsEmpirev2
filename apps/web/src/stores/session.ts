@@ -70,6 +70,7 @@ export function landingPath(setting: DefaultLanding, hasPlayer: boolean): string
 
 /** The /meta read in flight, so the shell and a form mounting together share one. */
 let platformLoad: Promise<void> | null = null;
+let snapshotLoad: Promise<void> | null = null;
 
 interface SessionState {
   phase: Phase;
@@ -222,24 +223,34 @@ export const useSession = create<SessionState>((set, get) => ({
   },
 
   async refreshSnapshot(options = {}) {
-    let snapshot: GameSnapshotDto;
-    try {
-      snapshot = await gameApi.me(options);
-    } catch (error) {
-      if (error instanceof ApiError && ['NOT_IN_ROUND', 'NO_ACTIVE_ROUND', 'ROUND_ENDED'].includes(error.code)) {
-        await get().refreshRound();
+    if (snapshotLoad) return snapshotLoad;
+
+    snapshotLoad = (async () => {
+      let snapshot: GameSnapshotDto;
+      try {
+        snapshot = await gameApi.me(options);
+      } catch (error) {
+        if (error instanceof ApiError && ['NOT_IN_ROUND', 'NO_ACTIVE_ROUND', 'ROUND_ENDED'].includes(error.code)) {
+          await get().refreshRound();
+        }
+        throw error;
       }
-      throw error;
+      set({
+        round: snapshot.round,
+        me: snapshot.player,
+        roundOver: null,
+        recentActivity: snapshot.recentActivity,
+        advisor: snapshot.advisor ?? null,
+        activityHydratedForPlayerId: snapshot.player.id,
+        canJoin: false,
+      });
+    })();
+
+    try {
+      await snapshotLoad;
+    } finally {
+      snapshotLoad = null;
     }
-    set({
-      round: snapshot.round,
-      me: snapshot.player,
-      roundOver: null,
-      recentActivity: snapshot.recentActivity,
-      advisor: snapshot.advisor ?? null,
-      activityHydratedForPlayerId: snapshot.player.id,
-      canJoin: false,
-    });
   },
 
   async register(input) {

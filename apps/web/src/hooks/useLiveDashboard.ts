@@ -80,7 +80,9 @@ export function useLiveDashboard(): LiveDashboard {
       setOffline(true);
       setError('Connection lost. Current numbers may be stale until you reconnect.');
     };
-    const timer = window.setInterval(() => void refresh(true), POLL_INTERVAL_MS);
+    const timer = window.setInterval(() => {
+      if (!document.hidden) void refresh(true);
+    }, POLL_INTERVAL_MS);
 
     document.addEventListener('visibilitychange', onVisibility);
     window.addEventListener('focus', onFocus);

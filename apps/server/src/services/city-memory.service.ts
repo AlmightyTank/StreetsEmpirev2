@@ -8,7 +8,8 @@ export type CityMemoryKind =
   | 'war_win'
   | 'business_flip'
   | 'crackdown'
-  | 'operation_complete';
+  | 'operation_complete'
+  | 'rivalry_headline';
 
 export type CityMemoryVisibility = 'public' | 'involved-only';
 
@@ -51,6 +52,31 @@ export async function emitCityMemoryEvent(db: Db, input: EmitCityMemoryInput) {
     await inviteFromSettledMemory(db, event, new Date());
   }
   return event;
+}
+
+/** Publish only a moderation-approved, already-public rivalry fact. */
+export async function emitRivalryCityHeadline(db: Db, input: {
+  roundId: string;
+  cityId: string;
+  relationshipId: string;
+  sourceId: string;
+  headline: string;
+  outcome: string;
+  happenedAt: Date;
+  actorRoundPlayerIds?: string[];
+}) {
+  const headline = input.headline.trim().slice(0, 180);
+  if (!headline) return null;
+  return emitCityMemoryEvent(db, {
+    roundId: input.roundId,
+    cityId: input.cityId,
+    kind: 'rivalry_headline',
+    visibility: 'public',
+    actorRoundPlayerIds: input.actorRoundPlayerIds,
+    summary: { headline, outcome: input.outcome, relationshipId: input.relationshipId },
+    happenedAt: input.happenedAt,
+    idempotencyKey: `rivalry-headline:${input.relationshipId}:${input.sourceId}`,
+  });
 }
 
 function actorIds(row: { actors: unknown }): string[] {

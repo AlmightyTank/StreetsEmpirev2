@@ -318,6 +318,7 @@ export * from './supporter.js';
 export * from './drop.js';
 export * from './birthday.js';
 export * from './encounter-gangs.js';
+export * from './rivalries.js';
 
 /** Every ruleset the engine can load, keyed by its public id. */
 export const rulesets: Readonly<Record<string, Ruleset>> = {
