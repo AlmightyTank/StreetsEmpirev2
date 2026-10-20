@@ -83,8 +83,8 @@ describe('The Drop catalogue', () => {
     for (const bundle of bundles) {
       expect(bundle.itemKeys.every((key) => DROP_ITEMS[key])).toBe(true);
       expect(bundle.priceCrowns).toBeLessThan(bundleListPrice(bundle));
-      expect(bundle.priceCrowns).toBeGreaterThanOrEqual(1800);
-      expect(bundle.priceCrowns).toBeLessThanOrEqual(2800);
+      expect(bundle.priceCrowns).toBeGreaterThanOrEqual(1500);
+      expect(bundle.priceCrowns).toBeLessThanOrEqual(2000);
     }
   });
 });
