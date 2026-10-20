@@ -6,7 +6,6 @@ import {
   blockWarFatigue,
   businessStaff,
   controlAfterBreak,
-  decayHeat,
   fatigueAfter,
   regenerateTurns,
   hashParts,
@@ -51,6 +50,7 @@ import { endTurfHold, startTurfHold } from './turf-history.service.js';
 import { recordTerritoryControlChange, territoryControlForCity } from './turf-territory.service.js';
 import { emitCityMemoryEvent } from './city-memory.service.js';
 import { CrewRosterService } from './crew-roster.service.js';
+import { coolHeat, PlayerSkillService } from './player-skill.service.js';
 
 /**
  * 1.1.0-D. Block wars settle lazily, the way turf pushes do: whenever anyone in the war
@@ -928,7 +928,7 @@ export const BlockWarSettleService = {
     const clock: { turns?: number; lastTurnCalculationAt?: Date } = {};
     if (heatAdded > 0 && ruleset.heat) {
       const regen = regenerateTurns({ turns: player.turns, lastTurnCalculationAt: player.lastTurnCalculationAt }, now, ruleset);
-      heat = Math.min(ruleset.heat.max, decayHeat(heat, regen.intervalsProcessed, ruleset.heat) + heatAdded);
+      heat = Math.min(ruleset.heat.max, coolHeat(heat, regen.intervalsProcessed, ruleset.heat, await PlayerSkillService.effects(tx, playerId, ruleset.streetSkills)) + heatAdded);
       Object.assign(clock, { turns: regen.turns, lastTurnCalculationAt: regen.lastTurnCalculationAt });
     }
     if (Object.keys(productLoot).length > 0) {

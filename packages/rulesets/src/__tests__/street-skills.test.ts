@@ -3,10 +3,17 @@ import { STREET_SKILLS_V1, streetSkillPassiveModifiers, streetSkillPerk, streetS
 
 describe('street skills slice A catalog', () => {
   it('uses a rising point curve capped at forty', () => {
-    expect(streetSkillXpForPoints(1)).toBe(100);
-    expect(streetSkillXpForPoints(2)).toBe(300);
-    expect(streetSkillPointsForXp(300)).toBe(2);
+    expect(streetSkillXpForPoints(1)).toBe(30);
+    expect(streetSkillXpForPoints(2)).toBe(90);
+    expect(streetSkillPointsForXp(90)).toBe(2);
     expect(streetSkillPointsForXp(999_999)).toBe(40);
+  });
+
+  it('lets a daily full-rate player reach forty in one skill within a 28-day round', () => {
+    const fullRateDays = streetSkillXpForPoints(STREET_SKILLS_V1.skillPointCap) / STREET_SKILLS_V1.dailyFullXp;
+    expect(fullRateDays).toBeLessThanOrEqual(28);
+    // A milestone perk arrives early: ten points inside two days at the full rate.
+    expect(streetSkillXpForPoints(10) / STREET_SKILLS_V1.dailyFullXp).toBeLessThan(2);
   });
 
   it('tapers a large action across the daily bands', () => {
@@ -32,7 +39,7 @@ describe('street skills slice A catalog', () => {
     expect(streetSkillPointsForXp(999_999, STREET_SKILLS_V1, 0)).toBe(40);
     expect(streetSkillPointsForXp(999_999, STREET_SKILLS_V1, 80)).toBe(20);
     expect(streetSkillPointsForXp(999_999, STREET_SKILLS_V1, 100)).toBe(0);
-    expect(streetSkillPointsForXp(300, STREET_SKILLS_V1, 99)).toBe(1);
+    expect(streetSkillPointsForXp(90, STREET_SKILLS_V1, 99)).toBe(1);
   });
 
   it('maps the real action names, including fights settled outside the action pipeline', () => {

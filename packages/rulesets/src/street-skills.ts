@@ -98,7 +98,8 @@ export const STREET_SKILLS_V1: StreetSkillsRules = {
   enabled: true,
   totalPointCap: 100,
   skillPointCap: 40,
-  xpPerPoint: 100,
+  // 40 points cost 24,600 XP: about 25 days at the full-rate band, inside a 28-day round.
+  xpPerPoint: 30,
   dailyFullXp: 1_000,
   dailyHalfXp: 2_000,
   catchUp: { fullMultiplier: 2, fullDays: 3, reducedMultiplier: 1.5, reducedDays: 3 },

@@ -157,7 +157,11 @@ What the beta ruleset actually does, where it differs from the plan above.
 
 Fixer 40 and Connections 25 have no choosable perk until those systems ship.
 
-**Not yet covered.** Heat cooling applies on the action and settle paths, not inside business, boss-trip and block-war settlements. Admin round-wide law stats read cases without Paper Trail. Win/lose XP applies only to the fights resolved on the spot (raids, drive-bys, special raids); turf, block-war, boss-hit and convoy fights earn launch XP only.
+**Curve.** The nth point costs n × 30 XP, so 10 points take 1,650 XP, 25 take 9,750 and 40 take 24,600. At the full-rate daily band (1,000 XP a skill) that is under 2 days, about 10 days and about 25 days: one maxed skill fits a 28-day round. A player who also uses the half-rate band reaches 40 in about 16 days. A skill's stored points catch up to the curve the next time it earns XP.
+
+**Heat and cases.** Fixer's cooling applies everywhere Heat cools: actions, settles, business, boss-trip and block-war settlements. Paper Trail applies everywhere a Case is read, including the admin round-wide law report.
+
+**Not yet covered.** Win/lose XP applies only to the fights resolved on the spot (raids, drive-bys, special raids); turf, block-war, boss-hit and convoy fights earn launch XP only.
 
 ## Out of scope
 - Skills carried between rounds or granted by account level.

@@ -1,6 +1,6 @@
 import type { City, Prisma, PrismaClient, Round, RoundPlayer } from '@prisma/client';
 import { loadRulesetForRound, rulesetForCity, type Ruleset, type Standings } from '@streets/rules-engine';
-import { PlayerSkillService } from './player-skill.service.js';
+import { coolHeat, PlayerSkillService } from './player-skill.service.js';
 import { AppError } from '../utils/errors.js';
 import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { ActivityService } from './activity.service.js';
@@ -11,7 +11,7 @@ import { TurnService, type TurnSettlement } from './turn.service.js';
 import { ReputationService } from './reputation.service.js';
 import { StockService, type StockSettlementSet } from './stock.service.js';
 import { CombatRecoveryService, type RecoverySettlement } from './combat-recovery.service.js';
-import { coolHeat, fitThugs } from './action.service.js';
+import { fitThugs } from './action.service.js';
 import { ConvoyService } from './convoy.service.js';
 import { RelocationService } from './relocation.service.js';
 import { BossTripSettleService } from './boss-trip-settle.service.js';

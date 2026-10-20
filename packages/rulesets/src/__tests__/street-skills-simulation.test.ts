@@ -24,7 +24,7 @@ describe('street skill season simulation', () => {
     ]);
     // Taper first: 1,250 then 375 XP, with the day-zero catch-up multiplier applied.
     expect(result.xp.HUSTLE).toBe(3_250);
-    expect(result.points.HUSTLE).toBe(7);
+    expect(result.points.HUSTLE).toBe(14);
   });
 
   it('supports a full season of heavy action while respecting the skill point cap', () => {

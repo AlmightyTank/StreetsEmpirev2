@@ -28,7 +28,7 @@ import { ActivityService } from './activity.service.js';
 import { LawWarrantService } from './law-warrant.service.js';
 import { LawOfficialService } from './law-official.service.js';
 import { QuestProgressService } from './quest-progress.service.js';
-import { PlayerSkillService } from './player-skill.service.js';
+import { buildSkillEffects, PlayerSkillService } from './player-skill.service.js';
 
 export type CaseSource = CaseSourceDto;
 
@@ -201,6 +201,17 @@ function json(value: unknown): Prisma.InputJsonValue {
 /** Paper Trail: how much faster a player's Cases cool, as a multiplier on each city's pace. */
 export async function caseCooling(db: Db, roundPlayerId: string, ruleset: Ruleset): Promise<number> {
   return 1 + (await PlayerSkillService.effects(db, roundPlayerId, ruleset.streetSkills)).percent('CASE_COOLING') / 100;
+}
+
+/** Paper Trail for a whole round in one read: each player's case-cooling multiplier, 1 when they have none. */
+export async function caseCoolingByPlayer(db: Db, roundId: string, ruleset: Ruleset): Promise<(roundPlayerId: string) => number> {
+  const rules = ruleset.streetSkills;
+  if (!rules) return () => 1;
+  const rows = await db.playerSkill.findMany({ where: { roundPlayer: { roundId } }, select: { roundPlayerId: true, skill: true, points: true, choices: true } });
+  const byPlayer = new Map<string, typeof rows>();
+  for (const row of rows) byPlayer.set(row.roundPlayerId, [...(byPlayer.get(row.roundPlayerId) ?? []), row]);
+  const multipliers = new Map([...byPlayer].map(([id, skills]) => [id, 1 + buildSkillEffects(skills, rules).percent('CASE_COOLING') / 100]));
+  return (roundPlayerId) => multipliers.get(roundPlayerId) ?? 1;
 }
 
 export const LawService = {

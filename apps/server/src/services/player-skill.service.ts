@@ -10,7 +10,7 @@ import {
   type StreetSkillKey,
   type StreetSkillsRules,
 } from '@streets/rulesets';
-import { loadRulesetForRound, resolveModifiers, type ModifierContribution, type ModifierResolution } from '@streets/rules-engine';
+import { decayHeat, loadRulesetForRound, resolveModifiers, type ModifierContribution, type ModifierResolution, type Ruleset } from '@streets/rules-engine';
 import type { Db } from '../utils/db.js';
 import { lockRoundPlayer } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
@@ -155,6 +155,13 @@ export function buildSkillEffects(
       return lines;
     },
   };
+}
+
+/** Heat cooled over `intervals`, faster with the Fixer's cooling passive. */
+export function coolHeat(heat: number, intervals: number, rules: NonNullable<Ruleset['heat']>, skills: SkillEffects = NO_SKILL_EFFECTS): number {
+  const pct = skills.percent('HEAT_COOLING');
+  if (!pct || intervals <= 0) return decayHeat(heat, intervals, rules);
+  return Math.floor(decayHeat(heat, intervals, { ...rules, decayPerInterval: rules.decayPerInterval * (100 + pct) / 100 }));
 }
 
 export const PlayerSkillService = {

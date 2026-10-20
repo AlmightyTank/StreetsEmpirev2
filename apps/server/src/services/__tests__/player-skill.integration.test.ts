@@ -8,6 +8,7 @@ import { NetWorthService } from '../net-worth.service.js';
 import { RoundService } from '../round.service.js';
 import { CombatRecoveryService } from '../combat-recovery.service.js';
 import { PlayerSkillService } from '../player-skill.service.js';
+import { caseCoolingByPlayer } from '../law.service.js';
 
 describe.runIf(process.env.STREET_SKILLS_INTEGRATION === '1')('street skills with PostgreSQL', () => {
   let app: FastifyInstance;
@@ -143,5 +144,12 @@ describe.runIf(process.env.STREET_SKILLS_INTEGRATION === '1')('street skills wit
     const skilledCash = BigInt(skilled.json().after.cashCents) - BigInt(skilled.json().before.cashCents);
     expect(skilledCash).toBe(BigInt(Math.min(item.buyCents - 1, Math.floor(Number(plainCash) * 1.06))));
     expect(skilled.json().modifiers.map((line: { effectId: string }) => line.effectId)).toEqual(['STORE_SELL_PRICE']);
+  });
+
+  it('reads Paper Trail for a whole round at once for the admin law report', async () => {
+    await app.prisma.playerSkill.create({ data: { roundPlayerId: players[0]!, skill: 'FIXER', xp: 30_000, points: 25, choices: { 25: 'PAPER_TRAIL' } } });
+    const cooling = await caseCoolingByPlayer(app.prisma, roundId, rules);
+    expect(cooling(players[0]!)).toBe(1.2);
+    expect(cooling(players[1]!)).toBe(1);
   });
 });

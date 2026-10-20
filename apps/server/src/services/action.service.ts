@@ -6,7 +6,7 @@ import type {
   Round,
   RoundPlayer,
 } from '@prisma/client';
-import { decayHeat, loadRulesetForRound, rulesetForCity, totalWeapons, type Ruleset, type Standings } from '@streets/rules-engine';
+import { loadRulesetForRound, rulesetForCity, totalWeapons, type Ruleset, type Standings } from '@streets/rules-engine';
 import type {
   GameActionResult,
   PlayerSnapshot,
@@ -47,7 +47,7 @@ import { LawWarrantService } from './law-warrant.service.js';
 import { CrewRosterService } from './crew-roster.service.js';
 import { CrewStaffingOrderService } from './crew-staffing-order.service.js';
 import { fitThugs } from './crew-availability.js';
-import { NO_SKILL_EFFECTS, PlayerSkillService, type SkillEffects, type SkillXpAward } from './player-skill.service.js';
+import { coolHeat, PlayerSkillService, type SkillEffects, type SkillXpAward } from './player-skill.service.js';
 
 export { fitThugs, workingWhores } from './crew-availability.js';
 
@@ -726,13 +726,6 @@ export const ActionService = {
     });
   },
 };
-
-/** Heat cooled over `intervals`, faster with the Fixer's cooling passive. */
-export function coolHeat(heat: number, intervals: number, rules: NonNullable<Ruleset['heat']>, skills: SkillEffects = NO_SKILL_EFFECTS): number {
-  const pct = skills.percent('HEAT_COOLING');
-  if (!pct || intervals <= 0) return decayHeat(heat, intervals, rules);
-  return Math.floor(decayHeat(heat, intervals, { ...rules, decayPerInterval: rules.decayPerInterval * (100 + pct) / 100 }));
-}
 
 /** An action's next state with any Heat it added reduced by the Fixer's heat-gain passive. */
 export function withSkillHeat<S extends { heat: number }>(before: S, next: S, skills: SkillEffects): S {
