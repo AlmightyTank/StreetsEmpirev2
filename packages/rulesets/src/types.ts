@@ -1,5 +1,6 @@
 import type { LivingStoryCatalog } from './living-stories.js';
 import type { UnderworldOperationCatalog } from './underworld-operations.js';
+import type { RivalryRules } from './rivalries.js';
 
 /**
  * The ruleset contract.
@@ -3097,6 +3098,8 @@ export interface Ruleset {
   readonly livingStories?: LivingStoryCatalog;
   /** 2.4.0-A. Career storylines are opt-in and never inferred for old rounds. */
   readonly careerStorylines?: { readonly enabled: boolean; readonly catalogVersion: string };
+  /** 2.5.0. Optional, round-pinned rivalry/vendetta capability. */
+  readonly rivalries?: RivalryRules;
   /** 2.2.0. Cooperative operation templates. Absent on rounds pinned before this catalog. */
   readonly underworldOperations?: UnderworldOperationCatalog;
   readonly round: RoundRules;
