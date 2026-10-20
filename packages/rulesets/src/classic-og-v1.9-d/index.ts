@@ -56,14 +56,9 @@ const questDefinitions = defineQuestCatalog({
 
   PIP_BULK_ORDER: {
     ...base.PIP_BULK_ORDER,
-    followUpKeys: [...base.PIP_BULK_ORDER.followUpKeys, 'PIP_PARTY_FAVORS'],
   },
   PIP_PARTY_FAVORS: {
     ...base.PIP_PARTY_FAVORS,
-    prerequisites: [
-      ...base.PIP_PARTY_FAVORS.prerequisites,
-      { kind: 'QUEST_COMPLETED', params: { questKey: 'PIP_BULK_ORDER' } },
-    ],
     followUpKeys: [...base.PIP_PARTY_FAVORS.followUpKeys, 'PIP_MOVE_THE_WEIGHT'],
   },
   PIP_MOVE_THE_WEIGHT: {

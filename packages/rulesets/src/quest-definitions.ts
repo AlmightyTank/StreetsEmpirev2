@@ -460,6 +460,40 @@ export function questDefinitionProblems(catalog: QuestDefinitionCatalog): string
     }
   }
 
+  // Follow-ups form a directed questline graph. A self-loop is reported above;
+  // this catches longer cycles that would otherwise make a questline loop forever.
+  const visiting = new Set<string>();
+  const visited = new Set<string>();
+  const reportedCycles = new Set<string>();
+  const path: string[] = [];
+
+  const visit = (key: string): void => {
+    if (visiting.has(key)) {
+      const cycleStart = path.indexOf(key);
+      const cycle = path.slice(cycleStart);
+      if (cycle.length > 1) {
+        const cycleKey = [...cycle].sort().join('|');
+        if (!reportedCycles.has(cycleKey)) {
+          reportedCycles.add(cycleKey);
+          problems.push(`${key}: follow-up cycle ${[...cycle, key].join(' -> ')}`);
+        }
+      }
+      return;
+    }
+    if (visited.has(key)) return;
+
+    visiting.add(key);
+    path.push(key);
+    for (const followUpKey of catalog[key]?.followUpKeys ?? []) {
+      if (followUpKey in catalog) visit(followUpKey);
+    }
+    path.pop();
+    visiting.delete(key);
+    visited.add(key);
+  };
+
+  for (const key of Object.keys(catalog)) visit(key);
+
   return problems;
 }
 

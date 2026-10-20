@@ -90,6 +90,15 @@ describe('quest definition foundation', () => {
     ]);
   });
 
+  it('rejects multi-quest follow-up cycles', () => {
+    const first = { ...firstNightOut, followUpKeys: ['FRESH_FACES'] };
+    const second = { ...freshFaces, followUpKeys: ['FIRST_NIGHT_OUT'] };
+
+    expect(questDefinitionProblems({ FIRST_NIGHT_OUT: first, FRESH_FACES: second })).toEqual([
+      'FIRST_NIGHT_OUT: follow-up cycle FIRST_NIGHT_OUT -> FRESH_FACES -> FIRST_NIGHT_OUT',
+    ]);
+  });
+
   it('rejects blank prerequisite and reward kinds', () => {
     const broken = {
       ...freshFaces,
