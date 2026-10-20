@@ -13,7 +13,8 @@ import type {
   RankChanges,
   ResourceChange,
 } from '@streets/shared';
-import type { QuestDataValue } from '@streets/rulesets';
+import { streetSkillSourceForAction, type QuestDataValue } from '@streets/rulesets';
+import type { ModifierResolution } from '@streets/rules-engine';
 import { AppError } from '../utils/errors.js';
 import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { annotateLogContext } from '../utils/request-context.js';
@@ -47,6 +48,7 @@ import { LawWarrantService } from './law-warrant.service.js';
 import { CrewRosterService } from './crew-roster.service.js';
 import { CrewStaffingOrderService } from './crew-staffing-order.service.js';
 import { fitThugs } from './crew-availability.js';
+import { PlayerSkillService, type SkillXpAward } from './player-skill.service.js';
 
 export { fitThugs, workingWhores } from './crew-availability.js';
 
@@ -180,6 +182,8 @@ export interface ActionContext {
   recovery: RecoverySettlement;
   /** 1.6.5-B. Net worth as it stands before the action, freshly calculated. */
   netWorthCents: bigint;
+  /** Slice B: shared, capped passives available to the settling action. */
+  modifiers?: ModifierResolution;
 }
 
 export interface ActionOutcome<T> {
@@ -202,6 +206,8 @@ export interface ActionOutcome<T> {
    * the action id, so a replay never adds evidence twice.
    */
   caseEvidence?: Array<Omit<CaseEvidence, 'sourceKey'>>;
+  /** Slice A: XP is written only after the action has settled successfully. */
+  skillXp?: readonly SkillXpAward[];
 }
 
 function encounterTriggerForAction(action: string): 'STORE' | 'TURF' | null {
@@ -507,6 +513,10 @@ export const ActionService = {
         netWorthCents: beforeNetWorth,
       });
 
+      const modifiers = ruleset.streetSkills
+        ? await PlayerSkillService.resolveModifiers(tx, { roundPlayerId, rules: ruleset.streetSkills })
+        : undefined;
+
       const outcome = await options.execute({
         tx,
         current,
@@ -520,6 +530,7 @@ export const ActionService = {
         standings,
         recovery,
         netWorthCents: beforeNetWorth,
+        modifiers,
       });
 
       const trigger = encounterTriggerForAction(options.action);
@@ -662,6 +673,22 @@ export const ActionService = {
           at: now,
         });
       }
+      const inferredSkill = ruleset.streetSkills && !outcome.skillXp?.length ? streetSkillSourceForAction(ruleset.streetSkills, options.action) : null;
+      const skillXp = outcome.skillXp?.length
+        ? outcome.skillXp
+        : inferredSkill
+          ? [{ skill: inferredSkill.skill, amount: inferredSkill.baseXp }]
+          : [];
+      if (skillXp.length && ruleset.streetSkills) {
+        await PlayerSkillService.awardMany(tx, {
+          roundPlayerId,
+          player,
+          rules: ruleset.streetSkills,
+          awards: skillXp,
+          sourceKey: options.actionId ? `action:${options.action}:${options.actionId}` : `action:${options.action}:${roundPlayerId}:${now.toISOString()}`,
+          now,
+        });
+      }
 
       const before = toSnapshot(current, beforeHappiness, beforeNetWorth);
       const after = toSnapshot(next, afterHappiness, afterNetWorth);
@@ -680,6 +707,9 @@ export const ActionService = {
         after,
         changes: diff(before, after),
         result: outcome.result,
+        ...(modifiers && modifiers.receipts.some((receipt) => receipt.appliedPercent !== 0)
+          ? { modifiers: modifiers.receipts.filter((receipt) => receipt.appliedPercent !== 0) }
+          : {}),
         ...(actionEncounter?.encounter ? { encounter: actionEncounter.encounter } : {}),
         ...(staffing.fills.length ? { staffingOrders: staffing.fills } : {}),
         rankChanges,

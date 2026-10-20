@@ -59,6 +59,7 @@ import { ProducePage } from './pages/ProducePage.js';
 import { QuestPage } from './pages/QuestPage.js';
 import { EventsPage } from './pages/EventsPage.js';
 import { ProfilePage } from './pages/ProfilePage.js';
+import { SkillsPage } from './pages/SkillsPage.js';
 import { PlayersPage } from './pages/PlayersPage.js';
 import { RankingsPage } from './pages/RankingsPage.js';
 import { RegisterPage } from './pages/RegisterPage.js';
@@ -213,6 +214,7 @@ export function App() {
         <Route path="quests" element={<Protected><LiveRound><QuestPage /></LiveRound></Protected>} />
         <Route path="events" element={<Protected><LiveRound><EventsPage /></LiveRound></Protected>} />
         <Route path="xp-progress" element={<Protected><XpProgressPage /></Protected>} />
+        <Route path="skills" element={<Protected><SkillsPage /></Protected>} />
         <Route path="surveys" element={<Protected><LiveRound><SurveyRedirect /></LiveRound></Protected>} />
         <Route path="hideout" element={<Protected><LiveRound><HideoutPage /></LiveRound></Protected>} />
         {/* 0.4.0-E: products are traded at Pip's; old links land there. */}

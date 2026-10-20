@@ -29,6 +29,7 @@ import {
 import { endPlayerTurfHolds, startPlayerTurfHolds } from './turf-history.service.js';
 import { accountTrust, assertCanCommunicate, assertTrustGate } from './communication-guard.js';
 import { PlayerExperienceService } from './player-experience.service.js';
+import { PlayerSkillService } from './player-skill.service.js';
 
 type AllianceRules = NonNullable<Ruleset['alliances']>;
 
@@ -225,7 +226,7 @@ async function standings(db: Db | PrismaClient, roundId: string): Promise<{ alli
   return { alliances: order.map((standing) => alliances.find((alliance) => alliance.id === standing.allianceId)!), byId: sorted };
 }
 
-async function detail(db: Db | PrismaClient, alliance: Alliance, standing: Standing, rules: AllianceRules, viewer: Pick<RoundPlayer, 'id' | 'allianceId'> | null): Promise<AllianceDetailDto> {
+async function detail(db: Db | PrismaClient, alliance: Alliance, standing: Standing, rules: AllianceRules, viewer: Pick<RoundPlayer, 'id' | 'allianceId'> | null, streetSkills?: Ruleset['streetSkills']): Promise<AllianceDetailDto> {
   const members = await db.roundPlayer.findMany({
     where: { allianceId: alliance.id, account: { isActive: true } },
     orderBy: [{ netWorthCents: 'desc' }, { publicPimpId: 'asc' }],
@@ -235,6 +236,7 @@ async function detail(db: Db | PrismaClient, alliance: Alliance, standing: Stand
   })));
   const leader = members.find((member) => member.id === alliance.leaderId);
   const levels = await PlayerExperienceService.levels(db, members.map((member) => member.accountId));
+  const skillBadges = streetSkills ? await PlayerSkillService.publicBadges(db, members.map((member) => member.id)) : new Map();
   const combinedLevel = members.reduce((total, member) => total + (levels.get(member.accountId) ?? 1), 0);
   return {
     name: alliance.name,
@@ -253,6 +255,7 @@ async function detail(db: Db | PrismaClient, alliance: Alliance, standing: Stand
       isYou: viewer ? member.id === viewer.id : false,
       joinedAt: (member.allianceJoinedAt ?? alliance.createdAt).toISOString(),
       accountLevel: levels.get(member.accountId) ?? 1,
+      ...(skillBadges.get(member.id)?.length ? { streetSkillBadges: skillBadges.get(member.id) } : {}),
     })),
     crewRep: { combinedLevel, averageLevel: members.length ? Math.round(combinedLevel / members.length) : 0 },
     foundedAt: alliance.createdAt.toISOString(),
@@ -346,7 +349,7 @@ export const AllianceService = {
     if (!alliance) return base;
     const isLeader = alliance.leaderId === player.id;
     const [allianceDetail, outgoing, events] = await Promise.all([
-      detail(prisma, alliance, byId.get(alliance.id)!, rules, player),
+      detail(prisma, alliance, byId.get(alliance.id)!, rules, player, loadRulesetForRound(player.round).streetSkills),
       isLeader ? prisma.allianceInvite.findMany({ where: { allianceId: alliance.id, expiresAt: { gt: now } }, include: { invitee: true }, orderBy: { createdAt: 'desc' } }) : [],
       prisma.allianceEvent.findMany({ where: { allianceId: alliance.id }, orderBy: { createdAt: 'desc' }, take: 30 }),
     ]);
@@ -386,7 +389,7 @@ export const AllianceService = {
     const { alliances, byId } = await standings(prisma, round.id);
     const alliance = alliances.find((row) => row.tagNormalized === tag.trim().toLowerCase());
     if (!alliance) throw AppError.notFound('ALLIANCE_NOT_FOUND', 'No alliance with that tag is running in this round.');
-    return detail(prisma, alliance, byId.get(alliance.id)!, rules, viewer);
+    return detail(prisma, alliance, byId.get(alliance.id)!, rules, viewer, loadRulesetForRound(round).streetSkills);
   },
 
   async publicDetail(prisma: PrismaClient, player: RoundPlayer & { round: Round }, tag: string): Promise<AllianceDetailDto> {

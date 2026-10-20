@@ -91,10 +91,13 @@ import { CityHoldingsService } from '../services/city-holdings.service.js';
 import { buildAdvisor, shouldDeferAdvisor } from '../services/advisor.service.js';
 import { AdvisorContextService } from '../services/advisor-context.service.js';
 import { AdvisorEvaluationService } from '../services/advisor-evaluation.service.js';
+import { PlayerSkillService } from '../services/player-skill.service.js';
 
 const RECENT_ACTIVITY_LIMIT = 10;
 
 const easterEggParams = z.object({ id: z.enum(CLIENT_EASTER_EGG_IDS) });
+const streetSkillParams = z.object({ skill: z.string().min(1) });
+const streetSkillChoiceBody = z.object({ threshold: z.number().int(), choice: z.string().min(1) });
 
 const gameRoutes: FastifyPluginAsync = async (fastify) => {
   /**
@@ -253,6 +256,42 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
     const body = parseBody(advisorSuppressionSchema, request.body);
     await AdvisorContextService.suppress(fastify.prisma, request.auth!.account.id, round.id, body.suggestionKey, body.mode);
     return { ok: true };
+  });
+
+  /** 2.3.0-C. Server-authoritative street skill milestones and choices. */
+  fastify.get('/skills', { preHandler: fastify.requireAuth }, async (request) => {
+    const { round, player } = await requirePlayer(request.auth!.account.id);
+    const ruleset = loadRulesetForRound(round);
+    if (!ruleset.streetSkills) throw AppError.notFound('STREET_SKILLS_UNAVAILABLE', 'Street skills are unavailable in this round.');
+    return await PlayerSkillService.view(fastify.prisma, player.id, ruleset.streetSkills);
+  });
+
+  fastify.post('/skills/:skill/choice', { preHandler: fastify.requireAuth }, async (request) => {
+    const { round, player } = await requirePlayer(request.auth!.account.id);
+    const ruleset = loadRulesetForRound(round);
+    if (!ruleset.streetSkills) throw AppError.notFound('STREET_SKILLS_UNAVAILABLE', 'Street skills are unavailable in this round.');
+    const { skill } = parseBody(streetSkillParams, request.params);
+    const body = parseBody(streetSkillChoiceBody, request.body);
+    return fastify.prisma.$transaction((tx) => PlayerSkillService.choose(tx, {
+      roundPlayerId: player.id,
+      rules: ruleset.streetSkills!,
+      skill,
+      threshold: body.threshold,
+      choice: body.choice,
+    }));
+  });
+
+  fastify.post('/skills/:skill/respec', { preHandler: fastify.requireAuth }, async (request) => {
+    const { round, player } = await requirePlayer(request.auth!.account.id);
+    const ruleset = loadRulesetForRound(round);
+    if (!ruleset.streetSkills) throw AppError.notFound('STREET_SKILLS_UNAVAILABLE', 'Street skills are unavailable in this round.');
+    const { skill } = parseBody(streetSkillParams, request.params);
+    return fastify.prisma.$transaction((tx) => PlayerSkillService.respec(tx, {
+      roundPlayerId: player.id,
+      rules: ruleset.streetSkills!,
+      skill,
+      now: new Date(),
+    }));
   });
 
   fastify.post('/advisor/evaluations', { preHandler: fastify.requireAuth }, async (request) => {

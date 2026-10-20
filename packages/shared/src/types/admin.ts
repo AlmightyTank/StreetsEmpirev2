@@ -16,6 +16,8 @@ export interface AdminRulesetOptionDto {
   id: string;
   version: string;
   name: string;
+  /** Explicit rollout marker for features that are enabled only by a versioned ruleset. */
+  streetSkills: boolean;
 }
 
 export interface AdminRoundsDto {
@@ -806,6 +808,28 @@ export interface AdminPlayerDto {
   injuries: Array<{ id: string; thugs: number; recoverAt: string; battleId: string | null }>;
   intel: { observing: number; observedBy: number };
   activity: ActivityDto[];
+  /** Street Skills Slice E. Read-only audit data; null on legacy rounds. */
+  streetSkills: AdminPlayerStreetSkillsDto | null;
+}
+
+export interface AdminPlayerStreetSkillsDto {
+  totalPoints: number;
+  totalPointCap: number;
+  skillPointCap: number;
+  dailyFullXp: number;
+  dailyHalfXp: number;
+  skills: Array<{
+    skill: string;
+    xp: number;
+    points: number;
+    xpToday: number;
+    taperBand: 'FULL' | 'HALF' | 'QUARTER';
+    choices: Record<string, string>;
+    respecs: number;
+    respecReadyAt: string | null;
+    xpWindowStartsAt: string | null;
+    awards: Array<{ sourceKey: string; amount: number; awardedAt: string }>;
+  }>;
 }
 
 export interface AdminPlayerBattlesDto {

@@ -92,6 +92,7 @@ export const SECTIONS: NavSection[] = [
     defaultOpen: false,
     pages: [
       { key: 'xp-progress', label: 'XP Progress', short: 'XP', to: '/game/xp-progress', icon: 'profile' },
+      { key: 'skills', label: 'Street Skills', short: 'Skills', to: '/game/skills', icon: 'profile' },
       { key: 'events', label: 'Events', to: '/game/events', icon: 'activity' },
       { key: 'street-pass', label: 'Street Pass', short: 'Pass', to: '/game/street-pass', icon: 'pass' },
       { key: 'roll-call', label: 'Roll Call', to: '/game/roll-call', icon: 'fame' },

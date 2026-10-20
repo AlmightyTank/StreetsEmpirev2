@@ -2236,6 +2236,8 @@ model RoundPlayer {
   economyLedger          EconomyLedgerEntry[]
   processedActions       ProcessedAction[]
   reputation             PlayerReputation[]
+  skills                 PlayerSkill[]
+  skillAwards            PlayerSkillAward[]
   playerQuests           PlayerQuest[]
   permanentUnlocks       PlayerUnlock[]
   favorInventory         PlayerFavor[]
@@ -2368,6 +2370,38 @@ model RoundPlayer {
   @@index([roundId, netWorthCents(sort: Desc)])
   @@index([roundId, cityId, netWorthCents(sort: Desc)])
   @@index([allianceId])
+}
+
+/// 2.3.0-A. Seasonal boss skill progress. Absent rows mean zero progress.
+model PlayerSkill {
+  id                String   @id @default(cuid())
+  roundPlayerId     String
+  skill             String
+  xp                Int      @default(0)
+  points            Int      @default(0)
+  choices           Json     @default("{}")
+  xpWindowStartsAt  DateTime?
+  xpInWindow        Int      @default(0)
+  respecs           Int      @default(0)
+  respecReadyAt     DateTime?
+  roundPlayer       RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  awards            PlayerSkillAward[]
+  @@unique([roundPlayerId, skill])
+  @@index([roundPlayerId])
+}
+
+/// Durable action receipt; prevents a retried settlement from awarding twice.
+model PlayerSkillAward {
+  id            String      @id @default(cuid())
+  playerSkillId String
+  roundPlayerId String
+  sourceKey     String
+  amount        Int
+  awardedAt     DateTime    @default(now())
+  playerSkill   PlayerSkill @relation(fields: [playerSkillId], references: [id], onDelete: Cascade)
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  @@unique([roundPlayerId, sourceKey])
+  @@index([playerSkillId, awardedAt])
 }
 
 // ---------------------------------------------------------------------------

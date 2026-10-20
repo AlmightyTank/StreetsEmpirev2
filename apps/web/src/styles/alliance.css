@@ -3,6 +3,8 @@
   gap: 16px;
 }
 
+.se-member-skills { color: var(--se-text-dim); font-size: 11px; }
+
 .se-alliance-hero {
   position: relative;
   overflow: hidden;

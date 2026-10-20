@@ -23,6 +23,7 @@ export * from './calculations/runs.js';
 export * from './calculations/markets.js';
 export * from './calculations/road-risk.js';
 export * from './calculations/relocation.js';
+export * from './calculations/modifiers.js';
 export * from './calculations/convoys.js';
 export * from './calculations/turf.js';
 export * from './calculations/business.js';

@@ -28,6 +28,7 @@ import { toCityDto, toSeasonHideoutDto } from '../game/dto.js';
 import { AppError } from '../utils/errors.js';
 import { allianceTagDto } from './alliance.service.js';
 import { PlayerExperienceService } from './player-experience.service.js';
+import { PlayerSkillService } from './player-skill.service.js';
 import { SupporterService } from './supporter.service.js';
 import { ForumGroupsService } from './forum-groups.service.js';
 import { forumProfileUrl } from './forum-link.service.js';
@@ -1213,6 +1214,9 @@ export const CommunityService = {
       'snowstorm', 'inferno', 'chrome-serpent', 'phantom-convoy', 'lantern-district', 'siren-breaker',
       'block-sovereign', 'gilded-house', 'dead-or-alive', 'laurel-ascendant', 'midnight-chrome',
     ]);
+    const streetSkillBadges = ruleset.streetSkills
+      ? (await PlayerSkillService.publicBadges(prisma, [player.id])).get(player.id)
+      : undefined;
 
     return {
       forumProfileUrl: forumLink ? forumProfileUrl(forumLink) : null,
@@ -1280,6 +1284,7 @@ export const CommunityService = {
       isYou,
       isSupporter: context.isSupporter,
       supporterSince: context.supporterSince,
+      ...(streetSkillBadges?.length ? { streetSkillBadges } : {}),
       birthdayToday: await showsBirthdayCake(prisma, player.accountId, profileSettings?.showBirthdayCake, now),
       ...(ruleset.factionPublic ? { factionAlignment: await factionAlignment(prisma, player.id, ruleset) } : {}),
     };

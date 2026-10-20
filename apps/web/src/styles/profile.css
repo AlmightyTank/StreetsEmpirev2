@@ -3,6 +3,10 @@
   gap: 16px;
 }
 
+.se-street-skill-badges, .se-member-skills { display: flex; flex-wrap: wrap; gap: 5px; margin: 8px 0 0; }
+.se-street-skill-badge { padding: 3px 8px; border: 1px solid var(--se-line); border-radius: 999px; color: var(--se-text-dim); font-size: 11px; }
+.se-street-skill-badge strong { color: var(--se-accent); }
+
 .se-rivalry-timeline__list { display: grid; gap: 10px; }
 .se-rivalry-timeline__item { border: 1px solid var(--se-line-soft, var(--se-line)); border-radius: 8px; padding: 10px 12px; }
 .se-rivalry-timeline__head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; }

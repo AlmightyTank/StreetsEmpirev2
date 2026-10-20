@@ -772,6 +772,11 @@ export function ProfilePage() {
                   ))}
                 </p>
               ) : null}
+              {player?.streetSkillBadges?.length ? (
+                <p className="se-street-skill-badges" aria-label="Street skill points">
+                  {player.streetSkillBadges.map((badge) => <span className="se-street-skill-badge" key={badge.skill}>{badge.label} <strong>{badge.points}</strong></span>)}
+                </p>
+              ) : null}
               <p className="se-eyebrow">
                 {player ? `${player.city.name}${player.isYou ? ' · Your profile' : ''}` : 'Permanent season record'}
               </p>

@@ -81,6 +81,7 @@ export function AllianceMembers({ alliance, actions }: {
                 <LevelChip level={member.accountLevel} />
                 {member.isLeader ? <span className="se-tag se-tag--good">Leader</span> : null}
                 {member.isYou ? <span className="se-you">YOU</span> : null}
+                {member.streetSkillBadges?.length ? <span className="se-member-skills">{member.streetSkillBadges.map((badge) => `${badge.label} ${badge.points}`).join(' · ')}</span> : null}
               </td>
               <td className="se-table__number se-num" data-label="Net worth">{formatCents(member.netWorthCents)}</td>
               <td className="se-table__number se-num" data-label="National">#{formatNumber(member.nationalRank)}</td>

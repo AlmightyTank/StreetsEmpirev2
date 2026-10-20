@@ -24,6 +24,7 @@ export * from './schemas/rivalries.js';
 export * from './types/forum.js';
 export * from './types/combat.js';
 export * from './types/alliance.js';
+export * from './types/street-skills.js';
 export * from './types/playing-together.js';
 export * from './types/console.js';
 export * from './types/survey.js';

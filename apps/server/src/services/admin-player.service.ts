@@ -1,6 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import { normalizeUsername, type AdminPlayerBattlesDto, type AdminPlayerDto, type AdminPlayerSearchDto, type AdminUnlockDto } from '@streets/shared';
 import { loadRulesetForRound, productEconomy, recipeLadder, type Ruleset } from '@streets/rules-engine';
+import { STREET_SKILL_KEYS, streetSkillTaperMultiplier } from '@streets/rulesets';
 import { toActivityDto } from '../game/dto.js';
 import { AppError } from '../utils/errors.js';
 import { ActivityService } from './activity.service.js';
@@ -46,6 +47,45 @@ export function adminUnlockCatalog(
 }
 
 const iso = (date: Date | null) => date?.toISOString() ?? null;
+
+function jsonChoices(value: unknown): Record<string, string> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return Object.fromEntries(Object.entries(value).filter((entry): entry is [string, string] => typeof entry[1] === 'string'));
+}
+
+function adminStreetSkills(player: {
+  createdAt: Date;
+  skills: Array<{ skill: string; xp: number; points: number; choices: unknown; respecs: number; respecReadyAt: Date | null; xpWindowStartsAt: Date | null; xpInWindow: number; awards: Array<{ sourceKey: string; amount: number; awardedAt: Date }> }>;
+}, ruleset: Ruleset, now: Date) {
+  const rules = ruleset.streetSkills;
+  if (!rules) return null;
+  const skills = STREET_SKILL_KEYS.map((skill) => {
+    const row = player.skills.find((candidate) => candidate.skill === skill);
+    const sameWindow = Boolean(row?.xpWindowStartsAt && now.getTime() - row.xpWindowStartsAt.getTime() < 86_400_000);
+    const xpToday = sameWindow ? row?.xpInWindow ?? 0 : 0;
+    const taper = streetSkillTaperMultiplier(xpToday, rules);
+    return {
+      skill,
+      xp: row?.xp ?? 0,
+      points: row?.points ?? 0,
+      xpToday,
+      taperBand: taper === 1 ? 'FULL' as const : taper === 0.5 ? 'HALF' as const : 'QUARTER' as const,
+      choices: jsonChoices(row?.choices),
+      respecs: row?.respecs ?? 0,
+      respecReadyAt: row?.respecReadyAt?.toISOString() ?? null,
+      xpWindowStartsAt: row?.xpWindowStartsAt?.toISOString() ?? null,
+      awards: (row?.awards ?? []).map((award) => ({ sourceKey: award.sourceKey, amount: award.amount, awardedAt: award.awardedAt.toISOString() })),
+    };
+  });
+  return {
+    totalPoints: skills.reduce((total, skill) => total + skill.points, 0),
+    totalPointCap: rules.totalPointCap,
+    skillPointCap: rules.skillPointCap,
+    dailyFullXp: rules.dailyFullXp,
+    dailyHalfXp: rules.dailyHalfXp,
+    skills,
+  };
+}
 
 /**
  * Read-only player state for disputes. It never settles the player, so opening
@@ -139,7 +179,8 @@ export const AdminPlayerService = {
           include: { questDefinition: true },
           orderBy: [{ updatedAt: 'desc' }, { attempt: 'desc' }],
         },
-        combatInjuries: { where: { treatedAt: null, recoverAt: { gt: now } }, orderBy: { recoverAt: 'asc' } },
+         combatInjuries: { where: { treatedAt: null, recoverAt: { gt: now } }, orderBy: { recoverAt: 'asc' } },
+         skills: { include: { awards: { orderBy: { awardedAt: 'desc' } } }, orderBy: { skill: 'asc' } },
       },
     });
     if (!player) throw AppError.notFound('PLAYER_NOT_FOUND', 'That player does not exist.');
@@ -150,6 +191,7 @@ export const AdminPlayerService = {
       prisma.combatIntel.count({ where: { targetId: player.id, expiresAt: { gt: now } } }),
     ]);
 
+    const ruleset = loadRulesetForRound(player.round);
     return {
       roundPlayerId: player.id,
       account: player.account,
@@ -160,14 +202,14 @@ export const AdminPlayerService = {
       netWorthCents: Number(player.netWorthCents),
       cashCents: Number(player.cashCents),
       turns: player.turns,
-      turnCap: loadRulesetForRound(player.round).turns.cap,
+       turnCap: ruleset.turns.cap,
       live: player.round.status === 'ACTIVE' || player.round.status === 'REGISTRATION',
       lastTurnCalculationAt: player.lastTurnCalculationAt.toISOString(),
       lastActiveAt: player.lastActiveAt.toISOString(),
       payoutPercent: player.payoutPercent,
       crew: { whores: player.whores, thugs: player.thugs, woundedThugs: player.woundedThugs, lowRiders: player.lowRiders },
       supplies: { condoms: player.condoms, medicine: player.medicine, crack: player.crack, beer: player.beer },
-      products: await adminProducts(prisma, player.id, loadRulesetForRound(player.round)),
+       products: await adminProducts(prisma, player.id, ruleset),
       weapons: { pistols: player.pistols, shotguns: player.shotguns, tek9s: player.tek9s, ak47s: player.ak47s },
       unlocks: {
         shotgun: player.shotgunUnlocked,
@@ -178,7 +220,7 @@ export const AdminPlayerService = {
           sourceQuestKey: unlock.sourceQuestKey,
           awardedAt: unlock.awardedAt.toISOString(),
         })),
-        catalog: adminUnlockCatalog(loadRulesetForRound(player.round), player.permanentUnlocks),
+         catalog: adminUnlockCatalog(ruleset, player.permanentUnlocks),
       },
       favors: player.favorInventory.map((favor) => ({
         key: favor.key,
@@ -220,7 +262,7 @@ export const AdminPlayerService = {
         updatedAt: quest.updatedAt.toISOString(),
       })),
       happiness: { whores: player.whoreHappiness, thugs: player.thugHappiness },
-      heat: loadRulesetForRound(player.round).heat ? player.heat : null,
+       heat: ruleset.heat ? player.heat : null,
       ranks: { national: player.nationalRank, local: player.localRank },
       timers: {
         raidProtectedUntil: iso(player.raidProtectedUntil),
@@ -246,7 +288,8 @@ export const AdminPlayerService = {
         battleId: injury.battleId,
       })),
       intel: { observing, observedBy },
-      activity: activity.map(toActivityDto),
+       activity: activity.map(toActivityDto),
+       streetSkills: adminStreetSkills(player, ruleset, now),
     };
   },
 

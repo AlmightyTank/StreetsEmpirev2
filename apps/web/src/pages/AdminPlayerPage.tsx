@@ -404,6 +404,21 @@ export function AdminPlayerPage() {
         <Stat label="National rank" value={player.ranks.national ? `#${player.ranks.national}` : '-'} sub={player.ranks.local ? `Local #${player.ranks.local}` : undefined} />
       </div>
 
+      {player.streetSkills ? (
+        <Panel title="Street Skills inspector" aside={`${player.streetSkills.totalPoints} / ${player.streetSkills.totalPointCap} points`} className="se-mb">
+          <p className="se-hint">Read-only settlement audit. Receipts are durable source keys; opening this panel never awards XP.</p>
+          <div className="se-rows">
+            {player.streetSkills.skills.map((skill) => (
+              <div key={skill.skill} className="se-admin-skill-row">
+                <Row label={skill.skill} value={`${skill.points} / ${player.streetSkills!.skillPointCap} points · ${formatNumber(skill.xp)} XP · ${formatNumber(skill.xpToday)} today · ${skill.taperBand}`} />
+                <p className="se-hint">Window {adminWhen(skill.xpWindowStartsAt)} · choices {Object.values(skill.choices).join(', ') || 'none'} · receipts {skill.awards.length}</p>
+                {skill.awards.length ? <p className="se-hint se-admin-skill-receipts">{skill.awards.slice(0, 5).map((award) => `${award.sourceKey} (+${award.amount})`).join(' · ')}{skill.awards.length > 5 ? ` · +${skill.awards.length - 5} more` : ''}</p> : null}
+              </div>
+            ))}
+          </div>
+        </Panel>
+      ) : null}
+
       {voiding ? (
         <GameDialog
           open

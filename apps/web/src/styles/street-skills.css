@@ -1,0 +1,30 @@
+.se-skills-page { display: grid; gap: 16px; }
+.se-skills-hero { display: flex; align-items: end; justify-content: space-between; gap: 18px; }
+.se-skills-hero h1 { margin: 4px 0 6px; }
+.se-skills-hero__total { text-align: right; }
+.se-skills-hero__total strong { display: block; color: var(--se-accent); font-size: 32px; }
+.se-skills-hero__total small { color: var(--se-text-dim); font-size: 16px; }
+.se-skills-hero__total span { color: var(--se-text-dim); font-size: 12px; }
+.se-skills-today { display: grid; gap: 10px; }
+.se-skills-today__row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; }
+.se-skills-today__row strong { font-size: 20px; color: var(--se-accent); }
+.se-skills-today__row span { color: var(--se-text-dim); }
+.se-skills-today__row .se-skill-band { margin-left: auto; }
+.se-skill-band { border: 1px solid var(--se-line); border-radius: 999px; padding: 3px 8px; color: var(--se-text-dim); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+.se-skill-band--full { color: var(--se-good, #7ee787); }
+.se-skill-band--half { color: var(--se-warn, #f2cc60); }
+.se-skill-band--quarter { color: var(--se-danger, #ff7b72); }
+.se-skill-meter { height: 7px; overflow: hidden; border-radius: 99px; background: var(--se-line); }
+.se-skill-meter span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--se-accent), var(--se-accent-2, var(--se-accent))); }
+.se-skills-today p { margin: 0; font-size: 12px; }
+.se-skills-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.se-skill-card { display: grid; gap: 12px; padding: 16px; border: 1px solid var(--se-line); border-radius: 8px; background: var(--se-panel); }
+.se-skill-card__head { display: flex; align-items: start; justify-content: space-between; gap: 12px; }
+.se-skill-card h2 { margin: 3px 0 0; font-size: 22px; }
+.se-skill-card__points { color: var(--se-accent); font-size: 28px; }
+.se-skill-card__points small { color: var(--se-text-dim); font-size: 13px; font-weight: 400; }
+.se-skill-card__meta, .se-skill-card__milestone { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; font-size: 12px; }
+.se-skill-card__meta { color: var(--se-text-dim); }
+.se-skill-card__milestone { display: grid; gap: 4px; }
+@media (max-width: 899px) { .se-skills-hero { align-items: start; } .se-skills-grid { grid-template-columns: 1fr; } }
+@media (max-width: 540px) { .se-skills-hero { display: grid; } .se-skills-hero__total { text-align: left; } .se-skills-today__row .se-skill-band { margin-left: 0; } }

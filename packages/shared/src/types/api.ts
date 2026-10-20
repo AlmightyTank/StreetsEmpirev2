@@ -1294,6 +1294,15 @@ export interface GameActionResult<T> {
   /** Standing crew orders filled after this action. */
   staffingOrders?: CrewStaffingOrderFillDto[];
   rankChanges?: RankChanges;
+  /** Slice B: named, cap-aware passive sources applied during settlement. */
+  modifiers?: Array<{
+    effectId: string;
+    sourceId: string;
+    label: string;
+    requestedPercent: number;
+    appliedPercent: number;
+    capped: boolean;
+  }>;
 }
 
 // --- actions ----------------------------------------------------------------

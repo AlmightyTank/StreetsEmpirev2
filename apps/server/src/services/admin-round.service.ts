@@ -211,7 +211,12 @@ export function rulesetChangeWarnings(round: RulesetChangeRound, to: Ruleset): A
   return warnings;
 }
 
-const rulesetOption = (ruleset: Ruleset): AdminRulesetOptionDto => ({ id: ruleset.meta.id, version: ruleset.meta.version, name: ruleset.meta.name });
+const rulesetOption = (ruleset: Ruleset): AdminRulesetOptionDto => ({
+  id: ruleset.meta.id,
+  version: ruleset.meta.version,
+  name: ruleset.meta.name,
+  streetSkills: Boolean(ruleset.streetSkills),
+});
 
 function toAdminRoundDto(round: Round, playerCount: number): AdminRoundDto {
   return { ...toRoundDto(round, playerCount), createdAt: round.createdAt.toISOString(), actions: availableRoundActions(round) };

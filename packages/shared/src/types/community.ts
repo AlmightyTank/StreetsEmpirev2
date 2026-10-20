@@ -451,6 +451,8 @@ export interface PublicPlayerProfileDto {
    * in-progress stories plus permanent trophies. Optional for older servers.
    */
   discoveries?: SecretCollectionDto;
+  /** Street Skills Slice D. Points-only current-round identity badges. */
+  streetSkillBadges?: import('./street-skills.js').StreetSkillBadgeDto[];
 }
 
 export type CareerIdentityKey = 'ENFORCER' | 'SMUGGLER' | 'FIXER' | 'BUSINESS_BOSS' | 'INTELLIGENCE_BROKER';

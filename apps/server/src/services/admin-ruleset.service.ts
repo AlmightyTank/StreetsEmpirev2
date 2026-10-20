@@ -2,7 +2,12 @@ import { rulesets, type Ruleset } from '@streets/rulesets';
 import type { AdminRulesetOptionDto, AdminRulesetRowDto, AdminRulesetViewDto } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
 
-const option = (ruleset: Ruleset): AdminRulesetOptionDto => ({ id: ruleset.meta.id, version: ruleset.meta.version, name: ruleset.meta.name });
+const option = (ruleset: Ruleset): AdminRulesetOptionDto => ({
+  id: ruleset.meta.id,
+  version: ruleset.meta.version,
+  name: ruleset.meta.name,
+  streetSkills: Boolean(ruleset.streetSkills),
+});
 
 /**
  * Every leaf of a ruleset as a dotted path and a JSON value. Arrays of plain

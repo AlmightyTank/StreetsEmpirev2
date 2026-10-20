@@ -7,6 +7,8 @@ The boss gets better at what they actually do. A player who runs vans across the
 
 **The question:** What kind of boss am I this season?
 
+The beta catalog contains six skills: Hustle, Muscle, Wheels, Fixer, Connections and Luck.
+
 ## Ground rules
 1. **Per round, not permanent.** Skills live on the round player and reset every season. Account levels stay what [ACCOUNT-LEVELS.md](ACCOUNT-LEVELS.md) promises: they never add cash, strength or turns.
 2. **Learn by doing.** Skill XP comes only from completed, server-settled actions. Waiting, retrying or cancelling earns nothing.
@@ -28,6 +30,7 @@ The boss gets better at what they actually do. A player who runs vans across the
 | **Wheels** | Runs, boss trips, shipments, vehicle repairs and mods | The road boss |
 | **Fixer** | Clean shifts, cooling heat, lawyers, cases, bribes | The one who never gets caught |
 | **Connections** | Jobs & Contacts, supply orders, trader standing, tolls paid and collected | The one who knows everyone |
+| **Luck** | Random encounters, loot and rare outcomes | The one who always gets the break |
 
 ### Earning skill XP
 - Each settled action adds XP to its own skill, scaled by size (a 20-thug raid earns more than a 2-thug one), with a minimum so small players still progress.

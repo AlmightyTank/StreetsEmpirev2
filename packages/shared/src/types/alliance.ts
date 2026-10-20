@@ -24,6 +24,8 @@ export interface AllianceMemberDto {
   joinedAt: string;
   /** Lifetime account level. Optional for older servers. */
   accountLevel?: number;
+  /** Street Skills Slice D. Points-only current-round identity badges. */
+  streetSkillBadges?: import('./street-skills.js').StreetSkillBadgeDto[];
 }
 
 export type AllianceEventType = 'FOUNDED' | 'INVITED' | 'JOINED' | 'LEFT' | 'KICKED' | 'LEADER' | 'RENAMED' | 'DISBANDED';

@@ -1,6 +1,7 @@
 import type { LivingStoryCatalog } from './living-stories.js';
 import type { UnderworldOperationCatalog } from './underworld-operations.js';
 import type { RivalryRules } from './rivalries.js';
+import type { StreetSkillsRules } from './street-skills.js';
 
 /**
  * The ruleset contract.
@@ -3168,6 +3169,8 @@ export interface Ruleset {
   readonly rivalries?: RivalryRules;
   /** 2.2.0. Cooperative operation templates. Absent on rounds pinned before this catalog. */
   readonly underworldOperations?: UnderworldOperationCatalog;
+  /** 2.3.0-A/B. Boss skills and bounded passives; absent on older rounds. */
+  readonly streetSkills?: StreetSkillsRules;
   readonly round: RoundRules;
   readonly turns: TurnRules;
   readonly economy: EconomyRules;
