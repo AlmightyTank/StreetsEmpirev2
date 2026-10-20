@@ -233,7 +233,7 @@ export function newPlayerSectionsFor(sections: readonly NavSection[]): NavSectio
     ['new-player-core', 'Start Here', ['dashboard', 'quests', 'scout', 'produce', 'raids', 'operations', 'black-book', 'stores']],
     ['new-player-empire', 'Build Your Empire', ['hideout', 'crew-roster', 'dealers', 'supply', 'loans', 'travel', 'turf']],
     ['new-player-competition', 'Competition', ['casino', 'alliance', 'players', 'rankings']],
-    ['new-player-career', 'Progress & Rewards', ['xp-progress', 'events', 'street-pass', 'roll-call', 'drop', 'supporter', 'profile']],
+    ['new-player-career', 'Progress & Rewards', ['xp-progress', 'skills', 'events', 'street-pass', 'roll-call', 'drop', 'supporter', 'profile']],
     ['new-player-community', 'Messages & News', ['console', 'news']],
     ['new-player-support', 'Help & Settings', ['status', 'rules', 'account']],
   ] as const;

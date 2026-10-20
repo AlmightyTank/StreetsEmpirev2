@@ -10,7 +10,7 @@ import { laneRules } from '../calculations/supply-lanes.js';
  */
 const SLICES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const;
 // Every later season builds on the finished 1.6.0 season, so it carries the whole supply network.
-const family = (ruleset: Ruleset) => ['classic-og-v1.6-', 'classic-og-v1.6.5-', 'classic-og-v1.7-', 'classic-og-v1.8-', 'classic-og-v1.9-', 'classic-og-v2.0-', 'classic-og-v2.1-', 'classic-og-v2.2-'].some((prefix) => ruleset.meta.id.startsWith(prefix));
+const family = (ruleset: Ruleset) => ['classic-og-v1.6-', 'classic-og-v1.6.5-', 'classic-og-v1.7-', 'classic-og-v1.8-', 'classic-og-v1.9-', 'classic-og-v2.0-', 'classic-og-v2.1-', 'classic-og-v2.2-', 'classic-og-v2.3-'].some((prefix) => ruleset.meta.id.startsWith(prefix));
 
 describe('1.6.0 never reaches a round pinned before it', () => {
   it('leaves every earlier ruleset without a supply network', () => {
