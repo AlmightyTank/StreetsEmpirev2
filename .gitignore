@@ -27,3 +27,4 @@ email-previews/
 /android/.gradle/
 /android/.idea/
 *.apk
+.playwright-mcp/page-2026-10-19T14-51-12-098Z.yml
