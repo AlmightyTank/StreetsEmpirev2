@@ -28,6 +28,7 @@ import { ActivityService } from './activity.service.js';
 import { LawWarrantService } from './law-warrant.service.js';
 import { LawOfficialService } from './law-official.service.js';
 import { QuestProgressService } from './quest-progress.service.js';
+import { PlayerSkillService } from './player-skill.service.js';
 
 export type CaseSource = CaseSourceDto;
 
@@ -197,10 +198,17 @@ function json(value: unknown): Prisma.InputJsonValue {
  * written as a COOLING receipt with the next change, so the receipts always add up to the
  * stored Case. Callers hold the player's lock, as for any other write to the player.
  */
+/** Paper Trail: how much faster a player's Cases cool, as a multiplier on each city's pace. */
+export async function caseCooling(db: Db, roundPlayerId: string, ruleset: Ruleset): Promise<number> {
+  return 1 + (await PlayerSkillService.effects(db, roundPlayerId, ruleset.streetSkills)).percent('CASE_COOLING') / 100;
+}
+
 export const LawService = {
   async record(tx: Db, roundPlayerId: string, ruleset: Ruleset, entries: readonly CaseEvidence[], now: Date = new Date()): Promise<CaseChange[]> {
     const rules = ruleset.law;
     if (!rules) return [];
+    const skills = await PlayerSkillService.effects(tx, roundPlayerId, ruleset.streetSkills);
+    const cooling = 1 + skills.percent('CASE_COOLING') / 100;
     const changes: CaseChange[] = [];
     const cities = new Map<string, { id: string; slug: string; name: string }>();
 
@@ -219,7 +227,9 @@ export const LawService = {
 
     for (const entry of entries) {
       const cash = entry.cashCents && entry.cashCents > 0n && rules.currencyReport ? entry.cashCents : 0n;
-      const direct = caseFromHeat(entry.heat ?? 0, rules) + caseFromPoints(entry.points ?? 0);
+      const raw = caseFromHeat(entry.heat ?? 0, rules) + caseFromPoints(entry.points ?? 0);
+      // Quiet Streets: new evidence builds slower; falls are never shrunk.
+      const direct = raw > 0 ? Math.round(skills.scale('EVIDENCE_GAIN', raw)) : raw;
       if (direct === 0 && cash === 0n && entry.ceiling === undefined && entry.floor === undefined) continue;
       if (await tx.playerCaseReceipt.findUnique({ where: { roundPlayerId_sourceKey: { roundPlayerId, sourceKey: entry.sourceKey } }, select: { id: true } })) continue;
       const place = await city(entry);
@@ -231,7 +241,7 @@ export const LawService = {
         : { caseHundredths: 0, caseAt: now, lastEvidenceAt: null };
       // E: each city's police work at their own pace.
       const pace = cityLaw(rules, place.slug);
-      const before = coolCase(clock, now, rules, pace.coolingSpeed);
+      const before = coolCase(clock, now, rules, pace.coolingSpeed * cooling);
       let book = bookFor(existing);
 
       // B: cooling since the last write lands as one rolling receipt per quiet spell.
@@ -330,13 +340,14 @@ export const LawService = {
   async settleCooling(tx: Db, roundPlayerId: string, ruleset: Ruleset, now: Date = new Date()): Promise<void> {
     const rules = ruleset.law;
     if (!rules?.cooling || !ruleset.contacts?.LEDGER) return;
+    const cooling = await caseCooling(tx, roundPlayerId, ruleset);
     const open = await tx.playerCase.findMany({
       where: { roundPlayerId, stage: { not: 'QUIET' } },
       include: { city: { select: { id: true, slug: true, name: true } } },
       orderBy: { cityId: 'asc' },
     });
     for (const row of open) {
-      const cooled = coolCase(row, now, rules, cityLaw(rules, row.city.slug).coolingSpeed);
+      const cooled = coolCase(row, now, rules, cityLaw(rules, row.city.slug).coolingSpeed * cooling);
       const stage = wantedStage(cooled, rules);
       if (stageRank(stage) >= stageRank(row.stage as WantedStage)) continue;
       await writeCooling(tx, roundPlayerId, row.cityId, row, cooled, rules, now);
@@ -367,7 +378,7 @@ export const LawService = {
     const rules = ruleset.law;
     if (!rules) return 0;
     const row = await db.playerCase.findUnique({ where: { roundPlayerId_cityId: { roundPlayerId, cityId } }, include: { city: { select: { slug: true } } } });
-    return row ? coolCase(row, now, rules, cityLaw(rules, row.city.slug).coolingSpeed) : 0;
+    return row ? coolCase(row, now, rules, cityLaw(rules, row.city.slug).coolingSpeed * await caseCooling(db, roundPlayerId, ruleset)) : 0;
   },
 
   /**
@@ -379,6 +390,7 @@ export const LawService = {
     const rules = ruleset.law;
     if (!rules?.federal) return null;
     const leaving = await LawService.caseIn(db, roundPlayerId, ruleset, homeCityId, now);
+    const cooling = await caseCooling(db, roundPlayerId, ruleset);
     const preview = federalTransfer(leaving, 0, rules);
     if (!preview) return null;
     const [home, rows] = await Promise.all([
@@ -388,7 +400,7 @@ export const LawService = {
     const arrivals: Record<string, number> = {};
     for (const slug of Object.keys(ruleset.cities ?? {})) {
       const row = rows.find((candidate) => candidate.city.slug === slug);
-      const there = row ? coolCase(row, now, rules, cityLaw(rules, slug).coolingSpeed) : 0;
+      const there = row ? coolCase(row, now, rules, cityLaw(rules, slug).coolingSpeed * cooling) : 0;
       arrivals[slug] = points(federalTransfer(leaving, there, rules)!.arriving);
     }
     return { cityName: home.name, case: points(leaving), oldCityCase: points(preview.leaving), arrivals };
@@ -430,9 +442,10 @@ export const LawService = {
     const rules = ruleset.law;
     if (!rules) return null;
     const rows = await db.playerCase.findMany({ where: { roundPlayerId }, include: { city: { select: { slug: true, name: true } } } });
+    const cooling = await caseCooling(db, roundPlayerId, ruleset);
     let worst: { hundredths: number; cityName: string } | null = null;
     for (const row of rows) {
-      const hundredths = coolCase(row, now, rules, cityLaw(rules, row.city.slug).coolingSpeed);
+      const hundredths = coolCase(row, now, rules, cityLaw(rules, row.city.slug).coolingSpeed * cooling);
       if (hundredths > 0 && (!worst || hundredths > worst.hundredths)) worst = { hundredths, cityName: row.city.name };
     }
     if (!worst) return { stage: 'QUIET', case: 0, cityName: null };
@@ -443,6 +456,7 @@ export const LawService = {
   async page(db: Db, roundPlayerId: string, homeCityId: string, ruleset: Ruleset, now: Date = new Date()): Promise<LawPageDto | null> {
     const rules = ruleset.law;
     if (!rules) return null;
+    const cooling = await caseCooling(db, roundPlayerId, ruleset);
     const [rows, receipts] = await Promise.all([
       db.playerCase.findMany({ where: { roundPlayerId }, include: { city: { select: { slug: true, name: true } } } }),
       db.playerCaseReceipt.findMany({
@@ -454,7 +468,7 @@ export const LawService = {
     ]);
 
     const cases = rows
-      .map((row) => ({ row, hundredths: coolCase(row, now, rules, cityLaw(rules, row.city.slug).coolingSpeed) }))
+      .map((row) => ({ row, hundredths: coolCase(row, now, rules, cityLaw(rules, row.city.slug).coolingSpeed * cooling) }))
       .sort((a, b) => b.hundredths - a.hundredths || b.row.updatedAt.getTime() - a.row.updatedAt.getTime());
 
     return {

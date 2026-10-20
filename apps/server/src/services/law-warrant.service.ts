@@ -27,6 +27,7 @@ import { LawService, seizedValueCents } from './law.service.js';
 import { LawOfficialService } from './law-official.service.js';
 import { CRACK, ProductInventoryService } from './product-inventory.service.js';
 import { refreshAwayWorth } from './run-settle.service.js';
+import type { SkillEffects } from './player-skill.service.js';
 
 const HOUR_MS = 3_600_000;
 const OPEN_STATUSES = ['OPEN', 'WAITING'];
@@ -98,6 +99,12 @@ async function cityOf(db: Db, cityId: string) {
  * 1.3.0-C. Warrants: drafted when a city's Case reaches the Warrant stage, served after the
  * warning window unless the player lawyers up. Every write happens under the player's lock.
  */
+/** Lawyered Up: the lawyer's bill comes down. */
+function skilledLawyerFee(fee: bigint, skills: SkillEffects): bigint {
+  const pct = fee > 0n ? skills.percent('LAWYER_FEE') : 0;
+  return pct ? fee * BigInt(Math.round((100 + pct) * 100)) / 10_000n : fee;
+}
+
 export const LawWarrantService = {
   /**
    * Draft a warrant in a city whose Case has reached the Warrant stage, unless one is open
@@ -356,7 +363,7 @@ export const LawWarrantService = {
     return ActionService.run(prisma, roundPlayerId, {
       action: 'LAWYER_UP',
       actionId,
-      execute: async ({ tx, current, round, ruleset, now }) => {
+      execute: async ({ tx, current, round, ruleset, now, skills }) => {
         const lawyer = ruleset.law?.lawyer;
         if (!ruleset.law?.warrants || !lawyer) throw AppError.conflict('LAW_DISABLED', 'There are no warrants in this round.');
         const warrant = await tx.playerWarrant.findFirst({
@@ -367,7 +374,7 @@ export const LawWarrantService = {
         const base = loadRulesetForRound(round);
         const self = await tx.roundPlayer.findUniqueOrThrow({ where: { id: roundPlayerId }, include: { city: { select: { id: true, slug: true, name: true } } } });
         const plan = await LawWarrantService.plan(tx, { ...self, cashCents: current.cashCents, crack: current.crack }, base, warrant, now, true);
-        const fee = lawyerUpCents(plan.lossCents, lawyer);
+        const fee = skilledLawyerFee(lawyerUpCents(plan.lossCents, lawyer), skills);
         if (fee > current.cashCents) throw AppError.badRequest('NOT_ENOUGH_CASH', 'You cannot cover the lawyer.');
         await tx.playerWarrant.update({ where: { id: warrant.id }, data: { status: 'LAWYERED', resolvedAt: now, outcome: json({ target: plan.target, feeCents: Number(fee) }) } });
         return {
@@ -386,10 +393,10 @@ export const LawWarrantService = {
     return ActionService.run(prisma, roundPlayerId, {
       action: 'LAWYER_RETAIN',
       actionId,
-      execute: async ({ tx, current, player, ruleset, now }) => {
+      execute: async ({ tx, current, player, ruleset, now, skills }) => {
         const lawyer = ruleset.law?.lawyer;
         if (!lawyer) throw AppError.conflict('LAW_DISABLED', 'There are no lawyers in this round.');
-        const fee = retainerCents(player.netWorthCents, lawyer);
+        const fee = skilledLawyerFee(retainerCents(player.netWorthCents, lawyer), skills);
         if (fee > current.cashCents) throw AppError.badRequest('NOT_ENOUGH_CASH', 'You cannot cover the retainer.');
         const from = player.lawyerRetainedUntil && player.lawyerRetainedUntil > now ? player.lawyerRetainedUntil : now;
         const until = new Date(from.getTime() + lawyer.retainer.days * 24 * HOUR_MS);

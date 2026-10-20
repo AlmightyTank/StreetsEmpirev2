@@ -33,6 +33,7 @@ import { CrewRosterService } from './crew-roster.service.js';
 import { LawService, seizedValueCents } from './law.service.js';
 import { hasVehicleDamage, readVehicleDamage, readVehicleLoadout, vehicleDamageJson } from './vehicle-fleet.service.js';
 import { deliverSupplyPickups, settleSupplyStops, supplyLoadsByRun, withoutSupplyLoad } from './supply-pickup-settle.service.js';
+import { PlayerSkillService } from './player-skill.service.js';
 
 export const RUN_INCLUDE = {
   stops: { orderBy: { order: 'asc' } },
@@ -194,6 +195,8 @@ async function rollRoadStops(tx: Db, roundPlayerId: string, ruleset: Ruleset, ru
   const player = await tx.roundPlayer.findUniqueOrThrow({ where: { id: roundPlayerId }, select: { heat: true, racketEffects: true } });
   // 1.1.0-C: an Auto Garage on Run mods means fewer stops, read when each leg is rolled.
   const stopCut = racketRunStopCut(ruleset, readRacketEffects(player.racketEffects));
+  // Low Profile: the run draws fewer stops.
+  const lowProfile = 1 + (await PlayerSkillService.effects(tx, roundPlayerId, ruleset.streetSkills)).percent('POLICE_STOPS') / 100;
   while (checks < last && stops[checks]!.arriveAt.getTime() <= now.getTime()) {
     const stop = stops[checks]!;
     const stopped = resolveRoadStop(ruleset, {
@@ -204,7 +207,7 @@ async function rollRoadStops(tx: Db, roundPlayerId: string, ruleset: Ruleset, ru
       heat: player.heat,
       rng: seededRng(hashParts(run.id, 'road-stop', checks)),
       stopCut,
-      riskMultiplier: vehicleRiskMultiplier(ruleset, readVehicleLoadout(current.vehicleLoadout, current.lowRiders)) * Math.max(0.5, 1 - (current.wheelmanBonusPercent ?? 0) / 100),
+      riskMultiplier: vehicleRiskMultiplier(ruleset, readVehicleLoadout(current.vehicleLoadout, current.lowRiders)) * Math.max(0.5, 1 - (current.wheelmanBonusPercent ?? 0) / 100) * lowProfile,
     });
     checks++;
     if (!stopped.stopped) continue;

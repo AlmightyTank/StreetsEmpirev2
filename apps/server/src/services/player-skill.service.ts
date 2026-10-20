@@ -1,6 +1,16 @@
-import type { RoundPlayer } from '@prisma/client';
-import { STREET_SKILL_KEYS, streetSkillCatchUpMultiplier, streetSkillPointsForXp, streetSkillTaperedXp, streetSkillTaperMultiplier, type StreetSkillKey, type StreetSkillsRules } from '@streets/rulesets';
-import { resolveModifiers, type ModifierContribution, type ModifierResolution } from '@streets/rules-engine';
+import type { PrismaClient, RoundPlayer } from '@prisma/client';
+import {
+  STREET_SKILL_KEYS,
+  streetSkillCatchUpMultiplier,
+  streetSkillPerk,
+  streetSkillPointsForXp,
+  streetSkillTaperedXp,
+  streetSkillTaperMultiplier,
+  type StreetSkillEffectId,
+  type StreetSkillKey,
+  type StreetSkillsRules,
+} from '@streets/rulesets';
+import { loadRulesetForRound, resolveModifiers, type ModifierContribution, type ModifierResolution } from '@streets/rules-engine';
 import type { Db } from '../utils/db.js';
 import { lockRoundPlayer } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
@@ -20,6 +30,34 @@ export interface PlayerSkillModifierReceipt {
   readonly capped: boolean;
 }
 
+/**
+ * A player's street skill effects for one settlement. Systems ask for the
+ * effect they change; every effect asked for lands on the action's receipt.
+ */
+export interface SkillEffects {
+  readonly active: boolean;
+  /** Applied percent for an effect after caps. `weakTarget` drops offensive perks. */
+  percent(effectId: StreetSkillEffectId, options?: { weakTarget?: boolean }): number;
+  /** Whether a chosen rule-change perk (one without a percent) is in play. */
+  has(perkKey: string): boolean;
+  /** `value` changed by the effect's percent. */
+  scale(effectId: StreetSkillEffectId, value: number, options?: { weakTarget?: boolean }): number;
+  /** Receipt lines for the effects this settlement actually used. */
+  receipts(): PlayerSkillModifierReceipt[];
+}
+
+const labels: Record<StreetSkillKey, string> = {
+  HUSTLE: 'Hustle', MUSCLE: 'Muscle', WHEELS: 'Wheels', FIXER: 'Fixer', CONNECTIONS: 'Connections', LUCK: 'Luck',
+};
+
+export const NO_SKILL_EFFECTS: SkillEffects = {
+  active: false,
+  percent: () => 0,
+  has: () => false,
+  scale: (_effectId, value) => value,
+  receipts: () => [],
+};
+
 function skillKey(value: string): StreetSkillKey {
   if ((STREET_SKILL_KEYS as readonly string[]).includes(value)) return value as StreetSkillKey;
   throw AppError.badRequest('STREET_SKILL_UNKNOWN', 'That street skill does not exist.');
@@ -28,6 +66,95 @@ function skillKey(value: string): StreetSkillKey {
 function choicesObject(value: unknown): Record<string, string> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
   return Object.fromEntries(Object.entries(value).filter((entry): entry is [string, string] => typeof entry[1] === 'string'));
+}
+
+function taperBand(multiplier: number): 'FULL' | 'HALF' | 'QUARTER' {
+  return multiplier === 1 ? 'FULL' : multiplier === 0.5 ? 'HALF' : 'QUARTER';
+}
+
+/** Passive and chosen-perk contributions for a player's skill rows. */
+export function skillContributions(
+  rows: ReadonlyArray<{ skill: string; points: number; choices: unknown }>,
+  rules: StreetSkillsRules,
+): { contributions: Array<ModifierContribution & { offensive: boolean }>; perks: Set<string> } {
+  const contributions: Array<ModifierContribution & { offensive: boolean }> = [];
+  const perks = new Set<string>();
+  for (const row of rows) {
+    if (!(STREET_SKILL_KEYS as readonly string[]).includes(row.skill)) continue;
+    const key = row.skill as StreetSkillKey;
+    const factor = Math.max(0, Math.min(rules.skillPointCap, row.points)) / rules.skillPointCap;
+    for (const passive of rules.passives) {
+      if (passive.skill !== key || passive.requires) continue;
+      const percent = passive.maxPercent * factor;
+      if (!percent) continue;
+      contributions.push({ effectId: passive.effectId, target: passive.effectId, category: passive.category, percent, sourceId: `street-skill:${key}`, label: passive.label, offensive: false });
+    }
+    for (const [threshold, choice] of Object.entries(choicesObject(row.choices))) {
+      const perk = streetSkillPerk(rules, choice);
+      // A choice only counts while the points that unlocked it are still there.
+      if (!perk || perk.requires || row.points < Number(threshold)) continue;
+      perks.add(perk.key);
+      if (perk.effect) {
+        contributions.push({
+          effectId: perk.effect.effectId,
+          target: perk.effect.effectId,
+          category: perk.effect.category,
+          percent: perk.effect.percent,
+          sourceId: `street-perk:${perk.key}`,
+          label: `${labels[key]} · ${perk.label}`,
+          offensive: Boolean(perk.offensive),
+        });
+      }
+    }
+  }
+  return { contributions, perks };
+}
+
+/** Build the effect reader from resolved contributions. Exported for tests. */
+export function buildSkillEffects(
+  rows: ReadonlyArray<{ skill: string; points: number; choices: unknown }>,
+  rules: StreetSkillsRules,
+  additional: readonly ModifierContribution[] = [],
+): SkillEffects {
+  const { contributions, perks } = skillContributions(rows, rules);
+  if (!contributions.length && !perks.size && !additional.length) return NO_SKILL_EFFECTS;
+  const full = resolveModifiers([...additional, ...contributions], rules.modifierCaps);
+  const safe = resolveModifiers([...additional, ...contributions.filter((entry) => !entry.offensive)], rules.modifierCaps);
+  const used = new Map<string, ModifierResolution>();
+  const usedPerks = new Set<string>();
+  const percent = (effectId: StreetSkillEffectId, options?: { weakTarget?: boolean }) => {
+    const resolution = options?.weakTarget ? safe : full;
+    const value = resolution.targets[effectId] ?? 0;
+    if (value) used.set(effectId, resolution);
+    return value;
+  };
+  return {
+    active: true,
+    percent,
+    has(perkKey) {
+      const held = perks.has(perkKey);
+      if (held) usedPerks.add(perkKey);
+      return held;
+    },
+    scale(effectId, value, options) {
+      const pct = percent(effectId, options);
+      return pct ? value * (100 + pct) / 100 : value;
+    },
+    receipts() {
+      const lines: PlayerSkillModifierReceipt[] = [];
+      for (const [effectId, resolution] of used) {
+        for (const modifier of resolution.modifiers) {
+          if (modifier.target !== effectId || modifier.appliedPercent === 0) continue;
+          lines.push({ effectId, sourceId: modifier.sourceId, label: modifier.label, requestedPercent: modifier.percent, appliedPercent: modifier.appliedPercent, capped: modifier.capped });
+        }
+      }
+      for (const key of usedPerks) {
+        const perk = streetSkillPerk(rules, key);
+        lines.push({ effectId: key, sourceId: `street-perk:${key}`, label: perk?.label ?? key, requestedPercent: 0, appliedPercent: 0, capped: false });
+      }
+      return lines;
+    },
+  };
 }
 
 export const PlayerSkillService = {
@@ -44,20 +171,26 @@ export const PlayerSkillService = {
         xp: row?.xp ?? 0,
         points,
         xpToday,
-        taperBand: streetSkillTaperMultiplier(xpToday, rules) === 1 ? 'FULL' as const : streetSkillTaperMultiplier(xpToday, rules) === 0.5 ? 'HALF' as const : 'QUARTER' as const,
+        taperBand: taperBand(streetSkillTaperMultiplier(xpToday, rules)),
         choices: choicesObject(row?.choices),
         respecs: row?.respecs ?? 0,
         respecReadyAt: row?.respecReadyAt?.toISOString() ?? null,
+        respecCostCents: rules.respec.baseCostCents * ((row?.respecs ?? 0) + 1),
         milestones: milestones.map((milestone) => ({
           threshold: milestone.threshold,
           unlocked: points >= milestone.threshold,
           choice: choicesObject(row?.choices)[String(milestone.threshold)] ?? null,
-          choices: milestone.choices,
+          choices: milestone.choices.map((choice) => ({
+            key: choice.key,
+            label: choice.label,
+            description: choice.description,
+            requires: choice.requires ?? null,
+          })),
         })),
       };
     });
-    const xpToday = skills.reduce((total, skill) => total + skill.xpToday, 0);
-    const taperMultiplier = streetSkillTaperMultiplier(xpToday, rules);
+    // The taper runs per skill, so the day's pace is the busiest skill's.
+    const busiest = skills.reduce((max, skill) => Math.max(max, skill.xpToday), 0);
     return {
       skills,
       totalPoints: skills.reduce((total, skill) => total + skill.points, 0),
@@ -65,8 +198,8 @@ export const PlayerSkillService = {
       skillPointCap: rules.skillPointCap,
       dailyFullXp: rules.dailyFullXp,
       dailyHalfXp: rules.dailyHalfXp,
-      xpToday,
-      taperBand: taperMultiplier === 1 ? 'FULL' as const : taperMultiplier === 0.5 ? 'HALF' as const : 'QUARTER' as const,
+      xpToday: busiest,
+      taperBand: taperBand(streetSkillTaperMultiplier(busiest, rules)),
     };
   },
   async publicBadges(tx: Db, roundPlayerIds: readonly string[]) {
@@ -75,9 +208,6 @@ export const PlayerSkillService = {
       select: { roundPlayerId: true, skill: true, points: true },
     });
     const order = new Map(STREET_SKILL_KEYS.map((skill, index) => [skill, index]));
-    const labels: Record<StreetSkillKey, string> = {
-      HUSTLE: 'Hustle', MUSCLE: 'Muscle', WHEELS: 'Wheels', FIXER: 'Fixer', CONNECTIONS: 'Connections', LUCK: 'Luck',
-    };
     const result = new Map<string, Array<{ skill: StreetSkillKey; label: string; points: number }>>();
     for (const row of rows) {
       if (!order.has(row.skill as StreetSkillKey)) continue;
@@ -94,6 +224,7 @@ export const PlayerSkillService = {
     if (!milestone) throw AppError.badRequest('STREET_SKILL_MILESTONE_UNKNOWN', 'That milestone is not available.');
     const selected = milestone.choices.find((candidate) => candidate.key === input.choice);
     if (!selected) throw AppError.badRequest('STREET_SKILL_CHOICE_UNKNOWN', 'That choice is not available for this milestone.');
+    if (selected.requires) throw AppError.conflict('STREET_SKILL_PERK_UNAVAILABLE', `${selected.label} arrives with ${selected.requires}.`);
     const row = await tx.playerSkill.upsert({
       where: { roundPlayerId_skill: { roundPlayerId: input.roundPlayerId, skill } },
       create: { roundPlayerId: input.roundPlayerId, skill },
@@ -120,43 +251,17 @@ export const PlayerSkillService = {
     const updated = await tx.playerSkill.update({ where: { id: row.id }, data: { choices: {}, respecs: { increment: 1 }, respecReadyAt: readyAt } });
     return { skill, costCents: cost, respecs: updated.respecs, respecReadyAt: readyAt, choices: {} };
   },
-  /** Resolve boss passives together with territory, crew, and item sources. */
-  async resolveModifiers(tx: Db, input: {
-    roundPlayerId: string;
-    rules: StreetSkillsRules;
-    additional?: readonly ModifierContribution[];
-  }): Promise<ModifierResolution & { readonly receipts: readonly PlayerSkillModifierReceipt[] }> {
-    const skills = await tx.playerSkill.findMany({
-      where: { roundPlayerId: input.roundPlayerId },
-      select: { skill: true, points: true },
-    });
-    const skillContributions: ModifierContribution[] = [];
-    for (const skill of skills) {
-      const key = skill.skill as StreetSkillKey;
-      for (const passive of input.rules.passives.filter((entry) => entry.effectId.startsWith(`${key}_`))) {
-        const percent = passive.maxPercent * Math.max(0, Math.min(40, skill.points)) / 40;
-        if (!percent) continue;
-        skillContributions.push({
-          effectId: passive.effectId,
-          category: passive.category,
-          percent,
-          sourceId: `street-skill:${key}`,
-          label: passive.label,
-        });
-      }
-    }
-    const resolution = resolveModifiers([...(input.additional ?? []), ...skillContributions], input.rules.modifierCaps);
-    return {
-      ...resolution,
-      receipts: resolution.modifiers.map((modifier) => ({
-        effectId: modifier.effectId,
-        sourceId: modifier.sourceId,
-        label: modifier.label,
-        requestedPercent: modifier.percent,
-        appliedPercent: modifier.appliedPercent,
-        capped: modifier.capped,
-      })),
-    };
+  /** A player's skill effects under the given rules; none when the round has no skills. */
+  async effects(db: Db | PrismaClient, roundPlayerId: string, rules: StreetSkillsRules | undefined): Promise<SkillEffects> {
+    if (!rules) return NO_SKILL_EFFECTS;
+    const rows = await db.playerSkill.findMany({ where: { roundPlayerId }, select: { skill: true, points: true, choices: true } });
+    return rows.length ? buildSkillEffects(rows, rules) : NO_SKILL_EFFECTS;
+  },
+  /** The same, for code that has only the player: reads the round's ruleset first. */
+  async effectsFor(db: Db | PrismaClient, roundPlayerId: string): Promise<SkillEffects> {
+    const player = await db.roundPlayer.findUnique({ where: { id: roundPlayerId }, select: { round: true } });
+    if (!player) return NO_SKILL_EFFECTS;
+    return PlayerSkillService.effects(db, roundPlayerId, loadRulesetForRound(player.round).streetSkills);
   },
   async award(tx: Db, input: { roundPlayerId: string; player: Pick<RoundPlayer, 'createdAt'>; rules: StreetSkillsRules; award: SkillXpAward; sourceKey: string; now: Date }): Promise<number> {
     const base = Math.max(0, Math.floor(input.award.amount));
@@ -176,9 +281,12 @@ export const PlayerSkillService = {
     const tapered = streetSkillTaperedXp(base, windowXp, input.rules);
     const earned = Math.max(1, Math.floor(tapered * streetSkillCatchUpMultiplier(input.player.createdAt, input.now, input.rules)));
     const nextXp = skill.xp + earned;
+    // The shared total cap: the other skills' points leave this one only the room that is left.
+    const others = await tx.playerSkill.aggregate({ where: { roundPlayerId: input.roundPlayerId, id: { not: skill.id } }, _sum: { points: true } });
+    const points = Math.max(skill.points, streetSkillPointsForXp(nextXp, input.rules, others._sum.points ?? 0));
     await tx.playerSkill.update({
       where: { id: skill.id },
-      data: { xp: nextXp, points: streetSkillPointsForXp(nextXp, input.rules), xpWindowStartsAt: sameWindow ? skill.xpWindowStartsAt : input.now, xpInWindow: windowXp + earned },
+      data: { xp: nextXp, points, xpWindowStartsAt: sameWindow ? skill.xpWindowStartsAt : input.now, xpInWindow: windowXp + earned },
     });
     return earned;
   },

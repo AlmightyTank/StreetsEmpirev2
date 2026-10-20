@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { STREET_SKILLS_V1, streetSkillPassiveModifiers, streetSkillPointsForXp, streetSkillSourceForAction, streetSkillTaperedXp, streetSkillXpForPoints } from '../street-skills.js';
+import { STREET_SKILLS_V1, streetSkillPassiveModifiers, streetSkillPerk, streetSkillPointsForXp, streetSkillSourceForAction, streetSkillTaperedXp, streetSkillXpForPoints } from '../street-skills.js';
 
 describe('street skills slice A catalog', () => {
   it('uses a rising point curve capped at forty', () => {
@@ -22,10 +22,37 @@ describe('street skills slice A catalog', () => {
     expect(streetSkillSourceForAction(STREET_SKILLS_V1, 'RANDOM_ENCOUNTER')?.skill).toBe('LUCK');
   });
 
-  it('scales Slice B passives linearly without milestone choices', () => {
+  it('scales live passives linearly and leaves out ones waiting on an unbuilt system', () => {
     expect(streetSkillPassiveModifiers('WHEELS', 20).map((passive) => [passive.effectId, passive.maxPercent])).toEqual([
-      ['WHEELS_RUN_FEES', -7.5],
-      ['WHEELS_VEHICLE_DAMAGE', -5],
+      ['VEHICLE_DAMAGE', -5],
     ]);
+  });
+
+  it('enforces the shared total point cap on top of the per-skill cap', () => {
+    expect(streetSkillPointsForXp(999_999, STREET_SKILLS_V1, 0)).toBe(40);
+    expect(streetSkillPointsForXp(999_999, STREET_SKILLS_V1, 80)).toBe(20);
+    expect(streetSkillPointsForXp(999_999, STREET_SKILLS_V1, 100)).toBe(0);
+    expect(streetSkillPointsForXp(300, STREET_SKILLS_V1, 99)).toBe(1);
+  });
+
+  it('maps the real action names, including fights settled outside the action pipeline', () => {
+    const skillOf = (action: string) => streetSkillSourceForAction(STREET_SKILLS_V1, action)?.skill ?? null;
+    expect(['RAID', 'DRIVE_BY', 'SPECIAL_RAID', 'BOSS_HIT', 'TURF_PUSH'].map(skillOf)).toEqual(['MUSCLE', 'MUSCLE', 'MUSCLE', 'MUSCLE', 'MUSCLE']);
+    expect(['TRIP_LAUNCH', 'TRIP_HEAD_HOME', 'RUN_LAUNCH'].map(skillOf)).toEqual(['WHEELS', 'WHEELS', 'WHEELS']);
+    expect(['LAWYER_UP', 'LAWYER_RETAIN', 'OFFICIAL_HIRE', 'INFORMANT_TIP', 'HEAT_BRIBE'].map(skillOf)).toEqual(['FIXER', 'FIXER', 'FIXER', 'FIXER', 'FIXER']);
+    expect(skillOf('PRODUCE_CRACK')).toBe('HUSTLE');
+    expect(skillOf('SCOUT')).toBe('LUCK');
+    expect(STREET_SKILLS_V1.sources.find((source) => source.skill === 'MUSCLE')?.lossMultiplier).toBe(0.5);
+  });
+
+  it('marks every perk that needs an unbuilt system, and gives every other perk an effect or a rule', () => {
+    const rules = ['UNTAXED', 'WHEELMAN', 'SUPPLIERS_FRIEND', 'SECOND_CHANCE'];
+    for (const milestones of Object.values(STREET_SKILLS_V1.milestones)) {
+      for (const choice of (milestones ?? []).flatMap((milestone) => milestone.choices)) {
+        expect(Boolean(choice.requires || choice.effect || rules.includes(choice.key)), choice.key).toBe(true);
+      }
+    }
+    expect(streetSkillPerk(STREET_SKILLS_V1, 'GHOST')?.requires).toBe('Armory & Garage');
+    expect(streetSkillPerk(STREET_SKILLS_V1, 'HIT_FIRST')?.offensive).toBe(true);
   });
 });

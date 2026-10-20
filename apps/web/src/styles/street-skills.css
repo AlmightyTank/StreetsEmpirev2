@@ -28,3 +28,13 @@
 .se-skill-card__milestone { display: grid; gap: 4px; }
 @media (max-width: 899px) { .se-skills-hero { align-items: start; } .se-skills-grid { grid-template-columns: 1fr; } }
 @media (max-width: 540px) { .se-skills-hero { display: grid; } .se-skills-hero__total { text-align: left; } .se-skills-today__row .se-skill-band { margin-left: 0; } }
+.se-skill-milestone { display: grid; gap: 6px; padding-top: 10px; border-top: 1px solid var(--se-line); }
+.se-skill-milestone__head { color: var(--se-text-dim); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+.se-skill-milestone__choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.se-skill-perk { display: grid; align-content: start; gap: 4px; padding: 10px; border: 1px solid var(--se-line); border-radius: 6px; font-size: 12px; }
+.se-skill-perk strong { font-size: 13px; }
+.se-skill-perk .se-btn { justify-self: start; margin-top: 4px; }
+.se-skill-perk--chosen { border-color: var(--se-accent); }
+.se-skill-perk--soon { opacity: .6; }
+.se-skill-perk__soon { color: var(--se-warn, #f2cc60); font-size: 11px; }
+@media (max-width: 540px) { .se-skill-milestone__choices { grid-template-columns: 1fr; } }

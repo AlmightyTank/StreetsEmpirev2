@@ -40,4 +40,18 @@ describe('street skill season simulation', () => {
     expect(result.points.WHEELS).toBe(STREET_SKILLS_V1.skillPointCap);
     expect(result.xp.WHEELS).toBeGreaterThanOrEqual(14_000);
   });
+
+  it('stops every skill at the shared total cap of 100 points', () => {
+    const events = (['HUSTLE', 'MUSCLE', 'WHEELS', 'FIXER'] as const).flatMap((skill) => Array.from({ length: 200 }, (_, index) => ({
+      skill,
+      sourceKey: `${skill}:${index}`,
+      baseXp: 10_000,
+      settledAt: day(index),
+      joinedAt: day(0),
+    })));
+    const result = simulateStreetSkillSeason(events, STREET_SKILLS_V1);
+    const total = Object.values(result.points).reduce((sum, points) => sum + points, 0);
+    expect(total).toBe(STREET_SKILLS_V1.totalPointCap);
+    expect(Math.max(...Object.values(result.points))).toBeLessThanOrEqual(STREET_SKILLS_V1.skillPointCap);
+  });
 });

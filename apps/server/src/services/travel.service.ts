@@ -97,6 +97,7 @@ import {
 } from './run-settle.service.js';
 import { assertNotSupplyRun, assertSupplyRunMayHeadHome, runSupplyPickups } from './supply-pickup-settle.service.js';
 import { CrewRosterService } from './crew-roster.service.js';
+import { PlayerSkillService, type SkillEffects } from './player-skill.service.js';
 
 /** Engine refusals become player-facing errors, pointing at the field that caused them. */
 function refuse(error: unknown): never {
@@ -201,10 +202,23 @@ async function liveCounter(db: Db | PrismaClient, roundPlayerId: string, ruleset
   };
 }
 
-/** 1.1.0-C: a Warehouse on Shipment capacity packs every Low-Rider a little fuller. */
+/** 1.1.0-C: a Warehouse on Shipment capacity packs every Low-Rider a little fuller. Packed Tight adds to it. */
 async function cargoShareFor(db: Db | PrismaClient, roundPlayerId: string, ruleset: Ruleset): Promise<number> {
   const player = await db.roundPlayer.findUnique({ where: { id: roundPlayerId }, select: { racketEffects: true } });
-  return player ? racketCargoShare(ruleset, readRacketEffects(player.racketEffects)) : 0;
+  if (!player) return 0;
+  return skilledCargoShare(racketCargoShare(ruleset, readRacketEffects(player.racketEffects)), await PlayerSkillService.effects(db, roundPlayerId, ruleset.streetSkills));
+}
+
+/** Packed Tight: the run's cargo share, a little larger. */
+function skilledCargoShare(share: number, skills: SkillEffects): number {
+  return share + skills.percent('CARGO') / 100;
+}
+
+/** Light Foot: the ruleset a run's stops are planned on, with a faster drive clock. */
+function skilledDriveRuleset(ruleset: Ruleset, skills: SkillEffects): Ruleset {
+  const pct = skills.percent('TRAVEL_TIME');
+  if (!pct || !ruleset.travel) return ruleset;
+  return { ...ruleset, travel: { ...ruleset.travel, gameMinutesPerDriveHour: ruleset.travel.gameMinutesPerDriveHour * (100 + pct) / 100 } };
 }
 
 /** 1.5.0-E2. Whether Charlie's shelf carries this class, which retires the garage purchase. */
@@ -565,13 +579,16 @@ export const TravelService = {
     return ActionService.run<VehicleServiceResult>(prisma, roundPlayerId, {
       action: 'VEHICLE_SERVICE',
       actionId: input.actionId,
-      execute: async ({ tx, current, ruleset, player }) => {
+      execute: async ({ tx, current, ruleset, player, skills }) => {
         const vehicleClass = ruleset.vehicleCatalog?.classes.find((entry) => entry.id === input.classId);
         // 1.5.0-D: the road lane's cut, read as the action runs, never from the client.
         const discount = ruleset.vehicleCatalog?.service?.specialization
           ? (await vehicleServiceDiscounts(tx, roundPlayerId, ruleset, player.racketEffects))[input.kind].percent
           : 0;
-        const price = vehicleServiceCents(ruleset, input.classId, input.kind, input.quantity, discount);
+        const listed = vehicleServiceCents(ruleset, input.classId, input.kind, input.quantity, discount);
+        // Grease Monkey: the garage bill comes down.
+        const repairPercent = listed === null ? 0 : skills.percent('REPAIR_COST');
+        const price = listed !== null && repairPercent ? listed * BigInt(Math.round((100 + repairPercent) * 100)) / 10_000n : listed;
         if (!vehicleClass || price === null) {
           throw AppError.conflict('VEHICLE_SERVICE_UNAVAILABLE', 'The garage does not service vehicles in this round.');
         }
@@ -642,7 +659,7 @@ export const TravelService = {
     return ActionService.run<RunLaunchResult>(prisma, roundPlayerId, {
       action: 'RUN_LAUNCH',
       actionId: input.actionId,
-      execute: async ({ tx, current, ruleset, player, now }) => {
+      execute: async ({ tx, current, ruleset, player, now, skills }) => {
         requireRuns(ruleset);
         const loadout: VehicleLoadout = input.vehicleLoadout
           ? { LOW_RIDER: input.vehicleLoadout.LOW_RIDER ?? 0, SEDAN: input.vehicleLoadout.SEDAN ?? 0, VAN: input.vehicleLoadout.VAN ?? 0 }
@@ -682,7 +699,7 @@ export const TravelService = {
         }
         let plan;
         try {
-          plan = planLaunch(ruleset, { home: player.city.slug, to: input.to, routeIndex: input.route, now, windowMinutes: rideAlong?.maxStayMinutes });
+          plan = planLaunch(skilledDriveRuleset(ruleset, skills), { home: player.city.slug, to: input.to, routeIndex: input.route, now, windowMinutes: rideAlong?.maxStayMinutes });
         } catch (error) { refuse(error); }
         assertTurns(current.turns, plan.turns);
 
@@ -744,7 +761,7 @@ export const TravelService = {
           }
         }
 
-        const capacity = runCapacity(ruleset, loadout, racketCargoShare(ruleset, readRacketEffects(player.racketEffects)));
+        const capacity = runCapacity(ruleset, loadout, skilledCargoShare(racketCargoShare(ruleset, readRacketEffects(player.racketEffects)), skills));
         if (cargoUnits(cargo) + input.beer > capacity) {
           throw AppError.badRequest('TRUNK_FULL', `This vehicle loadout carries ${capacity} units including beer.`, { cargo: `At most ${capacity} total units.` });
         }
@@ -884,7 +901,7 @@ export const TravelService = {
     return ActionService.run<RunTradeResult>(prisma, roundPlayerId, {
       action: 'RUN_TRADE',
       actionId: input.actionId,
-      execute: async ({ tx, current, round, player, now }) => {
+      execute: async ({ tx, current, round, player, now, skills }) => {
         // The round's own rules, not the home city's: the town decides busts and arrests here.
         const base = loadRulesetForRound(round);
         requireRuns(base);
@@ -900,7 +917,7 @@ export const TravelService = {
         const name = productName(base, input.product);
         if (!productKeys(base).includes(input.product)) throw AppError.badRequest('UNKNOWN_PRODUCT', 'That product is not part of this round.', { product: 'Pick a product.' });
         const cargo = cargoOf(run);
-        const capacity = runCapacity(base, readVehicleLoadout(run.vehicleLoadout, run.lowRiders), racketCargoShare(base, readRacketEffects(player.racketEffects)));
+        const capacity = runCapacity(base, readVehicleLoadout(run.vehicleLoadout, run.lowRiders), skilledCargoShare(racketCargoShare(base, readRacketEffects(player.racketEffects)), skills));
         const buying = input.direction === 'buy';
         // Pip sells a locked product in no city, not just at home. The high market sells to anyone,
         // at whatever the market is asking, above or below Pip's price.
@@ -1087,7 +1104,7 @@ export const TravelService = {
     return ActionService.run<RunMoveResult>(prisma, roundPlayerId, {
       action: 'RUN_DRIVE_ON',
       actionId: input.actionId,
-      execute: async ({ tx, current, ruleset, now }) => {
+      execute: async ({ tx, current, ruleset, now, skills }) => {
         requireRuns(ruleset);
         const run = await requireActiveRun(tx, roundPlayerId, input.runId);
         await assertNotSupplyRun(tx, run.id);
@@ -1095,7 +1112,7 @@ export const TravelService = {
         try {
           // Trips B: with the boss aboard, the next town holds the run until the player leaves.
           const windowMinutes = run.bossAboard ? tripRules(ruleset)?.rideAlong?.maxStayMinutes : undefined;
-          plan = planDriveOn(ruleset, toStopPlans(run.stops), now, { home: run.homeCity, to: input.to, routeIndex: input.route, windowMinutes });
+          plan = planDriveOn(skilledDriveRuleset(ruleset, skills), toStopPlans(run.stops), now, { home: run.homeCity, to: input.to, routeIndex: input.route, windowMinutes });
         } catch (error) { refuse(error); }
         assertTurns(current.turns, plan.turns);
         await writeStops(tx, run.id, plan.stops);
