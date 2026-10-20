@@ -239,8 +239,6 @@ function CityTurfMap({
   selectedDistrict: TurfBlockDto['district'] | null;
 }) {
   const blocks = [...(city.turf?.blocks ?? [])].sort((a, b) => ORDER[a.district] - ORDER[b.district]);
-  const cityController = city.turf?.control?.alliance.tag;
-  const blocksHeldByController = city.turf?.control?.blocksHeld ?? 0;
   const mapDistricts = blocks.map((block): CityDistrictMapEntry => {
     const locked = block.districtAccess?.unlocked === false;
     const activePush = Boolean(block.push || block.war);
@@ -270,12 +268,7 @@ function CityTurfMap({
       <div className="se-citymap-layout">
         <CityDistrictMap citySlug={city.slug} cityName={city.name} districts={mapDistricts} selectedDistrict={selectedDistrict} onSelect={(district) => onSelect(district as TurfBlockDto['district'])} />
 
-        <aside className="se-citymap-brief" aria-label="City control summary">
-          <div className="se-citymap-brief__control">
-            <span className="se-eyebrow">City control</span>
-            <strong>{cityController ? `[${cityController}]` : 'Contested city'}</strong>
-            <span>{cityController ? `${blocksHeldByController} of 5 blocks held · 3 needed to control` : 'No alliance currently controls the city'}</span>
-          </div>
+        <aside className="se-citymap-brief" aria-label="District map key">
           <EmpireAreaLegend label="Turf map legend" items={[
             { key: 'mine', label: 'Your crew', tone: 'mine' }, { key: 'held', label: 'Other crew', tone: 'held' },
             { key: 'locals', label: 'Locals', tone: 'locals' }, { key: 'vacant', label: 'Rebuilding', tone: 'vacant' },
@@ -286,7 +279,7 @@ function CityTurfMap({
               Jump to district actions <span aria-hidden="true">↓</span>
             </Link>
           ) : null}
-          <p>Select a district to open its controls in the inspector below.</p>
+          <p>Select a district to open its controls.</p>
         </aside>
       </div>
     </details>
@@ -419,15 +412,7 @@ export function TurfPage() {
 
         {turfCities.length ? (
           <>
-            <section className="se-cityblocks-cities">
-              <div className="se-cityblocks-sectionhead">
-                <div>
-                  <span className="se-eyebrow">City selector</span>
-                  <h2>Choose the battlefield</h2>
-                </div>
-                <p>Control is city-specific. Switch cities without leaving the territory board.</p>
-              </div>
-
+            <section className="se-cityblocks-cities" aria-label="Choose a city">
               <div className="se-turfcitystrip" role="tablist" aria-label="Cities">
                 {turfCities.map((city) => {
                   const stats = pulse(city);
@@ -455,10 +440,10 @@ export function TurfPage() {
             {selected && selectedPulse ? (
               <>
                 <section className="se-cityblocks-section">
-                  <div className="se-cityblocks-sectionhead">
+                  <div className="se-cityblocks-sectionhead se-cityblocks-sectionhead--overview">
                     <div>
-                      <span className="se-eyebrow">City control · {selected.name}</span>
-                      <h2>{selected.turf?.control ? `[${selected.turf.control.alliance.tag}] controls ${selected.turf.control.blocksHeld} of 5` : 'No alliance controls the city yet'}</h2>
+                      <span className="se-eyebrow">{selected.name} · city control</span>
+                      <h2>{selected.turf?.control ? `[${selected.turf.control.alliance.tag}] controls ${selected.turf.control.blocksHeld} / 5` : 'Contested city'}</h2>
                     </div>
                     <div className="se-cityblocks-control">
                       {selected.turf?.control ? (
@@ -490,7 +475,7 @@ export function TurfPage() {
                       tone={selectedPulse.visiblePushes > 0 ? 'warn' : 'good'}
                     />
                   </div>
-                  <p className="se-hint">City control is a current snapshot. Round performance still uses cumulative block-time in the standings below.</p>
+                  <p className="se-hint">Control takes 3 of 5 districts. Round standings use cumulative block-time.</p>
                 </section>
 
                 <CityTurfMap
@@ -507,10 +492,10 @@ export function TurfPage() {
                 <section className="se-cityblocks-section">
                   <div className="se-cityblocks-sectionhead">
                     <div>
-                      <span className="se-eyebrow">City control board</span>
-                      <h2>Choose a district to work</h2>
+                      <span className="se-eyebrow">District operations</span>
+                      <h2>Choose a district</h2>
                     </div>
-                    <span className="se-cityblocks-sectionhead__meta">Select a district for its actions</span>
+                    <span className="se-cityblocks-sectionhead__meta">Actions open on the right</span>
                   </div>
 
                   {selected.turf?.upkeepDiscount ? (
@@ -597,36 +582,6 @@ export function TurfPage() {
                     ) : null}
                   </div>
 
-                  <div className="se-cityblocks-stack">
-                    <Panel title="Territory read" aside="Current city" className="se-cityblocks-panel">
-                      <div className="se-cityblocks-read">
-                        <div>
-                          <span>City controller</span>
-                          <strong>
-                            {selected.turf?.control
-                              ? `[${selected.turf.control.alliance.tag}] ${selected.turf.control.alliance.name}`
-                              : 'No controller'}
-                          </strong>
-                        </div>
-                        <div>
-                          <span>Your footprint</span>
-                          <strong>{selectedPulse.mine ? `${selectedPulse.mine} of 5 blocks` : 'No blocks held'}</strong>
-                        </div>
-                        <div>
-                          <span>Open opportunity</span>
-                          <strong>{selectedPulse.locals + selectedPulse.vacant} blocks outside player control</strong>
-                        </div>
-                        <div>
-                          <span>Visible conflict</span>
-                          <strong>{selectedPulse.visiblePushes ? `${selectedPulse.visiblePushes} active push${selectedPulse.visiblePushes === 1 ? '' : 'es'}` : 'None visible'}</strong>
-                        </div>
-                      </div>
-                      <p className="se-hint">
-                        Corner claiming, reinforcement, pulls, pushes, revenge windows, and alliance calls stay on the district cards above.
-                      </p>
-                    </Panel>
-
-                  </div>
                 </section>
               </>
             ) : null}
