@@ -171,7 +171,12 @@ function assertWager(table: CasinoPoolTableRules, wagerCents: number): void {
   }
 }
 
-function gameDto(row: GameRow, rules: CasinoPoolRules, table: CasinoPoolTableRules): CasinoPoolGameDto {
+function gameDto(
+  row: GameRow,
+  rules: CasinoPoolRules,
+  table: CasinoPoolTableRules,
+  liveBankrollCents?: bigint,
+): CasinoPoolGameDto {
   const rack = parseRack(row.rack);
   const totalWagerCents = Number(row.committedWagerCents);
   const totalReturnCents = Number(row.totalReturnCents);
@@ -188,7 +193,10 @@ function gameDto(row: GameRow, rules: CasinoPoolRules, table: CasinoPoolTableRul
     hustlerBalls: [...rack.hustlerBalls],
     ballInHand: rack.ballInHand,
     pressed: row.pressed,
-    canPress: active && poolCanPress(rack, row.pressed) && bankrollAfterCents >= Number(row.wagerCents),
+    canPress: active
+      && poolCanPress(rack, row.pressed)
+      && liveBankrollCents !== undefined
+      && liveBankrollCents >= row.wagerCents,
     shots: poolAvailableShots(rack).map((shot) => ({ shot, ...poolShotOdds(rules, rack, shot) })),
     log: rack.log.map((event) => ({ ...event, balls: [...event.balls] })),
     wagerCents: Number(row.wagerCents),
@@ -294,12 +302,15 @@ async function stateInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date
       take: 12,
     }),
   ]);
+  const activeSession = active
+    ? await db.casinoSession.findUnique({ where: { id: active.sessionId }, select: { bankrollCents: true } })
+    : null;
 
   const tableMap = new Map(rules.tables.map((table) => [table.key, table]));
   const dtoFor = (row: GameRow) => {
     const table = tableMap.get(row.tableKey);
     if (!table) throw AppError.conflict('POOL_TABLE_MISSING', 'A saved pool rack references a table that no longer exists.');
-    return gameDto(row, rules, table);
+    return gameDto(row, rules, table, row.id === active?.id ? activeSession?.bankrollCents : undefined);
   };
 
   return {
@@ -371,7 +382,7 @@ async function commit(
       settledAt: settled ? now : null,
     },
   });
-  const dto = gameDto(updated, args.rules, table);
+  const dto = gameDto(updated, args.rules, table, bankrollAfter);
 
   if (args.chargeCents > 0n || settled) {
     await recordLedger(tx, {
