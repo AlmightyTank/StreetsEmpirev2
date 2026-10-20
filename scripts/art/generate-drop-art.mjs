@@ -545,13 +545,14 @@ Object.assign(recipes, {
     svg = restop(svg, 'wood', ['#9a6a40', '#6a4224', '#3a2210']);
     svg = restop(svg, 'steel', ['#d4d8dc', '#80868c', '#3f4449']);
     svg = recolor(svg, { '#454a52': '#b0b5ba', '#2c2f34': '#5f656b', '#26292e': '#4f555b', '#4a1f07': '#2a1608', '#f0a060': '#e2b98a' });
-    // A drum magazine in place of the box.
+    // A drum magazine in place of the box: a feed neck curving forward out of
+    // the mag well like the box did, with the drum hung ahead of it.
     svg = swap(svg, '<path d="M128 62 H152 Q158 88 176 106 L154 116 Q134 94 128 62 Z" fill="url(#mag)"/>',
-      `<circle cx="141" cy="84" r="20" fill="url(#steel)"/><circle cx="141" cy="84" r="13" fill="none" stroke="#3f4449" stroke-width="1.2"/><circle cx="141" cy="84" r="4" fill="${PEWTER}"/><rect x="132" y="60" width="18" height="8" fill="url(#steel)"/>`);
+      `<path d="M130 62 H150 Q151 70 156 76 L142 86 Q133 76 130 62 Z" fill="url(#steel)"/><circle cx="160" cy="91" r="19" fill="url(#steel)"/><circle cx="160" cy="91" r="12.5" fill="none" stroke="#3f4449" stroke-width="1.2"/><circle cx="160" cy="91" r="4" fill="${PEWTER}"/>`);
     svg = svg.replace('<path d="M133 70 Q138 72 154 70M136 82 Q141 84 160 82M142 94 Q148 96 168 93"/>', '');
     return decorate(svg, {
       over: [
-        '<path d="M141 66 A18 18 0 0 1 159 84" stroke="#ffffff" stroke-opacity=".45" stroke-width="1.4" fill="none"/>',
+        '<path d="M160 74 A17 17 0 0 1 177 91" stroke="#ffffff" stroke-opacity=".45" stroke-width="1.4" fill="none"/>',
         `<path d="M16 63 L68 54 M154 45.5 H186" stroke="${CREAM}" stroke-opacity=".4" stroke-width="1"/>`,
         `<rect x="186" y="44" width="12" height="14" rx="1.5" fill="${PEWTER}" stroke="#0a0b0d" stroke-width="1.2"/>`,
       ].join('\n  '),
