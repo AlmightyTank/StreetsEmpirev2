@@ -1,10 +1,13 @@
 import { classicOgV23A } from '../classic-og-v2.3-a/index.js';
+import { CLASSIC_OG_V07G_HIDEOUT_V2 } from '../hideout-v2.js';
 import type { Ruleset } from '../types.js';
 
 /** 2.4.0-A. New rounds may opt in to the versioned territory reward catalog. */
 export const classicOgV24A = {
   ...classicOgV23A,
   meta: { ...classicOgV23A.meta, id: 'classic-og-v2.4-a', version: '2.4.0-A', name: 'Classic OG - Territory Rewards' },
+  // Carried on the ruleset so every ruleset spread from this one keeps Hideout v2.
+  hideoutV2: CLASSIC_OG_V07G_HIDEOUT_V2,
   territoryPerks: { catalogVersion: 'territory-perks-v1', enabled: true, dailyYieldCapCentsPerMember: 25_000 },
   cosmetics: {
     ...classicOgV23A.cosmetics,

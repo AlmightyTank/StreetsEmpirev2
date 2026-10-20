@@ -14,7 +14,9 @@ describe('1.6.5-A debt foundation ruleset', () => {
     expect(classicOgV165A.meta).toEqual({ id: 'classic-og-v1.6.5-a', version: '1.6.5-A', name: 'Classic OG - Debt Foundation' });
     expect(rulesets[classicOgV165A.meta.id]).toBe(classicOgV165A);
     // Every later season builds on the finished 1.6.5 season, so it carries the loan shark too.
-    const others = Object.values(rulesets).filter((ruleset) => !/^classic-og-v(?:1\.(?:6\.5|[789])|2\.[0-4])-/.test(ruleset.meta.id)) as Ruleset[];
+    // Registration order is release order, so everything registered before 1.6.5-A predates the loan shark.
+    const ids = Object.keys(rulesets);
+    const others = ids.slice(0, ids.indexOf(classicOgV165A.meta.id)).map((id) => rulesets[id]) as Ruleset[];
     expect(others.length).toBeGreaterThan(100);
     for (const ruleset of others) expect(ruleset.loanShark, ruleset.meta.id).toBeUndefined();
   });

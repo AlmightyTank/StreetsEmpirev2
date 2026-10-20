@@ -156,4 +156,12 @@ describe('every ruleset from 0.7-A on keeps the Hideout v2 extension', () => {
     // The newest ruleset, which new seasons use, in particular.
     expect(hideoutV2For(rulesets[ids.at(-1)!]!)).not.toBeNull();
   });
+
+  it('passes the extension on to a ruleset built from the newest one, with no ID registration', async () => {
+    const { rulesets } = await import('../index.js');
+    const newest = Object.values(rulesets).at(-1)!;
+    const next = { ...newest, meta: { ...newest.meta, id: 'classic-og-unregistered-next' } };
+    expect(hideoutV2For(next)).toBe(hideoutV2For(newest));
+    expect(hideoutV2For(next)).not.toBeNull();
+  });
 });

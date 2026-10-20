@@ -2,6 +2,7 @@ import type { LivingStoryCatalog } from './living-stories.js';
 import type { UnderworldOperationCatalog } from './underworld-operations.js';
 import type { RivalryRules } from './rivalries.js';
 import type { StreetSkillsRules } from './street-skills.js';
+import type { HideoutV2Rules } from './hideout-v2.js';
 
 /**
  * The ruleset contract.
@@ -3239,6 +3240,11 @@ export interface Ruleset {
   readonly communityPrivacy?: CommunityPrivacyRules;
   /** Optional seasonal money sink. Mechanical levels reset with each round. */
   readonly hideout?: HideoutRules;
+  /**
+   * 0.7 Hideout v2 extension. Lives on the ruleset from 2.4.0-A on, so a ruleset built by
+   * spreading its parent inherits it; earlier rulesets resolve it through hideoutV2For's ID table.
+   */
+  readonly hideoutV2?: HideoutV2Rules;
   /** 0.3.0-C. Absent where alliances have not shipped. */
   readonly alliances?: AllianceRules;
   /** 0.4.0-A. Absent on rounds where Product is still only crack. */

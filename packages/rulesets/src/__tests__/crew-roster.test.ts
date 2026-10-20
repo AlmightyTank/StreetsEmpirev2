@@ -35,7 +35,9 @@ describe('1.7.0 crew profile rulesets', () => {
     expect(classicOgV21C.crewRoster).toEqual({ ...classicOgV21B.crewRoster, loyalty: { enabled: true } });
     expect(classicOgV21C.crewRoster).not.toBe(classicOgV17E.crewRoster);
     expect(classicOgV18E.crewRoster).toBe(classicOgV17E.crewRoster);
-    const earlier = Object.values(rulesets).filter((ruleset) => !/^classic-og-v(?:1\.[789]|2\.[0-4])-/.test(ruleset.meta.id)) as Ruleset[];
+    // Registration order is release order: everything before 1.7.0-A is earlier, everything after inherits the roster.
+    const ids = Object.keys(rulesets);
+    const earlier = ids.slice(0, ids.indexOf(classicOgV17A.meta.id)).map((id) => rulesets[id]) as Ruleset[];
     expect(earlier.length).toBeGreaterThan(100);
     for (const ruleset of earlier) expect(ruleset.crewRoster, ruleset.meta.id).toBeUndefined();
   });
