@@ -30,6 +30,7 @@ export * from './calculations/rackets.js';
 export * from './calculations/block-wars.js';
 export * from './calculations/slots.js';
 export * from './calculations/blackjack.js';
+export * from './calculations/pool.js';
 export * from './calculations/roulette.js';
 export * from './calculations/casino-instant-games.js';
 export * from './calculations/poker.js';

@@ -17,6 +17,7 @@ import type {
 } from '@streets/shared';
 import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
+import { assertNoActivePoolGame } from './pool.service.js';
 import { bossPresence } from './boss-presence.service.js';
 import { CasinoStatusService, assertCasinoRoomAccess, casinoTableAvailability } from './casino-status.service.js';
 import { PlayerStateService } from './player-state.service.js';
@@ -275,6 +276,7 @@ export const RouletteService = {
       if (blackjack) throw AppError.conflict('BLACKJACK_HAND_ACTIVE', 'Finish the current blackjack hand before playing Roulette.');
       if (poker) throw AppError.conflict('POKER_HAND_ACTIVE', 'Finish the current Poker hand before playing Roulette.');
       if (pokerSeat) throw AppError.conflict('POKER_TABLE_ACTIVE', 'Leave your multiplayer Poker table before playing Roulette.');
+      await assertNoActivePoolGame(tx, roundPlayerId, 'Roulette');
 
       const math = resolveRouletteSpin(
         table,

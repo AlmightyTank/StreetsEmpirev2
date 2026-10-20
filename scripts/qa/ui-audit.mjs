@@ -90,7 +90,7 @@ const PUBLIC_PAGES = ['/', '/login', '/register', '/forgot-password', '/reset-pa
 const PLAYER_PAGES = [
   '/game', '/game/scout', '/game/produce', '/game/combat', '/game/quests', '/game/events', '/game/xp-progress', '/game/surveys', '/game/hideout',
   '/game/street-pass', '/game/collection', '/game/supporter',
-  '/game/casino', '/game/casino/slots', '/game/casino/blackjack', '/game/casino/roulette', '/game/casino/scratch-cards', '/game/casino/horse-racing', '/game/casino/poker', '/game/casino/sportsbook',
+  '/game/casino', '/game/casino/slots', '/game/casino/blackjack', '/game/casino/pool', '/game/casino/roulette', '/game/casino/scratch-cards', '/game/casino/horse-racing', '/game/casino/poker', '/game/casino/sportsbook',
   '/game/products', '/game/stores', '/game/stores/pip', '/game/stores/charlie', '/game/stores/iron-maya',
   '/game/supply', '/game/holdings', '/game/loans', '/game/dealers', '/game/crew',
   '/game/travel', '/game/turf', '/game/operations', '/game/black-book', '/game/rankings', '/game/players',

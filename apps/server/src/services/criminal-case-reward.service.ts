@@ -5,7 +5,7 @@ import { LIVING_CASE_REWARD_CENTS, LIVING_CASE_ROUND_REWARD_MAX_CENTS } from '@s
 import { EconomyLedgerService } from './economy-ledger.service.js';
 import { HappinessService } from './happiness.service.js';
 import { NetWorthService } from './net-worth.service.js';
-import { pokerCommittedCents } from './casino-poker-committed.js';
+import { pokerCommittedCents, poolCommittedCents } from './casino-poker-committed.js';
 
 /** Must be called from the owner-locked, case-locked close transaction only. */
 export const CriminalCaseRewardService = {
@@ -35,14 +35,15 @@ export const CriminalCaseRewardService = {
     const products = await HappinessService.otherProducts(tx, input.ownerId, ruleset);
     let casinoNetWorthCents = 0n;
     if (ruleset.casino?.enabled) {
-      const [wallet, sessions, blackjack, poker] = await Promise.all([
+      const [wallet, sessions, blackjack, poker, pool] = await Promise.all([
         tx.casinoWallet.aggregate({ where: { roundPlayerId: input.ownerId }, _sum: { chipsCents: true } }),
         tx.casinoSession.aggregate({ where: { roundPlayerId: input.ownerId, status: 'OPEN' }, _sum: { bankrollCents: true } }),
         tx.casinoBlackjackHand.aggregate({ where: { roundPlayerId: input.ownerId, status: 'ACTIVE' }, _sum: { committedWagerCents: true } }),
         pokerCommittedCents(tx, input.ownerId),
+        poolCommittedCents(tx, input.ownerId),
       ]);
       casinoNetWorthCents = (wallet._sum.chipsCents ?? 0n) + (sessions._sum.bankrollCents ?? 0n)
-        + (blackjack._sum.committedWagerCents ?? 0n) + poker;
+        + (blackjack._sum.committedWagerCents ?? 0n) + poker + pool;
     }
     const netWorthCents = NetWorthService.calculate({
       ...player, cashCents: player.cashCents + BigInt(payout), products, casinoNetWorthCents,

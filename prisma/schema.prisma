@@ -2168,6 +2168,8 @@ model RoundPlayer {
   casinoBlackjackShoes     CasinoBlackjackShoe[]
   casinoBlackjackHands     CasinoBlackjackHand[]
   casinoBlackjackActions   CasinoBlackjackAction[]
+  casinoPoolGames          CasinoPoolGame[]
+  casinoPoolActions        CasinoPoolAction[]
   casinoPokerHands         CasinoPokerHand[]
   casinoPokerActions       CasinoPokerAction[]
   casinoPokerSeats         CasinoPokerSeat[]
@@ -4768,6 +4770,53 @@ model CasinoBlackjackAction {
 
   @@unique([roundPlayerId, actionId])
   @@index([handId, createdAt])
+}
+
+/// Reconnect-safe eight-ball rack against a house hustler. The rack JSON holds both
+/// groups, ball in hand and the shot log; settled rows double as game history.
+model CasinoPoolGame {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  sessionId           String
+  cityId              String
+  tableKey            String
+  status              String    @default("ACTIVE")
+  wagerCents          BigInt
+  /// The opening wager plus any press.
+  committedWagerCents BigInt
+  pressed             Boolean   @default(false)
+  rack                Json
+  totalReturnCents    BigInt    @default(0)
+  bankrollAfterCents  BigInt    @default(0)
+  initialActionId     String
+  settledAt           DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@unique([roundPlayerId, initialActionId])
+  @@index([roundPlayerId, status, createdAt(sort: Desc)])
+  @@index([sessionId, status])
+  @@index([cityId, createdAt(sort: Desc)])
+}
+
+/// Idempotency receipt for Pool Rack / Shot / Press, holding the exact response.
+model CasinoPoolAction {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  gameId    String
+  actionId  String
+  kind      String
+  response  Json
+  createdAt DateTime @default(now())
+
+  @@unique([roundPlayerId, actionId])
+  @@index([gameId, createdAt])
 }
 
 /// 1.2.0-E. Server-owned solo Hold’em hand. The JSON game state includes bot cards

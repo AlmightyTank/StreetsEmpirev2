@@ -23,6 +23,7 @@ import type {
 } from '@streets/shared';
 import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
+import { assertNoActivePoolGame } from './pool.service.js';
 import { bossPresence } from './boss-presence.service.js';
 import { CasinoStatusService } from './casino-status.service.js';
 import { PlayerStateService } from './player-state.service.js';
@@ -84,6 +85,7 @@ async function assertNoTableGame(tx: Db, roundPlayerId: string): Promise<void> {
   if (blackjack) throw AppError.conflict('BLACKJACK_HAND_ACTIVE', 'Finish the current blackjack hand first.');
   if (poker) throw AppError.conflict('POKER_HAND_ACTIVE', 'Finish the current Poker hand first.');
   if (pokerSeat) throw AppError.conflict('POKER_TABLE_ACTIVE', 'Leave your multiplayer Poker table first.');
+  await assertNoActivePoolGame(tx, roundPlayerId, 'this game');
 }
 
 function scratchDto(entry: { actionId: string; sessionChipsAfterCents: bigint; createdAt: Date; metadata: Prisma.JsonValue }): CasinoScratchCardDto {

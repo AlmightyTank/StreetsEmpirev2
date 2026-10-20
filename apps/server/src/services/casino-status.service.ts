@@ -36,7 +36,7 @@ import { AvatarWearableService } from './avatar-wearable.service.js';
 type DbLike = Db | PrismaClient;
 
 /** 1.2.0-F. The casino game a quest signal came from. */
-export type CasinoGameKey = 'SLOTS' | 'BLACKJACK' | 'ROULETTE' | 'SCRATCH_CARDS' | 'HORSE_RACING' | 'POKER';
+export type CasinoGameKey = 'SLOTS' | 'BLACKJACK' | 'ROULETTE' | 'SCRATCH_CARDS' | 'HORSE_RACING' | 'POKER' | 'POOL';
 
 /** A memorable moment on a settled result, for Jobs such as Natural Talent. */
 export type CasinoResultHighlight = 'NATURAL' | 'JACKPOT' | 'MEGA_WIN' | 'BIG_WIN' | 'STRAIGHT_UP' | 'POINT_MADE' | 'SHOWDOWN_WIN';

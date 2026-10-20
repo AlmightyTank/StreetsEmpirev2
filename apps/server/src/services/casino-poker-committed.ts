@@ -32,3 +32,12 @@ export async function pokerCommittedCents(db: Db | PrismaClient, roundPlayerId: 
   }
   return total;
 }
+
+/** Stakes sitting on an unfinished rack still count toward casino value and net worth. */
+export async function poolCommittedCents(db: Db | PrismaClient, roundPlayerId: string): Promise<bigint> {
+  const committed = await db.casinoPoolGame.aggregate({
+    where: { roundPlayerId, status: 'ACTIVE' },
+    _sum: { committedWagerCents: true },
+  });
+  return committed._sum.committedWagerCents ?? 0n;
+}

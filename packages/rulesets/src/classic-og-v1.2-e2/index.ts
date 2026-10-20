@@ -125,6 +125,60 @@ export const classicOgV12E2 = {
         },
       ],
     },
+    /**
+     * Eight-ball against house hustlers. Solved by value iteration, perfect play
+     * returns about 95% at every table (Steady by default, Power with ball in hand
+     * while behind, Safety once the hustler is on the 8). Tougher hustlers pay more.
+     */
+    pool: {
+      break: { goldenBps: 100, scratchBps: 500, dryBps: 3_000, twoBallBps: 2_500 },
+      steady: { potBps: 5_800, scratchBps: 300 },
+      power: { potBps: 3_300, scratchBps: 800 },
+      safety: { foulBps: 500, hustlerPotScaleBps: 2_500, hustlerFoulBps: 2_500 },
+      ballInHandBonusBps: 2_000,
+      tables: [
+        {
+          key: 'BAR_POOL',
+          name: 'Corner Bar Table',
+          blurb: 'A coin-op table by the jukebox. Ray talks a big game and misses the easy ones.',
+          venueKinds: ALL_ROOMS,
+          minBetCents: 1_000,
+          maxBetCents: 250_000,
+          betStepCents: 1_000,
+          hustler: { name: 'Rookie Ray', blurb: 'Loud, lucky and not half as good as Ray thinks.', potBps: 5_900, eightBps: 5_500, scratchBps: 400 },
+          winReturnBps: 13_400,
+          breakAndRunReturnBps: 35_000,
+          goldenBreakReturnBps: 80_000,
+        },
+        {
+          key: 'BACK_ROOM_POOL',
+          name: 'Back Room Nine-Footer',
+          blurb: 'A tournament table behind the bar. Slim plays for rent money and never rushes.',
+          venueKinds: ALL_ROOMS,
+          minBetCents: 5_000,
+          maxBetCents: 1_000_000,
+          betStepCents: 5_000,
+          hustler: { name: 'Slim Delgado', blurb: 'Quiet, patient and always a ball ahead.', potBps: 6_800, eightBps: 6_500, scratchBps: 250 },
+          winReturnBps: 16_700,
+          breakAndRunReturnBps: 50_000,
+          goldenBreakReturnBps: 120_000,
+        },
+        {
+          key: 'VELVET_POOL',
+          name: 'Velvet Room Table',
+          blurb: 'Hand-cut slate in the VIP room. The Shark only plays people who can afford to lose.',
+          venueKinds: ALL_ROOMS,
+          room: 'VIP',
+          minBetCents: 50_000,
+          maxBetCents: 5_000_000,
+          betStepCents: 50_000,
+          hustler: { name: 'The Shark', blurb: 'Has not missed a money ball since the eighties.', potBps: 7_700, eightBps: 7_500, scratchBps: 150 },
+          winReturnBps: 23_400,
+          breakAndRunReturnBps: 70_000,
+          goldenBreakReturnBps: 150_000,
+        },
+      ],
+    },
     status: {
       tiers: [
         { key: 'WALK_IN', name: 'Walk-in', minTheoCents: 0, compRateBps: 0, maxBankrollCents: 100_000_000 },
@@ -140,6 +194,7 @@ export const classicOgV12E2 = {
         rouletteEuropean: 270,
         scratchCards: 700,
         horseRacing: 600,
+        pool: 500,
       },
       comps: { hotelExtensions: true },
       casinoFront: { minLevel: 1, grantsVipAccess: true, compBonusBps: 500 },

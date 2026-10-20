@@ -10,6 +10,7 @@ import type { CasinoPokerTablePlayInput, CasinoPokerTableStartInput, CasinoPoker
 import { applyPokerTableAction, createPokerTableHand, pokerTableAmountToCall, pokerTablePot, type PokerTableHandState } from '@streets/rules-engine';
 import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
+import { assertNoActivePoolGame } from './pool.service.js';
 import { CasinoStatusService } from './casino-status.service.js';
 import { bossPresence } from './boss-presence.service.js';
 
@@ -335,6 +336,7 @@ export const CasinoPokerService = {
       if (await tx.casinoPokerHand.findFirst({ where: { roundPlayerId: playerId, status: 'ACTIVE' } })) throw AppError.conflict('POKER_HAND_ACTIVE', 'Finish your solo Poker hand first.');
       const blackjack = await tx.casinoBlackjackHand.findFirst({ where: { roundPlayerId: playerId, status: 'ACTIVE' }, select: { id: true } });
       if (blackjack) throw AppError.conflict('CASINO_GAME_ACTIVE', 'Finish your active casino game before opening a Poker table.');
+      await assertNoActivePoolGame(tx, playerId, 'Poker');
       const room = await requirePokerRoom(tx, ruleset, casino, player, new Date());
       const session = await tx.casinoSession.findFirst({ where: { roundPlayerId: playerId, status: 'OPEN', cityId: room.id }, orderBy: { openedAt: 'desc' } });
       if (!session || session.bankrollCents < BigInt(input.buyInCents)) throw AppError.conflict('CASINO_SESSION_REQUIRED', 'Open a sufficiently funded casino bankroll in your current city.');
@@ -362,6 +364,7 @@ export const CasinoPokerService = {
         tx.casinoBlackjackHand.findFirst({ where: { roundPlayerId: playerId, status: 'ACTIVE' }, select: { id: true } }),
       ]);
       if (activePoker || blackjack) throw AppError.conflict('CASINO_GAME_ACTIVE', 'Finish your active casino game before joining a Poker table.');
+      await assertNoActivePoolGame(tx, playerId, 'Poker');
       await tx.$queryRaw`SELECT id FROM "CasinoPokerTable" WHERE id = ${tableId} FOR UPDATE`;
       const table = await tx.casinoPokerTable.findUnique({ where: { id: tableId }, include: { seats: { where: { status: 'WAITING' }, include: { roundPlayer: { select: { displayName: true } } }, orderBy: { seatNo: 'asc' } } } });
       if (!table || table.roundId !== player.roundId || table.status !== 'WAITING') throw AppError.notFound('POKER_TABLE_NOT_FOUND', 'That Poker table is no longer available.');
@@ -514,6 +517,7 @@ export const CasinoPokerService = {
       if (tableSeat) throw AppError.conflict('POKER_TABLE_ACTIVE', 'Leave your multiplayer Poker table before starting a solo hand.');
       const otherActive = await tx.casinoBlackjackHand.findFirst({ where: { roundPlayerId: playerId, status: 'ACTIVE' }, select: { id: true } });
       if (otherActive) throw AppError.conflict('CASINO_GAME_ACTIVE', 'Finish your active casino game before starting Poker.');
+      await assertNoActivePoolGame(tx, playerId, 'Poker');
       const citySlug = await bossCitySlug(tx, ruleset, player, new Date());
       if (!citySlug) throw AppError.conflict('NOT_AT_CASINO', 'The boss has to be standing in a casino city to play Poker.');
       const venue = casino.venues[citySlug];

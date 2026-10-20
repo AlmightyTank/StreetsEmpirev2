@@ -23,7 +23,7 @@ import { DealerSalesSettleService } from './dealer-sales-settle.service.js';
 import { SupplyLaneSettleService } from './supply-lane-settle.service.js';
 import { LoanSettleService } from './loan-settle.service.js';
 import { TurfWarSettlementService } from './turf-war-settle.service.js';
-import { pokerCommittedCents } from './casino-poker-committed.js';
+import { pokerCommittedCents, poolCommittedCents } from './casino-poker-committed.js';
 import { LawWarrantService } from './law-warrant.service.js';
 
 /** 0.3.0-C: the alliance tag rides along so every screen can show it before the name. */
@@ -196,7 +196,7 @@ export const PlayerStateService = {
     // 3. Net worth. Old pinned rulesets do not pay the cost of casino reads.
     let casinoNetWorthCents = 0n;
     if (ruleset.casino?.enabled) {
-      const [casinoWalletValue, casinoSessionValue, blackjackCommittedValue, pokerCommittedValue] = await Promise.all([
+      const [casinoWalletValue, casinoSessionValue, blackjackCommittedValue, pokerCommittedValue, poolCommittedValue] = await Promise.all([
         tx.casinoWallet.aggregate({ where: { roundPlayerId }, _sum: { chipsCents: true } }),
         tx.casinoSession.aggregate({ where: { roundPlayerId, status: 'OPEN' }, _sum: { bankrollCents: true } }),
         tx.casinoBlackjackHand.aggregate({
@@ -204,12 +204,14 @@ export const PlayerStateService = {
           _sum: { committedWagerCents: true },
         }),
         pokerCommittedCents(tx, roundPlayerId),
+        poolCommittedCents(tx, roundPlayerId),
       ]);
       casinoNetWorthCents =
         (casinoWalletValue._sum.chipsCents ?? 0n)
         + (casinoSessionValue._sum.bankrollCents ?? 0n)
         + (blackjackCommittedValue._sum.committedWagerCents ?? 0n)
-        + pokerCommittedValue;
+        + pokerCommittedValue
+        + poolCommittedValue;
     }
     const netWorthCents = NetWorthService.calculate({ ...recovered, products, casinoNetWorthCents }, ruleset);
 

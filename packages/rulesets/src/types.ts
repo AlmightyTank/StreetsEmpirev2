@@ -2630,7 +2630,7 @@ export interface CasinoVenueRules {
 export type CasinoStatusTierKey = 'WALK_IN' | 'REGULAR' | 'PREFERRED' | 'HIGH_ROLLER' | 'WHALE';
 
 /** 1.2.0-E. The game a venue is known for. Presentation only. */
-export type CasinoSignatureGame = 'SLOTS' | 'BLACKJACK' | 'ROULETTE' | 'SCRATCH_CARDS' | 'HORSE_RACING' | 'POKER';
+export type CasinoSignatureGame = 'SLOTS' | 'BLACKJACK' | 'ROULETTE' | 'SCRATCH_CARDS' | 'HORSE_RACING' | 'POKER' | 'POOL';
 
 /** 1.2.0-E. Which part of a venue a table sits in. Absent means the main floor. */
 export type CasinoRoom = 'FLOOR' | 'VIP';
@@ -2681,6 +2681,7 @@ export interface CasinoStatusRules {
     readonly rouletteEuropean: number;
     readonly scratchCards: number;
     readonly horseRacing: number;
+    readonly pool?: number;
   };
   readonly comps: {
     /** Comps can pay for hotel extensions on a Boss Trip to a casino city. */
@@ -2794,6 +2795,69 @@ export interface CasinoRouletteTableRules {
   readonly maxBetCents: number;
   readonly betStepCents: number;
   readonly maxTotalBetCents: number;
+}
+
+/** One pool shot's odds in basis points. Whatever is neither pot nor scratch is a miss. */
+export interface CasinoPoolShotRules {
+  readonly potBps: number;
+  readonly scratchBps: number;
+}
+
+/** A house hustler. Each table seats one; better hustlers pay more when beaten. */
+export interface CasinoPoolHustlerRules {
+  readonly name: string;
+  readonly blurb: string;
+  /** Chance to pot an object ball on each shot of a visit. */
+  readonly potBps: number;
+  /** Chance to pot the 8 once the hustler's group is cleared. */
+  readonly eightBps: number;
+  readonly scratchBps: number;
+}
+
+/** Shot-by-shot eight-ball against a house hustler. */
+export interface CasinoPoolTableRules {
+  readonly key: string;
+  readonly name: string;
+  readonly blurb: string;
+  readonly venueKinds: readonly CasinoVenueKind[];
+  readonly room?: CasinoRoom;
+  readonly minBetCents: number;
+  readonly maxBetCents: number;
+  readonly betStepCents: number;
+  readonly hustler: CasinoPoolHustlerRules;
+  /** Total return on a win, including stake, in bps of everything staked on the rack. */
+  readonly winReturnBps: number;
+  /** Total return when the player breaks and runs out before the hustler ever shoots. */
+  readonly breakAndRunReturnBps: number;
+  /** Total return when the 8 drops on the player's break. */
+  readonly goldenBreakReturnBps: number;
+}
+
+export interface CasinoPoolRules {
+  readonly break: {
+    /** The 8 drops on the break: an instant win. */
+    readonly goldenBps: number;
+    readonly scratchBps: number;
+    /** Nothing drops and the hustler comes to the table. */
+    readonly dryBps: number;
+    /** Two balls drop. Anything not listed drops exactly one. */
+    readonly twoBallBps: number;
+  };
+  /** One object ball, or the 8 once the group is cleared. */
+  readonly steady: CasinoPoolShotRules;
+  /** Two object balls at once. Needs at least two of the player's balls left. */
+  readonly power: CasinoPoolShotRules;
+  readonly safety: {
+    /** Chance the safety fouls and hands the hustler ball in hand. */
+    readonly foulBps: number;
+    /** The hustler's first shot after a good safety keeps this share of their pot chance. */
+    readonly hustlerPotScaleBps: number;
+    /** Extra scratch chance on the hustler's first shot after a good safety. */
+    readonly hustlerFoulBps: number;
+  };
+  /** Added to the first shot of a visit taken with ball in hand, for either side. */
+  readonly ballInHandBonusBps: number;
+  readonly tables: readonly CasinoPoolTableRules[];
 }
 
 /** 1.2.0-E. Solo Texas Hold’em buy-in and blind structure. */
@@ -3044,6 +3108,8 @@ export interface CasinoRules {
     }[];
   };
   readonly poker?: CasinoPokerRules;
+  /** Shot-by-shot eight-ball against house hustlers. */
+  readonly pool?: CasinoPoolRules;
   readonly status?: CasinoStatusRules;
   /** 1.8.0-E. Pregame sportsbook. Absent: the round takes no sportsbook tickets. */
   readonly sportsbook?: CasinoSportsbookRules;

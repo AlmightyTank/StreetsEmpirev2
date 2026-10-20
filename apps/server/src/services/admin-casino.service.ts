@@ -2,7 +2,7 @@ import type { PrismaClient } from '@prisma/client';
 import type { AdminCasinoDto } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
 
-const ACTION_KINDS = ['SLOT_SPIN', 'BLACKJACK', 'ROULETTE', 'SCRATCH_CARD', 'HORSE_RACE', 'POKER_BUY_IN', 'POKER_CASH_OUT', 'POKER_TABLE_BUY_IN', 'POKER_TABLE_REFUND'];
+const ACTION_KINDS = ['SLOT_SPIN', 'BLACKJACK', 'POOL', 'ROULETTE', 'SCRATCH_CARD', 'HORSE_RACE', 'POKER_BUY_IN', 'POKER_CASH_OUT', 'POKER_TABLE_BUY_IN', 'POKER_TABLE_REFUND'];
 const RAPID_PLAY_THRESHOLD = 300;
 const STALE_AFTER_MS = 60 * 60 * 1000;
 const playerSelect = { select: { id: true, displayName: true } } as const;
@@ -20,7 +20,7 @@ export const AdminCasinoService = {
     const lastHour = new Date(now.getTime() - 60 * 60 * 1000);
     const inRound = { roundPlayer: { roundId } };
 
-    const [ratings, ledgerRows, sessions, blackjack, soloPoker, tableHands, tableSeats, actionCounts, flags] = await Promise.all([
+    const [ratings, ledgerRows, sessions, blackjack, pool, soloPoker, tableHands, tableSeats, actionCounts, flags] = await Promise.all([
       prisma.casinoRating.findMany({ where: inRound, select: { roundPlayerId: true, wageredCents: true, theoBasis: true, compsSpentCents: true, ratedWagers: true, vipWagers: true, jackpots: true } }),
       prisma.casinoLedgerEntry.groupBy({
         by: ['kind'], where: { ...inRound, createdAt: { gte: since } },
@@ -28,6 +28,7 @@ export const AdminCasinoService = {
       }),
       prisma.casinoSession.findMany({ where: { ...inRound, status: 'OPEN' }, select: { roundPlayerId: true, roundPlayer: playerSelect } }),
       prisma.casinoBlackjackHand.findMany({ where: { ...inRound, status: 'ACTIVE' }, select: { updatedAt: true, sessionId: true } }),
+      prisma.casinoPoolGame.findMany({ where: { ...inRound, status: 'ACTIVE' }, select: { updatedAt: true, sessionId: true } }),
       prisma.casinoPokerHand.findMany({ where: { ...inRound, status: 'ACTIVE' }, select: { updatedAt: true, sessionId: true } }),
       prisma.casinoPokerTableHand.findMany({ where: { status: 'ACTIVE', table: { roundId } }, select: { updatedAt: true } }),
       prisma.casinoPokerSeat.findMany({ where: { status: 'PLAYING', table: { roundId } }, select: { sessionId: true } }),
@@ -45,7 +46,7 @@ export const AdminCasinoService = {
       }),
     ]);
 
-    const allActive = [...blackjack, ...soloPoker, ...tableHands];
+    const allActive = [...blackjack, ...pool, ...soloPoker, ...tableHands];
     const openByPlayer = new Map<string, { displayName: string; count: number }>();
     for (const session of sessions) {
       const row = openByPlayer.get(session.roundPlayerId) ?? { displayName: session.roundPlayer.displayName, count: 0 };
@@ -56,7 +57,7 @@ export const AdminCasinoService = {
       .filter(([, row]) => row.count > 1)
       .map(([playerId, row]) => ({ playerId, ...row }));
 
-    const linkedSessionIds = [...new Set([...blackjack, ...soloPoker, ...tableSeats].map((row) => row.sessionId))];
+    const linkedSessionIds = [...new Set([...blackjack, ...pool, ...soloPoker, ...tableSeats].map((row) => row.sessionId))];
     const linkedSessions = linkedSessionIds.length
       ? await prisma.casinoSession.findMany({ where: { id: { in: linkedSessionIds } }, select: { id: true, status: true } })
       : [];
