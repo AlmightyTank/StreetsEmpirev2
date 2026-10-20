@@ -9,6 +9,9 @@ import {
   evaluatePokerHand,
   horseRaceOrder,
   horseReturnCents,
+  poolBreak,
+  poolPlayerShot,
+  poolReturnBps,
   resolveRouletteSpin,
   roulettePockets,
   seededRng,
@@ -113,6 +116,31 @@ for (const table of blackjackVariants) {
   const observed = wins / (wins + losses);
   console.log(`Texas Hold’em random-vs-random equity: ${(observed * 100).toFixed(2)}% wins excluding ${ties.toLocaleString('en-US')} ties`);
   assertBand('Texas Hold’em equity', observed, 0.5, 0.012);
+}
+
+{
+  // Near-optimal play (the value-iteration policy): Safety once the hustler is on
+  // the 8, Power with ball in hand while behind, Steady otherwise. Must stay a loss.
+  for (const table of classicOgV12E2.casino.pool.tables) {
+    const rules = classicOgV12E2.casino.pool;
+    const rng = seededRng(91_000 + table.minBetCents);
+    let returnedBps = 0;
+    for (let rack = 0; rack < samples; rack++) {
+      const state = poolBreak(rules, table, rng);
+      while (state.status === 'ACTIVE') {
+        const shot = state.hustlerBalls.length === 0 && state.playerBalls.length >= 1 && !state.ballInHand
+          ? 'SAFETY'
+          : state.ballInHand && state.playerBalls.length >= 2 && state.playerBalls.length > state.hustlerBalls.length
+            ? 'POWER'
+            : 'STEADY';
+        poolPlayerShot(rules, table, state, shot, rng);
+      }
+      returnedBps += poolReturnBps(table, state);
+    }
+    const observed = returnedBps / samples / 10_000;
+    console.log(`Pool ${table.key} vs ${table.hustler.name}: RTP ${(observed * 100).toFixed(2)}% with near-optimal shots`);
+    if (observed < 0.85 || observed > 0.975) failures.push(`Pool ${table.key}: RTP band failed at ${(observed * 100).toFixed(2)}%`);
+  }
 }
 
 if (failures.length) {

@@ -3,6 +3,9 @@ import { loadRulesetForRound } from '@streets/rules-engine';
 import {
   casinoBlackjackActionSchema,
   casinoBlackjackDealSchema,
+  casinoPoolPressSchema,
+  casinoPoolRackSchema,
+  casinoPoolShotSchema,
   casinoCashierSchema,
   casinoCompHotelSchema,
   casinoSessionCloseSchema,
@@ -21,6 +24,7 @@ import {
   sportsbookBetSchema,
 } from '@streets/shared';
 import { BlackjackService } from '../services/blackjack.service.js';
+import { PoolService } from '../services/pool.service.js';
 import { CasinoService } from '../services/casino.service.js';
 import { RouletteService } from '../services/roulette.service.js';
 import { CasinoInstantGamesService } from '../services/casino-instant-games.service.js';
@@ -173,6 +177,32 @@ const casinoRoutes: FastifyPluginAsync = async (fastify) => {
       blackjack: await BlackjackService.state(fastify.prisma, player.id),
       hand,
     };
+  });
+
+  fastify.get('/pool', { preHandler: fastify.requireAuth }, async (request) => {
+    const player = await requirePlayer(request.auth!.account.id);
+    return PoolService.state(fastify.prisma, player.id);
+  });
+
+  fastify.post('/pool/rack', { preHandler: fastify.requireAuth }, async (request) => {
+    const input = parseBody(casinoPoolRackSchema, request.body);
+    const player = await requirePlayer(request.auth!.account.id);
+    const game = await PoolService.rack(fastify.prisma, player.id, input);
+    return { page: await CasinoService.page(fastify.prisma, player.id), pool: await PoolService.state(fastify.prisma, player.id), game };
+  });
+
+  fastify.post('/pool/shot', { preHandler: fastify.requireAuth }, async (request) => {
+    const input = parseBody(casinoPoolShotSchema, request.body);
+    const player = await requirePlayer(request.auth!.account.id);
+    const game = await PoolService.shoot(fastify.prisma, player.id, input);
+    return { page: await CasinoService.page(fastify.prisma, player.id), pool: await PoolService.state(fastify.prisma, player.id), game };
+  });
+
+  fastify.post('/pool/press', { preHandler: fastify.requireAuth }, async (request) => {
+    const input = parseBody(casinoPoolPressSchema, request.body);
+    const player = await requirePlayer(request.auth!.account.id);
+    const game = await PoolService.press(fastify.prisma, player.id, input);
+    return { page: await CasinoService.page(fastify.prisma, player.id), pool: await PoolService.state(fastify.prisma, player.id), game };
   });
 
   fastify.get('/roulette', { preHandler: fastify.requireAuth }, async (request) => {

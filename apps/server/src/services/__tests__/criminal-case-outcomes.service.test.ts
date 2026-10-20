@@ -54,6 +54,7 @@ function fixture(opts: { historical?: boolean; initialRewards?: number } = {}) {
     casinoSession: { aggregate: vi.fn(async () => ({ _sum: { bankrollCents: 0n } })) },
     casinoBlackjackHand: { aggregate: vi.fn(async () => ({ _sum: { committedWagerCents: 0n } })) },
     casinoPokerHand: { aggregate: vi.fn(async () => ({ _sum: { buyInCents: 0n } })) },
+    casinoPoolGame: { aggregate: vi.fn(async () => ({ _sum: { committedWagerCents: 0n } })) },
     casinoPokerSeat: { findMany: vi.fn(async () => []) },
     economyLedgerEntry: { create: vi.fn(async ({ data }: any) => {
       ledger.push(data); history.push({ rewardCents: Number(data.amountCents) }); return data;

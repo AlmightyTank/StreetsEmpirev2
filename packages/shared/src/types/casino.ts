@@ -15,7 +15,7 @@ export interface CasinoVenueDto {
 }
 
 export type CasinoStatusTierKeyDto = 'WALK_IN' | 'REGULAR' | 'PREFERRED' | 'HIGH_ROLLER' | 'WHALE';
-export type CasinoSignatureGameDto = 'SLOTS' | 'BLACKJACK' | 'ROULETTE' | 'SCRATCH_CARDS' | 'HORSE_RACING' | 'POKER';
+export type CasinoSignatureGameDto = 'SLOTS' | 'BLACKJACK' | 'ROULETTE' | 'SCRATCH_CARDS' | 'HORSE_RACING' | 'POKER' | 'POOL';
 export type CasinoRoomDto = 'FLOOR' | 'VIP';
 
 export interface CasinoVenueIdentityDto {
@@ -297,6 +297,84 @@ export interface CasinoBlackjackDealResponseDto {
 
 export type CasinoBlackjackActionResponseDto = CasinoBlackjackDealResponseDto;
 
+export type CasinoPoolShotKindDto = 'STEADY' | 'POWER' | 'SAFETY';
+export type CasinoPoolFinishDto =
+  | 'GOLDEN_BREAK'
+  | 'BREAK_AND_RUN'
+  | 'EIGHT'
+  | 'HUSTLER_SCRATCHED_EIGHT'
+  | 'HUSTLER_EIGHT'
+  | 'SCRATCHED_EIGHT';
+
+export interface CasinoPoolTableDto {
+  key: string;
+  name: string;
+  blurb: string;
+  minBetCents: number;
+  maxBetCents: number;
+  betStepCents: number;
+  hustlerName: string;
+  hustlerBlurb: string;
+  /** Hustler pot chance per shot, in bps. Posted so the player can size up the table. */
+  hustlerPotBps: number;
+  winReturnBps: number;
+  breakAndRunReturnBps: number;
+  goldenBreakReturnBps: number;
+  availableHere: boolean;
+  room: CasinoRoomDto;
+  lockedReason: string | null;
+}
+
+export interface CasinoPoolShotEventDto {
+  shooter: 'PLAYER' | 'HUSTLER';
+  shot: 'BREAK' | CasinoPoolShotKindDto | 'EIGHT';
+  result: 'POT' | 'MISS' | 'SCRATCH' | 'SAFE' | 'FOUL' | 'DRY';
+  balls: number[];
+}
+
+export interface CasinoPoolShotOptionDto {
+  shot: CasinoPoolShotKindDto;
+  potBps: number;
+  /** Scratch chance, or the foul chance for a safety. */
+  scratchBps: number;
+}
+
+export interface CasinoPoolGameDto {
+  id: string;
+  tableKey: string;
+  tableName: string;
+  hustlerName: string;
+  status: 'ACTIVE' | 'WON' | 'LOST';
+  finish: CasinoPoolFinishDto | null;
+  playerBalls: number[];
+  hustlerBalls: number[];
+  ballInHand: boolean;
+  pressed: boolean;
+  canPress: boolean;
+  shots: CasinoPoolShotOptionDto[];
+  log: CasinoPoolShotEventDto[];
+  wagerCents: number;
+  totalWagerCents: number;
+  totalReturnCents: number;
+  netCents: number;
+  bankrollAfterCents: number;
+  createdAt: string;
+  settledAt: string | null;
+}
+
+export interface CasinoPoolStateDto {
+  enabled: boolean;
+  tables: CasinoPoolTableDto[];
+  activeGame: CasinoPoolGameDto | null;
+  history: CasinoPoolGameDto[];
+}
+
+export interface CasinoPoolResponseDto {
+  page: CasinoPageDto;
+  pool: CasinoPoolStateDto;
+  game: CasinoPoolGameDto;
+}
+
 export type CasinoRouletteBetKindDto =
   | 'STRAIGHT'
   | 'SPLIT'
@@ -431,7 +509,7 @@ export interface CasinoPokerResponseDto {
   hand: CasinoPokerHandDto;
 }
 
-export type CasinoLedgerKindDto = 'BUY_CHIPS' | 'REDEEM_CHIPS' | 'SESSION_OPEN' | 'SESSION_CLOSE' | 'SLOT_SPIN' | 'BLACKJACK' | 'ROULETTE' | 'SCRATCH_CARD' | 'HORSE_RACE' | 'SPORTSBOOK_BET' | 'SPORTSBOOK_SETTLEMENT' | 'POKER_BUY_IN' | 'POKER_CASH_OUT' | 'POKER_TABLE_BUY_IN' | 'POKER_TABLE_REFUND' | 'COMP_HOTEL';
+export type CasinoLedgerKindDto = 'BUY_CHIPS' | 'REDEEM_CHIPS' | 'SESSION_OPEN' | 'SESSION_CLOSE' | 'SLOT_SPIN' | 'BLACKJACK' | 'POOL' | 'ROULETTE' | 'SCRATCH_CARD' | 'HORSE_RACE' | 'SPORTSBOOK_BET' | 'SPORTSBOOK_SETTLEMENT' | 'POKER_BUY_IN' | 'POKER_CASH_OUT' | 'POKER_TABLE_BUY_IN' | 'POKER_TABLE_REFUND' | 'COMP_HOTEL';
 
 export interface CasinoLedgerEntryDto {
   id: string;

@@ -28,12 +28,13 @@ import type {
 } from '@streets/shared';
 import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
+import { assertNoActivePoolGame } from './pool.service.js';
 import { ActivityService } from './activity.service.js';
 import { bossPresence } from './boss-presence.service.js';
 import { CasinoStatusService, casinoCompBalanceCents, casinoSessionMaxCents } from './casino-status.service.js';
 import { PlayerStateService } from './player-state.service.js';
 import { refreshAwayWorth } from './run-settle.service.js';
-import { pokerCommittedCents } from './casino-poker-committed.js';
+import { pokerCommittedCents, poolCommittedCents } from './casino-poker-committed.js';
 import { LawService } from './law.service.js';
 
 type PlayerRow = RoundPlayer & {
@@ -224,6 +225,34 @@ function ledgerDisplay(entry: {
         + (credited > 0 ? ' · returned ' + formatLedgerMoney(credited) : '')
         + summary,
       amountLabel: net > 0 ? 'Won' : net < 0 ? 'Wagered' : meta.settled ? 'Push / loss' : 'No change',
+      amountCents: Math.abs(net),
+      tone: net > 0 ? 'positive' : net < 0 ? 'negative' : 'neutral',
+    };
+  }
+  if (entry.kind === 'POOL') {
+    const meta = entry.metadata as unknown as {
+      action?: string;
+      tableName?: string;
+      hustlerName?: string;
+      chargeCents?: number;
+      creditedCents?: number;
+      status?: string;
+      finish?: string | null;
+    };
+    const action = typeof meta.action === 'string' ? meta.action : 'RACK';
+    const hustler = typeof meta.hustlerName === 'string' ? meta.hustlerName : 'the hustler';
+    const charge = typeof meta.chargeCents === 'number' ? meta.chargeCents : 0;
+    const credited = typeof meta.creditedCents === 'number' ? meta.creditedCents : 0;
+    const net = Number(entry.sessionChipDeltaCents);
+    const result = meta.status === 'WON'
+      ? meta.finish === 'GOLDEN_BREAK' ? ' · 8 on the break' : meta.finish === 'BREAK_AND_RUN' ? ' · break and run' : ' · beat ' + hustler
+      : meta.status === 'LOST' ? ' · lost to ' + hustler : '';
+    return {
+      title: action === 'PRESS' ? 'Pool · pressed the bet' : 'Pool vs ' + hustler,
+      detail: (charge > 0 ? 'Put up ' + formatLedgerMoney(charge) : 'Rack settled')
+        + (credited > 0 ? ' · returned ' + formatLedgerMoney(credited) : '')
+        + result,
+      amountLabel: net > 0 ? 'Won' : net < 0 ? 'Wagered' : 'No change',
       amountCents: Math.abs(net),
       tone: net > 0 ? 'positive' : net < 0 ? 'negative' : 'neutral',
     };
@@ -634,7 +663,7 @@ async function pageInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date)
   const currentCitySlug = cashLocation?.citySlug ?? null;
   const citySlugs = Object.keys(casino.venues);
   const slotRules = casino.slots?.machines ?? [];
-  const [cities, wallets, openSession, ledger, jackpots, freeSpinBonusRow, blackjackCommitted, sportsbookCommitted, pokerCommitted] = await Promise.all([
+  const [cities, wallets, openSession, ledger, jackpots, freeSpinBonusRow, blackjackCommitted, sportsbookCommitted, pokerCommitted, poolCommitted] = await Promise.all([
     db.city.findMany({ where: { slug: { in: citySlugs }, isEnabled: true }, orderBy: { sortOrder: 'asc' } }),
     db.casinoWallet.findMany({ where: { roundPlayerId }, include: { city: true } }),
     db.casinoSession.findFirst({
@@ -661,6 +690,7 @@ async function pageInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date)
       _sum: { stakeCents: true },
     }),
     pokerCommittedCents(db, roundPlayerId),
+    poolCommittedCents(db, roundPlayerId),
   ]);
 
   const walletByCity = new Map(wallets.map((wallet) => [wallet.city.slug, wallet.chipsCents]));
@@ -785,7 +815,7 @@ async function pageInDb(db: Db | PrismaClient, roundPlayerId: string, now: Date)
     slotMachines,
     freeSpinBonus,
     recentLedger,
-    totalCasinoValueCents: Number(walletTotal + sessionTotal + blackjackCommittedTotal + sportsbookCommittedTotal + pokerCommitted),
+    totalCasinoValueCents: Number(walletTotal + sessionTotal + blackjackCommittedTotal + sportsbookCommittedTotal + pokerCommitted + poolCommitted),
     limits: {
       chipUnitCents: casino.chipUnitCents,
       cashierMinCents: casino.cashier.minExchangeCents,
@@ -1064,6 +1094,7 @@ export const CasinoService = {
       }
       if (pokerHand) throw AppError.conflict('POKER_HAND_ACTIVE', 'Finish the current Poker hand before playing Slots.');
       if (pokerSeat) throw AppError.conflict('POKER_TABLE_ACTIVE', 'Leave your multiplayer Poker table before playing Slots.');
+      await assertNoActivePoolGame(tx, roundPlayerId, 'Slots');
 
       const bonus = await tx.casinoFreeSpinBonus.findUnique({ where: { roundPlayerId } });
       if (useFreeSpin) {
@@ -1272,6 +1303,8 @@ export const CasinoService = {
       if (activePoker) throw AppError.conflict('POKER_HAND_ACTIVE', 'Finish the current Poker hand before closing this casino session.');
       const multiplayerSeat = await tx.casinoPokerSeat.findFirst({ where: { roundPlayerId, sessionId: session.id, status: { in: ['WAITING', 'PLAYING'] }, table: { status: { in: ['WAITING', 'PLAYING'] } } }, select: { id: true } });
       if (multiplayerSeat) throw AppError.conflict('POKER_TABLE_ACTIVE', 'Leave your multiplayer Poker table before closing this casino session.');
+      const activePool = await tx.casinoPoolGame.findFirst({ where: { roundPlayerId, sessionId: session.id, status: 'ACTIVE' }, select: { id: true } });
+      if (activePool) throw AppError.conflict('POOL_GAME_ACTIVE', 'Finish the current pool rack before closing this casino session.');
 
       const venue = casino.venues[session.city.slug];
       if (!venue) throw AppError.conflict('CASINO_CLOSED', 'That casino venue is not part of this round anymore.');
