@@ -545,14 +545,17 @@ Object.assign(recipes, {
     svg = restop(svg, 'wood', ['#9a6a40', '#6a4224', '#3a2210']);
     svg = restop(svg, 'steel', ['#d4d8dc', '#80868c', '#3f4449']);
     svg = recolor(svg, { '#454a52': '#b0b5ba', '#2c2f34': '#5f656b', '#26292e': '#4f555b', '#4a1f07': '#2a1608', '#f0a060': '#e2b98a' });
-    // A drum magazine in place of the box: a feed neck curving forward out of
-    // the mag well like the box did, with the drum hung ahead of it.
+    // A 75-round drum in place of the box, seen edge-on as it is from the
+    // side: a short feed neck into a fat body grooved along its length with a rounded bottom,
+    // leaning forward like the box did.
     svg = swap(svg, '<path d="M128 62 H152 Q158 88 176 106 L154 116 Q134 94 128 62 Z" fill="url(#mag)"/>',
-      `<path d="M130 62 H150 Q151 70 156 76 L142 86 Q133 76 130 62 Z" fill="url(#steel)"/><circle cx="160" cy="91" r="19" fill="url(#steel)"/><circle cx="160" cy="91" r="12.5" fill="none" stroke="#3f4449" stroke-width="1.2"/><circle cx="160" cy="91" r="4" fill="${PEWTER}"/>`);
+      '<g transform="translate(150 90) rotate(-18)"><rect x="-9" y="-36" width="18" height="18" fill="url(#steel)"/>'
+      + '<path d="M-16 -18 Q-16 -22 -12 -22 H12 Q16 -22 16 -18 V14 A16 16 0 0 1 -16 14 Z" fill="url(#steel)"/>'
+      + '<path d="M-10 -21 V14 Q-10 22 -5 27 M-3.5 -21 V14 Q-3.5 24 -1.5 29.5 M3.5 -21 V14 Q3.5 24 1.5 29.5 M10 -21 V14 Q10 22 5 27" fill="none" stroke="#3f4449" stroke-width="1.1"/>'
+      + '<path d="M13 -19 V14 A13 13 0 0 1 6 25.5" fill="none" stroke="#ffffff" stroke-opacity=".45" stroke-width="1.3"/></g>');
     svg = svg.replace('<path d="M133 70 Q138 72 154 70M136 82 Q141 84 160 82M142 94 Q148 96 168 93"/>', '');
     return decorate(svg, {
       over: [
-        '<path d="M160 74 A17 17 0 0 1 177 91" stroke="#ffffff" stroke-opacity=".45" stroke-width="1.4" fill="none"/>',
         `<path d="M16 63 L68 54 M154 45.5 H186" stroke="${CREAM}" stroke-opacity=".4" stroke-width="1"/>`,
         `<rect x="186" y="44" width="12" height="14" rx="1.5" fill="${PEWTER}" stroke="#0a0b0d" stroke-width="1.2"/>`,
       ].join('\n  '),
