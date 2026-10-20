@@ -11,7 +11,7 @@
     <rect x="236" y="47" width="12" height="10" rx="1.5" fill="#4f555b"/>
     <path d="M218 49 V40 H224 V49" fill="#4f555b"/>
     <rect x="186" y="44" width="12" height="14" rx="1.5" fill="#5f656b"/>
-    <path d="M128 62 H152 Q160 94 190 112 L168 124 Q136 100 128 62 Z" fill="url(#mag)"/><path d="M131 70 H153 M134 82 Q140 84 158 81 M139 93 Q146 95 166 91 M146 103 Q154 105 175 101 M154 112 Q162 114 183 109" fill="none" stroke="#15171a" stroke-width="1.2"/><path d="M150 63 Q158 94 186 111" fill="none" stroke="#9aa0a6" stroke-opacity=".5" stroke-width="1.2"/>
+    <path d="M128 62 H152 Q158 90 192 104 L172 116 Q136 98 128 62 Z" fill="url(#mag)"/><path d="M131 70 H153 M134 82 Q140 84 158 81 M140 92 Q147 94 167 90 M149 101 Q157 103 179 98 M159 109 Q167 111 188 105" fill="none" stroke="#15171a" stroke-width="1.2"/><path d="M150 63 Q156 90 188 104" fill="none" stroke="#9aa0a6" stroke-opacity=".5" stroke-width="1.2"/>
     <path d="M88 62 H105 L98 92 Q97 96 92 96 L84 94 Q80 93 81 89 Z" fill="url(#wood)"/>
     <path d="M105 63 Q105 75 114 75 H128" fill="none" stroke-width="4"/>
     <path d="M105 63 Q105 75 114 75 H128" fill="none" stroke="#383c43" stroke-width="1.8"/>
