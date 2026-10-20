@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { STREET_SKILLS_V1, streetSkillPassiveModifiers, streetSkillPerk, streetSkillPointsForXp, streetSkillSourceForAction, streetSkillTaperedXp, streetSkillXpForPoints } from '../street-skills.js';
+import { STREET_SKILLS_V1, streetSkillPassiveModifiers, streetSkillPaysAtLaunch, streetSkillPerk, streetSkillPointsForXp, streetSkillSourceForAction, streetSkillTaperedXp, streetSkillXpForPoints } from '../street-skills.js';
 
 describe('street skills slice A catalog', () => {
   it('uses a rising point curve capped at forty', () => {
@@ -61,5 +61,15 @@ describe('street skills slice A catalog', () => {
     }
     expect(streetSkillPerk(STREET_SKILLS_V1, 'GHOST')?.requires).toBe('Armory & Garage');
     expect(streetSkillPerk(STREET_SKILLS_V1, 'HIT_FIRST')?.offensive).toBe(true);
+  });
+
+  it('pays fights that resolve later when they resolve, and setup actions at launch', () => {
+    for (const action of ['TURF_PUSH', 'BLOCK_WAR_ASSAULT', 'BLOCK_WAR_DEFEND', 'BOSS_HIT', 'CONVOY_TAIL', 'CONVOY_BACKUP']) {
+      expect(streetSkillPaysAtLaunch(STREET_SKILLS_V1, action), action).toBe(false);
+      expect(streetSkillSourceForAction(STREET_SKILLS_V1, action)?.skill).toBe('MUSCLE');
+    }
+    for (const action of ['TURF_CLAIM', 'TURF_POST', 'BLOCK_WAR_DECLARE', 'CONVOY_RECON', 'RUN_LAUNCH', 'SCOUT']) {
+      expect(streetSkillPaysAtLaunch(STREET_SKILLS_V1, action), action).toBe(true);
+    }
   });
 });

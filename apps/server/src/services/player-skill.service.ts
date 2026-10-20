@@ -2,6 +2,7 @@ import type { PrismaClient, RoundPlayer } from '@prisma/client';
 import {
   STREET_SKILL_KEYS,
   streetSkillCatchUpMultiplier,
+  streetSkillSourceForAction,
   streetSkillPerk,
   streetSkillPointsForXp,
   streetSkillTaperedXp,
@@ -296,6 +297,22 @@ export const PlayerSkillService = {
       data: { xp: nextXp, points, xpWindowStartsAt: sameWindow ? skill.xpWindowStartsAt : input.now, xpInWindow: windowXp + earned },
     });
     return earned;
+  },
+  /**
+   * One side of a fight that resolved: the skill the fight's action feeds, full XP for a
+   * win and the source's loss share for a loss. Keyed per player, so a player on a fight
+   * twice (say, as holder and backup) is paid once.
+   */
+  async awardFight(tx: Db, rules: StreetSkillsRules | undefined, input: { roundPlayerId: string; action: string; won: boolean; fightKey: string; now: Date }): Promise<number> {
+    const source = rules ? streetSkillSourceForAction(rules, input.action) : null;
+    if (!rules || !source) return 0;
+    const player = await tx.roundPlayer.findUnique({ where: { id: input.roundPlayerId }, select: { createdAt: true } });
+    if (!player) return 0;
+    const amount = input.won ? source.baseXp : source.baseXp * (source.lossMultiplier ?? 1);
+    return PlayerSkillService.award(tx, {
+      roundPlayerId: input.roundPlayerId, player, rules, award: { skill: source.skill, amount },
+      sourceKey: `fight:${input.fightKey}:${input.roundPlayerId}`, now: input.now,
+    });
   },
   async awardMany(tx: Db, input: { roundPlayerId: string; player: Pick<RoundPlayer, 'createdAt'>; rules: StreetSkillsRules; awards: readonly SkillXpAward[]; sourceKey: string; now: Date }): Promise<number> {
     let total = 0;

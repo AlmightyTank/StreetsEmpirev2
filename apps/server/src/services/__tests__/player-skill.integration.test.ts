@@ -152,4 +152,17 @@ describe.runIf(process.env.STREET_SKILLS_INTEGRATION === '1')('street skills wit
     expect(cooling(players[0]!)).toBe(1.2);
     expect(cooling(players[1]!)).toBe(1);
   });
+
+  it('pays every side of a fight that resolved later once, the loser at half', async () => {
+    const now = new Date();
+    const muscle = skills.sources.find((source) => source.skill === 'MUSCLE')!;
+    await app.prisma.$transaction(async (tx) => {
+      await PlayerSkillService.awardFight(tx, skills, { roundPlayerId: players[0]!, action: 'TURF_PUSH', won: true, fightKey: 'turf-push:test', now });
+      await PlayerSkillService.awardFight(tx, skills, { roundPlayerId: players[1]!, action: 'TURF_PUSH', won: false, fightKey: 'turf-push:test', now });
+      // The holder also sent backup to the same fight: still paid once.
+      await PlayerSkillService.awardFight(tx, skills, { roundPlayerId: players[1]!, action: 'TURF_PUSH', won: false, fightKey: 'turf-push:test', now });
+    });
+    expect((await skillRow(0, 'MUSCLE'))?.xp).toBe(muscle.baseXp);
+    expect((await skillRow(1, 'MUSCLE'))?.xp).toBe(muscle.baseXp * muscle.lossMultiplier!);
+  });
 });

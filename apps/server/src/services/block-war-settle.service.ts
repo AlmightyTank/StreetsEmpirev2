@@ -347,6 +347,17 @@ async function resolveFight(tx: Db, state: WarState, fight: BlockWarFight, at: D
   }
   const recoverAt = new Date(at.getTime() + model.wounds.recoveryMinutes * 60_000);
 
+  // Muscle: every player with a squad in the fight, and the holder on the corner, is paid by result.
+  const fightKey = `block-war:${war.id}:${fight.id}`;
+  for (const id of new Set(attackers.map((squad) => squad.playerId))) {
+    await PlayerSkillService.awardFight(tx, base.streetSkills, { roundPlayerId: id, action: 'BLOCK_WAR_ASSAULT', won: attackerWon, fightKey, now: at });
+  }
+  if (defend.thugs > 0) {
+    for (const id of new Set([war.defenderId, ...helpers.map((squad) => squad.playerId)])) {
+      await PlayerSkillService.awardFight(tx, base.streetSkills, { roundPlayerId: id, action: 'BLOCK_WAR_DEFEND', won: !attackerWon, fightKey, now: at });
+    }
+  }
+
   const attackerSplit = splitWounds(attackerWounds, attackerEngaged);
   if (!attackerWon && fight.kind !== 'BREAK') {
     // 1.1.0-C: a declarer's Getaway cars get some of a beaten squad home unhurt.

@@ -555,6 +555,11 @@ export const ConvoyService = {
         defenderCashCents: 0n,
       }, model, rng);
       const won = fight.winner === 'ATTACKER';
+      // Muscle: the tail, the run's owner and every ally who rode to its aid are paid by result.
+      await PlayerSkillService.awardFight(tx, ruleset.streetSkills, { roundPlayerId: tail.attackerId, action: 'CONVOY_TAIL', won, fightKey: `convoy:${tail.id}`, now: at });
+      for (const id of new Set([ownerId, ...allyBackups.map((backup) => backup.playerId)])) {
+        await PlayerSkillService.awardFight(tx, ruleset.streetSkills, { roundPlayerId: id, action: 'CONVOY_TAIL', won: !won, fightKey: `convoy:${tail.id}`, now: at });
+      }
       const wounds = splitWounds(fight.wounds.defender, groups);
       const recoverAt = new Date(at.getTime() + model.wounds.recoveryMinutes * 60_000);
 

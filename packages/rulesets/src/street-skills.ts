@@ -59,6 +59,11 @@ export interface StreetSkillSource {
   readonly actionPrefixes: readonly string[];
   /** Share of the XP a lost fight still pays. */
   readonly lossMultiplier?: number;
+  /**
+   * Actions that send a squad into a fight that resolves later. They pay nothing at launch;
+   * every side is paid when the fight resolves, the loser at the loss share.
+   */
+  readonly settledActions?: readonly string[];
 }
 
 export interface StreetSkillsRules {
@@ -217,7 +222,11 @@ export const STREET_SKILLS_V1: StreetSkillsRules = {
   respec: { baseCostCents: 2_500_000, cooldownHours: 24 },
   sources: [
     { key: 'HUSTLE_EARN', skill: 'HUSTLE', label: 'Earning and selling', baseXp: 10, actionPrefixes: ['BUSINESS_', 'STORE_SELL', 'DEALER_', 'SALES_', 'PRODUCE_'] },
-    { key: 'MUSCLE_FIGHT', skill: 'MUSCLE', label: 'Combat action', baseXp: 10, lossMultiplier: 0.5, actionPrefixes: ['COMBAT_', 'RAID', 'DRIVE_BY', 'SPECIAL_RAID', 'BOSS_HIT', 'TURF_', 'BLOCK_WAR_', 'CONVOY_'] },
+    {
+      key: 'MUSCLE_FIGHT', skill: 'MUSCLE', label: 'Combat action', baseXp: 10, lossMultiplier: 0.5,
+      actionPrefixes: ['COMBAT_', 'RAID', 'DRIVE_BY', 'SPECIAL_RAID', 'BOSS_HIT', 'TURF_', 'BLOCK_WAR_', 'CONVOY_'],
+      settledActions: ['TURF_PUSH', 'TURF_PUSH_BACKUP', 'BLOCK_WAR_ASSAULT', 'BLOCK_WAR_DEFEND', 'BLOCK_WAR_BREAK', 'BLOCK_WAR_ANSWER', 'BOSS_HIT', 'BOSS_HIT_BACKUP', 'CONVOY_TAIL', 'CONVOY_BACKUP'],
+    },
     { key: 'WHEELS_RUN', skill: 'WHEELS', label: 'Run or vehicle action', baseXp: 10, actionPrefixes: ['RUN_', 'TRIP_', 'BOSS_TRIP_', 'VEHICLE_', 'GARAGE_', 'TRAVEL_'] },
     { key: 'FIXER_LAW', skill: 'FIXER', label: 'Law and heat action', baseXp: 10, actionPrefixes: ['LAW_', 'LAWYER_', 'CASE_', 'HEAT_', 'WARRANT_', 'OFFICIAL_', 'INFORMANT_'] },
     { key: 'CONNECTIONS_JOB', skill: 'CONNECTIONS', label: 'Job, supply, or toll action', baseXp: 10, actionPrefixes: ['QUEST_', 'JOB_', 'CONTACT_', 'SUPPLY_', 'TOLL_', 'REPUTATION_'] },
@@ -250,6 +259,11 @@ export function streetSkillPassiveModifiers(
 
 export function streetSkillSourceForAction(rules: StreetSkillsRules, action: string): StreetSkillSource | null {
   return rules.sources.find((source) => source.actionPrefixes.some((prefix) => action.startsWith(prefix))) ?? null;
+}
+
+/** Whether an action pays its skill XP when it settles, rather than when its fight resolves. */
+export function streetSkillPaysAtLaunch(rules: StreetSkillsRules, action: string): boolean {
+  return !rules.sources.some((source) => source.settledActions?.includes(action));
 }
 
 /** Rising curve: the nth point costs n * xpPerPoint XP. */

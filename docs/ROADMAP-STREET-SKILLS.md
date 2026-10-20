@@ -161,7 +161,7 @@ Fixer 40 and Connections 25 have no choosable perk until those systems ship.
 
 **Heat and cases.** Fixer's cooling applies everywhere Heat cools: actions, settles, business, boss-trip and block-war settlements. Paper Trail applies everywhere a Case is read, including the admin round-wide law report.
 
-**Not yet covered.** Win/lose XP applies only to the fights resolved on the spot (raids, drive-bys, special raids); turf, block-war, boss-hit and convoy fights earn launch XP only.
+**Fights that resolve later.** Turf pushes, block-war assaults, defences and breaks, boss hits and convoy tails, and the backup sent to them, pay nothing at launch. When the fight resolves, every side is paid Muscle XP: winners in full, losers half, each player once per fight. Setup actions (claims, posts, declarations, calls, recon) still pay at launch.
 
 ## Out of scope
 - Skills carried between rounds or granted by account level.

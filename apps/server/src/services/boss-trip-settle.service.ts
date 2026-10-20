@@ -121,6 +121,12 @@ async function landHits(tx: Db, ownerId: string, ruleset: Ruleset, loaded: BossT
         await tx.bossHitBackup.update({ where: { id: backup.id }, data: { wounded: Math.min(backup.thugs, split[backup.id] ?? 0) } });
       }
       recoverAt = new Date(at.getTime() + model.wounds.recoveryMinutes * 60_000);
+      // Muscle: the hitter, the boss and every ally who backed the boss are paid by result.
+      const hitWon = fight.winner === 'ATTACKER';
+      await PlayerSkillService.awardFight(tx, ruleset.streetSkills, { roundPlayerId: hit.attackerId, action: 'BOSS_HIT', won: hitWon, fightKey: `boss-hit:${hit.id}`, now: at });
+      for (const id of new Set([ownerId, ...hit.backups.map((backup) => backup.playerId)])) {
+        await PlayerSkillService.awardFight(tx, ruleset.streetSkills, { roundPlayerId: id, action: 'BOSS_HIT', won: !hitWon, fightKey: `boss-hit:${hit.id}`, now: at });
+      }
       if (fight.winner !== 'ATTACKER') {
         trip = await tx.bossTrip.update({ where: { id: trip.id }, data: { lastHitAt: at, woundedBodyguards: trip.woundedBodyguards + guardWounds } });
         const outcome: BossHitOutcome = {

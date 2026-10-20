@@ -1,7 +1,7 @@
 import { randomInt, randomUUID } from 'node:crypto';
 import type { Prisma, PrismaClient, Round, RoundPlayer } from '@prisma/client';
 import { DEFENSE_JOB, RAID_JOB, bossAwayDefenseMultiplier, driveByMaxShooters, equipCombatSquad, loadRulesetForRound, planWorkSupply, productStashHint, racketReconDiscount, readRacketEffects, simulateDriveBy, simulateRaid, splitProductUnits, type CombatBoost, type CombatCrew, type Ruleset, type WorkSupplyPlan } from '@streets/rules-engine';
-import { hideoutV2For, type DistrictKey, type DriveByRules, type DrugHoesRules, type LureCrewRules, type SpecialRaidKind, type StealRideRules, streetSkillSourceForAction } from '@streets/rulesets';
+import { hideoutV2For, type DistrictKey, type DriveByRules, type DrugHoesRules, type LureCrewRules, type SpecialRaidKind, type StealRideRules } from '@streets/rulesets';
 import {
   combatReconSchema,
   combatTreatmentSchema,
@@ -526,15 +526,6 @@ function weakTarget(ruleset: Ruleset, attacker: { netWorthCents: bigint }, defen
   const ratio = ruleset.streetSkills?.offensiveTargetNetWorthRatio;
   if (!ratio || attacker.netWorthCents <= 0n) return false;
   return defender.netWorthCents * 1000n < attacker.netWorthCents * BigInt(Math.round(ratio * 1000));
-}
-
-/** Muscle XP for a fight, to either side; a lost fight pays the source's loss share. */
-async function awardFightXp(tx: Prisma.TransactionClient, ruleset: Ruleset, player: { id: string; createdAt: Date }, action: string, won: boolean, sourceKey: string, now: Date): Promise<void> {
-  const rules = ruleset.streetSkills;
-  const source = rules ? streetSkillSourceForAction(rules, action) : null;
-  if (!rules || !source) return;
-  const amount = won ? source.baseXp : source.baseXp * (source.lossMultiplier ?? 1);
-  await PlayerSkillService.award(tx, { roundPlayerId: player.id, player, rules, award: { skill: source.skill, amount }, sourceKey, now });
 }
 
 /** Report lines for non-crack products, signed for the side reading them. */
@@ -1187,8 +1178,8 @@ export const CombatService = {
       await CrewRosterService.awardCompletedWork(tx, { roundPlayerId: attackerId, ruleset, role: 'THUG', specialty: 'ENFORCER', ...(input.crewMemberIds ? { memberIds: input.crewMemberIds } : {}), at: now, label: 'Raid completed', sourceKey: `RAID:${id}` });
       await fightCase(tx, ruleset, id, now, [a, d]);
       await CombatRecoveryService.add(tx, attackerId, id, result.wounds.attacker, recoverAt, now);
-      await awardFightXp(tx, ruleset, attacker, 'RAID', result.winner === 'ATTACKER', `combat:${id}:attacker`, now);
-      await awardFightXp(tx, ruleset, defender, 'RAID', result.winner !== 'ATTACKER', `combat:${id}:defender`, now);
+      await PlayerSkillService.awardFight(tx, ruleset.streetSkills, { roundPlayerId: attacker.id, action: 'RAID', won: result.winner === 'ATTACKER', fightKey: `combat:${id}`, now });
+      await PlayerSkillService.awardFight(tx, ruleset.streetSkills, { roundPlayerId: defender.id, action: 'RAID', won: result.winner !== 'ATTACKER', fightKey: `combat:${id}`, now });
       if (combatEncounter?.effects.cashCents) {
         await EconomyLedgerService.record(tx, attackerId, [{
           source: 'RANDOM_ENCOUNTER',
@@ -1367,8 +1358,8 @@ export const CombatService = {
         attackerReport: json(attackerReport), defenderReport: json(defenderReport), createdAt: now } });
       await fightCase(tx, ruleset, id, now, [a, d]);
       await CombatRecoveryService.add(tx, attackerId, id, result.wounds.attacker, recoverAt, now);
-      await awardFightXp(tx, ruleset, attacker, 'DRIVE_BY', result.winner === 'ATTACKER', `combat:${id}:attacker`, now);
-      await awardFightXp(tx, ruleset, defender, 'DRIVE_BY', result.winner !== 'ATTACKER', `combat:${id}:defender`, now);
+      await PlayerSkillService.awardFight(tx, ruleset.streetSkills, { roundPlayerId: attacker.id, action: 'DRIVE_BY', won: result.winner === 'ATTACKER', fightKey: `combat:${id}`, now });
+      await PlayerSkillService.awardFight(tx, ruleset.streetSkills, { roundPlayerId: defender.id, action: 'DRIVE_BY', won: result.winner !== 'ATTACKER', fightKey: `combat:${id}`, now });
       if (combatEncounter?.effects.cashCents) {
         await EconomyLedgerService.record(tx, attackerId, [{
           source: 'RANDOM_ENCOUNTER',
@@ -1619,8 +1610,8 @@ export const CombatService = {
         attackerReport: json(attackerReport), defenderReport: json(defenderReport), createdAt: now } });
       await fightCase(tx, ruleset, id, now, [a, d]);
       await CombatRecoveryService.add(tx, attackerId, id, result.wounds.attacker, recoverAt, now);
-      await awardFightXp(tx, ruleset, attacker, 'SPECIAL_RAID', result.winner === 'ATTACKER', `combat:${id}:attacker`, now);
-      await awardFightXp(tx, ruleset, defender, 'SPECIAL_RAID', result.winner !== 'ATTACKER', `combat:${id}:defender`, now);
+      await PlayerSkillService.awardFight(tx, ruleset.streetSkills, { roundPlayerId: attacker.id, action: 'SPECIAL_RAID', won: result.winner === 'ATTACKER', fightKey: `combat:${id}`, now });
+      await PlayerSkillService.awardFight(tx, ruleset.streetSkills, { roundPlayerId: defender.id, action: 'SPECIAL_RAID', won: result.winner !== 'ATTACKER', fightKey: `combat:${id}`, now });
       if (combatEncounter?.effects.cashCents) {
         await EconomyLedgerService.record(tx, attackerId, [{
           source: 'RANDOM_ENCOUNTER',

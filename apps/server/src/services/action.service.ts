@@ -13,7 +13,7 @@ import type {
   RankChanges,
   ResourceChange,
 } from '@streets/shared';
-import { streetSkillSourceForAction, type QuestDataValue } from '@streets/rulesets';
+import { streetSkillPaysAtLaunch, streetSkillSourceForAction, type QuestDataValue } from '@streets/rulesets';
 import { AppError } from '../utils/errors.js';
 import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { annotateLogContext } from '../utils/request-context.js';
@@ -671,7 +671,10 @@ export const ActionService = {
           at: now,
         });
       }
-      const inferredSkill = ruleset.streetSkills && !outcome.skillXp?.length ? streetSkillSourceForAction(ruleset.streetSkills, options.action) : null;
+      // A squad sent into a fight that resolves later is paid when it resolves, win or lose.
+      const inferredSkill = ruleset.streetSkills && !outcome.skillXp?.length && streetSkillPaysAtLaunch(ruleset.streetSkills, options.action)
+        ? streetSkillSourceForAction(ruleset.streetSkills, options.action)
+        : null;
       const skillXp = outcome.skillXp?.length
         ? outcome.skillXp
         : inferredSkill

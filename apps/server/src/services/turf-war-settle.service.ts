@@ -32,6 +32,7 @@ import { recordTerritoryControlChange, territoryControlForCity } from './turf-te
 import { endTurfHold, startTurfHold } from './turf-history.service.js';
 import { BlockWarSettleService } from './block-war-settle.service.js';
 import { CrewRosterService } from './crew-roster.service.js';
+import { PlayerSkillService } from './player-skill.service.js';
 
 type Weapons = Record<WeaponKey, number>;
 type PushModel = NonNullable<ReturnType<typeof turfPushCombatModel>>;
@@ -293,6 +294,18 @@ export const TurfWarSettlementService = {
             at,
             sourceKey: `TURF_DEFENSE:${loaded.id}`,
           });
+        }
+      }
+
+      // Muscle: the pusher is paid whenever the push meets the block; the holder and every
+      // ally who showed up are paid when it came to a fight. A stale push paid nobody.
+      if (!stale) {
+        const fightKey = `turf-push:${loaded.id}`;
+        await PlayerSkillService.awardFight(tx, base.streetSkills, { roundPlayerId: loaded.attackerId, action: 'TURF_PUSH', won, fightKey, now: at });
+        if (stillDefended) {
+          for (const id of new Set([loaded.defenderId, ...shownAllies.map((backup) => backup.playerId)])) {
+            await PlayerSkillService.awardFight(tx, base.streetSkills, { roundPlayerId: id, action: 'TURF_PUSH', won: !won, fightKey, now: at });
+          }
         }
       }
 
