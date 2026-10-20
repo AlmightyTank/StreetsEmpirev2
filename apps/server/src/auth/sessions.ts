@@ -62,7 +62,7 @@ export async function createSession(
       method,
       twoFactor,
       // A Discord sign-in or a code is a second factor, proved now.
-      secondFactorAt: method === 'DISCORD' || twoFactor ? new Date(now) : null,
+      secondFactorAt: method === 'DISCORD' || method === 'PLAY_GAMES' || twoFactor ? new Date(now) : null,
     },
   });
 

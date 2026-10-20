@@ -27,6 +27,10 @@ interface AccountResponse {
   message?: string;
 }
 
+interface PlayGamesResponse extends AccountResponse {
+  linked: boolean;
+}
+
 interface MessageResponse {
   ok: true;
   message: string;
@@ -44,6 +48,9 @@ export const authApi = {
 
   /** rc.3: with two-step sign-in on, the answer asks for a code instead of signing in. */
   login: (input: LoginInput) => api.post<AccountResponse | TwoFactorRequiredDto>('/auth/login', input),
+
+  playGames: (serverAuthCode: string, link = false) =>
+    api.post<PlayGamesResponse>('/auth/play-games', { serverAuthCode, link }),
 
   /** rc.3. The authenticator (or recovery) code for a sign-in that is waiting for one. */
   verifyTwoFactor: (code: string, trustDevice = false) =>

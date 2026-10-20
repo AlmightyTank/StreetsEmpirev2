@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
@@ -13,6 +13,7 @@ import { landingPath, useSession } from '../stores/session.js';
 export function LoginPage() {
   const login = useSession((s) => s.login);
   const completeTwoFactor = useSession((s) => s.completeTwoFactor);
+  const playGames = useSession((s) => s.playGames);
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const authError = searchParams.get('authError');
@@ -30,6 +31,38 @@ export function LoginPage() {
   const [fields, setFields] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [playGamesBusy, setPlayGamesBusy] = useState(false);
+  const [playGamesError, setPlayGamesError] = useState<string | null>(null);
+  const [nativePlayGames, setNativePlayGames] = useState(false);
+
+  useEffect(() => {
+    const bridge = (window as Window & { StreetsEmpireAndroid?: { isNative?: () => boolean; signInWithPlayGames?: () => void } }).StreetsEmpireAndroid;
+    if (!bridge?.isNative || !bridge.signInWithPlayGames) return;
+    setNativePlayGames(true);
+    const onAuth = (event: Event) => {
+      const code = (event as CustomEvent<string>).detail;
+      if (!code) return;
+      setPlayGamesBusy(true);
+      setPlayGamesError(null);
+      void playGames(code)
+        .then(() => {
+          const session = useSession.getState();
+          navigate(landingPath(session.profileSettings.defaultLanding, Boolean(session.me)));
+        })
+        .catch((error) => setPlayGamesError(error instanceof ApiError ? error.message : 'Could not sign in with Google Play Games.'))
+        .finally(() => setPlayGamesBusy(false));
+    };
+    const onError = (event: Event) => {
+      setPlayGamesError((event as CustomEvent<string>).detail || 'Could not sign in with Google Play Games.');
+      setPlayGamesBusy(false);
+    };
+    window.addEventListener('streets:play-games-auth', onAuth);
+    window.addEventListener('streets:play-games-error', onError);
+    return () => {
+      window.removeEventListener('streets:play-games-auth', onAuth);
+      window.removeEventListener('streets:play-games-error', onError);
+    };
+  }, [navigate, playGames]);
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -158,6 +191,26 @@ export function LoginPage() {
               If you already have an account, use the same verified email on Discord or link Discord from account settings after logging in.
             </p>
           </Panel>
+
+          {nativePlayGames ? (
+            <Panel title="Google Play Games login">
+              <p>Use your Google Play Games account. A new Play Games identity creates its own StreetsEmpire account; it will not merge with an account that uses the same email.</p>
+              {playGamesError ? <Alert>{playGamesError}</Alert> : null}
+              <Button
+                type="button"
+                className="se-btn se-btn--primary se-btn--block"
+                onClick={() => {
+                  setPlayGamesError(null);
+                  setPlayGamesBusy(true);
+                  (window as Window & { StreetsEmpireAndroid?: { signInWithPlayGames?: () => void } }).StreetsEmpireAndroid?.signInWithPlayGames?.();
+                }}
+                disabledReason={playGamesBusy ? 'Waiting for Google Play Games.' : null}
+              >
+                {playGamesBusy ? 'Working...' : 'Log in with Google Play Games'}
+              </Button>
+              <p className="se-hint">Already have a StreetsEmpire account? Sign in first, then link Play Games from Account settings.</p>
+            </Panel>
+          ) : null}
         </div>
 
         <p className="se-hint se-center">

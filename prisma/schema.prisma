@@ -58,6 +58,11 @@ model Account {
   discordAvatar   String?
   discordLinkedAt DateTime?
 
+  /// Google Play Games player identity. Never auto-linked by email.
+  playGamesId          String?   @unique
+  playGamesDisplayName String?
+  playGamesLinkedAt    DateTime?
+
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   lastLoginAt DateTime?

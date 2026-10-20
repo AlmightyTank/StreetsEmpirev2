@@ -35,14 +35,40 @@ export function ConnectedAccountsPanel({ account, onConnectionsChanged }: Connec
   const [push, setPush] = useState<NotificationSettingsDto | null>(null);
   const [support] = useState<PushSupport>(() => pushSupport());
   const [thisHash, setThisHash] = useState<string | null>(null);
-  const [busy, setBusy] = useState<string | null>(null);
+  const [busy, setBusy] = useState<'forum-cosmetics' | 'discord' | 'forum' | 'device-enable' | string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [confirmDiscord, setConfirmDiscord] = useState(false);
   const [confirmForum, setConfirmForum] = useState(false);
   const [discordPassword, setDiscordPassword] = useState('');
   const [discordPasswordError, setDiscordPasswordError] = useState<string | null>(null);
+  const [nativePlayGames, setNativePlayGames] = useState(false);
   const working = 'Finishing the last thing you asked for.';
+
+  useEffect(() => {
+    const bridge = (window as Window & { StreetsEmpireAndroid?: { isNative?: () => boolean; linkPlayGames?: () => void } }).StreetsEmpireAndroid;
+    setNativePlayGames(Boolean(bridge?.isNative && bridge.linkPlayGames));
+    const onAuth = (event: Event) => {
+      const code = (event as CustomEvent<string>).detail;
+      if (!code) return;
+      setBusy('play-games');
+      setError(null);
+      void authApi.playGames(code, true)
+        .then(() => window.location.assign('/account?accountMessage=Google%20Play%20Games%20linked.'))
+        .catch((caught) => setError(caught instanceof ApiError ? caught.message : 'Could not link Google Play Games.'))
+        .finally(() => setBusy(null));
+    };
+    const onError = (event: Event) => {
+      setError((event as CustomEvent<string>).detail || 'Could not link Google Play Games.');
+      setBusy(null);
+    };
+    window.addEventListener('streets:play-games-link-auth', onAuth);
+    window.addEventListener('streets:play-games-error', onError);
+    return () => {
+      window.removeEventListener('streets:play-games-link-auth', onAuth);
+      window.removeEventListener('streets:play-games-error', onError);
+    };
+  }, []);
 
   async function loadForum() {
     try {
@@ -261,6 +287,30 @@ export function ConnectedAccountsPanel({ account, onConnectionsChanged }: Connec
           ) : (
             <a className="se-btn se-btn--discord" href="/api/auth/discord?link=1">Link Discord</a>
           )}
+        </section>
+
+        <section className="se-connection">
+          <div className="se-connection__head">
+            <div>
+              <span className="se-connection__eyebrow">Account</span>
+              <h3>Google Play Games</h3>
+            </div>
+            <span className={`se-tag ${account.playGamesLinked ? 'se-tag--good' : ''}`}>
+              {account.playGamesLinked ? 'Connected' : 'Not connected'}
+            </span>
+          </div>
+          <p>{account.playGamesLinked ? 'This Google Play Games identity can sign you in on Android.' : 'Link the Google Play Games identity on this Android device for a faster sign-in.'}</p>
+          {!account.playGamesLinked && nativePlayGames ? (
+            <Button
+              type="button"
+              className="se-btn se-btn--primary"
+              onClick={() => (window as Window & { StreetsEmpireAndroid?: { linkPlayGames?: () => void } }).StreetsEmpireAndroid?.linkPlayGames?.()}
+              disabledReason={off}
+            >
+              {busy === 'play-games' ? 'Linking...' : 'Link Google Play Games'}
+            </Button>
+          ) : null}
+          {!nativePlayGames && !account.playGamesLinked ? <p className="se-muted">Open Account settings in the Android app to link Play Games.</p> : null}
         </section>
 
         <section className="se-connection">

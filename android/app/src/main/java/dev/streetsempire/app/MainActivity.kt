@@ -21,6 +21,8 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+import com.google.android.gms.games.PlayGames
+import com.google.android.gms.games.PlayGamesSdk
 import org.json.JSONObject
 
 class MainActivity : AppCompatActivity() {
@@ -30,6 +32,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var landingView: View
     private lateinit var offlineView: View
     private lateinit var billing: PlayBillingManager
+    private lateinit var gamesSignIn: com.google.android.gms.games.GamesSignInClient
 
     private var filePathCallback: ValueCallback<Array<Uri>>? = null
 
@@ -54,6 +57,8 @@ class MainActivity : AppCompatActivity() {
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        PlayGamesSdk.initialize(this)
+        gamesSignIn = PlayGames.getGamesSignInClient(this)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         setContentView(R.layout.activity_main)
 
@@ -246,6 +251,44 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun dispatchPlayGamesEvent(name: String, value: String) {
+        val event = JSONObject.quote(name)
+        val detail = JSONObject.quote(value)
+        runOnUiThread {
+            webView.evaluateJavascript(
+                "window.dispatchEvent(new CustomEvent($event,{detail:$detail}));",
+                null,
+            )
+        }
+    }
+
+    private fun signInWithPlayGames(link: Boolean = false) {
+        if (GameConfig.PLAY_GAMES_WEB_CLIENT_ID.isBlank()) {
+            dispatchPlayGamesEvent("streets:play-games-error", "Google Play Games sign-in is not configured.")
+            return
+        }
+
+        fun requestCode() {
+            gamesSignIn.requestServerSideAccess(GameConfig.PLAY_GAMES_WEB_CLIENT_ID, false)
+                .addOnSuccessListener { code ->
+                    dispatchPlayGamesEvent(if (link) "streets:play-games-link-auth" else "streets:play-games-auth", code)
+                }
+                .addOnFailureListener { dispatchPlayGamesEvent("streets:play-games-error", "Google Play Games sign-in could not be completed.") }
+        }
+
+        gamesSignIn.isAuthenticated()
+            .addOnSuccessListener { result ->
+                if (result.isAuthenticated) {
+                    requestCode()
+                } else {
+                    gamesSignIn.signIn()
+                        .addOnSuccessListener { requestCode() }
+                        .addOnFailureListener { dispatchPlayGamesEvent("streets:play-games-error", "Google Play Games sign-in was canceled.") }
+                }
+            }
+            .addOnFailureListener { dispatchPlayGamesEvent("streets:play-games-error", "Google Play Games sign-in could not be started.") }
+    }
+
     /**
      * Discord's mobile site can emit discord:// and intent:// links for the
      * "open in Discord" step. Keep the OAuth authorize page in this WebView so
@@ -269,9 +312,19 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private class AndroidShellBridge {
+    private inner class AndroidShellBridge {
         @JavascriptInterface
         fun isNative(): Boolean = true
+
+        @JavascriptInterface
+        fun signInWithPlayGames() {
+            (this@MainActivity).runOnUiThread { this@MainActivity.signInWithPlayGames() }
+        }
+
+        @JavascriptInterface
+        fun linkPlayGames() {
+            (this@MainActivity).runOnUiThread { this@MainActivity.signInWithPlayGames(link = true) }
+        }
     }
 
     override fun onDestroy() {

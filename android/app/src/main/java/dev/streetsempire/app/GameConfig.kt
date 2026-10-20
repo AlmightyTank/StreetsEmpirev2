@@ -7,7 +7,9 @@ object GameConfig {
     val LIVE_ORIGIN: String = BuildConfig.LIVE_ORIGIN
 
     /** User-agent token the native shell appends; the website uses it to hide install prompts. */
-    const val NATIVE_UA_TOKEN = "StreetsEmpireAndroid/1.0.8"
+    const val NATIVE_UA_TOKEN = "StreetsEmpireAndroid/1.0.9"
+
+    val PLAY_GAMES_WEB_CLIENT_ID: String = BuildConfig.PLAY_GAMES_WEB_CLIENT_ID
 
     val LIVE_ENTRY: String = "$LIVE_ORIGIN/game"
     const val SUPPORTER_PRODUCT_ID = "supporter_monthly"

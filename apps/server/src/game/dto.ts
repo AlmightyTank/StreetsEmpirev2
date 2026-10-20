@@ -45,6 +45,7 @@ export function toAccountDto(account: Account, session?: SessionStrength | null)
     emailVerifiedAt: account.emailVerifiedAt?.toISOString() ?? null,
     discordLinked: Boolean(account.discordId),
     discordUsername: account.discordUsername,
+    playGamesLinked: Boolean(account.playGamesId),
     isAdmin: account.isAdmin,
     staffRole: staffRoleOf(account),
     staffCapabilities: staffCapabilities(staffRoleOf(account)),

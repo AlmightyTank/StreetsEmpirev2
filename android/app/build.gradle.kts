@@ -17,6 +17,12 @@ val playKeyPassword = System.getenv("ANDROID_RELEASE_KEY_PASSWORD")
     ?: providers.gradleProperty("ANDROID_RELEASE_KEY_PASSWORD").orNull
 val playSigningValues = listOf(playStoreFile, playStorePassword, playKeyAlias, playKeyPassword)
 val playSigningConfigured = playSigningValues.all { !it.isNullOrBlank() }
+val playGamesProjectId = System.getenv("PLAY_GAMES_PROJECT_ID")
+    ?: providers.gradleProperty("PLAY_GAMES_PROJECT_ID").orNull
+    ?: ""
+val playGamesWebClientId = System.getenv("PLAY_GAMES_WEB_CLIENT_ID")
+    ?: providers.gradleProperty("PLAY_GAMES_WEB_CLIENT_ID").orNull
+    ?: ""
 
 android {
     namespace = "dev.streetsempire.app"
@@ -26,8 +32,8 @@ android {
         applicationId = "dev.streetsempire.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 8
-        versionName = "1.0.8"
+        versionCode = 9
+        versionName = "1.0.9"
     }
 
     flavorDimensions += "environment"
@@ -35,14 +41,18 @@ android {
         create("production") {
             dimension = "environment"
             resValue("string", "app_name", "StreetsEmpire")
+            resValue("string", "game_services_project_id", playGamesProjectId)
             buildConfigField("String", "LIVE_ORIGIN", "\"https://play.streetsempire.dev\"")
+            buildConfigField("String", "PLAY_GAMES_WEB_CLIENT_ID", "\"$playGamesWebClientId\"")
         }
         create("beta") {
             dimension = "environment"
             applicationIdSuffix = ".beta"
             versionNameSuffix = "-beta"
             resValue("string", "app_name", "StreetsEmpire Beta")
+            resValue("string", "game_services_project_id", playGamesProjectId)
             buildConfigField("String", "LIVE_ORIGIN", "\"https://beta.streetsempire.dev\"")
+            buildConfigField("String", "PLAY_GAMES_WEB_CLIENT_ID", "\"$playGamesWebClientId\"")
         }
     }
 
@@ -94,6 +104,8 @@ dependencies {
     implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
     implementation("androidx.webkit:webkit:1.10.0")
     implementation("com.android.billingclient:billing:9.1.0")
+    // Google Play Games Services SDK (Games v2).
+    implementation("com.google.android.gms:play-services-games-v2:+")
 
     // Native interface: server is the backend, app renders its own UI.
     implementation("com.squareup.okhttp3:okhttp:4.12.0")

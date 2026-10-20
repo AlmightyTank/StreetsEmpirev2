@@ -113,6 +113,9 @@ const envSchema = z.object({
   /** Exact Pub/Sub push audience and OIDC service-account email. Both enable Play RTDN. */
   GOOGLE_PLAY_RTDN_AUDIENCE: z.union([z.literal(''), z.string().url()]).default(''),
   GOOGLE_PLAY_RTDN_SERVICE_ACCOUNT_EMAIL: z.union([z.literal(''), z.string().email()]).default(''),
+  /** OAuth web client used only by the server to exchange Play Games auth codes. */
+  GOOGLE_PLAY_GAMES_WEB_CLIENT_ID: z.string().default(''),
+  GOOGLE_PLAY_GAMES_WEB_CLIENT_SECRET: z.string().default(''),
   EMAIL_FROM: z.string().default(''),
   /** How long admin audit entries are kept. 0 keeps them forever. */
   ADMIN_AUDIT_RETENTION_DAYS: z.coerce.number().int().min(0).max(3650).default(365),
@@ -367,6 +370,13 @@ export const env = {
         && parsed.data.GOOGLE_PLAY_ACCOUNT_HASH_SECRET
         && parsed.data.GOOGLE_PLAY_RTDN_AUDIENCE
         && parsed.data.GOOGLE_PLAY_RTDN_SERVICE_ACCOUNT_EMAIL
+      ),
+    },
+    gamesAuth: {
+      clientId: parsed.data.GOOGLE_PLAY_GAMES_WEB_CLIENT_ID,
+      clientSecret: parsed.data.GOOGLE_PLAY_GAMES_WEB_CLIENT_SECRET,
+      enabled: parsed.data.NODE_ENV !== 'test' && Boolean(
+        parsed.data.GOOGLE_PLAY_GAMES_WEB_CLIENT_ID && parsed.data.GOOGLE_PLAY_GAMES_WEB_CLIENT_SECRET,
       ),
     },
     enabled: parsed.data.NODE_ENV !== 'test' && Boolean(

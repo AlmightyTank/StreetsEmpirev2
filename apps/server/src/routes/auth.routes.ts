@@ -3,6 +3,7 @@ import type { Account, PrismaClient, Session } from '@prisma/client';
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import { RULES_VERSION, changeEmailSchema, changeUsernameSchema, closeAccountSchema, deleteAccountSchema, twoFactorCodeBodySchema, twoFactorSetupSchema, twoFactorVerifySchema, changePasswordSchema, forgotPasswordSchema, loginSchema, normalizeUsername, birthDateUpdateSchema, registerSchema, resetPasswordSchema, updateAccountProfileSettingsSchema, verifyEmailTokenSchema, type AccountSessionDto } from '@streets/shared';
 import { z } from 'zod';
+import { OAuth2Client } from 'google-auth-library';
 import { assertBetaAccess, assertCanSignIn, clearExpiredSuspension } from '../auth/account-status.js';
 import { adminNeedsSecondFactor, isStaff } from '../auth/play-access.js';
 import { hashPassword, verifyPassword } from '../auth/password.js';
@@ -86,6 +87,17 @@ const discordUserSchema = z.object({
   avatar: z.string().nullable().optional(),
   email: z.string().email().nullable().optional(),
   verified: z.boolean().nullable().optional(),
+});
+
+const playGamesBodySchema = z.object({
+  serverAuthCode: z.string().min(20).max(4096),
+  link: z.boolean().optional().default(false),
+  remember: z.boolean().optional().default(true),
+});
+
+const playGamesPlayerSchema = z.object({
+  playerId: z.string().min(1),
+  displayName: z.string().optional(),
 });
 
 type DiscordUser = z.infer<typeof discordUserSchema>;
@@ -311,6 +323,45 @@ async function uniqueUsername(prisma: PrismaClient, base: string): Promise<strin
   }
 
   return `discord_${randomBytes(5).toString('hex')}`.slice(0, 20);
+}
+
+async function playerFromPlayGamesCode(authCode: string): Promise<{ id: string; displayName: string | null }> {
+  if (!env.googlePlay.gamesAuth.enabled) {
+    throw new AppError(503, 'PLAY_GAMES_UNAVAILABLE', 'Google Play Games sign-in is not available right now.');
+  }
+
+  const client = new OAuth2Client(
+    env.googlePlay.gamesAuth.clientId,
+    env.googlePlay.gamesAuth.clientSecret,
+    '',
+  );
+  let tokens;
+  try {
+    ({ tokens } = await client.getToken({ code: authCode }));
+  } catch {
+    throw new AppError(401, 'PLAY_GAMES_CODE_INVALID', 'That Google Play Games sign-in has expired. Try again.');
+  }
+  if (!tokens.access_token) {
+    throw new AppError(401, 'PLAY_GAMES_CODE_INVALID', 'Google Play Games did not provide a usable sign-in. Try again.');
+  }
+
+  const response = await fetch('https://games.googleapis.com/games/v1/players/me', {
+    headers: { Authorization: `Bearer ${tokens.access_token}` },
+  }).catch(() => null);
+  if (!response?.ok) {
+    throw new AppError(401, 'PLAY_GAMES_NOT_VERIFIED', 'Google could not verify your Play Games player. Try again.');
+  }
+  const player = playGamesPlayerSchema.safeParse(await response.json());
+  if (!player.success) {
+    throw new AppError(401, 'PLAY_GAMES_NOT_VERIFIED', 'Google could not verify your Play Games player. Try again.');
+  }
+  return { id: player.data.playerId, displayName: player.data.displayName ?? null };
+}
+
+function playGamesUsernameBase(displayName: string | null, playerId: string): string {
+  const seed = displayName || `player_${playerId.slice(-8)}`;
+  const clean = seed.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 20);
+  return clean.length >= 3 ? clean : `player_${playerId.slice(-8)}`.slice(0, 20);
 }
 
 /** Seconds between verification emails to one account, so the button cannot be used to spam an inbox. */
@@ -671,6 +722,76 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     await noteSignIn(fastify.prisma, request, reply, updated);
 
     return { account: toAccountDto(updated) };
+  });
+
+  /**
+   * Android sends a single-use server auth code. The server exchanges it and
+   * asks the Play Games API for the player identity; device-supplied IDs are
+   * deliberately never trusted. `link` is only for an already signed-in user.
+   */
+  fastify.post('/play-games', async (request, reply) => {
+    const body = parseBody(playGamesBodySchema, request.body);
+    const player = await playerFromPlayGamesCode(body.serverAuthCode);
+    const now = new Date();
+
+    if (body.link) {
+      if (!request.auth) throw AppError.unauthenticated('Sign in to StreetsEmpire before linking Google Play Games.');
+      await clearExpiredSuspension(fastify.prisma, request.auth.account, now);
+      assertCanSignIn(request.auth.account, now);
+      const owner = await fastify.prisma.account.findUnique({ where: { playGamesId: player.id } });
+      if (owner && owner.id !== request.auth.account.id) {
+        throw new AppError(409, 'PLAY_GAMES_ALREADY_LINKED', 'That Play Games account is already linked to another player.');
+      }
+      const account = await fastify.prisma.account.update({
+        where: { id: request.auth.account.id },
+        data: {
+          playGamesId: player.id,
+          playGamesDisplayName: player.displayName,
+          playGamesLinkedAt: request.auth.account.playGamesLinkedAt ?? now,
+          lastLoginAt: now,
+        },
+      });
+      return { account: toAccountDto(account, request.auth.session), linked: true };
+    }
+
+    let account = await fastify.prisma.account.findUnique({ where: { playGamesId: player.id } });
+    if (account) {
+      await clearExpiredSuspension(fastify.prisma, account, now);
+      assertCanSignIn(account, now);
+      account = await fastify.prisma.account.update({
+        where: { id: account.id },
+        data: { playGamesDisplayName: player.displayName, lastLoginAt: now },
+      });
+    } else {
+      const username = await uniqueUsername(fastify.prisma, playGamesUsernameBase(player.displayName, player.id));
+      // Play Games is the credential for this account. The reserved address is
+      // not presented as a recovery email and is intentionally not matched to
+      // an existing email account.
+      account = await fastify.prisma.account.create({
+        data: {
+          username,
+          usernameNormalized: normalizeUsername(username),
+          email: `playgames_${player.id}@accounts.streetsempire.invalid`,
+          emailVerifiedAt: now,
+          passwordHash: await hashPassword(randomBytes(32).toString('base64url')),
+          playGamesId: player.id,
+          playGamesDisplayName: player.displayName,
+          playGamesLinkedAt: now,
+          registeredIp: request.ip,
+          lastLoginAt: now,
+        },
+      });
+    }
+
+    const { token } = await createSession(fastify.prisma, account.id, {
+      userAgent: request.headers['user-agent'],
+      ip: request.ip,
+      method: 'PLAY_GAMES',
+      remember: body.remember,
+    });
+    fastify.setSessionCookie(reply, token, body.remember);
+    await noteSignIn(fastify.prisma, request, reply, account);
+    return { account: toAccountDto(account), linked: false };
   });
 
   fastify.get('/discord', async (request, reply) => {

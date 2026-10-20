@@ -6,6 +6,8 @@ client and server rather than shipping a second copy of the game.
 
 - Live server only
 - Google Play monthly supporter subscription (`supporter_monthly`)
+- Google Play Games Services SDK v2 sign-in; set `PLAY_GAMES_PROJECT_ID` and
+  `PLAY_GAMES_WEB_CLIENT_ID` as Gradle properties or environment variables
 - Game and Discord OAuth stay in-app; Discord's explicit mobile-app handoff
   links open Discord Mobile and return to the in-app OAuth flow
 - Two-finger pull-to-refresh, reload, offline retry, file chooser, and WebView back history
@@ -104,7 +106,7 @@ recording payment or granting supporter rewards.
 
 ```text
 app/src/main/java/dev/streetsempire/app/
-  MainActivity.kt          Secure WebView and native billing URL bridge
+  MainActivity.kt          Secure WebView, billing, and Play Games bridge
   GameConfig.kt            Live origin, URL allow-list, and product ID
   PlayBillingManager.kt    Play Billing client; no local entitlements
 ```
@@ -112,8 +114,8 @@ app/src/main/java/dev/streetsempire/app/
 ## Security notes
 
 - Cleartext and mixed content are disabled.
-- JavaScript and DOM storage are enabled because the web game needs them; there
-  is no `addJavascriptInterface` bridge.
+- JavaScript and DOM storage are enabled because the web game needs them; the
+  bridge exposes only native capability and Play Games sign-in.
 - Third-party cookies are disabled. The app never reads the live session cookie.
 - Billing custom URLs are intercepted only by the native shell; purchase tokens
   are returned to the trusted live page and verified by the server.

@@ -2,7 +2,7 @@ import type { Account, StaffRole } from '@prisma/client';
 import { RULES_VERSION } from '@streets/shared';
 import { env } from '../config/env.js';
 
-type PlayAccount = Pick<Account, 'isAdmin' | 'emailVerifiedAt' | 'discordId' | 'verificationGrandfatheredAt'>;
+type PlayAccount = Pick<Account, 'isAdmin' | 'emailVerifiedAt' | 'discordId' | 'playGamesId' | 'verificationGrandfatheredAt'>;
 
 /**
  * Who may play. A player needs a confirmed email address: either they clicked the
@@ -12,7 +12,7 @@ type PlayAccount = Pick<Account, 'isAdmin' | 'emailVerifiedAt' | 'discordId' | '
  * and test by default), everyone may.
  */
 export function canPlay(account: PlayAccount, required = env.accounts.requireVerifiedEmail): boolean {
-  return !required || account.isAdmin || Boolean(account.emailVerifiedAt) || Boolean(account.discordId) || Boolean(account.verificationGrandfatheredAt);
+  return !required || account.isAdmin || Boolean(account.emailVerifiedAt) || Boolean(account.discordId) || Boolean(account.playGamesId) || Boolean(account.verificationGrandfatheredAt);
 }
 
 /** The player has not accepted the current game rules yet. Admins are never held back. */
@@ -25,7 +25,7 @@ export function needsRulesAcceptance(
 
 /** Paths that are "playing": the game itself and joining a season. */
 /** rc.2. How a session signed in. */
-export type SessionMethod = 'PASSWORD' | 'DISCORD';
+export type SessionMethod = 'PASSWORD' | 'DISCORD' | 'PLAY_GAMES';
 
 /** rc.3/rc.4. What a session proved, and when it last proved a second factor. */
 export type SessionStrength = { method: string; twoFactor: boolean; secondFactorAt: Date | null };

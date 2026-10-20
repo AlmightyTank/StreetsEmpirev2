@@ -107,6 +107,7 @@ interface SessionState {
   register: (input: RegisterInput) => Promise<string | null>;
   /** rc.3: resolves `twoFactorRequired` when the sign-in waits for an authenticator code. */
   login: (input: LoginInput) => Promise<{ twoFactorRequired: boolean }>;
+  playGames: (serverAuthCode: string) => Promise<void>;
   resetPassword: (input: ResetPasswordInput) => Promise<{ twoFactorRequired: boolean }>;
   /** rc.3. Finishes a sign-in that waits for its code. Returns how many recovery codes are left when one was used. */
   completeTwoFactor: (code: string, trustDevice?: boolean) => Promise<{ recoveryCodesLeft: number | null }>;
@@ -260,6 +261,13 @@ export const useSession = create<SessionState>((set, get) => ({
     await get().refreshProfileSettings();
     await get().refreshRound();
     return { twoFactorRequired: false };
+  },
+
+  async playGames(serverAuthCode) {
+    const response = await authApi.playGames(serverAuthCode);
+    set({ account: response.account });
+    await get().refreshProfileSettings();
+    await get().refreshRound();
   },
 
   async resetPassword(input) {

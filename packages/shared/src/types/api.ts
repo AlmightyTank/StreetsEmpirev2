@@ -151,6 +151,8 @@ export interface AccountDto {
   emailVerifiedAt: string | null;
   discordLinked: boolean;
   discordUsername: string | null;
+  /** True when a Google Play Games identity is linked. */
+  playGamesLinked: boolean;
   /** True for Founder and Admin. */
   isAdmin: boolean;
   /** Null for players. */
