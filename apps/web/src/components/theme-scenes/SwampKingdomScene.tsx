@@ -1,41 +1,45 @@
 import type { CSSProperties } from 'react';
 
-// A fairy-tale bog for the Swamp Kingdom shell (`swamp-kingdom-shell`, The Drop): a crooked
-// outhouse with a KEEP OUT sign in the reeds, a castle on the far hill and a dragon circling it.
-const motes = [['60%', '64%', '-2s'], ['70%', '48%', '-5s'], ['80%', '70%', '-1s'], ['90%', '54%', '-7s'], ['76%', '30%', '-4s']] as const;
+// Old Gregg's loch for the Swamp Kingdom shell (`swamp-kingdom-shell`, The Drop): far hills, a
+// still loch, Gregg himself peeping out of the water by the reeds and a glass of Baileys on a rock.
+const bubbles = [['60%', '78%', '-2s'], ['68%', '70%', '-5s'], ['74%', '82%', '-1s'], ['84%', '74%', '-7s'], ['90%', '80%', '-4s']] as const;
 
 export default function SwampKingdomScene() {
   return (
     <div className="se-theme-scene se-theme-scene--swamp-kingdom">
       <svg className="se-sk__hill" viewBox="0 0 560 340" preserveAspectRatio="xMaxYMax meet">
-        {/* The far hill and castle, with a small dragon looping round the towers. */}
-        <path d="M120 300 Q300 150 560 190 V300 Z" fill="#141c12" />
-        <g fill="#1b2418" stroke="#7aa83a" strokeOpacity=".2">
-          <rect x="360" y="132" width="90" height="56" />
-          <rect x="350" y="104" width="20" height="84" /><rect x="440" y="104" width="20" height="84" /><rect x="395" y="92" width="20" height="96" />
-          <path d="M346 104 L360 82 L374 104 Z M436 104 L450 82 L464 104 Z M391 92 L405 64 L419 92 Z" />
+        {/* Far hills and the loch. */}
+        <path d="M120 250 Q260 170 380 210 Q470 160 560 190 V260 H120 Z" fill="#141c12" />
+        <path d="M80 262 Q320 248 560 256 V340 H80 Z" fill="#0d1a17" />
+        <g stroke="#7aa83a" strokeOpacity=".16" strokeWidth="2" strokeLinecap="round">
+          <path d="M150 276 H220 M300 290 H380 M440 272 H520 M200 312 H260" />
         </g>
-        <g fill="#ffd36a" opacity=".55"><rect x="400" y="112" width="8" height="12" rx="4" /><rect x="378" y="150" width="7" height="10" /><rect x="425" y="150" width="7" height="10" /></g>
-        <g className="se-sk__orbit">
-          <g className="se-sk__dragon" fill="#2a1f1a">
-            <path d="M0 0 q14 -6 26 0 q-8 4 -12 4 Z" />
-            <path d="M8 -1 L2 -14 L16 -3 Z M14 -1 L22 -12 L20 -1 Z" />
+        {/* Old Gregg, bobbing in the water. */}
+        <g className="se-sk__gregg">
+          <g transform="translate(400 262)">
+            <path d="M-34 -22 L-56 -38 L-48 -24 L-62 -20 L-48 -14 L-56 -4 L-34 -8 Z M34 -22 L56 -38 L48 -24 L62 -20 L48 -14 L56 -4 L34 -8 Z" fill="#d9884a" opacity=".75" />
+            <path d="M-36 4 Q-38 -46 0 -48 Q38 -46 36 4 Z" fill="#4e5a24" />
+            <path d="M-22 -40 Q-36 -30 -38 -6 M-14 -44 Q-30 -36 -32 -10 M22 -40 Q36 -30 38 -6 M14 -44 Q30 -36 32 -10 M-18 -44 Q0 -52 18 -44" stroke="#17110a" strokeWidth="2" fill="none" strokeLinecap="round" />
+            <circle cx="-14" cy="-22" r="10" fill="#ece0a2" /><circle cx="15" cy="-23" r="11" fill="#ece0a2" />
+            <path d="M-24 -24 A10 10 0 0 1 -4 -24 Z M4 -25 A11 11 0 0 1 26 -25 Z" fill="#6a7634" />
+            <circle cx="-12" cy="-19" r="3" fill="#0b0b0b" /><circle cx="13" cy="-20" r="3.2" fill="#0b0b0b" />
+            <path d="M-20 -4 Q0 4 20 -4" stroke="#2a0a0c" strokeWidth="3" fill="none" strokeLinecap="round" />
           </g>
+          <path d="M350 266 Q400 258 450 266" stroke="#7aa83a" strokeOpacity=".35" strokeWidth="2" fill="none" />
         </g>
-        {/* Foreground: reeds, a mud bank and the outhouse. */}
-        <path d="M0 340 V300 Q140 284 300 296 T560 292 V340 Z" fill="#0b1009" />
-        <g transform="translate(150 300)">
-          <path d="M-30 0 V-96 L0 -112 L30 -96 V0 Z" fill="#2a2016" stroke="#7aa83a" strokeOpacity=".25" />
-          <path d="M-6 -92 a6 9 0 1 0 12 0 a6 9 0 1 0 -12 0" fill="#0b1009" opacity=".8" />
-          <rect x="-20" y="-64" width="40" height="18" rx="2" fill="#c9a46a" transform="rotate(-6)" />
-          <text x="0" y="-51" textAnchor="middle" fontSize="9" fontWeight="700" fill="#5a2a12" transform="rotate(-6)">KEEP OUT</text>
+        {/* Foreground: a rock with a glass of Baileys, and the reeds. */}
+        <path d="M0 340 V306 Q140 292 300 302 T560 298 V340 Z" fill="#0b1009" />
+        <g transform="translate(170 300)">
+          <path d="M-40 4 Q-36 -20 -6 -24 Q30 -26 40 4 Z" fill="#1b2418" stroke="#7aa83a" strokeOpacity=".2" />
+          <path d="M-6 -24 L6 -24 L8 -46 L-8 -46 Z" fill="#dfeff2" fillOpacity=".25" stroke="#f4fbff" strokeOpacity=".5" />
+          <path d="M-6.2 -26 L6.2 -26 L7.2 -37 L-7.2 -37 Z" fill="#c9a46e" opacity=".85" />
         </g>
         <g stroke="#3d5a24" strokeWidth="3" strokeLinecap="round">
-          <path d="M60 310 V270 M70 312 V262 M82 310 V276 M220 306 V272 M232 308 V264 M520 304 V268 M532 306 V258" />
+          <path d="M60 314 V270 M70 316 V262 M82 314 V276 M290 304 V270 M302 306 V262 M520 302 V266 M532 304 V256" />
         </g>
       </svg>
       <div className="se-sk__motes">
-        {motes.map(([left, top, delay], index) => (
+        {bubbles.map(([left, top, delay], index) => (
           <i key={index} style={{ left, top, animationDelay: delay } as CSSProperties} />
         ))}
       </div>

@@ -475,14 +475,14 @@ export const ITEM_COSMETIC_STYLES = [
   {
     key: 'swamp-kingdom-van',
     label: 'Swamp Kingdom',
-    description: 'A storybook carriage van with a KEEP OUT sign. A Drop look for the Van.',
+    description: 'Old Gregg\'s scaly green van with a big orange roof fin. A Drop look for the Van.',
     released: true,
     items: ['VAN'],
   },
   {
     key: 'swamp-kingdom-thug',
     label: 'Swamp Kingdom',
-    description: 'A burlap tunic under a leather vest. A Drop outfit for the Thug.',
+    description: 'A scaly Old Gregg fan jacket with orange fins. A Drop outfit for the Thug.',
     released: true,
   },
   {
@@ -494,7 +494,7 @@ export const ITEM_COSMETIC_STYLES = [
   {
     key: 'swamp-kingdom-shotgun',
     label: 'Swamp Kingdom',
-    description: 'A carved-wood blunderbuss wrapped in ivy. A Drop finish for the Shotgun.',
+    description: 'A scaly green barrel with a spiny orange fin and barnacles. A Drop finish for the Shotgun.',
     released: true,
     items: ['SHOTGUN'],
   },
@@ -884,7 +884,7 @@ const CREW_OUTFIT_DESCRIPTIONS: Partial<Record<ItemCosmeticStyleKey, string>> = 
   'quarter-mile-hoe': 'A black racing-leather jacket with orange stripes and aviator shades.',
   '88-club-thug': 'An eighties puffer vest over a denim jacket, with a calculator watch.',
   '88-club-hoe': 'A fifties prom dress in powder blue with a corsage and a ribbon in her hair.',
-  'swamp-kingdom-thug': 'A rough burlap tunic under a worn leather vest, with a rope belt.',
+  'swamp-kingdom-thug': 'An Old Gregg fan jacket in green fish scales, with orange shoulder fins, an orange bandana and a little Baileys glass on the vest.',
   'swamp-kingdom-hoe': 'Old Gregg from the loch: green scales, orange fins, big wet eyes, a lank comb-over and a glass of Baileys.',
   'zombie-apocalypse-thug': 'A torn flannel shirt over a grimy tank, a shell bandolier across the chest and a bloodied bandage on the arm.',
   'zombie-apocalypse-hoe': 'A scuffed olive field jacket with a quarantine-orange armband and a walkie-talkie on the collar.',

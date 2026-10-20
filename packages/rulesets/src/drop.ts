@@ -199,8 +199,8 @@ export const DROP_COLLECTIONS = {
   'swamp-kingdom': {
     key: 'swamp-kingdom',
     name: 'Swamp Kingdom',
-    tagline: 'Far, far away. Keep out.',
-    description: 'A fairytale gone muddy: a storybook swamp, an outhouse with a KEEP OUT sign, a castle on the hill and a dragon circling it.',
+    tagline: 'I\'m Old Gregg!',
+    description: 'Down in Old Gregg\'s loch: green scales, orange fins, murky water, a glass of Baileys on a rock and Gregg himself peeping out by the reeds.',
     accent: '#7aa83a',
   },
   'zombie-apocalypse': {
@@ -1156,12 +1156,12 @@ const ITEMS: readonly DropItemDefinition[] = [
   }),
   // Swamp Kingdom
   item('swamp-kingdom', 'van', {
-    name: 'Swamp Kingdom Van', description: 'A storybook carriage van: mossy wood panels, curled gold trim, cartwheel rims and a KEEP OUT sign on the side. A Van look only.',
+    name: 'Swamp Kingdom Van', description: 'Old Gregg\'s van: scaly loch-green paint, a big orange dorsal fin on the roof, fin-orange rims, loch weed dripping off the sills and I\'M OLD GREGG on the side. A Van look only.',
     kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'VEHICLES', priceCrowns: 700, styleKey: 'swamp-kingdom-van',
     preview: { type: 'ITEM', items: ['VAN'] }, dresses: 'VAN',
   }),
   item('swamp-kingdom', 'thug', {
-    name: 'Swamp Kingdom Thug', description: 'A rough burlap tunic under a worn leather vest, with a rope belt. A Thug outfit only.',
+    name: 'Swamp Kingdom Thug', description: 'An Old Gregg fan jacket: green fish scales, orange fins on the shoulders, gills on the sleeves, an orange bandana and a little Baileys glass on the vest. A Thug outfit only.',
     kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'CREW', priceCrowns: 600, styleKey: 'swamp-kingdom-thug',
     preview: { type: 'ITEM', items: ['THUG'] }, dresses: 'THUG',
   }),
@@ -1171,29 +1171,29 @@ const ITEMS: readonly DropItemDefinition[] = [
     preview: { type: 'ITEM', items: ['HOE'] }, dresses: 'HOE',
   }),
   item('swamp-kingdom', 'shotgun', {
-    name: 'Swamp Kingdom Shotgun', description: 'A carved-wood blunderbuss with ivy growing round the barrel. A visual finish only; it never gives you a shotgun or the right to buy one.',
+    name: 'Swamp Kingdom Shotgun', description: 'Fished out of Old Gregg\'s loch: a scaly green barrel with a spiny orange fin along the top, barnacles and loch water dripping from the muzzle. A visual finish only; it never gives you a shotgun or the right to buy one.',
     kind: 'ITEM_COLLECTION', rarity: 'rare', category: 'WEAPONS', priceCrowns: 450, styleKey: 'swamp-kingdom-shotgun',
     preview: { type: 'ITEM', items: ['SHOTGUN'] }, dresses: 'SHOTGUN',
   }),
   item('swamp-kingdom', 'frame', {
-    name: 'Swamp Kingdom Frame', description: 'A storybook page edged with curling vines and a little gold crown.',
+    name: 'Swamp Kingdom Frame', description: 'A scaly loch-green ring with one of Old Gregg\'s orange fins on top.',
     kind: 'PROFILE_FRAME', rarity: 'epic', category: 'PROFILES', priceCrowns: 400, styleKey: 'swamp-kingdom-frame',
     preview: { type: 'FRAME' },
   }),
   item('swamp-kingdom', 'accent', {
-    name: 'Swamp Moss Accent', description: 'A mossy swamp-green profile and banner accent.',
+    name: 'Loch Green Accent', description: 'Old Gregg\'s scaly loch-green as a profile and banner accent.',
     kind: 'ACCENT', rarity: 'rare', category: 'SHELLS', priceCrowns: 250, styleKey: 'swamp-moss',
     preview: { type: 'ACCENT', color: '#7aa83a' },
   }),
   item('swamp-kingdom', 'shell', {
-    name: 'Swamp Kingdom Shell', description: 'The whole game in a fairytale swamp: mossy panels, swamp-green controls, an outhouse with a KEEP OUT sign, a castle on the hill and a dragon circling it.',
+    name: 'Swamp Kingdom Shell', description: 'The whole game down in Old Gregg\'s loch: scaly green panels, fin-orange highlights, bubbles rising, a glass of Baileys on a rock and Gregg bobbing in the water by the reeds.',
     kind: 'SITE_THEME', rarity: 'legendary', category: 'SHELLS', priceCrowns: 1000, styleKey: 'swamp-kingdom-shell',
     preview: { type: 'THEME' },
   }),
   item('swamp-kingdom', 'title', {
-    name: 'Got Layers', description: 'A Swamp Kingdom title. Wear it as a title or feature it as a badge.',
+    name: 'I\'m Old Gregg', description: 'A Swamp Kingdom title. Wear it as a title or feature it as a badge.',
     kind: 'TITLE_BADGE', rarity: 'uncommon', category: 'PROFILES', priceCrowns: 150,
-    preview: { type: 'TITLE', title: 'Got Layers' },
+    preview: { type: 'TITLE', title: 'I\'m Old Gregg' },
   }),
   // Zombie Apocalypse
   // Zombie Apocalypse
@@ -1425,7 +1425,7 @@ export const DROP_BUNDLES: Readonly<Record<string, DropBundleDefinition>> = Obje
   bundleOf('block-party', 1650, 'All eight Block Party pieces: the Van, both crew outfits, the Shotgun finish, the frame, the accent, the shell theme and the Block Captain title.'),
   bundleOf('quarter-mile', 1750, 'All nine Quarter Mile pieces: the Sedan, the Low-Rider, both crew outfits, the Tek-9 finish, the frame, the accent, the shell theme and the Ride or Die title.'),
   bundleOf('88-club', 1700, 'All eight 88 Club pieces: the Van, both crew outfits, the Pistol finish, the frame, the accent, the shell theme and the Ahead of Time title.'),
-  bundleOf('swamp-kingdom', 1700, 'All eight Swamp Kingdom pieces: the Van, both crew outfits, the Shotgun finish, the frame, the accent, the shell theme and the Got Layers title.'),
+  bundleOf('swamp-kingdom', 1700, 'All eight Swamp Kingdom pieces: the Van, both crew outfits, the Shotgun finish, the frame, the accent, the shell theme and the I\'m Old Gregg title.'),
   bundleOf('zombie-apocalypse', 1700, 'All eight Zombie Apocalypse pieces: the Van, both crew outfits, the Shotgun finish, the frame, the accent, the shell theme and the Last One Standing title.'),
 ].map((bundle) => [bundle.key, bundle]));
 

@@ -1809,7 +1809,9 @@ Object.assign(recipes, {
 const NITROUS = '#2f9bff';
 const TUNER = '#ff7a1a';
 const FLUX = '#4fd2ff';
-const MOSSY = '#7aa83a';
+const GREGG_FIN = '#d9884a';
+/** Fish scales for the Swamp Kingdom (Old Gregg) set. */
+const GREGG_SCALES = (id, w, h) => `<pattern id="${id}" width="${w}" height="${h}" patternUnits="userSpaceOnUse"><path d="M0 ${h} Q${w / 2} 1 ${w} ${h} M${-w / 2} ${h / 2} Q0 -1 ${w / 2} ${h / 2} M${w / 2} ${h / 2} Q${w} -1 ${w * 1.5} ${h / 2}" stroke="#2e3a12" stroke-width=".6" fill="none" opacity=".7"/></pattern>`;
 
 Object.assign(recipes, {
   /* Quarter Mile */
@@ -1949,37 +1951,44 @@ Object.assign(recipes, {
     });
   },
 
-  /* Swamp Kingdom */
+  /* Swamp Kingdom: Old Gregg's loch. Green scales, orange fins, loch water and Baileys. */
   'van-swamp-kingdom': async () => {
     let svg = await load('van');
-    svg = restop(svg, 'paint', ['#a8845e', '#7a5a3a', '#4a3420', '#241a0e']);
-    svg = restop(svg, 'decal', ['#f4ead8', '#d9c9a8']);
-    svg = restop(svg, 'rust', [['#4a6b2a', 0.9], ['#4a6b2a', 0.5], ['#4a6b2a', 0]]);
-    svg = restop(svg, 'steel', ['#e8c98a', '#b8862f', '#6a4a14']);
-    svg = recolor(svg, { '#b8bcba': '#5a3a1a' });
-    const planks = Array.from({ length: 6 }, (_, index) => `M14 ${36 + index * 9} H166`).join(' ');
+    svg = restop(svg, 'paint', ['#a9bb62', '#76903c', '#4a5e20', '#232e0e']);
+    svg = restop(svg, 'decal', ['#f3e9c6', '#d8c896']);
+    svg = restop(svg, 'rust', [['#2e4a18', 0.9], ['#2e4a18', 0.5], ['#2e4a18', 0]]);
+    svg = restop(svg, 'steel', ['#ffcf8a', GREGG_FIN, '#7a3a12']);
+    svg = recolor(svg, { '#b8bcba': '#a0521e' });
+    const body = 'M10 92 L10 34 Q10 26 18 26 L182 26 Q189 26 193 31 L213 58 L240 64 Q247 66 248 72 L249 92 Q249 97 244 97 L222 97 A19 19 0 0 0 184 97 L86 97 A19 19 0 0 0 48 97 L15 97 Q10 97 10 92 Z';
     return decorate(svg, {
+      defs: GREGG_SCALES('vscales', 8, 6),
       over: [
-        `<path d="${planks}" stroke="#3a2614" stroke-opacity=".6" stroke-width="1"/>`,
-        // A KEEP OUT sign on the panel.
-        '<text x="71" y="62" text-anchor="middle" font-family="Georgia, serif" font-size="9" font-weight="700" fill="#7a1010">KEEP OUT</text>',
-        // Curled gold trim and moss.
-        '<path d="M14 30 Q20 24 26 30 T38 30 M156 30 Q162 24 168 30" stroke="#e8c98a" stroke-width="1.6" fill="none"/>',
-        `<path d="M20 86 q6 -6 12 0 q6 -6 12 0 M120 86 q6 -6 12 0" stroke="${MOSSY}" stroke-width="2.4" fill="none"/>`,
+        `<path d="${body}" fill="url(#vscales)" opacity=".7"/>`,
+        // A dorsal fin along the roof.
+        `<path d="M36 26.5 L48 12 L55 22 L68 7 L76 21 L90 5 L98 21 L112 8 L119 22 L132 12 L146 26.5 Z" fill="${GREGG_FIN}" stroke="#5a2410" stroke-width="1" stroke-linejoin="round"/>`,
+        '<path d="M48 13 L54 26 M68 8 L72 26 M90 6 L92 26 M112 9 L110 26 M132 13 L128 26" stroke="#5a2410" stroke-width=".6" opacity=".7"/>',
+        '<text x="71" y="62" text-anchor="middle" font-family="\'Comic Sans MS\', \'Chalkboard SE\', cursive" font-size="7.5" font-weight="700" textLength="56" lengthAdjust="spacingAndGlyphs" fill="#1d3a14">I\'M OLD GREGG</text>',
+        // Loch weed draped off the sill and water dripping off it.
+        '<path d="M22 92 q2 6 0 10 M30 93 q-2 5 1 9 M120 93 q2 6 -1 10 M150 92 q-2 5 1 8" stroke="#2e4a18" stroke-width="1.6" fill="none" stroke-linecap="round"/>',
+        `<g fill="#cfe8f0" opacity=".7">${[[18, 104, 1.4], [34, 105, 1], [126, 106, 1.2], [236, 103, 1.1]].map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}"/>`).join('')}</g>`,
       ].join('\n    '),
     });
   },
   'thug-swamp-kingdom': async () => {
     let svg = await load('thug');
-    svg = repattern(svg, 'plaid', '<rect width="14" height="14" fill="#6a4a2a"/><path d="M0 4 H14 M0 10 H14" stroke="#5a3a1e" stroke-width=".8"/>');
-    svg = restop(svg, 'tank', ['#d9c9a0', '#b8a676']);
-    svg = restop(svg, 'band', ['#4d2b16', '#3a1f10']);
-    svg = recolor(svg, { '#e9fff0': '#4d2b16', '#b5f5c5': '#6a3a20', '#6ee095': '#ffffff' });
+    // A scaly green Old Gregg fan jacket with fin trim and an orange bandana.
+    svg = repattern(svg, 'plaid', '<rect width="14" height="14" fill="#6f8a3a"/><path d="M0 7 Q3.5 2 7 7 Q10.5 2 14 7 M-3.5 14 Q0 9 3.5 14 Q7 9 10.5 14 Q14 9 17.5 14 M-3.5 0 Q0 -5 3.5 0 M10.5 0 Q14 -5 17.5 0" stroke="#3a4a1a" stroke-width=".8" fill="none"/><path d="M2 6 Q3.5 4 5 6 M9 6 Q10.5 4 12 6" stroke="#d7e39a" stroke-width=".5" fill="none" opacity=".5"/>');
+    svg = restop(svg, 'tank', ['#f3e9c6', '#d8c896']);
+    svg = restop(svg, 'band', ['#ffb066', '#c2581c']);
+    svg = recolor(svg, { '#e9fff0': '#ffe0b8', '#b5f5c5': '#ffb066', '#6ee095': '#ffd9a0' });
+    const fin = 'M34 92 L20 84 L26 82 L18 74 L28 77 L28 68 L41 88 Z';
+    const mirror = (d) => d.replace(/(-?\d+(?:\.\d+)?) (-?\d+(?:\.\d+)?)/g, (_m, x, y) => `${128 - x} ${y}`);
     return decorate(svg, {
       over: [
-        // Burlap weave and a rope belt.
-        '<path d="M48 96 H80 M47 104 H81 M46 112 H82" stroke="#a8946a" stroke-width=".7" opacity=".8"/>',
-        '<path d="M44 118 Q64 122 84 118" stroke="#c9a66a" stroke-width="2.6" fill="none" stroke-dasharray="1.6 .6"/>',
+        `<g fill="${GREGG_FIN}" stroke="#5a2410" stroke-width=".9" stroke-linejoin="round"><path d="${fin}"/><path d="${mirror(fin)}"/></g>`,
+        '<path d="M26 104 q4 3 0 7 M30 103 q4 3 0 7 M102 104 q-4 3 0 7 M98 103 q-4 3 0 7" stroke="#8a2a24" stroke-width="1" fill="none" stroke-linecap="round"/>',
+        // A little glass of Baileys printed on the vest.
+        '<path d="M60 108 H68 L67 118 Q64 119.4 61 118 Z" fill="#c9a46e" stroke="#5a3a1a" stroke-width=".6" stroke-linejoin="round"/><path d="M60.4 111 H67.6" stroke="#f3e6c8" stroke-width="1.2"/>',
       ].join('\n  '),
     });
   },
@@ -2068,16 +2077,19 @@ Object.assign(recipes, {
   },
   'shotgun-swamp-kingdom': async () => {
     let svg = await load('shotgun');
-    svg = restop(svg, 'barrel', ['#e8c98a', '#b8862f', '#6a4a14']);
-    svg = restop(svg, 'steel', ['#c9a66a', '#8a6a3a', '#4a3418']);
-    svg = restop(svg, 'wood', ['#8a5a30', '#5a3a1a', '#2e1c0a']);
+    svg = restop(svg, 'barrel', ['#b3bb6c', '#6f8a3a', '#2e3612']);
+    svg = restop(svg, 'steel', ['#8a9a4c', '#4e5a2a', '#232a0e']);
+    svg = restop(svg, 'wood', ['#e8a060', '#a0521e', '#5a2a0a']);
     return decorate(svg, {
+      defs: GREGG_SCALES('gscales', 6, 5),
       over: [
-        // A flared blunderbuss muzzle and ivy round the barrel.
-        '<path d="M240 42 L252 37 V62 L240 57 Z" fill="#b8862f" stroke="#4a3418" stroke-width="1"/>',
-        `<path d="M130 48 q6 6 12 0 t12 0 t12 0 t12 0 t12 0 t12 0" stroke="${MOSSY}" stroke-width="1.4" fill="none"/>`,
-        `<g fill="${MOSSY}">${[136, 160, 184, 208].map((x) => `<ellipse cx="${x}" cy="46" rx="2.4" ry="1.4" transform="rotate(-30 ${x} 46)"/>`).join('')}</g>`,
-        '<path d="M20 62 q8 -4 16 0 M28 74 q8 -4 16 0" stroke="#3a2210" stroke-width=".8" fill="none"/>',
+        '<path d="M12 52 Q44 49 82 47 V67 Q64 69 54 73 L20 88 Q13 91 11 85 L9 57 Q9 52 12 52 Z" fill="url(#gscales)" opacity=".6"/>',
+        '<rect x="78" y="43" width="46" height="26" rx="3" fill="url(#gscales)" opacity=".8"/>',
+        // A spiny fin along the top of the barrel.
+        `<path d="M128 45 L138 33 L144 42 L156 30 L162 42 L176 29 L182 42 L196 31 L202 42 L216 34 L222 45 Z" fill="${GREGG_FIN}" stroke="#5a2410" stroke-width="1" stroke-linejoin="round"/>`,
+        // Barnacles and loch water dripping from the muzzle.
+        `<g fill="#d8cfa8" stroke="#6a6040" stroke-width=".5">${[[150, 51, 1.6], [186, 51.5, 1.2], [234, 50, 1.4], [96, 66, 1.3]].map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}"/>`).join('')}</g>`,
+        '<path d="M246 55 q1.5 4 0 6 q-1.5 -2 0 -6 Z M240 56 q1.2 3 0 4.6 q-1.2 -1.6 0 -4.6 Z" fill="#cfe8f0" opacity=".8"/>',
       ].join('\n  '),
     });
   },
