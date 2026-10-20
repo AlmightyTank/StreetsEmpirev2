@@ -1090,13 +1090,17 @@
 }
 
 
-/* Illustrated achievement badges and the full profile collection. */
+/* Illustrated achievement badges, each prop set in its rarity's diamond holder. */
 .se-badge-art {
+  position: relative;
   display: block;
   flex: 0 0 auto;
-  object-fit: contain;
   filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .48));
 }
+
+.se-badge-art > img { position: absolute; display: block; object-fit: contain; pointer-events: none; }
+.se-badge-art__holder { inset: 0; width: 100%; height: 100%; }
+.se-badge-art__item { inset: 14%; width: 72%; height: 72%; }
 
 .se-badge-art--rare { filter: drop-shadow(0 0 3px rgba(90, 188, 255, .58)); }
 .se-badge-art--epic { filter: drop-shadow(0 0 4px rgba(184, 125, 255, .72)); }
