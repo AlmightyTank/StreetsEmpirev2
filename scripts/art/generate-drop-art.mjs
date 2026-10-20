@@ -545,14 +545,14 @@ Object.assign(recipes, {
     svg = restop(svg, 'wood', ['#9a6a40', '#6a4224', '#3a2210']);
     svg = restop(svg, 'steel', ['#d4d8dc', '#80868c', '#3f4449']);
     svg = recolor(svg, { '#454a52': '#b0b5ba', '#2c2f34': '#5f656b', '#26292e': '#4f555b', '#4a1f07': '#2a1608', '#f0a060': '#e2b98a' });
-    // A 75-round drum in place of the box, seen edge-on as it is from the
-    // side: a short feed neck into a fat body grooved along its length with a rounded bottom,
-    // leaning forward like the box did.
+    // A 75-round drum in place of the box, seen edge-on and angled as it
+    // hangs: narrow at the mag well, a near-straight back edge, a deep
+    // bulging front edge, a blunt rounded bottom, and grooves following
+    // the front curve.
     svg = swap(svg, '<path d="M128 62 H152 Q158 88 176 106 L154 116 Q134 94 128 62 Z" fill="url(#mag)"/>',
-      '<g transform="translate(150 90) rotate(-18)"><rect x="-9" y="-36" width="18" height="18" fill="url(#steel)"/>'
-      + '<path d="M-16 -18 Q-16 -22 -12 -22 H12 Q16 -22 16 -18 V14 A16 16 0 0 1 -16 14 Z" fill="url(#steel)"/>'
-      + '<path d="M-10 -21 V14 Q-10 22 -5 27 M-3.5 -21 V14 Q-3.5 24 -1.5 29.5 M3.5 -21 V14 Q3.5 24 1.5 29.5 M10 -21 V14 Q10 22 5 27" fill="none" stroke="#3f4449" stroke-width="1.1"/>'
-      + '<path d="M13 -19 V14 A13 13 0 0 1 6 25.5" fill="none" stroke="#ffffff" stroke-opacity=".45" stroke-width="1.3"/></g>');
+      '<path d="M128 62 H148 C166 72 172 104 156 116 Q150 121 144 116 C136 100 130 80 128 62 Z" fill="url(#mag)"/>'
+      + '<path d="M133 62 C139 78 145 101 147 117.6 M138 62 C148 76 154 102 150 118.4 M143 62 C157 74 163 103 153 117.8" fill="none" stroke="#15171a" stroke-width="1.3"/>'
+      + '<path d="M134.5 63 C140.5 78 146.5 101 148.3 116 M139.5 63 C149.5 76 155.5 102 151.3 116.5 M144.5 63 C158.5 74 164.5 103 154.3 116" fill="none" stroke="#6a7078" stroke-opacity=".7" stroke-width=".7"/>');
     svg = svg.replace('<path d="M133 70 Q138 72 154 70M136 82 Q141 84 160 82M142 94 Q148 96 168 93"/>', '');
     return decorate(svg, {
       over: [
