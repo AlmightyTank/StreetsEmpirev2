@@ -21,6 +21,7 @@ export const sportsbookBetSchema = z.object({
 
 export const casinoSessionStartSchema = z.object({
   amountCents: casinoAmountCents,
+  territoryAccessGrantId: z.string().min(1).max(64).optional(),
   actionId: actionIdSchema,
 }).strict();
 

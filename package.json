@@ -42,6 +42,7 @@
     "qa:supply-season": "tsx scripts/qa/supply-season-sim.ts",
     "qa:recipes": "tsx scripts/qa/recipe-sim.ts",
     "qa:turf": "node --import tsx scripts/qa/turf-sim.mjs",
+    "qa:territory-perks": "node --import tsx scripts/qa/territory-perks-sim.mjs",
     "qa:season": "node --import tsx scripts/qa/season-sim.mjs",
     "qa:business": "node --import tsx scripts/qa/business-sim.mjs",
     "qa:hideout": "node --import tsx scripts/qa/hideout-sim.mjs",

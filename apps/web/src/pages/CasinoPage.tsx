@@ -391,8 +391,13 @@ export function CasinoPage() {
       if (!bought) return;
       buyAction.current = newActionId();
     }
-    const opened = await run('open', () => casinoApi.openSession({ amountCents, actionId: openAction.current }), formatCents(amountCents) + ' is on the floor. Pick a game.');
-    if (opened) openAction.current = newActionId();
+    const accessStorageKey = me?.city.slug === 'las-vegas' ? 'se-territory-grant-private-card-room' : null;
+    const territoryAccessGrantId = accessStorageKey ? sessionStorage.getItem(accessStorageKey) ?? undefined : undefined;
+    const opened = await run('open', () => casinoApi.openSession({ amountCents, actionId: openAction.current, ...(territoryAccessGrantId ? { territoryAccessGrantId } : {}) }), formatCents(amountCents) + ' is on the floor. Pick a game.');
+    if (opened) {
+      if (territoryAccessGrantId && accessStorageKey) sessionStorage.removeItem(accessStorageKey);
+      openAction.current = newActionId();
+    }
   }
 
   async function spinSlots(event: FormEvent) {

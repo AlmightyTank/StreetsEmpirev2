@@ -75,6 +75,8 @@ model Account {
   /// Null for players. Set from Admin → Staff; FOUNDER only from the console.
   staffRole    StaffRole?
   betaApproved Boolean    @default(false)
+  /// 2.4.0-F. Explicitly marked disposable account eligible for the beta territory encounter tester.
+  territoryTestAccount Boolean @default(false)
 
   /// 0.3.0-B. A timed suspension. The account signs back in on its own once this
   /// passes; the fields are cleared lazily on the next sign-in attempt.
@@ -1731,8 +1733,18 @@ model Round {
   pausedMinutesTotal          Int                   @default(0)
   /// 2.2.0. New underworld templates stay off until an admin enables them for this round.
   underworldOperationsEnabled Boolean               @default(false)
+  /// Territory perks are opt-in per round. Existing pinned rounds keep their historical behavior.
+  territoryPerksEnabled       Boolean               @default(false)
+  territoryPerksCatalogVersion String?
   /// 2.5.0. Optional, round-pinned rivalry/vendetta capability.
   rivalries                   RivalryRelationship[]
+  territoryPowerSelections    TerritoryPowerSelection[]
+  territoryAuditEvents        TerritoryAuditEvent[]
+  territoryYieldCaches        TerritoryYieldCache[]
+  territoryTollPayments       TerritoryTollPayment[]
+  territoryYieldDailyLedgers  TerritoryYieldDailyLedger[]
+  territoryYieldPlayerDailyLedgers TerritoryYieldPlayerDailyLedger[]
+  territoryRoundAwards TerritoryRoundAward[]
 
   registrationOpensAt DateTime?
 
@@ -2292,6 +2304,9 @@ model RoundPlayer {
   formerAllianceId      String?
   allianceCooldownUntil DateTime?
   allianceInvites       AllianceInvite[]       @relation("AllianceInvitee")
+  territoryTollPayments TerritoryTollPayment[]
+  territoryYieldDailyLedgers TerritoryYieldPlayerDailyLedger[]
+  territoryRoundAwards TerritoryRoundAward[]
   /// 0.4.0-A. Every product except crack, which stays on the `crack` column in every round.
   products              PlayerProduct[]
   productShelves        ProductShelf[]
@@ -2444,10 +2459,132 @@ model Alliance {
   invites AllianceInvite[]
   events  AllianceEvent[]
   wire    AllianceWirePost[]
+  territoryPowerSelection TerritoryPowerSelection?
+  territoryRoundAwards TerritoryRoundAward[]
 
   @@unique([roundId, nameNormalized])
   @@unique([roundId, tagNormalized])
   @@index([roundId, disbandedAt])
+}
+
+/// 2.4.0-A. One explicitly selected region power per alliance and round.
+model TerritoryPowerSelection {
+  id          String   @id @default(cuid())
+  roundId     String
+  round       Round    @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  allianceId  String   @unique
+  alliance    Alliance @relation(fields: [allianceId], references: [id], onDelete: Cascade)
+  regionKey   String
+  perkKey     String
+  selectedAt  DateTime @default(now())
+  changedAt   DateTime @updatedAt
+
+  @@index([roundId, regionKey])
+}
+
+/// 2.4.0-A. Durable record of territory eligibility and activation decisions.
+/// JSON snapshots keep this history readable after catalog or alliance changes.
+model TerritoryAuditEvent {
+  id          String   @id @default(cuid())
+  roundId     String
+  round       Round    @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  allianceId  String?
+  actorId     String?
+  eventType   String
+  sourceKey   String?
+  details     Json
+  catalogVersion String
+  idempotencyKey String? @unique
+  happenedAt  DateTime @default(now())
+
+  @@index([roundId, happenedAt(sort: Desc)])
+  @@index([roundId, allianceId, eventType])
+}
+
+/// 2.4.0-B2. Lazy-settled local goods cache; control intervals remain the ownership source.
+model TerritoryYieldCache {
+  id              String   @id @default(cuid())
+  roundId         String
+  round           Round    @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  scope           String
+  locationKey     String
+  ownerAllianceId String?
+  contents        Json     @default("{}")
+  fractionalRemainders Json @default("{}")
+  lastSettledAt   DateTime
+  carryMillis     Int      @default(0)
+  updatedAt       DateTime @updatedAt
+
+  @@unique([roundId, scope, locationKey])
+  @@index([roundId, ownerAllianceId, scope])
+}
+
+/// 2.4.0-B. Paid access receipts are durable for daily caps, audit and cache credit.
+model TerritoryTollPayment {
+  id                String      @id @default(cuid())
+  roundId           String
+  round             Round       @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  roundPlayerId     String
+  roundPlayer       RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  holderAllianceId  String
+  accessKey         String
+  locationKey       String
+  chargedCents      BigInt
+  actionId          String
+  usedAt            DateTime    @default(now())
+  consumedAt        DateTime?
+  consumedByActionId String?
+
+  @@unique([roundPlayerId, actionId])
+  @@index([roundPlayerId, accessKey, usedAt])
+  @@index([holderAllianceId, usedAt])
+}
+
+/// 2.4.0-B2. Serialized alliance-wide daily value ceiling for territory yields.
+model TerritoryYieldDailyLedger {
+  id         String   @id @default(cuid())
+  roundId    String
+  round      Round    @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  allianceId String
+  dayStart   DateTime
+  valueCents BigInt   @default(0)
+  updatedAt  DateTime @updatedAt
+
+  @@unique([roundId, allianceId, dayStart])
+  @@index([roundId, allianceId, dayStart])
+}
+
+/// 2.4.0-B2. Per-player guard prevents alliance hopping from resetting a member's daily allowance.
+model TerritoryYieldPlayerDailyLedger {
+  id            String      @id @default(cuid())
+  roundId       String
+  round         Round       @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  dayStart      DateTime
+  valueCents    BigInt      @default(0)
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([roundPlayerId, dayStart])
+  @@index([roundId, dayStart])
+}
+
+/// 2.4.0-F. Frozen territory-hold milestone and National Kingpin awards for the Hall of Fame.
+model TerritoryRoundAward {
+  id            String      @id @default(cuid())
+  roundId       String
+  round         Round       @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  allianceId    String
+  alliance      Alliance    @relation(fields: [allianceId], references: [id], onDelete: Cascade)
+  awardKey      String
+  scopeKey      String
+  awardedAt     DateTime    @default(now())
+
+  @@unique([roundPlayerId, awardKey, scopeKey])
+  @@index([roundId, awardKey, scopeKey])
+  @@index([allianceId, awardedAt])
 }
 
 /// A standing offer to one player. Accepting re-checks the cap under the alliance lock.

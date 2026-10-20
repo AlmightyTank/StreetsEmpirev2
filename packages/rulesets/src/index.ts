@@ -147,6 +147,7 @@ import { classicOgV21B } from './classic-og-v2.1-b/index.js';
 import { classicOgV21C } from './classic-og-v2.1-c/index.js';
 import { classicOgV22A } from './classic-og-v2.2-a/index.js';
 import { classicOgV23A } from './classic-og-v2.3-a/index.js';
+import { classicOgV24A } from './classic-og-v2.4-a/index.js';
 import type { Ruleset } from './types.js';
 
 export * from './street-skills.js';
@@ -300,6 +301,7 @@ export { classicOgV21B };
 export { classicOgV21C };
 export { classicOgV22A };
 export { classicOgV23A };
+export { classicOgV24A };
 export { UNDERWORLD_OPERATIONS_V1 } from './underworld-operations.js';
 export type { UnderworldOperationTemplate, UnderworldOperationCatalog } from './underworld-operations.js';
 export * from './living-case-outcomes.js';
@@ -308,6 +310,7 @@ export * from './classic-og-v0.1/index.js';
 export * from './types.js';
 export * from './event-system.js';
 export * from './living-stories.js';
+export * from './territory-perks.js';
 export * from './holiday-road.js';
 export * from './avatar-wearables.js';
 export * from './living-cases.js';
@@ -475,6 +478,7 @@ export const rulesets: Readonly<Record<string, Ruleset>> = {
   [classicOgV21C.meta.id]: classicOgV21C,
   [classicOgV22A.meta.id]: classicOgV22A,
   [classicOgV23A.meta.id]: classicOgV23A,
+  [classicOgV24A.meta.id]: classicOgV24A,
 };
 
 export { ROUND_ROLL_CALL_FINALE, ROUND_ROLL_CALL_FINALE_COSMETICS } from './round-roll-call-cosmetics.js';

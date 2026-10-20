@@ -16,6 +16,8 @@ import { encounterActivityPayload, RandomEncounterService } from './random-encou
 import { PermanentUnlockService } from './permanent-unlock.service.js';
 import { CrewRosterService } from './crew-roster.service.js';
 import { CityConditionService } from './city-condition.service.js';
+import { applyTerritoryModifier, resolveTerritoryModifiers, territorySourcesForAction } from './territory-perks.service.js';
+import { consumeTerritoryAccessGrant } from './territory-access.service.js';
 
 export interface Crew {
   whores: number;
@@ -99,6 +101,7 @@ export function districtsFor(ruleset: Ruleset, crew: Crew, citySlug?: string, ac
 export interface ScoutInput {
   district: string;
   turns: number;
+  territoryAccessGrantId?: string;
   crewMemberIds?: string[];
   actionId?: string;
 }
@@ -154,6 +157,9 @@ export const ScoutService = {
       actionId: input.actionId,
 
       execute: async ({ tx, current, whoreHappiness, thugHappiness, player, ruleset, round, now, skills }) => {
+        if (player.city.slug === 'miami-beach') {
+          await consumeTerritoryAccessGrant({ tx, roundId: round.id, territoryPerksEnabled: round.territoryPerksEnabled, territoryPerksCatalogVersion: round.territoryPerksCatalogVersion, roundPlayerId, cityId: player.cityId, citySlug: player.city.slug, allianceId: player.allianceId, ruleset, accessKey: 'port-dock', grantId: input.territoryAccessGrantId, actionId: input.actionId!, now });
+        }
         const found = findDistrict(ruleset, input.district);
         if (!found) {
           throw AppError.badRequest(
@@ -195,6 +201,9 @@ export const ScoutService = {
         const scoutCareerBonus = input.crewMemberIds
           ? await CrewRosterService.selectedSpecialtyBonusPercent(tx, roundPlayerId, ruleset, 'WORKER', 'SCOUT', input.crewMemberIds)
           : await CrewRosterService.specialtyBonusPercent(tx, roundPlayerId, ruleset, 'WORKER', 'SCOUT');
+        const territoryModifierReceipts = resolveTerritoryModifiers(await territorySourcesForAction({
+          tx, round, ruleset, allianceId: player.allianceId, cityId: player.cityId, citySlug: player.city.slug, district: found.key,
+        }), 'SCOUT');
         const combinedRecruitmentPercent = favorBonuses.scoutRecruitmentPercent + cityConditionBonuses.recruitPercent;
         const scoutRuleset: Ruleset = favorBonuses.scoutIncomePercent > 0 || combinedRecruitmentPercent > 0
           ? {
@@ -235,10 +244,12 @@ export const ScoutService = {
           payoutPercent: current.payoutPercent,
           rng,
         });
+        let scoutSupplyPoints = outcome.crackFound;
+        for (const receipt of territoryModifierReceipts) scoutSupplyPoints = applyTerritoryModifier(scoutSupplyPoints, receipt);
         const productsFound = streetProductFinds(
           ruleset,
           player.city.slug,
-          outcome.crackFound,
+          scoutSupplyPoints,
           rng ?? Math.random,
         );
         const crackFound = productsFound.find((row) => row.key === CRACK)?.quantity ?? 0;
@@ -339,6 +350,7 @@ export const ScoutService = {
           ...(favorBonuses.scoutIncomePercent > 0 ? { favorIncomePercent: favorBonuses.scoutIncomePercent } : {}),
           ...(favorBonuses.scoutRecruitmentPercent > 0 ? { favorRecruitmentPercent: favorBonuses.scoutRecruitmentPercent } : {}),
           ...(cityConditionBonuses.recruitPercent > 0 ? { cityConditionBonusPercent: cityConditionBonuses.recruitPercent } : {}),
+          ...(territoryModifierReceipts.length ? { territoryModifierReceipts: territoryModifierReceipts.map((receipt) => ({ ...receipt, sources: receipt.sources.map((source) => ({ ...source })) })) } : {}),
           payoutPercent: current.payoutPercent,
 
           crackFound,

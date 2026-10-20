@@ -501,11 +501,23 @@ function StoreView({
   async function execute(command: StoreCommand, recoveredActionId?: string) {
     await action.run(async (actionId) => {
       try {
+        const accessForLine = (line: { store: string; item: string; direction: 'buy' | 'sell' }) => {
+          if (line.direction === 'sell' && me?.city.slug === 'new-york-city') return 'wall-street-fixer';
+          const item = catalog?.stores.find((store) => store.key === line.store)?.items.find((row) => row.key === line.item);
+          if (line.direction === 'buy' && me?.city.slug === 'chicago' && ['pistols', 'shotguns', 'tek9s', 'ak47s'].includes(item?.field ?? '')) return 'arms-dealer';
+          if (line.direction === 'buy' && me?.city.slug === 'detroit' && ['lowRiders', 'sedans', 'vans'].includes(item?.field ?? '')) return 'motor-city-garage';
+          return null;
+        };
+        const lines = command.kind === 'checkout' ? command.lines : command.kind === 'trade' ? [command.order] : [];
+        const accessKey = lines.map(accessForLine).find((key) => key !== null);
+        const grantStorageKey = accessKey ? `se-territory-grant-${accessKey}` : null;
+        const territoryAccessGrantId = grantStorageKey ? sessionStorage.getItem(grantStorageKey) ?? undefined : undefined;
         const result = command.kind === 'checkout'
-          ? await storesApi.checkout({ lines: command.lines, actionId })
+          ? await storesApi.checkout({ lines: command.lines, actionId, ...(territoryAccessGrantId ? { territoryAccessGrantId } : {}) })
           : command.kind === 'specialOrder'
             ? await storesApi.specialOrder({ store: command.store, item: command.item, actionId })
-            : await storesApi.trade({ ...command.order, actionId });
+            : await storesApi.trade({ ...command.order, actionId, ...(territoryAccessGrantId ? { territoryAccessGrantId } : {}) });
+        if (territoryAccessGrantId && grantStorageKey) sessionStorage.removeItem(grantStorageKey);
         clearPendingAction(pendingStorage, pendingKey);
         setRetryOrder(null);
         if (command.kind === 'checkout') {

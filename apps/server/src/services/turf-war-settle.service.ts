@@ -11,6 +11,7 @@ import {
   readRacketEffects,
 } from '@streets/rules-engine';
 import type { WeaponKey } from '@streets/rulesets';
+import { territoryCatalogForRuleset } from '@streets/rulesets';
 import type { Db } from '../utils/db.js';
 import { lockRoundPlayer } from '../utils/db.js';
 import { ActivityService } from './activity.service.js';
@@ -32,6 +33,8 @@ import { recordTerritoryControlChange, territoryControlForCity } from './turf-te
 import { endTurfHold, startTurfHold } from './turf-history.service.js';
 import { BlockWarSettleService } from './block-war-settle.service.js';
 import { CrewRosterService } from './crew-roster.service.js';
+import { resolveTerritoryModifiers, territorySourcesForAction } from './territory-perks.service.js';
+import { districtTerritoryControlIntervals, settlePersistedTerritoryYield } from './territory-yield.service.js';
 import { PlayerSkillService } from './player-skill.service.js';
 
 type Weapons = Record<WeaponKey, number>;
@@ -58,6 +61,8 @@ interface StoredPushResult {
   attackerReturnedGuns: CornerGuns;
   strength: { attacker: number; defender: number } | null;
   enforcerDefenseBonusPercent?: number;
+  territoryModifierReceipts?: Array<{ effectId: string; action: string; valueBasisPoints: number; multiplierBasisPoints: number; capBasisPoints: number; sources: Array<{ id: string; label: string; valueBasisPoints: number }> }>;
+  territoryCacheRaidReceipt?: { fromAllianceId: string | null; toAllianceId: string | null; retainedBasisPoints: number; goods: Record<string, number>; cashCents: number; tollCents: number };
   cornerDefenseExperience?: number;
   shieldUntil: string | null;
   recoverAt: string | null;
@@ -223,6 +228,7 @@ export const TurfWarSettlementService = {
       let cornerWounds = 0;
       let ownerBackupWounds = 0;
       let strength: StoredPushResult['strength'] = null;
+      let territoryModifierReceipts: ReturnType<typeof resolveTerritoryModifiers> = [];
       let enforcerDefenseBonusPercent = 0;
       let cornerDefenseExperience = 0;
       let recoverAt: Date | null = null;
@@ -255,6 +261,10 @@ export const TurfWarSettlementService = {
           assignmentKind: 'TURF',
           assignmentRef: turf.id,
         });
+        territoryModifierReceipts = resolveTerritoryModifiers(await territorySourcesForAction({
+          tx, round: loaded.round, ruleset: base, allianceId: defender.allianceId, cityId: turf.cityId, citySlug: turf.city.slug, district: turf.district,
+        }), 'TURF_DEFEND');
+        const territoryDefenseMultiplier = territoryModifierReceipts.reduce((value, receipt) => value * receipt.multiplierBasisPoints / 10_000, 10_000);
 
         const fight = simulateRaid({
           attacker: { thugs: loaded.squad, thugHappiness: attacker.thugHappiness, weapons: attacker.weapons },
@@ -263,7 +273,7 @@ export const TurfWarSettlementService = {
             thugHappiness: defenderCount > 0 ? Math.round(moraleTotal / defenderCount) : defender.thugHappiness,
             weapons: defenderWeapons,
           },
-          defenderBoost: { strength: 1 + enforcerDefenseBonusPercent / 100, wounds: 1 },
+          defenderBoost: { strength: (1 + enforcerDefenseBonusPercent / 100) * territoryDefenseMultiplier / 10_000, wounds: 1 },
           attackingThugs: loaded.squad,
           attackerTurns: model.turnCost,
           defenderCashCents: 0n,
@@ -413,6 +423,31 @@ export const TurfWarSettlementService = {
         });
       }
 
+      let territoryCacheRaidReceipt: StoredPushResult['territoryCacheRaidReceipt'];
+      if (won && loaded.round.territoryPerksEnabled && loaded.round.territoryPerksCatalogVersion) {
+        const catalog = territoryCatalogForRuleset(base);
+        const profile = catalog?.districts[turf.district]?.yieldProfileKey
+          ? catalog.yieldProfiles[catalog.districts[turf.district]!.yieldProfileKey]
+          : null;
+        if (catalog && profile) {
+          const locationKey = `${turf.city.slug}:${turf.district}`;
+          const cacheBefore = await tx.territoryYieldCache.findUnique({
+            where: { roundId_scope_locationKey: { roundId: loaded.roundId, scope: 'district', locationKey } },
+          });
+          const ownerChanged = (cacheBefore?.ownerAllianceId ?? null) !== loaded.attackerAllianceId;
+          const intervals = await districtTerritoryControlIntervals({ tx, roundId: loaded.roundId, cityId: turf.cityId, district: turf.district, roundStartedAt: loaded.round.startsAt, now: at });
+          const settled = await settlePersistedTerritoryYield({ tx, roundId: loaded.roundId, scope: 'district', locationKey, profile, intervals, initialSettledAt: loaded.round.startsAt, currentAllianceId: loaded.attackerAllianceId, now: at, priorSameTierHoldings: 0 });
+          if (ownerChanged && loaded.attackerAllianceId) territoryCacheRaidReceipt = {
+            fromAllianceId: cacheBefore?.ownerAllianceId ?? null,
+            toAllianceId: loaded.attackerAllianceId,
+            retainedBasisPoints: Math.max(0, Math.min(10_000, Math.trunc(profile.ownershipChangeTransferBasisPoints ?? 2500))),
+            goods: settled.contents,
+            cashCents: settled.cashCents,
+            tollCents: settled.tollCents ?? 0,
+          };
+        }
+      }
+
       const result: StoredPushResult = {
         won, unopposed, stale, attackerWounds, defenderWounds, cornerWounds, ownerBackupWounds,
         allyBackup: allyShown,
@@ -424,6 +459,8 @@ export const TurfWarSettlementService = {
         },
         attackerPostedThugs, attackerPostedGuns, attackerReturnedGuns,
         strength, enforcerDefenseBonusPercent, cornerDefenseExperience,
+        ...(territoryModifierReceipts.length ? { territoryModifierReceipts: territoryModifierReceipts.map((receipt) => ({ ...receipt, sources: receipt.sources.map((source) => ({ ...source })) })) } : {}),
+        ...(territoryCacheRaidReceipt ? { territoryCacheRaidReceipt } : {}),
         shieldUntil: shieldUntil?.toISOString() ?? null, recoverAt: recoverAt?.toISOString() ?? null,
         outpostLoot,
         ...(stashGuardLootReductionPercent > 0 ? { stashGuardLootReductionPercent } : {}),

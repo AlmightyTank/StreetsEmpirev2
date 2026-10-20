@@ -838,6 +838,18 @@ export function RoundAftermathPage() {
                     </header>
                     <AwardHighlights categories={categories.categories} />
                   </section>
+
+                  {global.territoryAwards ? (
+                    <section className="se-aftermath-board" aria-label="Territory Hall of Fame">
+                      <header className="se-aftermath-sectionhead">
+                        <div><span className="se-eyebrow">Territory Hall of Fame</span><h2>Round territory honors</h2></div>
+                        <p>Permanent profile awards were granted to active alliance members who contributed to turf actions this round.</p>
+                      </header>
+                      {global.territoryAwards.nationalKingpinAllianceId ? <p>National Kingpin: alliance {global.territoryAwards.nationalKingpinAllianceId}</p> : null}
+                      {global.territoryAwards.regions.map((award) => <p key={award.regionKey}>{award.regionKey.replaceAll('_', ' ')} · tier {award.highestTier} · alliance {award.allianceId}</p>)}
+                      {!global.territoryAwards.awards.length ? <p>No territory milestones were awarded this round.</p> : null}
+                    </section>
+                  ) : null}
                 </>
               ) : isSummary ? (
                 <div className="se-aftermath-empty">Global totals will appear here when a finalized report is available.</div>

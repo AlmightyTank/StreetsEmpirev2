@@ -177,6 +177,11 @@ export interface RoundAftermathOverviewDto {
     playerHeldTurfBlocks: number;
     activeBusinessesHeld: number;
     crimeActions: number;
+    territoryAwards?: {
+      regions: Array<{ regionKey: string; allianceId: string; highestTier: number }>;
+      nationalKingpinAllianceId: string | null;
+      awards: Array<{ allianceId: string; awardKey: string; scopeKey: string }>;
+    };
   } | null;
   cities: RoundAftermathCityDto[];
 }

@@ -36,6 +36,7 @@ import { PlayerStateService } from './player-state.service.js';
 import { refreshAwayWorth } from './run-settle.service.js';
 import { pokerCommittedCents, poolCommittedCents } from './casino-poker-committed.js';
 import { LawService } from './law.service.js';
+import { consumeTerritoryAccessGrant } from './territory-access.service.js';
 
 type PlayerRow = RoundPlayer & {
   city: { id: string; slug: string; name: string };
@@ -981,6 +982,10 @@ export const CasinoService = {
       if (alreadyOpen) throw AppError.conflict('CASINO_SESSION_OPEN', 'Cash out your current casino session before opening another.');
 
       const { city, venue } = await currentVenue(tx, ruleset, casino, player, now);
+      if (city.slug === 'las-vegas') {
+        const round = await tx.round.findUniqueOrThrow({ where: { id: player.roundId }, select: { id: true, territoryPerksEnabled: true, territoryPerksCatalogVersion: true } });
+        await consumeTerritoryAccessGrant({ tx, roundId: round.id, territoryPerksEnabled: round.territoryPerksEnabled, territoryPerksCatalogVersion: round.territoryPerksCatalogVersion, roundPlayerId, cityId: city.id, citySlug: city.slug, allianceId: player.allianceId, ruleset, accessKey: 'private-card-room', grantId: input.territoryAccessGrantId, actionId: input.actionId, now });
+      }
       const wallet = await tx.casinoWallet.findUnique({ where: { roundPlayerId_cityId: { roundPlayerId, cityId: city.id } } });
       if (!wallet || wallet.chipsCents < amount) throw AppError.conflict('NOT_ENOUGH_CHIPS', 'Buy more chips at this cage before opening that bankroll.');
 

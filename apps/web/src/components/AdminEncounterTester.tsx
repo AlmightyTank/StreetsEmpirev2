@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSession } from '../stores/session.js';
+import { adminApi } from '../api/admin.js';
 import { previewEncounterAlert, type EncounterAlert, type EncounterAlertOutcome } from './CinematicEncounterAlerts.js';
 
 const SCENARIOS = {
@@ -108,6 +109,7 @@ export function AdminEncounterTester() {
   }
 
   return (
+    <>
     <details className="se-admin-encounter-tester se-mb">
       <summary>Internal QA · hidden encounter / combat popup tester</summary>
       <div className="se-admin-encounter-tester__body">
@@ -158,6 +160,79 @@ export function AdminEncounterTester() {
           <button type="button" className="se-btn se-btn--primary" onClick={() => previewEncounterAlert(buildPreview())}>Open cinematic preview</button>
           <button type="button" className="se-btn se-btn--secondary" onClick={previewSequence}>Test three-alert queue</button>
         </div>
+      </div>
+    </details>
+    { /* The server returns 404 outside beta; this keeps beta controls out of production UI. */ }
+    <BetaTerritoryTester />
+    </>
+  );
+}
+
+function BetaTerritoryTester() {
+  const isAdmin = useSession((state) => state.account?.isAdmin ?? false);
+  const [enabled, setEnabled] = useState(false);
+  const [accounts, setAccounts] = useState<Array<{ id: string; username: string }>>([]);
+  const [pools, setPools] = useState<Record<string, Array<{ key: string; title: string }>>>({});
+  const [accountId, setAccountId] = useState('');
+  const [roundPlayerId, setRoundPlayerId] = useState('');
+  const [trigger, setTrigger] = useState('SCOUT');
+  const [district, setDistrict] = useState('LOW_RENT');
+  const [seed, setSeed] = useState('territory-preview-1');
+  const [simulation, setSimulation] = useState<unknown>(null);
+  const [reason, setReason] = useState('Beta territory encounter QA');
+  const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    void adminApi.territoryEncounterTester().then((result) => {
+      setEnabled(result.enabled);
+      setAccounts(result.accounts);
+      setPools(result.pools);
+    }).catch(() => setEnabled(false));
+  }, [isAdmin]);
+
+  if (!isAdmin || !enabled) return null;
+  async function mark(enabled: boolean) {
+    try {
+      await adminApi.setTerritoryTestAccount(accountId, enabled, reason);
+      setMessage(enabled ? 'Test account enabled.' : 'Test account disabled.');
+      const result = await adminApi.territoryEncounterTester();
+      setAccounts(result.accounts);
+    } catch { setMessage('Could not update the test account.'); }
+  }
+  async function reward(grant: boolean) {
+    try {
+      await adminApi.territoryTestReward(roundPlayerId, 'territory-national-kingpin-frame', grant, reason);
+      setMessage(grant ? 'Test reward granted.' : 'Tester reward revoked.');
+    } catch { setMessage('Could not update the test reward. Check that the player is a marked test account.'); }
+  }
+  async function simulate() {
+    try {
+      setSimulation(await adminApi.simulateTerritoryEncounter({ roundPlayerId, trigger, district, seed }));
+      setMessage('Simulation completed without changing game state.');
+    } catch { setMessage('Simulation failed. Check the player, trigger, and district.'); }
+  }
+  return (
+    <details className="se-admin-encounter-tester se-mb">
+      <summary>Beta QA · territory encounter tester</summary>
+      <div className="se-admin-encounter-tester__body">
+        <p className="se-admin-encounter-tester__note">Beta only. Every mutation is audited and reward grants are restricted to accounts marked for testing.</p>
+        <label>Test account ID<input className="se-input" value={accountId} onChange={(event) => setAccountId(event.target.value)} /></label>
+        <label>Reason<input className="se-input" value={reason} onChange={(event) => setReason(event.target.value)} /></label>
+        <button className="se-btn" type="button" disabled={!accountId || reason.trim().length < 5} onClick={() => void mark(true)}>Mark test account</button>
+        <button className="se-btn" type="button" disabled={!accountId || reason.trim().length < 5} onClick={() => void mark(false)}>Unmark</button>
+        <p>Marked accounts: {accounts.map((account) => `${account.username} (${account.id})`).join(', ') || 'none'}</p>
+        <label>Round player ID<input className="se-input" value={roundPlayerId} onChange={(event) => setRoundPlayerId(event.target.value)} /></label>
+        <label>Trigger<select className="se-input" value={trigger} onChange={(event) => setTrigger(event.target.value)}>{['SCOUT', 'PRODUCE', 'STORE', 'TURF', 'COMBAT', 'TRAVEL'].map((value) => <option key={value}>{value}</option>)}</select></label>
+        <label>District<input className="se-input" value={district} onChange={(event) => setDistrict(event.target.value)} /></label>
+        <label>Deterministic seed<input className="se-input" value={seed} onChange={(event) => setSeed(event.target.value)} /></label>
+        <button className="se-btn" type="button" disabled={!roundPlayerId || !seed.trim()} onClick={() => void simulate()}>Simulate trigger and outcome</button>
+        <button className="se-btn" type="button" disabled={!roundPlayerId || reason.trim().length < 5} onClick={() => void reward(true)}>Grant Kingpin frame</button>
+        <button className="se-btn" type="button" disabled={!roundPlayerId || reason.trim().length < 5} onClick={() => void reward(false)}>Revoke tester frame</button>
+        <h3>Territory encounter pools</h3>
+        {Object.entries(pools).map(([trigger, entries]) => <p key={trigger}>{trigger}: {entries.map((entry) => `${entry.title} (${entry.key})`).join(', ') || 'no territory entries'}</p>)}
+        {simulation ? <pre>{JSON.stringify(simulation, null, 2)}</pre> : null}
+        {message ? <p role="status">{message}</p> : null}
       </div>
     </details>
   );
