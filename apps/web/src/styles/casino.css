@@ -1991,7 +1991,7 @@
   .se-pool__ball { width: 1.75rem; height: 1.75rem; }
   .se-pool__ball span { width: .9rem; height: .9rem; font-size: .56rem; }
   .se-pool__ball.is-8 { width: 2.1rem; height: 2.1rem; }
-  .se-pool__shots .se-btn { flex: 1 1 calc(50% - .45rem); min-width: 0; }
+  .se-pool__shots > button { flex: 1 1 calc(50% - .45rem); min-width: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   .se-pool__table.is-busy { animation: none; }
