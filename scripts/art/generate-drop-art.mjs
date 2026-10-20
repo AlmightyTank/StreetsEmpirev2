@@ -545,14 +545,12 @@ Object.assign(recipes, {
     svg = restop(svg, 'wood', ['#9a6a40', '#6a4224', '#3a2210']);
     svg = restop(svg, 'steel', ['#d4d8dc', '#80868c', '#3f4449']);
     svg = recolor(svg, { '#454a52': '#b0b5ba', '#2c2f34': '#5f656b', '#26292e': '#4f555b', '#4a1f07': '#2a1608', '#f0a060': '#e2b98a' });
-    // A 75-round drum in place of the box, seen edge-on and angled as it
-    // hangs: narrow at the mag well, a near-straight back edge, a deep
-    // bulging front edge, a blunt rounded bottom, and grooves following
-    // the front curve.
+    // A long 100-round banana magazine in place of the box, curving further
+    // forward, with its ribs following the curve.
     svg = swap(svg, '<path d="M128 62 H152 Q158 88 176 106 L154 116 Q134 94 128 62 Z" fill="url(#mag)"/>',
-      '<path d="M128 62 H148 C166 72 172 104 156 116 Q150 121 144 116 C136 100 130 80 128 62 Z" fill="url(#mag)"/>'
-      + '<path d="M133 62 C139 78 145 101 147 117.6 M138 62 C148 76 154 102 150 118.4 M143 62 C157 74 163 103 153 117.8" fill="none" stroke="#15171a" stroke-width="1.3"/>'
-      + '<path d="M134.5 63 C140.5 78 146.5 101 148.3 116 M139.5 63 C149.5 76 155.5 102 151.3 116.5 M144.5 63 C158.5 74 164.5 103 154.3 116" fill="none" stroke="#6a7078" stroke-opacity=".7" stroke-width=".7"/>');
+      '<path d="M128 62 H152 Q160 94 190 112 L168 124 Q136 100 128 62 Z" fill="url(#mag)"/>'
+      + '<path d="M131 70 H153 M134 82 Q140 84 158 81 M139 93 Q146 95 166 91 M146 103 Q154 105 175 101 M154 112 Q162 114 183 109" fill="none" stroke="#15171a" stroke-width="1.2"/>'
+      + `<path d="M150 63 Q158 94 186 111" fill="none" stroke="${PEWTER}" stroke-opacity=".5" stroke-width="1.2"/>`);
     svg = svg.replace('<path d="M133 70 Q138 72 154 70M136 82 Q141 84 160 82M142 94 Q148 96 168 93"/>', '');
     return decorate(svg, {
       over: [

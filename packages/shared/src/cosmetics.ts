@@ -168,7 +168,7 @@ export const ITEM_COSMETIC_STYLES = [
   {
     key: 'velvet-speakeasy-ak47',
     label: 'Velvet Speakeasy',
-    description: 'Walnut furniture and a drum magazine. A Drop finish for the AK-47.',
+    description: 'Walnut furniture and a long banana magazine. A Drop finish for the AK-47.',
     released: true,
     items: ['AK47'],
   },
