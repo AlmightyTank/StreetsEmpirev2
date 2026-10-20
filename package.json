@@ -82,7 +82,8 @@
     "dev:site": "npm run dev -w @streets/site",
     "build:site": "npm run build -w @streets/site",
     "qa:loans": "node --import tsx scripts/qa/loan-sim.mjs",
-    "qa:operations": "node --import tsx scripts/qa/operation-sim.ts"
+    "qa:operations": "node --import tsx scripts/qa/operation-sim.ts",
+    "qa:rivalry": "node --import tsx scripts/qa/rivalry-sim.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

@@ -1,6 +1,6 @@
 import type { Prisma } from '@prisma/client';
 import { hashParts, loadRulesetForRound } from '@streets/rules-engine';
-import type { DistrictKey, EncounterGangRules, RandomEncounterEntryRules, RandomEncounterTrigger, Ruleset } from '@streets/rulesets';
+import { rivalryRulesForRuleset, type DistrictKey, type EncounterGangRules, type RandomEncounterEntryRules, type RandomEncounterTrigger, type Ruleset } from '@streets/rulesets';
 import type { Db } from '../utils/db.js';
 import { emitCityMemoryEvent } from './city-memory.service.js';
 import type { PlayerState } from './action.service.js';
@@ -156,14 +156,18 @@ export const EncounterGangService = {
     if (!gangs.length) return null;
     const reputation = await input.tx.playerReputation.aggregate({ where: { roundPlayerId: input.roundPlayerId }, _sum: { points: true } });
     const totalRep = reputation._sum.points ?? 0;
+    const rivalryEnabled = Boolean(rivalryRulesForRuleset(input.ruleset)?.enabled);
+    const verifiedRivalry = rivalryEnabled
+      ? Boolean(await input.tx.rivalryRelationship.findFirst({ where: { roundId: player.roundId, suppressedAt: null, status: { in: ['MUTUAL', 'ONE_SIDED'] }, OR: [{ participantAId: input.roundPlayerId }, { participantBId: input.roundPlayerId }], sources: { some: { participantId: input.roundPlayerId } } }, select: { id: true } }))
+      : true;
     const ranked = gangs
-      .map((gang) => ({ gang, score: (gang.grudges.some((grudge) => !grudge.settledAt) ? 100 : 0) + gang.momentum + gang.aggression + (encounterGangTargetFits(gang.targeting, input.state) ? 30 : 0) + rng() * 25 }))
+      .map((gang) => ({ gang, score: (gang.grudges.some((grudge) => !grudge.settledAt) && verifiedRivalry ? 100 : 0) + gang.momentum + gang.aggression + (encounterGangTargetFits(gang.targeting, input.state) ? 30 : 0) + rng() * 25 }))
       .sort((a, b) => b.score - a.score);
     const gang = ranked[0]!.gang;
     const personality = rules.personalities[gang.personality] ?? Object.values(rules.personalities)[0]!;
     const onTurf = Boolean(input.district && gang.turf.some((turf) => turf.cityId === player.cityId && turf.district === input.district));
     const lowRep = totalRep < rules.pushBelowReputation && (onTurf || input.trigger === 'TURF');
-    const revenge = gang.grudges.some((grudge) => !grudge.settledAt);
+    const revenge = gang.grudges.some((grudge) => !grudge.settledAt) && verifiedRivalry;
     const bountyAvailable = !gang.grudges.some((grudge) => grudge.bountyClaimedAt);
     const move = encounterGangMoveFor(input.trigger, personality.favoriteMove, revenge, lowRep);
     if (input.trigger === 'TURF' && !lowRep && !onTurf) return null;
@@ -200,6 +204,15 @@ export const EncounterGangService = {
     if (!match) return;
     const gang = await tx.encounterGang.findFirst({ where: { slug: match[1], round: { players: { some: { id: roundPlayerId } } } }, include: { round: true, turf: { where: { status: 'HELD' } } } });
     if (!gang) return;
+    // A paused/ended round or an expired grudge cannot create a late vendetta
+    // resolution. Returning without touching player state makes offline expiry
+    // safe; the normal encounter action already owns resource settlement.
+    if (gang.round.pausedAt || gang.round.status !== 'ACTIVE') return;
+    const grudge = await tx.encounterGangGrudge.findUnique({ where: { gangId_roundPlayerId: { gangId: gang.id, roundPlayerId } } });
+    if (grudge && grudge.expiresAt <= now && !grudge.settledAt) {
+      await tx.encounterGangGrudge.update({ where: { id: grudge.id }, data: { settledAt: now } });
+      return;
+    }
     if (choice === 'fight-back') {
       const momentum = gang.momentum - 10;
       const gangRules = loadRulesetForRound(gang.round).randomEncounters?.gangs;

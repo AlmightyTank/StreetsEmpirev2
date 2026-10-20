@@ -1,4 +1,6 @@
 import type { GameEventType, PrismaClient } from '@prisma/client';
+import { loadRulesetForRound } from '@streets/rules-engine';
+import { CityConditionService } from './city-condition.service.js';
 
 const SCHEDULED_EVENT_TYPES = ['COMMUNITY', 'SEASONAL', 'CITY_CONDITION'] as const;
 
@@ -23,6 +25,29 @@ function lifecycleDedupeKey(type: GameEventType, occurrenceId: string, action: '
  */
 export const EventLifecycleService = {
   async sweep(prisma: PrismaClient, now = new Date()): Promise<EventLifecycleSweepResult> {
+    // Seed and reconcile scheduled city conditions here rather than from player
+    // reads/actions. The optional check keeps lightweight lifecycle unit fakes
+    // (which only model event occurrences) compatible with this worker.
+    if (prisma.round?.findMany) {
+      const rounds = await prisma.round.findMany({
+        where: { status: 'ACTIVE' },
+        select: {
+          id: true,
+          rulesetId: true,
+          rulesetVersion: true,
+          startsAt: true,
+          endsAt: true,
+          pausedAt: true,
+          pausedMinutesTotal: true,
+          players: { select: { cityId: true } },
+        },
+      });
+      for (const round of rounds) {
+        const cityIds = [...new Set(round.players.map((player) => player.cityId))];
+        await CityConditionService.sweep(prisma, round, cityIds, loadRulesetForRound(round), now);
+      }
+    }
+
     const rows = await prisma.gameEventOccurrence.findMany({
       where: {
         status: { in: ['SCHEDULED', 'ACTIVE'] },

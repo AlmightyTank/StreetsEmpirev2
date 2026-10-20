@@ -16,6 +16,7 @@ function makeDb(options: { pausedAt?: Date | null; pausedMinutesTotal?: number }
   const definitionFor = (config: any) => classicOgV18J.cityConditions?.find((item) => item.key === config.conditionKey);
   return {
     occurrences,
+    round,
     gameEventDefinition: {
       upsert: vi.fn(async ({ where, create }: any) => {
         const key = where.rulesetId_rulesetVersion_key.key;
@@ -72,6 +73,7 @@ describe('1.8.5-F city conditions', () => {
   it('schedules first-class city conditions with visible windows and lifecycle history', async () => {
     const db = makeDb();
     const now = new Date(startsAt.getTime() + 13 * 60_000);
+    await CityConditionService.sweep(db, db.round, ['city-1'], classicOgV18J, now);
     const conditions = await CityConditionService.page(db, 'player-1', classicOgV18J, now);
 
     expect(conditions.find((row) => row.key === 'neighborhood-festival')).toMatchObject({
@@ -96,6 +98,7 @@ describe('1.8.5-F city conditions', () => {
     const pausedAt = new Date(startsAt.getTime() + 8 * 60_000);
     const db = makeDb({ pausedAt });
     const now = new Date(startsAt.getTime() + 45 * 60_000);
+    await CityConditionService.sweep(db, db.round, ['city-1'], classicOgV18J, now);
     const conditions = await CityConditionService.page(db, 'player-1', classicOgV18J, now);
 
     expect(conditions.find((row) => row.key === 'neighborhood-festival')?.status).toBe('UPCOMING');
@@ -122,6 +125,19 @@ describe('1.8.5-F city conditions', () => {
 
     expect(matching.recruitPercent).toBe(15);
     expect(otherDistrict.recruitPercent).toBe(0);
+  });
+
+  it('keeps ordinary condition reads free of lifecycle writes', async () => {
+    const db = makeDb();
+    await CityConditionService.page(db, 'player-1', classicOgV18J, new Date(startsAt.getTime() + 13 * 60_000));
+    await CityConditionService.bonuses(db, {
+      round: db.round, cityId: 'city-1', ruleset: classicOgV18J,
+      action: 'SCOUT', district: 'CASINO', now: new Date(startsAt.getTime() + 13 * 60_000),
+    });
+
+    expect(db.gameEventDefinition.upsert).not.toHaveBeenCalled();
+    expect(db.gameEventOccurrence.upsert).not.toHaveBeenCalled();
+    expect(db.gameEventOccurrence.update).not.toHaveBeenCalled();
   });
 
   it('activates a citywide follow-up once, scoped to the parent event and round city', async () => {

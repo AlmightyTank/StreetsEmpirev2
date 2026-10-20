@@ -3,6 +3,23 @@
   gap: 16px;
 }
 
+.se-rivalry-timeline__list { display: grid; gap: 10px; }
+.se-rivalry-timeline__item { border: 1px solid var(--se-line-soft, var(--se-line)); border-radius: 8px; padding: 10px 12px; }
+.se-rivalry-timeline__head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
+.se-rivalry-timeline__score { margin: 4px 0; color: var(--se-accent); font-weight: 700; }
+.se-rivalry-timeline__item ul { margin: 6px 0 0; padding-left: 18px; color: var(--se-text-dim); font-size: 13px; }
+.se-rivalry-timeline__dismiss { min-height: 36px; margin-bottom: 8px; padding: 6px 10px; border: 1px solid var(--se-line-soft, var(--se-line)); border-radius: 6px; background: transparent; color: var(--se-text-dim); cursor: pointer; }
+.se-rivalry-timeline__dismiss:focus-visible { outline: 2px solid var(--se-accent); outline-offset: 2px; }
+
+@media (max-width: 640px) {
+  .se-rivalry-timeline__item { padding: 9px; overflow-wrap: anywhere; }
+  .se-rivalry-timeline__item ul { padding-left: 16px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .se-rivalry-timeline *, .se-rivalry-timeline *::before, .se-rivalry-timeline *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: 0.01ms !important; }
+}
+
 /* Slice E: a visitor sees the owner's site theme on this page only. The theme
    class on this element rescopes the theme tokens and panel styles; Shell drops
    the viewer's own theme from the app root meanwhile. */
