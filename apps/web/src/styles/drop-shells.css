@@ -1480,9 +1480,9 @@
 @keyframes se-ec-bolt { 0%, 100% { opacity: .35; } 50% { opacity: .85; } }
 @keyframes se-ec-fire { from { opacity: .4; } to { opacity: .75; } }
 
-/* ---------- Swamp Kingdom scene (Old Gregg bobs in the loch; bubbles rise) ---------- */
+/* ---------- Swamp Kingdom scene (a creature bobs in the loch; bubbles rise) ---------- */
 .se-sk__hill { right: 0; bottom: 0; width: min(48vw, 640px); height: auto; }
-.se-sk__gregg { animation: se-sk-bob 6s ease-in-out infinite alternate; }
+.se-sk__creature { animation: se-sk-bob 6s ease-in-out infinite alternate; }
 @keyframes se-sk-bob { from { transform: translateY(0); } to { transform: translateY(6px); } }
 .se-sk__motes i {
   position: absolute;

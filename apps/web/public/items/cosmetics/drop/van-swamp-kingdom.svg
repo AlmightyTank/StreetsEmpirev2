@@ -52,7 +52,7 @@
     <path d="M10 92 L10 34 Q10 26 18 26 L182 26 Q189 26 193 31 L213 58 L240 64 Q247 66 248 72 L249 92 Q249 97 244 97 L222 97 A19 19 0 0 0 184 97 L86 97 A19 19 0 0 0 48 97 L15 97 Q10 97 10 92 Z" fill="url(#vscales)" opacity=".7"/>
     <path d="M36 26.5 L48 12 L55 22 L68 7 L76 21 L90 5 L98 21 L112 8 L119 22 L132 12 L146 26.5 Z" fill="#d9884a" stroke="#5a2410" stroke-width="1" stroke-linejoin="round"/>
     <path d="M48 13 L54 26 M68 8 L72 26 M90 6 L92 26 M112 9 L110 26 M132 13 L128 26" stroke="#5a2410" stroke-width=".6" opacity=".7"/>
-    <text x="71" y="62" text-anchor="middle" font-family="'Comic Sans MS', 'Chalkboard SE', cursive" font-size="7.5" font-weight="700" textLength="56" lengthAdjust="spacingAndGlyphs" fill="#1d3a14">I'M OLD GREGG</text>
+    <text x="71" y="62" text-anchor="middle" font-family="'Comic Sans MS', 'Chalkboard SE', cursive" font-size="7.5" font-weight="700" fill="#1d3a14">LOVE ME?</text>
     <path d="M22 92 q2 6 0 10 M30 93 q-2 5 1 9 M120 93 q2 6 -1 10 M150 92 q-2 5 1 8" stroke="#2e4a18" stroke-width="1.6" fill="none" stroke-linecap="round"/>
     <g fill="#cfe8f0" opacity=".7"><circle cx="18" cy="104" r="1.4"/><circle cx="34" cy="105" r="1"/><circle cx="126" cy="106" r="1.2"/><circle cx="236" cy="103" r="1.1"/></g>
 </g>

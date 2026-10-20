@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react';
 
-// Old Gregg's loch for the Swamp Kingdom shell (`swamp-kingdom-shell`, The Drop): far hills, a
-// still loch, Gregg himself peeping out of the water by the reeds and a glass of Baileys on a rock.
+// A loch for the Swamp Kingdom shell (`swamp-kingdom-shell`, The Drop): far hills, still water, a
+// funky little creature peeping out by the reeds and a glass of cream liqueur on a rock.
 const bubbles = [['60%', '78%', '-2s'], ['68%', '70%', '-5s'], ['74%', '82%', '-1s'], ['84%', '74%', '-7s'], ['90%', '80%', '-4s']] as const;
 
 export default function SwampKingdomScene() {
@@ -14,8 +14,8 @@ export default function SwampKingdomScene() {
         <g stroke="#7aa83a" strokeOpacity=".16" strokeWidth="2" strokeLinecap="round">
           <path d="M150 276 H220 M300 290 H380 M440 272 H520 M200 312 H260" />
         </g>
-        {/* Old Gregg, bobbing in the water. */}
-        <g className="se-sk__gregg">
+        {/* The creature, bobbing in the water. */}
+        <g className="se-sk__creature">
           <g transform="translate(400 262)">
             <path d="M-34 -22 L-56 -38 L-48 -24 L-62 -20 L-48 -14 L-56 -4 L-34 -8 Z M34 -22 L56 -38 L48 -24 L62 -20 L48 -14 L56 -4 L34 -8 Z" fill="#d9884a" opacity=".75" />
             <path d="M-36 4 Q-38 -46 0 -48 Q38 -46 36 4 Z" fill="#4e5a24" />
@@ -27,7 +27,7 @@ export default function SwampKingdomScene() {
           </g>
           <path d="M350 266 Q400 258 450 266" stroke="#7aa83a" strokeOpacity=".35" strokeWidth="2" fill="none" />
         </g>
-        {/* Foreground: a rock with a glass of Baileys, and the reeds. */}
+        {/* Foreground: a rock with a glass of cream liqueur, and the reeds. */}
         <path d="M0 340 V306 Q140 292 300 302 T560 298 V340 Z" fill="#0b1009" />
         <g transform="translate(170 300)">
           <path d="M-40 4 Q-36 -20 -6 -24 Q30 -26 40 4 Z" fill="#1b2418" stroke="#7aa83a" strokeOpacity=".2" />

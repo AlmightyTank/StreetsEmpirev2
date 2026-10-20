@@ -8,7 +8,7 @@
     <radialGradient id="mottle"><stop offset="0" stop-color="#c8742c" stop-opacity=".6"/><stop offset="1" stop-color="#c8742c" stop-opacity="0"/></radialGradient>
     <linearGradient id="fin" x1="1" y1="0" x2="0" y2="0"><stop offset="0" stop-color="#d9a04a"/><stop offset="1" stop-color="#8e3e1a"/></linearGradient>
     <radialGradient id="eyeball" cx=".4" cy=".4" r=".7"><stop offset="0" stop-color="#fffbe2"/><stop offset=".7" stop-color="#ece0a2"/><stop offset="1" stop-color="#b9a65a"/></radialGradient>
-    <linearGradient id="baileys" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f3e6c8"/><stop offset="1" stop-color="#c9a46e"/></linearGradient>
+    <linearGradient id="cream" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f3e6c8"/><stop offset="1" stop-color="#c9a46e"/></linearGradient>
     <pattern id="scales" width="6" height="5" patternUnits="userSpaceOnUse"><path d="M0 5 Q3 1 6 5 M-3 2.5 Q0 -1.5 3 2.5 M3 2.5 Q6 -1.5 9 2.5" stroke="#38421a" stroke-width=".55" fill="none" opacity=".6"/><path d="M1.2 4 Q3 2.2 4.8 4" stroke="#e6ecaa" stroke-width=".35" fill="none" opacity=".35"/></pattern>
     <clipPath id="torso"><path d="M20 136 Q20 98 37 90 Q50 85 54 80 Q56 76 56 69 H72 Q72 76 74 80 Q78 85 91 90 Q108 98 108 136 Z"/></clipPath>
     <clipPath id="head"><path d="M64 24 Q87 24 88.5 46 Q90 62 84 72 Q76 83 64 83 Q52 83 44 72 Q38 62 39.5 46 Q41 24 64 24 Z"/></clipPath>
@@ -70,7 +70,7 @@
   <path d="M46.6 64 q-1.6 -.4 -2 -2 M81.4 63 q1.6 -.4 2 -2" stroke="#2e3612" stroke-width=".8" fill="none" stroke-linecap="round"/>
   <g filter="url(#s)">
     <path d="M91 101 L105 101 L103.4 118 Q98 120 92.6 118 Z" fill="#dfeff2" fill-opacity=".45" stroke="#f4fbff" stroke-width=".8" stroke-linejoin="round"/>
-    <path d="M91.8 106 L104.2 106 L103.4 118 Q98 120 92.6 118 Z" fill="url(#baileys)"/>
+    <path d="M91.8 106 L104.2 106 L103.4 118 Q98 120 92.6 118 Z" fill="url(#cream)"/>
     <rect x="94" y="103.4" width="4.4" height="4" rx=".8" fill="#f4fbff" opacity=".7" transform="rotate(-12 96 105)"/>
     <path d="M84 116 Q88 108 95 110 Q102 110 104 114 Q104 121 96 122 Q88 123 84 116 Z" fill="url(#gskin)" stroke="#2e3612" stroke-width="1" stroke-linejoin="round"/>
     <path d="M94 111 Q97 113 101 111.6 M93.6 114.4 Q97.2 116.4 102 115 M93.8 118 Q97.4 119.6 101.4 118.4" stroke="#2e3612" stroke-width=".7" fill="none" stroke-linecap="round"/>

@@ -397,7 +397,7 @@
 }
 
 /* Quarter Mile: a ring of start-tree bulbs and a green light that comes on. 88 Club: a clock
-   face stopped at 10:04. Swamp Kingdom: a scaly green ring with one of Old Gregg's orange fins on top. */
+   face stopped at 10:04. Swamp Kingdom: a scaly green ring with an orange fin on top. */
 .se-drop-frame--quarter-mile-frame { --se-drop-ring: #2f9bff; box-shadow: 0 0 0 3px #0b0b0f, 0 0 0 7px #2f9bff, 0 0 0 9px #ff7a1a, 0 0 22px #2f9bff66; }
 .se-drop-frame--88-club-frame { --se-drop-ring: #4fd2ff; box-shadow: 0 0 0 3px #0b0b0f, 0 0 0 7px #c9d3da, 0 0 0 9px #4fd2ff, 0 0 24px #4fd2ff66; }
 .se-drop-frame--swamp-kingdom-frame { --se-drop-ring: #7aa83a; box-shadow: 0 0 0 3px #0b0b0f, 0 0 0 5px #a0521e, 0 0 0 8px #7aa83a, 0 0 22px #7aa83a55; }

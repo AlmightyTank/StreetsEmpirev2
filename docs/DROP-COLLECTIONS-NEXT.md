@@ -78,16 +78,16 @@ copyright. Keep it that way when adding to them.
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Quarter Mile | street racing | nitrous blue `#2f9bff`, burnt orange, black | Sedan (tuner) + Low-Rider (muscle car) | Thug + Hoe | Tek-9 | Ride or Die | 2,400 (5,050) |
 | 88 Club | time travel | flux blue `#4fd2ff`, brushed steel, fire trails | Van | Thug + Hoe | Pistol | Ahead of Time | 2,350 (4,200) |
-| Swamp Kingdom | Old Gregg's loch | scale green `#7aa83a`, loch water, fin orange `#d9884a` | Van | Thug + Hoe | Shotgun | I'm Old Gregg | 2,350 (4,150) |
+| Swamp Kingdom | creature's loch | scale green `#7aa83a`, loch water, fin orange `#d9884a` | Van | Thug + Hoe | Shotgun | Could You Ever Love Me? | 2,350 (4,150) |
 
 - **Quarter Mile** is the only set with two rides. Frame: a ring of start-tree
   bulbs with a green light. Shell: a drag strip at night, the start tree
   counting down, light trails.
 - **88 Club** frame: a clock face stopped at 10:04. Shell: a town-square clock
   tower in a storm, a slow-glowing bolt (never a flash) and twin fire trails.
-- **Swamp Kingdom** (restyled as Old Gregg's loch) frame: a scaly green ring
-  with an orange fin on top. Shell: Old Gregg bobbing in the loch by the
-  reeds, bubbles rising and a glass of Baileys on a rock.
+- **Swamp Kingdom** (restyled as a creature's loch) frame: a scaly green ring
+  with an orange fin on top. Shell: a funky little creature bobbing in the
+  loch by the reeds, bubbles rising and a glass of cream liqueur on a rock.
 
 ## Zombie Apocalypse (evergreen)
 

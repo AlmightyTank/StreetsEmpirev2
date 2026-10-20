@@ -59,7 +59,7 @@ first; the twelve after them were added on 2026-10-18 and three movie homages
 | Block Party | Van (700) | Thug (600), Hoe (600) | Shotgun (450) | Frame (400) | Shell (1,000), Mango Heat accent (250) | Block Captain (150) |
 | Quarter Mile | Sedan (700), Low-Rider (700) | Thug (600), Hoe (600) | Tek-9 (500) | Frame (400) | Shell (1,050), Nitrous Blue accent (300) | Ride or Die (200) |
 | 88 Club | Van (700) | Thug (600), Hoe (600) | Pistol (450) | Frame (400) | Shell (1,000), Flux Blue accent (250) | Ahead of Time (200) |
-| Swamp Kingdom | Van (700) | Thug (600), Hoe (600) | Shotgun (450) | Frame (400) | Shell (1,000), Loch Green accent (250) | I'm Old Gregg (150) |
+| Swamp Kingdom | Van (700) | Thug (600), Hoe (600) | Shotgun (450) | Frame (400) | Shell (1,000), Loch Green accent (250) | Could You Ever Love Me? (150) |
 | Zombie Apocalypse | Van (700) | Thug (600), Hoe (600) | Shotgun (450) | Frame (400) | Shell (1,000), Quarantine Orange accent (250) | Last One Standing (200) |
 
 Bundles: Kingpin Luxe 2,800 (list 4,800), Neon Underworld 2,800 (list 5,150), Winter Heist 2,750 (list 4,600), Biscayne Sunset 2,350 (list 4,150), Velvet Speakeasy 2,400 (list 4,350), Platinum Funk 2,250 (list 3,850), Redline Syndicate 2,400 (list 4,350), Wet Paint 2,300 (list 4,050), Hazard Cook 2,250 (list 3,750), Dockside 2,350 (list 4,200), Crown Jewels 2,400 (list 4,350), Bayou Smoke 2,350 (list 4,150), Desert Mirage 2,400 (list 4,350), Rewind 2,350 (list 4,150), Snake Eyes 2,400 (list 4,300), Graveyard Shift 2,400 (list 4,250), Naughty List 2,250 (list 3,700), Heartbreaker 2,400 (list 4,350), Block Party 2,300 (list 4,150), Quarter Mile 2,400 (list 5,050), 88 Club 2,350 (list 4,200), Swamp Kingdom 2,350 (list 4,150), Zombie Apocalypse 2,350 (list 4,200).

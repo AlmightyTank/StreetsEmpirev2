@@ -1809,9 +1809,9 @@ Object.assign(recipes, {
 const NITROUS = '#2f9bff';
 const TUNER = '#ff7a1a';
 const FLUX = '#4fd2ff';
-const GREGG_FIN = '#d9884a';
-/** Fish scales for the Swamp Kingdom (Old Gregg) set. */
-const GREGG_SCALES = (id, w, h) => `<pattern id="${id}" width="${w}" height="${h}" patternUnits="userSpaceOnUse"><path d="M0 ${h} Q${w / 2} 1 ${w} ${h} M${-w / 2} ${h / 2} Q0 -1 ${w / 2} ${h / 2} M${w / 2} ${h / 2} Q${w} -1 ${w * 1.5} ${h / 2}" stroke="#2e3a12" stroke-width=".6" fill="none" opacity=".7"/></pattern>`;
+const LOCH_FIN = '#d9884a';
+/** Fish scales for the Swamp Kingdom (loch creature) set. */
+const LOCH_SCALES = (id, w, h) => `<pattern id="${id}" width="${w}" height="${h}" patternUnits="userSpaceOnUse"><path d="M0 ${h} Q${w / 2} 1 ${w} ${h} M${-w / 2} ${h / 2} Q0 -1 ${w / 2} ${h / 2} M${w / 2} ${h / 2} Q${w} -1 ${w * 1.5} ${h / 2}" stroke="#2e3a12" stroke-width=".6" fill="none" opacity=".7"/></pattern>`;
 
 Object.assign(recipes, {
   /* Quarter Mile */
@@ -1951,23 +1951,23 @@ Object.assign(recipes, {
     });
   },
 
-  /* Swamp Kingdom: Old Gregg's loch. Green scales, orange fins, loch water and Baileys. */
+  /* Swamp Kingdom: a creature's loch. Green scales, orange fins, loch water and cream liqueur. */
   'van-swamp-kingdom': async () => {
     let svg = await load('van');
     svg = restop(svg, 'paint', ['#a9bb62', '#76903c', '#4a5e20', '#232e0e']);
     svg = restop(svg, 'decal', ['#f3e9c6', '#d8c896']);
     svg = restop(svg, 'rust', [['#2e4a18', 0.9], ['#2e4a18', 0.5], ['#2e4a18', 0]]);
-    svg = restop(svg, 'steel', ['#ffcf8a', GREGG_FIN, '#7a3a12']);
+    svg = restop(svg, 'steel', ['#ffcf8a', LOCH_FIN, '#7a3a12']);
     svg = recolor(svg, { '#b8bcba': '#a0521e' });
     const body = 'M10 92 L10 34 Q10 26 18 26 L182 26 Q189 26 193 31 L213 58 L240 64 Q247 66 248 72 L249 92 Q249 97 244 97 L222 97 A19 19 0 0 0 184 97 L86 97 A19 19 0 0 0 48 97 L15 97 Q10 97 10 92 Z';
     return decorate(svg, {
-      defs: GREGG_SCALES('vscales', 8, 6),
+      defs: LOCH_SCALES('vscales', 8, 6),
       over: [
         `<path d="${body}" fill="url(#vscales)" opacity=".7"/>`,
         // A dorsal fin along the roof.
-        `<path d="M36 26.5 L48 12 L55 22 L68 7 L76 21 L90 5 L98 21 L112 8 L119 22 L132 12 L146 26.5 Z" fill="${GREGG_FIN}" stroke="#5a2410" stroke-width="1" stroke-linejoin="round"/>`,
+        `<path d="M36 26.5 L48 12 L55 22 L68 7 L76 21 L90 5 L98 21 L112 8 L119 22 L132 12 L146 26.5 Z" fill="${LOCH_FIN}" stroke="#5a2410" stroke-width="1" stroke-linejoin="round"/>`,
         '<path d="M48 13 L54 26 M68 8 L72 26 M90 6 L92 26 M112 9 L110 26 M132 13 L128 26" stroke="#5a2410" stroke-width=".6" opacity=".7"/>',
-        '<text x="71" y="62" text-anchor="middle" font-family="\'Comic Sans MS\', \'Chalkboard SE\', cursive" font-size="7.5" font-weight="700" textLength="56" lengthAdjust="spacingAndGlyphs" fill="#1d3a14">I\'M OLD GREGG</text>',
+        '<text x="71" y="62" text-anchor="middle" font-family="\'Comic Sans MS\', \'Chalkboard SE\', cursive" font-size="7.5" font-weight="700" fill="#1d3a14">LOVE ME?</text>',
         // Loch weed draped off the sill and water dripping off it.
         '<path d="M22 92 q2 6 0 10 M30 93 q-2 5 1 9 M120 93 q2 6 -1 10 M150 92 q-2 5 1 8" stroke="#2e4a18" stroke-width="1.6" fill="none" stroke-linecap="round"/>',
         `<g fill="#cfe8f0" opacity=".7">${[[18, 104, 1.4], [34, 105, 1], [126, 106, 1.2], [236, 103, 1.1]].map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}"/>`).join('')}</g>`,
@@ -1976,7 +1976,7 @@ Object.assign(recipes, {
   },
   'thug-swamp-kingdom': async () => {
     let svg = await load('thug');
-    // A scaly green Old Gregg fan jacket with fin trim and an orange bandana.
+    // A scaly green jacket with fin trim and an orange bandana.
     svg = repattern(svg, 'plaid', '<rect width="14" height="14" fill="#6f8a3a"/><path d="M0 7 Q3.5 2 7 7 Q10.5 2 14 7 M-3.5 14 Q0 9 3.5 14 Q7 9 10.5 14 Q14 9 17.5 14 M-3.5 0 Q0 -5 3.5 0 M10.5 0 Q14 -5 17.5 0" stroke="#3a4a1a" stroke-width=".8" fill="none"/><path d="M2 6 Q3.5 4 5 6 M9 6 Q10.5 4 12 6" stroke="#d7e39a" stroke-width=".5" fill="none" opacity=".5"/>');
     svg = restop(svg, 'tank', ['#f3e9c6', '#d8c896']);
     svg = restop(svg, 'band', ['#ffb066', '#c2581c']);
@@ -1985,15 +1985,15 @@ Object.assign(recipes, {
     const mirror = (d) => d.replace(/(-?\d+(?:\.\d+)?) (-?\d+(?:\.\d+)?)/g, (_m, x, y) => `${128 - x} ${y}`);
     return decorate(svg, {
       over: [
-        `<g fill="${GREGG_FIN}" stroke="#5a2410" stroke-width=".9" stroke-linejoin="round"><path d="${fin}"/><path d="${mirror(fin)}"/></g>`,
+        `<g fill="${LOCH_FIN}" stroke="#5a2410" stroke-width=".9" stroke-linejoin="round"><path d="${fin}"/><path d="${mirror(fin)}"/></g>`,
         '<path d="M26 104 q4 3 0 7 M30 103 q4 3 0 7 M102 104 q-4 3 0 7 M98 103 q-4 3 0 7" stroke="#8a2a24" stroke-width="1" fill="none" stroke-linecap="round"/>',
-        // A little glass of Baileys printed on the vest.
+        // A little glass of cream liqueur printed on the vest.
         '<path d="M60 108 H68 L67 118 Q64 119.4 61 118 Z" fill="#c9a46e" stroke="#5a3a1a" stroke-width=".6" stroke-linejoin="round"/><path d="M60.4 111 H67.6" stroke="#f3e6c8" stroke-width="1.2"/>',
       ].join('\n  '),
     });
   },
   'hoe-swamp-kingdom': async () => {
-    // Old Gregg from the loch: drawn from scratch rather than over the Classic face, on the same 128 grid.
+    // A funky creature from the loch: drawn from scratch rather than over the Classic face, on the same 128 grid.
     const mirror = (d) => d.replace(/(-?\d+(?:\.\d+)?) (-?\d+(?:\.\d+)?)/g, (_m, x, y) => `${+(128 - x).toFixed(1)} ${y}`);
     const earFin = 'M42 44 L27 34 L32 43 L23 45 L32 51 L25 58 L34 58 L30 65 L42 60 Z';
     const armFin = 'M35 92 L20 82 L26 81 L18 72 L28 75 L27 66 L41 88 Z';
@@ -2013,7 +2013,7 @@ Object.assign(recipes, {
     <radialGradient id="mottle"><stop offset="0" stop-color="#c8742c" stop-opacity=".6"/><stop offset="1" stop-color="#c8742c" stop-opacity="0"/></radialGradient>
     <linearGradient id="fin" x1="1" y1="0" x2="0" y2="0"><stop offset="0" stop-color="#d9a04a"/><stop offset="1" stop-color="#8e3e1a"/></linearGradient>
     <radialGradient id="eyeball" cx=".4" cy=".4" r=".7"><stop offset="0" stop-color="#fffbe2"/><stop offset=".7" stop-color="#ece0a2"/><stop offset="1" stop-color="#b9a65a"/></radialGradient>
-    <linearGradient id="baileys" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f3e6c8"/><stop offset="1" stop-color="#c9a46e"/></linearGradient>
+    <linearGradient id="cream" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f3e6c8"/><stop offset="1" stop-color="#c9a46e"/></linearGradient>
     <pattern id="scales" width="6" height="5" patternUnits="userSpaceOnUse"><path d="M0 5 Q3 1 6 5 M-3 2.5 Q0 -1.5 3 2.5 M3 2.5 Q6 -1.5 9 2.5" stroke="#38421a" stroke-width=".55" fill="none" opacity=".6"/><path d="M1.2 4 Q3 2.2 4.8 4" stroke="#e6ecaa" stroke-width=".35" fill="none" opacity=".35"/></pattern>
     <clipPath id="torso"><path d="M20 136 Q20 98 37 90 Q50 85 54 80 Q56 76 56 69 H72 Q72 76 74 80 Q78 85 91 90 Q108 98 108 136 Z"/></clipPath>
     <clipPath id="head"><path d="M64 24 Q87 24 88.5 46 Q90 62 84 72 Q76 83 64 83 Q52 83 44 72 Q38 62 39.5 46 Q41 24 64 24 Z"/></clipPath>
@@ -2066,7 +2066,7 @@ Object.assign(recipes, {
   <path d="M46.6 64 q-1.6 -.4 -2 -2 M81.4 63 q1.6 -.4 2 -2" stroke="#2e3612" stroke-width=".8" fill="none" stroke-linecap="round"/>
   <g filter="url(#s)">
     <path d="M91 101 L105 101 L103.4 118 Q98 120 92.6 118 Z" fill="#dfeff2" fill-opacity=".45" stroke="#f4fbff" stroke-width=".8" stroke-linejoin="round"/>
-    <path d="M91.8 106 L104.2 106 L103.4 118 Q98 120 92.6 118 Z" fill="url(#baileys)"/>
+    <path d="M91.8 106 L104.2 106 L103.4 118 Q98 120 92.6 118 Z" fill="url(#cream)"/>
     <rect x="94" y="103.4" width="4.4" height="4" rx=".8" fill="#f4fbff" opacity=".7" transform="rotate(-12 96 105)"/>
     <path d="M84 116 Q88 108 95 110 Q102 110 104 114 Q104 121 96 122 Q88 123 84 116 Z" fill="url(#gskin)" stroke="#2e3612" stroke-width="1" stroke-linejoin="round"/>
     <path d="M94 111 Q97 113 101 111.6 M93.6 114.4 Q97.2 116.4 102 115 M93.8 118 Q97.4 119.6 101.4 118.4" stroke="#2e3612" stroke-width=".7" fill="none" stroke-linecap="round"/>
@@ -2081,12 +2081,12 @@ Object.assign(recipes, {
     svg = restop(svg, 'steel', ['#8a9a4c', '#4e5a2a', '#232a0e']);
     svg = restop(svg, 'wood', ['#e8a060', '#a0521e', '#5a2a0a']);
     return decorate(svg, {
-      defs: GREGG_SCALES('gscales', 6, 5),
+      defs: LOCH_SCALES('gscales', 6, 5),
       over: [
         '<path d="M12 52 Q44 49 82 47 V67 Q64 69 54 73 L20 88 Q13 91 11 85 L9 57 Q9 52 12 52 Z" fill="url(#gscales)" opacity=".6"/>',
         '<rect x="78" y="43" width="46" height="26" rx="3" fill="url(#gscales)" opacity=".8"/>',
         // A spiny fin along the top of the barrel.
-        `<path d="M128 45 L138 33 L144 42 L156 30 L162 42 L176 29 L182 42 L196 31 L202 42 L216 34 L222 45 Z" fill="${GREGG_FIN}" stroke="#5a2410" stroke-width="1" stroke-linejoin="round"/>`,
+        `<path d="M128 45 L138 33 L144 42 L156 30 L162 42 L176 29 L182 42 L196 31 L202 42 L216 34 L222 45 Z" fill="${LOCH_FIN}" stroke="#5a2410" stroke-width="1" stroke-linejoin="round"/>`,
         // Barnacles and loch water dripping from the muzzle.
         `<g fill="#d8cfa8" stroke="#6a6040" stroke-width=".5">${[[150, 51, 1.6], [186, 51.5, 1.2], [234, 50, 1.4], [96, 66, 1.3]].map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}"/>`).join('')}</g>`,
         '<path d="M246 55 q1.5 4 0 6 q-1.5 -2 0 -6 Z M240 56 q1.2 3 0 4.6 q-1.2 -1.6 0 -4.6 Z" fill="#cfe8f0" opacity=".8"/>',
