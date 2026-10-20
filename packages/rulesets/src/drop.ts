@@ -488,7 +488,7 @@ const ITEMS: readonly DropItemDefinition[] = [
     preview: { type: 'ITEM', items: ['HOE'] }, dresses: 'HOE',
   }),
   item('velvet-speakeasy', 'ak47', {
-    name: 'Velvet Speakeasy AK-47', description: 'Walnut furniture, a drum magazine and pewter fittings. A visual finish only; it never gives you an AK-47 or the right to buy one.',
+    name: 'Velvet Speakeasy AK-47', description: 'Walnut furniture, a long banana magazine and pewter fittings. A visual finish only; it never gives you an AK-47 or the right to buy one.',
     kind: 'ITEM_COLLECTION', rarity: 'rare', category: 'WEAPONS', priceCrowns: 500, styleKey: 'velvet-speakeasy-ak47',
     preview: { type: 'ITEM', items: ['AK47'] }, dresses: 'AK47',
   }),

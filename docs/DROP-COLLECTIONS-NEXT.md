@@ -36,7 +36,7 @@ Launch catalogue and rules: [THE-DROP.md](THE-DROP.md).
 | # | Collection | Palette | Vehicle | Crew | Weapon | Title | Bundle (list) |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 1 | Biscayne Sunset | flamingo pink, sea-glass teal, white linen | Sedan | Thug + Hoe | Pistol | Ocean Drive | 2,750 (4,900) |
-| 2 | Velvet Speakeasy | merlot velvet, cream, pewter | Sedan | Thug + Hoe | AK-47 (drum mag) | Bootlegger | 2,800 (5,150) |
+| 2 | Velvet Speakeasy | merlot velvet, cream, pewter | Sedan | Thug + Hoe | AK-47 (long banana mag) | Bootlegger | 2,800 (5,150) |
 | 3 | Platinum Funk | tangerine, chocolate, platinum, fur | Low-Rider | Thug + Hoe | — | Funk Royalty | 2,650 (4,550) |
 | 4 | Redline Syndicate | signal red, carbon fibre, race livery | Sedan | Thug + Hoe | AK-47 | Redline | 2,800 (5,150) |
 | 5 | Wet Paint | spray mint, chrome, drips | Low-Rider | Thug + Hoe | Pistol | All City | 2,700 (4,800) |

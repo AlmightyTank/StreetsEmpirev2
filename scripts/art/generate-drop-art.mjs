@@ -545,13 +545,16 @@ Object.assign(recipes, {
     svg = restop(svg, 'wood', ['#9a6a40', '#6a4224', '#3a2210']);
     svg = restop(svg, 'steel', ['#d4d8dc', '#80868c', '#3f4449']);
     svg = recolor(svg, { '#454a52': '#b0b5ba', '#2c2f34': '#5f656b', '#26292e': '#4f555b', '#4a1f07': '#2a1608', '#f0a060': '#e2b98a' });
-    // A drum magazine in place of the box.
+    // A long 100-round banana magazine in place of the box, curving further
+    // forward, with its ribs following the curve. Its bottom stays near the
+    // box's so the drop shadow still fits inside the 128-high canvas.
     svg = swap(svg, '<path d="M128 62 H152 Q158 88 176 106 L154 116 Q134 94 128 62 Z" fill="url(#mag)"/>',
-      `<circle cx="141" cy="84" r="20" fill="url(#steel)"/><circle cx="141" cy="84" r="13" fill="none" stroke="#3f4449" stroke-width="1.2"/><circle cx="141" cy="84" r="4" fill="${PEWTER}"/><rect x="132" y="60" width="18" height="8" fill="url(#steel)"/>`);
+      '<path d="M128 62 H152 Q158 90 192 104 L172 116 Q136 98 128 62 Z" fill="url(#mag)"/>'
+      + '<path d="M131 70 H153 M134 82 Q140 84 158 81 M140 92 Q147 94 167 90 M149 101 Q157 103 179 98 M159 109 Q167 111 188 105" fill="none" stroke="#15171a" stroke-width="1.2"/>'
+      + `<path d="M150 63 Q156 90 188 104" fill="none" stroke="${PEWTER}" stroke-opacity=".5" stroke-width="1.2"/>`);
     svg = svg.replace('<path d="M133 70 Q138 72 154 70M136 82 Q141 84 160 82M142 94 Q148 96 168 93"/>', '');
     return decorate(svg, {
       over: [
-        '<path d="M141 66 A18 18 0 0 1 159 84" stroke="#ffffff" stroke-opacity=".45" stroke-width="1.4" fill="none"/>',
         `<path d="M16 63 L68 54 M154 45.5 H186" stroke="${CREAM}" stroke-opacity=".4" stroke-width="1"/>`,
         `<rect x="186" y="44" width="12" height="14" rx="1.5" fill="${PEWTER}" stroke="#0a0b0d" stroke-width="1.2"/>`,
       ].join('\n  '),
