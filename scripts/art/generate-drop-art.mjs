@@ -1984,15 +1984,87 @@ Object.assign(recipes, {
     });
   },
   'hoe-swamp-kingdom': async () => {
-    let svg = await load('hoe');
-    svg = hoeCoat(svg, ['#9ac85a', MOSSY, '#3e5a1a'], '<path d="M0 7 Q3.5 5 7 7" stroke="#b6e05a" stroke-width=".35" fill="none" opacity=".5"/>');
-    svg = recolor(svg, { '#5a060c': '#2a3a10', '#17131a': '#557a24', '#3d3346': '#e8c98a' });
-    return decorate(svg, {
-      over: [
-        '<path d="M47 86 Q55 90 56 103 L53 136 M81 86 Q73 90 72 103 L75 136" stroke="#e8c98a" stroke-width="1.6" fill="none"/>',
-        '<path d="M56 18 L58 12 L61 15 L64 10 L67 15 L70 12 L72 18 Q64 16 56 18 Z" fill="#e8c98a" stroke="#8a6508" stroke-width=".7" stroke-linejoin="round"/>',
-      ].join('\n  '),
-    });
+    // Old Gregg from the loch: drawn from scratch rather than over the Classic face, on the same 128 grid.
+    const mirror = (d) => d.replace(/(-?\d+(?:\.\d+)?) (-?\d+(?:\.\d+)?)/g, (_m, x, y) => `${+(128 - x).toFixed(1)} ${y}`);
+    const earFin = 'M42 44 L27 34 L32 43 L23 45 L32 51 L25 58 L34 58 L30 65 L42 60 Z';
+    const armFin = 'M35 92 L20 82 L26 81 L18 72 L28 75 L27 66 L41 88 Z';
+    const strands = [
+      'M53 27 Q42 30 40 46 Q38 60 34 74',
+      'M49 29 Q38 34 36 50 Q34 66 29 82',
+      'M56 26 Q46 28 44 40 Q43 52 41 64',
+      'M47 31 Q36 40 33 58 Q31 72 25 88',
+    ];
+    const hair = [...strands, ...strands.map(mirror), 'M48 30 Q64 21 80 30', 'M52 27 Q66 24 77 28'];
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <filter id="s" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="2.5" flood-color="#000" flood-opacity=".6"/></filter>
+    <filter id="wet" x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency=".09" numOctaves="2" seed="11"/><feDisplacementMap in="SourceGraphic" scale="2.4" xChannelSelector="R" yChannelSelector="G"/></filter>
+    <radialGradient id="gskin" cx=".45" cy=".3" r=".8"><stop offset="0" stop-color="#b3bb6c"/><stop offset=".55" stop-color="#7c8840"/><stop offset="1" stop-color="#434d1e"/></radialGradient>
+    <radialGradient id="belly" cx=".5" cy=".4" r=".6"><stop offset="0" stop-color="#d8cf96"/><stop offset="1" stop-color="#9aa058" stop-opacity="0"/></radialGradient>
+    <radialGradient id="mottle"><stop offset="0" stop-color="#c8742c" stop-opacity=".6"/><stop offset="1" stop-color="#c8742c" stop-opacity="0"/></radialGradient>
+    <linearGradient id="fin" x1="1" y1="0" x2="0" y2="0"><stop offset="0" stop-color="#d9a04a"/><stop offset="1" stop-color="#8e3e1a"/></linearGradient>
+    <radialGradient id="eyeball" cx=".4" cy=".4" r=".7"><stop offset="0" stop-color="#fffbe2"/><stop offset=".7" stop-color="#ece0a2"/><stop offset="1" stop-color="#b9a65a"/></radialGradient>
+    <linearGradient id="baileys" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f3e6c8"/><stop offset="1" stop-color="#c9a46e"/></linearGradient>
+    <pattern id="scales" width="6" height="5" patternUnits="userSpaceOnUse"><path d="M0 5 Q3 1 6 5 M-3 2.5 Q0 -1.5 3 2.5 M3 2.5 Q6 -1.5 9 2.5" stroke="#38421a" stroke-width=".55" fill="none" opacity=".6"/><path d="M1.2 4 Q3 2.2 4.8 4" stroke="#e6ecaa" stroke-width=".35" fill="none" opacity=".35"/></pattern>
+    <clipPath id="torso"><path d="M20 136 Q20 98 37 90 Q50 85 54 80 Q56 76 56 69 H72 Q72 76 74 80 Q78 85 91 90 Q108 98 108 136 Z"/></clipPath>
+    <clipPath id="head"><path d="M64 24 Q87 24 88.5 46 Q90 62 84 72 Q76 83 64 83 Q52 83 44 72 Q38 62 39.5 46 Q41 24 64 24 Z"/></clipPath>
+  </defs>
+  <g filter="url(#s)">
+    <g fill="url(#fin)" stroke="#5a2410" stroke-width="1" stroke-linejoin="round">
+      <path d="${armFin}"/><path d="${mirror(armFin)}"/>
+    </g>
+    <path d="M28 76 L39 87 M24 80 L38 89 ${mirror('M28 76 L39 87 M24 80 L38 89')}" stroke="#5a2410" stroke-width=".5" opacity=".6"/>
+    <path d="M20 136 Q20 98 37 90 Q50 85 54 80 Q56 76 56 69 H72 Q72 76 74 80 Q78 85 91 90 Q108 98 108 136 Z" fill="url(#gskin)" stroke="#2e3612" stroke-width="1.3" stroke-linejoin="round"/>
+    <g clip-path="url(#torso)">
+      <rect width="128" height="136" fill="url(#scales)"/>
+      <ellipse cx="64" cy="118" rx="20" ry="24" fill="url(#belly)"/>
+      <ellipse cx="40" cy="104" rx="8" ry="5" fill="url(#mottle)"/><ellipse cx="88" cy="112" rx="7" ry="6" fill="url(#mottle)"/><ellipse cx="70" cy="96" rx="4" ry="3" fill="url(#mottle)"/>
+    </g>
+    <path d="M57 72 q2.5 2 0 4.5 M57.5 76.5 q2.5 2 0 4.5 M71 72 q-2.5 2 0 4.5 M70.5 76.5 q-2.5 2 0 4.5" stroke="#8a2a24" stroke-width=".9" fill="none" stroke-linecap="round"/>
+  </g>
+  <g filter="url(#s)">
+    <g fill="url(#fin)" stroke="#5a2410" stroke-width="1" stroke-linejoin="round">
+      <path d="${earFin}"/><path d="${mirror(earFin)}"/>
+    </g>
+    <path d="M41 49 L29 40 M41 53 L27 49 M41 57 L29 58 M87 49 L99 40 M87 53 L101 49 M87 57 L99 58" stroke="#5a2410" stroke-width=".55" opacity=".7"/>
+    <path d="M64 24 Q87 24 88.5 46 Q90 62 84 72 Q76 83 64 83 Q52 83 44 72 Q38 62 39.5 46 Q41 24 64 24 Z" fill="url(#gskin)" stroke="#2e3612" stroke-width="1.3" stroke-linejoin="round"/>
+    <g clip-path="url(#head)">
+      <rect width="128" height="128" fill="url(#scales)" opacity=".75"/>
+      <ellipse cx="78" cy="36" rx="6" ry="4" fill="url(#mottle)"/><ellipse cx="47" cy="64" rx="5" ry="4" fill="url(#mottle)"/><ellipse cx="80" cy="66" rx="4" ry="3.5" fill="url(#mottle)"/>
+      <ellipse cx="58" cy="31" rx="9" ry="3" fill="#fff" opacity=".18"/>
+    </g>
+    <g fill="#8e9a4c" stroke="#2e3612" stroke-width=".6"><circle cx="60" cy="27" r="1.6"/><circle cx="70" cy="27.5" r="1.2"/><circle cx="65" cy="33" r="1"/></g>
+  </g>
+  <g filter="url(#wet)" fill="none" stroke-linecap="round">
+    ${hair.map((d, i) => `<path d="${d}" stroke="${i % 2 ? '#2a2016' : '#17110a'}" stroke-width="${i % 3 ? .9 : 1.3}"/>`).join('\n    ')}
+    <path d="M51 28 Q42 32 40 44 M77 28 Q86 32 88 44" stroke="#6a5a44" stroke-width=".6" opacity=".7"/>
+  </g>
+  <g stroke-linecap="round">
+    <circle cx="53.5" cy="49" r="8" fill="url(#eyeball)" stroke="#2e3612" stroke-width="1.1"/>
+    <circle cx="75.5" cy="48" r="8.6" fill="url(#eyeball)" stroke="#2e3612" stroke-width="1.1"/>
+    <path d="M47 52 q2 .4 3 -1 M49 55 q2 -.2 2.6 -1.6 M82 51 q-2 .4 -3 -1 M80 54.5 q-2 -.2 -2.6 -1.6" stroke="#d0564a" stroke-width=".5" fill="none" opacity=".8"/>
+    <circle cx="55" cy="50.5" r="2.6" fill="#7a5a12"/><circle cx="74" cy="49.8" r="2.8" fill="#7a5a12"/>
+    <circle cx="55" cy="50.5" r="1.3" fill="#0b0b0b"/><circle cx="74" cy="49.8" r="1.4" fill="#0b0b0b"/>
+    <circle cx="56" cy="49.4" r=".8" fill="#fff"/><circle cx="75.1" cy="48.6" r=".9" fill="#fff"/>
+    <path d="M45.4 48 A8 8 0 0 1 61.6 48 Q53.5 45 45.4 48 Z" fill="#6a7634" stroke="#2e3612" stroke-width=".8" stroke-linejoin="round"/>
+    <path d="M66.9 47 A8.6 8.6 0 0 1 84.1 47 Q75.5 43.6 66.9 47 Z" fill="#6a7634" stroke="#2e3612" stroke-width=".8" stroke-linejoin="round"/>
+    <path d="M46 47.4 Q53.5 44.6 61 47.4 M67.5 46.4 Q75.5 43 83.5 46.4" stroke="#1d240a" stroke-width=".9" fill="none"/>
+  </g>
+  <path d="M61.4 60 q.6 -1.8 1.4 -.4 M66.6 60 q-.6 -1.8 -1.4 -.4" stroke="#1d240a" stroke-width="1" fill="none" stroke-linecap="round"/>
+  <path d="M47.5 64.5 Q64 71 80.5 63.5 Q72 79 63 78.4 Q52 77.6 47.5 64.5 Z" fill="#2a0a0c" stroke="#5e2a22" stroke-width="1" stroke-linejoin="round"/>
+  <g fill="#e8dfb2" stroke="#8a7d4c" stroke-width=".4"><path d="M54 67.4 l1.3 3 l1.3 -2.6 Z"/><path d="M59 68.6 l1.2 2.4 l1.2 -2.2 Z"/><path d="M66.6 68.6 l1.1 2.8 l1.3 -2.9 Z"/><path d="M72.6 67.2 l1 2.2 l1.2 -2.6 Z"/></g>
+  <path d="M55 74.6 Q63 77 72 73.8" stroke="#a83a3a" stroke-width=".9" fill="none" opacity=".7"/>
+  <path d="M46.6 64 q-1.6 -.4 -2 -2 M81.4 63 q1.6 -.4 2 -2" stroke="#2e3612" stroke-width=".8" fill="none" stroke-linecap="round"/>
+  <g filter="url(#s)">
+    <path d="M91 101 L105 101 L103.4 118 Q98 120 92.6 118 Z" fill="#dfeff2" fill-opacity=".45" stroke="#f4fbff" stroke-width=".8" stroke-linejoin="round"/>
+    <path d="M91.8 106 L104.2 106 L103.4 118 Q98 120 92.6 118 Z" fill="url(#baileys)"/>
+    <rect x="94" y="103.4" width="4.4" height="4" rx=".8" fill="#f4fbff" opacity=".7" transform="rotate(-12 96 105)"/>
+    <path d="M84 116 Q88 108 95 110 Q102 110 104 114 Q104 121 96 122 Q88 123 84 116 Z" fill="url(#gskin)" stroke="#2e3612" stroke-width="1" stroke-linejoin="round"/>
+    <path d="M94 111 Q97 113 101 111.6 M93.6 114.4 Q97.2 116.4 102 115 M93.8 118 Q97.4 119.6 101.4 118.4" stroke="#2e3612" stroke-width=".7" fill="none" stroke-linecap="round"/>
+    <path d="M101 111.6 Q103 113 102 115 Q103.4 116.6 101.4 118.4" fill="#d9a04a" fill-opacity=".55" stroke="none"/>
+  </g>
+</svg>
+`;
   },
   'shotgun-swamp-kingdom': async () => {
     let svg = await load('shotgun');

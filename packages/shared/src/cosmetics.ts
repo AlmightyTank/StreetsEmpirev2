@@ -488,7 +488,7 @@ export const ITEM_COSMETIC_STYLES = [
   {
     key: 'swamp-kingdom-hoe',
     label: 'Swamp Kingdom',
-    description: 'A moss-green princess gown and a little crown. A Drop outfit for the Hoe.',
+    description: 'Old Gregg from the loch, fins, scales and a glass of Baileys. A Drop outfit for the Hoe.',
     released: true,
   },
   {
@@ -885,7 +885,7 @@ const CREW_OUTFIT_DESCRIPTIONS: Partial<Record<ItemCosmeticStyleKey, string>> = 
   '88-club-thug': 'An eighties puffer vest over a denim jacket, with a calculator watch.',
   '88-club-hoe': 'A fifties prom dress in powder blue with a corsage and a ribbon in her hair.',
   'swamp-kingdom-thug': 'A rough burlap tunic under a worn leather vest, with a rope belt.',
-  'swamp-kingdom-hoe': 'A moss-green velvet princess gown with gold braid and a little gold crown.',
+  'swamp-kingdom-hoe': 'Old Gregg from the loch: green scales, orange fins, big wet eyes, a lank comb-over and a glass of Baileys.',
   'zombie-apocalypse-thug': 'A torn flannel shirt over a grimy tank, a shell bandolier across the chest and a bloodied bandage on the arm.',
   'zombie-apocalypse-hoe': 'A scuffed olive field jacket with a quarantine-orange armband and a walkie-talkie on the collar.',
   'graveyard-shift-thug': 'An undertaker\'s frock coat, a bowler and a bone-handled cane.',

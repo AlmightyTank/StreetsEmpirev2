@@ -1166,7 +1166,7 @@ const ITEMS: readonly DropItemDefinition[] = [
     preview: { type: 'ITEM', items: ['THUG'] }, dresses: 'THUG',
   }),
   item('swamp-kingdom', 'hoe', {
-    name: 'Swamp Kingdom Hoe', description: 'A moss-green velvet princess gown with gold braid and a little gold crown. A Hoe outfit only.',
+    name: 'Swamp Kingdom Hoe', description: 'Old Gregg from the loch: green scales, orange fins, big wet eyes, a lank comb-over and a glass of Baileys. A Hoe outfit only.',
     kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'CREW', priceCrowns: 600, styleKey: 'swamp-kingdom-hoe',
     preview: { type: 'ITEM', items: ['HOE'] }, dresses: 'HOE',
   }),
