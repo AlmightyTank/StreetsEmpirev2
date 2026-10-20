@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
  * Generates the achievement badge art in
- * apps/web/public/assets/profile-badges/items/ as standalone SVGs.
+ * apps/web/public/assets/profile-badges/items/ as standalone SVGs, and the
+ * diamond holder for each rarity in apps/web/public/assets/profile-badges/holders/.
  *
  * Badges are drawn like the item and cosmetic art (apps/web/public/items/,
  * apps/web/art/cosmetics/): one frameless prop on the 128×128 grid, dark
@@ -11,6 +12,7 @@
  *
  *   node scripts/art/generate-badge-art.mjs            # write every badge
  *   node scripts/art/generate-badge-art.mjs whale chip # only matching keys
+ *   node scripts/art/generate-badge-art.mjs holders    # only the holders
  *
  * ProfileBadgeArt.tsx lists the keys; ProfileBadgeArt.test.ts checks every
  * listed key has a file here and every file is listed.
@@ -22,6 +24,7 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const itemsDir = path.join(root, 'apps/web/public/items');
 const outputDir = path.join(root, 'apps/web/public/assets/profile-badges/items');
+const holderDir = path.join(root, 'apps/web/public/assets/profile-badges/holders');
 const filters = process.argv.slice(2);
 
 // ---------------------------------------------------------------------------
@@ -996,6 +999,52 @@ const BADGES = {
 };
 
 // ---------------------------------------------------------------------------
+// Diamond holders. ProfileBadgeArt lays a badge's prop over the holder for its
+// rarity, so each tier reads at a glance the way Apex badges do: the metal and
+// the gem get richer and the trim grows from plain steel to winged gold.
+
+const HOLDER_TIERS = {
+  common: { rim: ['#f4f6f9', '#b9c1cc', '#6b7480', '#2a2f36'], field: ['#3f4651', '#191d23'], glow: '#c9d1db', gem: null, rivets: false, fins: false, wings: false },
+  uncommon: { rim: ['#e6ffd9', '#8fdc76', '#3f9a3e', '#1b4a1c'], field: ['#2a4a2f', '#0f1c12'], glow: '#8fdc76', gem: null, rivets: true, fins: false, wings: false },
+  rare: { rim: ['#eef4ff', '#9dbcff', '#4a74d8', '#1d3577'], field: ['#26395f', '#0d1527'], glow: '#6899f3', gem: '#6899f3', rivets: true, fins: false, wings: false },
+  epic: { rim: ['#ffeefe', '#f3aef0', '#b84fb3', '#561c55'], field: ['#4a2450', '#1a0c1e'], glow: '#e576e1', gem: '#e576e1', rivets: true, fins: true, wings: false },
+  legendary: { rim: ['#fff8d6', '#ffdc66', '#d39a1c', '#7a4b06'], field: ['#55400f', '#1f1606'], glow: '#f1b622', gem: '#e5383b', rivets: true, fins: true, wings: true },
+};
+
+function holder(tier) {
+  const t = HOLDER_TIERS[tier];
+  const defs = ramp('h-rim', t.rim.map((c, i) => [i / 3, c]), 'x1=".1" y1="0" x2=".9" y2="1"')
+    + ramp('h-band', [[0, t.rim[2]], [1, t.rim[3]]], 'x1="0" y1="0" x2="1" y2="1"')
+    + `<radialGradient id="h-field" cx=".5" cy=".42" r=".62"><stop offset="0" stop-color="${t.field[0]}"/><stop offset="1" stop-color="${t.field[1]}"/></radialGradient>`
+    + `<radialGradient id="h-glow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="${t.glow}" stop-opacity=".45"/><stop offset="1" stop-color="${t.glow}" stop-opacity="0"/></radialGradient>`
+    + PAINT['b-s'] + PAINT['b-gold'];
+  const wing = (dir) => at(`translate(64 64) scale(${dir} 1)`,
+    p('M50 -8 C60 -16 70 -14 78 -22 C76 -10 70 -4 62 0 C70 0 74 4 76 10 C68 8 60 8 52 6 Z', 'url(#h-rim)', 2)
+    + line('M56 -6 C62 -10 68 -12 72 -16 M56 2 C62 2 66 4 70 6', t.rim[3], 1.2));
+  const fin = (dir) => at(`translate(64 64) scale(${dir} 1)`, p('M50 -9 L62 0 L50 9 Z', 'url(#h-rim)', 2));
+  const rivet = (x, y) => circ(x, y, 2.4, 'url(#h-rim)', 1.2);
+  let rays = '';
+  for (let i = 0; i < 16; i++) {
+    const a = (i * Math.PI) / 8;
+    rays += `M64 64 L${(64 + Math.cos(a) * 46).toFixed(1)} ${(64 + Math.sin(a) * 46).toFixed(1)} `;
+  }
+  const body = sh(
+    (t.wings ? wing(1) + wing(-1) : t.fins ? fin(1) + fin(-1) : '')
+    + (t.wings ? p('M56 14 L64 0 L72 14 Z', 'url(#h-rim)', 2) : '')
+    + p('M64 8 L120 64 L64 120 L8 64 Z', 'url(#h-rim)', 2.4)
+    + p('M64 17 L111 64 L64 111 L17 64 Z', 'url(#h-band)', 1.6)
+    + p('M64 22 L106 64 L64 106 L22 64 Z', 'url(#h-field)', 1.6))
+    + `<path d="${rays}" stroke="${t.glow}" stroke-opacity=".1" stroke-width="3"/>`
+    + `<circle cx="64" cy="64" r="40" fill="url(#h-glow)"/>`
+    + line('M64 25 L103 64 L64 103 L25 64 Z', '#fff', 1, 'stroke-opacity=".14"')
+    + gloss('M64 11 L116 63 L111 64 L64 17 L17 64 L12 63 Z', 0.32)
+    + (t.rivets ? rivet(64, 112.5) + rivet(15.5, 64) + rivet(112.5, 64) : '')
+    + (t.gem ? sh(p('M64 5 L71 13 L64 21 L57 13 Z', t.gem, 1.6)) + gloss('M64 7 L68 12 L64 12 Z', 0.7) : '')
+    + (t.wings ? sparkle(104, 22, 6) + sparkle(22, 104, 5) : '');
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" aria-hidden="true">\n<defs>${defs}</defs>\n${body}\n</svg>\n`;
+}
+
+// ---------------------------------------------------------------------------
 
 function render(key) {
   inlineCount = 0;
@@ -1007,10 +1056,14 @@ function render(key) {
 }
 
 mkdirSync(outputDir, { recursive: true });
+mkdirSync(holderDir, { recursive: true });
 const keys = Object.keys(BADGES).filter((key) => !filters.length || filters.some((f) => key.includes(f)));
-if (!keys.length) {
-  console.error('No badges matched.');
+const tiers = Object.keys(HOLDER_TIERS).filter((tier) => !filters.length || filters.some((f) => f === 'holders' || tier.includes(f)));
+for (const tier of tiers) writeFileSync(path.join(holderDir, `${tier}.svg`), holder(tier));
+if (tiers.length) console.log(`Wrote ${tiers.length} holder${tiers.length === 1 ? '' : 's'} to ${path.relative(root, holderDir)}`);
+if (!keys.length && !tiers.length) {
+  console.error('No badges or holders matched.');
   process.exit(1);
 }
 for (const key of keys) writeFileSync(path.join(outputDir, `${key}.svg`), render(key));
-console.log(`Wrote ${keys.length} badge${keys.length === 1 ? '' : 's'} to ${path.relative(root, outputDir)}`);
+if (keys.length) console.log(`Wrote ${keys.length} badge${keys.length === 1 ? '' : 's'} to ${path.relative(root, outputDir)}`);
