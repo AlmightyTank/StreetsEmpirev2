@@ -76,7 +76,7 @@ Replaces the per-class upgrades in the Ammo & Parts doc; each vehicle is modded 
 | Shotgun / TEC-9 / Low-rider | 10 + $200 | 30 + $600 | 80 + $1,800 |
 | AK-47 / Van | 20 + $400 | 60 + $1,200 | 160 + $3,600 |
 
-Mods can be removed for half their parts back. A mod is lost with its item.
+Mods can be removed for half their parts back. **Mods belong to the item, not the player:** when a gun or vehicle is robbed or taken, its mods go with it (see *When items change hands*).
 
 ### Looks and names
 - Players can name any gun or vehicle (filtered by the existing profanity rules).
@@ -91,11 +91,37 @@ Mods can be removed for half their parts back. A mod is lost with its item.
 ## Combat and runs with individual items
 - **Auto-equip:** fighters take guns best-first (effective power after mods and condition). Players never assign guns by hand unless they want to.
 - **Favourites and reserves:** a player can mark guns as *favourite* (always equipped first) or *reserve* (never equipped, never lootable unless the armory is overrun).
-- **Loot:** a winning attacker takes specific guns, not counts, chosen at random from the defender's non-reserve guns. Looted guns keep their name, mods and history, with "taken from X" added. A player can win their gun back.
+- **Loot:** a winning attacker takes specific guns, not counts, chosen at random from the defender's non-reserve guns. See *When items change hands*.
 - **Runs:** the player picks vehicles for a run, or uses *auto-fleet* (best cargo per run fee). Trouble hits a specific vehicle, the most visible first, as now.
 - **No trading or selling between players.** Items move between players only through combat loot, as with the 3.0 "no member/property trades" rule. Selling back to stores works as now.
 
-## Managing hundreds of items
+## When items change hands
+A robbed or taken gun or ride goes to its new owner **exactly as it was**: model, every mod and tier, condition, name and history. The upgrades you paid for are now theirs.
+
+### Ways an item gets taken
+| How | What moves |
+| --- | --- |
+| Raid / attack won | Specific guns from the loser's non-reserve armory, as loot |
+| Ride theft (the existing Low-Rider steal move) | One specific vehicle, now of any model, chosen from the target's READY vehicles not on a run |
+| Run hit / convoy loss | A vehicle on the run, plus guns on its armed escort |
+| Encounter gang steal (`STEAL_RIDE` and similar) | The item goes to the NPC gang; the encounter's follow-up can win it back before it expires, otherwise it is gone |
+
+### What travels with it
+- **Mods and tiers:** all of them. The new owner gets full use straight away.
+- **Condition, name, plate, history:** kept. History gains "taken from X in City". The new owner can rename it.
+- **Drop look:** does **not** travel. A look bought with Crowns is the buyer's entitlement, so the item shows its stock look for the new owner and the original owner can put the look on another item.
+- **Favourite / reserve flags:** cleared.
+
+### Hot items
+- A taken item is **hot** for 24 hours. While hot, the new owner can use it but cannot strip its mods or sell it.
+- That gives the victim a window to take it back: when the victim wins a fight against the holder, loot picks **their own stolen items first**.
+- After 24 hours the item is clean. The holder can keep it, strip its mods at the chop shop for half their parts, or sell it to a store at the **stock price only**. Mods never sell for cash, so robbery can't launder upgrades into money.
+
+### Notifications
+- The victim is told exactly what was taken ("*Widowmaker*, AK-47, barrel 3 / scope 2 / comp 1, taken by X") and when it stops being hot.
+- The thief sees the item's full spec in their receipt.
+
+
 A player with 600 pistols has to stay comfortable:
 - **Stacks:** identical, unmodified, unnamed, full-condition items show as one stack ("212 × Pistol"). Customizing one splits it out.
 - **Bulk actions:** select by filter (model, condition, mods) and repair, mod, sell, rename-prefix or mark reserve in one action with one combined cost.
@@ -128,10 +154,12 @@ A player with 600 pistols has to stay comfortable:
 - Install/remove mods with parts + cash, saved builds, bulk apply. Receipts.
 
 ### Slice D — Combat with items
-- Best-first auto-equip, per-gun ammo and wear, jams, item loot with history, named items in receipts. Rerun combat simulations.
+- Best-first auto-equip, per-gun ammo and wear, jams, named items in receipts. Rerun combat simulations.
+- Item loot that moves mods, condition and history; hot window; victim's-own-items-first recovery; Drop look stays with its buyer.
 
 ### Slice E — Runs and vehicles with items
 - Vehicle picker and auto-fleet, per-vehicle trouble, status and repairs, vehicle mods in settlement. Rerun vehicle simulations.
+- Ride theft and run losses move specific vehicles with their mods; encounter-gang steals and recovery.
 
 ### Slice F — Looks, history and aftermath
 - Drop looks per item, item history, "famous items" on the profile and in round aftermath.
