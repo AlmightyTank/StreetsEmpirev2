@@ -41,18 +41,16 @@ describe('Round Roll Call Slice D permanent cosmetics', () => {
     expect(rollCallFinaleEligible(0, 0)).toBe(false);
   });
 
-  it('refuses early stamps and awards both parts only at completion', async () => {
+  it('refuses early stamps and awards the shell only at completion', async () => {
     const { db, unlocks } = store(20);
     expect(await RoundRollCallCosmeticService.awardIfEligible(db, makeRound(), 'p1', 'a1')).toBe(false);
     expect(unlocks.size).toBe(0);
     const enough = store(21);
     expect(await RoundRollCallCosmeticService.awardIfEligible(enough.db, makeRound(), 'p1', 'a1')).toBe(true);
-    expect([...enough.unlocks.keys()].sort()).toEqual([
-      ROUND_ROLL_CALL_FINALE.crewKey, ROUND_ROLL_CALL_FINALE.themeKey,
-    ].sort());
+    expect([...enough.unlocks.keys()]).toEqual([ROUND_ROLL_CALL_FINALE.themeKey]);
     expect([...enough.unlocks.values()].every((row) => row.sourceQuestKey === 'round-roll-call:r1:finale')).toBe(true);
     expect(await RoundRollCallCosmeticService.awardIfEligible(enough.db, makeRound(), 'p1', 'a1')).toBe(true);
-    expect(enough.unlocks.size).toBe(2);
+    expect(enough.unlocks.size).toBe(1);
     expect((await RoundRollCallCosmeticService.ownership(enough.db, 'a1')).unlocked).toBe(true);
   });
 
@@ -74,13 +72,11 @@ describe('Round Roll Call Slice D permanent cosmetics', () => {
     const { db, unlocks } = store(21);
     const granted = await RoundRollCallCosmeticService.grantCompletedAtClose(db, makeRound(), new Date(started.getTime() + 27 * day));
     expect(granted).toBe(1);
-    expect(unlocks.size).toBe(2);
+    expect(unlocks.size).toBe(1);
   });
 
-  it('keeps the permanent theme and crew collection visually paired', () => {
+  it('keeps the permanent theme as the Roll Call finale', () => {
     expect(ROUND_ROLL_CALL_FINALE_COSMETICS[ROUND_ROLL_CALL_FINALE.themeKey].kind).toBe('SITE_THEME');
-    expect(ROUND_ROLL_CALL_FINALE_COSMETICS[ROUND_ROLL_CALL_FINALE.crewKey].kind).toBe('ITEM_COLLECTION');
     expect(ROUND_ROLL_CALL_FINALE_COSMETICS[ROUND_ROLL_CALL_FINALE.themeKey].rarity).toBe('legendary');
-    expect(ROUND_ROLL_CALL_FINALE_COSMETICS[ROUND_ROLL_CALL_FINALE.crewKey].rarity).toBe('legendary');
   });
 });

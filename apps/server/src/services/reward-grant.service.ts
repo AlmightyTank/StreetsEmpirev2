@@ -16,6 +16,7 @@ import { PermanentUnlockService } from './permanent-unlock.service.js';
 import { CRACK, ProductInventoryService } from './product-inventory.service.js';
 import { QuestCosmeticService } from './quest-cosmetic.service.js';
 import { CrownWalletService } from './crown-wallet.service.js';
+import { DROP_ITEMS } from '@streets/rulesets';
 
 /**
  * Paying out rewards, shared by Jobs and the Street Pass so both grant and
@@ -214,6 +215,8 @@ export function rewardLabel(reward: QuestRewardDefinition, ruleset: Ruleset): st
     case 'FACTION_STANDING':
       return `+${amount} ${ruleset.factions?.[reward.key as FactionKey]?.name ?? reward.key ?? 'faction'} standing`;
     case 'COSMETIC_UNLOCK': {
+      if (reward.key === 'round-roll-call-cheap-drop-crate') return 'Random cheap Drop cosmetic crate';
+      if (reward.key && DROP_ITEMS[reward.key]) return DROP_ITEMS[reward.key]!.name;
       const cosmetic = ruleset.cosmetics?.[reward.key ?? ''];
       return `Permanent cosmetic · ${cosmetic?.name ?? reward.key ?? 'Cosmetic'}`;
     }

@@ -108,7 +108,7 @@ const adminRoundRollCallRoutes: FastifyPluginAsync = async (fastify) => {
         auditStampMismatch: recovered.length !== audits.length
           || recovered.some((day) => !audits.some((audit) => audit.dayIndex === day)),
         exceedsRecoveryCap: audits.length > 2,
-        unpairedGrandPrize: rewardBoard.grandPrize.themeOwned !== rewardBoard.grandPrize.crewOwned,
+        unpairedGrandPrize: false,
       },
     };
   });

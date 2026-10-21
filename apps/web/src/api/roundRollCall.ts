@@ -74,9 +74,7 @@ export interface RoundRollCallBoard {
   grandPrize: {
     unlocked: boolean;
     themeOwned: boolean;
-    crewOwned: boolean;
     themeStyle: string;
-    crewStyle: string;
     name: string;
   };
   recovery: RoundRollCallRecoveryStatus;
@@ -88,6 +86,7 @@ export interface RoundRollCallClaimResult {
   tier: number;
   rarity: RoundRollCallRarity;
   rewards: QuestRewardDto[];
+  dropCrate: boolean;
 }
 
 export interface RoundRollCallCheckIn {

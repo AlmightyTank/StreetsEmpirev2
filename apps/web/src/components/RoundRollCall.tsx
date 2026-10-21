@@ -13,10 +13,10 @@ import {
 import { Alert } from './Alert.js';
 import { Button } from './Button.js';
 import { RewardChip, rewardText } from './RewardChip.js';
-import { ItemTile } from './ItemTile.js';
 import { useSession } from '../stores/session.js';
 import { newActionId } from '../utils/actionId.js';
 import { rollCallWindowStart, todayRewardTier } from '../utils/roundRollCallView.js';
+import type { QuestRewardDto } from '@streets/shared';
 
 const RARITY_LABELS: Record<RoundRollCallRarity, string> = {
   common: 'Common',
@@ -38,16 +38,22 @@ function timeLabel(iso: string | null): string | null {
   return when.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
 
-function RollCallFinalePreview({ target, completed, owned }: { target: number; completed: boolean; owned: boolean }) {
+function RollCallFinalePreview({ target, completed, owned, onPreviewCrate }: {
+  target: number;
+  completed: boolean;
+  owned: boolean;
+  onPreviewCrate: () => void;
+}) {
   return (
     <aside className="se-rollcall-finale" aria-label="Final login reward collection preview">
       <div className="se-rollcall-finale__copy">
         <span className="se-eyebrow">Grand prize · final reward only</span>
         <h3>Wear the round. Own the streets.</h3>
         <p>
-          Complete all {target} attendance stamps to qualify for an exclusive, matching
-          game-shell theme and crew cosmetic collection. The pair stays with your account
-          across rounds after completion. Equip both looks from Account Settings.
+           Complete all {target} attendance stamps to qualify for the exclusive Obsidian
+           Signal game-shell theme. It stays with your account across rounds and can be
+           equipped from Account Settings. The matching crew look is available separately
+           in The Drop.
         </p>
         <small>
           {owned
@@ -57,7 +63,7 @@ function RollCallFinalePreview({ target, completed, owned }: { target: number; c
               : 'Obsidian Signal is locked until you complete your entire attendance track.'}
         </small>
       </div>
-      <div className="se-rollcall-finale__art" aria-label="Obsidian Signal shell and two matching crew outfits">
+       <div className="se-rollcall-finale__art" aria-label="Obsidian Signal shell">
         <div className="se-rollcall-finale__shell se-site-theme--obsidian-signal">
           <div className="se-rollcall-finale__chrome"><span>STREETS EMPIRE</span><i /><i /></div>
           <div className="se-rollcall-finale__shellbody">
@@ -66,14 +72,12 @@ function RollCallFinalePreview({ target, completed, owned }: { target: number; c
             <div className="se-rollcall-finale__lines"><i /><i /><i /></div>
           </div>
         </div>
-        <div className="se-rollcall-finale__crew">
-          <span>OBSIDIAN SIGNAL CREW</span>
-          <div className="se-rollcall-finale__crew-previews">
-            <ItemTile item="THUG" size="sm" cosmeticStyle="obsidian-signal-crew" />
-            <ItemTile item="HOE" size="sm" cosmeticStyle="obsidian-signal-crew" />
-          </div>
-          <small>{owned ? 'PERMANENTLY OWNED' : 'FINAL REWARD ONLY'}</small>
-        </div>
+         <div className="se-rollcall-finale__drop-note">
+           <strong>OBSIDIAN SIGNAL CREW</strong>
+           <span>AVAILABLE IN THE DROP</span>
+           <Link to="/game/drop">Shop the matching outfits</Link>
+           <Button variant="ghost" size="sm" onClick={onPreviewCrate}>Preview crate reveal</Button>
+         </div>
       </div>
     </aside>
   );
@@ -104,7 +108,7 @@ function RollCallDay({ tier, finale, today, claimingTier, onClaim }: {
         {tier.rewards.map((reward, index) => (
           <RewardChip reward={reward} key={reward.kind + ':' + (reward.key ?? '') + ':' + index} />
         ))}
-        {finale ? <span className="se-rollcall-day__future">Exclusive Obsidian Signal shell + crew outfit set</span> : null}
+         {finale ? <span className="se-rollcall-day__future">Obsidian Signal shell completion reward</span> : null}
       </div>
       <div className="se-rollcall-day__footer">
         {status === 'ready' ? (
@@ -114,9 +118,9 @@ function RollCallDay({ tier, finale, today, claimingTier, onClaim }: {
             block
             loading={claimingTier === tier.tier}
             disabled={claimingTier !== null}
-            onClick={() => onClaim(tier.tier)}
+             onClick={() => onClaim(tier.tier)}
             aria-label={'Claim ' + RARITY_LABELS[tier.rarity] + ' reward ' + tier.tier}
-          >{claimingTier === tier.tier ? 'Claiming…' : 'Claim reward'}</Button>
+          >{claimingTier === tier.tier ? 'Opening…' : finale ? 'Open crate' : 'Claim reward'}</Button>
         ) : (
           <span className="se-rollcall-day__state">
             {status === 'claimed' ? '✓ Collected' : status === 'reached' ? 'Earned · claiming unavailable' : 'Not yet earned'}
@@ -124,6 +128,30 @@ function RollCallDay({ tier, finale, today, claimingTier, onClaim }: {
         )}
       </div>
     </li>
+  );
+}
+
+function DropCrateReveal({ reward, demo, onClose }: { reward: QuestRewardDto; demo?: boolean; onClose: () => void }) {
+  return (
+    <section className="se-rollcall-crate" role="dialog" aria-modal="false" aria-labelledby="rollcall-crate-title">
+      <div className="se-rollcall-crate__head">
+        <div><span className="se-eyebrow">{demo ? 'Test preview · no reward granted' : 'Drop crate opened'}</span><h2 id="rollcall-crate-title">{demo ? 'Preview the cheap Drop crate' : 'Your crate is open'}</h2></div>
+        <Button variant="ghost" size="sm" onClick={onClose}>Close</Button>
+      </div>
+      <p className="se-rollcall-crate__hint">A random unowned cosmetic from the cheap Drop pool was selected server-side.</p>
+      <div className="se-rollcall-crate__stage" aria-label={demo ? 'Crate reveal preview' : 'Crate reveal'}>
+        <div className="se-rollcall-crate__rail" aria-hidden="true">
+          {['Street accent', 'Profile frame', 'Title badge', 'Crew look', 'Drop exclusive', 'Street accent', 'Profile frame'].map((label, index) => <span key={label + index}>{label}</span>)}
+        </div>
+        <div className="se-rollcall-crate__marker" aria-hidden="true" />
+        <div className="se-rollcall-crate__result">
+          <span className="se-rollcall-crate__result-icon" aria-hidden="true">✦</span>
+          <strong>{reward.label}</strong>
+          <small>Added to your Collection</small>
+        </div>
+      </div>
+      <p className="se-rollcall-crate__announce" role="status" aria-live="polite">{reward.label} · cosmetic only</p>
+    </section>
   );
 }
 
@@ -135,6 +163,7 @@ export function RoundRollCallPanel() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [claimError, setClaimError] = useState<string | null>(null);
   const [claimResult, setClaimResult] = useState<RoundRollCallClaimResult | null>(null);
+  const [previewCrate, setPreviewCrate] = useState(false);
   const [recovering, setRecovering] = useState(false);
   const [recoveryResult, setRecoveryResult] = useState<string | null>(null);
   const [recoveryError, setRecoveryError] = useState<string | null>(null);
@@ -290,12 +319,14 @@ export function RoundRollCallPanel() {
         </Alert>
       ) : null}
       {claimError ? <Alert title="Claim not confirmed">{claimError} Check the claim status below before retrying.</Alert> : null}
-      {claimResult ? (
+      {claimResult && !claimResult.dropCrate ? (
         <div className={'se-rollcall__receipt se-rollcall__receipt--' + claimResult.rarity} role="status" aria-live="polite">
           <strong>Reward {claimResult.tier} collected · {RARITY_LABELS[claimResult.rarity]}</strong>
           <span>{claimResult.rewards.map(rewardText).join(' · ')}</span>
         </div>
       ) : null}
+      {claimResult?.dropCrate ? <DropCrateReveal reward={claimResult.rewards[0]!} onClose={() => setClaimResult(null)} /> : null}
+      {previewCrate ? <DropCrateReveal demo reward={{ kind: 'COSMETIC_UNLOCK', key: 'demo-drop-item', amount: null, label: 'Random cheap Drop item' }} onClose={() => setPreviewCrate(false)} /> : null}
 
       {loading && !board ? <p className="se-rollcall__loading" role="status">Loading your round rewards…</p> : null}
       {!loading && !board && !loadError ? <p className="se-muted">Join an active round to start earning login rewards.</p> : null}
@@ -392,8 +423,8 @@ export function RoundRollCallPanel() {
                 finale={tier.tier === board.requiredStamps}
                 today={tier.tier === todayTier}
                 claimingTier={claimingTier}
-                onClaim={(step) => void claim(step)}
-              />
+                 onClaim={(step) => void claim(step)}
+               />
             ))}
           </ol>
           {board.rewardTrack.length > 6 ? (
@@ -406,15 +437,20 @@ export function RoundRollCallPanel() {
               >{showAllRewards ? 'Show rewards near my progress' : 'Show full ' + board.requiredStamps + '-reward calendar'}</Button>
             </div>
           ) : null}
-          <RollCallFinalePreview target={board.requiredStamps} completed={board.completed} owned={board.grandPrize.unlocked} />
+           <RollCallFinalePreview
+             target={board.requiredStamps}
+             completed={board.completed}
+             owned={board.grandPrize.unlocked}
+             onPreviewCrate={() => setPreviewCrate(true)}
+           />
           {board.grandPrize.unlocked ? (
             <p className="se-rollcall__equipped" role="status">
-              Permanent Obsidian Signal collection earned. <Link to="/account">Equip the theme and crew outfits</Link>.
+               Permanent Obsidian Signal shell earned. <Link to="/account">Equip the theme</Link> or <Link to="/game/drop">shop the matching crew outfits</Link>.
             </p>
           ) : null}
           <p className="se-rollcall__footnote">
             Seven missed days are already built into the round schedule. Earn one stamp per eligible day;
-            completing all stamps is required for the exclusive cosmetic collection.
+             completing all stamps is required for the exclusive Obsidian Signal shell.
             Gameplay rewards are capped and never include weapons or permanent power.
             <Link to="/account"> View your existing cosmetics.</Link>
           </p>

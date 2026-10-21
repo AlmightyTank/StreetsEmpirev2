@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   ROUND_ROLL_CALL_REWARD_VERSION,
+  ROUND_ROLL_CALL_DROP_CRATE_KEY,
   ROLL_CALL_PER_STEP_CAPS,
   roundRollCallCatalog,
   validateRollCallRewards,
@@ -40,15 +41,16 @@ describe('Round Roll Call Slice B catalog', () => {
     const sum = (kind: string) => rewards
       .filter((reward) => reward.kind === kind)
       .reduce((amount, reward) => amount + (reward.amount ?? 0), 0);
-    expect(sum('CASH')).toBe(1_915_000);
-    expect(sum('TURNS')).toBe(74);
+    expect(sum('CASH')).toBe(1_415_000);
+    expect(sum('TURNS')).toBe(59);
     expect(sum('CASH')).toBeLessThan(2_000_000);
     expect(rewards.filter((reward) => reward.kind === 'ITEM').every((reward) =>
       ['condoms', 'beer', 'medicine'].includes(reward.key ?? ''))).toBe(true);
+    expect(rewards.at(-1)).toEqual({ kind: 'COSMETIC_UNLOCK', key: ROUND_ROLL_CALL_DROP_CRATE_KEY });
     expect(rewards.every((reward) => (reward.amount ?? 0) <=
       (reward.kind === 'CASH' ? ROLL_CALL_PER_STEP_CAPS.cashCents
         : reward.kind === 'TURNS' ? ROLL_CALL_PER_STEP_CAPS.turns
-          : ROLL_CALL_PER_STEP_CAPS.supplies))).toBe(true);
+          : reward.kind === 'COSMETIC_UNLOCK' ? 0 : ROLL_CALL_PER_STEP_CAPS.supplies))).toBe(true);
   });
 
   it('disallows guns, permanent access, or out-of-budget rewards', () => {
@@ -56,6 +58,7 @@ describe('Round Roll Call Slice B catalog', () => {
     expect(validateRollCallRewards([{ kind: 'TURNS', amount: 100 }])).toBe(false);
     expect(validateRollCallRewards([{ kind: 'CASH', amount: 1_000_000 }])).toBe(false);
     expect(validateRollCallRewards([{ kind: 'ITEM', key: 'medicine', amount: 12 }])).toBe(true);
+    expect(validateRollCallRewards([{ kind: 'COSMETIC_UNLOCK', key: ROUND_ROLL_CALL_DROP_CRATE_KEY }])).toBe(true);
   });
 
   it('requires a real stamp and rejects already paid rewards', () => {

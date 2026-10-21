@@ -364,7 +364,7 @@ describe('AccountProfileService Street Pass collection unlocks', () => {
       'midnight-ops': 'Street Pass · Season 1, tier 18',
       'cartel-gold': 'Street Pass · Season 1, tier 28',
       'midnight-chrome': 'Supporter reward.',
-      'obsidian-signal-crew': 'Finish the Round Roll Call attendance track to earn the permanent pair.',
+      'obsidian-signal-crew': 'Sold in The Drop for Crowns.',
       'kingpin-luxe-sedan': 'Sold in The Drop for Crowns.',
       'kingpin-luxe-thug': 'Sold in The Drop for Crowns.',
       'kingpin-luxe-hoe': 'Sold in The Drop for Crowns.',

@@ -2,6 +2,8 @@ import type { QuestRewardDefinition } from '@streets/rulesets';
 
 /** This catalog version never changes after release: old receipt snapshots stay auditable. */
 export const ROUND_ROLL_CALL_REWARD_VERSION = 'round-roll-call-v1' as const;
+/** Resolved server-side into one cheap, unowned Drop cosmetic when claimed. */
+export const ROUND_ROLL_CALL_DROP_CRATE_KEY = 'round-roll-call-cheap-drop-crate' as const;
 export type RoundRollCallRarity = 'common' | 'uncommon' | 'rare' | 'legendary';
 export interface RoundRollCallRewardTier {
   tier: number;
@@ -14,6 +16,8 @@ const cash = (dollars: number): QuestRewardDefinition => ({ kind: 'CASH', amount
 const turns = (amount: number): QuestRewardDefinition => ({ kind: 'TURNS', amount });
 const item = (key: 'beer' | 'condoms' | 'medicine', amount: number): QuestRewardDefinition =>
   ({ kind: 'ITEM', key, amount });
+const dropCrate = (): QuestRewardDefinition =>
+  ({ kind: 'COSMETIC_UNLOCK', key: ROUND_ROLL_CALL_DROP_CRATE_KEY });
 
 /**
  * The regular 21-stamp schedule: 10 Common, 6 Uncommon, 4 Rare,
@@ -21,8 +25,9 @@ const item = (key: 'beer' | 'condoms' | 'medicine', amount: number): QuestReward
  * fixed schedule across all non-final steps, then put Legendary last.
  * Repetition is intentional, deterministic and never random/buyable.
  *
- * Even the Legendary gameplay bundle is mild. Slice D will attach
- * account-persistent shell + crew cosmetics to the final claim only.
+ * Even the Legendary gameplay bundle is mild. The final attendance reward is
+ * intentionally a cheap random Drop cosmetic crate; the Obsidian Signal shell
+ * is awarded separately as the completion cosmetic.
  */
 const STANDARD_STEPS: readonly Omit<RoundRollCallRewardTier, 'key' | 'tier'>[] = [
   { rarity: 'common', rewards: [cash(1_000)] },
@@ -48,7 +53,7 @@ const STANDARD_STEPS: readonly Omit<RoundRollCallRewardTier, 'key' | 'tier'>[] =
 ];
 
 const FINALE: Omit<RoundRollCallRewardTier, 'key' | 'tier'> =
-  { rarity: 'legendary', rewards: [cash(5_000), turns(15)] };
+  { rarity: 'legendary', rewards: [dropCrate()] };
 
 export const ROLL_CALL_PER_STEP_CAPS = {
   cashCents: 500_000,
@@ -60,6 +65,7 @@ export const ROLL_CALL_PER_STEP_CAPS = {
 export function validateRollCallRewards(rewards: readonly QuestRewardDefinition[]): boolean {
   return rewards.length > 0 && rewards.every((reward) => {
     const amount = reward.amount ?? 0;
+    if (reward.kind === 'COSMETIC_UNLOCK' && reward.key === ROUND_ROLL_CALL_DROP_CRATE_KEY) return amount === 0;
     if (!Number.isSafeInteger(amount) || amount <= 0) return false;
     if (reward.kind === 'CASH') return amount <= ROLL_CALL_PER_STEP_CAPS.cashCents;
     if (reward.kind === 'TURNS') return amount <= ROLL_CALL_PER_STEP_CAPS.turns;

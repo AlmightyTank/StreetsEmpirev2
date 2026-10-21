@@ -69,11 +69,11 @@ describe('round roll call check-ins', () => {
     const result = await RoundRollCallService.view(db, round, 'p1', new Date(START.getTime() + 27 * DAY + HOUR));
     expect(result.stamps).toBe(21);
     expect(result.completed).toBe(true);
-    expect([...unlocked].sort()).toEqual(['round-roll-call-obsidian-signal-crew', 'round-roll-call-obsidian-signal-theme']);
+    expect([...unlocked]).toEqual(['round-roll-call-obsidian-signal-theme']);
     expect(result.allowanceRemaining).toBe(0);
     const extra = await RoundRollCallService.checkIn(db, 'r1', 'p1', new Date(START.getTime() + 27 * DAY + 2 * HOUR));
     expect(extra.recorded).toBe(false);
-    expect(unlocked.size).toBe(2);
+    expect(unlocked.size).toBe(1);
   });
 
 });

@@ -1,15 +1,13 @@
 import type { QuestCosmeticCatalog } from './types.js';
 
 /**
- * Round Roll Call — Obsidian Signal: a matching, account-permanent cosmetic pair.
+ * Round Roll Call — Obsidian Signal: an account-permanent shell.
  * Kept outside round-pinned rulesets so even past round earners retain the look.
  * These contain presentation metadata ONLY; neither definition grants resources.
  */
 export const ROUND_ROLL_CALL_FINALE = {
   themeKey: 'round-roll-call-obsidian-signal-theme',
-  crewKey: 'round-roll-call-obsidian-signal-crew',
   themeStyle: 'obsidian-signal',
-  crewStyle: 'obsidian-signal-crew',
   name: 'Obsidian Signal',
 } as const;
 
@@ -21,13 +19,5 @@ export const ROUND_ROLL_CALL_FINALE_COSMETICS = {
     kind: 'SITE_THEME',
     rarity: 'legendary',
     styleKey: ROUND_ROLL_CALL_FINALE.themeStyle,
-  },
-  [ROUND_ROLL_CALL_FINALE.crewKey]: {
-    key: ROUND_ROLL_CALL_FINALE.crewKey,
-    name: 'Obsidian Signal · Crew Uniforms',
-    description: 'A matching permanent original outfit collection for both Thugs and Hoes, earned at the Round Roll Call finale.',
-    kind: 'ITEM_COLLECTION',
-    rarity: 'legendary',
-    styleKey: ROUND_ROLL_CALL_FINALE.crewStyle,
   },
 } as const satisfies QuestCosmeticCatalog;

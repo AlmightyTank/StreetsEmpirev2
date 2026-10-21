@@ -3,11 +3,8 @@ import { ROUND_ROLL_CALL_FINALE, ROUND_ROLL_CALL_FINALE_COSMETICS } from '@stree
 import type { Db } from '../utils/db.js';
 import { roundRollCallClock } from './round-roll-call.service.js';
 
-const PAIR = [
-  ROUND_ROLL_CALL_FINALE_COSMETICS[ROUND_ROLL_CALL_FINALE.themeKey],
-  ROUND_ROLL_CALL_FINALE_COSMETICS[ROUND_ROLL_CALL_FINALE.crewKey],
-] as const;
-export const ROUND_ROLL_CALL_FINALE_KEYS = PAIR.map((definition) => definition.key);
+const FINALE_COSMETIC = ROUND_ROLL_CALL_FINALE_COSMETICS[ROUND_ROLL_CALL_FINALE.themeKey];
+export const ROUND_ROLL_CALL_FINALE_KEYS = [FINALE_COSMETIC.key] as const;
 
 /** Completion, not a paid pass, purchases or consecutive streaks, gates the set. */
 export function rollCallFinaleEligible(requiredStamps: number, earnedStamps: number): boolean {
@@ -24,9 +21,7 @@ export const RoundRollCallCosmeticService = {
     return {
       unlocked: ROUND_ROLL_CALL_FINALE_KEYS.every((key) => keys.has(key)),
       themeOwned: keys.has(ROUND_ROLL_CALL_FINALE.themeKey),
-      crewOwned: keys.has(ROUND_ROLL_CALL_FINALE.crewKey),
       themeStyle: ROUND_ROLL_CALL_FINALE.themeStyle,
-      crewStyle: ROUND_ROLL_CALL_FINALE.crewStyle,
       name: ROUND_ROLL_CALL_FINALE.name,
     };
   },
@@ -51,7 +46,7 @@ export const RoundRollCallCosmeticService = {
     const stamps = await tx.roundLoginCheckIn.count({ where: { roundPlayerId } });
     if (!rollCallFinaleEligible(clock.requiredStamps, stamps)) return false;
 
-    for (const cosmetic of PAIR) {
+    for (const cosmetic of [FINALE_COSMETIC]) {
       await tx.accountCosmeticUnlock.upsert({
         where: { accountId_key: { accountId, key: cosmetic.key } },
         create: {
@@ -74,7 +69,7 @@ export const RoundRollCallCosmeticService = {
   },
 
   /**
-   * Round close safety net. Qualifying players receive both permanent looks
+   * Round close safety net. Qualifying players receive the permanent shell
    * even if they forgot to claim the final gameplay reward; no expired cash,
    * turns or supplies are paid. Scans qualifying stamps in batches to avoid
    * querying one profile per participant.

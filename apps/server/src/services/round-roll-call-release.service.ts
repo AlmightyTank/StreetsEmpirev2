@@ -45,6 +45,8 @@ export function rollCallEconomyProjection(
       else if (reward.kind === 'TURNS') perPlayer.turns += amount;
       else if (reward.kind === 'ITEM' && reward.key && reward.key in perPlayer.supplies) {
         perPlayer.supplies[reward.key as keyof RollCallEconomyTotals['supplies']] += amount;
+      } else if (reward.kind === 'COSMETIC_UNLOCK') {
+        // The final crate is a cosmetic entitlement, not gameplay liability.
       } else throw new Error('Roll Call release simulation rejected non-consumable reward.');
     }
   }
@@ -53,6 +55,7 @@ export function rollCallEconomyProjection(
     const amount = reward.amount ?? 0;
     return reward.kind === 'CASH' ? amount <= ROLL_CALL_PER_STEP_CAPS.cashCents
       : reward.kind === 'TURNS' ? amount <= ROLL_CALL_PER_STEP_CAPS.turns
+      : reward.kind === 'COSMETIC_UNLOCK' ? amount === 0
         : amount <= ROLL_CALL_PER_STEP_CAPS.supplies;
   }));
   return {
@@ -71,7 +74,7 @@ export function rollCallEconomyProjection(
     allStepsWithinCaps,
     finaleTier: requiredStamps > 0 ? requiredStamps : null,
     // Cosmetic entitlements are separate account-only items, not a gameplay
-    // power grant; the underlying catalog has no cosmetic/weapon rewards.
+    // power grant; the final crate is resolved when an individual claims it.
     gameplayOnly: true,
   };
 }

@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="Obsidian Signal Hoe outfit">
+  <defs><linearGradient id="cloth" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#273448"/><stop offset="1" stop-color="#080f19"/></linearGradient></defs>
+  <circle cx="64" cy="42" r="22" fill="#b98261" stroke="#c3913a" stroke-width="3"/><path d="M40 39Q42 13 64 11Q86 13 88 39L80 31H48Z" fill="#0b1420" stroke="#f3d68b" stroke-width="3"/><path d="M47 45H81" stroke="#78dee5" stroke-width="4"/><path d="M28 124L33 80Q40 68 52 65L64 74L76 65Q89 68 96 80L100 124Z" fill="url(#cloth)" stroke="#c3913a" stroke-width="4"/><path d="M64 75V124" stroke="#273448" stroke-width="4"/><path d="M42 84L55 96L64 79L73 96L86 84" fill="none" stroke="#f3d68b" stroke-width="3"/>
+</svg>

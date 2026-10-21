@@ -1308,6 +1308,11 @@ const ITEMS: readonly DropItemDefinition[] = [
     kind: 'ITEM_COLLECTION', rarity: 'rare', category: 'CREW', priceCrowns: 450, styleKey: 'tie-dye-hoe',
     preview: { type: 'ITEM', items: ['HOE'] }, dresses: 'HOE',
   }),
+  item('street-singles', 'obsidian-signal-crew', {
+    name: 'Obsidian Signal Crew', description: 'Midnight graphite tailoring, pale cyan signal visors and gold medal detailing for both crew roles. A matching Roll Call look, now available in The Drop.',
+    kind: 'ITEM_COLLECTION', rarity: 'legendary', category: 'CREW', priceCrowns: 600, styleKey: 'obsidian-signal-crew',
+    preview: { type: 'ITEM', items: ['THUG', 'HOE'] },
+  }),
   item('street-singles', 'barbed-wire', {
     name: 'Barbed Wire Frame', description: 'A ring of barbed wire around your profile and avatar.',
     kind: 'PROFILE_FRAME', rarity: 'rare', category: 'PROFILES', priceCrowns: 350, styleKey: 'barbed-wire-frame',

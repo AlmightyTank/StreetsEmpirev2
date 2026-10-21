@@ -30,7 +30,7 @@ describe('Round Roll Call Slice F — deterministic economy release matrix', () 
       const catalog = roundRollCallCatalog(p.requiredStamps);
       expect(catalog).toHaveLength(p.requiredStamps);
       for (const reward of catalog.flatMap((tier) => tier.rewards)) {
-        expect(['CASH', 'TURNS', 'ITEM']).toContain(reward.kind);
+        expect(['CASH', 'TURNS', 'ITEM', 'COSMETIC_UNLOCK']).toContain(reward.kind);
         if (reward.kind === 'ITEM') expect(['condoms', 'beer', 'medicine']).toContain(reward.key);
       }
     }
@@ -40,14 +40,14 @@ describe('Round Roll Call Slice F — deterministic economy release matrix', () 
     const projected = rollCallEconomyProjection(28, 150);
     expect(projected.rewardVersion).toBe(ROUND_ROLL_CALL_REWARD_VERSION);
     expect(projected.perPlayer).toEqual({
-      cashCents: 1_915_000,
-      turns: 74,
-      supplies: { beer: 42, condoms: 37, medicine: 20 },
+      cashCents: 1_415_000,
+      turns: 59,
+       supplies: { beer: 42, condoms: 37, medicine: 20 },
     });
     expect(projected.totalSuppliesPerPlayer).toBe(99);
     expect(projected.rarityCounts).toEqual({ common: 10, uncommon: 6, rare: 4, legendary: 1 });
-    expect(projected.worstCase.cashCents).toBe(287_250_000);
-    expect(projected.worstCase.turns).toBe(11_100);
+    expect(projected.worstCase.cashCents).toBe(212_250_000);
+    expect(projected.worstCase.turns).toBe(8_850);
   });
 
   it('rejects non-integer inputs, unrealistic simulations, and unknown pinned reward versions', () => {
