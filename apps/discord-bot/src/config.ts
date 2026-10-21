@@ -55,7 +55,11 @@ const schema = z.object({
   DISCORD_STATS_CHANNEL_ID: optionalChannel('DISCORD_STATS_CHANNEL_ID'),
   /** How often the rotating stats channel changes; 0 disables it. */
   DISCORD_STATS_MINUTES: z.coerce.number().int().min(0).max(60).default(5),
-  /** Comma-separated templates. Supported values: {peak}, {traded}, {raids}, {days}, {players}, {status}. */
+  /** Dedicated channels whose names show current players, game, and status; empty entries disable each one. */
+  DISCORD_STATS_PLAYERS_CHANNEL_ID: optionalChannel('DISCORD_STATS_PLAYERS_CHANNEL_ID'),
+  DISCORD_STATS_GAME_CHANNEL_ID: optionalChannel('DISCORD_STATS_GAME_CHANNEL_ID'),
+  DISCORD_STATS_STATUS_CHANNEL_ID: optionalChannel('DISCORD_STATS_STATUS_CHANNEL_ID'),
+  /** Comma-separated rotating templates. Supported values: {peak}, {game}, {traded}, {raids}, {days}, {players}, {status}. */
   DISCORD_STATS_TEMPLATES: z.string().default('🔥・peak-{peak}-today,💰・{traded}-traded,⚔️・{raids}-raids-today,⏱️・{days}d-left'),
   /** Twitch or YouTube URL used by the clickable Streaming presence card. */
   DISCORD_STREAM_URL: z.string().url().default('https://twitch.tv/amightytank'),

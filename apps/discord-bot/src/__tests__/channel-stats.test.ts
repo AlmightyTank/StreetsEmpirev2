@@ -4,6 +4,7 @@ import { renderStatsTemplate, rotatingStatsNames } from '../channel-stats.js';
 const stats = {
   playerCount: 42,
   peakPlayers: 67,
+  gameName: 'Game-21',
   tradedCents: 120_000_000,
   raidsToday: 12,
   daysLeft: 3,
@@ -21,7 +22,7 @@ describe('rotating stats channel names', () => {
   });
 
   it('supports custom templates and unavailable states', () => {
-    expect(renderStatsTemplate('{status}-{players}-{days}', { ...stats, playerCount: null, daysLeft: null, serverStatus: 'maintenance' })).toBe('maintenance-offline-no-round');
+    expect(renderStatsTemplate('{status}-{players}-{game}-{days}', { ...stats, playerCount: null, gameName: null, daysLeft: null, serverStatus: 'maintenance' })).toBe('maintenance-offline-no-game-no-round');
   });
 
   it('caps names at Discord’s channel-name limit', () => {
