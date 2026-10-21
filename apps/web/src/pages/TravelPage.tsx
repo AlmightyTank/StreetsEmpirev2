@@ -129,7 +129,7 @@ export function TravelPage() {
   return (
     <GameLayout>
       <div className="se-travel">
-        <EmpirePageHeader eyebrow={`Road operations · home in ${home?.name ?? me.city.name}`} title="Travel" description="Choose a city on the map, then manage routes, convoys, garage loads, trips, and relocation without leaving the road board." />
+        <EmpirePageHeader eyebrow={`Road operations · home in ${home?.name ?? me.city.name}`} title="Travel" description="Routes, convoys, trips, and relocation." />
 
         {error ? <Alert>{error}</Alert> : null}
         {data?.enabled ? <LevelLockNotice gates={['runs', 'bossRuns', 'travel']} /> : null}
