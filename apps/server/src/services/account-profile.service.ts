@@ -10,7 +10,6 @@ import {
   isOwnedCollection,
   isReleasedItemCosmeticStyle,
   readAvatarParts,
-  readStreetSignDesign,
   streetSignForCrewName,
   SIGNATURE_CARD_FRAME_KEY,
   SUPPORTER_UNLOCK_HINT,
@@ -573,13 +572,15 @@ export const AccountProfileService = {
         : effectiveCrewName
           ? { ...input.streetSign, streetName: effectiveCrewName }
           : input.streetSign;
+    if (streetSign) {
+      assertCommunicationContent('Street sign', `${streetSign.streetName} ${streetSign.tag}`);
+    }
     if (streetSign && !effectiveCrewName) {
       throw AppError.badRequest('CREW_NAME_REQUIRED', 'Set a crew name before saving a street sign.', {
         streetSign: 'Street sign lettering is linked to your crew name.',
       });
     }
     if (streetSign) {
-      assertCommunicationContent('Street sign', `${streetSign.streetName} ${streetSign.tag}`);
       const requestedFonts = [
         { font: streetSign.font, slot: 'streetText' as const },
         { font: streetSign.tagFont, slot: 'graffiti' as const },
