@@ -226,12 +226,22 @@ function HudIcon({ name }: { name: 'cash' | 'turns' | 'heat' | 'worth' }) {
 }
 
 /** A live outline showing the time remaining until the next turn batch. */
-function TurnRechargeRing({ nextTurnAt, intervalMinutes }: { nextTurnAt: string; intervalMinutes: number }) {
+function TurnRechargeRing({ nextTurnAt, intervalMinutes, onElapsed }: { nextTurnAt: string; intervalMinutes: number; onElapsed: () => void }) {
   const intervalMs = Math.max(1, intervalMinutes * 60_000);
   const [progress, setProgress] = useState(() => rechargeProgress(nextTurnAt, intervalMs));
+  const elapsedRef = useRef(onElapsed);
+  const firedFor = useRef<string | null>(null);
+  elapsedRef.current = onElapsed;
 
   useEffect(() => {
-    const update = () => setProgress(rechargeProgress(nextTurnAt, intervalMs));
+    const update = () => {
+      const remaining = new Date(nextTurnAt).getTime() - Date.now();
+      setProgress(Math.max(0, Math.min(1, 1 - remaining / intervalMs)));
+      if (remaining <= 0 && firedFor.current !== nextTurnAt) {
+        firedFor.current = nextTurnAt;
+        elapsedRef.current();
+      }
+    };
     update();
     const timer = window.setInterval(update, 1_000);
     return () => window.clearInterval(timer);
@@ -260,6 +270,7 @@ function StatusBar() {
   const me = useSession((s) => s.me);
   const moneyFormat = useSession((s) => s.profileSettings.moneyFormat);
   const platform = useSession((s) => s.platform);
+  const refreshSnapshot = useSession((s) => s.refreshSnapshot);
   const location = useLocation();
   const currentTurnAction = turnActionIndex(location.pathname);
 
@@ -315,7 +326,11 @@ function StatusBar() {
           <span className="se-muted">/{me.turns.turnCap}</span>
         </span>
         {me.turns.turnsGeneratedNextTick > 0 ? (
-          <TurnRechargeRing nextTurnAt={me.turns.nextTurnAt} intervalMinutes={turnIntervalMinutes} />
+          <TurnRechargeRing
+            nextTurnAt={me.turns.nextTurnAt}
+            intervalMinutes={turnIntervalMinutes}
+            onElapsed={() => void refreshSnapshot({ background: true })}
+          />
         ) : null}
         <span className={`se-statusbar__meter${me.turns.turns >= me.turns.turnCap ? ' se-statusbar__meter--full' : ''}`} aria-hidden="true">
           <span style={{ width: `${me.turns.turnCap > 0 ? Math.min(100, (me.turns.turns / me.turns.turnCap) * 100) : 0}%` }} />
