@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { classicOgV07D } from '../classic-og-v0.7-d/index.js';
 import { classicOgV165E2 } from '../classic-og-v1.6.5-e2/index.js';
+import { classicOgV18S } from '../classic-og-v1.8-s/index.js';
+import { classicOgV24A } from '../classic-og-v2.4-a/index.js';
 import { questDefinitionProblems } from '../quest-definitions.js';
 import type { QuestDefinitionCatalog } from '../types.js';
 
@@ -51,6 +53,28 @@ describe('1.6.5-E2 guided empire campaign', () => {
       expect(quests[questKey]?.prerequisites).toContainEqual({
         kind: 'QUEST_COMPLETED', params: { questKey: pathKey },
       });
+    }
+  });
+
+  it('exposes the same specialty starts on the current 2.4 Quest Board snapshot', () => {
+    const current: QuestDefinitionCatalog = classicOgV24A.questDefinitions!;
+    for (const key of paths) expect(current[key]).toBeDefined();
+    expect(current.PLANT_THE_FLAG?.followUpKeys).toEqual(expect.arrayContaining(paths));
+    expect(current.STREET_OPERATOR_PATH?.prerequisites).toContainEqual({
+      kind: 'QUEST_COMPLETED', params: { questKey: 'PLANT_THE_FLAG' },
+    });
+  });
+
+  it('retires the old seven quest-board tutorial jobs only from current 2.4 rounds', () => {
+    const tutorialKeys = [
+      'TOUR_FIRST_JOB', 'TOUR_SCOUT', 'TOUR_SUPPLIES', 'TOUR_CREW',
+      'TOUR_COOK', 'TOUR_HIDEOUT', 'TOUR_RAID',
+    ];
+    const current: QuestDefinitionCatalog = classicOgV24A.questDefinitions!;
+    const historical: QuestDefinitionCatalog = classicOgV18S.questDefinitions!;
+    for (const key of tutorialKeys) {
+      expect(current[key]).toBeUndefined();
+      expect(historical[key]).toBeDefined();
     }
   });
 });

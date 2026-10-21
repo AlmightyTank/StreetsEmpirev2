@@ -41,13 +41,13 @@ describe('tour step helpers', () => {
 });
 
 describe('TourOverlay', () => {
-  it('renders the current step with progress, fallback link and skip', () => {
+  it('renders the current step with progress, Guide Me and skip', () => {
     const html = render(showTour());
     // No DOM in SSR, so the target is missing and the fallback renders.
     expect(html).toContain('data-testid="tour-overlay"');
     expect(html).toContain('Guided tour · Step 2 of 7');
     expect(html).toContain('Work the block');
-    expect(html).toContain('href="/game/scout"');
+    expect(html).toContain('Guide me to the action');
     expect(html).toContain('Skip tour');
     expect(html).toContain('se-tour__card--fallback');
     expect(html).toContain('tabindex="-1"');

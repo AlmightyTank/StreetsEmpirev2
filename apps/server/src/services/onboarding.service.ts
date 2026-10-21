@@ -13,6 +13,7 @@ import {
 } from '@streets/shared';
 import { RoundService } from './round.service.js';
 import { PlayerExperienceService } from './player-experience.service.js';
+import { metrics } from './metrics.service.js';
 
 /**
  * 1.0.0-B. Tutorial progress and the early "getting started" goals.
@@ -49,17 +50,37 @@ function itemNames(ruleset: Ruleset, fields: string[]): string[] {
   return [...names];
 }
 
-/** Store buys of a named item, as a single trade or as a line of a checkout. */
+/**
+ * Positive purchases of a named item, as a single trade or as a checkout line.
+ *
+ * Store activities are deliberately read from the resolved ledger rather than
+ * from client intent. Single trades carry direction/quantity at the top level;
+ * checkout activities carry them on each line and may be aggregated as either
+ * STORE_BUY or STORE_SELL when a basket contains both directions.
+ */
 function bought(names: string[]): Prisma.Sql {
   if (!names.length) return Prisma.sql`false`;
   const list = Prisma.join(names);
   return Prisma.sql`(
-    (a.type::text = 'STORE_BUY' AND a.payload->>'item' IN (${list}))
+    (
+      a.type::text = 'STORE_BUY'
+      AND a.payload->>'item' IN (${list})
+      AND a.payload->>'direction' = 'buy'
+      AND CASE
+        WHEN jsonb_typeof(a.payload->'quantity') = 'number' THEN (a.payload->>'quantity')::float8
+        ELSE 0
+      END > 0
+    )
     OR (a.type::text IN ('STORE_BUY', 'STORE_SELL') AND EXISTS (
       SELECT 1 FROM jsonb_array_elements(
         CASE WHEN jsonb_typeof(a.payload->'lines') = 'array' THEN a.payload->'lines' ELSE '[]'::jsonb END
       ) AS line
-      WHERE line->>'item' IN (${list}) AND line->>'direction' = 'buy'
+      WHERE line->>'item' IN (${list})
+        AND line->>'direction' = 'buy'
+        AND CASE
+          WHEN jsonb_typeof(line->'quantity') = 'number' THEN (line->>'quantity')::float8
+          ELSE 0
+        END > 0
     ))
   )`;
 }
@@ -98,6 +119,8 @@ export async function tourProgress(
   player: { id: string; thugs: number },
   ruleset: Ruleset,
 ): Promise<Record<TourStepKey, boolean>> {
+  const eligibleProducts = [...new Set(['CRACK', ...Object.keys(ruleset.products ?? {})])];
+  const productList = Prisma.join(eligibleProducts);
   const [row] = await prisma.$queryRaw<Array<Record<'quested' | 'scouted' | 'recruited' | 'hired' | 'condoms' | 'beer' | 'produced' | 'hideout' | 'raided', boolean | null>>>(Prisma.sql`
     SELECT
       bool_or(a.type::text = 'QUEST_ACCEPTED') AS quested,
@@ -106,7 +129,14 @@ export async function tourProgress(
       bool_or(${bought(itemNames(ruleset, ['thugs']))}) AS hired,
       bool_or(${bought(itemNames(ruleset, ['condoms']))}) AS condoms,
       bool_or(${bought(itemNames(ruleset, ['beer']))}) AS beer,
-      bool_or(a.type::text = 'PRODUCE_CRACK') AS produced,
+      bool_or(
+        a.type::text = 'PRODUCE_CRACK'
+        AND CASE
+          WHEN jsonb_typeof(a.payload->'product') = 'number' THEN (a.payload->>'product')::float8
+          ELSE 0
+        END > 0
+        AND COALESCE(NULLIF(a.payload->>'productType', ''), 'CRACK') IN (${productList})
+      ) AS produced,
       bool_or(a.type::text = 'HIDEOUT_UPGRADE') AS hideout,
       bool_or(a.type::text = 'RAID_ATTACK') AS raided
     FROM "PlayerActivity" a
@@ -199,6 +229,7 @@ export const OnboardingService = {
   },
 
   async update(prisma: PrismaClient, accountId: string, input: OnboardingActionInput, now = new Date()): Promise<OnboardingStateDto> {
+    const before = await OnboardingService.state(prisma, accountId);
     const value = await readStored(prisma, accountId);
     const next: StoredOnboarding = { ...value };
     switch (input.action) {
@@ -237,6 +268,10 @@ export const OnboardingService = {
         next.tourStartedAt = now.toISOString();
         next.tourDismissedRoundId = null;
         delete next.tourStep;
+        // The offer was actionable if the player could start it; avoid counting
+        // every repeated onboarding-state GET as a new impression.
+        metrics.recordOnboarding('tour_offered');
+        metrics.recordOnboarding('tour_started');
         break;
       case 'advance-tour':
         next.tourStep = input.step;
@@ -244,6 +279,7 @@ export const OnboardingService = {
       case 'dismiss-tour': {
         const round = await RoundService.getCurrent(prisma);
         next.tourDismissedRoundId = round?.id ?? null;
+        metrics.recordOnboarding('tour_skipped');
         break;
       }
       case 'restore-tour':
@@ -252,6 +288,15 @@ export const OnboardingService = {
         break;
     }
     await writeStored(prisma, accountId, next);
-    return OnboardingService.state(prisma, accountId);
+    const after = await OnboardingService.state(prisma, accountId);
+    const beforeSteps = new Map(before.tour?.steps.map((step) => [step.key, step.done]) ?? []);
+    for (const step of after.tour?.steps ?? []) {
+      if (!beforeSteps.get(step.key) && step.done) metrics.recordOnboarding('step_completed', step.key);
+    }
+    if (!before.tour?.complete && after.tour?.complete) metrics.recordOnboarding('chapter_graduated');
+    if (input.action === 'advance-tour' && after.tour?.steps.find((step) => step.key === input.step)?.done) {
+      metrics.recordOnboarding('step_blocked', input.step);
+    }
+    return after;
   },
 };

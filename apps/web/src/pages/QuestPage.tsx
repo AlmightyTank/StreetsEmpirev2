@@ -58,6 +58,7 @@ function statusLabel(quest: PlayerQuestDto): string {
 }
 
 const BOARD_TYPES: ReadonlySet<string> = new Set(['DAILY', 'WEEKLY', 'CITY_CONTRACT', 'SEASON', 'ALLIANCE']);
+type QuestBoardFilter = 'all' | 'ready' | 'active' | 'available' | 'contracts' | 'story';
 
 /** Who the work is for: the contact and their faction, or a board contract's sponsor (1.4.0-C). */
 function questByline(quest: PlayerQuestDto): string {
@@ -454,6 +455,8 @@ export function QuestPage() {
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [career, setCareer] = useState<CareerIdentityDto | null>(null);
   const [careerLens, setCareerLens] = useState(true);
+  const [boardFilter, setBoardFilter] = useState<QuestBoardFilter>('all');
+  const [boardSearch, setBoardSearch] = useState('');
 
   const applyPage = useCallback((
     next: QuestPageDto,
@@ -555,6 +558,28 @@ export function QuestPage() {
         || categories.has(quest.type.toUpperCase())),
     })).filter((group) => group.quests.length > 0);
   }, [board.groups, career, careerLens, focusKey]);
+
+  const filteredGroups = useMemo(() => {
+    const query = boardSearch.trim().toLocaleLowerCase();
+    const matchesFilter = (group: QuestBoardGroupKey) => boardFilter === 'all'
+      || (boardFilter === 'contracts' && group === 'contracts')
+      || (boardFilter === 'story' && (group === 'story' || group === 'available'))
+      || group === boardFilter;
+    return visibleGroups.map((group) => ({
+      ...group,
+      quests: group.quests.filter((quest) => {
+        if (!matchesFilter(group.key) && quest.key !== focusKey) return false;
+        if (!query || quest.key === focusKey) return true;
+        const searchable = [
+          quest.title, quest.description, quest.category, quest.type,
+          quest.contactName, quest.factionName, quest.story?.chapter,
+          quest.story?.lesson, quest.story?.actionHint,
+          ...quest.objectives.map((objective) => objective.description),
+        ].filter(Boolean).join(' ').toLocaleLowerCase();
+        return searchable.includes(query);
+      }),
+    })).filter((group) => group.quests.length > 0);
+  }, [visibleGroups, boardFilter, boardSearch, focusKey]);
 
   const trackedToday = useMemo(
     () => page?.quests.filter((quest) => quest.isTracked && ['ACTIVE', 'READY_TO_TURN_IN'].includes(quest.status)) ?? [],
@@ -806,9 +831,42 @@ export function QuestPage() {
                   <span className="se-eyebrow">Other work</span>
                   <h2 id="se-quests-work-title">Your jobs &amp; contracts</h2>
                 </div>
-                <span className="se-quests-sectionhead__meta">{formatNumber(visibleGroups.reduce((sum, group) => sum + (group.key === 'history' ? 0 : group.quests.length), 0))} current</span>
+                <span className="se-quests-sectionhead__meta">{formatNumber(filteredGroups.reduce((sum, group) => sum + (group.key === 'history' ? 0 : group.quests.length), 0))} current</span>
               </div>
-              {visibleGroups.length ? visibleGroups.map((group) => {
+              <div className="se-quests-boardtools" role="search">
+                <label className="se-quests-boardtools__search">
+                  <span className="se-sr-only">Search jobs</span>
+                  <input
+                    className="se-input"
+                    type="search"
+                    placeholder="Search jobs, contacts, objectives..."
+                    value={boardSearch}
+                    onChange={(event) => setBoardSearch(event.target.value)}
+                  />
+                </label>
+                <div className="se-quests-boardtools__filters" role="group" aria-label="Filter jobs">
+                  {([
+                    ['all', 'All'], ['ready', 'Ready'], ['active', 'Active'],
+                    ['available', 'Available'], ['contracts', 'Contracts'], ['story', 'Story'],
+                  ] as const).map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      className={'se-quests-boardtools__filter' + (boardFilter === value ? ' se-quests-boardtools__filter--active' : '')}
+                      aria-pressed={boardFilter === value}
+                      onClick={() => setBoardFilter(value)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {boardSearch || boardFilter !== 'all' ? (
+                  <button type="button" className="se-btn se-btn--ghost se-btn--sm" onClick={() => { setBoardSearch(''); setBoardFilter('all'); }}>
+                    Clear filters
+                  </button>
+                ) : null}
+              </div>
+              {filteredGroups.length ? filteredGroups.map((group) => {
                 const open = expandedGroups[group.key] ?? group.defaultOpen;
                 return (
                   <section id={'quest-board-' + group.key} className="se-quests-group" key={group.key}>
@@ -835,7 +893,7 @@ export function QuestPage() {
                     </details>
                   </section>
                 );
-              }) : <div className="se-quests-empty"><strong>No other jobs right now.</strong><span>Complete a story step or check back for fresh contracts.</span></div>}
+              }) : <div className="se-quests-empty"><strong>No jobs match those filters.</strong><span>Try another search or clear the filters to see the full board.</span></div>}
             </section>
 
             <details className="se-quests-resources" open={showConnections}

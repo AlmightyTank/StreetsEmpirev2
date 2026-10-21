@@ -4424,11 +4424,90 @@ button.se-notification-empty:hover { color: var(--se-text); }
   align-items: center;
 }
 
+.se-link-button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--se-accent);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.se-tour-tracker {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--se-line);
+  border-left: 3px solid var(--se-accent);
+  border-radius: 8px;
+  background: var(--se-panel);
+}
+
+.se-tour-tracker__progress {
+  min-width: 0;
+}
+
+.se-tour-tracker__progress strong,
+.se-tour-tracker__progress span {
+  display: block;
+}
+
+.se-tour-tracker__progress strong {
+  margin: 2px 0 3px;
+}
+
+.se-tour-tracker__progress span {
+  color: var(--se-muted);
+  font-size: 13px;
+}
+
+.se-tour-tracker__progress .se-tour-tracker__feedback {
+  margin-top: 6px;
+  color: var(--se-good, var(--se-accent));
+  font-weight: 700;
+}
+
+.se-tour-tracker__actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.se-tour-tracker--paused {
+  border-left-color: var(--se-muted);
+}
+
+@media (max-width: 640px) {
+  .se-tour-tracker {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .se-tour-tracker__actions {
+    width: 100%;
+  }
+
+  .se-tour-tracker__actions .se-btn {
+    flex: 1 1 auto;
+    min-height: 42px;
+  }
+}
+
 @media (max-width: 640px) {
   .se-tour__card--anchored {
     position: fixed;
-    inset: auto 8px calc(8px + env(safe-area-inset-bottom, 0px)) 8px;
+    right: 8px;
+    bottom: auto;
     width: auto;
+    max-height: calc(100dvh - 16px);
+    overflow: auto;
   }
 }
 .se-intro-backdrop {

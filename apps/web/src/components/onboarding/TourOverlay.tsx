@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { TOUR_STEP_KEYS, type OnboardingStateDto, type TourStepKey } from '@streets/shared';
 import { TOUR_STEPS } from '../../help/catalog.js';
 import { useOnboarding } from '../../stores/onboarding.js';
@@ -32,7 +32,10 @@ export function TourOverlay({ tour: tourOverride }: { tour?: OnboardingStateDto[
   const storeTour = useOnboarding((s) => s.state?.tour ?? null);
   const tour = tourOverride ?? storeTour;
   const act = useOnboarding((s) => s.act);
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
   const [rect, setRect] = useState<TargetRect | null>(null);
+  const [pendingGuide, setPendingGuide] = useState(false);
   const cardRef = useRef<HTMLElement>(null);
 
   const step = tour?.step ?? null;
@@ -51,13 +54,20 @@ export function TourOverlay({ tour: tourOverride }: { tour?: OnboardingStateDto[
   }, [copy]);
 
   useEffect(() => {
-    if (!visible) return;
+    if (!visible || !copy) return;
     measure();
+    const target = document.querySelector(`[data-tour="${copy.target}"]`);
+    const observer = target && typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null;
+    if (observer && target) observer.observe(target);
+    const mutationObserver = typeof MutationObserver !== 'undefined' ? new MutationObserver(measure) : null;
+    mutationObserver?.observe(document.body, { childList: true, subtree: true, attributes: true });
     window.addEventListener('resize', measure);
     window.addEventListener('scroll', measure, true);
     return () => {
       window.removeEventListener('resize', measure);
       window.removeEventListener('scroll', measure, true);
+      observer?.disconnect();
+      mutationObserver?.disconnect();
     };
   }, [visible, measure]);
 
@@ -71,15 +81,32 @@ export function TourOverlay({ tour: tourOverride }: { tour?: OnboardingStateDto[
     return () => window.removeEventListener('keydown', onKey);
   }, [visible, act]);
 
+  useEffect(() => {
+    if (!pendingGuide || !copy) return undefined;
+    const targetPath = copy.to.split('#')[0];
+    if (pathname !== targetPath) return undefined;
+    const frame = window.requestAnimationFrame(() => {
+      document.querySelector(`[data-tour="${copy.target}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      setPendingGuide(false);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [copy, pathname, pendingGuide]);
+
   if (!visible || !tour || !step || !copy) return null;
 
   const index = tourStepIndex(step);
-  const next = neighborStep(tour.steps, step, 1);
   const previous = neighborStep(tour.steps, step, -1);
   const anchored = Boolean(rect);
+  const guideMe = () => {
+    setPendingGuide(true);
+    navigate(copy.to);
+  };
   const cardStyle =
     anchored && rect && typeof window !== 'undefined'
-      ? { top: Math.min(window.innerHeight - 16, rect.top + rect.height + 12), left: Math.max(8, Math.min(window.innerWidth - 336, rect.left)) }
+      ? {
+          top: Math.max(8, Math.min(window.innerHeight - 190, rect.top + rect.height + 12)),
+          left: Math.max(8, Math.min(window.innerWidth - 336, rect.left)),
+        }
       : undefined;
 
   return (
@@ -103,9 +130,7 @@ export function TourOverlay({ tour: tourOverride }: { tour?: OnboardingStateDto[
         <h2 id="se-tour-title">{copy.title}</h2>
         <p>{copy.detail}</p>
         {!anchored ? (
-          <p>
-            <Link to={copy.to}>Go to {copy.title.toLowerCase()} →</Link>
-          </p>
+          <p><button type="button" className="se-link-button" onClick={guideMe}>Guide me to the action →</button></p>
         ) : null}
         <ol className="se-tour__dots" aria-label="Tour progress">
           {tour.steps.map((item) => (
@@ -118,11 +143,9 @@ export function TourOverlay({ tour: tourOverride }: { tour?: OnboardingStateDto[
               Back
             </button>
           ) : null}
-          {next ? (
-            <button type="button" className="se-btn se-btn--sm" onClick={() => void act({ action: 'advance-tour', step: next })}>
-              Next
-            </button>
-          ) : null}
+          <button type="button" className="se-btn se-btn--primary se-btn--sm" onClick={guideMe}>
+            Guide me
+          </button>
           <button type="button" className="se-btn se-btn--ghost se-btn--sm" onClick={() => void act({ action: 'dismiss-tour' })}>
             Skip tour
           </button>

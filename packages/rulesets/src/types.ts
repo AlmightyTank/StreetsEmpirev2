@@ -306,7 +306,9 @@ export type ContactKey =
   /** 1.2.0-F. The casino host. */
   | 'ACE'
   /** 1.3.0-F. The retired records sergeant who gives law Jobs. */
-  | 'LEDGER';
+  | 'LEDGER'
+  /** 2.4.0-A. An independent law-focused records contact. */
+  | 'COMMISSIONER';
 
 export interface ContactDefinition {
   readonly key: ContactKey;

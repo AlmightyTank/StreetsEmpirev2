@@ -247,15 +247,19 @@ export interface TourStepCopy {
   to: string;
   /** Value of the data-tour attribute the overlay highlights. */
   target: string;
+  /** Mentor voice used by the compact tracker and completion feedback. */
+  mentor: 'Mama' | 'Pip' | 'Tommy';
+  /** Beginner-journey chapter shown in the persistent tracker. */
+  chapter: string;
 }
 
 /** Guided walkthrough: one tooltip per core-loop step, in tour order. */
 export const TOUR_STEPS: Record<TourStepKey, TourStepCopy> = {
-  'accept-quest': { title: 'Take your first job', detail: 'Jobs pay for real work. Accept one to start the tour.', to: '/game/quests', target: 'accept-quest' },
-  scout: { title: 'Work the block', detail: 'Send the crew scouting to earn cash.', to: '/game/scout', target: 'scout' },
-  'shop-supplies': { title: 'Stock up', detail: 'Buy condoms and beer so the crew keeps working.', to: '/game/stores', target: 'shop-supplies' },
-  'grow-crew': { title: 'Grow the crew', detail: 'Scout again until a thug joins, or hire muscle at the store.', to: '/game/scout', target: 'scout' },
-  produce: { title: 'Cook your first batch', detail: 'Producing beats buying. Start a batch.', to: '/game/produce', target: 'produce' },
-  'upgrade-hideout': { title: 'Build the base', detail: 'Upgrade the Safe Room or Workshop once.', to: '/game/hideout', target: 'upgrade-hideout' },
-  'recon-raid': { title: 'Take a shot', detail: 'Recon a mark, then resolve one raid. Losing still counts.', to: '/game/combat', target: 'recon-raid' },
+  'accept-quest': { title: 'Take your first job', detail: 'Jobs pay for real work. Accept one to start the tour.', to: '/game/quests', target: 'accept-quest', mentor: 'Mama', chapter: 'Learn the streets' },
+  scout: { title: 'Work the block', detail: 'Send the crew scouting to earn cash.', to: '/game/scout', target: 'scout', mentor: 'Mama', chapter: 'Learn the streets' },
+  'shop-supplies': { title: 'Stock up', detail: 'Buy condoms and beer so the crew keeps working.', to: '/game/stores', target: 'shop-supplies', mentor: 'Pip', chapter: 'Build your operation' },
+  'grow-crew': { title: 'Grow the crew', detail: 'Scout again until a thug joins, or hire muscle at the store.', to: '/game/scout', target: 'scout', mentor: 'Tommy', chapter: 'Build your operation' },
+  produce: { title: 'Cook your first batch', detail: 'Producing beats buying. Start a batch.', to: '/game/produce', target: 'produce', mentor: 'Pip', chapter: 'Grow your foundation' },
+  'upgrade-hideout': { title: 'Build the base', detail: 'Upgrade the Safe Room or Workshop once.', to: '/game/hideout', target: 'upgrade-hideout', mentor: 'Mama', chapter: 'Grow your foundation' },
+  'recon-raid': { title: 'Take a shot', detail: 'Recon a mark, then resolve one raid. Losing still counts.', to: '/game/combat', target: 'recon-raid', mentor: 'Tommy', chapter: 'Taking control' },
 };

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { advanceQuestObjective, classicOgV14B, classicOgV14B2 } from '@streets/rulesets';
+import { advanceQuestObjective, classicOgV14B, classicOgV14B2, classicOgV24A } from '@streets/rulesets';
 import {
   CITY_JOB_CASINO_WAGERS,
   cityContractObjectives,
@@ -28,6 +28,19 @@ function poolSize(type: 'DAILY' | 'WEEKLY'): number {
 }
 
 describe('contract deck rotation', () => {
+  it('gives the current v2.4 board enough cards for a full round without repeats', () => {
+    const dailyKeys = Array.from({ length: 30 }, (_, day) => selectedDailyContractKeys(
+      classicOgV24A, new Date(start.getTime() + day * DAY_MS), undefined, 'v2.4-round',
+    )).flat();
+    const weeklyKeys = Array.from({ length: 5 }, (_, week) => selectedWeeklyContractKeys(
+      classicOgV24A, new Date(start.getTime() + week * WEEK_MS), undefined, 'v2.4-round',
+    )).flat();
+    expect(new Set(dailyKeys).size).toBe(dailyKeys.length);
+    expect(new Set(weeklyKeys).size).toBe(weeklyKeys.length);
+    expect(Object.values(classicOgV24A.questDefinitions).filter((quest) => quest.type === 'DAILY')).toHaveLength(180);
+    expect(Object.values(classicOgV24A.questDefinitions).filter((quest) => quest.type === 'WEEKLY')).toHaveLength(23);
+  });
+
   it('deals every card once before any card repeats', () => {
     const keys = Array.from({ length: 12 }, (_, index) => `K${index}`);
     const dealt = [0, 1, 2, 3].flatMap((board) => deckOrder(keys, 'seed', board, 3).slice(0, 3));

@@ -600,6 +600,10 @@ function StoreView({
     lane: 'Open counter',
     note: store.blurb,
   } : null;
+  const starterSupplies = store?.key === 'CORNER'
+    ? store.items.filter((item) => item.field === 'condoms' || item.field === 'beer')
+    : [];
+  const unavailableStarterSupplies = starterSupplies.filter((item) => item.restock?.stock === 0);
   const pipProducts = store?.key === 'PIP' && products?.economy
     ? products.products.filter((product) => product.pip)
     : [];
@@ -701,6 +705,18 @@ function StoreView({
                   </div>
                   <p>{details?.note}</p>
                 </div>
+
+                {starterSupplies.length > 0 ? (
+                  <aside className="se-stores-starter-note" data-tour="starter-supplies-help">
+                    <strong>Starter supplies</strong>
+                    <span>
+                      Buy at least one {starterSupplies.map((item) => item.name.toLowerCase()).join(' and ')} to keep the early jobs moving.
+                      {unavailableStarterSupplies.length > 0
+                        ? ` ${unavailableStarterSupplies.map((item) => item.name).join(' and ')} ${unavailableStarterSupplies.length === 1 ? 'is' : 'are'} sold out; check the shelf for the next delivery.`
+                        : ' The shelf status below each item shows how much is available.'}
+                    </span>
+                  </aside>
+                ) : null}
 
                 <div className="se-stores-toolbar">
                   <div className="se-stores-toolbar__search">

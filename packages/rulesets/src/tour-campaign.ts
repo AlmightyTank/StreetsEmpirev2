@@ -15,6 +15,7 @@ type TourQuestInput = {
   eventTypes: readonly string[];
   target?: number;
   crew?: 'THUGS';
+  itemKey?: string;
   prerequisiteKey?: string;
   followUpKey?: string;
   cashCents: number;
@@ -39,7 +40,10 @@ const tourQuest = (input: TourQuestInput): QuestDefinition => ({
     target: input.target ?? 1,
     params: {
       eventTypes: [...input.eventTypes],
-      ...(input.objectiveKind === 'RECRUIT_CREW' ? { crew: input.crew ?? 'THUGS' } : {}),
+       ...(input.objectiveKind === 'RECRUIT_CREW' ? {
+         crew: input.crew ?? 'THUGS',
+         ...(input.itemKey ? { itemKey: input.itemKey } : {}),
+       } : {}),
     },
   }],
   bonusObjectives: [],
@@ -105,8 +109,8 @@ export const tourCampaignQuests = defineQuestCatalog({
     lesson: 'Thugs cover the street and fight. Scouting finds recruits, or hire muscle at the store.',
     actionHint: 'Scout until a thug joins, or hire one from the store.',
     objectiveId: 'gain_thug', objectiveKind: 'RECRUIT_CREW',
-    objectiveDescription: 'Gain one thug through scouting.',
-    eventTypes: ['SCOUT'], crew: 'THUGS',
+     objectiveDescription: 'Gain one thug through scouting or hiring.',
+     eventTypes: ['SCOUT', 'STORE_BUY'], crew: 'THUGS', itemKey: 'THUG',
     prerequisiteKey: 'TOUR_SUPPLIES', followUpKey: 'TOUR_COOK', cashCents: 200_000, repAmount: 5,
   }),
   TOUR_COOK: tourQuest({

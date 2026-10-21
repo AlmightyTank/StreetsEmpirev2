@@ -48,7 +48,8 @@ const branchQuest = (input: BranchQuestInput): QuestDefinition => ({
   availability: {},
 });
 
-const specialtyQuests = {
+/** Reusable post-graduation branches; consumers merge these into their own catalog snapshot. */
+export const specialtyQuests = {
   STREET_OPERATOR_PATH: branchQuest({
     key: 'STREET_OPERATOR_PATH', title: 'Street Operator', category: 'PRODUCT', contactKey: 'PIP',
     lesson: 'Build a street operation through production, product choices, supply policies and dealer crews.',

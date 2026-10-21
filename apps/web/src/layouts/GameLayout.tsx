@@ -8,6 +8,7 @@ import { IntroDialog } from '../components/onboarding/IntroDialog.js';
 import { BirthdayGift } from '../components/BirthdayGift.js';
 import { TourOverlay } from '../components/onboarding/TourOverlay.js';
 import { PageGuide } from '../components/onboarding/PageGuide.js';
+import { TourTracker } from '../components/onboarding/TourTracker.js';
 import { useOnboarding } from '../stores/onboarding.js';
 import { NavIcon } from '../components/NavIcon.js';
 import { usePageFreshness } from '../hooks/usePageFreshness.js';
@@ -718,6 +719,7 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
         <div className="se-gamemain">
           {staffRole && pathname.startsWith('/game/admin') ? <AdminWorkspace pathname={pathname} sections={adminSectionsFor(staffRole)} /> : null}
           <PageGuide />
+          <TourTracker />
           {children}
         </div>
       </div>

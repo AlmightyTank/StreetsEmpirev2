@@ -135,6 +135,57 @@
   text-align: right;
 }
 
+.se-quests-boardtools {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.se-quests-boardtools__search .se-input {
+  width: 100%;
+  min-height: 36px;
+}
+
+.se-quests-boardtools__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.se-quests-boardtools__filter {
+  min-height: 32px;
+  padding: 6px 9px;
+  border: 1px solid var(--se-line);
+  border-radius: 3px;
+  background: var(--se-panel);
+  color: var(--se-text-dim);
+  font: inherit;
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.se-quests-boardtools__filter:hover,
+.se-quests-boardtools__filter--active {
+  border-color: rgba(var(--se-accent-rgb), 0.45);
+  color: var(--se-accent);
+  background: rgba(var(--se-accent-rgb), 0.06);
+}
+
+.se-quests-boardtools .se-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .se-quests-tabs {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -719,6 +770,20 @@
   .se-quests-sectionhead__meta {
     max-width: none;
     text-align: left;
+  }
+
+  .se-quests-boardtools {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .se-quests-boardtools__filters {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .se-quests-boardtools__filter {
+    width: 100%;
   }
 
   .se-quests-tabs {

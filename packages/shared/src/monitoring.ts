@@ -11,6 +11,7 @@ export interface MonitoringWindowDto {
   failedActions: Array<{ code: string; count: number }>;
   authFailures: Array<{ code: string; count: number }>;
   errorCategories: Array<{ category: string; count: number }>;
+  onboarding: Array<{ event: string; step?: string; count: number }>;
 }
 
 export interface MonitoringJobDto {

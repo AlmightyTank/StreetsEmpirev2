@@ -14,6 +14,7 @@
 export const LATENCY_BUCKETS_MS = [5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000] as const;
 
 export type RequestArea = 'game' | 'auth' | 'admin' | 'public' | 'health' | 'other';
+export type OnboardingMetric = 'tour_offered' | 'tour_started' | 'tour_skipped' | 'step_blocked' | 'step_completed' | 'chapter_graduated';
 
 interface Minute {
   at: number;
@@ -25,6 +26,7 @@ interface Minute {
   failedActions: Map<string, number>;
   authFailures: Map<string, number>;
   errorCategories: Map<string, number>;
+  onboarding: Map<string, number>;
 }
 
 export interface JobHealth {
@@ -55,7 +57,7 @@ function newMinute(at: number): Minute {
   return {
     at, requests: 0, byStatus: { '2xx': 0, '3xx': 0, '4xx': 0, '5xx': 0 }, byArea: {},
     latency: LATENCY_BUCKETS_MS.map(() => 0).concat(0), latencySumMs: 0,
-    failedActions: new Map(), authFailures: new Map(), errorCategories: new Map(),
+     failedActions: new Map(), authFailures: new Map(), errorCategories: new Map(), onboarding: new Map(),
   };
 }
 
@@ -100,6 +102,7 @@ export interface WindowSummary {
   failedActions: Array<{ code: string; count: number }>;
   authFailures: Array<{ code: string; count: number }>;
   errorCategories: Array<{ category: string; count: number }>;
+  onboarding: Array<{ event: OnboardingMetric; step?: string; count: number }>;
 }
 
 export class MetricsRegistry {
@@ -151,6 +154,13 @@ export class MetricsRegistry {
     }
   }
 
+  /** Aggregate onboarding milestones only; never store account, profile, or payload data. */
+  recordOnboarding(event: OnboardingMetric, step?: string): void {
+    const key = step ? `${event}:${step}` : event;
+    const minute = this.current();
+    minute.onboarding.set(key, (minute.onboarding.get(key) ?? 0) + 1);
+  }
+
   registerJob(name: string, intervalMs: number): void {
     if (!this.jobs.has(name)) {
       this.jobs.set(name, { name, intervalMs, runs: 0, failures: 0, consecutiveFailures: 0, lastRunAt: null, lastSuccessAt: null, lastDurationMs: null, lastError: null });
@@ -197,6 +207,7 @@ export class MetricsRegistry {
     const failed = new Map<string, number>();
     const auth = new Map<string, number>();
     const categories = new Map<string, number>();
+    const onboarding = new Map<string, number>();
     let requests = 0;
     let latencySum = 0;
     for (const minute of rows) {
@@ -208,6 +219,7 @@ export class MetricsRegistry {
       for (const [code, count] of minute.failedActions) failed.set(code, (failed.get(code) ?? 0) + count);
       for (const [code, count] of minute.authFailures) auth.set(code, (auth.get(code) ?? 0) + count);
       for (const [category, count] of minute.errorCategories) categories.set(category, (categories.get(category) ?? 0) + count);
+      for (const [event, count] of minute.onboarding) onboarding.set(event, (onboarding.get(event) ?? 0) + count);
     }
     const sorted = (map: Map<string, number>) => [...map.entries()].sort((a, b) => b[1] - a[1]).slice(0, 15);
     return {
@@ -226,6 +238,12 @@ export class MetricsRegistry {
       failedActions: sorted(failed).map(([code, count]) => ({ code, count })),
       authFailures: sorted(auth).map(([code, count]) => ({ code, count })),
       errorCategories: sorted(categories).map(([category, count]) => ({ category, count })),
+      onboarding: [...onboarding.entries()].sort((a, b) => b[1] - a[1]).map(([key, count]) => {
+        const separator = key.indexOf(':');
+        const event = (separator === -1 ? key : key.slice(0, separator)) as OnboardingMetric;
+        const step = separator === -1 ? undefined : key.slice(separator + 1);
+        return step ? { event, step, count } : { event, count };
+      }),
     };
   }
 

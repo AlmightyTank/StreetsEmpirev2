@@ -173,6 +173,7 @@ export const MonitoringService = {
     lines.push(`streets_request_duration_ms_sum ${Math.round(histogram.sumMs)}`, `streets_request_duration_ms_count ${histogram.count}`);
     metric('streets_failed_actions_last_hour', 'Refused game actions by code.', 'gauge', hour.failedActions.map((row) => [labels({ code: row.code }), row.count]));
     metric('streets_auth_failures_last_hour', 'Refused sign-ins by code.', 'gauge', hour.authFailures.map((row) => [labels({ code: row.code }), row.count]));
+    metric('streets_onboarding_events_last_hour', 'Privacy-safe onboarding milestones.', 'counter', hour.onboarding.map((row) => [labels({ event: row.event, ...(row.step ? { step: row.step } : {}) }), row.count]));
     metric('streets_job_consecutive_failures', 'Background job failures in a row.', 'gauge', snapshot.jobs.map((job) => [labels({ job: job.name }), job.consecutiveFailures]));
     metric('streets_job_last_success_age_seconds', 'Seconds since the job last succeeded.', 'gauge', snapshot.jobs.map((job) => [labels({ job: job.name }), job.lastSuccessAt ? Math.floor((Date.parse(snapshot.generatedAt) - Date.parse(job.lastSuccessAt)) / 1000) : -1]));
     metric('streets_notifications_pending', 'Alerts waiting to be delivered.', 'gauge', [['', snapshot.notifications.pending]]);

@@ -189,6 +189,29 @@
   text-align: right;
 }
 
+.se-stores-starter-note {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--se-accent) 35%, var(--se-line));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--se-accent) 8%, transparent);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.se-stores-starter-note strong {
+  color: var(--se-accent);
+  font-family: var(--se-mono);
+  font-size: 10px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.se-stores-starter-note span {
+  color: var(--se-text-dim);
+}
+
 .se-stores-market {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(285px, 0.32fr);

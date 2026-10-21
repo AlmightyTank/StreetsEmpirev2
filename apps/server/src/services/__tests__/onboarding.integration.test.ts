@@ -117,12 +117,15 @@ describe.runIf(process.env.ONBOARDING_INTEGRATION === '1')('1.0.0-B onboarding w
     expect((await get(fresh.cookie)).json().tour.step).toBe('scout');
 
     await log('SCOUT', { turns: 5, thugs: 0, whores: 1 });
-    await log('STORE_BUY', { item: itemName('condoms'), quantity: 10 });
+    await log('STORE_BUY', { item: itemName('condoms'), direction: 'buy', quantity: 10 });
     await log('STORE_BUY', { lines: [{ item: itemName('beer'), direction: 'buy', quantity: 5 }] });
     expect(await stepsOf()).toMatchObject({ scout: true, 'shop-supplies': true, 'grow-crew': false });
 
     await log('SCOUT', { turns: 5, thugs: 2 });
-    await log('PRODUCE_CRACK', { turns: 3, product: 10 });
+    await log('STORE_BUY', { item: itemName('thugs'), direction: 'buy', quantity: 1 });
+    await log('PRODUCE_CRACK', { turns: 3, productType: 'NOT_A_PRODUCT', product: 10 });
+    await log('PRODUCE_CRACK', { turns: 3, productType: 'CRACK', product: 0 });
+    await log('PRODUCE_CRACK', { turns: 3, productType: 'CRACK', product: 10 });
     await log('HIDEOUT_UPGRADE', { room: 'safe-room', level: 1 });
     expect(await stepsOf()).toMatchObject({ 'grow-crew': true, produce: true, 'upgrade-hideout': true, 'recon-raid': false });
 
@@ -134,6 +137,26 @@ describe.runIf(process.env.ONBOARDING_INTEGRATION === '1')('1.0.0-B onboarding w
 
     expect((await act(fresh.cookie, { action: 'dismiss-tour' })).json().tour.dismissed).toBe(true);
     expect((await act(fresh.cookie, { action: 'restore-tour' })).json().tour.dismissed).toBe(false);
+  });
+
+  it('does not treat sells, missing directions, or non-positive quantities as purchases', async () => {
+    await app.prisma.playerActivity.deleteMany({ where: { roundPlayerId: fresh.playerId } });
+    const log = (type: string, payload: Prisma.InputJsonObject) => app.prisma.playerActivity.create({ data: { roundPlayerId: fresh.playerId, type: type as never, payload } });
+    const condoms = itemName('condoms');
+    const beer = itemName('beer');
+
+    await log('STORE_SELL', { item: condoms, direction: 'sell', quantity: 10 });
+    await log('STORE_BUY', { item: condoms, quantity: 10 });
+    await log('STORE_BUY', { item: beer, direction: 'buy', quantity: 0 });
+    await log('STORE_SELL', { lines: [{ item: beer, direction: 'buy', quantity: -2 }] });
+
+    const steps = Object.fromEntries((await get(fresh.cookie)).json().tour.steps.map((step: { key: string; done: boolean }) => [step.key, step.done]));
+    expect(steps['shop-supplies']).toBe(false);
+
+    await log('STORE_SELL', { lines: [{ item: condoms, direction: 'buy', quantity: 1 }] });
+    await log('STORE_BUY', { lines: [{ item: beer, direction: 'buy', quantity: 1 }] });
+    const completed = Object.fromEntries((await get(fresh.cookie)).json().tour.steps.map((step: { key: string; done: boolean }) => [step.key, step.done]));
+    expect(completed['shop-supplies']).toBe(true);
   });
 
   it('remembers intros, replays them, and hides the guide for one season', async () => {
