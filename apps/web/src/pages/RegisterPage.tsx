@@ -187,15 +187,10 @@ export function RegisterPage() {
 
           <div className="se-auth-providers">
             <Panel title="Create an account with Discord">
-              <p>
-                Discord creates your account from the email Discord has already verified, so there is no email link to wait for: you go straight to join the round.
-              </p>
+              <p>Use Discord to create or access your StreetsEmpire account.</p>
               <a className="se-btn se-btn--discord se-btn--block" href="/api/auth/discord">
                 Continue with Discord
               </a>
-              <p className="se-hint">
-                You can link Discord to an existing account in Account settings. You must be {MINIMUM_AGE} or older to play.
-              </p>
             </Panel>
 
             {googleEnabled ? (
