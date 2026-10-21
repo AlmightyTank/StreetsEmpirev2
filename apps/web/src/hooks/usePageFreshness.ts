@@ -2,11 +2,15 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useSession } from '../stores/session.js';
 
+/** Keep an open non-dashboard page current without turning polling into a visit. */
+const PAGE_REFRESH_INTERVAL_MS = 60_000;
+
 /**
  * 0.1.0-G. Non-dashboard game pages refresh their authoritative player state
  * whenever the player navigates to them, returns to the tab/window, or the
- * browser comes back online. The dashboard already owns its 60-second live
- * poll, so it is deliberately excluded here to avoid duplicate requests.
+ * browser comes back online, and while it remains open. The dashboard already
+ * owns its 60-second live poll, so it is deliberately excluded here to avoid
+ * duplicate requests.
  */
 export function usePageFreshness(): void {
   const location = useLocation();
@@ -43,6 +47,9 @@ export function usePageFreshness(): void {
     const onPageShow = (event: PageTransitionEvent) => {
       if (event.persisted) void refresh();
     };
+    const timer = window.setInterval(() => {
+      if (!document.hidden) void refresh();
+    }, PAGE_REFRESH_INTERVAL_MS);
 
     document.addEventListener('visibilitychange', onVisibility);
     window.addEventListener('focus', onFocus);
@@ -50,6 +57,7 @@ export function usePageFreshness(): void {
     window.addEventListener('pageshow', onPageShow);
 
     return () => {
+      window.clearInterval(timer);
       document.removeEventListener('visibilitychange', onVisibility);
       window.removeEventListener('focus', onFocus);
       window.removeEventListener('online', onOnline);
