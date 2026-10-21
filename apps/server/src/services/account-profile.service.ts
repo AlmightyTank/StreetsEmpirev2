@@ -10,7 +10,6 @@ import {
   isOwnedCollection,
   isReleasedItemCosmeticStyle,
   readAvatarParts,
-  readStreetSignDesign,
   streetSignForCrewName,
   SIGNATURE_CARD_FRAME_KEY,
   SUPPORTER_UNLOCK_HINT,
