@@ -26,6 +26,7 @@ import { wakeDiscordBot } from '../services/discord-bot-push.service.js';
 import { beginDiscordOAuthCallback, existingDiscordOAuthCallback } from '../services/discord-oauth-callback-guard.js';
 import { sendCurrentEmailVerification, sendEmailChangeVerification, sendPasswordResetEmail, sendTwoFactorNotice } from '../services/email.service.js';
 import { SupporterBillingService } from '../services/supporter-billing.service.js';
+import { oauthPostLoginRedirect, oauthTwoFactorRedirect } from '../services/oauth-return.js';
 import { AppError } from '../utils/errors.js';
 import { parseBody } from '../utils/validate.js';
 
@@ -60,10 +61,12 @@ const GOOGLE_NONCE_COOKIE = 'se_google_oauth_nonce';
 const GOOGLE_LINK_COOKIE = 'se_google_oauth_link';
 const GOOGLE_REDIRECT_URI_COOKIE = 'se_google_oauth_redirect_uri';
 const GOOGLE_REMEMBER_COOKIE = 'se_google_remember';
+const GOOGLE_RETURN_ORIGIN_COOKIE = 'se_google_return_origin';
 const FACEBOOK_STATE_COOKIE = 'se_facebook_oauth_state';
 const FACEBOOK_LINK_COOKIE = 'se_facebook_oauth_link';
 const FACEBOOK_REDIRECT_URI_COOKIE = 'se_facebook_oauth_redirect_uri';
 const FACEBOOK_REMEMBER_COOKIE = 'se_facebook_remember';
+const FACEBOOK_RETURN_ORIGIN_COOKIE = 'se_facebook_return_origin';
 const DISCORD_AUTHORIZE_URL = 'https://discord.com/oauth2/authorize';
 const DISCORD_TOKEN_URL = 'https://discord.com/api/oauth2/token';
 const DISCORD_ME_URL = 'https://discord.com/api/users/@me';
@@ -146,27 +149,15 @@ function accountRedirect(message: string): string {
   return url.toString();
 }
 
-function postLoginRedirect(callbackUri?: string): string {
-  // The session cookie is host-only. When beta and live share an auth backend
-  // configuration, returning the player to a different frontend host loses the
-  // cookie and makes a successful Discord login look like a sign-out.
+function postLoginRedirect(callbackUri?: string, returnOrigin?: string | null): string {
   const redirect = callbackUri ? new URL(callbackUri) : null;
-  const authorizedHost = redirect?.hostname === 'beta.streetsempire.dev'
-    || redirect?.hostname === 'play.streetsempire.dev';
-  // Let the game entry route choose between the live game and the join flow.
-  // This keeps OAuth sign-in consistent with password sign-in and avoids
-  // leaving returning players on the season handoff screen.
-  return new URL('/game', authorizedHost && redirect ? redirect.origin : env.frontendOrigin).toString();
+  return oauthPostLoginRedirect(env.frontendOrigin, returnOrigin ?? (redirect ? redirect.origin : null));
 }
 
-/** rc.3. Where the Discord callback sends a sign-in that still needs its authenticator code. */
-function twoFactorRedirect(callbackUri?: string): string {
+/** rc.3. Where an OAuth callback sends a sign-in that still needs its authenticator code. */
+function twoFactorRedirect(callbackUri?: string, returnOrigin?: string | null): string {
   const redirect = callbackUri ? new URL(callbackUri) : null;
-  const authorizedHost = redirect?.hostname === 'beta.streetsempire.dev'
-    || redirect?.hostname === 'play.streetsempire.dev';
-  const url = new URL('/login', authorizedHost && redirect ? redirect.origin : env.frontendOrigin);
-  url.searchParams.set('twoFactor', '1');
-  return url.toString();
+  return oauthTwoFactorRedirect(env.frontendOrigin, returnOrigin ?? (redirect ? redirect.origin : null));
 }
 
 function passwordResetUrl(token: string): string {
@@ -213,7 +204,7 @@ function googleCookie(request: FastifyRequest, name: string): string | null {
 }
 
 function clearGoogleCookies(reply: FastifyReply): void {
-  for (const name of [GOOGLE_STATE_COOKIE, GOOGLE_NONCE_COOKIE, GOOGLE_LINK_COOKIE, GOOGLE_REDIRECT_URI_COOKIE, GOOGLE_REMEMBER_COOKIE]) {
+  for (const name of [GOOGLE_STATE_COOKIE, GOOGLE_NONCE_COOKIE, GOOGLE_LINK_COOKIE, GOOGLE_REDIRECT_URI_COOKIE, GOOGLE_REMEMBER_COOKIE, GOOGLE_RETURN_ORIGIN_COOKIE]) {
     reply.clearCookie(name, { path: '/api/auth', sameSite: 'lax', secure: env.isProduction });
   }
 }
@@ -234,7 +225,7 @@ function facebookCookie(request: FastifyRequest, name: string): string | null {
 }
 
 function clearFacebookCookies(reply: FastifyReply): void {
-  for (const name of [FACEBOOK_STATE_COOKIE, FACEBOOK_LINK_COOKIE, FACEBOOK_REDIRECT_URI_COOKIE, FACEBOOK_REMEMBER_COOKIE]) {
+  for (const name of [FACEBOOK_STATE_COOKIE, FACEBOOK_LINK_COOKIE, FACEBOOK_REDIRECT_URI_COOKIE, FACEBOOK_REMEMBER_COOKIE, FACEBOOK_RETURN_ORIGIN_COOKIE]) {
     reply.clearCookie(name, { path: '/api/auth', sameSite: 'lax', secure: env.isProduction });
   }
 }
@@ -1308,6 +1299,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     setFacebookCookie(reply, FACEBOOK_STATE_COOKIE, state);
     setFacebookCookie(reply, FACEBOOK_REDIRECT_URI_COOKIE, redirectUri);
     setFacebookCookie(reply, FACEBOOK_REMEMBER_COOKIE, query.remember ? '1' : '0');
+    setFacebookCookie(reply, FACEBOOK_RETURN_ORIGIN_COOKIE, requestOrigin(request));
     if (linkMode) setFacebookCookie(reply, FACEBOOK_LINK_COOKIE, '1');
     return reply.redirect(authorize.toString());
   });
@@ -1316,6 +1308,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     const query = discordCallbackSchema.parse(request.query);
     const expectedState = facebookCookie(request, FACEBOOK_STATE_COOKIE);
     const savedRedirectUri = facebookCookie(request, FACEBOOK_REDIRECT_URI_COOKIE);
+    const returnOrigin = facebookCookie(request, FACEBOOK_RETURN_ORIGIN_COOKIE);
     const linkMode = facebookCookie(request, FACEBOOK_LINK_COOKIE) === '1';
     const remember = facebookCookie(request, FACEBOOK_REMEMBER_COOKIE) !== '0';
     clearFacebookCookies(reply);
@@ -1335,12 +1328,12 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       assertBetaAccess(account, env.betaAccess.inviteOnly);
       if (account.twoFactorEnabledAt && !(await TwoFactorService.isTrustedDevice(fastify.prisma, account.id, readSignedCookie(request, TRUSTED_DEVICE_COOKIE)))) {
         setTwoFactorCookie(reply, await TwoFactorService.beginChallenge(fastify.prisma, account.id, 'FACEBOOK', remember));
-        return conclude(twoFactorRedirect(redirectUri));
+        return conclude(twoFactorRedirect(redirectUri, returnOrigin));
       }
       const { token } = await createSession(fastify.prisma, account.id, { userAgent: request.headers['user-agent'], ip: request.ip, method: 'FACEBOOK', remember });
       fastify.setSessionCookie(reply, token, remember);
       await noteSignIn(fastify.prisma, request, reply, account);
-      return conclude(postLoginRedirect(redirectUri));
+      return conclude(postLoginRedirect(redirectUri, returnOrigin));
     } catch (error) {
       request.log.warn({ err: error }, linkMode ? 'Facebook account link failed' : 'Facebook sign-in failed');
       const message = error instanceof AppError ? error.message : 'Facebook sign-in failed. Try again.';
@@ -1372,6 +1365,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     setGoogleCookie(reply, GOOGLE_NONCE_COOKIE, nonce);
     setGoogleCookie(reply, GOOGLE_REDIRECT_URI_COOKIE, redirectUri);
     setGoogleCookie(reply, GOOGLE_REMEMBER_COOKIE, query.remember ? '1' : '0');
+    setGoogleCookie(reply, GOOGLE_RETURN_ORIGIN_COOKIE, requestOrigin(request));
     if (linkMode) setGoogleCookie(reply, GOOGLE_LINK_COOKIE, '1');
     return reply.redirect(authorize);
   });
@@ -1381,6 +1375,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     const expectedState = googleCookie(request, GOOGLE_STATE_COOKIE);
     const nonce = googleCookie(request, GOOGLE_NONCE_COOKIE);
     const savedRedirectUri = googleCookie(request, GOOGLE_REDIRECT_URI_COOKIE);
+    const returnOrigin = googleCookie(request, GOOGLE_RETURN_ORIGIN_COOKIE);
     const linkMode = googleCookie(request, GOOGLE_LINK_COOKIE) === '1';
     const remember = googleCookie(request, GOOGLE_REMEMBER_COOKIE) !== '0';
     clearGoogleCookies(reply);
@@ -1400,12 +1395,12 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       assertBetaAccess(account, env.betaAccess.inviteOnly);
       if (account.twoFactorEnabledAt && !(await TwoFactorService.isTrustedDevice(fastify.prisma, account.id, readSignedCookie(request, TRUSTED_DEVICE_COOKIE)))) {
         setTwoFactorCookie(reply, await TwoFactorService.beginChallenge(fastify.prisma, account.id, 'GOOGLE', remember));
-        return conclude(twoFactorRedirect(redirectUri));
+        return conclude(twoFactorRedirect(redirectUri, returnOrigin));
       }
       const { token } = await createSession(fastify.prisma, account.id, { userAgent: request.headers['user-agent'], ip: request.ip, method: 'GOOGLE', remember });
       fastify.setSessionCookie(reply, token, remember);
       await noteSignIn(fastify.prisma, request, reply, account);
-      return conclude(postLoginRedirect(redirectUri));
+      return conclude(postLoginRedirect(redirectUri, returnOrigin));
     } catch (error) {
       request.log.warn({ err: error }, linkMode ? 'Google account link failed' : 'Google sign-in failed');
       const message = error instanceof AppError ? error.message : 'Google sign-in failed. Try again.';
