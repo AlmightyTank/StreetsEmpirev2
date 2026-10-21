@@ -11,6 +11,7 @@ import {
   isReleasedItemCosmeticStyle,
   readAvatarParts,
   readStreetSignDesign,
+  streetSignForCrewName,
   SIGNATURE_CARD_FRAME_KEY,
   SUPPORTER_UNLOCK_HINT,
   DROP_UNLOCK_HINT,
@@ -287,7 +288,7 @@ function toSettingsDto(
     activeTitleKey,
     titlePlacement: profile?.titlePlacement === 'suffix' ? 'suffix' : 'prefix',
     crewName: profile?.crewName ?? null,
-    streetSign: readStreetSignDesign(profile?.streetSign),
+    streetSign: streetSignForCrewName(profile?.streetSign, profile?.crewName),
     profileBio: profile?.profileBio ?? null,
     profileImageUrl: profile?.profileImageUrl ?? null,
     profileAvatar: readAvatarParts(profile?.profileAvatar, avatarUnlocks),
@@ -483,9 +484,10 @@ export const AccountProfileService = {
     accountId: string,
     input: UpdateAccountProfileSettingsInput,
   ): Promise<AccountProfileSettingsResponseDto> {
-    const [awards, appearance] = await Promise.all([
+    const [awards, appearance, savedProfile] = await Promise.all([
       earnedAwards(prisma, accountId),
       appearanceOptions(prisma, accountId),
+      prisma.accountProfile.findUnique({ where: { accountId }, select: { crewName: true } }),
     ]);
     const earnedBadgeKeys = new Set(awards.map((award) => award.key));
     const earnedTitleKeys = new Set([...earnedBadgeKeys, ...honorificTitleKeys]);
@@ -563,7 +565,19 @@ export const AccountProfileService = {
     }
 
     const crewName = input.crewName === undefined ? undefined : input.crewName;
-    const streetSign = input.streetSign;
+    const effectiveCrewName = crewName === undefined ? savedProfile?.crewName ?? null : crewName;
+    const streetSign = input.streetSign === undefined
+      ? undefined
+      : input.streetSign === null
+        ? null
+        : effectiveCrewName
+          ? { ...input.streetSign, streetName: effectiveCrewName }
+          : input.streetSign;
+    if (streetSign && !effectiveCrewName) {
+      throw AppError.badRequest('CREW_NAME_REQUIRED', 'Set a crew name before saving a street sign.', {
+        streetSign: 'Street sign lettering is linked to your crew name.',
+      });
+    }
     if (streetSign) {
       assertCommunicationContent('Street sign', `${streetSign.streetName} ${streetSign.tag}`);
       const requestedFonts = [

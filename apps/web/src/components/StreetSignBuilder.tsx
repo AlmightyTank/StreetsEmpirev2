@@ -43,13 +43,14 @@ export function streetSignContrastRatio(first: string, second: string): number {
 
 interface StreetSignBuilderProps {
   value: StreetSignDesign | null | undefined;
+  crewName?: string | null;
   savedValue?: StreetSignDesign | null;
   unlockedFontPacks?: readonly string[];
   onChange: (value: StreetSignDesign | null) => void;
 }
 
-export function StreetSignBuilder({ value, savedValue = null, unlockedFontPacks = [], onChange }: StreetSignBuilderProps) {
-  const design = value ?? DEFAULT_STREET_SIGN;
+export function StreetSignBuilder({ value, crewName = '', savedValue = null, unlockedFontPacks = [], onChange }: StreetSignBuilderProps) {
+  const design = { ...(value ?? DEFAULT_STREET_SIGN), streetName: crewName.trim() };
   const hasDraftChanges = JSON.stringify(value ?? null) !== JSON.stringify(savedValue ?? null);
   const textNeedsContrastHelp = streetSignContrastRatio(design.textColor, design.backgroundColor) < 4.5;
   const tagNeedsContrastHelp = Boolean(design.tag) && streetSignContrastRatio(design.tagColor, design.backgroundColor) < 3;
@@ -83,7 +84,7 @@ export function StreetSignBuilder({ value, savedValue = null, unlockedFontPacks 
           <span className="se-street-sign-preview__bolt se-street-sign-preview__bolt--left" aria-hidden="true" />
           <span className="se-street-sign-preview__bolt se-street-sign-preview__bolt--right" aria-hidden="true" />
           <div className="se-street-sign-preview__lettering">
-            <span className={`se-street-sign-preview__name se-street-sign-font--${design.font}`}>{design.streetName || 'Your Street'}</span>
+            <span className={`se-street-sign-preview__name se-street-sign-font--${design.font}`}>{design.streetName || 'Your Crew'}</span>
             <span className="se-street-sign-preview__street-type">{design.streetType}</span>
           </div>
           {design.tag ? <span className={`se-street-sign-preview__tag se-street-sign-preview__tag--${design.tagScale} se-street-sign-preview__tag--${design.tagPlacement} se-street-sign-font--${design.tagFont}`} style={{ color: design.tagColor }}>{design.tag}</span> : null}
@@ -118,9 +119,10 @@ export function StreetSignBuilder({ value, savedValue = null, unlockedFontPacks 
 
         <div className="se-street-sign-builder__grid">
           <div className="se-street-sign-builder__field se-street-sign-builder__field--wide">
-            <label htmlFor="street-sign-name">Street text</label>
-            <input id="street-sign-name" className="se-input" maxLength={STREET_SIGN_TEXT_MAX} value={design.streetName} placeholder="Name your street" onChange={(event) => update({ streetName: event.target.value })} />
+            <label htmlFor="street-sign-name">Crew name on sign</label>
+            <input id="street-sign-name" className="se-input" maxLength={STREET_SIGN_TEXT_MAX} value={design.streetName} placeholder="Set your crew name above" readOnly />
             <small>{design.streetName.length}/{STREET_SIGN_TEXT_MAX}</small>
+            <p className="se-street-sign-builder__hint">The sign lettering stays linked to your crew name. Change it in the Crew name field above.</p>
           </div>
           <div className="se-street-sign-builder__field">
             <label htmlFor="street-sign-type">Street type</label>

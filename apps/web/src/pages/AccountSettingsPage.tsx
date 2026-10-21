@@ -407,9 +407,9 @@ export function AccountSettingsPage() {
     event.preventDefault();
     const streetSignChanged = JSON.stringify(cosmetics.streetSign ?? null)
       !== JSON.stringify(profileSettings?.settings.streetSign ?? null);
-    if (cosmetics.streetSign && !cosmetics.streetSign.streetName.trim()) {
+    if (cosmetics.streetSign && !(cosmetics.crewName ?? '').trim()) {
       setTone('error');
-      setMessage('Add street text before saving your sign.');
+      setMessage('Set a crew name before saving your street sign.');
       return;
     }
     setBusy('cosmetics');
@@ -862,6 +862,7 @@ export function AccountSettingsPage() {
 
                 <StreetSignBuilder
                   value={cosmetics.streetSign}
+                  crewName={cosmetics.crewName}
                   savedValue={profileSettings?.settings.streetSign ?? null}
                   unlockedFontPacks={profileSettings?.options.streetSignFontPacks ?? []}
                   onChange={(streetSign) => setCosmetics((current) => ({ ...current, streetSign }))}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_STREET_SIGN, readStreetSignDesign, streetSignDesignSchema } from '../street-sign.js';
+import { DEFAULT_STREET_SIGN, readStreetSignDesign, streetSignDesignSchema, streetSignForCrewName } from '../street-sign.js';
 import { updateAccountProfileSettingsSchema } from '../schemas/auth.js';
 
 describe('street sign design', () => {
@@ -9,6 +9,17 @@ describe('street sign design', () => {
       streetName: 'Cedar Avenue',
       streetType: 'DR',
     });
+  });
+
+  it('uses the crew name as sign lettering while preserving the saved sign styling', () => {
+    const design = { ...DEFAULT_STREET_SIGN, streetName: 'Old Name', tag: 'NIGHT SHIFT' };
+    expect(streetSignForCrewName(design, 'Syndicate')).toMatchObject({
+      streetName: 'Syndicate',
+      streetType: 'DR',
+      tag: 'NIGHT SHIFT',
+      shape: 'classic',
+    });
+    expect(streetSignForCrewName(design, null)).toBeNull();
   });
 
   it('accepts the wide shape and curated font keys', () => {
