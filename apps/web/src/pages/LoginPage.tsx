@@ -1,11 +1,13 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ApiError } from '../api/client.js';
+import { authApi } from '../api/auth.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
 import { Field } from '../components/Field.js';
 import { Panel } from '../components/Panel.js';
 import { TwoFactorStep } from '../components/TwoFactorStep.js';
+import { AuthWelcome } from '../components/AuthWelcome.js';
 import { Turnstile, useTurnstileSiteKey } from '../components/Turnstile.js';
 import { Shell } from '../layouts/Shell.js';
 import { landingPath, useSession } from '../stores/session.js';
@@ -34,6 +36,19 @@ export function LoginPage() {
   const [playGamesBusy, setPlayGamesBusy] = useState(false);
   const [playGamesError, setPlayGamesError] = useState<string | null>(null);
   const [nativePlayGames, setNativePlayGames] = useState(false);
+  const [appleEnabled, setAppleEnabled] = useState(false);
+  const [googleEnabled, setGoogleEnabled] = useState(false);
+  const [facebookEnabled, setFacebookEnabled] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    void authApi.providers().then((providers) => {
+      if (active) setAppleEnabled(providers.apple);
+      if (active) setGoogleEnabled(providers.google);
+      if (active) setFacebookEnabled(providers.facebook);
+    }).catch(() => undefined);
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     const bridge = (window as Window & { StreetsEmpireAndroid?: { isNative?: () => boolean; signInWithPlayGames?: () => void } }).StreetsEmpireAndroid;
@@ -126,11 +141,10 @@ export function LoginPage() {
   return (
     <Shell>
       <div className="se-authpage">
-        <p className="se-eyebrow">Back on the block</p>
-        <h1 className="se-title se-mb">Log in</h1>
+        <AuthWelcome mode="login" />
 
         <div className="se-authgrid">
-          <Panel title="Password login">
+          <Panel title="Continue with email">
             <form onSubmit={onSubmit} noValidate>
               {authError ? <Alert>{authError}</Alert> : null}
               {message ? <Alert>{message}</Alert> : null}
@@ -141,7 +155,6 @@ export function LoginPage() {
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
                 autoComplete="username"
-                autoFocus
                 required
                 error={fields.identifier}
               />
@@ -175,25 +188,45 @@ export function LoginPage() {
                 className="se-btn se-btn--primary se-btn--block"
                 disabledReason={busy ? 'Checking those details with the server.' : captchaOn && !captchaToken ? 'Finish the "are you human" check.' : null}
               >
-                {busy ? 'Working...' : 'Log in'}
+                {busy ? 'Working...' : 'Sign in'}
               </Button>
             </form>
           </Panel>
 
-          <Panel title="Discord login">
+          <Panel title="Continue with Discord">
             <p>
               Use Discord to get back in without typing your password. Discord uses your verified email to find or create your StreetsEmpire account.
             </p>
             <a className="se-btn se-btn--discord se-btn--block" href={remember ? '/api/auth/discord' : '/api/auth/discord?remember=0'}>
-              Log in with Discord
+              Continue with Discord
             </a>
             <p className="se-hint">
               If you already have an account, use the same verified email on Discord or link Discord from account settings after logging in.
             </p>
           </Panel>
 
+          {appleEnabled ? (
+            <Panel title="Continue with Apple">
+              <p>Sign in or create a StreetsEmpire account using your Apple ID.</p>
+              <a className="se-btn se-btn--block se-auth-apple" href="/api/auth/apple">Continue with Apple</a>
+            </Panel>
+          ) : null}
+
+          {googleEnabled ? (
+            <Panel title="Continue with Google">
+              <p>Sign in or create a StreetsEmpire account using your Google account.</p>
+              <a className="se-btn se-btn--block se-auth-google" href="/api/auth/google">Continue with Google</a>
+            </Panel>
+          ) : null}
+          {facebookEnabled ? (
+            <Panel title="Continue with Facebook">
+              <p>Sign in or create a StreetsEmpire account using Facebook.</p>
+              <a className="se-btn se-btn--block se-auth-facebook" href="/api/auth/facebook">Continue with Facebook</a>
+            </Panel>
+          ) : null}
+
           {nativePlayGames ? (
-            <Panel title="Google Play Games login">
+          <Panel title="Google Play Games">
               <p>Use your Google Play Games account. A new Play Games identity creates its own StreetsEmpire account; it will not merge with an account that uses the same email.</p>
               {playGamesError ? <Alert>{playGamesError}</Alert> : null}
               <Button
@@ -206,15 +239,15 @@ export function LoginPage() {
                 }}
                 disabledReason={playGamesBusy ? 'Waiting for Google Play Games.' : null}
               >
-                {playGamesBusy ? 'Working...' : 'Log in with Google Play Games'}
+                {playGamesBusy ? 'Working...' : 'Continue with Google Play Games'}
               </Button>
               <p className="se-hint">Already have a StreetsEmpire account? Sign in first, then link Play Games from Account settings.</p>
             </Panel>
           ) : null}
         </div>
 
-        <p className="se-hint se-center">
-          No name yet? <Link to="/register">Register</Link>
+        <p className="se-hint se-center se-auth-legal">
+          By continuing, you agree to the <a href="https://streetsempire.dev/terms">terms</a> and <a href="https://streetsempire.dev/privacy">privacy policy</a>.
         </p>
       </div>
     </Shell>

@@ -70,6 +70,15 @@ export async function eraseAccount(tx: Db, before: Account, replacementPasswordH
       discordUsername: null,
       discordAvatar: null,
       discordLinkedAt: null,
+      appleId: null,
+      appleEmail: null,
+      appleLinkedAt: null,
+      googleId: null,
+      googleEmail: null,
+      googleLinkedAt: null,
+      facebookId: null,
+      facebookEmail: null,
+      facebookLinkedAt: null,
       lastLoginAt: null,
       isActive: false,
       isAdmin: false,
@@ -154,6 +163,9 @@ export const AccountDataService = {
         rulesAcceptedAt: account.rulesAcceptedAt,
         rulesAcceptedVersion: account.rulesAcceptedVersion,
         discord: account.discordId ? { username: account.discordUsername, linkedAt: account.discordLinkedAt } : null,
+        appleSignIn: account.appleId ? { linkedAt: account.appleLinkedAt, email: account.appleEmail } : null,
+        googleSignIn: account.googleId ? { linkedAt: account.googleLinkedAt, email: account.googleEmail } : null,
+        facebookSignIn: account.facebookId ? { linkedAt: account.facebookLinkedAt, email: account.facebookEmail } : null,
         twoStepSignIn: account.twoFactorEnabledAt ? { enabledAt: account.twoFactorEnabledAt } : null,
         registeredFromAddress: account.registeredIp,
         suspension: account.suspendedUntil ? { until: account.suspendedUntil, reason: account.suspendedReason } : null,
@@ -188,7 +200,8 @@ export const AccountDataService = {
     if (isStaff(account)) {
       throw AppError.conflict('ADMIN_DELETE_ADMIN', 'Staff cannot delete their own account. Have the staff role removed first.');
     }
-    if (session.method !== 'DISCORD' || currentPassword) {
+    const federated = session.method === 'DISCORD' || session.method === 'APPLE' || session.method === 'PLAY_GAMES' || session.method === 'GOOGLE' || session.method === 'FACEBOOK';
+    if (!federated || currentPassword) {
       if (!currentPassword || !(await verifyPassword(account.passwordHash, currentPassword))) {
         throw AppError.badRequest('CURRENT_PASSWORD_INVALID', 'That password does not match.', { currentPassword: 'Enter your password.' });
       }

@@ -42,6 +42,12 @@ export function ConnectedAccountsPanel({ account, onConnectionsChanged }: Connec
   const [confirmForum, setConfirmForum] = useState(false);
   const [discordPassword, setDiscordPassword] = useState('');
   const [discordPasswordError, setDiscordPasswordError] = useState<string | null>(null);
+  const [appleEnabled, setAppleEnabled] = useState(false);
+  const [googleEnabled, setGoogleEnabled] = useState(false);
+  const [facebookEnabled, setFacebookEnabled] = useState(false);
+  const [confirmApple, setConfirmApple] = useState(false);
+  const [applePassword, setApplePassword] = useState('');
+  const [applePasswordError, setApplePasswordError] = useState<string | null>(null);
   const [nativePlayGames, setNativePlayGames] = useState(false);
   const working = 'Finishing the last thing you asked for.';
 
@@ -113,6 +119,7 @@ export function ConnectedAccountsPanel({ account, onConnectionsChanged }: Connec
   useEffect(() => {
     void loadForum();
     void loadPush();
+    void authApi.providers().then((providers) => { setAppleEnabled(providers.apple); setGoogleEnabled(providers.google); setFacebookEnabled(providers.facebook); }).catch(() => undefined);
   }, []);
 
   async function unlinkDiscord() {
@@ -135,6 +142,54 @@ export function ConnectedAccountsPanel({ account, onConnectionsChanged }: Connec
     } finally {
       setBusy(null);
     }
+  }
+
+  async function unlinkApple() {
+    setBusy('apple');
+    setError(null);
+    setNotice(null);
+    setApplePasswordError(null);
+    try {
+      const response = await authApi.unlinkApple({ currentPassword: applePassword });
+      setConfirmApple(false);
+      setApplePassword('');
+      window.location.assign(`/account?accountMessage=${encodeURIComponent(response.message)}`);
+    } catch (caught) {
+      if (caught instanceof ApiError) {
+        setError(caught.message);
+        setApplePasswordError(caught.fields?.currentPassword ?? null);
+      } else {
+        setError('Could not unlink Apple. Try again.');
+      }
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function unlinkGoogle() {
+    const currentPassword = window.prompt('Enter your StreetsEmpire password to unlink Google:');
+    if (!currentPassword) return;
+    setBusy('google'); setError(null); setNotice(null);
+    try {
+      const response = await authApi.unlinkGoogle({ currentPassword });
+      setNotice(response.message);
+      window.location.assign(`/account?accountMessage=${encodeURIComponent(response.message)}`);
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'Could not unlink Google. Try again.');
+    } finally { setBusy(null); }
+  }
+
+  async function unlinkFacebook() {
+    const currentPassword = window.prompt('Enter your StreetsEmpire password to unlink Facebook:');
+    if (!currentPassword) return;
+    setBusy('facebook'); setError(null); setNotice(null);
+    try {
+      const response = await authApi.unlinkFacebook({ currentPassword });
+      setNotice(response.message);
+      window.location.assign(`/account?accountMessage=${encodeURIComponent(response.message)}`);
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'Could not unlink Facebook. Try again.');
+    } finally { setBusy(null); }
   }
 
   async function changeForum(unlink: boolean) {
@@ -289,6 +344,54 @@ export function ConnectedAccountsPanel({ account, onConnectionsChanged }: Connec
           )}
         </section>
 
+        {appleEnabled || account.appleLinked ? (
+          <section className="se-connection">
+            <div className="se-connection__head">
+              <div>
+                <span className="se-connection__eyebrow">Sign-in account</span>
+                <h3>Apple</h3>
+              </div>
+              <span className={`se-tag ${account.appleLinked ? 'se-tag--good' : ''}`}>
+                {account.appleLinked ? 'Connected' : 'Not connected'}
+              </span>
+            </div>
+            <p>{account.appleLinked ? 'Your Apple ID can sign in to this StreetsEmpire account.' : 'Connect Apple to use Apple ID to sign in.'}</p>
+            {account.appleLinked ? (
+              <>
+                <Button type="button" className="se-btn se-btn--ghost" onClick={() => { setApplePasswordError(null); setConfirmApple(true); }} disabledReason={off}>Unlink Apple</Button>
+                {confirmApple ? (
+                  <div className="se-connection__confirm">
+                    <p>Enter your StreetsEmpire password to disconnect Apple. If you use Apple as your only sign-in, set a password through account recovery first.</p>
+                    <Field label="Current password" name="appleCurrentPassword" type="password" value={applePassword} onChange={(event) => setApplePassword(event.target.value)} autoComplete="current-password" required error={applePasswordError ?? undefined} />
+                    <div className="se-actions-row">
+                      <Button type="button" className="se-btn se-btn--ghost" onClick={unlinkApple} disabledReason={off ?? (applePassword ? null : 'Enter your current password first.')}>{busy === 'apple' ? 'Unlinking...' : 'Yes, unlink Apple'}</Button>
+                      <Button type="button" className="se-btn se-btn--ghost" onClick={() => { setConfirmApple(false); setApplePassword(''); setApplePasswordError(null); }} disabledReason={off}>Cancel</Button>
+                    </div>
+                  </div>
+                ) : null}
+              </>
+            ) : (
+              <a className="se-btn se-auth-apple" href="/api/auth/apple?link=1">Link Apple</a>
+            )}
+          </section>
+        ) : null}
+
+        {googleEnabled || account.googleLinked ? (
+          <section className="se-connection">
+            <div className="se-connection__head"><div><span className="se-connection__eyebrow">Sign-in account</span><h3>Google</h3></div><span className={`se-tag ${account.googleLinked ? 'se-tag--good' : ''}`}>{account.googleLinked ? 'Connected' : 'Not connected'}</span></div>
+            <p>{account.googleLinked ? 'Your Google account can sign in to this StreetsEmpire account.' : 'Connect Google to use it to sign in.'}</p>
+            {account.googleLinked ? <Button type="button" className="se-btn se-btn--ghost" onClick={unlinkGoogle} disabledReason={off}>{busy === 'google' ? 'Unlinking...' : 'Unlink Google'}</Button> : <a className="se-btn se-auth-google" href="/api/auth/google?link=1">Link Google</a>}
+          </section>
+        ) : null}
+
+        {facebookEnabled || account.facebookLinked ? (
+          <section className="se-connection">
+            <div className="se-connection__head"><div><span className="se-connection__eyebrow">Sign-in account</span><h3>Facebook</h3></div><span className={`se-tag ${account.facebookLinked ? 'se-tag--good' : ''}`}>{account.facebookLinked ? 'Connected' : 'Not connected'}</span></div>
+            <p>{account.facebookLinked ? 'Your Facebook account can sign in to this StreetsEmpire account.' : 'Connect Facebook to use it to sign in.'}</p>
+            {account.facebookLinked ? <Button type="button" className="se-btn se-btn--ghost" onClick={unlinkFacebook} disabledReason={off}>{busy === 'facebook' ? 'Unlinking...' : 'Unlink Facebook'}</Button> : <a className="se-btn se-auth-facebook" href="/api/auth/facebook?link=1">Link Facebook</a>}
+          </section>
+        ) : null}
+
         <section className="se-connection">
           <div className="se-connection__head">
             <div>
@@ -434,13 +537,13 @@ export function ConnectedAccountsPanel({ account, onConnectionsChanged }: Connec
         <section className="se-connection se-connection--future">
           <div className="se-connection__head">
             <div>
-              <span className="se-connection__eyebrow">Future providers</span>
-              <h3>More connections</h3>
+              <span className="se-connection__eyebrow">Sign-in access</span>
+              <h3>Keep a backup method</h3>
             </div>
-            <span className="se-tag">Ready to extend</span>
+            <span className="se-tag">Account safety</span>
           </div>
           <p className="se-muted">
-            Future providers such as Google, Steam or other community services can use this same connect / disconnect pattern without adding another settings page.
+            You can sign in with your email and password, Discord, Google, Facebook, Apple, or Google Play Games in the Android app. Link a second method above so you can still get in if you lose access to one provider.
           </p>
         </section>
       </div>

@@ -63,6 +63,21 @@ model Account {
   playGamesDisplayName String?
   playGamesLinkedAt    DateTime?
 
+  /// Apple Sign in subject identifier. Stored independently of email so Private Relay works.
+  appleId       String?   @unique
+  appleEmail   String?
+  appleLinkedAt DateTime?
+
+  /// Google OAuth subject. Kept separate from Google Play Games credentials.
+  googleId       String?   @unique
+  googleEmail   String?
+  googleLinkedAt DateTime?
+
+  /// Facebook Login subject identifier, separate from the profile email.
+  facebookId       String?   @unique
+  facebookEmail    String?
+  facebookLinkedAt DateTime?
+
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   lastLoginAt DateTime?

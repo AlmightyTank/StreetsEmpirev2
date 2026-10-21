@@ -742,7 +742,7 @@ export function AccountSettingsPage() {
                     {session.ip ? ` · ${session.ip}` : ''}
                   </small>
                   <small>
-                    {session.method === 'DISCORD' ? 'Discord' : 'Password'}{session.twoFactor ? ' + code' : ''}
+                    {session.method === 'DISCORD' ? 'Discord' : session.method === 'APPLE' ? 'Apple' : session.method === 'GOOGLE' ? 'Google' : session.method === 'FACEBOOK' ? 'Facebook' : session.method === 'PLAY_GAMES' ? 'Google Play Games' : 'Password'}{session.twoFactor ? ' + code' : ''}
                     {' · '}{session.remember ? 'Kept signed in' : 'Until the browser closes'}
                   </small>
                   <small>

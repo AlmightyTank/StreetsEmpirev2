@@ -168,7 +168,8 @@ export const AccountClosureService = {
       throw AppError.conflict('ADMIN_CLOSE', 'Staff cannot close their own account. Have the staff role removed first.');
     }
     // A Discord sign-in is its own proof; a Discord-made account never chose a password.
-    if (session.method !== 'DISCORD' || currentPassword) {
+    const federated = session.method === 'DISCORD' || session.method === 'APPLE' || session.method === 'PLAY_GAMES' || session.method === 'GOOGLE' || session.method === 'FACEBOOK';
+    if (!federated || currentPassword) {
       const ok = currentPassword ? await verifyPassword(account.passwordHash, currentPassword) : false;
       if (!ok) {
         throw AppError.badRequest('CURRENT_PASSWORD_INVALID', 'That password does not match.', {

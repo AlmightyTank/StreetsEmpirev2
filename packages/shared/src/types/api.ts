@@ -151,6 +151,12 @@ export interface AccountDto {
   emailVerifiedAt: string | null;
   discordLinked: boolean;
   discordUsername: string | null;
+  /** True when an Apple Sign in identity is connected. */
+  appleLinked: boolean;
+  /** True when a Google OAuth identity is connected. */
+  googleLinked: boolean;
+  /** True when a Facebook identity is connected. */
+  facebookLinked: boolean;
   /** True when a Google Play Games identity is linked. */
   playGamesLinked: boolean;
   /** True for Founder and Admin. */
@@ -161,7 +167,7 @@ export interface AccountDto {
   staffCapabilities: StaffCapability[];
   createdAt: string;
   lastLoginAt: string | null;
-  /** True until this account may play: verify the email, or sign in with Discord. */
+  /** True until this account may play: verify email or link a verified Discord/Apple identity. */
   verificationRequired: boolean;
   /** True until the player accepts the current game rules (RULES_VERSION). */
   rulesAcceptanceRequired: boolean;
