@@ -6,8 +6,8 @@ StreetsEmpire is a TypeScript monorepo for a seasonal browser crime-strategy gam
 
 ## Current repo state
 
-- The local seed opens **Game #020 - Casino Games** on the latest registered ruleset (`classic-og-v1.8-s`, `1.8.0-S`, Hidden Streets Complete).
-- The rulesets package also contains later beta/release rulesets through `classic-og-v1.8-s` (`1.8.0-S`, Hidden Streets Complete).
+- The local seed opens **Game #020 - Casino Games** on `LATEST_RULESET`, the final entry in the ruleset registry. Historical sample rounds remain pinned to their original rulesets.
+- `LATEST_RULESET` and `DEFAULT_RULESET_ID` both follow the registry, so the seed and new-round defaults advance together as releases are added.
 - Seeded cities: New York City, Detroit, Miami Beach, Seattle, San Francisco, Las Vegas, Los Angeles, Atlanta, Chicago, Tulsa, and Dallas. Beverly Hills remains only in older pinned rulesets.
 - The current codebase includes core economy, products, combat, alliances, travel, boss trips, turf/businesses, hideouts, Jobs & Contacts, casino games, law/cases, factions, vehicles, crew roster, supply systems, loans, sportsbook work, events/random encounters, public site pages, admin tools, forum/Discord hooks, support flows, notifications, and operations tooling.
 - Historical rounds stay pinned to their original rulesets; new ruleset behavior is loaded through `loadRulesetForRound()` from the round's stored ruleset id/version.
