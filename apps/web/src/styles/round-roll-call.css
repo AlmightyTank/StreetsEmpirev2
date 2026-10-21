@@ -93,6 +93,8 @@
 .se-rollcall-finale__lines i { display: block; height: 6px; width: 80%; background: var(--se-line); border-radius: 2px; }
 .se-rollcall-finale__lines i:nth-child(2) { width: 65%; }
 .se-rollcall-finale__lines i:nth-child(3) { width: 48%; }
+.se-rollcall-finale__crate .se-rollcall-finale__shellbody { position: relative; }
+.se-rollcall-finale__crate .se-rollcall-finale__shellbody b { position: absolute; right: 12px; bottom: 8px; color: var(--se-accent); font: 800 42px/1 var(--se-mono); opacity: .8; }
 .se-rollcall-finale__crew { border: 1px solid var(--se-accent); border-radius: var(--se-radius-md); min-height: 108px; padding: 8px 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; text-align: center; }
 .se-rollcall-finale__crew span, .se-rollcall-finale__crew small { color: var(--se-text-dim); font: 700 8px var(--se-mono); overflow-wrap: anywhere; }
 .se-rollcall-finale__crew strong { color: var(--se-accent); font-size: 27px; }

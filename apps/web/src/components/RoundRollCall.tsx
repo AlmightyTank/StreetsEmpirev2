@@ -38,46 +38,46 @@ function timeLabel(iso: string | null): string | null {
   return when.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
 
-function RollCallFinalePreview({ target, completed, owned, onPreviewCrate }: {
+function RollCallFinalePreview({ target, completed, crateClaimed, onPreviewCrate }: {
   target: number;
   completed: boolean;
-  owned: boolean;
+  crateClaimed: boolean;
   onPreviewCrate: () => void;
 }) {
   return (
-    <aside className="se-rollcall-finale" aria-label="Final login reward collection preview">
+    <aside className="se-rollcall-finale" aria-label="Final login reward mystery Drop crate">
       <div className="se-rollcall-finale__copy">
-        <span className="se-eyebrow">Grand prize · final reward only</span>
-        <h3>Wear the round. Own the streets.</h3>
+        <span className="se-eyebrow">Grand prize · mystery Drop crate</span>
+        <h3>Open the mystery. Own the streets.</h3>
         <p>
-           Complete all {target} attendance stamps to qualify for the exclusive Obsidian
-           Signal game-shell theme. It stays with your account across rounds and can be
-           equipped from Account Settings. The matching crew look is available separately
-           in The Drop.
+           Complete all {target} attendance stamps to receive a mystery crate containing
+           one randomly selected cosmetic from The Drop. The result is rolled securely
+           when you open it, with a small chance at a premium pull.
         </p>
         <small>
-          {owned
-            ? 'Unlocked permanently · Obsidian Signal is now in your Collection and outfit settings.'
+          {crateClaimed
+            ? 'Crate opened · your cosmetic is now in your Collection.'
             : completed
-              ? 'Attendance complete. Your permanent Obsidian Signal set will appear after the account unlock confirms.'
-              : 'Obsidian Signal is locked until you complete your entire attendance track.'}
+              ? 'Attendance complete. Your mystery crate is ready to open.'
+              : 'Your mystery crate unlocks when you complete the entire attendance track.'}
         </small>
       </div>
-       <div className="se-rollcall-finale__art" aria-label="Obsidian Signal shell">
-        <div className="se-rollcall-finale__shell se-site-theme--obsidian-signal">
+       <div className="se-rollcall-finale__art" aria-label="Sealed mystery Drop crate">
+        <div className="se-rollcall-finale__shell se-rollcall-finale__crate se-site-theme--obsidian-signal">
           <div className="se-rollcall-finale__chrome"><span>STREETS EMPIRE</span><i /><i /></div>
           <div className="se-rollcall-finale__shellbody">
-            <strong>YOUR EMPIRE</strong>
-            <span>UNLOCKED LOOK</span>
+            <strong>MYSTERY DROP</strong>
+            <span>SEALED REWARD CRATE</span>
             <div className="se-rollcall-finale__lines"><i /><i /><i /></div>
+            <b>?</b>
           </div>
         </div>
-         <div className="se-rollcall-finale__drop-note">
-           <strong>OBSIDIAN SIGNAL CREW</strong>
-           <span>AVAILABLE IN THE DROP</span>
-           <Link to="/game/drop">Shop the matching outfits</Link>
-           <Button variant="ghost" size="sm" onClick={onPreviewCrate}>Preview crate reveal</Button>
-         </div>
+        <div className="se-rollcall-finale__drop-note">
+          <strong>RANDOM COSMETIC</strong>
+          <span>OPEN ON FINAL DAY</span>
+          <Link to="/game/drop">Shop the matching crew look</Link>
+          <Button variant="ghost" size="sm" onClick={onPreviewCrate}>Preview crate reveal</Button>
+        </div>
       </div>
     </aside>
   );
@@ -108,7 +108,7 @@ function RollCallDay({ tier, finale, today, claimingTier, onClaim }: {
         {tier.rewards.map((reward, index) => (
           <RewardChip reward={reward} key={reward.kind + ':' + (reward.key ?? '') + ':' + index} />
         ))}
-         {finale ? <span className="se-rollcall-day__future">Obsidian Signal shell completion reward</span> : null}
+          {finale ? <span className="se-rollcall-day__future">Mystery Drop crate completion reward</span> : null}
       </div>
       <div className="se-rollcall-day__footer">
         {status === 'ready' ? (
@@ -289,6 +289,7 @@ export function RoundRollCallPanel() {
   // Keep the Street Pass page compact. The six-card window stays on today's
   // reward. Claimed stamps stay on the track; players can expand the rest.
   const todayTier = board ? todayRewardTier(board) : null;
+  const finalReward = board ? board.rewardTrack[board.rewardTrack.length - 1] : undefined;
   const focusIndex = board?.rewardTrack.findIndex((step) => !step.claimed) ?? -1;
   const nearbyStart = board
     ? rollCallWindowStart(board.rewardTrack.length, focusIndex, todayTier)
@@ -440,17 +441,17 @@ export function RoundRollCallPanel() {
            <RollCallFinalePreview
              target={board.requiredStamps}
              completed={board.completed}
-             owned={board.grandPrize.unlocked}
+             crateClaimed={Boolean(finalReward?.claimed)}
              onPreviewCrate={() => setPreviewCrate(true)}
            />
-          {board.grandPrize.unlocked ? (
-            <p className="se-rollcall__equipped" role="status">
-               Permanent Obsidian Signal shell earned. <Link to="/account">Equip the theme</Link> or <Link to="/game/drop">shop the matching crew outfits</Link>.
-            </p>
+           {board.grandPrize.unlocked ? (
+             <p className="se-rollcall__equipped" role="status">
+                Permanent completion reward earned. <Link to="/account">Equip your theme</Link> or <Link to="/game/drop">shop the matching crew look</Link>.
+             </p>
           ) : null}
           <p className="se-rollcall__footnote">
             Seven missed days are already built into the round schedule. Earn one stamp per eligible day;
-             completing all stamps is required for the exclusive Obsidian Signal shell.
+             completing all stamps is required for the permanent completion reward.
             Gameplay rewards are capped and never include weapons or permanent power.
             <Link to="/account"> View your existing cosmetics.</Link>
           </p>

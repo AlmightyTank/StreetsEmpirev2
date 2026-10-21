@@ -153,7 +153,10 @@ function postLoginRedirect(callbackUri?: string): string {
   const redirect = callbackUri ? new URL(callbackUri) : null;
   const authorizedHost = redirect?.hostname === 'beta.streetsempire.dev'
     || redirect?.hostname === 'play.streetsempire.dev';
-  return new URL('/join', authorizedHost && redirect ? redirect.origin : env.frontendOrigin).toString();
+  // Let the game entry route choose between the live game and the join flow.
+  // This keeps OAuth sign-in consistent with password sign-in and avoids
+  // leaving returning players on the season handoff screen.
+  return new URL('/game', authorizedHost && redirect ? redirect.origin : env.frontendOrigin).toString();
 }
 
 /** rc.3. Where the Discord callback sends a sign-in that still needs its authenticator code. */
