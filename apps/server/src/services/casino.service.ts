@@ -143,7 +143,9 @@ function ledgerDisplay(entry: {
   if (entry.kind === 'BUY_CHIPS') {
     return {
       title: 'Bought chips',
-      detail: 'Cash moved into your casino chip wallet.',
+      detail: entry.sessionChipDeltaCents > 0n
+        ? 'Cash moved into your active casino bankroll.'
+        : 'Cash moved into your casino chip wallet.',
       amountLabel: 'Exchanged',
       amountCents: abs(entry.cashDeltaCents),
       tone: 'neutral',
@@ -922,23 +924,35 @@ export const CasinoService = {
         throw AppError.conflict('NOT_ENOUGH_CASH', 'The boss does not have that much cash with them at this casino.');
       }
 
-      const wallet = await tx.casinoWallet.upsert({
-        where: { roundPlayerId_cityId: { roundPlayerId, cityId: city.id } },
-        update: { chipsCents: { increment: amount } },
-        create: { roundPlayerId, cityId: city.id, chipsCents: amount },
+      const openSession = await tx.casinoSession.findFirst({
+        where: { roundPlayerId, status: 'OPEN', cityId: city.id },
+        orderBy: { openedAt: 'desc' },
       });
+      const wallet = openSession
+        ? await tx.casinoWallet.findUnique({ where: { roundPlayerId_cityId: { roundPlayerId, cityId: city.id } } })
+        : await tx.casinoWallet.upsert({
+            where: { roundPlayerId_cityId: { roundPlayerId, cityId: city.id } },
+            update: { chipsCents: { increment: amount } },
+            create: { roundPlayerId, cityId: city.id, chipsCents: amount },
+          });
+      const session = openSession
+        ? await tx.casinoSession.update({ where: { id: openSession.id }, data: { bankrollCents: { increment: amount } } })
+        : null;
       await moveLocalCash(tx, roundPlayerId, ruleset, cashLocation, -amount);
       await tx.casinoLedgerEntry.create({
         data: {
-          roundPlayerId, cityId: city.id, actionId: input.actionId, kind: 'BUY_CHIPS',
-          cashDeltaCents: -amount, walletChipDeltaCents: amount, walletChipsAfterCents: wallet.chipsCents,
+          roundPlayerId, cityId: city.id, sessionId: session?.id ?? null, actionId: input.actionId, kind: 'BUY_CHIPS',
+          cashDeltaCents: -amount, walletChipDeltaCents: session ? 0n : amount, sessionChipDeltaCents: session ? amount : 0n,
+          walletChipsAfterCents: wallet?.chipsCents ?? 0n, sessionChipsAfterCents: session?.bankrollCents ?? 0n,
           metadata: { venue: venue.name, cashWallet: cashLocation.kind, cashWalletId: cashLocation.walletId } as Prisma.InputJsonValue,
         },
       });
       await ActivityService.log(tx, roundPlayerId, 'CASINO_BUY_CHIPS', {
         cityName: city.name, venueName: venue.name, amountCents: Number(amount),
       });
-      // 1.3.0-B: a cage exchange is a cash movement; it never reads or changes a game.
+      // 1.3.0-B: a cage exchange is a cash movement. When a floor bankroll is
+      // already open at this casino, the purchased chips join that bankroll so
+      // the player can use them without leaving the game.
       await LawService.record(tx, roundPlayerId, ruleset, [{ cityId: city.id, cashCents: amount, source: 'CURRENCY_REPORT', sourceKey: `cage:${input.actionId}` }], now);
     });
   },

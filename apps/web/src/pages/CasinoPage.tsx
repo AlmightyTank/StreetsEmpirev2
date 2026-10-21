@@ -709,6 +709,8 @@ export function CasinoPage() {
                         </strong>
                         {entry.kind === 'SLOT_SPIN' || entry.kind === 'BLACKJACK' || entry.kind === 'POOL' || entry.kind === 'ROULETTE' || entry.kind === 'SCRATCH_CARD' || entry.kind === 'HORSE_RACE' || entry.kind === 'SPORTSBOOK_BET' || (entry.kind === 'SPORTSBOOK_SETTLEMENT' && entry.sessionChipDeltaCents !== 0) ? (
                           <span>Floor {formatCents(entry.sessionChipsAfterCents)}</span>
+                        ) : entry.kind === 'BUY_CHIPS' && entry.sessionChipDeltaCents !== 0 ? (
+                          <span>Floor {formatCents(entry.sessionChipsAfterCents)}</span>
                         ) : entry.kind === 'BUY_CHIPS' || entry.kind === 'REDEEM_CHIPS' ? (
                           <span>Wallet {formatCents(entry.walletChipsAfterCents)}</span>
                         ) : (
