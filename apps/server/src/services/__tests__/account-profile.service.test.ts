@@ -165,7 +165,7 @@ describe('AccountProfileService admin site theme QA', () => {
       textColor: '#ffffff',
       tagColor: '#ffd34e',
     };
-    const saved = await AccountProfileService.update(prisma, 'account-1', { ...updateInput, activeSiteThemeKey: null, streetSign });
+    const saved = await AccountProfileService.update(prisma, 'account-1', { ...updateInput, crewName: 'Cedar Avenue', activeSiteThemeKey: null, streetSign });
 
     expect(saved.settings.streetSign).toEqual(streetSign);
     expect((await AccountProfileService.settings(prisma, 'account-1')).settings.streetSign).toEqual(streetSign);
@@ -184,14 +184,14 @@ describe('AccountProfileService admin site theme QA', () => {
       textColor: '#ffffff', tagColor: '#ffd34e',
     };
     await expect(AccountProfileService.update(prismaFor(false), 'account-1', {
-      ...updateInput, activeSiteThemeKey: null, streetSign,
+      ...updateInput, crewName: 'Cedar', activeSiteThemeKey: null, streetSign,
     })).rejects.toMatchObject({ code: 'COSMETIC_NOT_EARNED' });
 
     const ownsPacks = prismaFor(false, [
       { key: 'street-sign-font-sign-painter', kind: 'STREET_SIGN_FONT_PACK', title: 'Sign Painter Pack', description: '', styleKey: null, awardedAt: new Date(0) },
       { key: 'street-sign-graffiti-pack', kind: 'STREET_SIGN_FONT_PACK', title: 'Graffiti Pack', description: '', styleKey: null, awardedAt: new Date(0) },
     ]);
-    const saved = await AccountProfileService.update(ownsPacks, 'account-1', { ...updateInput, activeSiteThemeKey: null, streetSign });
+    const saved = await AccountProfileService.update(ownsPacks, 'account-1', { ...updateInput, crewName: 'Cedar', activeSiteThemeKey: null, streetSign });
     expect(saved.settings.streetSign?.font).toBe('sign-painter');
     expect(saved.options.streetSignFontPacks).toEqual(['street-sign-font-sign-painter', 'street-sign-graffiti-pack']);
     await expect(AccountProfileService.update(ownsPacks, 'account-1', {
@@ -203,6 +203,7 @@ describe('AccountProfileService admin site theme QA', () => {
     await expect(AccountProfileService.update(prismaFor(false), 'account-1', {
       ...updateInput,
       activeSiteThemeKey: null,
+      crewName: `Bad n${'ig' + 'ger'} street`,
       streetSign: {
         version: 2,
         shape: 'classic',
