@@ -55,6 +55,7 @@ import './styles/console.css';
 import './styles/alliance.css';
 import './styles/contacts.css';
 import './styles/profile.css';
+import './styles/street-sign-builder.css';
 import './styles/street-skills.css';
 import './styles/profile-hover.css';
 import './styles/activity.css';

@@ -153,6 +153,19 @@ describe.runIf(process.env.ACCOUNT_LEVEL_INTEGRATION === '1')('account levels wi
     expect(await app.prisma.accountCosmeticUnlock.count({ where: { accountId: player.accountId, sourceQuestKey: 'PLAYER_EXPERIENCE_LEVEL' } })).toBe(experienceTitlesBetween(0, 28).length);
   });
 
+  it('grants permanent street-sign font packs at their account levels', async () => {
+    const player = await makePlayer();
+    await award(player.id, experienceRequiredForLevel(20));
+    const packs = await app.prisma.accountCosmeticUnlock.findMany({
+      where: { accountId: player.accountId, kind: 'STREET_SIGN_FONT_PACK' },
+      select: { key: true, sourceQuestKey: true }, orderBy: { key: 'asc' },
+    });
+    expect(packs).toEqual([
+      { key: 'street-sign-font-sign-painter', sourceQuestKey: 'PLAYER_EXPERIENCE_SIGN_FONT_PACK' },
+      { key: 'street-sign-graffiti-pack', sourceQuestKey: 'PLAYER_EXPERIENCE_SIGN_FONT_PACK' },
+    ]);
+  });
+
   it('lets a veteran through every gate whatever their level', async () => {
     const veteran = await makePlayer(0);
     const past = await app.prisma.round.create({ data: {

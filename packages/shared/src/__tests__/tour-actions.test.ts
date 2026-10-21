@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { onboardingActionSchema, TOUR_STEP_KEYS } from '../onboarding.js';
 
 describe('guided walkthrough tour actions', () => {
-  it('exposes seven ordered core-loop steps', () => {
+  it('starts with Make Your Mark before the core-loop steps', () => {
     expect([...TOUR_STEP_KEYS]).toEqual([
+      'build-street-sign',
       'accept-quest',
       'scout',
       'shop-supplies',
@@ -18,6 +19,7 @@ describe('guided walkthrough tour actions', () => {
     expect(onboardingActionSchema.parse({ action: 'start-tour' })).toEqual({ action: 'start-tour' });
     expect(onboardingActionSchema.parse({ action: 'dismiss-tour' })).toEqual({ action: 'dismiss-tour' });
     expect(onboardingActionSchema.parse({ action: 'restore-tour' })).toEqual({ action: 'restore-tour' });
+    expect(onboardingActionSchema.parse({ action: 'dismiss-sign-recap' })).toEqual({ action: 'dismiss-sign-recap' });
   });
 
   it('parses advance-tour only with a known step', () => {

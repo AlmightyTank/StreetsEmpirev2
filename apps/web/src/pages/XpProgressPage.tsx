@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { ACCOUNT_TRUST_GATES, EXPERIENCE_LEVEL_CROWNS, MENTORING, EXPERIENCE_LEVEL_REWARDS, PRESTIGE_LEVELS, accountGateOpen, accountLevelBadge, experienceCrownMilestones, experienceRequiredForLevel, experienceSourceLabel, experienceTitlesBetween, levelRewardsAt, formatCents, formatNumber, type PlayerExperienceDto, type PlayerExperienceEventDto, type MentoringDto, type PublicCareerDto, type XpLeaderboardDto } from '@streets/shared';
+import { ACCOUNT_TRUST_GATES, EXPERIENCE_LEVEL_CROWNS, MENTORING, EXPERIENCE_LEVEL_REWARDS, STREET_SIGN_FONT_PACKS, PRESTIGE_LEVELS, accountGateOpen, accountLevelBadge, experienceCrownMilestones, experienceRequiredForLevel, experienceSourceLabel, experienceTitlesBetween, levelRewardsAt, formatCents, formatNumber, type PlayerExperienceDto, type PlayerExperienceEventDto, type MentoringDto, type PublicCareerDto, type XpLeaderboardDto } from '@streets/shared';
 import { communityApi } from '../api/community.js';
 import { dropApi } from '../api/drop.js';
 import { gameApi } from '../api/game.js';
@@ -432,6 +432,29 @@ export function XpProgressPage() {
                     <p>{reward.description}</p>
                   </div>
                   <span className="se-xp-card__rarity">{reward.rarity} title</span>
+                </li>
+              );
+            })}
+          </ol>
+        </section>
+
+        <section className="se-pass-trackwrap se-xp-trackwrap" aria-label="Street sign font pack milestones">
+          <div className="se-xp-trackhead">
+            <div>
+              <span className="se-eyebrow">Permanent cosmetic rewards</span>
+              <h2>Street sign art packs</h2>
+            </div>
+            <p className="se-hint">Earned packs stay unlocked across seasons. Pick them in Account settings → Profile &amp; look.</p>
+          </div>
+          <ol className="se-xp-track">
+            {STREET_SIGN_FONT_PACKS.map((pack) => {
+              const unlocked = (experience?.level ?? 1) >= pack.level;
+              return (
+                <li key={pack.key} className={`se-xp-card${unlocked ? ' se-xp-card--unlocked' : ''}`} aria-label={`Level ${pack.level}: ${pack.label}, ${unlocked ? 'unlocked' : 'locked'}`}>
+                  <div className="se-xp-card__top"><span>Level {formatNumber(pack.level)}</span><strong>{unlocked ? 'Unlocked' : `${formatNumber(experienceRequiredForLevel(pack.level))} XP`}</strong></div>
+                  <div className="se-xp-card__badge" aria-hidden="true">{unlocked ? 'OK' : '*'}</div>
+                  <div><h3>{pack.label}</h3><p>{pack.description}</p></div>
+                  <span className="se-xp-card__rarity">{pack.key === 'street-sign-graffiti-pack' ? 'tag fonts' : 'street text + tag font'}</span>
                 </li>
               );
             })}

@@ -68,6 +68,11 @@ describe('account experience progression', () => {
     expect(experienceCrownMilestones(0, 50).reduce((n, m) => n + m.crowns, 0)).toBe(8 * 20 + 2 * 75);
   });
 
+  it('lists street-sign art packs at their account-level milestones', () => {
+    expect(levelRewardsAt(10).map((reward) => reward.label)).toContain('Street sign: Sign Painter Pack');
+    expect(levelRewardsAt(20).map((reward) => reward.label)).toContain('Street sign: Graffiti Pack');
+  });
+
   it('keeps trust gates above what starting turns alone reach', () => {
     for (const gate of Object.values(ACCOUNT_TRUST_GATES)) expect(gate.level).toBeGreaterThan(experienceLevelFor(144));
     expect(ACCOUNT_TRUST_GATES.foundAlliance.level).toBeGreaterThanOrEqual(ACCOUNT_TRUST_GATES.coldMessage.level);

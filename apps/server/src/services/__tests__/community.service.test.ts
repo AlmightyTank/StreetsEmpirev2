@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { City } from '@prisma/client';
-import { betaTesterAwardsFromForumGroups, rankRows } from '../community.service.js';
+import { betaTesterAwardsFromForumGroups, publicStreetSign, rankRows } from '../community.service.js';
+import { DEFAULT_STREET_SIGN } from '@streets/shared';
 
 const city = {
   id: 'city-1',
@@ -109,6 +110,19 @@ describe('rankRows', () => {
       expect.objectContaining({ key: 'first-hideout-upgrade', category: 'hideout', unlocked: true }),
       expect.objectContaining({ key: 'room-maxed', category: 'hideout', unlocked: true }),
     ]));
+  });
+});
+
+describe('public street sign', () => {
+  it('shares valid normalized designs when profile look is visible', () => {
+    expect(publicStreetSign({ streetSign: { ...DEFAULT_STREET_SIGN, streetName: 'Cedar' }, showLookOnProfile: true }))
+      .toMatchObject({ streetName: 'Cedar', shape: 'classic' });
+  });
+
+  it('hides empty, malformed, and private designs safely', () => {
+    expect(publicStreetSign(null)).toBeNull();
+    expect(publicStreetSign({ streetSign: { version: 99, streetName: '<svg>' } })).toBeNull();
+    expect(publicStreetSign({ streetSign: DEFAULT_STREET_SIGN, showLookOnProfile: false })).toBeNull();
   });
 });
 

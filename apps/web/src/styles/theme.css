@@ -4490,6 +4490,27 @@ button.se-notification-empty:hover { color: var(--se-text); }
   border-left-color: var(--se-muted);
 }
 
+.se-tour-offer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin: 0 0 18px;
+  padding: 16px 18px;
+  border: 1px solid var(--se-line);
+  border-radius: 14px;
+  background: linear-gradient(120deg, color-mix(in srgb, var(--se-accent) 12%, var(--se-panel)), var(--se-panel));
+}
+.se-tour-offer h2 { margin: 2px 0 4px; font-size: 1.05rem; }
+.se-tour-offer p { margin: 4px 0 0; color: var(--se-muted); font-size: .82rem; line-height: 1.45; }
+.se-tour-offer .se-tour__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.se-tour-offer--recap { align-items: center; }
+.se-tour-offer--recap .se-street-sign-display { margin: 10px 0 0; padding: 0; }
+@media (max-width: 640px) {
+  .se-tour-offer { align-items: stretch; flex-direction: column; gap: 12px; }
+  .se-tour-offer .se-tour__actions { justify-content: flex-start; }
+}
+
 @media (max-width: 640px) {
   .se-tour-tracker {
     align-items: stretch;

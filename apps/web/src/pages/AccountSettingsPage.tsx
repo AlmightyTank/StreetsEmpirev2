@@ -36,6 +36,8 @@ import { DEFAULT_PROFILE_SETTINGS, useSession } from '../stores/session.js';
 import { isBoolean, isString, readRemembered, rememberedKey, useRememberedState } from '../utils/remembered.js';
 import { ReplayTutorial } from '../components/onboarding/ReplayTutorial.js';
 import { formatWhen } from '../utils/time.js';
+import { StreetSignBuilder } from '../components/StreetSignBuilder.js';
+import { useOnboarding } from '../stores/onboarding.js';
 
 /** Sessions listed before "Show all": this one first, then the most recently used. */
 const SESSIONS_SHOWN = 5;
@@ -124,6 +126,7 @@ export function AccountSettingsPage() {
   const Frame = canPlay ? GameLayout : Shell;
   const round = useSession((s) => s.round);
   const setSessionProfileSettings = useSession((s) => s.setProfileSettings);
+  const reloadOnboarding = useOnboarding((s) => s.load);
   const [searchParams] = useSearchParams();
   const accountMessage = searchParams.get('accountMessage');
 
@@ -402,6 +405,13 @@ export function AccountSettingsPage() {
 
   async function saveCosmetics(event: FormEvent) {
     event.preventDefault();
+    const streetSignChanged = JSON.stringify(cosmetics.streetSign ?? null)
+      !== JSON.stringify(profileSettings?.settings.streetSign ?? null);
+    if (cosmetics.streetSign && !cosmetics.streetSign.streetName.trim()) {
+      setTone('error');
+      setMessage('Add street text before saving your sign.');
+      return;
+    }
     setBusy('cosmetics');
     setMessage(null);
     setFields({});
@@ -418,8 +428,11 @@ export function AccountSettingsPage() {
       setProfileSettings(response);
       setCosmetics(response.settings);
       setSessionProfileSettings(response.settings);
+      if (me?.id) await reloadOnboarding(me.id);
       setTone('info');
-      setMessage('Settings saved.');
+      setMessage(streetSignChanged
+        ? cosmetics.streetSign ? 'Settings saved, including your street sign.' : 'Settings saved. Your street sign was removed.'
+        : 'Settings saved.');
     } catch (error) {
       setTone('error');
       if (error instanceof ApiError) {
@@ -846,6 +859,13 @@ export function AccountSettingsPage() {
                     ? <p className="se-error" role="alert">{fields.profileBio}</p>
                     : <p className="se-hint">Plain text only. Shown on your public profile. {formatNumber((cosmetics.profileBio ?? '').length)} / {formatNumber(PROFILE_BIO_MAX)}</p>}
                 </div>
+
+                <StreetSignBuilder
+                  value={cosmetics.streetSign}
+                  savedValue={profileSettings?.settings.streetSign ?? null}
+                  unlockedFontPacks={profileSettings?.options.streetSignFontPacks ?? []}
+                  onChange={(streetSign) => setCosmetics((current) => ({ ...current, streetSign }))}
+                />
 
                 <div className="se-field">
                   <span className="se-label" id="avatar-mode-label">Avatar</span>

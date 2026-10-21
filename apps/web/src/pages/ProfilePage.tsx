@@ -26,6 +26,7 @@ import { ProfileBadgeArt } from '../components/ProfileBadgeArt.js';
 import { ProfileBadges } from '../components/ProfileBadges.js';
 import { NameWithSupporterMark } from '../components/SupporterMark.js';
 import { hasProfileLook, ProfileLook } from '../components/ProfileLook.js';
+import { StreetSignDisplay } from '../components/StreetSignBuilder.js';
 import { Panel, Row, Stat } from '../components/Panel.js';
 import { AvatarPortrait, hasAvatarFrameArt } from '../components/BuiltAvatar.js';
 import { GameLayout } from '../layouts/GameLayout.js';
@@ -762,6 +763,16 @@ export function ProfilePage() {
               </h1>
               {signature ? <span className="se-profile-nameplate-rule" aria-hidden="true" /> : null}
               {player?.crewName ? <p className="se-profile-crew">Crew · <strong>{player.crewName}</strong></p> : null}
+              <StreetSignDisplay design={player?.streetSign} />
+              {player?.streetSign && !player.isYou ? (() => {
+                const query = new URLSearchParams({
+                  category: 'PLAYER_CONTENT',
+                  from: `/game/players/${player.publicPimpId}`,
+                  target: player.displayName,
+                  sign: `${player.streetSign.streetName} ${player.streetSign.streetType}${player.streetSign.tag ? ` · tag: ${player.streetSign.tag}` : ''}`,
+                });
+                return <Link className="se-btn se-btn--ghost se-btn--sm" to={`/report-bug?${query.toString()}`}>Report street sign</Link>;
+              })() : null}
               {player?.careerIdentity ? <p className="se-profile-career" title="Cosmetic career identity; it does not change gameplay power.">Career · <strong>{player.careerIdentity.title}</strong></p> : null}
               {player?.factionAlignment?.length ? (
                 <p className="se-profile-alignment" aria-label="Faction alignment">

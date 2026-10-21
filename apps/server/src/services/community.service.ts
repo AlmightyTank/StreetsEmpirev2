@@ -22,7 +22,7 @@ import type {
   RankingEntryDto,
   RankingsDto,
 } from '@streets/shared';
-import { playerExperienceDto, readAvatarParts, SIGNATURE_CARD_FRAME_KEY } from '@streets/shared';
+import { playerExperienceDto, readAvatarParts, readStreetSignDesign, SIGNATURE_CARD_FRAME_KEY } from '@streets/shared';
 import { env } from '../config/env.js';
 import { toCityDto, toSeasonHideoutDto } from '../game/dto.js';
 import { AppError } from '../utils/errors.js';
@@ -42,6 +42,10 @@ import { seasonFeatAwards, type FeatSeason } from './season-feats.js';
 import { emptySeasonTotals, SeasonStatsService, toStatSheet, type SeasonTotals } from './season-stats.service.js';
 import { EmpireLegacyService } from './empire-legacy.service.js';
 import { PlayerCareerService } from './player-career.service.js';
+
+export function publicStreetSign(profile: { streetSign: unknown; showLookOnProfile?: boolean | null } | null | undefined) {
+  return profile?.showLookOnProfile === false ? null : readStreetSignDesign(profile?.streetSign);
+}
 
 interface RankingRow {
   id: string;
@@ -1245,6 +1249,7 @@ export const CommunityService = {
       displayName: player.displayName,
       crewName: profileSettings?.crewName ?? null,
       profileBio: profileSettings?.profileBio ?? null,
+      streetSign: publicStreetSign(profileSettings),
       seasonName: player.round.name,
       alliance: allianceTagDto(player.alliance),
       city: toCityDto(player.city),

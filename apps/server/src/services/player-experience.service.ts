@@ -1,5 +1,5 @@
 import type { PrismaClient, Round } from '@prisma/client';
-import { MENTORING, SEASON_FINISH_EXPERIENCE, experienceLevelFor, experienceTitlesBetween, seasonFinishExperience, playerExperienceDto, type ExperienceLevelReward, type PlayerExperienceDto, type PlayerExperienceEventDto, type XpLeaderboardDto } from '@streets/shared';
+import { MENTORING, SEASON_FINISH_EXPERIENCE, STREET_SIGN_FONT_PACKS, experienceLevelFor, experienceTitlesBetween, seasonFinishExperience, playerExperienceDto, type ExperienceLevelReward, type PlayerExperienceDto, type PlayerExperienceEventDto, type XpLeaderboardDto } from '@streets/shared';
 import type { Db } from '../utils/db.js';
 import { CrownEarnService } from './crown-earn.service.js';
 import { MentoringService } from './mentoring.service.js';
@@ -189,6 +189,24 @@ export const PlayerExperienceService = {
           rarity: cosmetic.rarity,
           styleKey: null,
           sourceQuestKey: 'PLAYER_EXPERIENCE_LEVEL',
+          sourceRulesetId: 'account-progression',
+          sourceRulesetVersion: '1',
+          awardedAt: input.awardedAt,
+        })),
+        skipDuplicates: true,
+      });
+      // Permanent account cosmetics; replay the catalogue to the reached level
+      // so existing accounts receive packs whose milestones they already passed.
+      await tx.accountCosmeticUnlock.createMany({
+        data: STREET_SIGN_FONT_PACKS.filter((pack) => pack.level <= level).map((pack) => ({
+          accountId: player.accountId,
+          key: pack.key,
+          kind: 'STREET_SIGN_FONT_PACK',
+          title: pack.label,
+          description: pack.description,
+          rarity: pack.level >= 20 ? 'rare' : 'uncommon',
+          styleKey: null,
+          sourceQuestKey: 'PLAYER_EXPERIENCE_SIGN_FONT_PACK',
           sourceRulesetId: 'account-progression',
           sourceRulesetVersion: '1',
           awardedAt: input.awardedAt,

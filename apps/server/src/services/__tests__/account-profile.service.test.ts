@@ -146,6 +146,83 @@ describe('AccountProfileService admin site theme QA', () => {
     expect(response.settings.activeSiteThemeKey).toBe('neon-vice');
   });
 
+  it('saves a street sign design and keeps it when older settings omit the field', async () => {
+    const prisma = prismaFor(false);
+    const streetSign = {
+      version: 2 as const,
+      shape: 'wide' as const,
+      streetName: 'Cedar Avenue',
+      streetType: 'AVE' as const,
+      font: 'stencil' as const,
+      tag: 'NIGHT SHIFT',
+      tagFont: 'handstyle' as const,
+      tagScale: 'medium' as const,
+      tagPlacement: 'lower-right' as const,
+      trim: 'double' as const,
+      shadow: 'soft' as const,
+      treatment: 'reflective' as const,
+      backgroundColor: '#172c47',
+      textColor: '#ffffff',
+      tagColor: '#ffd34e',
+    };
+    const saved = await AccountProfileService.update(prisma, 'account-1', { ...updateInput, activeSiteThemeKey: null, streetSign });
+
+    expect(saved.settings.streetSign).toEqual(streetSign);
+    expect((await AccountProfileService.settings(prisma, 'account-1')).settings.streetSign).toEqual(streetSign);
+    const kept = await AccountProfileService.update(prisma, 'account-1', { ...updateInput, activeSiteThemeKey: null });
+    expect(kept.settings.streetSign).toEqual(streetSign);
+    vi.mocked(RoundService.getCurrent).mockResolvedValue({ ...currentRound(), id: 'round-2' } as never);
+    expect((await AccountProfileService.settings(prisma, 'account-1')).settings.streetSign).toEqual(streetSign);
+  });
+
+  it('requires the earned font or graffiti pack before saving its styles', async () => {
+    const streetSign = {
+      version: 2 as const, shape: 'classic' as const, streetName: 'Cedar', streetType: 'ST' as const,
+      font: 'sign-painter' as const, tag: 'NIGHT SHIFT', tagFont: 'graffiti-script' as const,
+      tagScale: 'medium' as const, tagPlacement: 'lower-right' as const, trim: 'double' as const,
+      shadow: 'soft' as const, treatment: 'reflective' as const, backgroundColor: '#00691d',
+      textColor: '#ffffff', tagColor: '#ffd34e',
+    };
+    await expect(AccountProfileService.update(prismaFor(false), 'account-1', {
+      ...updateInput, activeSiteThemeKey: null, streetSign,
+    })).rejects.toMatchObject({ code: 'COSMETIC_NOT_EARNED' });
+
+    const ownsPacks = prismaFor(false, [
+      { key: 'street-sign-font-sign-painter', kind: 'STREET_SIGN_FONT_PACK', title: 'Sign Painter Pack', description: '', styleKey: null, awardedAt: new Date(0) },
+      { key: 'street-sign-graffiti-pack', kind: 'STREET_SIGN_FONT_PACK', title: 'Graffiti Pack', description: '', styleKey: null, awardedAt: new Date(0) },
+    ]);
+    const saved = await AccountProfileService.update(ownsPacks, 'account-1', { ...updateInput, activeSiteThemeKey: null, streetSign });
+    expect(saved.settings.streetSign?.font).toBe('sign-painter');
+    expect(saved.options.streetSignFontPacks).toEqual(['street-sign-font-sign-painter', 'street-sign-graffiti-pack']);
+    await expect(AccountProfileService.update(ownsPacks, 'account-1', {
+      ...updateInput, activeSiteThemeKey: null, streetSign: { ...streetSign, font: 'graffiti-script' },
+    })).rejects.toMatchObject({ code: 'COSMETIC_NOT_EARNED' });
+  });
+
+  it('rejects a severe slur in street sign text', async () => {
+    await expect(AccountProfileService.update(prismaFor(false), 'account-1', {
+      ...updateInput,
+      activeSiteThemeKey: null,
+      streetSign: {
+        version: 2,
+        shape: 'classic',
+        streetName: `Bad n${'ig' + 'ger'} street`,
+        streetType: 'ST',
+        font: 'road-condensed',
+        tag: '',
+        tagFont: 'handstyle',
+        tagScale: 'medium',
+        tagPlacement: 'lower-right',
+        trim: 'double',
+        shadow: 'soft',
+        treatment: 'reflective',
+        backgroundColor: '#00691d',
+        textColor: '#ffffff',
+        tagColor: '#ffd34e',
+      },
+    })).rejects.toMatchObject({ code: 'MESSAGE_CONTENT_BLOCKED' });
+  });
+
   it('lets an earned dragon shell theme and popup animation be equipped independently', async () => {
     const prisma = prismaFor(false, [themeUnlock('dragon-ice'), themeUnlock('dragon-fire')]);
     const saved = await AccountProfileService.update(prisma, 'account-1', {

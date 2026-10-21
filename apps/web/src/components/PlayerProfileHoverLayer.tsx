@@ -10,6 +10,7 @@ import { SupporterMark } from './SupporterMark.js';
 import { LevelChip } from './LevelChip.js';
 import { BirthdayCake } from './BirthdayCake.js';
 import { AvatarPortrait } from './BuiltAvatar.js';
+import { StreetSignDisplay } from './StreetSignBuilder.js';
 
 type Target = { id: number; anchor: HTMLAnchorElement; hoverRoot: HTMLElement; label: string };
 type Position = { top: number; left: number; width: number };
@@ -341,6 +342,7 @@ export function PlayerProfileHoverLayer() {
             {profile.alliance ? <span>[{profile.alliance.tag}] {profile.alliance.name}</span> : null}
             <span>{profile.city.name} · {profile.seasonName}</span>
           </div>
+          <StreetSignDisplay design={profile.streetSign} compact />
           {profile.profileBio ? <p className="se-profile-hover-card__bio">{profile.profileBio}</p> : null}
           <div className="se-profile-hover-card__stats">
             <div><small>National rank</small><strong>#{formatNumber(profile.rank.national)}</strong></div>

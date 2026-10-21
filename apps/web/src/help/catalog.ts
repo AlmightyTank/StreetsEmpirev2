@@ -108,6 +108,13 @@ const RULES = '/game/rules';
 
 /** "How this page works" for every major page. */
 export const PAGE_HELP: Record<string, PageHelp> = {
+  account: {
+    title: 'Profile & look',
+    what: 'Set your crew name and profile appearance, including a custom metal street sign.',
+    terms: [['Street sign', 'A cosmetic crew mark shown on your public profile when your look is visible.']],
+    risks: ['A street sign is not a turf claim.'],
+    rules: RULES,
+  },
   dashboard: {
     title: 'Dashboard',
     what: 'Your operation at a glance: cash, turns, crew, ranks and the one or two things that need you right now.',
@@ -217,7 +224,8 @@ export const PAGE_HELP: Record<string, PageHelp> = {
 
 /** Which help entry a route shows. */
 export function pageHelpFor(pathname: string): PageHelp | null {
-  const path = pathname.split('?')[0] ?? pathname;
+  const path = pathname.split(/[?#]/)[0] ?? pathname;
+  if (path === '/account') return PAGE_HELP.account!;
   if (path === '/game') return PAGE_HELP.dashboard!;
   if (path.startsWith('/game/stores')) return PAGE_HELP.stores!;
   if (path === '/game/blocks') return PAGE_HELP.turf!;
@@ -255,6 +263,7 @@ export interface TourStepCopy {
 
 /** Guided walkthrough: one tooltip per core-loop step, in tour order. */
 export const TOUR_STEPS: Record<TourStepKey, TourStepCopy> = {
+  'build-street-sign': { title: 'Build your street sign', detail: 'Give your crew a street to call its own. Save a custom metal sign; it is identity, not a turf claim.', to: '/account#settings-profile', target: 'build-street-sign', mentor: 'Mama', chapter: 'Make your mark' },
   'accept-quest': { title: 'Take your first job', detail: 'Jobs pay for real work. Accept one to start the tour.', to: '/game/quests', target: 'accept-quest', mentor: 'Mama', chapter: 'Learn the streets' },
   scout: { title: 'Work the block', detail: 'Send the crew scouting to earn cash.', to: '/game/scout', target: 'scout', mentor: 'Mama', chapter: 'Learn the streets' },
   'shop-supplies': { title: 'Stock up', detail: 'Buy condoms and beer so the crew keeps working.', to: '/game/stores', target: 'shop-supplies', mentor: 'Pip', chapter: 'Build your operation' },

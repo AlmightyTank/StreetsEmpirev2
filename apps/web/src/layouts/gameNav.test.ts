@@ -29,7 +29,7 @@ describe('consolidated game navigation', () => {
     expect(filterNavSections(SECTIONS, '  piP  ')).toEqual([]);
     expect(filterNavSections(SECTIONS, ' STORES ').flatMap((section) => section.pages.map((item) => item.key))).toEqual(['stores']);
     expect(filterNavSections(SECTIONS, 'your empire').flatMap((section) => section.pages.map((item) => item.key)))
-      .toEqual(['hideout', 'crew-roster', 'dealers', 'stores', 'supply', 'loans', 'travel', 'turf']);
+      .toEqual(['hideout', 'armory', 'crew-roster', 'dealers', 'stores', 'supply', 'loans', 'travel', 'turf']);
     expect(filterNavSections(SECTIONS, '').flatMap((section) => section.pages)).toEqual(pages);
   });
 });

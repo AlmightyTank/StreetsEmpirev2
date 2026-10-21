@@ -10,9 +10,12 @@ import {
   isOwnedCollection,
   isReleasedItemCosmeticStyle,
   readAvatarParts,
+  readStreetSignDesign,
   SIGNATURE_CARD_FRAME_KEY,
   SUPPORTER_UNLOCK_HINT,
   DROP_UNLOCK_HINT,
+  STREET_SIGN_FONT_PACKS,
+  experienceLevelFor,
 } from '@streets/shared';
 import type {
   AccountProfileSettingsDto,
@@ -44,6 +47,7 @@ import { crewCosmeticLoadout, itemCosmeticLoadout } from './profile-showcase.ser
 import { SupporterService } from './supporter.service.js';
 import { supporterTrialActive, TRIAL_SUPPORTER_COSMETICS } from './supporter-trial.service.js';
 import { birthdayLookOptions } from './birthday.service.js';
+import { assertCommunicationContent } from './content-moderation.service.js';
 
 export const PROFILE_BADGE_FEATURE_LIMIT = 6;
 export const FREE_PROFILE_PRESET_SLOTS = 1;
@@ -283,6 +287,7 @@ function toSettingsDto(
     activeTitleKey,
     titlePlacement: profile?.titlePlacement === 'suffix' ? 'suffix' : 'prefix',
     crewName: profile?.crewName ?? null,
+    streetSign: readStreetSignDesign(profile?.streetSign),
     profileBio: profile?.profileBio ?? null,
     profileImageUrl: profile?.profileImageUrl ?? null,
     profileAvatar: readAvatarParts(profile?.profileAvatar, avatarUnlocks),
@@ -344,17 +349,38 @@ async function appearanceOptions(prisma: PrismaClient, accountId: string): Promi
   crewBanners: CollectionOptionDto[];
   /** Unlock keys of the avatar wearables this account may wear. */
   avatarUnlocks: Set<string>;
+  streetSignFontPackKeys: Set<string>;
 }> {
-  const [questAccents, frames, themes, bannerUnlocks, collectionUnlocks, account, trialActive, birthday, avatarUnlocks] = await Promise.all([
+  const account = await prisma.account.findUnique({ where: { id: accountId }, select: { isAdmin: true, experiencePoints: true } });
+  const earnedFontPacks = STREET_SIGN_FONT_PACKS.filter((pack) => pack.level <= experienceLevelFor(account?.experiencePoints ?? 0));
+  if (earnedFontPacks.length) {
+    await prisma.accountCosmeticUnlock.createMany({
+      data: earnedFontPacks.map((pack) => ({
+        accountId,
+        key: pack.key,
+        kind: 'STREET_SIGN_FONT_PACK',
+        title: pack.label,
+        description: pack.description,
+        rarity: pack.level >= 20 ? 'rare' : 'uncommon',
+        styleKey: null,
+        sourceQuestKey: 'PLAYER_EXPERIENCE_SIGN_FONT_PACK',
+        sourceRulesetId: 'account-progression',
+        sourceRulesetVersion: '1',
+        awardedAt: new Date(),
+      })),
+      skipDuplicates: true,
+    });
+  }
+  const [questAccents, frames, themes, bannerUnlocks, collectionUnlocks, trialActive, birthday, avatarUnlocks, streetSignFontUnlocks] = await Promise.all([
     QuestCosmeticService.optionsForAccount(prisma, accountId, 'ACCENT'),
     QuestCosmeticService.optionsForAccount(prisma, accountId, 'PROFILE_FRAME'),
     QuestCosmeticService.optionsForAccount(prisma, accountId, 'SITE_THEME'),
     QuestCosmeticService.optionsForAccount(prisma, accountId, 'CREW_BANNER'),
     QuestCosmeticService.optionsForAccount(prisma, accountId, 'ITEM_COLLECTION'),
-    prisma.account.findUnique({ where: { id: accountId }, select: { isAdmin: true } }),
     supporterTrialActive(prisma, accountId),
     birthdayLookOptions(prisma, accountId, new Date()),
     AvatarWearableService.ownedKeys(prisma, accountId),
+    QuestCosmeticService.optionsForAccount(prisma, accountId, 'STREET_SIGN_FONT_PACK'),
   ]);
   const accents = [...PROFILE_ACCENTS];
   const known = new Set(accents.map((option) => option.key));
@@ -411,7 +437,7 @@ async function appearanceOptions(prisma: PrismaClient, accountId: string): Promi
   if (account?.isAdmin && env.seasonalEvents.adminTestMode) {
     for (const style of RELEASED_ITEM_COSMETIC_STYLES) collections.add(style.key);
   }
-  return { accents, frames: withThemeCompanionFrames(frameOptions, themeOptions), themes: themeOptions, collections, crewBanners, avatarUnlocks };
+  return { accents, frames: withThemeCompanionFrames(frameOptions, themeOptions), themes: themeOptions, collections, crewBanners, avatarUnlocks, streetSignFontPackKeys: new Set(streetSignFontUnlocks.map((option) => option.key)) };
 }
 
 export const AccountProfileService = {
@@ -444,6 +470,7 @@ export const AccountProfileService = {
         crewStyles: collectionOptions(RELEASED_CREW_COSMETIC_STYLES, appearance.collections, hints),
          crewBanners: appearance.crewBanners,
         avatarUnlocks: [...appearance.avatarUnlocks].sort(),
+        streetSignFontPacks: [...appearance.streetSignFontPackKeys].sort(),
         densities: UI_DENSITIES,
         moneyFormats: MONEY_FORMATS,
         defaultLandings: DEFAULT_LANDINGS,
@@ -536,6 +563,22 @@ export const AccountProfileService = {
     }
 
     const crewName = input.crewName === undefined ? undefined : input.crewName;
+    const streetSign = input.streetSign;
+    if (streetSign) {
+      assertCommunicationContent('Street sign', `${streetSign.streetName} ${streetSign.tag}`);
+      const requestedFonts = [
+        { font: streetSign.font, slot: 'streetText' as const },
+        { font: streetSign.tagFont, slot: 'graffiti' as const },
+      ];
+      for (const { font, slot } of requestedFonts) {
+        const pack = STREET_SIGN_FONT_PACKS.find((candidate) => (candidate.fonts as readonly string[]).includes(font));
+        if (pack && (!pack[slot] || !appearance.streetSignFontPackKeys.has(pack.key))) {
+          throw AppError.badRequest('COSMETIC_NOT_EARNED', 'Earn that street sign font pack before using it.', {
+            streetSign: `${pack.label} unlocks at account level ${pack.level}.`,
+          });
+        }
+      }
+    }
     const profileBio = input.profileBio === undefined ? undefined : input.profileBio;
     const profileImageUrl = input.profileImageUrl === undefined ? undefined : input.profileImageUrl;
     const profileAvatar = input.profileAvatar === undefined
@@ -552,6 +595,7 @@ export const AccountProfileService = {
         activeTitleKey,
         titlePlacement: input.titlePlacement,
         crewName: crewName ?? null,
+        ...(streetSign !== undefined ? { streetSign: streetSign ?? Prisma.DbNull } : {}),
         profileBio: profileBio ?? null,
         profileImageUrl: profileImageUrl ?? null,
         ...(profileAvatar !== undefined ? { profileAvatar } : {}),
@@ -582,6 +626,7 @@ export const AccountProfileService = {
         activeTitleKey,
         titlePlacement: input.titlePlacement,
         ...(crewName !== undefined ? { crewName } : {}),
+        ...(streetSign !== undefined ? { streetSign: streetSign ?? Prisma.DbNull } : {}),
         ...(profileBio !== undefined ? { profileBio } : {}),
         ...(profileImageUrl !== undefined ? { profileImageUrl } : {}),
         ...(profileAvatar !== undefined ? { profileAvatar } : {}),

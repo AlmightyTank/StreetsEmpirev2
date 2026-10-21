@@ -57,6 +57,8 @@ describe('1.0.0-B help catalog', () => {
 
   it('anchors every tour tooltip to a real action in its page', () => {
     const sources: Record<string, string> = {
+      '/account': readFileSync(new URL('../pages/AccountSettingsPage.tsx', import.meta.url), 'utf8')
+        + readFileSync(new URL('../components/StreetSignBuilder.tsx', import.meta.url), 'utf8'),
       '/game/quests': readFileSync(new URL('../pages/QuestPage.tsx', import.meta.url), 'utf8'),
       '/game/scout': readFileSync(new URL('../pages/ScoutPage.tsx', import.meta.url), 'utf8'),
       '/game/stores': readFileSync(new URL('../pages/StorePage.tsx', import.meta.url), 'utf8'),
@@ -66,7 +68,8 @@ describe('1.0.0-B help catalog', () => {
     };
     for (const key of TOUR_STEP_KEYS) {
       const copy = TOUR_STEPS[key];
-      expect(sources[copy.to], `${key} anchor in ${copy.to}`).toContain(`data-tour="${copy.target}"`);
+      const route = copy.to.split(/[?#]/)[0] ?? copy.to;
+      expect(sources[route], `${key} anchor in ${copy.to}`).toContain(`data-tour="${copy.target}"`);
     }
   });
 });

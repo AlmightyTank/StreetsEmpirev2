@@ -3,6 +3,7 @@ import type { HeatDto, TripHeatDto, TurfSummaryDto, TurfTripDto, WorkSupplyPlanD
 import type { LawSummaryDto } from './law.js';
 import type { CrewCosmeticLoadout, ItemCosmeticLoadout } from '../cosmetics.js';
 import type { AvatarParts } from '../avatar-builder.js';
+import type { StreetSignDesign } from '../street-sign.js';
 /**
  * The contract between apps/server and apps/web.
  *
@@ -305,6 +306,8 @@ export interface AccountProfileSettingsDto {
   titlePlacement: ProfileTitlePlacement;
   /** 0.9.0-F. Optional public crew name. */
   crewName: string | null;
+  /** Slice A. Saved cosmetic street sign; omitted by older clients. */
+  streetSign?: StreetSignDesign | null;
   /** Plain-text public profile description. */
   profileBio: string | null;
   /** Direct HTTPS image URL used for the profile avatar. */
@@ -374,6 +377,8 @@ export interface AccountProfileSettingsResponseDto {
     crewBanners?: CollectionOptionDto[];
     /** Unlock keys of the avatar wearables this account may wear. Optional for older servers. */
     avatarUnlocks?: string[];
+    /** Permanent sign font packs earned through account progression. */
+    streetSignFontPacks?: string[];
     densities: CosmeticOptionDto[];
     moneyFormats: CosmeticOptionDto[];
     defaultLandings: CosmeticOptionDto[];

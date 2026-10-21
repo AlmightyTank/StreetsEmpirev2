@@ -3,6 +3,7 @@ import type { AvatarParts } from '../avatar-builder.js';
 import type { AllianceDetailDto, AllianceTagDto } from './alliance.js';
 import type { NoticeCategory, NotificationCategory } from '../notifications.js';
 import type { ActivityDto, CityDto, PlayerExperienceDto, ProfileAccent, ProfileEffect, ProfileSurface, RoundDto, SeasonHideoutDto } from './api.js';
+import type { StreetSignDesign } from '../street-sign.js';
 
 export type PublicAchievementCategory =
   | 'rank'
@@ -390,6 +391,8 @@ export interface PublicPlayerProfileDto {
   crewName: string | null;
   /** Plain-text profile description written by the player. */
   profileBio: string | null;
+  /** Slice B. Normalized cosmetic sign, omitted by older servers and hidden with the profile look. */
+  streetSign?: StreetSignDesign | null;
   /** 0.9.0-F. The live season this profile belongs to. */
   seasonName: string;
   /** 0.3.0-C. Null for solo players and on rounds without alliances. */
