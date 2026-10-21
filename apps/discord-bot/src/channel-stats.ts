@@ -62,7 +62,7 @@ export function startStatsChannelUpdater(
     const me = await guild.members.fetchMe();
     await Promise.all(channels.map(async ({ channelId, template }) => {
       const channel = await guild.channels.fetch(channelId).catch(() => null);
-      if (!channel || !('setName' in channel) || !channel.permissionsFor(me)?.has(PermissionFlagsBits.ManageChannels)) return;
+      if (!channel || !channel.isVoiceBased() || !channel.permissionsFor(me)?.has(PermissionFlagsBits.ManageChannels)) return;
       const name = renderStatsTemplate(template, { ...current, peakPlayers });
       if (channel.name !== name) await channel.setName(name, 'Update StreetsEmpire live stats').catch(() => undefined);
     }));
@@ -89,7 +89,7 @@ export function startStatsChannelRotator(
     if (typeof current.playerCount === 'number') peakPlayers = Math.max(peakPlayers ?? 0, current.playerCount);
     const names = rotatingStatsNames({ ...current, peakPlayers }, templates);
     const channel = await guild.channels.fetch(deps.channelId).catch(() => null);
-    if (!channel || !('setName' in channel)) return;
+    if (!channel || !channel.isVoiceBased()) return;
     const me = await guild.members.fetchMe();
     if (!channel.permissionsFor(me)?.has(PermissionFlagsBits.ManageChannels)) return;
     const name = names[index % names.length]!;

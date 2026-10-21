@@ -51,11 +51,11 @@ const schema = z.object({
   DISCORD_OUTAGE_MINUTES: z.coerce.number().int().min(1).max(60).default(3),
   /** How often the bot rotates its presence/activity. Set 0 to keep Discord's default (no custom activity). */
   DISCORD_PRESENCE_MINUTES: z.coerce.number().int().min(0).max(60).default(5),
-  /** Optional channel that rotates through live server stats; empty disables it. */
+  /** Optional voice channel that rotates through live server stats; empty disables it. */
   DISCORD_STATS_CHANNEL_ID: optionalChannel('DISCORD_STATS_CHANNEL_ID'),
   /** How often the rotating stats channel changes; 0 disables it. */
   DISCORD_STATS_MINUTES: z.coerce.number().int().min(0).max(60).default(5),
-  /** Dedicated channels whose names show current players, game, and status; empty entries disable each one. */
+  /** Dedicated voice channels whose names show current players, game, and status; empty entries disable each one. */
   DISCORD_STATS_PLAYERS_CHANNEL_ID: optionalChannel('DISCORD_STATS_PLAYERS_CHANNEL_ID'),
   DISCORD_STATS_GAME_CHANNEL_ID: optionalChannel('DISCORD_STATS_GAME_CHANNEL_ID'),
   DISCORD_STATS_STATUS_CHANNEL_ID: optionalChannel('DISCORD_STATS_STATUS_CHANNEL_ID'),
