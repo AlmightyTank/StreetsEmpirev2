@@ -193,35 +193,37 @@ export function LoginPage() {
             </form>
           </Panel>
 
-          <Panel title="Continue with Discord">
-            <p>
-              Use Discord to get back in without typing your password. Discord uses your verified email to find or create your StreetsEmpire account.
-            </p>
-            <a className="se-btn se-btn--discord se-btn--block" href={remember ? '/api/auth/discord' : '/api/auth/discord?remember=0'}>
-              Continue with Discord
-            </a>
-            <p className="se-hint">
-              If you already have an account, use the same verified email on Discord or link Discord from account settings after logging in.
-            </p>
-          </Panel>
+          <div className="se-auth-providers">
+            <Panel title="Continue with Discord">
+              <p>
+                Use Discord to get back in without typing your password. Discord uses your verified email to find or create your StreetsEmpire account.
+              </p>
+              <a className="se-btn se-btn--discord se-btn--block" href={remember ? '/api/auth/discord' : '/api/auth/discord?remember=0'}>
+                Continue with Discord
+              </a>
+              <p className="se-hint">
+                If you already have an account, use the same verified email on Discord or link Discord from account settings after logging in.
+              </p>
+            </Panel>
+
+            {googleEnabled ? (
+              <Panel title="Continue with Google">
+                <p>Sign in or create a StreetsEmpire account using your Google account.</p>
+                <a className="se-btn se-btn--block se-auth-google" href="/api/auth/google">Continue with Google</a>
+              </Panel>
+            ) : null}
+            {facebookEnabled ? (
+              <Panel title="Continue with Facebook">
+                <p>Sign in or create a StreetsEmpire account using Facebook.</p>
+                <a className="se-btn se-btn--block se-auth-facebook" href="/api/auth/facebook">Continue with Facebook</a>
+              </Panel>
+            ) : null}
+          </div>
 
           {appleEnabled ? (
             <Panel title="Continue with Apple">
               <p>Sign in or create a StreetsEmpire account using your Apple ID.</p>
               <a className="se-btn se-btn--block se-auth-apple" href="/api/auth/apple">Continue with Apple</a>
-            </Panel>
-          ) : null}
-
-          {googleEnabled ? (
-            <Panel title="Continue with Google">
-              <p>Sign in or create a StreetsEmpire account using your Google account.</p>
-              <a className="se-btn se-btn--block se-auth-google" href="/api/auth/google">Continue with Google</a>
-            </Panel>
-          ) : null}
-          {facebookEnabled ? (
-            <Panel title="Continue with Facebook">
-              <p>Sign in or create a StreetsEmpire account using Facebook.</p>
-              <a className="se-btn se-btn--block se-auth-facebook" href="/api/auth/facebook">Continue with Facebook</a>
             </Panel>
           ) : null}
 

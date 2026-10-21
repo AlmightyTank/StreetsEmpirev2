@@ -185,17 +185,32 @@ export function RegisterPage() {
             </form>
           </Panel>
 
-          <Panel title="Create an account with Discord">
-            <p>
-              Discord creates your account from the email Discord has already verified, so there is no email link to wait for: you go straight to join the round.
-            </p>
-            <a className="se-btn se-btn--discord se-btn--block" href="/api/auth/discord">
-              Continue with Discord
-            </a>
-            <p className="se-hint">
-              You can link Discord to an existing account in Account settings. You must be {MINIMUM_AGE} or older to play.
-            </p>
-          </Panel>
+          <div className="se-auth-providers">
+            <Panel title="Create an account with Discord">
+              <p>
+                Discord creates your account from the email Discord has already verified, so there is no email link to wait for: you go straight to join the round.
+              </p>
+              <a className="se-btn se-btn--discord se-btn--block" href="/api/auth/discord">
+                Continue with Discord
+              </a>
+              <p className="se-hint">
+                You can link Discord to an existing account in Account settings. You must be {MINIMUM_AGE} or older to play.
+              </p>
+            </Panel>
+
+            {googleEnabled ? (
+              <Panel title="Create an account with Google">
+                <p>Use your Google account to create or access your StreetsEmpire account.</p>
+                <a className="se-btn se-btn--block se-auth-google" href="/api/auth/google">Continue with Google</a>
+              </Panel>
+            ) : null}
+            {facebookEnabled ? (
+              <Panel title="Create an account with Facebook">
+                <p>Use Facebook to create or access your StreetsEmpire account.</p>
+                <a className="se-btn se-btn--block se-auth-facebook" href="/api/auth/facebook">Continue with Facebook</a>
+              </Panel>
+            ) : null}
+          </div>
 
           {nativePlayGames ? (
             <Panel title="Create an account with Google Play Games">
@@ -215,19 +230,6 @@ export function RegisterPage() {
               </Button>
             </Panel>
           ) : null}
-          {googleEnabled ? (
-            <Panel title="Create an account with Google">
-              <p>Use your Google account to create or access your StreetsEmpire account.</p>
-              <a className="se-btn se-btn--block se-auth-google" href="/api/auth/google">Continue with Google</a>
-            </Panel>
-          ) : null}
-          {facebookEnabled ? (
-            <Panel title="Create an account with Facebook">
-              <p>Use Facebook to create or access your StreetsEmpire account.</p>
-              <a className="se-btn se-btn--block se-auth-facebook" href="/api/auth/facebook">Continue with Facebook</a>
-            </Panel>
-          ) : null}
-
           {appleEnabled ? (
             <Panel title="Create an account with Apple">
               <p>Use your Apple ID to create an account or sign in to an existing StreetsEmpire account.</p>

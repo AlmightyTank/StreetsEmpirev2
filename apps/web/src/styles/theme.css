@@ -3294,6 +3294,13 @@ a:hover { color: var(--se-accent-hover); }
   min-width: 0;
 }
 
+.se-auth-providers {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+  min-width: 0;
+}
+
 .se-account-column {
   display: grid;
   gap: 14px;
