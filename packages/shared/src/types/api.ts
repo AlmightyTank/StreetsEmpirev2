@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 20593)
-Total output lines: 2573
-
 import type { StaffCapability, StaffRole } from '../staff.js';
 import type { HeatDto, TripHeatDto, TurfSummaryDto, TurfTripDto, WorkSupplyPlanDto } from './playing-together.js';
 import type { LawSummaryDto } from './law.js';
@@ -1242,7 +1239,89 @@ export type GarageVehicleModel = 'SEDAN' | 'LOW_RIDER' | 'VAN';
 export interface IndividualArmoryItemDto {
   id: string;
   model: ArmoryGunModel;
- …593 tokens truncated…turns: number;
+  name: string | null;
+  condition: number;
+  mods: Array<{ key: string; tier: number }>;
+  lookKey: string | null;
+  origin: Record<string, unknown>;
+  stats: Record<string, number>;
+  status: 'READY' | 'BROKEN' | 'LOCKED' | 'DAMAGED' | 'DISABLED' | 'ON_RUN';
+  quantity: number;
+  favorite: boolean;
+  reserve: boolean;
+}
+export interface IndividualVehicleItemDto extends Omit<IndividualArmoryItemDto, 'model' | 'favorite' | 'reserve'> {
+  model: GarageVehicleModel;
+  plate: string | null;
+}
+export interface IndividualArmorySummaryDto {
+  gunCount: number;
+  vehicleCount: number;
+  gunsByModel: Record<ArmoryGunModel, number>;
+  vehiclesByModel: Record<GarageVehicleModel, number>;
+  conditionBands: { guns: number[]; vehicles: number[] };
+}
+export interface IndividualInventoryDto {
+  enabled: boolean;
+  maxGuns: number;
+  maxVehicles: number;
+  summary: IndividualArmorySummaryDto;
+  guns: IndividualArmoryItemDto[];
+  vehicles: IndividualVehicleItemDto[];
+}
+export interface ArmoryBulkActionResult {
+  action: 'FAVORITE' | 'RESERVE' | 'CLEAR_FLAGS' | 'RENAME';
+  updated: number;
+  names: string[];
+}
+
+export interface RoundOverLegacyDto {
+  roundsPlayed: number;
+  roundWins: number;
+  topTenFinishes: number;
+  bestNationalRank: number | null;
+  bestLocalRank: number | null;
+  totalFinalNetWorthCents: number;
+}
+
+export interface RoundOverBadgeDto {
+  key: string;
+  title: string;
+  description: string;
+  rarity: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
+}
+
+export interface RoundOverDto {
+  round: RoundDto;
+  player: RoundOverPlayerDto;
+  legacy: RoundOverLegacyDto;
+  earnedLegacyBadges: RoundOverBadgeDto[];
+  newLegacyBadges: RoundOverBadgeDto[];
+}
+
+export interface CurrentRoundDto {
+  /** Current active or registration round, usually the next season after round-over. */
+  round: RoundDto | null;
+  /** The account's player in the current round, when already joined. */
+  me: RoundPlayerDto | null;
+  canJoin: boolean;
+  /** Most recent finished round for this account, for the round-over screen. */
+  roundOver: RoundOverDto | null;
+}
+
+/** A single resource moving. Section 44. */
+export interface ResourceChange {
+  resource: string;
+  before: number;
+  after: number;
+  change: number;
+}
+
+/** Section 43. Every action endpoint answers in this shape. */
+export interface PlayerSnapshot {
+  cashCents: number;
+  netWorthCents: number;
+  turns: number;
   whoreHappiness: number;
   thugHappiness: number;
   resources: ResourcesDto;
