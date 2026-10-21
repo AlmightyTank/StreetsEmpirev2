@@ -135,10 +135,10 @@ function DropCrateReveal({ reward, demo, onClose }: { reward: QuestRewardDto; de
   return (
     <section className="se-rollcall-crate" role="dialog" aria-modal="false" aria-labelledby="rollcall-crate-title">
       <div className="se-rollcall-crate__head">
-        <div><span className="se-eyebrow">{demo ? 'Test preview · no reward granted' : 'Drop crate opened'}</span><h2 id="rollcall-crate-title">{demo ? 'Preview the cheap Drop crate' : 'Your crate is open'}</h2></div>
+        <div><span className="se-eyebrow">{demo ? 'Test preview · no reward granted' : 'Drop crate opened'}</span><h2 id="rollcall-crate-title">{demo ? 'Preview the mystery Drop crate' : 'Your crate is open'}</h2></div>
         <Button variant="ghost" size="sm" onClick={onClose}>Close</Button>
       </div>
-      <p className="se-rollcall-crate__hint">A random unowned cosmetic from the cheap Drop pool was selected server-side.</p>
+      <p className="se-rollcall-crate__hint">One cosmetic from The Drop was selected server-side.</p>
       <div className="se-rollcall-crate__stage" aria-label={demo ? 'Crate reveal preview' : 'Crate reveal'}>
         <div className="se-rollcall-crate__rail" aria-hidden="true">
           {['Street accent', 'Profile frame', 'Title badge', 'Crew look', 'Drop exclusive', 'Street accent', 'Profile frame'].map((label, index) => <span key={label + index}>{label}</span>)}
@@ -326,7 +326,7 @@ export function RoundRollCallPanel() {
         </div>
       ) : null}
       {claimResult?.dropCrate ? <DropCrateReveal reward={claimResult.rewards[0]!} onClose={() => setClaimResult(null)} /> : null}
-      {previewCrate ? <DropCrateReveal demo reward={{ kind: 'COSMETIC_UNLOCK', key: 'demo-drop-item', amount: null, label: 'Random cheap Drop item' }} onClose={() => setPreviewCrate(false)} /> : null}
+      {previewCrate ? <DropCrateReveal demo reward={{ kind: 'COSMETIC_UNLOCK', key: 'demo-drop-item', amount: null, label: 'Mystery Drop item' }} onClose={() => setPreviewCrate(false)} /> : null}
 
       {loading && !board ? <p className="se-rollcall__loading" role="status">Loading your round rewards…</p> : null}
       {!loading && !board && !loadError ? <p className="se-muted">Join an active round to start earning login rewards.</p> : null}

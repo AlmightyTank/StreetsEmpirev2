@@ -48,24 +48,52 @@ const persistedRewardSchema = z.array(z.object({
   amount: z.number().int().nonnegative(),
 }).strict()).min(1);
 
-const CHEAP_DROP_MAX_PRICE = 300;
+const DROP_CRATE_RARITY_WEIGHTS = {
+  common: 100,
+  uncommon: 35,
+  rare: 10,
+  epic: 3,
+  legendary: 1,
+} as const;
 
 export function roundRollCallDropCrateCandidates() {
-  return Object.values(DROP_ITEMS).filter((item) => item.priceCrowns <= CHEAP_DROP_MAX_PRICE && item.rarity !== 'legendary');
+  return Object.values(DROP_ITEMS);
+}
+
+export function selectRoundRollCallDropCrateItem(
+  candidates: readonly (typeof DROP_ITEMS[string])[],
+): (typeof DROP_ITEMS[string]) | undefined {
+  if (!candidates.length) return undefined;
+  const byRarity = new Map<string, (typeof DROP_ITEMS[string])[]>();
+  for (const item of candidates) {
+    const bucket = byRarity.get(item.rarity) ?? [];
+    bucket.push(item);
+    byRarity.set(item.rarity, bucket);
+  }
+  const rarityPool = Object.entries(DROP_CRATE_RARITY_WEIGHTS)
+    .flatMap(([rarity, weight]) => byRarity.has(rarity) ? [{ rarity, weight }] : []);
+  const totalWeight = rarityPool.reduce((sum, entry) => sum + entry.weight, 0);
+  let roll = randomInt(totalWeight);
+  for (const entry of rarityPool) {
+    if (roll < entry.weight) return byRarity.get(entry.rarity)![randomInt(byRarity.get(entry.rarity)!.length)];
+    roll -= entry.weight;
+  }
+  return candidates[candidates.length - 1];
 }
 
 async function resolveRewards(tx: Db, accountId: string, rewards: readonly QuestRewardDefinition[], now: Date) {
   const candidates = roundRollCallDropCrateCandidates();
   const crate = rewards.some((reward) => reward.kind === 'COSMETIC_UNLOCK' && reward.key === ROUND_ROLL_CALL_DROP_CRATE_KEY);
   if (!crate) return { rewards: [...rewards], dropCrate: false };
-  if (!candidates.length) throw AppError.conflict('ROUND_ROLL_CALL_DROP_EMPTY', 'The cheap Drop crate has no available contents.');
+  if (!candidates.length) throw AppError.conflict('ROUND_ROLL_CALL_DROP_EMPTY', 'The Drop crate has no available contents.');
   const held = new Set((await tx.accountCosmeticUnlock.findMany({
     where: { accountId, key: { in: candidates.map((item) => item.key) } },
     select: { key: true },
   })).map((row) => row.key));
   const unowned = candidates.filter((item) => !held.has(item.key));
   const pool = unowned.length ? unowned : candidates;
-  const selected = pool[randomInt(pool.length)]!;
+  const selected = selectRoundRollCallDropCrateItem(pool);
+  if (!selected) throw AppError.conflict('ROUND_ROLL_CALL_DROP_EMPTY', 'The Drop crate has no available contents.');
   await grantDropUnlocks(tx, accountId, [selected.key], now);
   return {
     rewards: rewards.map((reward) => reward.kind === 'COSMETIC_UNLOCK' && reward.key === ROUND_ROLL_CALL_DROP_CRATE_KEY

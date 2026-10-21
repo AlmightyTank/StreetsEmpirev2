@@ -2,7 +2,7 @@ import type { QuestRewardDefinition } from '@streets/rulesets';
 
 /** This catalog version never changes after release: old receipt snapshots stay auditable. */
 export const ROUND_ROLL_CALL_REWARD_VERSION = 'round-roll-call-v1' as const;
-/** Resolved server-side into one cheap, unowned Drop cosmetic when claimed. */
+/** Resolved server-side into one weighted Drop cosmetic when claimed. */
 export const ROUND_ROLL_CALL_DROP_CRATE_KEY = 'round-roll-call-cheap-drop-crate' as const;
 export type RoundRollCallRarity = 'common' | 'uncommon' | 'rare' | 'legendary';
 export interface RoundRollCallRewardTier {
@@ -26,7 +26,7 @@ const dropCrate = (): QuestRewardDefinition =>
  * Repetition is intentional, deterministic and never random/buyable.
  *
  * Even the Legendary gameplay bundle is mild. The final attendance reward is
- * intentionally a cheap random Drop cosmetic crate; the Obsidian Signal shell
+ * intentionally a random Drop cosmetic crate; the Obsidian Signal shell
  * is awarded separately as the completion cosmetic.
  */
 const STANDARD_STEPS: readonly Omit<RoundRollCallRewardTier, 'key' | 'tier'>[] = [
