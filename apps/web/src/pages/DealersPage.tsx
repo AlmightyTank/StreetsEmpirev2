@@ -285,8 +285,8 @@ export function DealersPage() {
     <GameLayout>
       <div className="se-supply">
         <EmpirePageHeader eyebrow="Supply network" title="Dealer Crews" description={data?.rules?.selling
-            ? 'Post dealers in a district where you have a foothold, stock them from storage in that city, and set the price. Working crews sell every hour on their own; the takings land in your cash after the dealers\u2019 cut and wages.'
-            : 'Post dealers in a district where you have a foothold, stock them from storage in that city, and set the price. Sales and payouts open in the next update; until then crews hold stock and show what they would sell.'} />
+            ? 'Place dealers where you hold turf, stock them, and set a price. Sales pay out hourly.'
+            : 'Dealer sales unlock in a future update. For now, crews hold stock and preview prices.'} />
         {error ? <Alert>{error}</Alert> : null}
         {data && !data.enabled ? <Alert tone="info">Dealer crews are not available in this season.</Alert> : null}
         {data?.enabled && data.rules ? (
