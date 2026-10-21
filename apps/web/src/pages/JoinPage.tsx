@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { classicOgV01, rulesets } from '@streets/rulesets';
 import { formatCents, formatNumber } from '@streets/shared';
 import { ApiError } from '../api/client.js';
