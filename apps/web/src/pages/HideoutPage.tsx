@@ -398,7 +398,7 @@ export function HideoutPage() {
         <EmpirePageHeader
           eyebrow="Your operation · seasonal headquarters"
           title="Hideout"
-          description="Protect the stash, run your crew, and build permanent-for-the-season upgrades from one headquarters screen."
+          description="Manage your crew and seasonal upgrades."
           aside={hideout?.enabled ? (
             <div className="se-hideout-hero__progress">
               <div>
