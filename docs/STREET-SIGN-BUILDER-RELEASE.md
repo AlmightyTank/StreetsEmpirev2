@@ -2,7 +2,7 @@
 
 ## Release contents
 
-Slices A–F add an account-saved metal street-sign design with Classic and Wide silhouettes, text and graffiti styling, earnable bundled font packs, public profile display, a report path, and editor accessibility/responsive improvements. The design is stored in the existing account profile JSON field. Font-pack ownership uses the existing account cosmetic unlock table. This feature adds no database migration, upload path, or round-owned state.
+Slices A–F add an account-saved metal street-sign design with Classic and Wide silhouettes, text and graffiti styling, earnable bundled font packs, public profile display, a report path, and editor accessibility/responsive improvements. The design is stored in the new nullable `AccountProfile.streetSign` JSON column. Font-pack ownership uses the existing account cosmetic unlock table. The feature adds one Prisma schema migration and no upload path or round-owned state.
 
 ## Checks run for Slice F
 
@@ -24,7 +24,7 @@ Review the screenshots for the builder in Account Settings, keyboard focus and c
 
 ## Rollout
 
-1. Deploy the normal server and web release; no migration or feature flag is required.
+1. Apply Prisma migration `20261201000000_street_sign_builder_slice_a` before, or as part of the same rollout immediately before, deploying server instances that query `AccountProfile.streetSign`. Use the deployment's migration job (`npx prisma migrate deploy` from the repository root) and confirm it succeeds before those server instances start. The migration adds a nullable JSONB column, so it is additive for existing account profiles. No feature flag is required.
 2. Verify an account can save a sign, reload Account Settings, and see it on its public profile when profile appearance is visible.
 3. Verify an account below levels 10/20 sees the font-pack locks, then verify a level-10/20 account can use the earned fonts. The server remains authoritative for font ownership and slot compatibility.
 4. Verify a profile report reaches the existing staff bug-report queue with the sign text and target attached.
@@ -32,6 +32,6 @@ Review the screenshots for the builder in Account Settings, keyboard focus and c
 
 ## Rollback
 
-Revert the street-sign feature commits and deploy the previous application build. There is no schema migration to reverse. Existing sign JSON and cosmetic unlock rows can remain in place; rollback does not delete player data or alter XP. Account-profile updates from older clients omit the sign field and preserve it, so rolling back the client does not clear saved designs. If the feature is redeployed later, the server's normal read normalization handles the saved versioned design.
+Revert the street-sign feature commits and deploy the previous application build. Keep the additive `AccountProfile.streetSign` column in place; do not reverse the migration during an application rollback. Existing sign JSON and cosmetic unlock rows can remain in place; rollback does not delete player data or alter XP. Account-profile updates from older clients omit the sign field and preserve it, so rolling back the client does not clear saved designs. If the feature is redeployed later, the server's normal read normalization handles the saved versioned design.
 
 Do not delete `STREET_SIGN_FONT_PACK` unlock rows during rollback; they are durable account cosmetics and may be used by later builds.
