@@ -574,7 +574,7 @@ async function linkAppleToAccount(prisma: PrismaClient, account: Account, identi
 
 async function googleIdentityFromCode(code: string, redirectUri: string, nonce: string) {
   const client = new OAuth2Client(env.googleOAuth.clientId, env.googleOAuth.clientSecret, redirectUri);
-  const { tokens } = await client.getToken(code).catch(() => { throw new AppError(401, 'GOOGLE_CODE_INVALID', 'That Google sign-in has expired. Try again.'); });
+  const { tokens } = await client.getToken({ code, redirect_uri: redirectUri }).catch(() => { throw new AppError(401, 'GOOGLE_CODE_INVALID', 'Google could not complete sign-in. Please try again.'); });
   if (!tokens.id_token) throw new AppError(401, 'GOOGLE_TOKEN_INVALID', 'Google did not return a valid sign-in. Try again.');
   try {
     const ticket = await client.verifyIdToken({ idToken: tokens.id_token, audience: env.googleOAuth.clientId });
@@ -619,12 +619,13 @@ async function linkGoogleToAccount(prisma: PrismaClient, account: Account, ident
 }
 
 async function facebookIdentityFromCode(code: string, redirectUri: string) {
-  const tokenResponse = await fetch('https://graph.facebook.com/oauth/access_token', {
-    method: 'POST',
-    headers: { 'content-type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ client_id: env.facebook.appId, client_secret: env.facebook.appSecret, redirect_uri: redirectUri, code }),
-  }).catch(() => null);
-  if (!tokenResponse?.ok) throw new AppError(401, 'FACEBOOK_CODE_INVALID', 'That Facebook sign-in has expired. Try again.');
+  const tokenUrl = new URL('https://graph.facebook.com/v26.0/oauth/access_token');
+  tokenUrl.searchParams.set('client_id', env.facebook.appId);
+  tokenUrl.searchParams.set('client_secret', env.facebook.appSecret);
+  tokenUrl.searchParams.set('redirect_uri', redirectUri);
+  tokenUrl.searchParams.set('code', code);
+  const tokenResponse = await fetch(tokenUrl).catch(() => null);
+  if (!tokenResponse?.ok) throw new AppError(401, 'FACEBOOK_CODE_INVALID', 'Facebook could not complete sign-in. Please try again.');
   const token = z.object({ access_token: z.string().min(1) }).safeParse(await tokenResponse.json());
   if (!token.success) throw new AppError(401, 'FACEBOOK_TOKEN_INVALID', 'Facebook did not return a valid sign-in. Try again.');
   const profileUrl = new URL('https://graph.facebook.com/me');
