@@ -51,6 +51,12 @@ const schema = z.object({
   DISCORD_OUTAGE_MINUTES: z.coerce.number().int().min(1).max(60).default(3),
   /** How often the bot rotates its presence/activity. Set 0 to keep Discord's default (no custom activity). */
   DISCORD_PRESENCE_MINUTES: z.coerce.number().int().min(0).max(60).default(5),
+  /** Optional channel that rotates through live server stats; empty disables it. */
+  DISCORD_STATS_CHANNEL_ID: optionalChannel('DISCORD_STATS_CHANNEL_ID'),
+  /** How often the rotating stats channel changes; 0 disables it. */
+  DISCORD_STATS_MINUTES: z.coerce.number().int().min(0).max(60).default(5),
+  /** Comma-separated templates. Supported values: {peak}, {traded}, {raids}, {days}, {players}, {status}. */
+  DISCORD_STATS_TEMPLATES: z.string().default('🔥・peak-{peak}-today,💰・{traded}-traded,⚔️・{raids}-raids-today,⏱️・{days}d-left'),
   /** Twitch or YouTube URL used by the clickable Streaming presence card. */
   DISCORD_STREAM_URL: z.string().url().default('https://twitch.tv/amightytank'),
   /** How often alerts (/alerts), the raid feed and round events are checked. */

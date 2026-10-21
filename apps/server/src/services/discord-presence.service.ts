@@ -65,6 +65,22 @@ export function buildAnonymousPresenceHighlights(input: {
 }
 
 export const DiscordPresenceService = {
+  async dailyStats(prisma: PrismaClient, now = new Date()) {
+    const round = await RoundService.getCurrent(prisma, now);
+    if (!round || round.status !== 'ACTIVE') return { tradedCents: 0, raidsToday: 0 };
+    const since = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const [trades, raids] = await Promise.all([
+      prisma.runTrade.aggregate({
+        where: { run: { roundPlayer: { roundId: round.id } }, createdAt: { gte: since } },
+        _sum: { totalCents: true },
+      }),
+      prisma.raidBattle.count({
+        where: { attacker: { roundId: round.id }, kind: 'RAID', voidedAt: null, createdAt: { gte: since } },
+      }),
+    ]);
+    const cents = trades._sum.totalCents ?? 0n;
+    return { tradedCents: Number(cents > BigInt(Number.MAX_SAFE_INTEGER) ? BigInt(Number.MAX_SAFE_INTEGER) : cents), raidsToday: raids };
+  },
   async highlights(prisma: PrismaClient, now = new Date()): Promise<DiscordPresenceHighlightsDto> {
     const round = await RoundService.getCurrent(prisma, now);
     if (!round || round.status !== 'ACTIVE') return { highlights: [] };

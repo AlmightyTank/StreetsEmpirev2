@@ -36,6 +36,7 @@ import { staffSyncMessages, type StaffSyncEvent } from './staff-sync.js';
 import { startPoller } from './schedule.js';
 import { RoleSync } from './sync.js';
 import { startBotPresence } from './presence.js';
+import { startStatsChannelRotator } from './channel-stats.js';
 import { memberStatus, timeoutMember } from './moderation.js';
 import { startOptionalPushServer } from './push-server.js';
 import { handleStaffButton, handleStaffModal, staffPostMessage } from './staff.js';
@@ -496,6 +497,28 @@ client.once(Events.ClientReady, async (ready) => {
     });
     if (stopPresence) console.log(`Rotating ${config.betaMode ? 'beta' : 'production'} bot presence every ${config.DISCORD_PRESENCE_MINUTES} min.`);
     else console.log('Bot presence rotation is off (DISCORD_PRESENCE_MINUTES=0).');
+
+    const stopStatsChannel = startStatsChannelRotator(guild, {
+      channelId: config.DISCORD_STATS_CHANNEL_ID,
+      templates: config.DISCORD_STATS_TEMPLATES.split(',').map((template) => template.trim()),
+      minutes: config.DISCORD_STATS_MINUTES,
+      getStats: async () => {
+        const [readyResult, roundResult, bannerResult, dailyStatsResult] = await Promise.allSettled([api.ready(), api.round(), api.banner(), api.presenceStats()]);
+        const ready = readyResult.status === 'fulfilled' && readyResult.value.ok;
+        const round = roundResult.status === 'fulfilled' ? roundResult.value.round : null;
+        const banner = bannerResult.status === 'fulfilled' ? bannerResult.value : null;
+        const dailyStats = dailyStatsResult.status === 'fulfilled' ? dailyStatsResult.value : { tradedCents: 0, raidsToday: 0 };
+        return {
+          playerCount: round?.playerCount ?? null,
+          daysLeft: round && round.msRemaining >= 0 ? Math.floor(round.msRemaining / 86_400_000) : null,
+          tradedCents: dailyStats.tradedCents,
+          raidsToday: dailyStats.raidsToday,
+          serverStatus: !ready ? 'offline' : banner?.kind === 'maintenance' ? 'maintenance' : 'online',
+        };
+      },
+    });
+    if (stopStatsChannel) console.log(`Updating the live stats channel every ${config.DISCORD_STATS_MINUTES} min.`);
+    else if (config.DISCORD_STATS_CHANNEL_ID) console.log('Live stats channel updates are off (DISCORD_STATS_MINUTES=0).');
 
     // Commands are answered while these run.
     startPoller('Role sync', config.DISCORD_SYNC_MINUTES * 60_000, async () => {

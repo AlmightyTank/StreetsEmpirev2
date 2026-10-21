@@ -540,6 +540,7 @@ const presenceHighlightsSchema = z.object({
     message: z.string().min(1).max(128),
   })).max(4),
 });
+const presenceStatsSchema = z.object({ tradedCents: z.number().nonnegative(), raidsToday: z.number().int().nonnegative() });
 
 const newsSchema = z.object({
   news: z.array(z.object({
@@ -592,6 +593,7 @@ export type BugResolution = BugReportResolution;
 export type RoundEvent = z.infer<typeof roundEventSchema>;
 export type RoundStatus = z.infer<typeof statusSchema>;
 export type PresenceHighlights = z.infer<typeof presenceHighlightsSchema>;
+export type PresenceStats = z.infer<typeof presenceStatsSchema>;
 export type NewsFeed = z.infer<typeof newsSchema>;
 
 /** 0.3.0-C. Live alliances in the current round, one Discord role each. */
@@ -737,6 +739,7 @@ export function createGameApi(options: { baseUrl: string; token: string; fetch?:
     alliances: () => call(alliancesSchema, '/api/internal/discord/alliances'),
     /** Anonymous public-presence copy; the response schema has no player fields. */
     presenceHighlights: () => call(presenceHighlightsSchema, '/api/internal/discord/presence'),
+    presenceStats: () => call(presenceStatsSchema, '/api/internal/discord/presence/stats'),
     /** Admin-requested role resyncs, each handed out once. */
     claimResync: () => call(resyncClaimSchema, '/api/internal/discord/resync/claim', { method: 'POST' }),
     round: () => call(statusSchema, '/api/rounds/current/status', { auth: false }),

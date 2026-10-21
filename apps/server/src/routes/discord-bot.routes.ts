@@ -131,6 +131,7 @@ const discordBotRoutes: FastifyPluginAsync = async (fastify) => {
 
   /** Anonymous live-game copy for the bot's public status. Never returns player data. */
   fastify.get('/presence', async () => DiscordPresenceService.highlights(fastify.prisma));
+  fastify.get('/presence/stats', async () => DiscordPresenceService.dailyStats(fastify.prisma));
 
   fastify.get('/city-rankings', async (request) => {
     const { city } = parseBody(z.object({ city: citySlug }).strict(), request.query);
