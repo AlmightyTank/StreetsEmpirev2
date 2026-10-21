@@ -4,11 +4,19 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { DEFAULT_STREET_SIGN, type StreetSignDesign } from '@streets/shared';
 import { StreetSignBuilder, streetSignContrastRatio } from './StreetSignBuilder.js';
 
-function render(value: StreetSignDesign | null, savedValue: StreetSignDesign | null = null) {
-  return renderToStaticMarkup(h(StreetSignBuilder, { value, savedValue, onChange: () => undefined }));
+function render(value: StreetSignDesign | null, savedValue: StreetSignDesign | null = null, crewName = 'Cedar') {
+  return renderToStaticMarkup(h(StreetSignBuilder, { value, savedValue, crewName, onChange: () => undefined }));
 }
 
 describe('StreetSignBuilder accessibility and preview controls', () => {
+  it('links the main sign lettering to the crew name and makes the lettering read-only', () => {
+    const html = render({ ...DEFAULT_STREET_SIGN, streetName: 'Old Name' }, null, 'Syndicate');
+    expect(html).toContain('Crew name on sign');
+    expect(html).toContain('value="Syndicate"');
+    expect(html).toContain('readOnly=""');
+    expect(html).toContain('The sign lettering stays linked to your crew name.');
+  });
+
   it('shows locked font pack milestones and keeps graffiti-only fonts out of street lettering', () => {
     const html = render({ ...DEFAULT_STREET_SIGN, streetName: 'Cedar' });
     expect(html).toContain('Sign Painter · level 10');
