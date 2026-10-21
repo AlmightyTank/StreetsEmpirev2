@@ -12,11 +12,12 @@ const FONT_LABELS: Record<(typeof STREET_SIGN_FONTS)[number], string> = {
 };
 
 const COLOR_PRESETS = [
-  { label: 'Street green', background: '#00691d', text: '#ffffff' },
-  { label: 'Midnight blue', background: '#172c47', text: '#ffffff' },
-  { label: 'Brick red', background: '#8f292b', text: '#fff5e7' },
-  { label: 'Safety yellow', background: '#f3d42f', text: '#20251d' },
-  { label: 'Blackout', background: '#171a17', text: '#f1f3e9' },
+  { label: 'Reflective green', background: '#087b62', text: '#ffffff' },
+  { label: 'Reflective blue', background: '#0755a5', text: '#ffffff' },
+  { label: 'Reflective silver', background: '#c3c7c6', text: '#202624' },
+  { label: 'Reflective brown', background: '#78401d', text: '#ffffff' },
+  { label: 'Reflective black', background: '#111514', text: '#ffffff' },
+  { label: 'Reflective red', background: '#c41f1a', text: '#ffffff' },
 ];
 
 const TAG_SCALE_LABELS = { small: 'Small', medium: 'Medium', large: 'Large' } as const;
@@ -82,7 +83,7 @@ export function StreetSignBuilder({ value, savedValue = null, unlockedFontPacks 
           <span className="se-street-sign-preview__bolt se-street-sign-preview__bolt--left" aria-hidden="true" />
           <span className="se-street-sign-preview__bolt se-street-sign-preview__bolt--right" aria-hidden="true" />
           <div className="se-street-sign-preview__lettering">
-            <span className={`se-street-sign-preview__name se-street-sign-font--${design.font}`}>{design.streetName || 'YOUR STREET'}</span>
+            <span className={`se-street-sign-preview__name se-street-sign-font--${design.font}`}>{design.streetName || 'Your Street'}</span>
             <span className="se-street-sign-preview__street-type">{design.streetType}</span>
           </div>
           {design.tag ? <span className={`se-street-sign-preview__tag se-street-sign-preview__tag--${design.tagScale} se-street-sign-preview__tag--${design.tagPlacement} se-street-sign-font--${design.tagFont}`} style={{ color: design.tagColor }}>{design.tag}</span> : null}
