@@ -19,7 +19,7 @@ describe('street sign design', () => {
       tag: 'NIGHT SHIFT',
       shape: 'classic',
     });
-    expect(streetSignForCrewName(design, null)?.streetName).toBe('Old Name');
+    expect(streetSignForCrewName(design, null)).toBeNull();
   });
 
   it('accepts the wide shape and curated font keys', () => {
