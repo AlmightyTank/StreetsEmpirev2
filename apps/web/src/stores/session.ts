@@ -30,6 +30,7 @@ export const DEFAULT_PROFILE_SETTINGS: AccountProfileSettingsDto = {
   activeTitleKey: null,
   titlePlacement: 'prefix',
   crewName: null,
+  streetSign: null,
   profileBio: null,
   profileImageUrl: null,
   profileAvatar: null,

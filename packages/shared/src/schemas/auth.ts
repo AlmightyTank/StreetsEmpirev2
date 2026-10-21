@@ -3,6 +3,7 @@ import { isValidTimeZone, NOTIFICATION_CATEGORIES } from '../notifications.js';
 import { collectionCovers, CUSTOMIZABLE_ITEM_KEYS, isFullCollectionStyle, isReleasedItemCosmeticStyle, styleFitsItem } from '../cosmetics.js';
 import { avatarPartsSchema } from '../avatar-builder.js';
 import { MINIMUM_AGE } from '../rules-agreement.js';
+import { streetSignInputSchema } from '../street-sign.js';
 
 export const USERNAME_MIN = 3;
 export const USERNAME_MAX = 20;
@@ -462,6 +463,8 @@ export const updateAccountProfileSettingsSchema = z.object({
   titlePlacement: z.enum(['prefix', 'suffix']).default('prefix'),
   /** Omitted keeps the current crew name; null or blank clears it. */
   crewName: crewNameSchema.nullable().optional(),
+  /** Omitted keeps the saved sign for older clients; null clears it. */
+  streetSign: streetSignInputSchema.nullable().optional(),
   profileBio: profileBioSchema.nullable().optional(),
   profileImageUrl: profileImageUrlSchema.nullable().optional(),
   /** Omitted keeps the built avatar; null removes it. */

@@ -5,6 +5,7 @@ import {
   ONBOARDING_GUIDE_STEPS,
   ONBOARDING_PAGE_KEYS,
   TOUR_STEP_KEYS,
+  readStreetSignDesign,
   type OnboardingActionInput,
   type OnboardingGuideStepKey,
   type OnboardingPageKey,
@@ -33,6 +34,7 @@ interface StoredOnboarding {
   tourStartedAt?: string;
   tourDismissedRoundId?: string | null;
   tourStep?: string;
+  signRecapDismissedRoundId?: string | null;
 }
 
 function stored(value: unknown): StoredOnboarding {
@@ -118,6 +120,7 @@ export async function tourProgress(
   prisma: Pick<PrismaClient, '$queryRaw'>,
   player: { id: string; thugs: number },
   ruleset: Ruleset,
+  hasSavedSign = false,
 ): Promise<Record<TourStepKey, boolean>> {
   const eligibleProducts = [...new Set(['CRACK', ...Object.keys(ruleset.products ?? {})])];
   const productList = Prisma.join(eligibleProducts);
@@ -143,7 +146,13 @@ export async function tourProgress(
     WHERE a."roundPlayerId" = ${player.id}
   `);
   const start = ruleset.round.startingPlayer as unknown as Partial<Record<string, number>>;
+  const legacyStepsComplete = Boolean(row?.quested) && Boolean(row?.scouted)
+    && Boolean(row?.condoms) && Boolean(row?.beer)
+    && (Boolean(row?.recruited) || Boolean(row?.hired) || player.thugs > (start.thugs ?? 0))
+    && Boolean(row?.produced) && Boolean(row?.hideout) && Boolean(row?.raided);
   return {
+    // Existing graduates keep their completed state when this identity step is added.
+    'build-street-sign': hasSavedSign || legacyStepsComplete,
     'accept-quest': Boolean(row?.quested),
     scout: Boolean(row?.scouted),
     'shop-supplies': Boolean(row?.condoms) && Boolean(row?.beer),
@@ -170,11 +179,13 @@ async function writeStored(prisma: PrismaClient, accountId: string, value: Store
 
 export const OnboardingService = {
   async state(prisma: PrismaClient, accountId: string): Promise<OnboardingStateDto> {
-    const [value, round, finishedSeasons] = await Promise.all([
+    const [value, round, finishedSeasons, profile] = await Promise.all([
       readStored(prisma, accountId),
       RoundService.getCurrent(prisma),
       prisma.roundPlayer.count({ where: { accountId, round: { status: { in: ['ENDED', 'ARCHIVED'] } } } }),
+      prisma.accountProfile.findUnique({ where: { accountId }, select: { streetSign: true } }),
     ]);
+    const streetSign = readStreetSignDesign(profile?.streetSign);
     const player = round
       ? await prisma.roundPlayer.findUnique({
           where: { roundId_accountId: { roundId: round.id, accountId } },
@@ -193,7 +204,7 @@ export const OnboardingService = {
         complete: steps.every((step) => step.done),
         steps,
       };
-      const tourProgressMap = await tourProgress(prisma, player, ruleset);
+      const tourProgressMap = await tourProgress(prisma, player, ruleset, Boolean(streetSign));
       const tourSteps = TOUR_STEP_KEYS.map((key) => ({ key, done: tourProgressMap[key] }));
       const tourComplete = tourSteps.every((step) => step.done);
       const firstOpen = tourSteps.find((step) => !step.done)?.key ?? null;
@@ -210,6 +221,7 @@ export const OnboardingService = {
         complete: tourComplete,
         step: hintedOpen ?? firstOpen,
         steps: tourSteps,
+        signRecap: streetSign && value.signRecapDismissedRoundId !== round.id ? streetSign : null,
       };
     }
 
@@ -286,6 +298,11 @@ export const OnboardingService = {
         next.tourDismissedRoundId = null;
         delete next.tourStep;
         break;
+      case 'dismiss-sign-recap': {
+        const round = await RoundService.getCurrent(prisma);
+        next.signRecapDismissedRoundId = round?.id ?? null;
+        break;
+      }
     }
     await writeStored(prisma, accountId, next);
     const after = await OnboardingService.state(prisma, accountId);

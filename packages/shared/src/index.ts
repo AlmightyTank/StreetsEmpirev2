@@ -37,6 +37,7 @@ export * from './types/drop.js';
 export * from './types/birthday.js';
 export * from './cosmetics.js';
 export * from './avatar-builder.js';
+export * from './street-sign.js';
 export * from './money.js';
 export * from './progression.js';
 export * from './easter-eggs.js';

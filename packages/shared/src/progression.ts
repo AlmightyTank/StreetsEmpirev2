@@ -1,4 +1,5 @@
 import type { PlayerExperienceDto } from './types/api.js';
+import { STREET_SIGN_FONT_PACKS } from './street-sign.js';
 
 const FIRST_LEVEL_XP = 100;
 const XP_STEP_PER_LEVEL = 50;
@@ -230,6 +231,9 @@ export interface LevelRewardLine {
 export function levelRewardsAt(level: number): LevelRewardLine[] {
   const out: LevelRewardLine[] = [];
   for (const title of experienceTitlesBetween(level - 1, level)) out.push({ level, kind: 'title', label: `Title: ${title.title}` });
+  for (const pack of STREET_SIGN_FONT_PACKS) {
+    if (pack.level === level) out.push({ level, kind: 'unlock', label: `Street sign: ${pack.label}` });
+  }
   const crowns = experienceCrownsForLevel(level);
   if (crowns) out.push({ level, kind: 'crowns', label: `${crowns} Crowns` });
   for (const gate of Object.values(ACCOUNT_TRUST_GATES)) if (gate.level === level) out.push({ level, kind: 'unlock', label: `Unlocks: ${gate.label}` });

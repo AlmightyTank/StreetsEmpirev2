@@ -16,6 +16,7 @@ export const APPROVED_ART_FILES = [
   { pattern: /^page-identities\.css$/, reason: 'Decorative route identity art tokens and motifs.' },
   { pattern: /^profile(?:-hover)?\.css$/, reason: 'Player-owned frames, cosmetics and profile previews.' },
   { pattern: /^site-themes\.css$/, reason: 'Premium theme token definitions and decorative effects.' },
+  { pattern: /^street-sign-builder\.css$/, reason: 'Player-authored street-sign artwork preview: the metal face, trim, bolts, and bundled display type styles use design-specific colors.' },
 ];
 
 export const APPROVED_SEMANTIC_SELECTORS = [
@@ -23,6 +24,8 @@ export const APPROVED_SEMANTIC_SELECTORS = [
   { pattern: /(?:warn|warning|pending|review|heat)/i, reason: 'Warning semantic status.' },
   { pattern: /(?:bad|danger|error|failed|negative|offline|arrest)/i, reason: 'Danger semantic status.' },
   { pattern: /(?:rarity|district|faction|owner|condition)/i, reason: 'Data-driven category identity.' },
+  { pattern: /(?:skill-band--full|skill-band--half|skill-band--quarter|skill-perk__soon)/i, reason: 'Street-skill progress and upcoming unlock status.' },
+  { pattern: /\.se-quests-boardtools__filter(?::hover|--active)/i, reason: 'Selected/hovered quest filter uses the configured accent token.' },
 ];
 
 export function approvedArtFile(fileName) {

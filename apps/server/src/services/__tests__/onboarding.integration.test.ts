@@ -4,6 +4,7 @@ import type { FastifyInstance } from 'fastify';
 import type { Prisma } from '@prisma/client';
 import { classicOgV08H } from '@streets/rulesets';
 import { startingStock } from '@streets/rules-engine';
+import { DEFAULT_STREET_SIGN } from '@streets/shared';
 import { RoundService } from '../round.service.js';
 
 /** 1.0.0-B. Tutorial progress and the early goals against PostgreSQL. */
@@ -99,15 +100,25 @@ describe.runIf(process.env.ONBOARDING_INTEGRATION === '1')('1.0.0-B onboarding w
     const tourPlayer = await join(t.accountId, roundId, 7704);
     const tourCookie = t.cookie;
     const tour = (await get(tourCookie)).json().tour;
-    expect(tour).toMatchObject({ due: true, active: false, dismissed: false, complete: false, step: 'accept-quest' });
+    expect(tour).toMatchObject({ due: true, active: false, dismissed: false, complete: false, step: 'build-street-sign', signRecap: null });
     expect(tour.steps.every((step: { done: boolean }) => !step.done)).toBe(true);
+    await app.prisma.accountProfile.upsert({
+      where: { accountId: t.accountId },
+      create: { accountId: t.accountId, streetSign: { ...DEFAULT_STREET_SIGN, streetName: 'Cedar' } },
+      update: { streetSign: { ...DEFAULT_STREET_SIGN, streetName: 'Cedar' } },
+    });
+    const marked = (await get(tourCookie)).json().tour;
+    expect(marked.step).toBe('accept-quest');
+    expect(marked.steps[0]).toEqual({ key: 'build-street-sign', done: true });
+    expect(marked.signRecap).toMatchObject({ streetName: 'Cedar', shape: 'classic' });
+    expect((await act(tourCookie, { action: 'dismiss-sign-recap' })).json().tour.signRecap).toBeNull();
     const veteran = (await get(veteranCookie)).json().tour;
     expect(veteran).toMatchObject({ due: false, active: false });
     // Stash for the next test.
     fresh = { accountId: t.accountId, playerId: tourPlayer.id, cookie: tourCookie };
   });
 
-  it('runs the seven-step tour off real play, counting any raid outcome', async () => {
+  it('runs the tour off saved sign data and real play, counting any raid outcome', async () => {
     const log = (type: string, payload: Prisma.InputJsonObject) => app.prisma.playerActivity.create({ data: { roundPlayerId: fresh.playerId, type: type as never, payload } });
     expect((await act(fresh.cookie, { action: 'start-tour' })).json().tour).toMatchObject({ due: false, active: true, step: 'accept-quest' });
     const stepsOf = async () => Object.fromEntries((await get(fresh.cookie)).json().tour.steps.map((step: { key: string; done: boolean }) => [step.key, step.done]));

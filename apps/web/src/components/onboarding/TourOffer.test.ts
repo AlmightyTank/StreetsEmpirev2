@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
 import type { OnboardingStateDto } from '@streets/shared';
 import { TOUR_STEP_KEYS } from '@streets/shared';
+import { DEFAULT_STREET_SIGN } from '@streets/shared';
 import { TourOffer } from './TourOffer.js';
 
 type Tour = NonNullable<OnboardingStateDto['tour']>;
@@ -34,9 +35,17 @@ describe('TourOffer', () => {
   it('resumes an active tour with the next step and a Guide me action', () => {
     const html = render({ ...base, active: true, step: 'produce', steps: steps(['accept-quest', 'scout', 'shop-supplies', 'grow-crew']) });
     expect(html).toContain('Next: Cook your first batch');
-    expect(html).toContain('4 of 7');
+    expect(html).toContain('4 of 8');
     expect(html).toContain('>Guide me</button>');
     expect(html).not.toContain('href="/game/produce"');
+  });
+
+  it('shows the saved sign in the Make Your Mark recap', () => {
+    const html = render({ ...base, signRecap: { ...DEFAULT_STREET_SIGN, streetName: 'Cedar' } });
+    expect(html).toContain('data-testid="street-sign-recap"');
+    expect(html).toContain('You’re on the map');
+    expect(html).toContain('Cedar');
+    expect(html).toContain('not a turf claim');
   });
 
   it('stays hidden for dismissed, complete and veteran players', () => {

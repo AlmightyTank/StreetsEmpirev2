@@ -12,11 +12,14 @@ import { InfoLayout } from '../layouts/InfoLayout.js';
 /** rc.2. Report a bug to staff. It lands in Admin → Bug Reports with the page and app version. */
 export function ReportBugPage() {
   const location = useLocation();
-  // The page they came from, when a link carried it here.
-  const from = new URLSearchParams(location.search).get('from') ?? undefined;
-  const [category, setCategory] = useState<BugReportCategory>('GAMEPLAY');
-  const [summary, setSummary] = useState('');
-  const [details, setDetails] = useState('');
+  const params = new URLSearchParams(location.search);
+  const from = params.get('from') ?? undefined;
+  const target = params.get('target');
+  const reportedSign = params.get('sign');
+  const isPlayerContentReport = params.get('category') === 'PLAYER_CONTENT' && Boolean(target && reportedSign);
+  const [category, setCategory] = useState<BugReportCategory>(isPlayerContentReport ? 'PLAYER_CONTENT' : 'GAMEPLAY');
+  const [summary, setSummary] = useState(isPlayerContentReport ? `Review street sign for ${target}` : '');
+  const [details, setDetails] = useState(isPlayerContentReport ? `Profile: ${target}\nSign text: ${reportedSign}\n\nWhy should staff review this sign?` : '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fields, setFields] = useState<Record<string, string>>({});
@@ -48,8 +51,8 @@ export function ReportBugPage() {
     <InfoLayout>
       <div className="se-pagehead">
         <div>
-          <h1 className="se-title">Report a bug</h1>
-          <p className="se-eyebrow">Something broken, wrong or confusing? Tell staff.</p>
+          <h1 className="se-title">{isPlayerContentReport ? 'Report player content' : 'Report a bug'}</h1>
+          <p className="se-eyebrow">{isPlayerContentReport ? 'Send this street sign to staff for review.' : 'Something broken, wrong or confusing? Tell staff.'}</p>
         </div>
       </div>
       {sent ? (
@@ -94,7 +97,7 @@ export function ReportBugPage() {
             {error ? <Alert>{error}</Alert> : null}
             <Button className="se-btn se-btn--primary" disabledReason={busy ? 'Sending...' : null}>{busy ? 'Sending...' : 'Send report'}</Button>
           </form>
-          <p className="se-hint se-mt">Cheating or abuse by another player? Use Report on their message or tell staff on Discord.</p>
+          <p className="se-hint se-mt">Player reports are reviewed by staff in the Reports queue. Street signs accept plain text only; font and artwork uploads are not supported.</p>
         </Panel>
       )}
     </InfoLayout>
