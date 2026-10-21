@@ -692,22 +692,22 @@
   --se-accent-dim: #557a24;
   --se-accent-hover: #a2c96a;
   --se-accent-rgb: 122, 168, 58;
-  --se-accent-2: #d6a35c;
+  --se-accent-2: #d9884a;
   --se-theme-panel-fill:
     linear-gradient(150deg, rgba(122, 168, 58, 0.07), transparent 40%),
     linear-gradient(180deg, rgba(28, 36, 18, 0.95), rgba(10, 12, 6, 0.96));
   --se-theme-stat-fill:
-    linear-gradient(180deg, rgba(122, 168, 58, 0.07), rgba(214, 163, 92, 0.04)),
+    linear-gradient(180deg, rgba(122, 168, 58, 0.07), rgba(217, 136, 74, 0.04)),
     rgba(10, 12, 6, 0.96);
   --se-theme-button-fill: linear-gradient(180deg, rgba(122, 168, 58, 0.12), rgba(10, 12, 6, 0.96));
   --se-theme-head-fill:
-    linear-gradient(90deg, rgba(122, 168, 58, 0.18), rgba(214, 163, 92, 0.06) 55%, transparent),
+    linear-gradient(90deg, rgba(122, 168, 58, 0.18), rgba(217, 136, 74, 0.06) 55%, transparent),
     linear-gradient(180deg, #1c2412, #141a0d);
   --se-theme-topbar-layer:
-    linear-gradient(90deg, rgba(122, 168, 58, 0.14), transparent 32%, rgba(214, 163, 92, 0.1));
+    linear-gradient(90deg, rgba(122, 168, 58, 0.14), transparent 32%, rgba(217, 136, 74, 0.1));
   background-image:
     radial-gradient(900px 520px at 94% 0%, rgba(122, 168, 58, 0.16), transparent 62%),
-    radial-gradient(720px 440px at 2% 100%, rgba(214, 163, 92, 0.09), transparent 60%),
+    radial-gradient(720px 440px at 2% 100%, rgba(217, 136, 74, 0.09), transparent 60%),
     linear-gradient(180deg, #141a0d, #0a0c06 62%);
 }
 
@@ -1480,21 +1480,20 @@
 @keyframes se-ec-bolt { 0%, 100% { opacity: .35; } 50% { opacity: .85; } }
 @keyframes se-ec-fire { from { opacity: .4; } to { opacity: .75; } }
 
-/* ---------- Swamp Kingdom scene ---------- */
+/* ---------- Swamp Kingdom scene (a creature bobs in the loch; bubbles rise) ---------- */
 .se-sk__hill { right: 0; bottom: 0; width: min(48vw, 640px); height: auto; }
-.se-sk__orbit { transform-box: view-box; transform-origin: 405px 120px; animation: se-sk-orbit 18s linear infinite; }
-.se-sk__dragon { transform: translate(405px, 50px); }
-@keyframes se-sk-orbit { to { transform: rotate(360deg); } }
+.se-sk__creature { animation: se-sk-bob 6s ease-in-out infinite alternate; }
+@keyframes se-sk-bob { from { transform: translateY(0); } to { transform: translateY(6px); } }
 .se-sk__motes i {
   position: absolute;
-  width: 4px;
-  height: 4px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
-  background: #c8e87a;
-  box-shadow: 0 0 8px 2px rgba(200, 232, 122, 0.35);
-  animation: se-sk-drift 10s ease-in-out infinite alternate;
+  border: 1px solid rgba(207, 232, 240, 0.7);
+  background: rgba(207, 232, 240, 0.12);
+  animation: se-sk-rise 8s ease-in infinite;
 }
-@keyframes se-sk-drift { from { transform: translate3d(0, 0, 0); opacity: .2; } to { transform: translate3d(-24px, -20px, 0); opacity: .9; } }
+@keyframes se-sk-rise { from { transform: translate3d(0, 0, 0); opacity: 0; } 30% { opacity: .8; } to { transform: translate3d(-6px, -60px, 0); opacity: 0; } }
 
 /* ---------- Zombie Apocalypse scene (the horde shambles slowly; nothing jumps out) ---------- */
 .se-za__sky {
