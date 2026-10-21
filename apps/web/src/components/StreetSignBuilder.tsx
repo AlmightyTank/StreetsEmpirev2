@@ -50,7 +50,7 @@ interface StreetSignBuilderProps {
 }
 
 export function StreetSignBuilder({ value, crewName = '', savedValue = null, unlockedFontPacks = [], onChange }: StreetSignBuilderProps) {
-  const design = { ...(value ?? DEFAULT_STREET_SIGN), streetName: crewName.trim() };
+  const design = { ...(value ?? DEFAULT_STREET_SIGN), streetName: (crewName ?? '').trim() };
   const hasDraftChanges = JSON.stringify(value ?? null) !== JSON.stringify(savedValue ?? null);
   const textNeedsContrastHelp = streetSignContrastRatio(design.textColor, design.backgroundColor) < 4.5;
   const tagNeedsContrastHelp = Boolean(design.tag) && streetSignContrastRatio(design.tagColor, design.backgroundColor) < 3;
