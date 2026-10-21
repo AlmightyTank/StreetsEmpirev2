@@ -104,5 +104,5 @@ export function streetSignForCrewName(value: unknown, crewName: string | null | 
   const design = readStreetSignDesign(value);
   if (!design) return null;
   const linkedName = crewName?.trim();
-  return linkedName ? { ...design, streetName: linkedName.slice(0, STREET_SIGN_TEXT_MAX) } : design;
+  return linkedName ? { ...design, streetName: linkedName.slice(0, STREET_SIGN_TEXT_MAX) } : null;
 }
