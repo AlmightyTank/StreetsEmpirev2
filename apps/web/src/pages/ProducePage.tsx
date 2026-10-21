@@ -125,9 +125,7 @@ export function ProducePage() {
           <div className="se-produce-hero__copy">
             <span className="se-eyebrow">Production floor · {me.city.name}</span>
             <h1>Produce product</h1>
-            <p>
-              Put fit thugs on the batch, set the shift length, and check the crew and supply plan before you spend the turns.
-            </p>
+
           </div>
         </header>
 
