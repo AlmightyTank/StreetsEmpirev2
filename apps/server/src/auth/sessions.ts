@@ -61,8 +61,8 @@ export async function createSession(
       ip: meta.ip ?? null,
       method,
       twoFactor,
-      // A Discord sign-in or a code is a second factor, proved now.
-      secondFactorAt: method === 'DISCORD' || method === 'PLAY_GAMES' || twoFactor ? new Date(now) : null,
+      // Federated sign-in or an authenticator code was just proved.
+      secondFactorAt: method === 'DISCORD' || method === 'PLAY_GAMES' || method === 'APPLE' || method === 'GOOGLE' || method === 'FACEBOOK' || twoFactor ? new Date(now) : null,
     },
   });
 

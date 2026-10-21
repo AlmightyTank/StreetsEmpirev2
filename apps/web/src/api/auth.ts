@@ -41,6 +41,7 @@ interface OptionalAccountResponse extends MessageResponse {
 }
 
 export const authApi = {
+  providers: () => api.get<{ apple: boolean; discord: boolean; google: boolean; facebook: boolean }>('/auth/providers'),
   register: (input: RegisterInput) =>
     api.post<AccountResponse>('/auth/register', input),
 
@@ -88,6 +89,13 @@ export const authApi = {
 
   unlinkDiscord: (input: { currentPassword: string }) =>
     api.delete<AccountResponse & { ok: true; message: string }>('/auth/discord', input),
+
+  unlinkApple: (input: { currentPassword: string }) =>
+    api.delete<AccountResponse & { ok: true; message: string }>('/auth/apple', input),
+  unlinkGoogle: (input: { currentPassword: string }) =>
+    api.delete<AccountResponse & { ok: true; message: string }>('/auth/google', input),
+  unlinkFacebook: (input: { currentPassword: string }) =>
+    api.delete<AccountResponse & { ok: true; message: string }>('/auth/facebook', input),
 
   requestEmailVerification: () =>
     api.post<MessageResponse>('/auth/email/verify/request'),

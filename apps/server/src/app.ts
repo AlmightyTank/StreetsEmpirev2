@@ -1,4 +1,5 @@
 import fastifyCors from '@fastify/cors';
+import fastifyFormbody from '@fastify/formbody';
 import { randomUUID } from 'node:crypto';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { env } from './config/env.js';
@@ -47,6 +48,7 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   await app.register(errorHandlerPlugin);
   await app.register(securityPlugin);
+  await app.register(fastifyFormbody);
 
   await app.register(fastifyCors, {
     origin: env.corsOrigins,

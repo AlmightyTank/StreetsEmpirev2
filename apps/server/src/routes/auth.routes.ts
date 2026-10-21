@@ -4,6 +4,7 @@ import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import { RULES_VERSION, changeEmailSchema, changeUsernameSchema, closeAccountSchema, deleteAccountSchema, twoFactorCodeBodySchema, twoFactorSetupSchema, twoFactorVerifySchema, changePasswordSchema, forgotPasswordSchema, loginSchema, normalizeUsername, birthDateUpdateSchema, registerSchema, resetPasswordSchema, updateAccountProfileSettingsSchema, verifyEmailTokenSchema, type AccountSessionDto } from '@streets/shared';
 import { z } from 'zod';
 import { OAuth2Client } from 'google-auth-library';
+import { createRemoteJWKSet, importPKCS8, jwtVerify, SignJWT } from 'jose';
 import { assertBetaAccess, assertCanSignIn, clearExpiredSuspension } from '../auth/account-status.js';
 import { adminNeedsSecondFactor, isStaff } from '../auth/play-access.js';
 import { hashPassword, verifyPassword } from '../auth/password.js';
@@ -49,9 +50,26 @@ const TWO_FACTOR_COOKIE = 'se_2fa_challenge';
 const TRUSTED_DEVICE_COOKIE = 'se_trusted_device';
 /** rc.4. Carries "Keep me signed in" through the Discord round trip. */
 const DISCORD_REMEMBER_COOKIE = 'se_discord_remember';
+const APPLE_STATE_COOKIE = 'se_apple_oauth_state';
+const APPLE_NONCE_COOKIE = 'se_apple_oauth_nonce';
+const APPLE_LINK_COOKIE = 'se_apple_oauth_link';
+const APPLE_REDIRECT_URI_COOKIE = 'se_apple_oauth_redirect_uri';
+const APPLE_REMEMBER_COOKIE = 'se_apple_remember';
+const GOOGLE_STATE_COOKIE = 'se_google_oauth_state';
+const GOOGLE_NONCE_COOKIE = 'se_google_oauth_nonce';
+const GOOGLE_LINK_COOKIE = 'se_google_oauth_link';
+const GOOGLE_REDIRECT_URI_COOKIE = 'se_google_oauth_redirect_uri';
+const GOOGLE_REMEMBER_COOKIE = 'se_google_remember';
+const FACEBOOK_STATE_COOKIE = 'se_facebook_oauth_state';
+const FACEBOOK_LINK_COOKIE = 'se_facebook_oauth_link';
+const FACEBOOK_REDIRECT_URI_COOKIE = 'se_facebook_oauth_redirect_uri';
+const FACEBOOK_REMEMBER_COOKIE = 'se_facebook_remember';
 const DISCORD_AUTHORIZE_URL = 'https://discord.com/oauth2/authorize';
 const DISCORD_TOKEN_URL = 'https://discord.com/api/oauth2/token';
 const DISCORD_ME_URL = 'https://discord.com/api/users/@me';
+const APPLE_AUTHORIZE_URL = 'https://appleid.apple.com/auth/authorize';
+const APPLE_TOKEN_URL = 'https://appleid.apple.com/auth/token';
+const appleJwks = createRemoteJWKSet(new URL('https://appleid.apple.com/auth/keys'));
 
 const discordStartSchema = z.object({
   // `?link=1` / `?link=true`; anything else (including "false" and "0") is not a link.
@@ -99,6 +117,20 @@ const playGamesPlayerSchema = z.object({
   playerId: z.string().min(1),
   displayName: z.string().optional(),
 });
+
+const appleCallbackSchema = z.object({
+  code: z.string().optional(),
+  state: z.string().optional(),
+  error: z.string().optional(),
+});
+const appleTokenSchema = z.object({ id_token: z.string().min(1) });
+const appleClaimsSchema = z.object({
+  sub: z.string().min(1),
+  email: z.string().email().optional(),
+  email_verified: z.union([z.boolean(), z.string()]).optional(),
+  nonce: z.string().optional(),
+});
+const appleUnlinkSchema = z.object({ currentPassword: z.string().min(1) });
 
 type DiscordUser = z.infer<typeof discordUserSchema>;
 
@@ -156,6 +188,74 @@ function requestOrigin(request: FastifyRequest): string {
 
 function discordRedirectUri(request: FastifyRequest): string {
   return env.discord.redirectUri || `${requestOrigin(request)}/api/auth/discord/callback`;
+}
+
+function appleRedirectUri(request: FastifyRequest): string {
+  return env.apple.redirectUri || `${requestOrigin(request)}/api/auth/apple/callback`;
+}
+
+function googleRedirectUri(request: FastifyRequest): string {
+  return env.googleOAuth.redirectUri || `${requestOrigin(request)}/api/auth/google/callback`;
+}
+
+function setGoogleCookie(reply: FastifyReply, name: string, value: string): void {
+  reply.setCookie(name, value, { httpOnly: true, sameSite: 'lax', secure: env.isProduction, signed: true, path: '/api/auth', maxAge: 10 * 60 });
+}
+
+function googleCookie(request: FastifyRequest, name: string): string | null {
+  const raw = request.cookies[name];
+  if (!raw) return null;
+  const unsigned = request.unsignCookie(raw);
+  return unsigned.valid && unsigned.value ? unsigned.value : null;
+}
+
+function clearGoogleCookies(reply: FastifyReply): void {
+  for (const name of [GOOGLE_STATE_COOKIE, GOOGLE_NONCE_COOKIE, GOOGLE_LINK_COOKIE, GOOGLE_REDIRECT_URI_COOKIE, GOOGLE_REMEMBER_COOKIE]) {
+    reply.clearCookie(name, { path: '/api/auth', sameSite: 'lax', secure: env.isProduction });
+  }
+}
+
+function facebookRedirectUri(request: FastifyRequest): string {
+  return env.facebook.redirectUri || `${requestOrigin(request)}/api/auth/facebook/callback`;
+}
+
+function setFacebookCookie(reply: FastifyReply, name: string, value: string): void {
+  reply.setCookie(name, value, { httpOnly: true, sameSite: 'lax', secure: env.isProduction, signed: true, path: '/api/auth', maxAge: 10 * 60 });
+}
+
+function facebookCookie(request: FastifyRequest, name: string): string | null {
+  const raw = request.cookies[name];
+  if (!raw) return null;
+  const unsigned = request.unsignCookie(raw);
+  return unsigned.valid && unsigned.value ? unsigned.value : null;
+}
+
+function clearFacebookCookies(reply: FastifyReply): void {
+  for (const name of [FACEBOOK_STATE_COOKIE, FACEBOOK_LINK_COOKIE, FACEBOOK_REDIRECT_URI_COOKIE, FACEBOOK_REMEMBER_COOKIE]) {
+    reply.clearCookie(name, { path: '/api/auth', sameSite: 'lax', secure: env.isProduction });
+  }
+}
+
+function setAppleCookie(reply: FastifyReply, name: string, value: string): void {
+  reply.setCookie(name, value, {
+    // Apple returns credentials with a cross-site form POST. Lax cookies would
+    // be omitted on that callback, so this OAuth state must be Secure/SameSite=None.
+    httpOnly: true, sameSite: 'none', secure: true, signed: true,
+    path: '/api/auth', maxAge: 10 * 60,
+  });
+}
+
+function appleCookie(request: FastifyRequest, name: string): string | null {
+  const raw = request.cookies[name];
+  if (!raw) return null;
+  const unsigned = request.unsignCookie(raw);
+  return unsigned.valid && unsigned.value ? unsigned.value : null;
+}
+
+function clearAppleCookies(reply: FastifyReply): void {
+  for (const name of [APPLE_STATE_COOKIE, APPLE_NONCE_COOKIE, APPLE_LINK_COOKIE, APPLE_REDIRECT_URI_COOKIE, APPLE_REMEMBER_COOKIE]) {
+    reply.clearCookie(name, { path: '/api/auth', sameSite: 'none', secure: true });
+  }
 }
 
 function setDiscordRedirectCookie(reply: FastifyReply, redirectUri: string): void {
@@ -364,6 +464,204 @@ function playGamesUsernameBase(displayName: string | null, playerId: string): st
   return clean.length >= 3 ? clean : `player_${playerId.slice(-8)}`.slice(0, 20);
 }
 
+async function appleClientSecret(): Promise<string> {
+  const key = await importPKCS8(env.apple.privateKey, 'ES256');
+  return new SignJWT({})
+    .setProtectedHeader({ alg: 'ES256', kid: env.apple.keyId })
+    .setIssuer(env.apple.teamId)
+    .setSubject(env.apple.clientId)
+    .setAudience('https://appleid.apple.com')
+    .setIssuedAt()
+    .setExpirationTime('5m')
+    .sign(key);
+}
+
+async function appleIdentityFromCode(code: string, redirectUri: string, nonce: string) {
+  const secret = await appleClientSecret();
+  const response = await fetch(APPLE_TOKEN_URL, {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: env.apple.clientId,
+      client_secret: secret,
+      code,
+      grant_type: 'authorization_code',
+      redirect_uri: redirectUri,
+    }),
+  }).catch(() => null);
+  if (!response?.ok) throw new AppError(401, 'APPLE_CODE_INVALID', 'That Apple sign-in has expired. Try again.');
+  const token = appleTokenSchema.safeParse(await response.json());
+  if (!token.success) throw new AppError(401, 'APPLE_TOKEN_INVALID', 'Apple did not return a valid sign-in. Try again.');
+
+  try {
+    const { payload } = await jwtVerify(token.data.id_token, appleJwks, {
+      issuer: 'https://appleid.apple.com',
+      audience: env.apple.clientId,
+    });
+    const claims = appleClaimsSchema.parse(payload);
+    if (claims.nonce !== nonce) throw new Error('nonce mismatch');
+    const verified = claims.email_verified === true || claims.email_verified === 'true';
+    return { id: claims.sub, email: verified ? claims.email?.toLowerCase() ?? null : null };
+  } catch {
+    throw new AppError(401, 'APPLE_TOKEN_INVALID', 'Apple could not verify this sign-in. Try again.');
+  }
+}
+
+function appleUsernameBase(subject: string): string {
+  return `apple_${subject.slice(-8)}`.slice(0, 20);
+}
+
+async function accountForAppleIdentity(prisma: PrismaClient, identity: { id: string; email: string | null }): Promise<Account> {
+  const now = new Date();
+  const linked = await prisma.account.findUnique({ where: { appleId: identity.id } });
+  if (linked) {
+    await clearExpiredSuspension(prisma, linked, now);
+    assertCanSignIn(linked, now);
+    return prisma.account.update({
+      where: { id: linked.id },
+      data: { appleEmail: identity.email ?? linked.appleEmail, lastLoginAt: now },
+    });
+  }
+  if (!identity.email) {
+    throw new AppError(400, 'APPLE_EMAIL_MISSING', 'Apple did not share a verified email for this new account. Try Apple sign-in again and allow email sharing.');
+  }
+
+  const existing = await prisma.account.findUnique({ where: { email: identity.email } });
+  if (existing) {
+    await clearExpiredSuspension(prisma, existing, now);
+    assertCanSignIn(existing, now);
+    if (existing.appleId && existing.appleId !== identity.id) {
+      throw new AppError(409, 'APPLE_EMAIL_ALREADY_LINKED', 'That Apple email is already linked to a different Apple account.');
+    }
+    return prisma.account.update({
+      where: { id: existing.id },
+      data: { appleId: identity.id, appleEmail: identity.email, appleLinkedAt: existing.appleLinkedAt ?? now, emailVerifiedAt: existing.emailVerifiedAt ?? now, lastLoginAt: now },
+    });
+  }
+
+  const username = await uniqueUsername(prisma, appleUsernameBase(identity.id));
+  return prisma.account.create({
+    data: {
+      username,
+      usernameNormalized: normalizeUsername(username),
+      email: identity.email,
+      emailVerifiedAt: now,
+      passwordHash: await hashPassword(randomBytes(32).toString('base64url')),
+      appleId: identity.id,
+      appleEmail: identity.email,
+      appleLinkedAt: now,
+      lastLoginAt: now,
+    },
+  });
+}
+
+async function linkAppleToAccount(prisma: PrismaClient, account: Account, identity: { id: string; email: string | null }): Promise<Account> {
+  await clearExpiredSuspension(prisma, account);
+  assertCanSignIn(account);
+  const owner = await prisma.account.findUnique({ where: { appleId: identity.id } });
+  if (owner && owner.id !== account.id) {
+    throw new AppError(409, 'APPLE_ALREADY_LINKED', 'That Apple account is already linked to another player.');
+  }
+  if (account.appleId && account.appleId !== identity.id) {
+    throw new AppError(409, 'APPLE_ALREADY_LINKED', 'This StreetsEmpire account already has a different Apple account linked.');
+  }
+  const now = new Date();
+  return prisma.account.update({
+    where: { id: account.id },
+    data: { appleId: identity.id, appleEmail: identity.email ?? account.appleEmail, appleLinkedAt: account.appleLinkedAt ?? now, lastLoginAt: now },
+  });
+}
+
+async function googleIdentityFromCode(code: string, redirectUri: string, nonce: string) {
+  const client = new OAuth2Client(env.googleOAuth.clientId, env.googleOAuth.clientSecret, redirectUri);
+  const { tokens } = await client.getToken(code).catch(() => { throw new AppError(401, 'GOOGLE_CODE_INVALID', 'That Google sign-in has expired. Try again.'); });
+  if (!tokens.id_token) throw new AppError(401, 'GOOGLE_TOKEN_INVALID', 'Google did not return a valid sign-in. Try again.');
+  try {
+    const ticket = await client.verifyIdToken({ idToken: tokens.id_token, audience: env.googleOAuth.clientId });
+    const payload = ticket.getPayload();
+    if (!payload?.sub || payload.nonce !== nonce) throw new Error('Invalid Google identity or nonce');
+    const email = payload.email_verified ? payload.email?.toLowerCase() ?? null : null;
+    return { id: payload.sub, email };
+  } catch {
+    throw new AppError(401, 'GOOGLE_TOKEN_INVALID', 'Google could not verify this sign-in. Try again.');
+  }
+}
+
+async function accountForGoogleIdentity(prisma: PrismaClient, identity: { id: string; email: string | null }): Promise<Account> {
+  const now = new Date();
+  const linked = await prisma.account.findUnique({ where: { googleId: identity.id } });
+  if (linked) {
+    await clearExpiredSuspension(prisma, linked, now);
+    assertCanSignIn(linked, now);
+    return prisma.account.update({ where: { id: linked.id }, data: { googleEmail: identity.email ?? linked.googleEmail, lastLoginAt: now } });
+  }
+  if (!identity.email) throw new AppError(400, 'GOOGLE_EMAIL_MISSING', 'Google did not provide a verified email. Allow email sharing and try again.');
+  const existing = await prisma.account.findUnique({ where: { email: identity.email } });
+  if (existing) {
+    await clearExpiredSuspension(prisma, existing, now);
+    assertCanSignIn(existing, now);
+    if (existing.googleId && existing.googleId !== identity.id) throw new AppError(409, 'GOOGLE_EMAIL_ALREADY_LINKED', 'That Google email is already linked to a different Google account.');
+    return prisma.account.update({ where: { id: existing.id }, data: { googleId: identity.id, googleEmail: identity.email, googleLinkedAt: existing.googleLinkedAt ?? now, emailVerifiedAt: existing.emailVerifiedAt ?? now, lastLoginAt: now } });
+  }
+  const username = await uniqueUsername(prisma, `google_${identity.id.slice(-8)}`);
+  return prisma.account.create({ data: { username, usernameNormalized: normalizeUsername(username), email: identity.email,
+    passwordHash: await hashPassword(randomBytes(32).toString('base64url')), googleId: identity.id, googleEmail: identity.email, googleLinkedAt: now, lastLoginAt: now } });
+}
+
+async function linkGoogleToAccount(prisma: PrismaClient, account: Account, identity: { id: string; email: string | null }): Promise<Account> {
+  await clearExpiredSuspension(prisma, account);
+  assertCanSignIn(account);
+  const owner = await prisma.account.findUnique({ where: { googleId: identity.id } });
+  if (owner && owner.id !== account.id) throw new AppError(409, 'GOOGLE_ALREADY_LINKED', 'That Google account is already linked to another player.');
+  if (account.googleId && account.googleId !== identity.id) throw new AppError(409, 'GOOGLE_ALREADY_LINKED', 'This StreetsEmpire account already has a different Google account linked.');
+  const now = new Date();
+  return prisma.account.update({ where: { id: account.id }, data: { googleId: identity.id, googleEmail: identity.email ?? account.googleEmail, googleLinkedAt: account.googleLinkedAt ?? now, lastLoginAt: now } });
+}
+
+async function facebookIdentityFromCode(code: string, redirectUri: string) {
+  const tokenResponse = await fetch('https://graph.facebook.com/oauth/access_token', {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ client_id: env.facebook.appId, client_secret: env.facebook.appSecret, redirect_uri: redirectUri, code }),
+  }).catch(() => null);
+  if (!tokenResponse?.ok) throw new AppError(401, 'FACEBOOK_CODE_INVALID', 'That Facebook sign-in has expired. Try again.');
+  const token = z.object({ access_token: z.string().min(1) }).safeParse(await tokenResponse.json());
+  if (!token.success) throw new AppError(401, 'FACEBOOK_TOKEN_INVALID', 'Facebook did not return a valid sign-in. Try again.');
+  const profileUrl = new URL('https://graph.facebook.com/me');
+  profileUrl.searchParams.set('fields', 'id,email');
+  const profileResponse = await fetch(profileUrl, { headers: { authorization: `Bearer ${token.data.access_token}` } }).catch(() => null);
+  if (!profileResponse?.ok) throw new AppError(401, 'FACEBOOK_PROFILE_INVALID', 'Facebook could not verify this sign-in. Try again.');
+  const profile = z.object({ id: z.string().min(1), email: z.string().email().optional() }).safeParse(await profileResponse.json());
+  if (!profile.success) throw new AppError(401, 'FACEBOOK_PROFILE_INVALID', 'Facebook could not verify this sign-in. Try again.');
+  return { id: profile.data.id, email: profile.data.email?.toLowerCase() ?? null };
+}
+
+async function accountForFacebookIdentity(prisma: PrismaClient, identity: { id: string; email: string | null }): Promise<Account> {
+  const now = new Date();
+  const linked = await prisma.account.findUnique({ where: { facebookId: identity.id } });
+  if (linked) {
+    await clearExpiredSuspension(prisma, linked, now);
+    assertCanSignIn(linked, now);
+    return prisma.account.update({ where: { id: linked.id }, data: { facebookEmail: identity.email ?? linked.facebookEmail, lastLoginAt: now } });
+  }
+  if (!identity.email) throw new AppError(400, 'FACEBOOK_EMAIL_MISSING', 'Facebook did not share an email address. Allow email access and try again.');
+  const existing = await prisma.account.findUnique({ where: { email: identity.email } });
+  if (existing) throw new AppError(409, 'FACEBOOK_EMAIL_EXISTS', 'An account already uses that email. Sign in with that account first, then link Facebook in Account settings.');
+  const username = await uniqueUsername(prisma, `facebook_${identity.id.slice(-8)}`);
+  return prisma.account.create({ data: { username, usernameNormalized: normalizeUsername(username), email: identity.email, emailVerifiedAt: now,
+    passwordHash: await hashPassword(randomBytes(32).toString('base64url')), facebookId: identity.id, facebookEmail: identity.email, facebookLinkedAt: now, lastLoginAt: now } });
+}
+
+async function linkFacebookToAccount(prisma: PrismaClient, account: Account, identity: { id: string; email: string | null }): Promise<Account> {
+  await clearExpiredSuspension(prisma, account);
+  assertCanSignIn(account);
+  const owner = await prisma.account.findUnique({ where: { facebookId: identity.id } });
+  if (owner && owner.id !== account.id) throw new AppError(409, 'FACEBOOK_ALREADY_LINKED', 'That Facebook account is already linked to another player.');
+  if (account.facebookId && account.facebookId !== identity.id) throw new AppError(409, 'FACEBOOK_ALREADY_LINKED', 'This StreetsEmpire account already has a different Facebook account linked.');
+  const now = new Date();
+  return prisma.account.update({ where: { id: account.id }, data: { facebookId: identity.id, facebookEmail: identity.email ?? account.facebookEmail, facebookLinkedAt: account.facebookLinkedAt ?? now, lastLoginAt: now } });
+}
+
 /** Seconds between verification emails to one account, so the button cannot be used to spam an inbox. */
 const VERIFY_EMAIL_COOLDOWN_SECONDS = 60;
 
@@ -565,6 +863,8 @@ async function linkDiscordToAccount(
 }
 
 const authRoutes: FastifyPluginAsync = async (fastify) => {
+  fastify.get('/providers', async () => ({ apple: env.apple.enabled, discord: env.discord.enabled, google: env.googleOAuth.enabled, facebook: env.facebook.enabled }));
+
   fastify.post('/register', async (request, reply) => {
     const body = parseBody(registerSchema, request.body);
     // rc.5: the bot check comes first, before anything touches the database.
@@ -986,6 +1286,229 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
 
     wakeDiscordBot('resync');
     return { ok: true, message: 'Discord account unlinked.', account: toAccountDto(updated, request.auth!.session) };
+  });
+
+  fastify.get('/facebook', async (request, reply) => {
+    const query = discordStartSchema.parse(request.query);
+    const linkMode = query.link === true;
+    if (!env.facebook.enabled) return reply.redirect(linkMode ? accountRedirect('Facebook sign-in is not configured yet.') : authRedirect('Facebook sign-in is not configured yet.'));
+    if (linkMode && !request.auth) return reply.redirect(authRedirect('Log in before linking Facebook.'));
+    const state = randomBytes(32).toString('base64url');
+    const redirectUri = facebookRedirectUri(request);
+    const authorize = new URL('https://www.facebook.com/dialog/oauth');
+    authorize.searchParams.set('client_id', env.facebook.appId);
+    authorize.searchParams.set('redirect_uri', redirectUri);
+    authorize.searchParams.set('response_type', 'code');
+    authorize.searchParams.set('scope', 'public_profile,email');
+    authorize.searchParams.set('state', state);
+    setFacebookCookie(reply, FACEBOOK_STATE_COOKIE, state);
+    setFacebookCookie(reply, FACEBOOK_REDIRECT_URI_COOKIE, redirectUri);
+    setFacebookCookie(reply, FACEBOOK_REMEMBER_COOKIE, query.remember ? '1' : '0');
+    if (linkMode) setFacebookCookie(reply, FACEBOOK_LINK_COOKIE, '1');
+    return reply.redirect(authorize.toString());
+  });
+
+  fastify.get('/facebook/callback', async (request, reply) => {
+    const query = discordCallbackSchema.parse(request.query);
+    const expectedState = facebookCookie(request, FACEBOOK_STATE_COOKIE);
+    const savedRedirectUri = facebookCookie(request, FACEBOOK_REDIRECT_URI_COOKIE);
+    const linkMode = facebookCookie(request, FACEBOOK_LINK_COOKIE) === '1';
+    const remember = facebookCookie(request, FACEBOOK_REMEMBER_COOKIE) !== '0';
+    clearFacebookCookies(reply);
+    const conclude = (url: string) => reply.redirect(url);
+    if (query.error) return conclude(linkMode ? accountRedirect('Facebook linking was cancelled.') : authRedirect('Facebook sign-in was cancelled.'));
+    if (!query.code || !query.state || query.state !== expectedState) return conclude(linkMode ? accountRedirect('Facebook linking expired. Try again.') : authRedirect('Facebook sign-in expired. Try again.'));
+    const redirectUri = savedRedirectUri || facebookRedirectUri(request);
+    try {
+      const identity = await facebookIdentityFromCode(query.code, redirectUri);
+      if (linkMode) {
+        if (!request.auth) return conclude(authRedirect('Log in before linking Facebook.'));
+        if (adminNeedsSecondFactor(request.auth.account, request.auth.session)) return conclude(accountRedirect('Confirm your authenticator sign-in before linking Facebook.'));
+        await linkFacebookToAccount(fastify.prisma, request.auth.account, identity);
+        return conclude(accountRedirect('Facebook is linked.'));
+      }
+      const account = await accountForFacebookIdentity(fastify.prisma, identity);
+      assertBetaAccess(account, env.betaAccess.inviteOnly);
+      if (account.twoFactorEnabledAt && !(await TwoFactorService.isTrustedDevice(fastify.prisma, account.id, readSignedCookie(request, TRUSTED_DEVICE_COOKIE)))) {
+        setTwoFactorCookie(reply, await TwoFactorService.beginChallenge(fastify.prisma, account.id, 'FACEBOOK', remember));
+        return conclude(twoFactorRedirect(redirectUri));
+      }
+      const { token } = await createSession(fastify.prisma, account.id, { userAgent: request.headers['user-agent'], ip: request.ip, method: 'FACEBOOK', remember });
+      fastify.setSessionCookie(reply, token, remember);
+      await noteSignIn(fastify.prisma, request, reply, account);
+      return conclude(postLoginRedirect(redirectUri));
+    } catch (error) {
+      request.log.warn({ err: error }, linkMode ? 'Facebook account link failed' : 'Facebook sign-in failed');
+      const message = error instanceof AppError ? error.message : 'Facebook sign-in failed. Try again.';
+      return conclude(linkMode ? accountRedirect(message) : authRedirect(message));
+    }
+  });
+
+  fastify.delete('/facebook', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(appleUnlinkSchema, request.body);
+    const { account, session } = request.auth!;
+    if (!account.facebookId) return { ok: true, message: 'Facebook is already unlinked.', account: toAccountDto(account, session) };
+    if (env.accounts.requireAdminSecondFactor && isStaff(account) && (!account.twoFactorEnabledAt || !session.twoFactor)) throw AppError.conflict('ADMIN_FACEBOOK_LOCKED', 'Staff must enable two-step sign-in and confirm a code before unlinking Facebook.');
+    if (!(await verifyPassword(account.passwordHash, body.currentPassword))) throw AppError.badRequest('CURRENT_PASSWORD_INVALID', 'That current password does not match.', { currentPassword: 'Enter your current password.' });
+    const updated = await fastify.prisma.account.update({ where: { id: account.id }, data: { facebookId: null, facebookEmail: null, facebookLinkedAt: null } });
+    return { ok: true, message: 'Facebook account unlinked.', account: toAccountDto(updated, session) };
+  });
+
+  fastify.get('/google', async (request, reply) => {
+    const query = discordStartSchema.parse(request.query);
+    const linkMode = query.link === true;
+    if (!env.googleOAuth.enabled) return reply.redirect(linkMode ? accountRedirect('Google sign-in is not configured yet.') : authRedirect('Google sign-in is not configured yet.'));
+    if (linkMode && !request.auth) return reply.redirect(authRedirect('Log in before linking Google.'));
+    const state = randomBytes(32).toString('base64url');
+    const nonce = randomBytes(32).toString('base64url');
+    const redirectUri = googleRedirectUri(request);
+    const client = new OAuth2Client(env.googleOAuth.clientId, env.googleOAuth.clientSecret, redirectUri);
+    const authorize = client.generateAuthUrl({ response_type: 'code', scope: ['openid', 'email', 'profile'], state, nonce, prompt: 'select_account' });
+    setGoogleCookie(reply, GOOGLE_STATE_COOKIE, state);
+    setGoogleCookie(reply, GOOGLE_NONCE_COOKIE, nonce);
+    setGoogleCookie(reply, GOOGLE_REDIRECT_URI_COOKIE, redirectUri);
+    setGoogleCookie(reply, GOOGLE_REMEMBER_COOKIE, query.remember ? '1' : '0');
+    if (linkMode) setGoogleCookie(reply, GOOGLE_LINK_COOKIE, '1');
+    return reply.redirect(authorize);
+  });
+
+  fastify.get('/google/callback', async (request, reply) => {
+    const query = discordCallbackSchema.parse(request.query);
+    const expectedState = googleCookie(request, GOOGLE_STATE_COOKIE);
+    const nonce = googleCookie(request, GOOGLE_NONCE_COOKIE);
+    const savedRedirectUri = googleCookie(request, GOOGLE_REDIRECT_URI_COOKIE);
+    const linkMode = googleCookie(request, GOOGLE_LINK_COOKIE) === '1';
+    const remember = googleCookie(request, GOOGLE_REMEMBER_COOKIE) !== '0';
+    clearGoogleCookies(reply);
+    const conclude = (url: string) => reply.redirect(url);
+    if (query.error) return conclude(linkMode ? accountRedirect('Google linking was cancelled.') : authRedirect('Google sign-in was cancelled.'));
+    if (!query.code || !query.state || query.state !== expectedState || !nonce) return conclude(linkMode ? accountRedirect('Google linking expired. Try again.') : authRedirect('Google sign-in expired. Try again.'));
+    const redirectUri = savedRedirectUri || googleRedirectUri(request);
+    try {
+      const identity = await googleIdentityFromCode(query.code, redirectUri, nonce);
+      if (linkMode) {
+        if (!request.auth) return conclude(authRedirect('Log in before linking Google.'));
+        if (adminNeedsSecondFactor(request.auth.account, request.auth.session)) return conclude(accountRedirect('Confirm your authenticator sign-in before linking Google.'));
+        await linkGoogleToAccount(fastify.prisma, request.auth.account, identity);
+        return conclude(accountRedirect('Google is linked.'));
+      }
+      const account = await accountForGoogleIdentity(fastify.prisma, identity);
+      assertBetaAccess(account, env.betaAccess.inviteOnly);
+      if (account.twoFactorEnabledAt && !(await TwoFactorService.isTrustedDevice(fastify.prisma, account.id, readSignedCookie(request, TRUSTED_DEVICE_COOKIE)))) {
+        setTwoFactorCookie(reply, await TwoFactorService.beginChallenge(fastify.prisma, account.id, 'GOOGLE', remember));
+        return conclude(twoFactorRedirect(redirectUri));
+      }
+      const { token } = await createSession(fastify.prisma, account.id, { userAgent: request.headers['user-agent'], ip: request.ip, method: 'GOOGLE', remember });
+      fastify.setSessionCookie(reply, token, remember);
+      await noteSignIn(fastify.prisma, request, reply, account);
+      return conclude(postLoginRedirect(redirectUri));
+    } catch (error) {
+      request.log.warn({ err: error }, linkMode ? 'Google account link failed' : 'Google sign-in failed');
+      const message = error instanceof AppError ? error.message : 'Google sign-in failed. Try again.';
+      return conclude(linkMode ? accountRedirect(message) : authRedirect(message));
+    }
+  });
+
+  fastify.delete('/google', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(appleUnlinkSchema, request.body);
+    const { account, session } = request.auth!;
+    if (!account.googleId) return { ok: true, message: 'Google is already unlinked.', account: toAccountDto(account, session) };
+    if (env.accounts.requireAdminSecondFactor && isStaff(account) && (!account.twoFactorEnabledAt || !session.twoFactor)) throw AppError.conflict('ADMIN_GOOGLE_LOCKED', 'Staff must enable two-step sign-in and confirm a code before unlinking Google.');
+    if (!(await verifyPassword(account.passwordHash, body.currentPassword))) throw AppError.badRequest('CURRENT_PASSWORD_INVALID', 'That current password does not match.', { currentPassword: 'Enter your current password.' });
+    const updated = await fastify.prisma.account.update({ where: { id: account.id }, data: { googleId: null, googleEmail: null, googleLinkedAt: null } });
+    return { ok: true, message: 'Google account unlinked.', account: toAccountDto(updated, session) };
+  });
+
+  fastify.get('/apple', async (request, reply) => {
+    const query = discordStartSchema.parse(request.query);
+    const linkMode = query.link === true;
+    if (!env.apple.enabled) {
+      return reply.redirect(linkMode
+        ? accountRedirect('Apple sign-in is not configured yet.')
+        : authRedirect('Apple sign-in is not configured yet.'));
+    }
+    if (linkMode && !request.auth) return reply.redirect(authRedirect('Log in before linking Apple.'));
+
+    const state = randomBytes(32).toString('base64url');
+    const nonce = randomBytes(32).toString('base64url');
+    const redirectUri = appleRedirectUri(request);
+    const authorize = new URL(APPLE_AUTHORIZE_URL);
+    authorize.searchParams.set('client_id', env.apple.clientId);
+    authorize.searchParams.set('redirect_uri', redirectUri);
+    authorize.searchParams.set('response_type', 'code');
+    authorize.searchParams.set('response_mode', 'form_post');
+    authorize.searchParams.set('scope', 'name email');
+    authorize.searchParams.set('state', state);
+    authorize.searchParams.set('nonce', nonce);
+
+    setAppleCookie(reply, APPLE_STATE_COOKIE, state);
+    setAppleCookie(reply, APPLE_NONCE_COOKIE, nonce);
+    setAppleCookie(reply, APPLE_REDIRECT_URI_COOKIE, redirectUri);
+    setAppleCookie(reply, APPLE_REMEMBER_COOKIE, query.remember ? '1' : '0');
+    if (linkMode) setAppleCookie(reply, APPLE_LINK_COOKIE, '1');
+    return reply.redirect(authorize.toString());
+  });
+
+  fastify.post('/apple/callback', async (request, reply) => {
+    const query = appleCallbackSchema.parse(request.body);
+    const expectedState = appleCookie(request, APPLE_STATE_COOKIE);
+    const nonce = appleCookie(request, APPLE_NONCE_COOKIE);
+    const savedRedirectUri = appleCookie(request, APPLE_REDIRECT_URI_COOKIE);
+    const linkMode = appleCookie(request, APPLE_LINK_COOKIE) === '1';
+    const remember = appleCookie(request, APPLE_REMEMBER_COOKIE) !== '0';
+    clearAppleCookies(reply);
+
+    if (query.error) return reply.redirect(linkMode ? accountRedirect('Apple linking was cancelled.') : authRedirect('Apple sign-in was cancelled.'));
+    if (!query.code || !query.state || !expectedState || query.state !== expectedState || !nonce) {
+      return reply.redirect(linkMode ? accountRedirect('Apple linking expired. Try again.') : authRedirect('Apple sign-in expired. Try again.'));
+    }
+
+    const redirectUri = savedRedirectUri || appleRedirectUri(request);
+    try {
+      const identity = await appleIdentityFromCode(query.code, redirectUri, nonce);
+      if (linkMode) {
+        if (!request.auth) return reply.redirect(authRedirect('Log in before linking Apple.'));
+        if (adminNeedsSecondFactor(request.auth.account, request.auth.session)) {
+          return reply.redirect(accountRedirect('Confirm your authenticator sign-in before linking Apple.'));
+        }
+        await linkAppleToAccount(fastify.prisma, request.auth.account, identity);
+        return reply.redirect(accountRedirect('Apple is linked.'));
+      }
+
+      const account = await accountForAppleIdentity(fastify.prisma, identity);
+      assertBetaAccess(account, env.betaAccess.inviteOnly);
+      if (account.twoFactorEnabledAt && !(await TwoFactorService.isTrustedDevice(fastify.prisma, account.id, readSignedCookie(request, TRUSTED_DEVICE_COOKIE)))) {
+        setTwoFactorCookie(reply, await TwoFactorService.beginChallenge(fastify.prisma, account.id, 'APPLE', remember));
+        return reply.redirect(twoFactorRedirect(redirectUri));
+      }
+      const { token } = await createSession(fastify.prisma, account.id, {
+        userAgent: request.headers['user-agent'], ip: request.ip, method: 'APPLE', remember,
+      });
+      fastify.setSessionCookie(reply, token, remember);
+      await noteSignIn(fastify.prisma, request, reply, account);
+      return reply.redirect(postLoginRedirect(redirectUri));
+    } catch (error) {
+      request.log.warn({ err: error }, linkMode ? 'Apple account link failed' : 'Apple sign-in failed');
+      const message = error instanceof AppError ? error.message : 'Apple sign-in failed. Try again.';
+      return reply.redirect(linkMode ? accountRedirect(message) : authRedirect(message));
+    }
+  });
+
+  fastify.delete('/apple', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(appleUnlinkSchema, request.body);
+    const { account, session } = request.auth!;
+    if (!account.appleId) return { ok: true, message: 'Apple is already unlinked.', account: toAccountDto(account, session) };
+    if (env.accounts.requireAdminSecondFactor && isStaff(account) && (!account.twoFactorEnabledAt || !session.twoFactor)) {
+      throw AppError.conflict('ADMIN_APPLE_LOCKED', 'Staff must enable two-step sign-in and confirm a code before unlinking Apple.');
+    }
+    if (!(await verifyPassword(account.passwordHash, body.currentPassword))) {
+      throw AppError.badRequest('CURRENT_PASSWORD_INVALID', 'That current password does not match.', { currentPassword: 'Enter your current password.' });
+    }
+    const updated = await fastify.prisma.account.update({
+      where: { id: account.id },
+      data: { appleId: null, appleEmail: null, appleLinkedAt: null },
+    });
+    return { ok: true, message: 'Apple account unlinked.', account: toAccountDto(updated, session) };
   });
 
 

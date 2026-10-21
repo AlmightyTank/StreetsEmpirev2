@@ -55,6 +55,19 @@ const envSchema = z.object({
   DISCORD_CLIENT_SECRET: z.string().default(''),
   DISCORD_REDIRECT_URI: z.string().default(''),
 
+  APPLE_CLIENT_ID: z.string().default(''),
+  APPLE_TEAM_ID: z.string().default(''),
+  APPLE_KEY_ID: z.string().default(''),
+  /** Apple Sign in .p8 private key; accepts literal newlines or escaped \\n sequences. */
+  APPLE_PRIVATE_KEY: z.string().default(''),
+  APPLE_REDIRECT_URI: z.string().default(''),
+  GOOGLE_OAUTH_CLIENT_ID: z.string().default(''),
+  GOOGLE_OAUTH_CLIENT_SECRET: z.string().default(''),
+  GOOGLE_OAUTH_REDIRECT_URI: z.string().default(''),
+  FACEBOOK_APP_ID: z.string().default(''),
+  FACEBOOK_APP_SECRET: z.string().default(''),
+  FACEBOOK_REDIRECT_URI: z.string().default(''),
+
   FORUM_ORIGIN: z.string().url().default('https://forum.streetsempire.dev'),
   FORUM_LINK_SECRET: z.union([z.literal(''), z.string().min(64)]).default(''),
   /** Flarum admin API key used to mirror news into the announcements tag. */
@@ -412,6 +425,29 @@ export const env = {
     clientSecret: parsed.data.DISCORD_CLIENT_SECRET,
     redirectUri: parsed.data.DISCORD_REDIRECT_URI,
     enabled: Boolean(parsed.data.DISCORD_CLIENT_ID && parsed.data.DISCORD_CLIENT_SECRET),
+  },
+  apple: {
+    clientId: parsed.data.APPLE_CLIENT_ID,
+    teamId: parsed.data.APPLE_TEAM_ID,
+    keyId: parsed.data.APPLE_KEY_ID,
+    privateKey: parsed.data.APPLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+    redirectUri: parsed.data.APPLE_REDIRECT_URI,
+    enabled: parsed.data.NODE_ENV !== 'test' && Boolean(
+      parsed.data.APPLE_CLIENT_ID && parsed.data.APPLE_TEAM_ID && parsed.data.APPLE_KEY_ID
+      && parsed.data.APPLE_PRIVATE_KEY && parsed.data.APPLE_REDIRECT_URI,
+    ),
+  },
+  googleOAuth: {
+    clientId: parsed.data.GOOGLE_OAUTH_CLIENT_ID,
+    clientSecret: parsed.data.GOOGLE_OAUTH_CLIENT_SECRET,
+    redirectUri: parsed.data.GOOGLE_OAUTH_REDIRECT_URI,
+    enabled: parsed.data.NODE_ENV !== 'test' && Boolean(parsed.data.GOOGLE_OAUTH_CLIENT_ID && parsed.data.GOOGLE_OAUTH_CLIENT_SECRET),
+  },
+  facebook: {
+    appId: parsed.data.FACEBOOK_APP_ID,
+    appSecret: parsed.data.FACEBOOK_APP_SECRET,
+    redirectUri: parsed.data.FACEBOOK_REDIRECT_URI,
+    enabled: parsed.data.NODE_ENV !== 'test' && Boolean(parsed.data.FACEBOOK_APP_ID && parsed.data.FACEBOOK_APP_SECRET),
   },
   email: {
     resendApiKey: parsed.data.RESEND_API_KEY,

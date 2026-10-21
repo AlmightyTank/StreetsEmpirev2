@@ -236,6 +236,9 @@ export const TwoFactorService = {
       await prisma.loginChallenge.updateMany({ where: { id: challenge.id }, data: { attempts: { increment: 1 } } });
       throw invalidCode();
     }
-    return { account: challenge.account, method: challenge.method === 'DISCORD' ? 'DISCORD' : 'PASSWORD', remember: challenge.remember, usedRecoveryCode: result === 'recovery' };
+    const method = challenge.method === 'DISCORD' || challenge.method === 'APPLE' || challenge.method === 'PLAY_GAMES' || challenge.method === 'GOOGLE' || challenge.method === 'FACEBOOK'
+      ? challenge.method
+      : 'PASSWORD';
+    return { account: challenge.account, method, remember: challenge.remember, usedRecoveryCode: result === 'recovery' };
   },
 };
