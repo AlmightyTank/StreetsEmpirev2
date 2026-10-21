@@ -115,7 +115,7 @@ describe('rankRows', () => {
 
 describe('public street sign', () => {
   it('shares valid normalized designs when profile look is visible', () => {
-    expect(publicStreetSign({ streetSign: { ...DEFAULT_STREET_SIGN, streetName: 'Cedar' }, showLookOnProfile: true }))
+    expect(publicStreetSign({ streetSign: { ...DEFAULT_STREET_SIGN, streetName: 'Old Name' }, crewName: 'Cedar', showLookOnProfile: true }))
       .toMatchObject({ streetName: 'Cedar', shape: 'classic' });
   });
 
