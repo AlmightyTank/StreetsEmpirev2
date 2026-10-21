@@ -57,7 +57,7 @@ export const ITEM_ART = {
   AMMO_CRATE: { name: 'Ammo Crate', shortName: 'Ammo Crate', category: 'SUPPLY', rarity: 'RARE', file: 'ammo.svg', cells: ONE },
   PARTS_BOX: { name: 'Parts Box', shortName: 'Parts Box', category: 'SUPPLY', rarity: 'COMMON', file: 'parts.svg', cells: ONE },
   PARTS_CRATE: { name: 'Parts Crate', shortName: 'Parts Crate', category: 'SUPPLY', rarity: 'UNCOMMON', file: 'parts.svg', cells: ONE },
-  PARTS_PALLET: { name: 'Parts Pallet', shortName: 'Parts Pallet', category: 'SUPPLY', rarity: 'RARE', file: 'parts.svg', cells: ONE },
+  PARTS_PALLET: { name: 'Parts Pallet', shortName: 'Pallet', category: 'SUPPLY', rarity: 'RARE', file: 'parts.svg', cells: ONE },
 
   // Products
   CRACK: { name: 'Crack', shortName: 'Crack', category: 'PRODUCT', rarity: 'COMMON', file: 'crack.svg', cells: ONE },
