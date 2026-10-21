@@ -22,6 +22,7 @@
     "release:rc": "node scripts/qa/release-check.mjs --with-db --with-load",
     "qa:load": "node scripts/qa/load-smoke.mjs",
     "qa:combat": "node --import tsx scripts/qa/combat-sim.mjs",
+    "qa:individual-combat": "node --import tsx scripts/qa/individual-combat-sim.mjs",
     "qa:ammo-combat": "node --import tsx scripts/qa/ammo-combat-sim.mjs",
     "qa:ammo-season": "node --import tsx scripts/qa/ammo-parts-season-sim.mjs",
     "qa:ammo-release": "node --import tsx scripts/qa/ammo-parts-release-sim.mjs",

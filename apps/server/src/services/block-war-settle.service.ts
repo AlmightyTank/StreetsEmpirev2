@@ -52,6 +52,8 @@ import { recordTerritoryControlChange, territoryControlForCity } from './turf-te
 import { emitCityMemoryEvent } from './city-memory.service.js';
 import { CrewRosterService } from './crew-roster.service.js';
 import { coolHeat, PlayerSkillService } from './player-skill.service.js';
+import { planIndividualCombat } from './individual-combat.service.js';
+import { IndividualItemsService } from './individual-items.service.js';
 
 /**
  * 1.1.0-D. Block wars settle lazily, the way turf pushes do: whenever anyone in the war
@@ -326,6 +328,9 @@ async function resolveFight(tx: Db, state: WarState, fight: BlockWarFight, at: D
   let defend = side(defenderGroups, defenderEngaged);
   let ammoSpentRounds = { attacker: 0, defender: 0, defenderFree: 0 };
   const ammoRules = base.ammoParts?.enabled && base.ammoParts.combatEnabled ? base.ammoParts.ammo : null;
+  const itemRules = base.individualItems?.enabled && ammoRules ? base.individualItems : null;
+  const individualPlans: Array<{ playerId: string; plan: Awaited<ReturnType<typeof planIndividualCombat>> }> = [];
+  const sideStrengthMultipliers: { attacker: number; defender: number } = { attacker: 1, defender: 1 };
   if (ammoRules && attack.thugs > 0 && defend.thugs > 0) {
     const participantIds = [...new Set([...attackerGroups, ...defenderGroups].map((group) => group.playerId))].sort();
     for (const id of participantIds) await lockRoundPlayer(tx, id);
@@ -341,6 +346,8 @@ async function resolveFight(tx: Db, state: WarState, fight: BlockWarFight, at: D
       let weapons: Weapons = { ...NO_WEAPONS };
       let roundsSpent = 0;
       let freeRounds = 0;
+      let weightedMultiplier = 0;
+      let multiplierWeight = 0;
       const allocationGroups = defenderSide
         ? [...groups].sort((a, b) => {
             const topPower = (snapshot: WarCrewSnapshot) => Math.max(0, ...Object.entries(snapshot.weapons)
@@ -353,11 +360,28 @@ async function resolveFight(tx: Db, state: WarState, fight: BlockWarFight, at: D
         const committed = engaged[group.key] ?? 0;
         if (committed <= 0) continue;
         const availableWeapons = pickWeapons(group.snapshot, committed, model);
-        const allocation = equipCombatSquadWithAmmo({
+        const crewInput = {
           thugs: committed,
           thugHappiness: group.snapshot.thugHappiness,
           weapons: availableWeapons,
-        }, committed, model, ammoLeft.get(group.playerId) ?? 0, ammoRules.roundsPerFight, {
+        };
+        if (itemRules) {
+          const plan = await planIndividualCombat(tx, group.playerId, crewInput, committed, model, itemRules, ammoRules,
+            ammoLeft.get(group.playerId) ?? 0, defenderSide ? 'DEFENDER' : 'ATTACKER',
+            seededRng(hashParts(war.id, fight.id, group.key, 'individual-gun-jam')));
+          individualPlans.push({ playerId: group.playerId, plan });
+          const allocation = plan.crew.weapons;
+          const rounds = plan.roundsSpent;
+          ammoLeft.set(group.playerId, (ammoLeft.get(group.playerId) ?? 0) - rounds);
+          spentByPlayer.set(group.playerId, (spentByPlayer.get(group.playerId) ?? 0) + rounds);
+          roundsSpent += rounds; freeRounds += plan.freeRounds;
+          if (defenderSide) defenderFloorLeft = Math.max(0, defenderFloorLeft - Object.values(allocation).reduce((sum, count) => sum + count, 0));
+          weapons = addWeapons(weapons, allocation);
+          weightedMultiplier += plan.strengthMultiplier * committed;
+          multiplierWeight += committed;
+          continue;
+        }
+        const allocation = equipCombatSquadWithAmmo(crewInput, committed, model, ammoLeft.get(group.playerId) ?? 0, ammoRules.roundsPerFight, {
           defenderFloorFighters: defenderSide ? defenderFloorLeft : 0,
         });
         const rounds = allocation.roundsSpent;
@@ -368,7 +392,7 @@ async function resolveFight(tx: Db, state: WarState, fight: BlockWarFight, at: D
         if (defenderSide) defenderFloorLeft = Math.max(0, defenderFloorLeft - Object.values(allocation.equipment).reduce((sum, count) => sum + count, 0));
         weapons = addWeapons(weapons, allocation.equipment);
       }
-      return { weapons, roundsSpent, freeRounds };
+      return { weapons, roundsSpent, freeRounds, strengthMultiplier: multiplierWeight ? weightedMultiplier / multiplierWeight : 1 };
     };
     const [attackerAmmo, defenderAmmo] = await Promise.all([
       fundSide(attackerGroups, attackerEngaged, false),
@@ -376,6 +400,8 @@ async function resolveFight(tx: Db, state: WarState, fight: BlockWarFight, at: D
     ]);
     attack = { ...attack, weapons: attackerAmmo.weapons };
     defend = { ...defend, weapons: defenderAmmo.weapons };
+    sideStrengthMultipliers.attacker = attackerAmmo.strengthMultiplier;
+    sideStrengthMultipliers.defender = defenderAmmo.strengthMultiplier;
     ammoSpentRounds = { attacker: attackerAmmo.roundsSpent, defender: defenderAmmo.roundsSpent, defenderFree: defenderAmmo.freeRounds };
     for (const [id, rounds] of spentByPlayer) {
       if (rounds > 0) await tx.roundPlayer.update({ where: { id }, data: { ammo: { decrement: rounds } } });
@@ -397,11 +423,19 @@ async function resolveFight(tx: Db, state: WarState, fight: BlockWarFight, at: D
       attackingThugs: attack.thugs,
       attackerTurns: model.turnCost,
       defenderCashCents: 0n,
+      ...(itemRules ? {
+        attackerBoost: { strength: sideStrengthMultipliers.attacker, wounds: 1 },
+        defenderBoost: { strength: sideStrengthMultipliers.defender, wounds: 1 },
+      } : {}),
     }, model, seededRng(hashParts(war.id, fight.id, 'block-war-fight')));
     attackerWon = result.winner === 'ATTACKER';
     attackerWounds = result.wounds.attacker;
     defenderWounds = result.wounds.defender;
     strength = { attacker: Math.round(result.effectiveStrength.attacker), defender: Math.round(result.effectiveStrength.defender) };
+  }
+  for (const { playerId, plan } of individualPlans) await plan.settle(tx, playerId);
+  if (individualPlans.length) for (const playerId of new Set(individualPlans.map(({ playerId }) => playerId))) {
+    await IndividualItemsService.refreshSummary(tx, playerId);
   }
   const recoverAt = new Date(at.getTime() + model.wounds.recoveryMinutes * 60_000);
 
@@ -499,6 +533,7 @@ async function resolveFight(tx: Db, state: WarState, fight: BlockWarFight, at: D
   const result = {
     kind: fight.kind, attackerWon, strength,
     ...(ammoRules ? { ammoSpentRounds } : {}),
+    ...(individualPlans.some(({ plan }) => plan.receipts.length) ? { individualGuns: individualPlans.flatMap(({ plan }) => plan.receipts) } : {}),
     attackers: attack.thugs, defenders: defend.thugs, corner: defenderEngaged.corner ?? 0,
     attackerWounds: Object.values(attackerSplit).reduce((sum, value) => sum + value, 0),
     defenderWounds, cornerWounds, control: Math.round(war.control),

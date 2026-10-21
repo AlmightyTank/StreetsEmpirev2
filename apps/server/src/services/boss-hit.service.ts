@@ -21,9 +21,11 @@ import type { BossHitCrew, BossHitOutcome } from './boss-trip-settle.service.js'
 import { hideoutWeaponPriority } from './hideout.service.js';
 import { truceBlock, trucesFor } from './boss-presence.service.js';
 import { PlayerStateService } from './player-state.service.js';
+import { planIndividualCombat } from './individual-combat.service.js';
 
 const RECENT_MS = 24 * 60 * 60_000;
 const NO_GUNS = { PISTOL: 0, SHOTGUN: 0, TEK9: 0, AK47: 0 };
+const json = (value: unknown) => JSON.parse(JSON.stringify(value));
 const cityName = (ruleset: Ruleset, slug: string) => ruleset.cities?.[slug]?.name ?? slug;
 
 /** What an area recon keeps about a visiting boss it spotted. */
@@ -196,13 +198,21 @@ export const BossHitService = {
           weaponPriority: hideoutWeaponPriority(base, player),
         };
         const ammoRules = base.ammoParts?.enabled && base.ammoParts.combatEnabled ? base.ammoParts.ammo : null;
-        const squad = ammoRules
+        const itemRules = base.individualItems?.enabled && ammoRules ? base.individualItems : null;
+        const individual = itemRules ? await planIndividualCombat(tx, attackerId,
+          { thugs: crewInput.thugs, thugHappiness: crewInput.thugHappiness, weapons: crewInput.weapons },
+          Math.min(input.squad, model.squadCap), model, itemRules, ammoRules!, current.ammo ?? 0, 'ATTACKER',
+          seededRng(hashParts(input.actionId ?? '', attackerId, 'boss-hit-individual'))) : null;
+        const squad = individual ? null : ammoRules
           ? equipCombatSquadWithAmmo(crewInput, Math.min(input.squad, model.squadCap), model, current.ammo ?? 0, ammoRules.roundsPerFight)
           : equipCombatSquad(crewInput, Math.min(input.squad, model.squadCap), model);
-        const roundsSpent = ammoRules ? (squad as ReturnType<typeof equipCombatSquadWithAmmo>).roundsSpent : 0;
+        const roundsSpent = individual?.roundsSpent ?? (ammoRules ? (squad as ReturnType<typeof equipCombatSquadWithAmmo>).roundsSpent : 0);
+        const individualGuns = individual ? await individual.reserve(tx, attackerId, input.actionId ?? 'BOSS_HIT') : [];
         const attackerCrew: BossHitCrew = {
           thugHappiness: player.thugHappiness,
-          weapons: { ...NO_GUNS, ...squad.equipment },
+          weapons: { ...NO_GUNS, ...(individual?.crew.weapons ?? squad!.equipment) },
+          ...(individual ? { strengthMultiplier: individual.strengthMultiplier } : {}),
+          ...(individual ? { individualGuns } : {}),
           ...(ammoRules ? { ammoSpentRounds: roundsSpent } : {}),
         };
         const hit = await tx.bossHit.create({
@@ -212,7 +222,8 @@ export const BossHitService = {
             turnsSpent: rules.turnCost, actionId: input.actionId, startedAt: at, landsAt,
           },
         });
-        const result: BossHitResult = { hitId: hit.id, landsAt: landsAt.toISOString(), city: trip.city, cityName: cityName(base, trip.city), squad: input.squad, turns: rules.turnCost };
+        const result: BossHitResult = { hitId: hit.id, landsAt: landsAt.toISOString(), city: trip.city, cityName: cityName(base, trip.city), squad: input.squad, turns: rules.turnCost,
+          ...(individualGuns.length ? { individualGuns } : {}) };
         return {
           next: {
             ...current,
@@ -221,7 +232,7 @@ export const BossHitService = {
             ...(ammoRules ? { ammo: (current.ammo ?? 0) - roundsSpent } : {}),
           },
           result,
-          activity: { type: 'BOSS_HIT', payload: { ...result, owner: owner.displayName } },
+          activity: { type: 'BOSS_HIT', payload: json({ ...result, owner: owner.displayName }) },
         };
       },
     }, now);
@@ -353,16 +364,24 @@ export const BossHitService = {
           weapons: { PISTOL: current.pistols, SHOTGUN: current.shotguns, TEK9: current.tek9s, AK47: current.ak47s },
           weaponPriority: hideoutWeaponPriority(base, player),
         };
-        // The visiting boss supplies the ammunition for the entire defense, including allies.
-        // Their guns stay in the snapshot; the trip owner's stock is charged when the fight lands.
-        const squad = equipCombatSquad(crewInput, Math.min(input.thugs, model.squadCap), model);
-        const crew: BossHitCrew = { thugHappiness: player.thugHappiness, weapons: { ...NO_GUNS, ...squad.equipment } };
+        // The visiting boss supplies ammunition for this defense; each ally brings their own item guns.
+        const itemRules = base.individualItems?.enabled && base.ammoParts?.enabled && base.ammoParts.combatEnabled ? base.individualItems : null;
+        const individual = itemRules ? await planIndividualCombat(tx, senderId,
+          { thugs: crewInput.thugs, thugHappiness: crewInput.thugHappiness, weapons: crewInput.weapons },
+          Math.min(input.thugs, model.squadCap), model, itemRules, base.ammoParts!.ammo, 2_147_483_647, 'ATTACKER',
+          seededRng(hashParts(input.actionId ?? '', senderId, 'boss-hit-backup-individual'))) : null;
+        const squad = individual ? null : equipCombatSquad(crewInput, Math.min(input.thugs, model.squadCap), model);
+        const individualGuns = individual ? await individual.reserve(tx, senderId, input.actionId ?? 'BOSS_HIT_BACKUP') : [];
+        const crew: BossHitCrew = { thugHappiness: player.thugHappiness,
+          weapons: { ...NO_GUNS, ...(individual?.crew.weapons ?? squad!.equipment) },
+          ...(individual ? { strengthMultiplier: individual.strengthMultiplier, individualGuns } : {}) };
         await tx.bossHitBackup.create({ data: { hitId: hit.id, playerId: senderId, thugs: input.thugs, crew: JSON.parse(JSON.stringify(crew)), sentAt: at } });
-        const result: BossHitBackupResult = { hitId: hit.id, thugs: input.thugs, landsAt: hit.landsAt.toISOString() };
+        const result: BossHitBackupResult = { hitId: hit.id, thugs: input.thugs, landsAt: hit.landsAt.toISOString(),
+          ...(individualGuns.length ? { individualGuns } : {}) };
         return {
           next: { ...current, busyThugs: current.busyThugs + input.thugs },
           result,
-          activity: { type: 'BOSS_HIT_BACKUP', payload: { ...result, owner: hit.owner.displayName, cityName: cityName(base, hit.city) } },
+          activity: { type: 'BOSS_HIT_BACKUP', payload: json({ ...result, owner: hit.owner.displayName, cityName: cityName(base, hit.city) }) },
         };
       },
     }, now);

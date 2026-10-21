@@ -14,6 +14,8 @@ import { endTurfHold, startTurfHold } from './turf-history.service.js';
 import { SingleUseFavorService } from './single-use-favor.service.js';
 import { applyLocalsClaim, dormancyFor, dormantLevelNow, localsMaxWithBusinesses } from './block-dormancy.service.js';
 import { CrewRosterService } from './crew-roster.service.js';
+import { planIndividualCombat } from './individual-combat.service.js';
+import { IndividualItemsService } from './individual-items.service.js';
 
 function localDistrictName(ruleset: Ruleset, citySlug: string, district: DistrictKey): string {
   return ruleset.cities?.[citySlug]?.districts?.[district]?.name ?? ruleset.districts[district].name;
@@ -122,13 +124,21 @@ export const TurfActionService = {
           'LOCAL_TURF_STANDDOWN',
         );
         const ammoRules = ruleset.ammoParts?.enabled && ruleset.ammoParts.combatEnabled ? ruleset.ammoParts.ammo : null;
-        const attacker = ammoRules
+        const itemRules = ruleset.individualItems?.enabled && ammoRules ? ruleset.individualItems : null;
+        const individual = itemRules && !standDown ? await planIndividualCombat(tx, roundPlayerId,
+          { thugs: input.thugs, thugHappiness, weapons: engineGuns(guns) }, Math.min(input.thugs, model.squadCap), model,
+          itemRules, ammoRules!, current.ammo ?? 0, 'ATTACKER', rng) : null;
+        const attacker = individual
+          ? (() => { const equipped = equipCombatSquad(individual.crew, Math.min(input.thugs, model.squadCap), model);
+            return { ...equipped, strength: equipped.strength * individual.strengthMultiplier }; })()
+          : ammoRules
           ? equipCombatSquadWithAmmo({ thugs: input.thugs, thugHappiness, weapons: engineGuns(guns) }, Math.min(input.thugs, model.squadCap), model, current.ammo ?? 0, ammoRules.roundsPerFight)
           : equipCombatSquad({ thugs: input.thugs, thugHappiness, weapons: engineGuns(guns) }, Math.min(input.thugs, model.squadCap), model);
         const defender = ammoRules
           ? equipCombatSquadWithAmmo({ thugs: locals, thugHappiness: 100, weapons: localsGuns(ruleset, locals) }, Math.min(locals, model.squadCap), model, 0, ammoRules.roundsPerFight, { defenderFloorFighters: ammoRules.defenderFloor })
           : equipCombatSquad({ thugs: locals, thugHappiness: 100, weapons: localsGuns(ruleset, locals) }, Math.min(locals, model.squadCap), model);
-        const ammoSpentRounds = ammoRules && !standDown ? (attacker as { roundsSpent?: number }).roundsSpent ?? 0 : 0;
+        const ammoSpentRounds = individual?.roundsSpent ?? (ammoRules && !standDown ? (attacker as { roundsSpent?: number }).roundsSpent ?? 0 : 0);
+        if (individual) { await individual.settle(tx, roundPlayerId); await IndividualItemsService.refreshSummary(tx, roundPlayerId); }
         const variance = ruleset.turf!.push.fight.variance;
         const attackerStrength = standDown
           ? attacker.strength
@@ -164,7 +174,7 @@ export const TurfActionService = {
         return {
           next,
           result: { district: key, districtName, won, squad: input.thugs, localsThugs: locals, cornerThugs: won ? input.thugs : 0, turnsUsed: ruleset.turf!.corner.postTurnCost,
-            ...(ammoRules ? { ammoSpentRounds } : {}) },
+            ...(ammoRules ? { ammoSpentRounds } : {}), ...(individual?.receipts.length ? { individualGuns: individual.receipts } : {}) },
           activity: { type: 'TURF_CLAIM', payload: {
             district: key, districtName, won, thugs: input.thugs, locals,
             attackerStrength: Math.round(attackerStrength * 10) / 10, defenderStrength: Math.round(defenderStrength * 10) / 10,

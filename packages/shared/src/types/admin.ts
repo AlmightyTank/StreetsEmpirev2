@@ -18,6 +18,8 @@ export interface AdminRulesetOptionDto {
   name: string;
   /** Explicit rollout marker for features that are enabled only by a versioned ruleset. */
   streetSkills: boolean;
+  /** Choosing this version when scheduling a round opts that new round into individual equipment. */
+  individualItems: boolean;
 }
 
 export interface AdminRoundsDto {
@@ -730,6 +732,16 @@ export interface AdminVehicleAdjustmentInput {
   damaged: number;
   disabled: number;
   reason: string;
+}
+
+/** Read-only staff view of a player's bounded individual equipment inventory and event trail. */
+export interface AdminArmoryPlayerDto {
+  round: { id: string; name: string; rulesetId: string; rulesetVersion: string };
+  player: { roundPlayerId: string; displayName: string; publicPimpId: number };
+  summary: { guns: number; vehicles: number };
+  truncated: boolean;
+  items: Array<{ kind: 'GUN' | 'VEHICLE'; id: string; model: string; name: string | null; quantity: number; condition: number; status: string; mods: unknown; lookKey: string | null; origin: unknown; stats: unknown; history: Array<{ at: string; type: string; summary: string; city?: string; otherPlayer?: string }>; updatedAt: string }>;
+  audit: Array<{ itemId: string; kind: 'GUN' | 'VEHICLE'; model: string; name: string | null; at: string; type: string; summary: string; city?: string; otherPlayer?: string }>;
 }
 
 /** Read-only player state as stored. Turns are as of the last settlement, not regenerated. */

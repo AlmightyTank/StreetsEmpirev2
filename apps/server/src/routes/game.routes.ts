@@ -35,6 +35,9 @@ import {
   hideoutSpecializationSchema,
   hideoutWeaponPrioritySchema,
   armoryBulkActionSchema,
+  armoryLookActionSchema,
+  armoryFeatureItemSchema,
+  armoryModActionSchema,
   favorActivateSchema,
   favorArmSchema,
   streetPassClaimSchema,
@@ -621,13 +624,31 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/armory', { preHandler: fastify.requireAuth }, async (request) => {
     const { player } = await requirePlayer(request.auth!.account.id);
     const settled = await PlayerStateService.settle(fastify.prisma, player.id, { markActive: true });
-    return ArmoryService.catalog(fastify.prisma, player.id, settled.ruleset);
+    return ArmoryService.catalog(fastify.prisma, player.id, request.auth!.account.id, settled.ruleset);
+  });
+
+  fastify.post('/armory/look', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(armoryLookActionSchema, request.body);
+    const { player } = await requirePlayer(request.auth!.account.id);
+    return ArmoryService.setLook(fastify.prisma, player.id, request.auth!.account.id, body);
+  });
+
+  fastify.post('/armory/feature', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(armoryFeatureItemSchema, request.body);
+    const { player } = await requirePlayer(request.auth!.account.id);
+    return ArmoryService.feature(fastify.prisma, player.id, request.auth!.account.id, body);
   });
 
   fastify.post('/armory/actions', { preHandler: fastify.requireAuth }, async (request) => {
     const body = parseBody(armoryBulkActionSchema, request.body);
     const { player } = await requirePlayer(request.auth!.account.id);
     return ArmoryService.update(fastify.prisma, player.id, body);
+  });
+
+  fastify.post('/armory/mod-actions', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(armoryModActionSchema, request.body);
+    const { player } = await requirePlayer(request.auth!.account.id);
+    return ArmoryService.customize(fastify.prisma, player.id, body);
   });
 
   fastify.get('/hideout/cosmetics', { preHandler: fastify.requireAuth }, async (request) =>

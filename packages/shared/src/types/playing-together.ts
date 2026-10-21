@@ -1,6 +1,7 @@
 import type { AllianceTagDto } from './alliance.js';
 import type { QuestLinkDto, QuestLockDto, RandomEncounterDto, TerritoryModifierReceiptDto } from './api.js';
 import type { AvatarParts } from '../avatar-builder.js';
+import type { IndividualGunUseDto } from './combat.js';
 
 /** 0.3.0-D. Limits that keep the wire and the rolodex small. Not balance, so they live here. */
 export const WIRE_POST_MAX = 280;
@@ -793,6 +794,7 @@ export interface TurfClaimResult {
   cornerThugs: number;
   turnsUsed: number;
   ammoSpentRounds?: number;
+  individualGuns?: IndividualGunUseDto[];
 }
 export interface TurfPostResult {
   district: TurfBlockDto['district'];
@@ -923,6 +925,8 @@ export interface RunDto {
   lowRiders: number;
   /** 1.5.0-B. Vehicle composition, preserved for the return trip. */
   vehicleLoadout?: { LOW_RIDER: number; SEDAN: number; VAN: number };
+  /** 2.5.0-E. Vehicles currently assigned to this run. */
+  individualVehicles?: Array<{ id: string; model: 'SEDAN' | 'LOW_RIDER' | 'VAN'; name: string | null; plate: string | null; mods: Array<{ key: string; tier: number }>; condition: number; trouble?: 'READY' | 'DAMAGED' | 'DISABLED' }>;
   /** 1.5.0-C. The part of the loadout coming home Damaged or Disabled. Absent on a clean run. */
   vehicleDamage?: VehicleDamageDto;
   escortThugs: number;
@@ -1029,6 +1033,8 @@ export interface RunReceiptDto {
   cities: Array<{ slug: string; name: string }>;
   lowRiders: number;
   vehicleLoadout?: { LOW_RIDER: number; SEDAN: number; VAN: number };
+  /** 2.5.0-E. The actual vehicles returned from this run, including wear and trouble. */
+  individualVehicles?: Array<{ id: string; model: 'SEDAN' | 'LOW_RIDER' | 'VAN'; name: string | null; plate: string | null; condition: number; status: 'READY' | 'DAMAGED' | 'DISABLED'; mods: Array<{ key: string; tier: number }> }>;
   /** 1.5.0-C. What came home needing the garage. */
   vehicleDamage?: VehicleDamageDto;
   escortThugs: number;
@@ -1088,6 +1094,9 @@ export interface TravelDto extends CitiesDto {
     /** 1.5.0-E2. Sold over Charlie's counter instead of here, and the job that opens it. */
     charlie?: QuestLockDto | null;
   }>;
+  /** 2.5.0-E. Individual ready vehicles available for the next run. */
+  vehicleItems?: Array<{ id: string; model: 'SEDAN' | 'LOW_RIDER' | 'VAN'; name: string | null; plate: string | null; condition: number; mods: Array<{ key: string; tier: number }>; quantity: number }>;
+  individualVehiclesEnabled?: boolean;
   /** 1.5.0-C. What road trouble does to a run's vehicles, so it can be shown before launch. */
   vehicleService?: {
     damagedByBust: number;
@@ -1471,6 +1480,7 @@ export interface RunOutpostEstablishResult {
   products: Record<string, number>;
   turnsUsed: number;
   ammoSpentRounds?: number;
+  individualGuns?: IndividualGunUseDto[];
 }
 
 export interface RunOutpostTransferResult {
@@ -1678,6 +1688,7 @@ export interface BossHitBackupResult {
   hitId: string;
   thugs: number;
   landsAt: string;
+  individualGuns?: IndividualGunUseDto[];
 }
 
 export interface BossHitResult {
@@ -1687,6 +1698,7 @@ export interface BossHitResult {
   cityName: string;
   squad: number;
   turns: number;
+  individualGuns?: IndividualGunUseDto[];
 }
 
 export interface ConvoyTailResult {
@@ -1696,6 +1708,7 @@ export interface ConvoyTailResult {
   cityName: string;
   squad: number;
   turns: number;
+  individualGuns?: IndividualGunUseDto[];
 }
 
 export interface ConvoyReconResult {
@@ -1711,6 +1724,7 @@ export interface ConvoyBackupResult {
   tailId: string;
   thugs: number;
   landsAt: string;
+  individualGuns?: IndividualGunUseDto[];
 }
 
 
@@ -1724,6 +1738,7 @@ export interface TurfPushStartResult {
   startedAt: string;
   landsAt: string;
   ammoSpentRounds?: number;
+  individualGuns?: IndividualGunUseDto[];
 }
 
 export interface TurfPushBackupResult {
@@ -1731,6 +1746,7 @@ export interface TurfPushBackupResult {
   thugs: number;
   kind: 'OWNER' | 'ALLY';
   landsAt: string;
+  individualGuns?: IndividualGunUseDto[];
 }
 
 export interface TurfPushCallResult {

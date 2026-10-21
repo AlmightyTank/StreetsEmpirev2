@@ -16,6 +16,7 @@ import type { VehicleClassId } from '@streets/rulesets';
 import type { Db } from '../utils/db.js';
 import { FactionService } from './faction.service.js';
 import { PlayerSkillService } from './player-skill.service.js';
+import { armorAdjustedDamage, readRunVehicles } from './individual-vehicles.service.js';
 
 export type VehicleLoadout = { LOW_RIDER: number; SEDAN: number; VAN: number };
 const emptyLoadout = (): VehicleLoadout => ({ LOW_RIDER: 0, SEDAN: 0, VAN: 0 });
@@ -106,7 +107,8 @@ export async function damageRunVehicles<T extends { id: string; lowRiders: numbe
   if (!ruleset.vehicleCatalog?.service || count <= 0) return run;
   const loadout = readVehicleLoadout(run.vehicleLoadout, run.lowRiders);
   const before = readVehicleDamage(run.vehicleDamage, loadout);
-  const damage = markRunVehicles(ruleset, loadout, before, state, await skilledDamageCount(tx, ruleset, run.id, state, count, before));
+  let damage = markRunVehicles(ruleset, loadout, before, state, await skilledDamageCount(tx, ruleset, run.id, state, count, before));
+  if ('individualVehicles' in run) damage = armorAdjustedDamage(run.id, readRunVehicles((run as T & { individualVehicles?: Prisma.JsonValue }).individualVehicles), before, damage, state);
   await tx.run.update({ where: { id: run.id }, data: { vehicleDamage: vehicleDamageJson(damage) } });
   return { ...run, vehicleDamage: vehicleDamageJson(damage) as Prisma.JsonValue };
 }

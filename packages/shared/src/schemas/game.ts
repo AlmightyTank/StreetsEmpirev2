@@ -206,6 +206,42 @@ export const armoryBulkActionSchema = z.object({
 });
 export type ArmoryBulkActionInput = z.infer<typeof armoryBulkActionSchema>;
 
+const armoryItemSelectionSchema = z.object({
+  kind: z.enum(['GUN', 'VEHICLE']),
+  id: z.string().trim().min(1).max(64),
+}).strict();
+export const armoryModActionSchema = z.object({
+  actionId: actionIdSchema,
+  action: z.enum(['INSTALL_MOD', 'REMOVE_MOD', 'SAVE_BUILD', 'APPLY_BUILD', 'DELETE_BUILD']),
+  items: z.array(armoryItemSelectionSchema).max(2_100).optional(),
+  modKey: z.string().trim().toUpperCase().regex(/^[A-Z][A-Z0-9_]{1,31}$/).optional(),
+  tier: z.number().int().min(1).max(3).optional(),
+  buildId: z.string().trim().min(1).max(64).optional(),
+  name: z.string().trim().min(1).max(40).optional(),
+}).strict().superRefine((value, context) => {
+  const needsItems = ['INSTALL_MOD', 'REMOVE_MOD', 'APPLY_BUILD', 'SAVE_BUILD'].includes(value.action);
+  if (needsItems && !value.items?.length) context.addIssue({ code: z.ZodIssueCode.custom, path: ['items'], message: 'Select equipment first.' });
+  if ((value.action === 'INSTALL_MOD' || value.action === 'REMOVE_MOD') && !value.modKey) context.addIssue({ code: z.ZodIssueCode.custom, path: ['modKey'], message: 'Choose a modification.' });
+  if (value.action === 'INSTALL_MOD' && !value.tier) context.addIssue({ code: z.ZodIssueCode.custom, path: ['tier'], message: 'Choose a tier.' });
+  if ((value.action === 'APPLY_BUILD' || value.action === 'DELETE_BUILD') && !value.buildId) context.addIssue({ code: z.ZodIssueCode.custom, path: ['buildId'], message: 'Choose a saved build.' });
+  if (value.action === 'SAVE_BUILD' && !value.name) context.addIssue({ code: z.ZodIssueCode.custom, path: ['name'], message: 'Name this build.' });
+  if (value.action === 'SAVE_BUILD' && (value.items?.length ?? 0) !== 1) context.addIssue({ code: z.ZodIssueCode.custom, path: ['items'], message: 'Select one item to save its setup.' });
+});
+export type ArmoryModActionInput = z.infer<typeof armoryModActionSchema>;
+
+export const armoryLookActionSchema = z.object({
+  actionId: actionIdSchema,
+  items: z.array(armoryItemSelectionSchema).min(1).max(100),
+  lookKey: z.string().trim().min(1).max(80).nullable(),
+}).strict();
+export type ArmoryLookActionInput = z.infer<typeof armoryLookActionSchema>;
+
+export const armoryFeatureItemSchema = z.object({
+  actionId: actionIdSchema,
+  item: armoryItemSelectionSchema.nullable(),
+}).strict();
+export type ArmoryFeatureItemInput = z.infer<typeof armoryFeatureItemSchema>;
+
 export const storeTradeSchema = z.object({
   store: z.string().trim().min(1, 'Pick a store.').max(64),
   item: z.string().trim().min(1, 'Pick an item.').max(64),

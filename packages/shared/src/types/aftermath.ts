@@ -182,6 +182,11 @@ export interface RoundAftermathOverviewDto {
       nationalKingpinAllianceId: string | null;
       awards: Array<{ allianceId: string; awardKey: string; scopeKey: string }>;
     };
+    famousItems?: Array<{
+      id: string; playerName: string; publicPimpId: number; cityName: string; kind: 'GUN' | 'VEHICLE';
+      model: string; name: string | null; lookKey: string | null; condition: number;
+      mods: Array<{ key: string; tier: number }>; score: number;
+    }>;
   } | null;
   cities: RoundAftermathCityDto[];
 }

@@ -344,6 +344,12 @@
   gap: 10px;
 }
 
+.se-aftermath-famous-items { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.se-aftermath-famous-item { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 10px; border: 1px solid var(--se-line); background: var(--se-panel-hi); }
+.se-aftermath-famous-item > div { display: grid; gap: 3px; min-width: 0; }
+.se-aftermath-famous-item strong { overflow-wrap: anywhere; }
+.se-aftermath-famous-item span, .se-aftermath-famous-item small { color: var(--se-muted); font-size: .78rem; }
+
 .se-aftermath-alliance {
   display: grid;
   gap: 10px;
@@ -689,6 +695,7 @@
 }
 
 @media (max-width: 760px) {
+  .se-aftermath-famous-items { grid-template-columns: minmax(0, 1fr); }
   .se-round-archive-filters {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

@@ -357,6 +357,8 @@ model AccountProfile {
   activeStreetSignKey        String?
   /// Player-selected visual skin per inventory item key. Cosmetic only.
   itemCosmetics              Json    @default("{}")
+  /// Slice F. A player's featured named item survives the round that created it.
+  famousItem                 Json?
   /// THUG / HOE visual styles. Crew is aggregate inventory, so the style applies to the whole type.
   crewCosmetics              Json    @default("{}")
   /// Slice E. Visitors see the owner's site theme on their public profile.
@@ -2039,6 +2041,7 @@ model RoundPlayer {
   guns              PlayerGun[]
   vehicles          PlayerVehicle[]
   armorySummary     PlayerArmorySummary?
+  armoryBuilds      PlayerArmoryBuild[]
 
   roundId String
   round   Round  @relation(fields: [roundId], references: [id], onDelete: Cascade)
@@ -2417,7 +2420,7 @@ model RoundPlayer {
   @@index([allianceId])
 }
 
-/// 2.5.0-A. One row represents one customized gun or a stack of identical stock guns.
+/// 2.5.0-A/F. One row represents one customized gun or a stack of identical stock guns, with item-specific history.
 model PlayerGun {
   id            String      @id @default(cuid())
   roundPlayerId String
@@ -2429,6 +2432,7 @@ model PlayerGun {
   lookKey       String?
   origin        Json        @default("{}")
   stats         Json        @default("{}")
+  history       Json        @default("[]")
   status        String      @default("READY")
   quantity      Int         @default(1)
   favorite      Boolean     @default(false)
@@ -2440,7 +2444,7 @@ model PlayerGun {
   @@index([roundPlayerId, condition])
 }
 
-/// 2.5.0-A. Vehicle rows are stackable until customized or damaged; item-specific plate/history arrive with later slices.
+/// 2.5.0-A/F. Vehicle rows are stackable until customized or damaged; plates and history stay attached to the item.
 model PlayerVehicle {
   id            String      @id @default(cuid())
   roundPlayerId String
@@ -2453,6 +2457,7 @@ model PlayerVehicle {
   lookKey       String?
   origin        Json        @default("{}")
   stats         Json        @default("{}")
+  history       Json        @default("[]")
   status        String      @default("READY")
   quantity      Int         @default(1)
   createdAt     DateTime    @default(now())
@@ -2486,6 +2491,23 @@ model PlayerArmorySummary {
   vehiclesCondition60To79  Int @default(0)
   vehiclesCondition80To100 Int @default(0)
   updatedAt     DateTime    @updatedAt
+}
+
+/// 2.5.0-C. Player-saved mod layouts, scoped to one round and one item model.
+model PlayerArmoryBuild {
+  id            String      @id @default(cuid())
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  name          String
+  nameNormalized String
+  kind          String
+  model         String
+  mods          Json        @default("[]")
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([roundPlayerId, kind, model, nameNormalized])
+  @@index([roundPlayerId, kind, model])
 }
 
 /// 2.3.0-A. Seasonal boss skill progress. Absent rows mean zero progress.
@@ -3550,6 +3572,8 @@ model Run {
   /// 1.5.0-C. The part of the loadout that comes home Damaged or Disabled:
   /// { damaged: {LOW_RIDER, SEDAN, VAN}, disabled: {...} }. Empty is a clean run.
   vehicleDamage        Json           @default("{}")
+  /// 2.5.0-E. Individual garage vehicle ids reserved by this run, with their launch specs.
+  individualVehicles   Json           @default("[]")
   escortThugs          Int
   /// The run's wallet, integer cents. Never below zero.
   cashCents            BigInt

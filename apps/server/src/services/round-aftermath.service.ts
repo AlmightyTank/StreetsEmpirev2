@@ -2,10 +2,11 @@ import type { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { AppError } from '../utils/errors.js';
 import { finalizeTerritoryMilestones } from './territory-milestone.service.js';
+import { historyScore } from './individual-item-history.js';
 import type { Db } from '../utils/db.js';
 
-export const ROUND_AFTERMATH_SCHEMA_VERSION = 4;
-export const ROUND_AFTERMATH_SOURCE_REVISION = 'round-aftermath-v4';
+export const ROUND_AFTERMATH_SCHEMA_VERSION = 5;
+export const ROUND_AFTERMATH_SOURCE_REVISION = 'round-aftermath-v5';
 
 export interface AftermathPlayerSource {
   id: string;
@@ -390,9 +391,28 @@ export const RoundAftermathService = {
     );
 
     const territoryAwards = await finalizeTerritoryMilestones(tx, { roundId, cutoffAt });
+    const [namedGuns, namedVehicles] = await Promise.all([
+      tx.playerGun.findMany({ where: { roundPlayer: { roundId }, name: { not: null }, quantity: 1 }, select: {
+        id: true, model: true, name: true, lookKey: true, condition: true, mods: true, stats: true, history: true,
+        roundPlayer: { select: { displayName: true, publicPimpId: true, city: { select: { name: true } } } },
+      } }),
+      tx.playerVehicle.findMany({ where: { roundPlayer: { roundId }, name: { not: null }, quantity: 1 }, select: {
+        id: true, model: true, name: true, lookKey: true, condition: true, mods: true, stats: true, history: true,
+        roundPlayer: { select: { displayName: true, publicPimpId: true, city: { select: { name: true } } } },
+      } }),
+    ]);
+    const famousItems = [
+      ...namedGuns.map((item) => ({ id: item.id, playerName: item.roundPlayer.displayName, publicPimpId: item.roundPlayer.publicPimpId,
+        cityName: item.roundPlayer.city.name, kind: 'GUN' as const, model: item.model, name: item.name, lookKey: item.lookKey,
+        condition: item.condition, mods: item.mods, score: historyScore(item) })),
+      ...namedVehicles.map((item) => ({ id: item.id, playerName: item.roundPlayer.displayName, publicPimpId: item.roundPlayer.publicPimpId,
+        cityName: item.roundPlayer.city.name, kind: 'VEHICLE' as const, model: item.model, name: item.name, lookKey: item.lookKey,
+        condition: item.condition, mods: item.mods, score: historyScore(item) })),
+    ].sort((a, b) => b.score - a.score || (a.name ?? '').localeCompare(b.name ?? '') || a.id.localeCompare(b.id)).slice(0, 10);
+    const itemAggregate = JSON.parse(JSON.stringify({ ...aggregates.globalAggregate, famousItems })) as Prisma.InputJsonObject;
     const globalAggregate = territoryAwards
-      ? JSON.parse(JSON.stringify({ ...aggregates.globalAggregate, territoryAwards })) as Prisma.InputJsonObject
-      : aggregates.globalAggregate;
+      ? JSON.parse(JSON.stringify({ ...itemAggregate, territoryAwards })) as Prisma.InputJsonObject
+      : itemAggregate;
     await tx.roundAftermathReport.create({
       data: {
         roundId,

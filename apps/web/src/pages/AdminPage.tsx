@@ -403,7 +403,7 @@ export function AdminPage() {
                 onChange={(event) => update('rulesetId', event.target.value)}
               >
                 {data?.rulesets.map((ruleset) => (
-                  <option value={ruleset.id} key={ruleset.id}>{ruleset.version} · {ruleset.name}{ruleset.streetSkills ? ' · Street Skills' : ''}</option>
+                  <option value={ruleset.id} key={ruleset.id}>{ruleset.version} · {ruleset.name}{ruleset.streetSkills ? ' · Street Skills' : ''}{ruleset.individualItems ? ' · Individual Armory (new rounds only)' : ''}</option>
                 ))}
               </select>
                {fields.rulesetId ? <p className="se-error" role="alert">{fields.rulesetId}</p> : <p className="se-hint">A round keeps its ruleset for the whole season. Street Skills are opt-in through the versioned ruleset marked above.</p>}

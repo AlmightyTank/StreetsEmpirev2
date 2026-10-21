@@ -30,6 +30,7 @@ import type {
   AdminFactionAdjustmentInput,
   AdminVehicleAdjustmentInput,
   AdminVehicleRoundDto,
+  AdminArmoryPlayerDto,
   AdminFactionRoundDto,
   AdminCasinoDto,
   AdminLawDto,
@@ -316,6 +317,7 @@ export const adminApi = {
     api.post<AdminPlayerDto>(`/admin/players/${enc(roundPlayerId)}/factions/adjust`, input),
   /** 1.5.0-E. Vehicle health for a round, and audited fleet corrections. */
   vehicles: (roundId: string) => api.get<AdminVehicleRoundDto>(roundPath(roundId, 'vehicles')),
+  armory: (roundPlayerId: string) => api.get<AdminArmoryPlayerDto>(`/admin/players/${enc(roundPlayerId)}/armory`),
   adjustPlayerVehicles: (roundPlayerId: string, input: AdminVehicleAdjustmentInput) =>
     api.post<AdminPlayerDto>(`/admin/players/${enc(roundPlayerId)}/vehicles/adjust`, input),
   // 1.3.0-G: law health, one player's Case, and an audited correction.

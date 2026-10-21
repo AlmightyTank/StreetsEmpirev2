@@ -1,6 +1,6 @@
 # StreetsEmpire — Armory & Garage Roadmap (individual guns and vehicles)
 
-Status: **Slices A–B implemented; Slices C–G planned** · Target: **beta** · Builds on: [Ammo & Parts](ROADMAP-AMMO-PARTS.md) · Scope: gun store, Charlie's, combat, runs, garage, the Drop, Territory Rewards.
+Status: **Slices A–G implemented** · Target: **beta** · Builds on: [Ammo & Parts](ROADMAP-AMMO-PARTS.md) · Scope: gun store, Charlie's, combat, runs, garage, the Drop, Territory Rewards.
 
 ## Vision
 Every gun and every vehicle is its own item. It has a model, a name, a condition, mods, a look and a history. A player's AK isn't "one of 12 AK-47s": it's *Widowmaker*, scoped, extended mag, 41 fights, taken off a rival in Detroit.
@@ -150,19 +150,25 @@ A player with 600 pistols has to stay comfortable:
 ### Slice B — Armory and garage screens (implemented)
 - Stacked list, filters, sort, search, naming, favourites/reserves, bulk select. Phone and desktop.
 
-### Slice C — Mods and builds
-- Install/remove mods with parts + cash, saved builds, bulk apply. Receipts.
+### Slice C — Mods and builds (implemented)
+- Install or replace item mods with the catalog's tier costs, remove mods for half their parts cost, save model-specific builds, and apply a build across selected stacks. Each action returns a parts/cash receipt.
 
-### Slice D — Combat with items
+### Slice D — Combat with items (implemented)
 - Best-first auto-equip, per-gun ammo and wear, jams, named items in receipts. Rerun combat simulations.
+- Item-aware combat covers raids, drive-bys, special raids, turf claims and pushes, block wars, boss hits and bodyguard defenses, convoy fights, and street-gang encounters. Queued fights reserve the selected guns, settle wear on landing, and release them without wear if the fight escapes or is cancelled before combat.
 - Item loot that moves mods, condition and history; hot window; victim's-own-items-first recovery; Drop look stays with its buyer.
 
-### Slice E — Runs and vehicles with items
-- Vehicle picker and auto-fleet, per-vehicle trouble, status and repairs, vehicle mods in settlement. Rerun vehicle simulations.
-- Ride theft and run losses move specific vehicles with their mods; encounter-gang steals and recovery.
+### Slice E — Runs and vehicles with items (implemented)
+- Runs accept named vehicle selections or an auto-fleet; selected items are reserved while away. Individual condition, damaged/disabled status, repairs and scrap stay attached to the vehicle. Cargo, fuel, engine, hidden-compartment and armor mods affect run settlement and risk.
+- Player ride theft, convoy run losses and street-gang theft/recovery move specific vehicles with their mods and history; stolen items lose their Drop look, remain hot for 24 hours and return through their actual recovery path.
+- Reran the vehicle simulation against the current individual-item ruleset.
 
-### Slice F — Looks, history and aftermath
-- Drop looks per item, item history, "famous items" on the profile and in round aftermath.
+### Slice F — Looks, history and aftermath (implemented)
+- Apply an owned Drop collection look to each named gun or vehicle independently. The item keeps its look when it is customized or moved; theft clears it because the Drop look belongs to its buyer.
+- Keep an item event timeline for acquisition, naming, looks, mods, combat, runs, repairs, theft and recovery. The armory and garage show each item’s timeline.
+- Feature one named item on the account profile across rounds. Freeze the top ten named-item records into the round aftermath report so history survives the round reset.
 
-### Slice G — Performance, abuse and rollout
-- Load test players at the item caps, loot races, parallel bulk actions. Admin item inspector and audit log. Staged opt-in on new rounds.
+### Slice G — Performance, abuse and rollout (implemented)
+- Cap-sized inventories are exercised by the bounded admin inspector test (2,000 rows per equipment class); combat and economic mutations already run inside transactions that lock player rows before reads, so parallel bulk actions and loot against one victim serialize. Combat action IDs replay once under concurrent retries.
+- Admin player inspector at `/game/admin/players/:roundPlayerId/armory` shows a bounded item inventory and the latest 250 item-history events. It is read-only; staff corrections continue through audited correction tools.
+- Rollout is opt-in at round scheduling: admin ruleset choices explicitly mark versions with Individual Armory, and only rounds created with those pinned versions use item equipment. Existing rounds remain on their original rulesets.

@@ -30,7 +30,6 @@ export interface CombatIntelReportDto {
   /** 0.3.0-D. The ally who gathered it, when it is shared alliance intel rather than your own. */
   sharedBy?: string | null;
 }
-
 export interface CombatReconResultDto {
   intel: CombatIntelReportDto;
   turnsSpent: number;
@@ -98,6 +97,11 @@ export interface BattleReportDto {
     lostRounds: number;
     afterRounds: number;
   };
+  /** 2.5.0-D. Item-by-item gun use and loot, including the condition at settlement. */
+  itemCombat?: {
+    fired: Array<{ id: string; model: string; name: string | null; rounds: number; jammed: boolean; conditionBefore: number; conditionAfter: number }>;
+    looted: Array<{ model: string; name: string | null; mods: Array<{ key: string; tier: number }>; condition: number; hotUntil: string | null; recovered: boolean }>;
+  };
   /** 0.7.0-B. Defender assets that the Safe Room kept out of this raid. */
   raidProtection?: {
     protectedCashCents: number;
@@ -131,6 +135,8 @@ export interface BattleReportDto {
     defenderCrackBurned?: number;
     defenderCondomsBurned?: number;
     lowRidersStolen?: number;
+    /** 2.5.0-E. Exact vehicles transferred in a ride theft. */
+    individualVehiclesStolen?: Array<{ id: string; model: 'LOW_RIDER' | 'SEDAN' | 'VAN'; name: string | null; plate: string | null; condition: number; mods: Array<{ key: string; tier: number }> }>;
     lowRidersAfter?: number;
     whoresLured?: number;
     thugsLured?: number;
@@ -323,4 +329,13 @@ export interface CombatRingDto {
   destroyTurnCost: number;
   foundryCitySlug: string;
   surfacedAt: string | null;
+}
+export interface IndividualGunUseDto {
+  id: string;
+  model: string;
+  name: string | null;
+  rounds: number;
+  jammed: boolean;
+  conditionBefore: number;
+  conditionAfter: number;
 }

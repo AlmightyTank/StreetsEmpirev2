@@ -1241,6 +1241,12 @@ export interface HideoutDto {
 
 export type ArmoryGunModel = 'PISTOL' | 'SHOTGUN' | 'TEK9' | 'AK47';
 export type GarageVehicleModel = 'SEDAN' | 'LOW_RIDER' | 'VAN';
+export interface IndividualItemHistoryEntryDto { at: string; type: string; summary: string; city?: string; otherPlayer?: string }
+export interface FeaturedItemDto {
+  id: string; kind: 'GUN' | 'VEHICLE'; model: string; name: string | null; lookKey: string | null;
+  condition: number; mods: Array<{ key: string; tier: number }>; stats: Record<string, number>;
+  history: IndividualItemHistoryEntryDto[]; roundName: string;
+}
 export interface IndividualArmoryItemDto {
   id: string;
   model: ArmoryGunModel;
@@ -1250,6 +1256,7 @@ export interface IndividualArmoryItemDto {
   lookKey: string | null;
   origin: Record<string, unknown>;
   stats: Record<string, number>;
+  history: IndividualItemHistoryEntryDto[];
   status: 'READY' | 'BROKEN' | 'LOCKED' | 'DAMAGED' | 'DISABLED' | 'ON_RUN';
   quantity: number;
   favorite: boolean;
@@ -1266,18 +1273,50 @@ export interface IndividualArmorySummaryDto {
   vehiclesByModel: Record<GarageVehicleModel, number>;
   conditionBands: { guns: number[]; vehicles: number[] };
 }
+export interface ArmoryModCatalogItemDto {
+  size: 'SMALL' | 'MEDIUM' | 'LARGE';
+  slots: number;
+  mods: Array<{ key: string; slot: string; tiers: Array<{ tier: 1 | 2 | 3; effectPercent: number }> }>;
+}
+export interface ArmorySavedBuildDto {
+  id: string;
+  name: string;
+  kind: 'GUN' | 'VEHICLE';
+  model: ArmoryGunModel | GarageVehicleModel;
+  mods: Array<{ key: string; tier: number }>;
+}
 export interface IndividualInventoryDto {
   enabled: boolean;
   maxGuns: number;
   maxVehicles: number;
   summary: IndividualArmorySummaryDto;
+  resources: { cashCents: number; vehicleParts: number };
+  modCatalog: {
+    guns: Record<ArmoryGunModel, ArmoryModCatalogItemDto>;
+    vehicles: Record<GarageVehicleModel, ArmoryModCatalogItemDto>;
+    costs: Record<'SMALL' | 'MEDIUM' | 'LARGE', Record<1 | 2 | 3, { parts: number; cashCents: number }>>;
+  };
+  builds: ArmorySavedBuildDto[];
+  looks: Array<{ key: string; title: string; rarity: string }>;
+  featuredItem: FeaturedItemDto | null;
   guns: IndividualArmoryItemDto[];
   vehicles: IndividualVehicleItemDto[];
 }
+export interface ArmoryLookActionResult { updated: number; lookKey: string | null }
+export interface ArmoryFeatureItemResult { featuredItem: FeaturedItemDto | null }
 export interface ArmoryBulkActionResult {
   action: 'FAVORITE' | 'RESERVE' | 'CLEAR_FLAGS' | 'RENAME';
   updated: number;
   names: string[];
+}
+export interface ArmoryModActionResult {
+  action: 'INSTALL_MOD' | 'REMOVE_MOD' | 'SAVE_BUILD' | 'APPLY_BUILD' | 'DELETE_BUILD';
+  updated: number;
+  affectedItems: number;
+  partsSpent: number;
+  partsRefunded: number;
+  cashSpentCents: number;
+  build: ArmorySavedBuildDto | null;
 }
 
 export interface RoundOverLegacyDto {
@@ -1462,6 +1501,10 @@ export interface RandomEncounterChoiceResult {
   cashCents: number;
   effects: RandomEncounterDto['effects'];
   ammoSpentRounds?: number;
+  individualGuns?: Array<{ id: string; model: string; name: string | null; rounds: number; jammed: boolean; conditionBefore: number; conditionAfter: number }>;
+  /** 2.5.0-E. Vehicles taken by or recovered from a street gang. */
+  individualVehiclesStolen?: Array<{ model: string; name: string | null; plate: string | null; condition: number; mods: unknown }>;
+  individualVehiclesRecovered?: Array<{ id: string; model: string; name: string | null; plate: string | null; condition: number; mods: unknown }>;
   /** The choice found an Easter egg. isNew is false when the title was already held. */
   easterEgg?: { title: string; description: string; isNew: boolean };
 }

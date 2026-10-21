@@ -107,6 +107,10 @@ export const runLaunchSchema = z.object({
   lowRiders: z.number({ invalid_type_error: 'Say how many Low-Riders go.' }).int().min(0).safe().optional(),
   /** 1.5.0-B. Mixed vehicle class counts assigned to this run. */
   vehicleLoadout: z.object({ LOW_RIDER: unitCount('Low-Riders').optional(), SEDAN: unitCount('Sedans').optional(), VAN: unitCount('Vans').optional() }).strict().optional(),
+  /** 2.5.0-E. Explicit READY vehicle rows selected from the individual garage. */
+  vehicleIds: z.array(z.string().trim().min(1).max(64)).max(100).optional(),
+  /** 2.5.0-E. Fill the requested class mix with the most efficient available items. */
+  autoFleet: z.boolean().default(false),
   escortThugs: unitCount('escorts'),
   cashCents: wholeCount('cash'),
   /** 0.6.0-D. Beer rides as real cargo so a run can supply an outpost. */

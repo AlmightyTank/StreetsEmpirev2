@@ -31,7 +31,8 @@ import { EconomyLedgerService } from './economy-ledger.service.js';
 import { CRACK, productKeys } from './product-inventory.service.js';
 import { CrewRosterService } from './crew-roster.service.js';
 import { LawService, seizedValueCents } from './law.service.js';
-import { hasVehicleDamage, readVehicleDamage, readVehicleLoadout, vehicleDamageJson } from './vehicle-fleet.service.js';
+import { hasVehicleDamage, readVehicleDamage, readVehicleLoadout, vehicleDamageJson, VEHICLE_FIELDS } from './vehicle-fleet.service.js';
+import { hiddenCompartmentsStopCut, readRunVehicles, returnRunVehicles } from './individual-vehicles.service.js';
 import { deliverSupplyPickups, settleSupplyStops, supplyLoadsByRun, withoutSupplyLoad } from './supply-pickup-settle.service.js';
 import { PlayerSkillService } from './player-skill.service.js';
 
@@ -194,7 +195,8 @@ async function rollRoadStops(tx: Db, roundPlayerId: string, ruleset: Ruleset, ru
   const last = Math.min(legs, stops.length);
   const player = await tx.roundPlayer.findUniqueOrThrow({ where: { id: roundPlayerId }, select: { heat: true, racketEffects: true } });
   // 1.1.0-C: an Auto Garage on Run mods means fewer stops, read when each leg is rolled.
-  const stopCut = racketRunStopCut(ruleset, readRacketEffects(player.racketEffects));
+  const runVehicles = readRunVehicles(run.individualVehicles);
+  const stopCut = Math.min(0.25, racketRunStopCut(ruleset, readRacketEffects(player.racketEffects)) + hiddenCompartmentsStopCut(runVehicles));
   // Low Profile: the run draws fewer stops.
   const lowProfile = 1 + (await PlayerSkillService.effects(tx, roundPlayerId, ruleset.streetSkills)).percent('POLICE_STOPS') / 100;
   while (checks < last && stops[checks]!.arriveAt.getTime() <= now.getTime()) {
@@ -343,6 +345,8 @@ async function bringHome(tx: Db, roundPlayerId: string, ruleset: Ruleset, run: L
   const vehicles = readVehicleLoadout(run.vehicleLoadout, run.lowRiders);
   // 1.5.0-C: cars the road dented or the police kept come home to the garage, not the lot.
   const damage = readVehicleDamage(run.vehicleDamage, vehicles);
+  const individual = ruleset.individualItems?.enabled ? readRunVehicles(run.individualVehicles) : [];
+  const returnedVehicles = individual.length ? await returnRunVehicles(tx, roundPlayerId, individual, damage) : [];
   const ready = (key: keyof typeof vehicles) => vehicles[key] - damage.damaged[key] - damage.disabled[key];
   const returnedAt = stops[stops.length - 1]!.arriveAt;
   // 1.6.0-C: a supply load goes into storage; only the rest of the trunk is home stock.
@@ -357,7 +361,8 @@ async function bringHome(tx: Db, roundPlayerId: string, ruleset: Ruleset, run: L
       update: { quantity: { increment: quantity } },
     });
   }
-  await tx.run.update({ where: { id: run.id }, data: { status: 'RETURNED', returnedAt } });
+  await tx.run.update({ where: { id: run.id }, data: { status: 'RETURNED', returnedAt,
+    ...(returnedVehicles.length ? { individualVehicles: returnedVehicles as unknown as Prisma.InputJsonValue } : {}) } });
   const recovery = ruleset.combat?.wounds.recoveryMinutes ?? 0;
   const recoverAt = run.woundedEscorts > 0 && run.lastHitAt ? new Date(run.lastHitAt.getTime() + recovery * 60_000) : null;
   const namedEscorts = await CrewRosterService.completeTravelMembers(tx, {
@@ -377,15 +382,31 @@ async function bringHome(tx: Db, roundPlayerId: string, ruleset: Ruleset, run: L
     data: {
       cashCents: { increment: run.cashCents },
       beer: { increment: run.beer },
-      lowRiders: { increment: ready('LOW_RIDER') },
-      sedans: { increment: ready('SEDAN') },
-      vans: { increment: ready('VAN') },
-      damagedLowRiders: { increment: damage.damaged.LOW_RIDER },
-      damagedSedans: { increment: damage.damaged.SEDAN },
-      damagedVans: { increment: damage.damaged.VAN },
-      disabledLowRiders: { increment: damage.disabled.LOW_RIDER },
-      disabledSedans: { increment: damage.disabled.SEDAN },
-      disabledVans: { increment: damage.disabled.VAN },
+      ...(individual.length ? {
+        ...Object.fromEntries((['LOW_RIDER', 'SEDAN', 'VAN'] as const).flatMap((model) => {
+          const readyKey = VEHICLE_FIELDS[model].ready;
+          const damagedKey = VEHICLE_FIELDS[model].damaged;
+          const disabledKey = VEHICLE_FIELDS[model].disabled;
+          const ready = returnedVehicles.filter((vehicle) => vehicle.model === model && vehicle.status === 'READY').length;
+          const damaged = returnedVehicles.filter((vehicle) => vehicle.model === model && vehicle.status === 'DAMAGED').length;
+          const disabled = returnedVehicles.filter((vehicle) => vehicle.model === model && vehicle.status === 'DISABLED').length;
+          return [
+            ...(ready ? [{ [readyKey]: { increment: ready } }] : []),
+            ...(damaged ? [{ [damagedKey]: { increment: damaged } }] : []),
+            ...(disabled ? [{ [disabledKey]: { increment: disabled } }] : []),
+          ];
+        }).map((entry) => Object.entries(entry)[0]!)),
+      } : {
+        lowRiders: { increment: ready('LOW_RIDER') },
+        sedans: { increment: ready('SEDAN') },
+        vans: { increment: ready('VAN') },
+        damagedLowRiders: { increment: damage.damaged.LOW_RIDER },
+        damagedSedans: { increment: damage.damaged.SEDAN },
+        damagedVans: { increment: damage.damaged.VAN },
+        disabledLowRiders: { increment: damage.disabled.LOW_RIDER },
+        disabledSedans: { increment: damage.disabled.SEDAN },
+        disabledVans: { increment: damage.disabled.VAN },
+      }),
       thugs: { increment: run.escortThugs },
       // 0.5.0-E: the escorts' guns come home with them.
       pistols: { increment: run.pistols },

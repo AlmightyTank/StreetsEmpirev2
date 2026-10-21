@@ -63,6 +63,7 @@ import { AdminSportsbookService } from '../services/admin-sportsbook.service.js'
 import { AdminFactionService } from '../services/admin-faction.service.js';
 import { ADMIN_VEHICLE_MAX, AdminVehicleService } from '../services/admin-vehicle.service.js';
 import { AdminAmmoPartsService } from '../services/admin-ammo-parts.service.js';
+import { AdminArmoryService } from '../services/admin-armory.service.js';
 import { AdminLawService } from '../services/admin-law.service.js';
 import { AdminCareerStoryService } from '../services/admin-career-story.service.js';
 import { AdminTurfService } from '../services/admin-turf.service.js';
@@ -1341,6 +1342,12 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/rounds/:roundId/ammo-parts', async (request) => {
     const { roundId } = parseBody(roundParams, request.params);
     return AdminAmmoPartsService.report(fastify.prisma, roundId);
+  });
+
+  /** 2.5.0-G: read-only individual equipment inspector and item event audit trail. */
+  fastify.get('/players/:roundPlayerId/armory', async (request) => {
+    const { roundPlayerId } = parseBody(playerParams, request.params);
+    return AdminArmoryService.player(fastify.prisma, roundPlayerId);
   });
 
   /** 1.5.0-E: an audited correction to one vehicle class's home counts. */

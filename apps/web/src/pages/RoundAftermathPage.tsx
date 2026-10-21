@@ -14,9 +14,11 @@ import type {
   CareerStoryBiographyDto,
 } from '@streets/shared';
 import { formatNumber } from '@streets/shared';
+import type { ItemCosmeticStyleKey } from '@streets/shared';
 import { ApiError } from '../api/client.js';
 import { roundsApi } from '../api/rounds.js';
 import { Alert } from '../components/Alert.js';
+import { ItemTile } from '../components/ItemTile.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { formatDate } from '../utils/time.js';
 import { roundAftermathPublicEnabled } from '../config/features.js';
@@ -838,6 +840,14 @@ export function RoundAftermathPage() {
                     </header>
                     <AwardHighlights categories={categories.categories} />
                   </section>
+
+                  {global.famousItems?.length ? <section className="se-aftermath-board" aria-labelledby="se-aftermath-famous-items-title">
+                    <header className="se-aftermath-sectionhead"><div><span className="se-eyebrow">Named equipment</span><h2 id="se-aftermath-famous-items-title">Famous items</h2></div><p>Named guns and vehicles with the deepest histories at the round cutoff.</p></header>
+                    <div className="se-aftermath-famous-items">{global.famousItems.map((item) => <article className="se-aftermath-famous-item" key={item.id}>
+                      <ItemTile item={item.model as 'PISTOL' | 'SHOTGUN' | 'TEK9' | 'AK47' | 'SEDAN' | 'LOW_RIDER' | 'VAN'} size="sm" label={false} cosmeticStyle={(item.lookKey ?? 'classic') as ItemCosmeticStyleKey} />
+                      <div><strong>{item.name || `Unmarked ${item.model.replaceAll('_', ' ')}`}</strong><span>{item.playerName} · #{formatNumber(item.publicPimpId)} · {item.cityName}</span><small>{item.kind === 'GUN' ? 'Weapon' : 'Vehicle'} · {item.condition}% condition · {item.mods.length ? item.mods.map((mod) => `${mod.key} ${mod.tier}`).join(' · ') : 'Stock setup'}</small></div>
+                    </article>)}</div>
+                  </section> : null}
 
                   {global.territoryAwards ? (
                     <section className="se-aftermath-board" aria-label="Territory Hall of Fame">

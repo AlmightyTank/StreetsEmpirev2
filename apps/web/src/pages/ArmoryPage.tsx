@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { ArmoryBulkActionResult, ArmoryGunModel, IndividualArmoryItemDto, IndividualInventoryDto, IndividualVehicleItemDto } from '@streets/shared';
+import { collectionCovers, formatCents } from '@streets/shared';
+import type { ArmoryBulkActionResult, ArmoryFeatureItemResult, ArmoryGunModel, ArmoryLookActionResult, ArmoryModActionInput, ArmoryModActionResult, IndividualArmoryItemDto, IndividualInventoryDto, IndividualVehicleItemDto } from '@streets/shared';
 import { armoryApi } from '../api/armory.js';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
@@ -7,6 +8,7 @@ import { Button } from '../components/Button.js';
 import { Panel } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useGameAction } from '../hooks/useGameAction.js';
+import { ItemTile } from '../components/ItemTile.js';
 import './armory.css';
 
 type View = 'GUN' | 'VEHICLE';
@@ -35,12 +37,13 @@ function conditionBand(condition: number): string {
   return '80–100';
 }
 
-function ItemCard({ item, selected, onSelect }: { item: InventoryItem; selected: boolean; onSelect: () => void }) {
+function ItemCard({ item, selected, onSelect, looks, onLook, onFeature, featured }: { item: InventoryItem; selected: boolean; onSelect: () => void; looks: IndividualInventoryDto['looks']; onLook: (item: InventoryItem, lookKey: string | null) => void; onFeature: (item: InventoryItem) => void; featured: boolean }) {
   const label = labelFor(item);
   const flags = item.kind === 'GUN' ? item : null;
   return (
     <article className={`se-armory-card${selected ? ' is-selected' : ''}`}>
       <div className="se-armory-card__top">
+        <ItemTile item={item.model} size="sm" label={false} cosmeticStyle={(item.lookKey ?? 'classic') as import('@streets/shared').ItemCosmeticStyleKey} />
         <label className="se-armory-check">
           <input type="checkbox" checked={selected} onChange={onSelect} aria-label={`Select ${item.name ?? label}`} />
           <span className="se-sr">Select item</span>
@@ -62,6 +65,16 @@ function ItemCard({ item, selected, onSelect }: { item: InventoryItem; selected:
         <span>{originFor(item)}</span>
         {item.mods.length ? <span>{item.mods.map((mod) => `${mod.key.replaceAll('_', ' ')} ${mod.tier}`).join(' · ')}</span> : <span className="se-muted">Stock setup</span>}
       </div>
+      <label className="se-armory-look">Look
+        <select value={item.lookKey ?? ''} disabled={item.status !== 'READY' || item.quantity !== 1} onChange={(event) => onLook(item, event.target.value || null)}>
+          <option value="">Stock look</option>
+          {looks.filter((look) => collectionCovers(look.key, item.model)).map((look) => <option key={look.key} value={look.key}>{look.title}</option>)}
+        </select>
+      </label>
+      {item.history.length ? <details className="se-armory-history"><summary>Item history · {item.history.length}</summary><ol>
+        {[...item.history].reverse().slice(0, 8).map((event, index) => <li key={`${event.at}-${index}`}><time dateTime={event.at}>{new Date(event.at).toLocaleString()}</time><span>{event.summary}{event.city ? ` · ${event.city}` : ''}{event.otherPlayer ? ` · ${event.otherPlayer}` : ''}</span></li>)}
+      </ol></details> : null}
+      <button type="button" className={`se-btn se-btn--sm ${featured ? 'se-btn--primary' : 'se-btn--ghost'}`} disabled={item.status !== 'READY' || item.quantity !== 1} onClick={() => onFeature(item)}>{featured ? 'Featured on profile' : 'Feature on profile'}</button>
       {flags ? (
         <div className="se-armory-flags">
           {flags.favorite ? <span className="se-armory-flag">Favourite</span> : null}
@@ -84,9 +97,17 @@ export function ArmoryPage() {
   const [sort, setSort] = useState('POWER');
   const [selected, setSelected] = useState<Set<ItemKey>>(new Set());
   const [name, setName] = useState('');
+  const [buildName, setBuildName] = useState('');
+  const [modKey, setModKey] = useState('');
+  const [modTier, setModTier] = useState(1);
+  const [removeModKey, setRemoveModKey] = useState('');
+  const [buildId, setBuildId] = useState('');
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reload, setReload] = useState(0);
   const action = useGameAction<ArmoryBulkActionResult>();
+  const modAction = useGameAction<ArmoryModActionResult>();
+  const lookAction = useGameAction<ArmoryLookActionResult>();
+  const featureAction = useGameAction<ArmoryFeatureItemResult>();
 
   useEffect(() => {
     let active = true;
@@ -101,6 +122,21 @@ export function ArmoryPage() {
       setReload((value) => value + 1);
     }
   }, [action.result]);
+
+  useEffect(() => {
+    if (modAction.result) {
+      setSelected(new Set());
+      setReload((value) => value + 1);
+    }
+  }, [modAction.result]);
+
+  useEffect(() => {
+    if (lookAction.result) setReload((value) => value + 1);
+  }, [lookAction.result]);
+
+  useEffect(() => {
+    if (featureAction.result) setReload((value) => value + 1);
+  }, [featureAction.result]);
 
   const allItems = useMemo<InventoryItem[]>(() => [
     ...(data?.guns ?? []).map((item) => ({ ...item, kind: 'GUN' as const })),
@@ -156,6 +192,34 @@ export function ArmoryPage() {
   const selectedItems = allItems.filter((item) => selected.has(itemKey(item)));
   const selectedGunsOnly = selectedItems.length > 0 && selectedItems.every((item) => item.kind === 'GUN');
   const selectedCount = selectedItems.length;
+  const firstSelected = selectedItems[0];
+  const oneModelSelection = Boolean(firstSelected && selectedItems.every((item) => item.kind === firstSelected.kind && item.model === firstSelected.model));
+  const selectedModRule = oneModelSelection && firstSelected
+    ? firstSelected.kind === 'GUN' ? data?.modCatalog.guns[firstSelected.model] : data?.modCatalog.vehicles[firstSelected.model]
+    : undefined;
+  const modOptions = selectedModRule?.mods ?? [];
+  const selectedMod = modOptions.find((mod) => mod.key === modKey) ?? modOptions[0];
+  const selectedUnits = selectedItems.reduce((sum, item) => sum + item.quantity, 0);
+  const selectedModCost = selectedModRule && data ? data.modCatalog.costs[selectedModRule.size][modTier as 1 | 2 | 3] : null;
+  const installedMods = [...new Set(selectedItems.flatMap((item) => item.mods.map((mod) => mod.key)))].sort();
+  const compatibleBuilds = oneModelSelection && firstSelected
+    ? (data?.builds ?? []).filter((build) => build.kind === firstSelected.kind && build.model === firstSelected.model)
+    : [];
+
+  function applyModAction(input: Omit<ArmoryModActionInput, 'actionId'>) {
+    modAction.clear();
+    void modAction.run((actionId) => armoryApi.customize({ ...input, actionId }));
+  }
+
+  function applyLook(item: InventoryItem, lookKey: string | null) {
+    lookAction.clear();
+    void lookAction.run((actionId) => armoryApi.setLook({ actionId, items: [{ id: item.id, kind: item.kind }], lookKey }));
+  }
+
+  function featureItem(item: InventoryItem) {
+    featureAction.clear();
+    void featureAction.run((actionId) => armoryApi.feature({ actionId, item: { id: item.id, kind: item.kind } }));
+  }
 
   return (
     <GameLayout>
@@ -207,7 +271,44 @@ export function ArmoryPage() {
               ) : null}
               {action.error ? <Alert tone="error">{action.error}</Alert> : null}
               {action.result ? <Alert tone="success">Updated {action.result.result.updated} selected {action.result.result.updated === 1 ? 'item' : 'items'}.</Alert> : null}
-              {visible.length ? <div className="se-armory-list">{visible.map((item) => <ItemCard key={itemKey(item)} item={item} selected={selected.has(itemKey(item))} onSelect={() => toggle(item)} />)}</div> : <p className="se-muted se-armory-empty">No items match these filters.</p>}
+              {modAction.error ? <Alert tone="error">{modAction.error}</Alert> : null}
+              {modAction.result ? (() => {
+                const receipt = modAction.result!.result;
+                if (receipt.action === 'SAVE_BUILD') return <Alert tone="success">Saved “{receipt.build?.name}”.</Alert>;
+                if (receipt.action === 'DELETE_BUILD') return <Alert tone="success">Deleted “{receipt.build?.name}”.</Alert>;
+                const cost = [receipt.cashSpentCents ? `${formatCents(receipt.cashSpentCents)} cash` : '', receipt.partsSpent ? `${receipt.partsSpent.toLocaleString()} parts` : ''].filter(Boolean).join(' + ');
+                const refund = receipt.partsRefunded ? ` · ${receipt.partsRefunded.toLocaleString()} parts returned` : '';
+                return <Alert tone="success">Updated {receipt.affectedItems.toLocaleString()} {receipt.affectedItems === 1 ? 'item' : 'items'}{cost ? ` · spent ${cost}` : ''}{refund}.</Alert>;
+              })() : null}
+              {selected.size ? (
+                <div className="se-armory-customize" aria-label="Modifications and saved builds">
+                  <strong>Mods &amp; builds</strong>
+                  {oneModelSelection && firstSelected && selectedModRule ? <>
+                    <div className="se-armory-customize__grid">
+                      <label>Modification<select value={selectedMod?.key ?? ''} onChange={(event) => setModKey(event.target.value)}>{modOptions.map((mod) => <option key={mod.key} value={mod.key}>{mod.key.replaceAll('_', ' ')}</option>)}</select></label>
+                      <label>Tier<select value={modTier} onChange={(event) => setModTier(Number(event.target.value))}>{selectedMod?.tiers.map(({ tier, effectPercent }) => <option key={tier} value={tier}>Tier {tier} · {effectPercent}%</option>)}</select></label>
+                      <Button size="sm" variant="primary" disabled={!selectedMod || modAction.busy} onClick={() => applyModAction({ action: 'INSTALL_MOD', items: selectedItems.map(({ id, kind }) => ({ id, kind })), modKey: selectedMod!.key, tier: modTier })}>Install / replace</Button>
+                      <label>Remove<select value={removeModKey} onChange={(event) => setRemoveModKey(event.target.value)}><option value="">Choose installed mod</option>{installedMods.map((key) => <option key={key} value={key}>{key.replaceAll('_', ' ')}</option>)}</select></label>
+                      <Button size="sm" variant="ghost" disabled={!removeModKey || modAction.busy} onClick={() => applyModAction({ action: 'REMOVE_MOD', items: selectedItems.map(({ id, kind }) => ({ id, kind })), modKey: removeModKey })}>Remove mod</Button>
+                    </div>
+                    {selectedModCost ? <small>Base install: {formatCents(selectedModCost.cashCents)} + {selectedModCost.parts} parts per item · {selectedUnits.toLocaleString()} selected. Replacements return half the old mod’s parts; the receipt shows the exact total.</small> : null}
+                    <small>Each selected stack is customized in full. Costs are charged per item; removing a mod returns half its parts.</small>
+                    <div className="se-armory-customize__grid">
+                      <label>Save current setup<input value={buildName} onChange={(event) => setBuildName(event.target.value)} maxLength={40} placeholder="Build name" /></label>
+                      <Button size="sm" disabled={selectedItems.length !== 1 || !buildName.trim() || modAction.busy} onClick={() => applyModAction({ action: 'SAVE_BUILD', items: [{ id: firstSelected.id, kind: firstSelected.kind }], name: buildName })}>Save build</Button>
+                      <label>Saved builds<select value={buildId} onChange={(event) => setBuildId(event.target.value)}><option value="">Choose a build</option>{compatibleBuilds.map((build) => <option key={build.id} value={build.id}>{build.name}</option>)}</select></label>
+                      <Button size="sm" variant="primary" disabled={!buildId || modAction.busy} onClick={() => applyModAction({ action: 'APPLY_BUILD', items: selectedItems.map(({ id, kind }) => ({ id, kind })), buildId })}>Apply to selected</Button>
+                      <Button size="sm" variant="ghost" disabled={!buildId || modAction.busy} onClick={() => applyModAction({ action: 'DELETE_BUILD', buildId })}>Delete build</Button>
+                    </div>
+                    <small>Saved builds belong to this equipment model. Applying one charges only for changes and applies to every item in each selected stack.</small>
+                    <small>Cash: {formatCents(data.resources.cashCents)} · Parts: {data.resources.vehicleParts.toLocaleString()}</small>
+                  </> : <small>Select items of one model to install mods, remove mods, or use builds.</small>}
+                </div>
+              ) : null}
+              {lookAction.error ? <Alert tone="error">{lookAction.error}</Alert> : null}
+              {featureAction.error ? <Alert tone="error">{featureAction.error}</Alert> : null}
+              {data.featuredItem ? <div className="se-armory-featured"><strong>Profile feature:</strong> {data.featuredItem.name || `Unmarked ${data.featuredItem.model}`} · {data.featuredItem.roundName}<button type="button" className="se-btn se-btn--ghost se-btn--sm" onClick={() => { featureAction.clear(); void featureAction.run((actionId) => armoryApi.feature({ actionId, item: null })); }}>Remove</button></div> : null}
+              {visible.length ? <div className="se-armory-list">{visible.map((item) => <ItemCard key={itemKey(item)} item={item} selected={selected.has(itemKey(item))} onSelect={() => toggle(item)} looks={data.looks} onLook={applyLook} onFeature={featureItem} featured={data.featuredItem?.id === item.id} />)}</div> : <p className="se-muted se-armory-empty">No items match these filters.</p>}
             </Panel>
           </>
         )}

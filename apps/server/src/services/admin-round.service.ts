@@ -216,6 +216,7 @@ const rulesetOption = (ruleset: Ruleset): AdminRulesetOptionDto => ({
   version: ruleset.meta.version,
   name: ruleset.meta.name,
   streetSkills: Boolean(ruleset.streetSkills),
+  individualItems: Boolean(ruleset.individualItems?.enabled),
 });
 
 function toAdminRoundDto(round: Round, playerCount: number): AdminRoundDto {

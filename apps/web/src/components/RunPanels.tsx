@@ -111,6 +111,9 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
     SEDAN: 0,
     VAN: 0,
   });
+  const [vehicleMode, setVehicleMode] = useState<'manual' | 'auto'>('manual');
+  const [vehicleIds, setVehicleIds] = useState<Record<string, number>>({});
+  const [autoFleetCount, setAutoFleetCount] = useState<number | ''>(1);
   const [escorts, setEscorts] = useState<number | ''>(0);
   const [cash, setCash] = useState<number | ''>(0);
   const [beer, setBeer] = useState<number | ''>(0);
@@ -124,20 +127,44 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
   const { routes, error: routeError } = useRoutes(destination ? to : '', data.home.turns);
   useEffect(() => { setRoute(0); }, [to]);
 
-  const selected: Record<'LOW_RIDER' | 'SEDAN' | 'VAN', number> = {
+  const legacySelected: Record<'LOW_RIDER' | 'SEDAN' | 'VAN', number> = {
     LOW_RIDER: typeof vehicleLoadout.LOW_RIDER === 'number' ? vehicleLoadout.LOW_RIDER : 0,
     SEDAN: typeof vehicleLoadout.SEDAN === 'number' ? vehicleLoadout.SEDAN : 0,
     VAN: typeof vehicleLoadout.VAN === 'number' ? vehicleLoadout.VAN : 0,
   };
+  const individualRows = data.vehicleItems ?? [];
+  const individualFleetEnabled = data.individualVehiclesEnabled === true;
+  const expandedVehicles = individualRows.flatMap((row) => Array.from({ length: row.quantity }, (_, index) => ({ ...row, pickKey: `${row.id}:${index}` })));
+  const autoVehicles = expandedVehicles.sort((a, b) => {
+    const aSpec = vehicleSpec(a.model); const bSpec = vehicleSpec(b.model);
+    const efficiency = (v: typeof a, spec: typeof aSpec) => ((spec?.cargoPercent ?? 100) * (1 + v.mods.filter((mod) => mod.key === 'CARGO').reduce((sum, mod) => sum + mod.tier * 0.05, 0))) / Math.max(1, spec?.runFeeCents ?? 1);
+    return efficiency(b, bSpec) - efficiency(a, aSpec) || b.condition - a.condition;
+  });
+  const chosenIndividual = individualFleetEnabled
+    ? vehicleMode === 'auto'
+      ? autoVehicles.slice(0, typeof autoFleetCount === 'number' ? autoFleetCount : 0)
+      : expandedVehicles.filter((vehicle) => vehicleIds[vehicle.id] && Number(vehicle.pickKey.split(':').at(-1)) < vehicleIds[vehicle.id]!)
+    : [];
+  const selected: Record<'LOW_RIDER' | 'SEDAN' | 'VAN', number> = individualFleetEnabled
+    ? { LOW_RIDER: chosenIndividual.filter((vehicle) => vehicle.model === 'LOW_RIDER').length, SEDAN: chosenIndividual.filter((vehicle) => vehicle.model === 'SEDAN').length, VAN: chosenIndividual.filter((vehicle) => vehicle.model === 'VAN').length }
+    : legacySelected;
   const totalVehicles = selected.LOW_RIDER + selected.SEDAN + selected.VAN;
-  const vehicleFeeCents = (data.vehicleFleet ?? []).reduce((sum, vehicle) => sum + (vehicle.runFeeCents ?? 0) * selected[vehicle.classId], 0);
+  const vehicleFeeCents = individualFleetEnabled
+    ? chosenIndividual.reduce((sum, vehicle) => {
+        const fee = vehicleSpec(vehicle.model)?.runFeeCents ?? 0;
+        const fuelPct = vehicle.mods.filter((mod) => mod.key === 'FUEL_TANK').reduce((part, mod) => part + mod.tier * 0.10, 0);
+        return sum + Math.floor(fee * (1 - fuelPct));
+      }, 0)
+    : (data.vehicleFleet ?? []).reduce((sum, vehicle) => sum + (vehicle.runFeeCents ?? 0) * selected[vehicle.classId], 0);
   const owned = home.vehicles ?? { LOW_RIDER: home.lowRiders, SEDAN: 0, VAN: 0 };
   const vehicleSpec = (classId: 'LOW_RIDER' | 'SEDAN' | 'VAN') => data.vehicleFleet?.find((vehicle) => vehicle.classId === classId);
   // 1.5.0-C: cars waiting on the garage stay home.
   const inService = Object.fromEntries((data.vehicleFleet ?? []).map((vehicle) => [vehicle.classId, (vehicle.damaged ?? 0) + (vehicle.disabled ?? 0)]));
   const inServiceCount = Object.values(inService).reduce((sum, count) => sum + count, 0);
   const trouble = vehicleTroubleText(data);
-  const capacity = Math.floor((['LOW_RIDER', 'SEDAN', 'VAN'] as const).reduce((sum, classId) => sum + selected[classId] * rules.cargoPerLowRider * (vehicleSpec(classId)?.cargoPercent ?? 100) / 100, 0));
+  const capacity = individualFleetEnabled
+    ? Math.floor(chosenIndividual.reduce((sum, vehicle) => sum + rules.cargoPerLowRider * (vehicleSpec(vehicle.model)?.cargoPercent ?? 100) / 100 * (1 + vehicle.mods.filter((mod) => mod.key === 'CARGO').reduce((part, mod) => part + mod.tier * 0.05, 0)), 0))
+    : Math.floor((['LOW_RIDER', 'SEDAN', 'VAN'] as const).reduce((sum, classId) => sum + selected[classId] * rules.cargoPerLowRider * (vehicleSpec(classId)?.cargoPercent ?? 100) / 100, 0));
   const seats = (['LOW_RIDER', 'SEDAN', 'VAN'] as const).reduce((sum, classId) => sum + selected[classId] * (vehicleSpec(classId)?.crewSeats ?? rules.thugsPerLowRider), 0);
   const units = (from: Record<string, number | ''>) => Object.values(from).reduce<number>((sum, count) => sum + (typeof count === 'number' ? count : 0), 0);
   const held = home.products;
@@ -162,7 +189,8 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
     : !destination ? 'Pick a city on the map or in the list.'
       : !chosen ? (routeError ?? 'Planning the drive...')
         : totalVehicles < 1 ? 'Choose at least one vehicle for this run.'
-          : (['LOW_RIDER', 'SEDAN', 'VAN'] as const).some((classId) => selected[classId] > owned[classId]) ? 'You do not have that many vehicles ready at home.'
+          : individualFleetEnabled && vehicleMode === 'manual' && (chosenIndividual.length !== Object.values(vehicleIds).reduce((sum, qty) => sum + qty, 0) || chosenIndividual.length < 1) ? 'Choose at least one ready vehicle.'
+          : !individualFleetEnabled && (['LOW_RIDER', 'SEDAN', 'VAN'] as const).some((classId) => selected[classId] > owned[classId]) ? 'You do not have that many vehicles ready at home.'
           : (typeof escorts === 'number' ? escorts : 0) > Math.min(home.fitThugs, seats) ? `Send at most ${Math.min(home.fitThugs, seats)} escorts: ${seats} seats, ${home.fitThugs} fit thugs at home.`
           : cashCents + marketCents + vehicleFeeCents > home.cashCents ? `Cash in the run, market buys, and the ${formatCents(vehicleFeeCents)} fleet fee exceed your ${formatCents(home.cashCents)} at home.`
               : beerUnits > home.beer ? `You only have ${formatNumber(home.beer)} beer at home.`
@@ -177,7 +205,9 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
     const load = Object.fromEntries(Object.entries(cargo).filter(([, count]) => typeof count === 'number' && count > 0)) as Record<string, number>;
     const quotes = Object.fromEntries(wholesale.filter((entry) => bought[entry.key]).map((entry) => [entry.key, entry.market.buyCents]));
     await launch.run((actionId): Promise<GameActionResult<RunLaunchResult>> => api.post('/game/travel/launch', {
-      to, route, lowRiders: selected.LOW_RIDER, vehicleLoadout: selected, escortThugs: typeof escorts === 'number' ? escorts : 0, cashCents, beer: beerUnits, cargo: load, market: bought, marketQuotes: quotes,
+      to, route, lowRiders: selected.LOW_RIDER, vehicleLoadout: vehicleMode === 'auto' && individualFleetEnabled ? { LOW_RIDER: typeof autoFleetCount === 'number' ? autoFleetCount : 0, SEDAN: 0, VAN: 0 } : selected,
+      ...(individualFleetEnabled ? vehicleMode === 'manual' ? { vehicleIds: chosenIndividual.map((vehicle) => vehicle.id) } : { autoFleet: true } : {}),
+      escortThugs: typeof escorts === 'number' ? escorts : 0, cashCents, beer: beerUnits, cargo: load, market: bought, marketQuotes: quotes,
       ...(riding ? { rideAlong: true } : {}), actionId,
     }));
     setRideAlong(false);
@@ -209,8 +239,21 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
           <p className="se-hint">A run needs at least one Low-Rider. <Link className="se-golink" to="/game/stores/charlie">Buy one from Charlie</Link>.</p>
         ) : null}
 
+        {individualFleetEnabled ? (
+          <div className="se-field se-launch__fleet-picker">
+            <div className="se-label">Vehicles for this run</div>
+            <div className="se-btn-row"><Button type="button" variant={vehicleMode === 'manual' ? 'primary' : 'ghost'} onClick={() => setVehicleMode('manual')}>Choose vehicles</Button><Button type="button" variant={vehicleMode === 'auto' ? 'primary' : 'ghost'} onClick={() => setVehicleMode('auto')}>Auto-fleet</Button></div>
+            {vehicleMode === 'auto' ? <label className="se-label">Fleet size <input className="se-input" type="number" min={1} max={individualRows.reduce((sum, row) => sum + row.quantity, 0)} value={autoFleetCount} onChange={(event) => setAutoFleetCount(whole(event.target.value))} /></label> : (
+              <div className="se-launch__vehicle-list">{individualRows.map((vehicle) => <label key={vehicle.id} className="se-launch__vehicle">
+                <span><input type="checkbox" checked={(vehicleIds[vehicle.id] ?? 0) > 0} onChange={(event) => setVehicleIds((current) => ({ ...current, [vehicle.id]: event.target.checked ? 1 : 0 }))} /> {vehicle.name || vehicle.model.replace('_', ' ')}{vehicle.quantity > 1 ? ` · ${vehicle.quantity} stacked` : ''}</span>
+                <span>{vehicle.condition}%{vehicle.mods.length ? ` · ${vehicle.mods.map((mod) => `${mod.key} ${mod.tier}`).join(', ')}` : ''}</span>
+                {vehicle.quantity > 1 && (vehicleIds[vehicle.id] ?? 0) > 0 ? <input aria-label={`Quantity of ${vehicle.model}`} className="se-input" type="number" min={1} max={vehicle.quantity} value={vehicleIds[vehicle.id]} onChange={(event) => setVehicleIds((current) => ({ ...current, [vehicle.id]: whole(event.target.value) || 0 }))} /> : null}
+              </label>)}</div>
+            )}
+          </div>
+        ) : null}
         <div className="se-launch__grid">
-          {(['LOW_RIDER', 'SEDAN', 'VAN'] as const).filter((classId) => vehicleSpec(classId) || classId === 'LOW_RIDER').map((classId) => {
+          {!individualFleetEnabled ? (['LOW_RIDER', 'SEDAN', 'VAN'] as const).filter((classId) => vehicleSpec(classId) || classId === 'LOW_RIDER').map((classId) => {
             const spec = vehicleSpec(classId);
             const name = spec?.name ?? 'Low-Rider';
             const key = classId.toLowerCase().replace('_', '-');
@@ -222,7 +265,7 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
                 {spec ? <span className="se-hint">{spec.cargoPercent ?? 100}% cargo · {spec.crewSeats ?? rules.thugsPerLowRider} seats · {routeProfileText(spec)}{spec.runFeeCents !== undefined ? ` · ${formatCents(spec.runFeeCents)} per run` : ''}</span> : null}
               </div>
             );
-          })}
+          }) : null}
           <div className="se-field">
             <label className="se-label" htmlFor="run-escorts">Escorts <span className="se-muted">of {Math.min(home.fitThugs, seats)}</span></label>
             <input id="run-escorts" className="se-input" type="number" inputMode="numeric" min={0} max={Math.min(home.fitThugs, seats)} value={escorts}
@@ -836,6 +879,7 @@ export function RunPanel({ run, data, onDone }: { run: RunDto; data: TravelDto; 
     <Panel title={pickup ? 'Supply pickup' : 'Your run'} aside={`${vehicleCountsText(run.vehicleLoadout ?? { LOW_RIDER: run.lowRiders, SEDAN: 0, VAN: 0 })}${run.escortThugs ? ` · ${run.escortThugs} escorts` : ''}`}>
       <p className={`se-run__headline${inTown ? ' se-run__headline--town' : ''}`}>{headline}</p>
       {run.vehicleDamage ? <p className="se-hint se-warn">{damageText(run.vehicleDamage, false)}</p> : null}
+      {run.individualVehicles?.length ? <div className="se-hint">Fleet: {run.individualVehicles.map((vehicle) => `${vehicle.name || vehicle.model.replace('_', ' ')} · ${vehicle.condition}%${vehicle.trouble && vehicle.trouble !== 'READY' ? ` · ${vehicle.trouble.toLowerCase()}` : ''}`).join(' / ')}</div> : null}
       <ol className="se-run__trip">
         {tripNodes(run, visibleStops).map((node, index) => {
           const here = inTown && node.stop === stop;
@@ -958,7 +1002,7 @@ export function ReceiptPanel({ receipt, products }: { receipt: RunReceiptDto; pr
     <Panel title="Last run" aside={`Back ${formatWeekdayTime(receipt.returnedAt)}`}>
       <div className="se-rows">
         <Row label="Went to" value={receipt.cities.map((city) => city.name).join(', ') || 'Nowhere'} />
-        {receipt.vehicleLoadout ? <Row label="Vehicles" value={vehicleCountsText(receipt.vehicleLoadout) || 'None'} /> : null}
+        {receipt.individualVehicles?.length ? <Row label="Vehicles" value={receipt.individualVehicles.map((vehicle) => `${vehicle.name || vehicle.model.replace('_', ' ')} · ${vehicle.condition}% · ${vehicle.status.toLowerCase()}`).join(' / ')} /> : receipt.vehicleLoadout ? <Row label="Vehicles" value={vehicleCountsText(receipt.vehicleLoadout) || 'None'} /> : null}
         {receipt.vehicleDamage ? <Row label="Garage" value={<span className="se-warn">{damageText(receipt.vehicleDamage, true)}</span>} /> : null}
         <Row label="Cash" value={<span className="se-num">{formatCents(receipt.startCashCents)} → {formatCents(receipt.cashCents)} <span className={cashChange >= 0 ? 'se-good' : 'se-bad'}>({cashChange >= 0 ? '+' : ''}{formatCents(cashChange)})</span></span>} strong />
         {receipt.startBeer > 0 || receipt.beer > 0 ? <Row label="Beer" value={<span className="se-num">{formatNumber(receipt.startBeer)} → {formatNumber(receipt.beer)}</span>} /> : null}

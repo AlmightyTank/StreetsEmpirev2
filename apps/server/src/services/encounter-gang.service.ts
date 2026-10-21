@@ -4,6 +4,8 @@ import { rivalryRulesForRuleset, type DistrictKey, type EncounterGangRules, type
 import type { Db } from '../utils/db.js';
 import { emitCityMemoryEvent } from './city-memory.service.js';
 import type { PlayerState } from './action.service.js';
+import { IndividualItemsService } from './individual-items.service.js';
+import { appendItemEvent } from './individual-item-history.js';
 
 const DISTRICTS: readonly DistrictKey[] = ['WINO_SLUMS', 'LOW_RENT', 'URBAN_GHETTO', 'NIGHTCLUB', 'CASINO'];
 const ATTACKS = new Set(['CASH_RAID', 'DRIVE_BY', 'STEAL_RIDE', 'DRUG_HOES', 'LURE_CREW', 'REVENGE', 'TURF_PUSH']);
@@ -62,9 +64,9 @@ async function ensureRoundState(tx: Db, roundId: string, ruleset: Ruleset, rules
   }
 }
 
-export function encounterGangTargetFits(targeting: string, state: PlayerState): boolean {
+export function encounterGangTargetFits(targeting: string, state: PlayerState, individualVehicles = false): boolean {
   const fit = Math.max(0, state.thugs - state.woundedThugs - state.busyThugs - state.postedThugs - state.businessThugs - state.dealerThugs);
-  if (targeting === 'RIDES') return state.lowRiders > 0;
+  if (targeting === 'RIDES') return (individualVehicles ? state.lowRiders + state.sedans + state.vans : state.lowRiders) > 0;
   if (targeting === 'PRODUCT') return state.crack > 0;
   if (targeting === 'DISTRACTED') return state.woundedThugs > 0 || fit < 5;
   if (targeting === 'WEAKEST') return fit < 12;
@@ -82,9 +84,60 @@ export function encounterGangMoveFor(trigger: RandomEncounterTrigger, favorite: 
   return 'CASH_RAID';
 }
 
+export async function stealVehicleToEncounterGang(tx: Db, roundPlayerId: string, gangSlug: string, now: Date): Promise<Record<string, unknown> | null> {
+  const player = await tx.roundPlayer.findUnique({ where: { id: roundPlayerId }, select: { roundId: true } });
+  if (!player) return null;
+  const gang = await tx.encounterGang.findUnique({ where: { roundId_slug: { roundId: player.roundId, slug: gangSlug } } });
+  if (!gang) return null;
+  const candidates = await tx.playerVehicle.findMany({ where: { roundPlayerId, status: 'READY' }, orderBy: [{ condition: 'asc' }, { createdAt: 'asc' }] });
+  const vehicle = candidates.find((row) => row.quantity > 0);
+  if (!vehicle) return null;
+  if (vehicle.quantity === 1) await tx.playerVehicle.delete({ where: { id: vehicle.id } });
+  else await tx.playerVehicle.update({ where: { id: vehicle.id }, data: { quantity: { decrement: 1 } } });
+  const previousOrigin = root(vehicle.origin);
+  const history = Array.isArray(previousOrigin.history) ? previousOrigin.history : [];
+  const origin = { ...previousOrigin, history: [...history, { event: 'STOLEN_BY_ENCOUNTER_GANG', gangSlug, at: now.toISOString() }] };
+  const itemHistory = appendItemEvent(vehicle.history, { type: 'STOLEN', summary: `Taken by ${gang.crewName}`, otherPlayer: gang.crewName, at: now });
+  const stolen = { model: vehicle.model, name: vehicle.name, plate: vehicle.plate, condition: vehicle.condition, mods: vehicle.mods, origin, stats: vehicle.stats, history: itemHistory, takenAt: now.toISOString(), ownerRoundPlayerId: roundPlayerId };
+  const memory = root(gang.memory);
+  const stolenVehicles = Array.isArray(memory.stolenVehicles) ? memory.stolenVehicles : [];
+  await tx.encounterGang.update({ where: { id: gang.id }, data: { memory: { ...memory, stolenVehicles: [...stolenVehicles, stolen] } as Prisma.InputJsonValue } });
+  await IndividualItemsService.refreshSummary(tx, roundPlayerId);
+  return { model: vehicle.model, name: vehicle.name, plate: vehicle.plate, condition: vehicle.condition, mods: vehicle.mods };
+}
+
+export async function recoverVehiclesFromEncounterGang(tx: Db, roundPlayerId: string, gangSlug: string, now: Date): Promise<Array<Record<string, unknown>>> {
+  const player = await tx.roundPlayer.findUnique({ where: { id: roundPlayerId }, select: { roundId: true } });
+  if (!player) return [];
+  const gang = await tx.encounterGang.findUnique({ where: { roundId_slug: { roundId: player.roundId, slug: gangSlug } } });
+  if (!gang) return [];
+  const memory = root(gang.memory);
+  const all = Array.isArray(memory.stolenVehicles) ? memory.stolenVehicles : [];
+  const ours = all.filter((raw) => root(raw).ownerRoundPlayerId === roundPlayerId);
+  if (!ours.length) return [];
+  const recovered: Array<Record<string, unknown>> = [];
+  for (const raw of ours) {
+    const vehicle = root(raw);
+    if (typeof vehicle.model !== 'string') continue;
+    const previousOrigin = root(vehicle.origin);
+    const history = Array.isArray(previousOrigin.history) ? previousOrigin.history : [];
+    const origin = { ...previousOrigin, kind: 'RECOVERED', recoveredAt: now.toISOString(), fromEncounterGang: gangSlug, history: [...history, { event: 'RECOVERED', fromEncounterGang: gangSlug, at: now.toISOString() }] };
+    const saved = await tx.playerVehicle.create({ data: { roundPlayerId, model: vehicle.model, name: typeof vehicle.name === 'string' ? vehicle.name : null,
+      plate: typeof vehicle.plate === 'string' ? vehicle.plate : null, condition: typeof vehicle.condition === 'number' ? vehicle.condition : 100,
+      mods: (vehicle.mods ?? []) as Prisma.InputJsonValue, origin: origin as Prisma.InputJsonValue,
+      stats: (vehicle.stats ?? {}) as Prisma.InputJsonValue,
+      history: appendItemEvent(vehicle.history, { type: 'RECOVERED', summary: `Recovered from ${gang.crewName}`, otherPlayer: gang.crewName, at: now }),
+      status: 'READY', quantity: 1 } });
+    recovered.push({ id: saved.id, model: saved.model, name: saved.name, plate: saved.plate, condition: saved.condition, mods: saved.mods });
+  }
+  await tx.encounterGang.update({ where: { id: gang.id }, data: { memory: { ...memory, stolenVehicles: all.filter((raw) => root(raw).ownerRoundPlayerId !== roundPlayerId) } as Prisma.InputJsonValue } });
+  await IndividualItemsService.refreshSummary(tx, roundPlayerId);
+  return recovered;
+}
+
 function encounterText(gang: { crewName: string; bossName: string }, move: string): { title: string; text: string } {
   if (move === 'DRIVE_BY') return { title: `${gang.crewName} rolling through`, text: `${gang.bossName}'s shooters swing past the block. Fight from cover, lose them in the alleys, or pay to cool it down.` };
-  if (move === 'STEAL_RIDE') return { title: `${gang.crewName} eyeing your ride`, text: `${gang.crewName} has hands on one of your Low-Riders. Move now or watch it disappear into a chop shop.` };
+  if (move === 'STEAL_RIDE') return { title: `${gang.crewName} eyeing your ride`, text: `${gang.crewName} has hands on one of your vehicles. Move now or watch it disappear into a chop shop.` };
   if (move === 'DRUG_HOES') return { title: `${gang.crewName} working your corner`, text: `${gang.crewName} is passing bad product around your workers to spoil the shift.` };
   if (move === 'LURE_CREW') return { title: `${gang.crewName} sets an ambush`, text: `${gang.crewName} uses a fake score to pull your crew into a narrow alley.` };
   if (move === 'REVENGE') return { title: `${gang.crewName} comes for payback`, text: `${gang.bossName} remembers what happened last time. Their crew found you before the grudge cooled.` };
@@ -161,7 +214,7 @@ export const EncounterGangService = {
       ? Boolean(await input.tx.rivalryRelationship.findFirst({ where: { roundId: player.roundId, suppressedAt: null, status: { in: ['MUTUAL', 'ONE_SIDED'] }, OR: [{ participantAId: input.roundPlayerId }, { participantBId: input.roundPlayerId }], sources: { some: { participantId: input.roundPlayerId } } }, select: { id: true } }))
       : true;
     const ranked = gangs
-      .map((gang) => ({ gang, score: (gang.grudges.some((grudge) => !grudge.settledAt) && verifiedRivalry ? 100 : 0) + gang.momentum + gang.aggression + (encounterGangTargetFits(gang.targeting, input.state) ? 30 : 0) + rng() * 25 }))
+      .map((gang) => ({ gang, score: (gang.grudges.some((grudge) => !grudge.settledAt) && verifiedRivalry ? 100 : 0) + gang.momentum + gang.aggression + (encounterGangTargetFits(gang.targeting, input.state, Boolean(input.ruleset.individualItems?.enabled)) ? 30 : 0) + rng() * 25 }))
       .sort((a, b) => b.score - a.score);
     const gang = ranked[0]!.gang;
     const personality = rules.personalities[gang.personality] ?? Object.values(rules.personalities)[0]!;
@@ -171,7 +224,7 @@ export const EncounterGangService = {
     const bountyAvailable = !gang.grudges.some((grudge) => grudge.bountyClaimedAt);
     const move = encounterGangMoveFor(input.trigger, personality.favoriteMove, revenge, lowRep);
     if (input.trigger === 'TURF' && !lowRep && !onTurf) return null;
-    if (!encounterGangTargetFits(gang.targeting, input.state) && !revenge && rng() > 0.25) return null;
+    if (!encounterGangTargetFits(gang.targeting, input.state, Boolean(input.ruleset.individualItems?.enabled)) && !revenge && rng() > 0.25) return null;
     const nextActions = Number(root(gang.memory).actions ?? 0) + 1;
     const tier = encounterGangTierAfter(nextActions);
     const attack = ATTACKS.has(move);

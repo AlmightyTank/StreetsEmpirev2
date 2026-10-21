@@ -34,6 +34,8 @@ import {
 } from './turf.service.js';
 import { recordTerritoryControlChange, territoryControlForCity } from './turf-territory.service.js';
 import { startTurfHold } from './turf-history.service.js';
+import { planIndividualCombat } from './individual-combat.service.js';
+import { IndividualItemsService } from './individual-items.service.js';
 
 function requireOutposts(ruleset: Ruleset) {
   const rules = ruleset.turf?.outposts;
@@ -203,13 +205,21 @@ export const TurfOutpostService = {
         const model = ruleset.combat;
         if (!model) throw AppError.conflict('COMBAT_DISABLED', 'There is no street fight model in this round.');
         const ammoRules = ruleset.ammoParts?.enabled && ruleset.ammoParts.combatEnabled ? ruleset.ammoParts.ammo : null;
-        const attacker = ammoRules
+        const itemRules = ruleset.individualItems?.enabled && ammoRules ? ruleset.individualItems : null;
+        const individual = itemRules ? await planIndividualCombat(tx, roundPlayerId,
+          { thugs: input.thugs, thugHappiness, weapons: engineGuns(guns) }, Math.min(input.thugs, model.squadCap), model,
+          itemRules, ammoRules!, current.ammo ?? 0, 'ATTACKER', rng) : null;
+        const attacker = individual
+          ? (() => { const equipped = equipCombatSquad(individual.crew, Math.min(input.thugs, model.squadCap), model);
+            return { ...equipped, strength: equipped.strength * individual.strengthMultiplier }; })()
+          : ammoRules
           ? equipCombatSquadWithAmmo({ thugs: input.thugs, thugHappiness, weapons: engineGuns(guns) }, Math.min(input.thugs, model.squadCap), model, current.ammo ?? 0, ammoRules.roundsPerFight)
           : equipCombatSquad({ thugs: input.thugs, thugHappiness, weapons: engineGuns(guns) }, Math.min(input.thugs, model.squadCap), model);
         const defender = ammoRules
           ? equipCombatSquadWithAmmo({ thugs: locals, thugHappiness: 100, weapons: localsGuns(ruleset, locals) }, Math.min(locals, model.squadCap), model, 0, ammoRules.roundsPerFight, { defenderFloorFighters: ammoRules.defenderFloor })
           : equipCombatSquad({ thugs: locals, thugHappiness: 100, weapons: localsGuns(ruleset, locals) }, Math.min(locals, model.squadCap), model);
-        const ammoSpentRounds = ammoRules ? (attacker as { roundsSpent?: number }).roundsSpent ?? 0 : 0;
+        const ammoSpentRounds = individual?.roundsSpent ?? (ammoRules ? (attacker as { roundsSpent?: number }).roundsSpent ?? 0 : 0);
+        if (individual) { await individual.settle(tx, roundPlayerId); await IndividualItemsService.refreshSummary(tx, roundPlayerId); }
         const variance = ruleset.turf!.push.fight.variance;
         const attackerStrength = attacker.strength * (1 + (rng() * 2 - 1) * variance);
         const defenderStrength = defender.strength * ruleset.turf!.push.fight.defenseMultiplier;
@@ -223,6 +233,7 @@ export const TurfOutpostService = {
               outpostId: '', city: citySlug, cityName: ruleset.cities?.[citySlug]?.name ?? citySlug,
               district: key, districtName: name, won: false, squad: input.thugs, localsThugs: locals,
               cornerThugs: 0, cashCents: 0, beer: 0, products: {}, turnsUsed, ...(ammoRules ? { ammoSpentRounds } : {}),
+              ...(individual?.receipts.length ? { individualGuns: individual.receipts } : {}),
             },
             activity: { type: 'TURF_OUTPOST_ESTABLISH', payload: {
               city: citySlug, district: key, won: false, thugs: input.thugs, locals,
@@ -292,6 +303,7 @@ export const TurfOutpostService = {
             outpostId: outpost.id, city: citySlug, cityName: ruleset.cities?.[citySlug]?.name ?? citySlug,
             district: key, districtName: name, won: true, squad: input.thugs, localsThugs: locals,
             cornerThugs: input.thugs, cashCents: input.cashCents, beer: input.beer, products, turnsUsed, ...(ammoRules ? { ammoSpentRounds } : {}),
+            ...(individual?.receipts.length ? { individualGuns: individual.receipts } : {}),
           },
           activity: { type: 'TURF_OUTPOST_ESTABLISH', payload: {
             outpostId: outpost.id, city: citySlug, district: key, won: true, thugs: input.thugs,

@@ -15,8 +15,10 @@ import { ActivityService } from './activity.service.js';
 import { AvatarWearableService } from './avatar-wearable.service.js';
 import { EasterEggService } from './easter-egg.service.js';
 import { applyRandomEncounterEffects, capRandomEncounterEffects } from './random-encounter.service.js';
-import { EncounterGangService } from './encounter-gang.service.js';
+import { EncounterGangService, recoverVehiclesFromEncounterGang, stealVehicleToEncounterGang } from './encounter-gang.service.js';
 import { QuestCosmeticService } from './quest-cosmetic.service.js';
+import { planIndividualCombat } from './individual-combat.service.js';
+import { IndividualItemsService } from './individual-items.service.js';
 
 const FIRST_CLASS_ENCOUNTER_ID_PREFIX = 'event_';
 
@@ -197,10 +199,30 @@ async function resolveFirstClassEncounter(
       const savedState = object(participation.state) ?? {};
       const choice = choicesOf(inputJson(savedState.choices) as Prisma.JsonValue).find((candidate) => candidate.key === input.choice);
       if (!choice) throw AppError.badRequest('UNKNOWN_ENCOUNTER_CHOICE', 'Pick one of the listed responses.');
-      const effects = capRandomEncounterEffects(effectsOf(choice.effects) ?? {}, state);
-      const next = applyRandomEncounterEffects(state, effects);
-      const settledState = { ...savedState, selectedChoice: choice.key, selectedAt: now.toISOString(), selectedEffects: effects };
       const encounterKey = String((object(participation.occurrence.config) ?? {}).entryKey ?? participation.occurrence.definition.key);
+      let effects = capRandomEncounterEffects(effectsOf(choice.effects) ?? {}, state);
+      const gangRide = encounterKey.startsWith('street-gang:') && encounterKey.endsWith(':steal_ride') && ruleset.individualItems?.enabled;
+      if (gangRide && choice.key === 'give-ground' && state.lowRiders + state.sedans + state.vans > 0) effects = { ...effects, lowRiders: -1 };
+      let next = applyRandomEncounterEffects(state, effects);
+      let individualVehiclesStolen: Array<{ model: string; name: string | null; plate: string | null; condition: number; mods: unknown }> = [];
+      let individualVehiclesRecovered: Array<{ id: string; model: string; name: string | null; plate: string | null; condition: number; mods: unknown }> = [];
+      const gangSlug = encounterKey.split(':')[1] ?? '';
+      if (gangRide && choice.key === 'give-ground') {
+        const stolen = await stealVehicleToEncounterGang(tx, roundPlayerId, gangSlug, now);
+        if (stolen) {
+          individualVehiclesStolen = [stolen as typeof individualVehiclesStolen[number]];
+          if (stolen.model === 'SEDAN') next = { ...next, lowRiders: next.lowRiders + 1, sedans: next.sedans - 1 };
+          else if (stolen.model === 'VAN') next = { ...next, lowRiders: next.lowRiders + 1, vans: next.vans - 1 };
+        }
+      } else if (gangRide && choice.key === 'fight-back') {
+        individualVehiclesRecovered = await recoverVehiclesFromEncounterGang(tx, roundPlayerId, gangSlug, now) as typeof individualVehiclesRecovered;
+        for (const vehicle of individualVehiclesRecovered) {
+          if (vehicle.model === 'SEDAN') next = { ...next, sedans: next.sedans + 1 };
+          else if (vehicle.model === 'VAN') next = { ...next, vans: next.vans + 1 };
+          else next = { ...next, lowRiders: next.lowRiders + 1 };
+        }
+      }
+      const settledState = { ...savedState, selectedChoice: choice.key, selectedAt: now.toISOString(), selectedEffects: effects };
       const egg = await encounterEasterEgg(tx, roundPlayerId, encounterKey, choice.key, participation.createdAt, now);
       const holiday = await holidayRoadReward(tx, roundPlayerId, ruleset, encounterKey, choice.key, now);
       const result = {
@@ -212,6 +234,8 @@ async function resolveFirstClassEncounter(
         text: egg.text ?? choice.text,
         cashCents: effects.cashCents ?? 0,
         effects,
+        ...(individualVehiclesStolen.length ? { individualVehiclesStolen } : {}),
+        ...(individualVehiclesRecovered.length ? { individualVehiclesRecovered } : {}),
         ...(egg.easterEgg ? { easterEgg: egg.easterEgg } : holiday ? { easterEgg: holiday } : {}),
       };
       await tx.gameEventParticipation.update({
@@ -294,21 +318,52 @@ export const RandomEncounterChoiceService = {
           throw AppError.badRequest('UNKNOWN_ENCOUNTER_CHOICE', 'Pick one of the listed responses.');
         }
 
-        const effects = capRandomEncounterEffects(effectsOf(choice.effects) ?? {}, current);
+        let effects = capRandomEncounterEffects(effectsOf(choice.effects) ?? {}, current);
+        const gangRide = encounter.key.startsWith('street-gang:') && encounter.key.endsWith(':steal_ride') && ruleset.individualItems?.enabled;
+        if (gangRide && input.choice === 'give-ground' && current.lowRiders + current.sedans + current.vans > 0) effects = { ...effects, lowRiders: -1 };
         let next = applyRandomEncounterEffects(current, effects);
+        let individualVehiclesStolen: Array<{ model: string; name: string | null; plate: string | null; condition: number; mods: unknown }> = [];
+        let individualVehiclesRecovered: Array<{ id: string; model: string; name: string | null; plate: string | null; condition: number; mods: unknown }> = [];
+        const gangSlug = encounter.key.split(':')[1] ?? '';
+        if (gangRide && input.choice === 'give-ground') {
+          const stolen = await stealVehicleToEncounterGang(tx, roundPlayerId, gangSlug, now);
+          if (stolen) {
+            individualVehiclesStolen = [stolen as typeof individualVehiclesStolen[number]];
+            if (stolen.model === 'SEDAN') next = { ...next, lowRiders: next.lowRiders + 1, sedans: next.sedans - 1 };
+            else if (stolen.model === 'VAN') next = { ...next, lowRiders: next.lowRiders + 1, vans: next.vans - 1 };
+          }
+        } else if (gangRide && input.choice === 'fight-back') {
+          individualVehiclesRecovered = await recoverVehiclesFromEncounterGang(tx, roundPlayerId, gangSlug, now) as typeof individualVehiclesRecovered;
+          for (const vehicle of individualVehiclesRecovered) {
+            if (vehicle.model === 'SEDAN') next = { ...next, sedans: next.sedans + 1 };
+            else if (vehicle.model === 'VAN') next = { ...next, vans: next.vans + 1 };
+            else next = { ...next, lowRiders: next.lowRiders + 1 };
+          }
+        }
         let ammoSpentRounds = 0;
+        let individualFight: Awaited<ReturnType<typeof planIndividualCombat>> | null = null;
         const ammoParts = ruleset.ammoParts;
         const model = ruleset.combat;
         if (encounter.key.startsWith('street-gang:') && choice.key === 'fight-back'
           && ammoParts?.enabled && ammoParts.combatEnabled && model) {
           const fit = fitThugs(current);
           const squad = Math.min(fit, model.squadCap);
-          const armed = equipCombatSquadWithAmmo({
-            thugs: fit,
-            thugHappiness,
-            weapons: { PISTOL: current.pistols, SHOTGUN: current.shotguns, TEK9: current.tek9s, AK47: current.ak47s },
-          }, squad, model, current.ammo ?? 0, ammoParts.ammo.roundsPerFight);
-          ammoSpentRounds = armed.roundsSpent;
+          const itemRules = ruleset.individualItems?.enabled ? ruleset.individualItems : null;
+          if (itemRules) {
+            individualFight = await planIndividualCombat(tx, roundPlayerId, { thugs: fit, thugHappiness,
+              weapons: { PISTOL: current.pistols, SHOTGUN: current.shotguns, TEK9: current.tek9s, AK47: current.ak47s } },
+            squad, model, itemRules, ammoParts.ammo, current.ammo ?? 0, 'ATTACKER', () => Math.random());
+            ammoSpentRounds = individualFight.roundsSpent;
+            await individualFight.settle(tx, roundPlayerId);
+            await IndividualItemsService.refreshSummary(tx, roundPlayerId);
+          } else {
+            const armed = equipCombatSquadWithAmmo({
+              thugs: fit,
+              thugHappiness,
+              weapons: { PISTOL: current.pistols, SHOTGUN: current.shotguns, TEK9: current.tek9s, AK47: current.ak47s },
+            }, squad, model, current.ammo ?? 0, ammoParts.ammo.roundsPerFight);
+            ammoSpentRounds = armed.roundsSpent;
+          }
           next = { ...next, ammo: (current.ammo ?? 0) - ammoSpentRounds };
         }
         const egg = await encounterEasterEgg(tx, roundPlayerId, encounter.key, choice.key, encounter.createdAt, now);
@@ -322,7 +377,7 @@ export const RandomEncounterChoiceService = {
             selectedChoice: choice.key,
             resolvedAt: new Date(),
             effects,
-            result: {
+            result: inputJson({
               choice: choice.key,
               choiceLabel: choice.label,
               text,
@@ -330,7 +385,10 @@ export const RandomEncounterChoiceService = {
               effects,
               ...(ammoParts?.enabled && ammoParts.combatEnabled && encounter.key.startsWith('street-gang:') && choice.key === 'fight-back'
                 ? { ammoSpentRounds } : {}),
-            },
+              ...(individualFight?.receipts.length ? { individualGuns: individualFight.receipts } : {}),
+              ...(individualVehiclesStolen.length ? { individualVehiclesStolen } : {}),
+              ...(individualVehiclesRecovered.length ? { individualVehiclesRecovered } : {}),
+            }) as Prisma.InputJsonValue,
           },
         });
         await EncounterGangService.recordChoice(tx, roundPlayerId, encounter.key, choice.key, new Date());
@@ -355,6 +413,9 @@ export const RandomEncounterChoiceService = {
             effects,
             ...(ammoParts?.enabled && ammoParts.combatEnabled && encounter.key.startsWith('street-gang:') && choice.key === 'fight-back'
               ? { ammoSpentRounds } : {}),
+            ...(individualFight?.receipts.length ? { individualGuns: individualFight.receipts } : {}),
+            ...(individualVehiclesStolen.length ? { individualVehiclesStolen } : {}),
+            ...(individualVehiclesRecovered.length ? { individualVehiclesRecovered } : {}),
             ...(egg.easterEgg ? { easterEgg: egg.easterEgg } : holiday ? { easterEgg: holiday } : {}),
           },
         };

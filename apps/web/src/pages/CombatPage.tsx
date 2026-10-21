@@ -388,6 +388,8 @@ function RaidFormReport({ report, onClose }: { report: BattleReportDto; onClose?
           value={`${formatNumber(report.ammoCombat.spentRounds)} rounds spent${report.ammoCombat.freeDefenderRounds > 0 ? ` · ${formatNumber(report.ammoCombat.freeDefenderRounds)} defender-floor rounds` : ''}${report.ammoCombat.gainedRounds > 0 ? ` · ${formatNumber(report.ammoCombat.gainedRounds)} looted` : ''}${report.ammoCombat.lostRounds > 0 ? ` · ${formatNumber(report.ammoCombat.lostRounds)} lost to the attackers` : ''}`}
         />
       ) : null}
+      {report.itemCombat?.fired.length ? <Row label="Guns used" value={report.itemCombat.fired.map((gun) => `${gun.name ? `“${gun.name}” ` : ''}${gun.model}${gun.jammed ? ' jammed' : ` · ${formatNumber(gun.rounds)} rounds`}`).join('; ')} /> : null}
+      {report.itemCombat?.looted.length ? <Row label={attacking ? 'Gun taken' : 'Gun lost'} value={report.itemCombat.looted.map((gun) => `${gun.name ? `“${gun.name}” ` : ''}${gun.model}${gun.mods.length ? ` · ${gun.mods.map((mod) => `${mod.key.toLowerCase().replaceAll('_', ' ')} ${mod.tier}`).join(' / ')}` : ''} · condition ${gun.condition}${gun.recovered ? ' · recovered by its owner' : ` · hot until ${date(gun.hotUntil!)}`}`).join('; ')} /> : null}
       {report.yourSupply ? <Row label="Fight supply plan" value={`${supplySummary(report.yourSupply)} · ${supplyEffects(report.yourSupply)}`} /> : null}
       <BattleInventoryRows report={report} />
       {report.raidProtection && report.kind === 'DRUG_HOES' ? (

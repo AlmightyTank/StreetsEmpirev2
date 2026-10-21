@@ -1,6 +1,7 @@
 import type { IndividualItemsRules, ResourceField } from '@streets/rulesets';
 import type { Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
+import { appendItemEvent } from './individual-item-history.js';
 
 const GUN_FIELDS = { pistols: 'PISTOL', shotguns: 'SHOTGUN', tek9s: 'TEK9', ak47s: 'AK47' } as const;
 const VEHICLE_FIELDS = { sedans: 'SEDAN', lowRiders: 'LOW_RIDER', vans: 'VAN' } as const;
@@ -12,11 +13,11 @@ export const IndividualItemsService = {
   async seed(db: Db, roundPlayerId: string, start: Partial<Record<ResourceField, number>>, catalog: IndividualItemsRules) {
     for (const [field, model] of Object.entries(GUN_FIELDS) as Array<[keyof typeof GUN_FIELDS, (typeof GUN_FIELDS)[keyof typeof GUN_FIELDS]]>) {
       const quantity = start[field] ?? 0;
-      if (quantity > 0) await db.playerGun.create({ data: { roundPlayerId, model, quantity, origin: { kind: 'STARTING_KIT' } } });
+      if (quantity > 0) await db.playerGun.create({ data: { roundPlayerId, model, quantity, origin: { kind: 'STARTING_KIT' }, history: appendItemEvent([], { type: 'ACQUIRED', summary: 'Joined the round with this weapon' }) } });
     }
     for (const [field, model] of Object.entries(VEHICLE_FIELDS) as Array<[keyof typeof VEHICLE_FIELDS, (typeof VEHICLE_FIELDS)[keyof typeof VEHICLE_FIELDS]]>) {
       const quantity = start[field] ?? 0;
-      if (quantity > 0) await db.playerVehicle.create({ data: { roundPlayerId, model, quantity, origin: { kind: 'STARTING_KIT' } } });
+      if (quantity > 0) await db.playerVehicle.create({ data: { roundPlayerId, model, quantity, origin: { kind: 'STARTING_KIT' }, history: appendItemEvent([], { type: 'ACQUIRED', summary: 'Joined the round with this vehicle' }) } });
     }
     await this.refreshSummary(db, roundPlayerId);
     const [guns, vehicles] = await Promise.all([
@@ -72,18 +73,28 @@ export const IndividualItemsService = {
       if (current + quantity > cap) throw AppError.conflict('ARMORY_CAP_EXCEEDED', `That purchase exceeds the ${isGun ? 'gun' : 'vehicle'} capacity of ${cap.toLocaleString('en-US')}.`);
       if (isGun) {
         const existing = await db.playerGun.findFirst({ where: { roundPlayerId, model, name: null, condition: 100, status: 'READY', mods: { equals: [] }, origin: { equals: { kind: 'PURCHASED' } } }, orderBy: { createdAt: 'asc' } });
-        if (existing) await db.playerGun.update({ where: { id: existing.id }, data: { quantity: { increment: quantity } } });
-        else await db.playerGun.create({ data: { roundPlayerId, model, quantity, origin: { kind: 'PURCHASED' } } });
+        if (existing) await db.playerGun.update({ where: { id: existing.id }, data: { quantity: { increment: quantity }, history: appendItemEvent(existing.history, { type: 'ACQUIRED', summary: `Bought ${quantity} weapon${quantity === 1 ? '' : 's'}` }) } });
+        else await db.playerGun.create({ data: { roundPlayerId, model, quantity, origin: { kind: 'PURCHASED' }, history: appendItemEvent([], { type: 'ACQUIRED', summary: `Bought ${quantity} weapon${quantity === 1 ? '' : 's'}` }) } });
       } else {
         const existing = await db.playerVehicle.findFirst({ where: { roundPlayerId, model, name: null, condition: 100, status: 'READY', mods: { equals: [] }, origin: { equals: { kind: 'PURCHASED' } } }, orderBy: { createdAt: 'asc' } });
-        if (existing) await db.playerVehicle.update({ where: { id: existing.id }, data: { quantity: { increment: quantity } } });
-        else await db.playerVehicle.create({ data: { roundPlayerId, model, quantity, origin: { kind: 'PURCHASED' } } });
+        if (existing) await db.playerVehicle.update({ where: { id: existing.id }, data: { quantity: { increment: quantity }, history: appendItemEvent(existing.history, { type: 'ACQUIRED', summary: `Bought ${quantity} vehicle${quantity === 1 ? '' : 's'}` }) } });
+        else await db.playerVehicle.create({ data: { roundPlayerId, model, quantity, origin: { kind: 'PURCHASED' }, history: appendItemEvent([], { type: 'ACQUIRED', summary: `Bought ${quantity} vehicle${quantity === 1 ? '' : 's'}` }) } });
       }
     } else {
       let remaining = quantity;
+      let hotGunsPresent = false;
+      let lockedGunsPresent = false;
+      let vehiclesOnRunPresent = false;
+      let hotVehiclesPresent = false;
       if (isGun) {
         const rows = await db.playerGun.findMany({ where: { roundPlayerId, model }, orderBy: [{ status: 'asc' }, { createdAt: 'asc' }] });
-        for (const row of rows) {
+        lockedGunsPresent = rows.some((row) => row.status === 'LOCKED');
+        const sellableRows = rows.filter((row) => row.status !== 'LOCKED' && (() => {
+          const origin = row.origin && typeof row.origin === 'object' && !Array.isArray(row.origin) ? row.origin as Record<string, unknown> : {};
+          return !(typeof origin.hotUntil === 'string' && Date.parse(origin.hotUntil) > Date.now());
+        })());
+        hotGunsPresent = sellableRows.length < rows.length;
+        for (const row of sellableRows) {
           if (!remaining) break;
           const take = Math.min(remaining, row.quantity);
           if (take === row.quantity) await db.playerGun.delete({ where: { id: row.id } });
@@ -92,7 +103,15 @@ export const IndividualItemsService = {
         }
       } else {
         const rows = await db.playerVehicle.findMany({ where: { roundPlayerId, model }, orderBy: [{ status: 'asc' }, { createdAt: 'asc' }] });
-        for (const row of rows) {
+        vehiclesOnRunPresent = rows.some((row) => row.status === 'ON_RUN');
+        const sellableRows = rows.filter((row) => {
+          if (row.status === 'ON_RUN') return false;
+          const origin = row.origin && typeof row.origin === 'object' && !Array.isArray(row.origin) ? row.origin as Record<string, unknown> : {};
+          const hot = typeof origin.hotUntil === 'string' && Date.parse(origin.hotUntil) > Date.now();
+          if (hot) hotVehiclesPresent = true;
+          return !hot;
+        });
+        for (const row of sellableRows) {
           if (!remaining) break;
           const take = Math.min(remaining, row.quantity);
           if (take === row.quantity) await db.playerVehicle.delete({ where: { id: row.id } });
@@ -100,6 +119,10 @@ export const IndividualItemsService = {
           remaining -= take;
         }
       }
+      if (remaining && lockedGunsPresent) throw AppError.conflict('ARMORY_ITEM_LOCKED', 'A gun dispatched to a pending fight cannot be sold yet.');
+      if (remaining && vehiclesOnRunPresent) throw AppError.conflict('ARMORY_VEHICLE_ON_RUN', 'A vehicle assigned to a run cannot be sold until it returns.');
+      if (remaining && hotVehiclesPresent) throw AppError.conflict('ARMORY_ITEM_HOT', 'Hot vehicles cannot be sold until their recovery window ends.');
+      if (remaining && hotGunsPresent) throw AppError.conflict('ARMORY_ITEM_HOT', 'Hot guns cannot be sold until their recovery window ends.');
       if (remaining) throw AppError.conflict('ARMORY_INVENTORY_MISMATCH', 'The individual item inventory does not match the store balance.');
     }
     await this.refreshSummary(db, roundPlayerId);

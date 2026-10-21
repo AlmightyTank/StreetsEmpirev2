@@ -208,6 +208,11 @@ const globalSchema = z.object({
     nationalKingpinAllianceId: z.string().nullable(),
     awards: z.array(z.object({ allianceId: z.string(), awardKey: z.string(), scopeKey: z.string() })),
   }).optional(),
+  famousItems: z.array(z.object({
+    id: z.string(), playerName: z.string(), publicPimpId: z.number().int(), cityName: z.string(),
+    kind: z.enum(['GUN', 'VEHICLE']), model: z.string(), name: z.string().nullable(), lookKey: z.string().nullable(),
+    condition: z.number().int().min(0).max(100), mods: z.array(z.object({ key: z.string(), tier: z.number().int() })), score: z.number(),
+  })).optional(),
 }).strict();
 
 const citySchema = z.object({

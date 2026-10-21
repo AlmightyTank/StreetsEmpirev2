@@ -38,6 +38,7 @@ import { isBuiltInProfileTitle, profileTitleForAward, profileTitleForKey } from 
 import { TurfHistoryService } from './turf-history.service.js';
 import { QuestCosmeticService, withThemeCompanionFrames } from './quest-cosmetic.service.js';
 import { profileShowcase, profileThemeTags, themeTagFields } from './profile-showcase.service.js';
+import { readFeaturedItem } from './individual-item-history.js';
 import { seasonFeatAwards, type FeatSeason } from './season-feats.js';
 import { emptySeasonTotals, SeasonStatsService, toStatSheet, type SeasonTotals } from './season-stats.service.js';
 import { EmpireLegacyService } from './empire-legacy.service.js';
@@ -1244,6 +1245,7 @@ export const CommunityService = {
         surface: avatarFrame === SIGNATURE_CARD_FRAME_KEY ? profileSurfaceKey(profileSettings?.profileSurface) : null,
       },
       look: showcase.look,
+      famousItem: profileSettings?.showLookOnProfile === false ? null : readFeaturedItem(profileSettings?.famousItem),
       experience: playerExperienceDto(player.account.experiencePoints),
       publicPimpId: player.publicPimpId,
       displayName: player.displayName,

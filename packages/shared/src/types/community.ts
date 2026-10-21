@@ -383,6 +383,8 @@ export interface PublicPlayerProfileDto {
   };
   /** Slice E. Null when the owner hides their look. Optional for older servers. */
   look?: ProfileLookDto | null;
+  /** Slice F. Player-selected named item, preserved across rounds. */
+  famousItem?: import('./api.js').FeaturedItemDto | null;
   /** Lifetime account XP, safe to show on public player cards. */
   experience?: PlayerExperienceDto;
   publicPimpId: number;

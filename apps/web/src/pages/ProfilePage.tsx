@@ -12,7 +12,7 @@ import type {
   CareerStoryActiveDto,
   CareerStoryArchiveDto,
 } from '@streets/shared';
-import { formatCents, formatNumber, profileNameParts, SIGNATURE_CARD_FRAME_KEY } from '@streets/shared';
+import { formatCents, formatNumber, profileNameParts, SIGNATURE_CARD_FRAME_KEY, type ItemCosmeticStyleKey } from '@streets/shared';
 import { communityApi } from '../api/community.js';
 import { ApiError } from '../api/client.js';
 import { BirthdayCake } from '../components/BirthdayCake.js';
@@ -23,6 +23,7 @@ import { CareerGuidance, CareerMetricStrip, CareerNavigation } from '../componen
 import { CareerStoryPanel } from '../components/CareerStoryPanel.js';
 import { HideoutRoomChips } from '../components/HideoutRoomChips.js';
 import { ProfileBadgeArt } from '../components/ProfileBadgeArt.js';
+import { ItemTile } from '../components/ItemTile.js';
 import { ProfileBadges } from '../components/ProfileBadges.js';
 import { NameWithSupporterMark } from '../components/SupporterMark.js';
 import { hasProfileLook, ProfileLook } from '../components/ProfileLook.js';
@@ -887,6 +888,14 @@ export function ProfilePage() {
             </section>
 
             {hasProfileLook(player.look) ? <ProfileLook look={player.look} isYou={isYou} /> : null}
+
+            {player.famousItem ? <Panel title="Famous item" className="se-profile-panel">
+              <div className="se-profile-famous-item">
+                <ItemTile item={player.famousItem.model as 'PISTOL' | 'SHOTGUN' | 'TEK9' | 'AK47' | 'SEDAN' | 'LOW_RIDER' | 'VAN'} size="md" label={false} cosmeticStyle={(player.famousItem.lookKey ?? 'classic') as ItemCosmeticStyleKey} />
+                <div><span className="se-eyebrow">{player.famousItem.roundName} · {player.famousItem.kind === 'GUN' ? 'Weapon' : 'Vehicle'}</span><h3>{player.famousItem.name || `Unmarked ${player.famousItem.model.replaceAll('_', ' ')}`}</h3><p>{player.famousItem.model.replaceAll('_', ' ')} · {player.famousItem.condition}% condition{player.famousItem.mods.length ? ` · ${player.famousItem.mods.map((mod) => `${mod.key} ${mod.tier}`).join(', ')}` : ''}</p></div>
+              </div>
+              {player.famousItem.history.length ? <details><summary>Item story · {player.famousItem.history.length} events</summary><ol>{[...player.famousItem.history].reverse().slice(0, 8).map((event, index) => <li key={`${event.at}-${index}`}>{event.summary}{event.city ? ` · ${event.city}` : ''}</li>)}</ol></details> : null}
+            </Panel> : null}
 
             {player.showcase.length ? (
               <AwardStrip title="Showcase" awards={player.showcase} empty="" className="se-profile-showcase" />

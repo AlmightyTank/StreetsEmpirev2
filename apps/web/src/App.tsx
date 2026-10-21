@@ -17,6 +17,7 @@ import { AdminCasinoPage } from './pages/AdminCasinoPage.js';
 import { AdminFactionsPage } from './pages/AdminFactionsPage.js';
 import { AdminCrewPage } from './pages/AdminCrewPage.js';
 import { AdminVehiclesPage } from './pages/AdminVehiclesPage.js';
+import { AdminArmoryPlayerPage } from './pages/AdminArmoryPlayerPage.js';
 import { AdminLawPage } from './pages/AdminLawPage.js';
 import { AdminLawPlayerPage } from './pages/AdminLawPlayerPage.js';
 import { AdminCombatPage } from './pages/AdminCombatPage.js';
@@ -296,6 +297,7 @@ export function App() {
         <Route path="admin/factions" element={admin(<AdminFactionsPage />)} />
         <Route path="admin/crew" element={admin(<AdminCrewPage />)} />
         <Route path="admin/vehicles" element={admin(<AdminVehiclesPage />)} />
+        <Route path="admin/players/:roundPlayerId/armory" element={admin(<AdminArmoryPlayerPage />)} />
         <Route path="admin/law" element={admin(<AdminLawPage />)} />
         <Route path="admin/players/:roundPlayerId/law" element={admin(<AdminLawPlayerPage />)} />
         <Route path="admin/combat" element={admin(<AdminCombatPage />)} />
