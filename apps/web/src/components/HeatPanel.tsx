@@ -49,9 +49,7 @@ export function heatReceiptLines(
   return lines;
 }
 
-/**
- * A brief warning on Scout and Produce while police attention is elevated.
- */
+/** A brief warning on Scout and Produce while police attention is elevated. */
 export function HeatNotice() {
   const heat = useSession((s) => s.me?.heat);
   if (!heat || heatTone(heat) === 'good') return null;
@@ -59,9 +57,7 @@ export function HeatNotice() {
 
   return (
     <p className={`se-hint se-${tone} se-golinks`}>
-      <span>
-        Police attention is reducing your take. A trip could lead to a bust or arrest.
-      </span>
+      <span>Police attention is reducing your take. A trip could lead to a bust or arrest.</span>
       <Link className="se-golink" to="/game#heat">Cool it on the dashboard</Link>
     </p>
   );
@@ -102,7 +98,7 @@ export function HeatPanel() {
   }
 
   const status = lockedUntil
-    ? `You are in custody until ${formatWhen(lockedUntil)} and cannot take game actions.`
+    ? `You are in custody until ${formatWhen(heat.lockedUntil!)} and cannot take game actions.`
     : tone === 'bad'
       ? 'Police attention is high. Trips are dangerous, and you are earning less.'
       : tone === 'warn'
@@ -112,10 +108,6 @@ export function HeatPanel() {
   return (
     <Panel title="Heat" id="heat" aside={formatNumber(heat.heat)}>
       <p className={`se-heat__status se-${lockedUntil ? 'bad' : tone}`}>{status}</p>
-      <p className="se-hint">
-        Heat brings police attention. Higher Heat can cost product, money, and time in custody.
-        Laying low lets attention fade; paying it off can bring it down sooner.
-      </p>
 
       {heat.heat > 0 && !lockedUntil ? (
         <form className="se-heat__bribe" onSubmit={onSubmit}>
@@ -139,7 +131,6 @@ export function HeatPanel() {
               Bribe{wanted > 0 ? ` ${formatCents(cost)}` : ''}
             </Button>
           </div>
-          <p className="se-hint">Paying off Heat costs money. The total appears on the button.</p>
         </form>
       ) : null}
       {bribe.error ? <Alert>{bribe.error}</Alert> : null}
