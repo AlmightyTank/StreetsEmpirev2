@@ -167,9 +167,7 @@ export function ScoutPage() {
           <div className="se-scout-hero__copy">
             <span className="se-eyebrow">Scout operation · {me.city.name}</span>
             <h1>Street Intel</h1>
-            <p>
-              Read the block before you send the crew. Check their cover, plan the trip, then bring back whatever the street reveals.
-            </p>
+
           </div>
         </header>
 
