@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 /** Saved street-sign design contract. Bump the version when the persisted shape changes. */
 export const STREET_SIGN_VERSION = 2 as const;
-export const STREET_SIGN_TEXT_MAX = 28;
+export const STREET_SIGN_TEXT_MAX = 32;
 export const STREET_SIGN_TAG_MAX = 18;
 
 export const STREET_SIGN_SHAPES = ['classic', 'wide'] as const;
@@ -97,4 +97,12 @@ export const streetSignInputSchema = z.union([streetSignDesignSchema, legacyStre
 export function readStreetSignDesign(value: unknown): StreetSignDesign | null {
   const parsed = streetSignInputSchema.safeParse(value);
   return parsed.success ? parsed.data : null;
+}
+
+/** The sign face always carries the crew name; visual styling remains independently customizable. */
+export function streetSignForCrewName(value: unknown, crewName: string | null | undefined): StreetSignDesign | null {
+  const design = readStreetSignDesign(value);
+  if (!design) return null;
+  const linkedName = crewName?.trim();
+  return linkedName ? { ...design, streetName: linkedName.slice(0, STREET_SIGN_TEXT_MAX) } : design;
 }
