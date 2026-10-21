@@ -227,6 +227,8 @@ describe('RandomEncounterService', () => {
         tx: db,
         current: state,
         roundPlayerId,
+        now: new Date(),
+        ruleset: classicOgV16F,
       } as never);
       return {
         success: true,

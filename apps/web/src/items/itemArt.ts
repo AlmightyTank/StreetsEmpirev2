@@ -51,6 +51,14 @@ export const ITEM_ART = {
   SEDAN: { name: 'Sedan', shortName: 'Sedan', category: 'VEHICLE', rarity: 'UNCOMMON', file: 'sedan.svg', cells: WIDE },
   VAN: { name: 'Van', shortName: 'Van', category: 'VEHICLE', rarity: 'RARE', file: 'van.svg', cells: WIDE },
 
+  // 2.4.0 ammo and garage parts. Package sizes share consistent supply art.
+  AMMO_BOX: { name: 'Ammo Box', shortName: 'Ammo Box', category: 'SUPPLY', rarity: 'COMMON', file: 'ammo.svg', cells: ONE },
+  AMMO_CASE: { name: 'Ammo Case', shortName: 'Ammo Case', category: 'SUPPLY', rarity: 'UNCOMMON', file: 'ammo.svg', cells: ONE },
+  AMMO_CRATE: { name: 'Ammo Crate', shortName: 'Ammo Crate', category: 'SUPPLY', rarity: 'RARE', file: 'ammo.svg', cells: ONE },
+  PARTS_BOX: { name: 'Parts Box', shortName: 'Parts Box', category: 'SUPPLY', rarity: 'COMMON', file: 'parts.svg', cells: ONE },
+  PARTS_CRATE: { name: 'Parts Crate', shortName: 'Parts Crate', category: 'SUPPLY', rarity: 'UNCOMMON', file: 'parts.svg', cells: ONE },
+  PARTS_PALLET: { name: 'Parts Pallet', shortName: 'Parts Pallet', category: 'SUPPLY', rarity: 'RARE', file: 'parts.svg', cells: ONE },
+
   // Products
   CRACK: { name: 'Crack', shortName: 'Crack', category: 'PRODUCT', rarity: 'COMMON', file: 'crack.svg', cells: ONE },
   WEED: { name: 'Weed', shortName: 'Weed', category: 'PRODUCT', rarity: 'COMMON', file: 'weed.svg', cells: ONE },
