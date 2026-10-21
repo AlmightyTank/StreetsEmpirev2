@@ -59,3 +59,35 @@
   .se-street-sign-preview__tag--lower-left{left:25px}
   .se-street-sign-preview__tag--lower-right{right:25px}
 }
+
+/* Slice F follow-up: make the preview read like a flat blade street-name sign. */
+.se-street-sign-preview__face{display:flex;justify-content:center;align-items:center;padding:14px 34px;border:4px solid #c5cbc4;border-radius:9px;outline:0;box-shadow:inset 0 0 0 1px #ffffffb3,inset 0 0 0 3px #798179,0 7px 14px #0007}
+.se-street-sign-preview--wide .se-street-sign-preview__face{border-radius:6px}
+.se-street-sign-preview__lettering{display:flex;align-items:baseline;justify-content:center;gap:clamp(5px,1.5vw,12px);width:calc(100% - 38px);min-width:0;margin-inline:auto}
+.se-street-sign-preview__name{flex:0 1 auto;max-width:100%;font-size:clamp(1.15rem,5vw,2.35rem);font-weight:800;letter-spacing:.035em;text-shadow:0 1px 1px #0002}
+.se-street-sign-preview--wide .se-street-sign-preview__name{font-size:clamp(1.05rem,4.5vw,2.1rem)}
+.se-street-sign-preview__street-type{position:static;flex:none;font-family:'Barlow Condensed',sans-serif;font-size:clamp(.8rem,2.8vw,1.2rem);font-weight:800;line-height:1;letter-spacing:.035em}
+.se-street-sign-font--road-condensed{font-weight:800;letter-spacing:.045em}
+.se-street-sign-preview.se-street-sign-trim--single .se-street-sign-preview__face{border-width:3px;box-shadow:inset 0 0 0 1px #ffffffb3,0 7px 14px #0007}
+.se-street-sign-preview.se-street-sign-trim--beveled .se-street-sign-preview__face{border-width:6px;outline:0;box-shadow:inset 0 0 0 2px #ffffffb3,inset 0 0 0 4px #7f887f,0 8px 15px #0008}
+.se-street-sign-treatment--reflective .se-street-sign-preview__face{background-image:linear-gradient(108deg,transparent 0 42%,#ffffff12 49%,transparent 57%)}
+.se-street-sign-preview__tag{bottom:5px;font-size:.9rem;text-shadow:0 1px 2px #0008}
+.se-street-sign-preview__tag--small{font-size:.7rem}
+.se-street-sign-preview__tag--medium{font-size:.9rem}
+.se-street-sign-preview__tag--large{font-size:1.1rem}
+.se-street-sign-display .se-street-sign-preview__lettering{width:calc(100% - 30px);gap:6px}
+.se-street-sign-display .se-street-sign-preview__name{font-size:clamp(.95rem,2.4vw,1.55rem)}
+.se-street-sign-display.se-street-sign-preview--wide .se-street-sign-preview__name{font-size:clamp(.9rem,2.2vw,1.4rem)}
+.se-street-sign-display .se-street-sign-preview__street-type{font-size:clamp(.65rem,1.6vw,.9rem)}
+.se-street-sign-display .se-street-sign-preview__tag{bottom:3px}
+.se-street-sign-display--compact .se-street-sign-preview__name,.se-street-sign-display--compact.se-street-sign-preview--wide .se-street-sign-preview__name{font-size:clamp(.75rem,2.8vw,1rem)}
+.se-street-sign-display--compact .se-street-sign-preview__street-type{font-size:clamp(.58rem,1.9vw,.74rem)}
+@media(max-width:520px){
+  .se-street-sign-preview__face{padding-inline:26px}
+  .se-street-sign-preview__lettering{width:calc(100% - 28px);gap:5px}
+  .se-street-sign-preview__name{font-size:clamp(1rem,5vw,1.3rem)}
+  .se-street-sign-preview--wide .se-street-sign-preview__name{font-size:clamp(.95rem,4.5vw,1.2rem)}
+  .se-street-sign-preview__street-type{font-size:.78rem}
+  .se-street-sign-preview__tag{font-size:.78rem}
+  .se-street-sign-preview__tag--large{font-size:.95rem}
+}
