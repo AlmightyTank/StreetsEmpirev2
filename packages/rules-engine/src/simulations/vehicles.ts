@@ -157,8 +157,9 @@ function driveOnce(ruleset: Ruleset, scenario: VehicleScenario, trade: { buyCity
     sum + Number(vehicleServiceCents(ruleset, key, 'REPAIR', damage.damaged[key]) ?? 0n) + Number(vehicleServiceCents(ruleset, key, 'RECOVER', damage.disabled[key]) ?? 0n), 0);
   const sold = cargo.LOAD ?? 0;
   const gross = sold * trade.marginPerUnitCents - Number(fines);
+  const runFee = ruleset.vehicleCatalog?.classes.reduce((sum, vehicleClass) => sum + (vehicleClass.runFeeCents ?? 0) * fleet[vehicleClass.id], 0) ?? 0;
   return {
-    netCents: gross - serviceCents - stolenCents,
+    netCents: gross - serviceCents - stolenCents - runFee,
     serviceCents,
     damaged: VEHICLE_CLASSES.reduce((sum, key) => sum + damage.damaged[key], 0),
     disabled: VEHICLE_CLASSES.reduce((sum, key) => sum + damage.disabled[key], 0),

@@ -46,6 +46,20 @@ export function vehicleTroubleText(data: TravelDto): string | null {
   };
   const cars = (count: number) => (count === 1 ? 'one vehicle' : `${count} vehicles`);
   const order = service.damageOrder.filter((classId) => fleet.some((vehicle) => vehicle.classId === classId)).map((classId) => `${VEHICLE_NAMES[classId]}s`);
+  const partsRange = (parts: (vehicle: Fleet[number]) => number | undefined, cash: (vehicle: Fleet[number]) => number | undefined) => {
+    const quotes = [...new Set(fleet.flatMap((vehicle) => {
+      const partCount = parts(vehicle);
+      const cashCents = cash(vehicle);
+      return partCount !== undefined && cashCents !== undefined ? [`${partCount} parts + ${formatCents(cashCents)}`] : [];
+    }))];
+    return quotes.length === 1 ? quotes[0]! : quotes.length ? `${quotes[0]} to ${quotes[quotes.length - 1]}` : '';
+  };
+  const hasPartsPricing = fleet.some((vehicle) => vehicle.repairParts !== undefined);
+  if (hasPartsPricing) {
+    return `A bust or a lost convoy fight brings ${cars(Math.max(service.damagedByBust, service.damagedByConvoyLoss))} home Damaged; an arrest leaves ${cars(service.disabledByArrest)} Disabled. `
+      + `${order.join(', then ')} take trouble first. `
+      + `Repair is ${partsRange((vehicle) => vehicle.repairParts, (vehicle) => vehicle.repairPartsCashCents)} with parts, or ${range((vehicle) => vehicle.repairCashOnlyCents)} cash and one turn per vehicle; recovery is ${partsRange((vehicle) => vehicle.recoveryParts, (vehicle) => vehicle.recoveryPartsCashCents)} with parts, or ${range((vehicle) => vehicle.recoveryCashOnlyCents)} cash and one turn per vehicle.`;
+  }
   return `A bust or a lost convoy fight brings ${cars(Math.max(service.damagedByBust, service.damagedByConvoyLoss))} home Damaged; an arrest leaves ${cars(service.disabledByArrest)} Disabled. `
     + `${order.join(', then ')} take trouble first. `
     + `Repairs run ${range((vehicle) => vehicle.repairCents)} a car and recovery ${range((vehicle) => vehicle.recoveryCents)}; nothing is lost for good.`;
@@ -94,8 +108,8 @@ export function GaragePanel({ data, onDone }: { data: TravelDto; onDone: () => v
   const busy = service.busy || purchase.busy;
   const troubled = fleet.reduce((sum, vehicle) => sum + (vehicle.damaged ?? 0) + (vehicle.disabled ?? 0), 0);
 
-  async function fix(classId: VehicleClassId, kind: 'REPAIR' | 'RECOVER', quantity: number) {
-    await service.run((actionId): Promise<GameActionResult<VehicleServiceResult>> => api.post('/game/travel/vehicles/service', { classId, kind, quantity, actionId }));
+  async function fix(classId: VehicleClassId, kind: 'REPAIR' | 'RECOVER' | 'SCRAP', quantity: number, useParts?: boolean) {
+    await service.run((actionId): Promise<GameActionResult<VehicleServiceResult>> => api.post('/game/travel/vehicles/service', { classId, kind, quantity, ...(useParts !== undefined ? { useParts } : {}), actionId }));
     onDone();
   }
 
@@ -106,6 +120,7 @@ export function GaragePanel({ data, onDone }: { data: TravelDto; onDone: () => v
 
   const done = service.result?.result;
   const bought = purchase.result?.result;
+  const parts = data.home.vehicleParts ?? 0;
 
   return (
     <Panel title="Garage" aside={troubled ? `${formatNumber(troubled)} waiting on service` : 'Fleet ready'} className="se-travel-panel">
@@ -114,6 +129,9 @@ export function GaragePanel({ data, onDone }: { data: TravelDto; onDone: () => v
           const damaged = vehicle.damaged ?? 0;
           const disabled = vehicle.disabled ?? 0;
           const buyable = vehicle.purchasePriceCents !== null && vehicle.purchasePriceCents !== undefined;
+          const repairCanUseParts = vehicle.repairParts !== undefined && vehicle.repairPartsCashCents !== undefined;
+          const recoveryCanUseParts = vehicle.recoveryParts !== undefined && vehicle.recoveryPartsCashCents !== undefined;
+          const serviceTurns = vehicle.repairCashOnlyCents !== undefined ? 1 : 0;
           return (
             <article className="se-garage__car" key={vehicle.classId}>
               <ItemTile item={vehicle.classId} quantity={vehicle.total} className="se-garage__art" />
@@ -133,22 +151,28 @@ export function GaragePanel({ data, onDone }: { data: TravelDto; onDone: () => v
               <div className="se-garage__actions">
                 {damaged > 0 && vehicle.repairCents !== undefined ? (
                   <>
-                    <button type="button" className="se-btn se-btn--sm" disabled={busy || cash < vehicle.repairCents}
-                      onClick={() => void fix(vehicle.classId, 'REPAIR', 1)}>Repair 1 · <Price cents={vehicle.repairCents} list={vehicle.listRepairCents} /></button>
+                    {repairCanUseParts ? <button type="button" className="se-btn se-btn--sm" disabled={busy || cash < vehicle.repairPartsCashCents! || parts < vehicle.repairParts!}
+                      onClick={() => void fix(vehicle.classId, 'REPAIR', 1, true)}>Repair 1 · {vehicle.repairParts} parts + {formatCents(vehicle.repairPartsCashCents!)}</button> : null}
+                    <button type="button" className="se-btn se-btn--ghost se-btn--sm" disabled={busy || cash < (vehicle.repairCashOnlyCents ?? vehicle.repairCents)}
+                      onClick={() => void fix(vehicle.classId, 'REPAIR', 1, false)}>Cash repair 1 · <Price cents={vehicle.repairCashOnlyCents ?? vehicle.repairCents} list={vehicle.listRepairCents} />{serviceTurns ? ' · 1 turn' : ''}</button>
                     {damaged > 1 ? (
-                      <button type="button" className="se-btn se-btn--ghost se-btn--sm" disabled={busy || cash < vehicle.repairCents * damaged}
-                        onClick={() => void fix(vehicle.classId, 'REPAIR', damaged)}>Repair all {damaged} · {formatCents(vehicle.repairCents * damaged)}</button>
+                      <button type="button" className="se-btn se-btn--ghost se-btn--sm" disabled={busy || cash < (vehicle.repairCashOnlyCents ?? vehicle.repairCents) * damaged}
+                        onClick={() => void fix(vehicle.classId, 'REPAIR', damaged, false)}>Cash repair all {damaged} · {formatCents((vehicle.repairCashOnlyCents ?? vehicle.repairCents) * damaged)}{serviceTurns ? ` · ${damaged} turns` : ''}</button>
                     ) : null}
                   </>
                 ) : null}
                 {disabled > 0 && vehicle.recoveryCents !== undefined ? (
                   <>
-                    <button type="button" className="se-btn se-btn--sm" disabled={busy || cash < vehicle.recoveryCents}
-                      onClick={() => void fix(vehicle.classId, 'RECOVER', 1)}>Recover 1 · <Price cents={vehicle.recoveryCents} list={vehicle.listRecoveryCents} /></button>
+                    {recoveryCanUseParts ? <button type="button" className="se-btn se-btn--sm" disabled={busy || cash < vehicle.recoveryPartsCashCents! || parts < vehicle.recoveryParts!}
+                      onClick={() => void fix(vehicle.classId, 'RECOVER', 1, true)}>Recover 1 · {vehicle.recoveryParts} parts + {formatCents(vehicle.recoveryPartsCashCents!)}</button> : null}
+                    <button type="button" className="se-btn se-btn--ghost se-btn--sm" disabled={busy || cash < (vehicle.recoveryCashOnlyCents ?? vehicle.recoveryCents)}
+                      onClick={() => void fix(vehicle.classId, 'RECOVER', 1, false)}>Cash recovery 1 · <Price cents={vehicle.recoveryCashOnlyCents ?? vehicle.recoveryCents} list={vehicle.listRecoveryCents} />{serviceTurns ? ' · 1 turn' : ''}</button>
                     {disabled > 1 ? (
-                      <button type="button" className="se-btn se-btn--ghost se-btn--sm" disabled={busy || cash < vehicle.recoveryCents * disabled}
-                        onClick={() => void fix(vehicle.classId, 'RECOVER', disabled)}>Recover all {disabled} · {formatCents(vehicle.recoveryCents * disabled)}</button>
+                      <button type="button" className="se-btn se-btn--ghost se-btn--sm" disabled={busy || cash < (vehicle.recoveryCashOnlyCents ?? vehicle.recoveryCents) * disabled}
+                        onClick={() => void fix(vehicle.classId, 'RECOVER', disabled, false)}>Cash recovery all {disabled} · {formatCents((vehicle.recoveryCashOnlyCents ?? vehicle.recoveryCents) * disabled)}{serviceTurns ? ` · ${disabled} turns` : ''}</button>
                     ) : null}
+                    {vehicle.scrapYieldParts ? <button type="button" className="se-btn se-btn--ghost se-btn--sm" disabled={busy}
+                      onClick={() => void fix(vehicle.classId, 'SCRAP', 1)}>Strip 1 · gain {vehicle.scrapYieldParts} parts</button> : null}
                   </>
                 ) : null}
                 {vehicle.charlie ? (
@@ -170,13 +194,13 @@ export function GaragePanel({ data, onDone }: { data: TravelDto; onDone: () => v
       {purchase.error ? <Alert>{purchase.error}</Alert> : null}
       {done ? (
         <p className="se-good se-mt" role="status">
-          {done.kind === 'REPAIR' ? 'Repaired' : 'Recovered'} {done.quantity} {vehiclePlural(done.classId, done.quantity)} for {formatCents(done.paidCents)}{done.discountPercent ? ` (${done.discountPercent}% off)` : ''}. {done.readyCount} ready at home.
+          {done.kind === 'SCRAP' ? `Stripped ${done.quantity} ${vehiclePlural(done.classId, done.quantity)} for ${done.partsGained} parts.` : <>{done.kind === 'REPAIR' ? 'Repaired' : 'Recovered'} {done.quantity} {vehiclePlural(done.classId, done.quantity)} for {formatCents(done.paidCents)}{done.partsUsed ? ` and ${done.partsUsed} parts` : ''}{done.turnsSpent ? ` in ${done.turnsSpent} turns` : ''}{done.discountPercent ? ` (${done.discountPercent}% off)` : ''}. {done.readyCount} ready at home.</>}
         </p>
       ) : bought ? (
         <p className="se-good se-mt" role="status">Bought {bought.quantity} {vehiclePlural(bought.classId, bought.quantity)} for {formatCents(bought.paidCents)}.</p>
       ) : null}
       <p className="se-hint se-mt">
-        {vehicleTroubleText(data) ?? 'Vehicles in this round never need the garage.'} Service is paid from cash at home and the car is ready at once. Damaged and Disabled cars cannot go on runs or drive-bys.
+        {data.home.vehicleParts !== undefined ? `Parts at home: ${formatNumber(parts)}. ` : ''}{vehicleTroubleText(data) ?? 'Vehicles in this round never need the garage.'} {data.home.vehicleParts !== undefined ? 'Cash-only service costs 1.5× the listed service price and takes one turn per vehicle.' : 'Service is paid from cash at home and the car is ready at once.'} Damaged and Disabled cars cannot go on runs or drive-bys.
       </p>
       {data.vehicleService?.discounts ? <DiscountNote discounts={data.vehicleService.discounts} /> : null}
     </Panel>

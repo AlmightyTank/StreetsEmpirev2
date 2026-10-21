@@ -84,8 +84,8 @@ function RestockLine({ restock, name, keeper, onArrival }: {
   return (
     <div className="se-store-shipment">
       <p className={`se-hint${restock.stock === 0 ? ' se-warn' : ''}`}>
-        {keeper} has <strong className="se-num">{formatNumber(restock.stock)}</strong> of{' '}
-        <strong className="se-num">{formatNumber(restock.cap)}</strong>.{' '}
+        {keeper} has <strong className="se-num">{formatNumber(restock.stock)} {restock.unitLabel ?? name}</strong> of{' '}
+        <strong className="se-num">{formatNumber(restock.cap)} {restock.unitLabel ?? name}</strong>.{' '}
         {full
           ? `Fully stocked — ${restockDelivery(restock)}.`
           : restock.stock === 0
@@ -95,7 +95,7 @@ function RestockLine({ restock, name, keeper, onArrival }: {
       {shipment ? (
         <p className={`se-store-shipment__line se-store-shipment__line--${shipment.status.toLowerCase().replaceAll('_', '-')}`}>
           <strong>{shipmentStatus(shipment.status)}</strong>
-          <span>{formatNumber(shipment.quantity)} incoming</span>
+          <span>{formatNumber(shipment.quantity)}{restock.unitLabel ? ` ${restock.unitLabel}` : ''} incoming</span>
         </p>
       ) : null}
     </div>
@@ -156,18 +156,20 @@ function StoreItem({ item, store, storeName, keeper, owned, cashCents, bulkHelpe
   const locked = (favor !== null && !favor.unlocked) || (questLock !== null && !questLock.unlocked);
   const purchaseLocked = buying && locked;
   const unitCents = buying ? item.buyCents : item.sellCents;
+  const unitsPerOrder = item.unitsPerOrder ?? 1;
   const max = buying
     ? Math.min(item.maxBuy, item.buyCents > 0 ? Math.floor(cashCents / item.buyCents) : item.maxBuy)
-    : owned;
-  const soldOut = buying && item.restock !== null && item.restock.stock === 0;
-  const specialOrder = item.restock?.specialOrder ?? null;
+    : Math.floor(owned / unitsPerOrder);
+  const shelfOrders = item.restock ? Math.floor(item.restock.stock / unitsPerOrder) : null;
+  const soldOut = buying && shelfOrders === 0;
+  const specialOrder = unitsPerOrder === 1 ? item.restock?.specialOrder ?? null : null;
   const inBasket = quantityInBasket(basket, `${store}:${item.key}:${direction}`);
-  const stockLimit = buying && item.restock ? item.restock.stock : null;
+  const stockLimit = buying ? shelfOrders : null;
   const valid = typeof quantity === 'number' && Number.isSafeInteger(quantity) && quantity > 0 && quantity <= max;
   const total = valid && unitCents !== null ? quantity * unitCents : null;
   const quantityId = `quantity-${item.key}`;
   const noneToBuy = soldOut
-    ? `${keeper} is sold out of ${item.name} until the next delivery.`
+    ? `${keeper} has no complete ${item.name} pack to sell until the next delivery.`
     : `You cannot afford a single ${item.name} at ${formatCents(item.buyCents)}.`;
   const emptyReason = buying ? noneToBuy : `You have no ${item.name} to sell.`;
   const tradeBlock = blocked
@@ -205,9 +207,11 @@ function StoreItem({ item, store, storeName, keeper, owned, cashCents, bulkHelpe
   }
 
   const stockLabel = item.restock
-    ? item.restock.stock === 0
+    ? shelfOrders === 0
       ? 'Sold out'
-      : `${formatNumber(item.restock.stock)} / ${formatNumber(item.restock.cap)} in stock`
+      : unitsPerOrder > 1
+        ? `${formatNumber(shelfOrders ?? 0)} packs in stock`
+        : `${formatNumber(item.restock.stock)} / ${formatNumber(item.restock.cap)} in stock`
     : 'Always available';
 
   return (
@@ -219,7 +223,7 @@ function StoreItem({ item, store, storeName, keeper, owned, cashCents, bulkHelpe
       <div className="se-store-shelf__top">
         <ShelfArt itemKey={item.key} locked={locked} soldOut={soldOut} />
         <div className="se-store-prices">
-          <span>Own <strong className="se-num">{formatNumber(owned)}</strong></span>
+          <span>{item.inventoryUnitLabel ? `${item.inventoryUnitLabel[0]!.toUpperCase()}${item.inventoryUnitLabel.slice(1)} owned` : 'Own'} <strong className="se-num">{formatNumber(owned)}</strong></span>
           <span>
             Buy <strong className="se-num">{formatCents(item.buyCents)}</strong>
             {item.baseBuyCents ? <span className="se-dim"> · normally {formatCents(item.baseBuyCents)}</span> : null}
@@ -273,8 +277,9 @@ function StoreItem({ item, store, storeName, keeper, owned, cashCents, bulkHelpe
               `Sold out. ${keeper} has none to sell you right now.`
             ) : <>
               {buying ? 'Can buy' : 'Can sell'} {formatNumber(max)}.
-              {buying && item.restock && max === item.restock.stock && max > 0
+              {buying && item.restock && max === shelfOrders && max > 0
                 ? ' That is the whole shelf.' : ''}
+              {unitsPerOrder > 1 ? ` Each order adds ${formatNumber(unitsPerOrder)} ${item.inventoryUnitLabel ?? 'units'}.` : ''}
               {stockLimit !== null && inBasket > 0 ? ` Basket has ${formatNumber(inBasket)}.` : ''}
               {quantity !== '' && !valid ? ' Enter a whole quantity within that limit.' : ''}
             </>}
@@ -489,7 +494,7 @@ function StoreView({
     const limits: Record<string, number> = {};
     for (const entry of catalog.stores) {
       for (const item of entry.items) {
-        if (item.restock) limits[`${entry.key}:${item.key}:buy`] = item.restock.stock;
+        if (item.restock) limits[`${entry.key}:${item.key}:buy`] = Math.floor(item.restock.stock / (item.unitsPerOrder ?? 1));
       }
     }
     for (const product of products?.products ?? []) {
@@ -608,7 +613,7 @@ function StoreView({
     ? products.products.filter((product) => product.pip)
     : [];
   const totalShelves = (store?.items.length ?? 0) + pipProducts.length;
-  const soldOutShelves = (store?.items.filter((item) => item.restock?.stock === 0).length ?? 0)
+  const soldOutShelves = (store?.items.filter((item) => item.restock && Math.floor(item.restock.stock / (item.unitsPerOrder ?? 1)) === 0).length ?? 0)
     + pipProducts.filter((product) => product.pip?.stock === 0).length;
   const lockedShelves = (store?.items.filter((item) => item.unlock && !item.unlock.unlocked).length ?? 0)
     + pipProducts.filter((product) => product.pip && !product.pip.purchaseUnlocked).length;
@@ -616,7 +621,9 @@ function StoreView({
   const visibleStoreItems = (store?.items ?? []).filter((item) => matchesStoreShelf({
     name: item.name,
     purchaseUnlocked: item.unlock?.unlocked !== false && item.questLock?.unlocked !== false,
-    soldOut: item.restock?.stock === 0,
+    soldOut: item.restock !== null && item.restock !== undefined
+      ? Math.floor(item.restock.stock / (item.unitsPerOrder ?? 1)) === 0
+      : false,
   }, shelfQuery, shelfFilter));
   const visiblePipProducts = pipProducts.filter((product) => matchesStoreShelf({
     name: product.name,
@@ -771,7 +778,7 @@ function StoreView({
                       store={store.key}
                       storeName={store.name}
                       keeper={store.keeper}
-                      owned={me.resources[item.field]}
+                      owned={me.resources[item.field] ?? 0}
                       cashCents={me.resources.cashCents}
                       bulkHelpers={catalog.bulkHelpers}
                       blocked={counterBlock}

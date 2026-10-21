@@ -1,4 +1,5 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
+import { equipCombatSquadWithAmmo } from '@streets/rules-engine';
 import {
   STATUE_ENCOUNTER_KEY,
   STATUE_STARE_SECONDS,
@@ -9,7 +10,7 @@ import {
 import { HOLIDAY_ROAD_CHOICE_KEY, HOLIDAY_ROAD_COSMETIC_KEY, HOLIDAY_ROAD_ENCOUNTER_KEY, type Ruleset } from '@streets/rulesets';
 import type { Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
-import { ActionService } from './action.service.js';
+import { ActionService, fitThugs } from './action.service.js';
 import { ActivityService } from './activity.service.js';
 import { AvatarWearableService } from './avatar-wearable.service.js';
 import { EasterEggService } from './easter-egg.service.js';
@@ -279,7 +280,7 @@ export const RandomEncounterChoiceService = {
       action: 'RANDOM_ENCOUNTER_CHOICE',
       actionId: input.actionId,
       idempotencyScope: `RANDOM_ENCOUNTER_CHOICE:${encounterId}`,
-      execute: async ({ tx, current, now, ruleset }) => {
+      execute: async ({ tx, current, thugHappiness, now, ruleset }) => {
         const encounter = await tx.randomEncounter.findFirst({
           where: { id: encounterId, roundPlayerId, status: 'PENDING' },
         });
@@ -294,7 +295,22 @@ export const RandomEncounterChoiceService = {
         }
 
         const effects = capRandomEncounterEffects(effectsOf(choice.effects) ?? {}, current);
-        const next = applyRandomEncounterEffects(current, effects);
+        let next = applyRandomEncounterEffects(current, effects);
+        let ammoSpentRounds = 0;
+        const ammoParts = ruleset.ammoParts;
+        const model = ruleset.combat;
+        if (encounter.key.startsWith('street-gang:') && choice.key === 'fight-back'
+          && ammoParts?.enabled && ammoParts.combatEnabled && model) {
+          const fit = fitThugs(current);
+          const squad = Math.min(fit, model.squadCap);
+          const armed = equipCombatSquadWithAmmo({
+            thugs: fit,
+            thugHappiness,
+            weapons: { PISTOL: current.pistols, SHOTGUN: current.shotguns, TEK9: current.tek9s, AK47: current.ak47s },
+          }, squad, model, current.ammo ?? 0, ammoParts.ammo.roundsPerFight);
+          ammoSpentRounds = armed.roundsSpent;
+          next = { ...next, ammo: (current.ammo ?? 0) - ammoSpentRounds };
+        }
         const egg = await encounterEasterEgg(tx, roundPlayerId, encounter.key, choice.key, encounter.createdAt, now);
         const holiday = await holidayRoadReward(tx, roundPlayerId, ruleset, encounter.key, choice.key, now);
         const text = egg.text ?? choice.text;
@@ -312,6 +328,8 @@ export const RandomEncounterChoiceService = {
               text,
               cashCents: effects.cashCents ?? 0,
               effects,
+              ...(ammoParts?.enabled && ammoParts.combatEnabled && encounter.key.startsWith('street-gang:') && choice.key === 'fight-back'
+                ? { ammoSpentRounds } : {}),
             },
           },
         });
@@ -321,6 +339,7 @@ export const RandomEncounterChoiceService = {
           title: encounter.title,
           choice: choice.key,
           choiceLabel: choice.label,
+          ...(ammoSpentRounds ? { ammoSpentRounds } : {}),
         });
 
         return {
@@ -334,6 +353,8 @@ export const RandomEncounterChoiceService = {
             text,
             cashCents: effects.cashCents ?? 0,
             effects,
+            ...(ammoParts?.enabled && ammoParts.combatEnabled && encounter.key.startsWith('street-gang:') && choice.key === 'fight-back'
+              ? { ammoSpentRounds } : {}),
             ...(egg.easterEgg ? { easterEgg: egg.easterEgg } : holiday ? { easterEgg: holiday } : {}),
           },
         };

@@ -1,4 +1,4 @@
-import { combatPrototype, type CombatModel } from '@streets/rulesets';
+import { classicOgV24D, combatPrototype, type CombatModel } from '@streets/rulesets';
 import { simulateRaid, type CombatCrew, type RaidInput } from '../calculations/combat.js';
 import type { Rng } from '../rng.js';
 
@@ -40,6 +40,24 @@ export const combatScenarios: readonly CombatScenario[] = [
   scenario('Late versus 1,000 pistol reserves', 'Only 100 defenders participate; reserves add no strength.', late, crew(1_000, 1_000), 1_000_000),
 ];
 
+const ammoRules = classicOgV24D.ammoParts!.ammo;
+function ammoScenario(name: string, purpose: string, attacker: CombatCrew, defender: CombatCrew, cashDollars: number,
+  attackerRounds: number, defenderRounds: number, defenderFloor = ammoRules.defenderFloor, attackerCapRounds?: number): CombatScenario {
+  const base = scenario(name, purpose, attacker, defender, cashDollars);
+  return { ...base, input: { ...base.input, ammo: {
+    attackerRounds, defenderRounds, roundsPerFight: ammoRules.roundsPerFight, defenderFloor,
+    lootShareBps: ammoRules.lootShareBps, ...(attackerCapRounds === undefined ? {} : { attackerCapRounds }),
+  } } };
+}
+
+/** Focused 2.4.0-D ammunition cases for checking spend and defender safety. */
+export const ammoCombatScenarios: readonly CombatScenario[] = [
+  ammoScenario('Empty early mirror', 'Both crews are dry; the free defender floor preserves a minimum defense.', early, early, 20_000, 0, 0),
+  ammoScenario('Stocked early mirror', 'Both early crews have enough rounds for every assigned pistol.', early, early, 20_000, 120, 120),
+  ammoScenario('Capped middle attack', 'The attacker caps a fully stocked mixed squad at 1,000 rounds.', middle, early, 150_000, 20_000, 2_000, 10, 1_000),
+  ammoScenario('Stocked late mirror', 'Late mixed crews have enough rounds for all guns in the engagement.', late, late, 1_000_000, 100_000, 100_000),
+];
+
 /** Mulberry32, for repeatable experiments only. Not a production combat RNG. */
 export function combatSimulationRng(seed: number): Rng {
   let state = seed >>> 0;
@@ -62,6 +80,9 @@ export interface CombatScenarioSummary {
   readonly meanDefenderWounds: number;
   readonly maxLootCents: bigint;
   readonly strengthRatio: number | null;
+  readonly meanAttackerAmmoSpent: number | null;
+  readonly meanDefenderAmmoSpent: number | null;
+  readonly meanAmmoLoot: number | null;
 }
 
 export function runCombatSimulation(samples = 10_000, seed = 20260910, model: CombatModel = combatPrototype,
@@ -76,6 +97,9 @@ export function runCombatSimulation(samples = 10_000, seed = 20260910, model: Co
     let maxLootCents = 0n;
     let attackerWounds = 0;
     let defenderWounds = 0;
+    let attackerAmmoSpent = 0;
+    let defenderAmmoSpent = 0;
+    let ammoLooted = 0;
     let strengthRatio: number | null = null;
     for (let i = 0; i < samples; i++) {
       const result = simulateRaid(input, model, rng);
@@ -84,6 +108,9 @@ export function runCombatSimulation(samples = 10_000, seed = 20260910, model: Co
       maxLootCents = result.lootCents > maxLootCents ? result.lootCents : maxLootCents;
       attackerWounds += result.wounds.attacker;
       defenderWounds += result.wounds.defender;
+      attackerAmmoSpent += result.ammunition?.attackerRoundsSpent ?? 0;
+      defenderAmmoSpent += result.ammunition?.defenderRoundsSpent ?? 0;
+      ammoLooted += result.ammunition?.ammoLootRounds ?? 0;
       const defense = result.defender.strength * model.strength.defenseMultiplier;
       strengthRatio = defense === 0 ? null : result.attacker.strength / defense;
     }
@@ -94,6 +121,9 @@ export function runCombatSimulation(samples = 10_000, seed = 20260910, model: Co
       meanLootCents, meanLootPerTurnCents: meanLootCents / model.turnCost,
       meanAttackerWounds: attackerWounds / samples, meanDefenderWounds: defenderWounds / samples,
       maxLootCents, strengthRatio,
+      meanAttackerAmmoSpent: input.ammo ? attackerAmmoSpent / samples : null,
+      meanDefenderAmmoSpent: input.ammo ? defenderAmmoSpent / samples : null,
+      meanAmmoLoot: input.ammo ? ammoLooted / samples : null,
     };
   });
 }
@@ -101,14 +131,14 @@ export function runCombatSimulation(samples = 10_000, seed = 20260910, model: Co
 export function combatSimulationMarkdown(rows: readonly CombatScenarioSummary[], samples: number, seed: number, model: CombatModel): string {
   const money = (cents: number) => `$${(cents / 100).toFixed(2)}`;
   return [
-    '# 0.2.0-A combat simulation', '',
+    '# Combat simulation', '',
     `Model: ${model.version}. Samples per matchup: ${samples.toLocaleString('en-US')}. Seed: ${seed}.`, '',
     'Each trial resets both crews and cash. Fixtures are hypothetical progression snapshots, not simulated player growth.',
     'Win rates are empirical. Mean loot includes defeats; loot per turn excludes recovery and foregone scouting income.',
     'Wounds are temporary projections. This report does not validate repeated attacks, protection, or the round economy.', '',
-    '| Matchup | A/D strength | Attacker wins | Mean loot | Loot/turn | Mean wounds A / D | Max loot |',
-    '| --- | ---: | ---: | ---: | ---: | ---: | ---: |',
-    ...rows.map((row) => `| ${row.name} | ${row.strengthRatio?.toFixed(2) ?? 'undefended'} | ${row.winPercent.toFixed(2)}% | ${money(row.meanLootCents)} | ${money(row.meanLootPerTurnCents)} | ${row.meanAttackerWounds.toFixed(2)} / ${row.meanDefenderWounds.toFixed(2)} | ${money(Number(row.maxLootCents))} |`),
+    '| Matchup | A/D strength | Attacker wins | Mean loot | Loot/turn | Mean wounds A / D | Ammo spent A / D | Ammo looted | Max loot |',
+    '| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
+    ...rows.map((row) => `| ${row.name} | ${row.strengthRatio?.toFixed(2) ?? 'undefended'} | ${row.winPercent.toFixed(2)}% | ${money(row.meanLootCents)} | ${money(row.meanLootPerTurnCents)} | ${row.meanAttackerWounds.toFixed(2)} / ${row.meanDefenderWounds.toFixed(2)} | ${row.meanAttackerAmmoSpent?.toFixed(0) ?? '—'} / ${row.meanDefenderAmmoSpent?.toFixed(0) ?? '—'} | ${row.meanAmmoLoot?.toFixed(0) ?? '—'} | ${money(Number(row.maxLootCents))} |`),
     '', '## Scenario purposes', '',
     ...rows.map((row) => `- **${row.name}:** ${row.purpose}`), '',
   ].join('\n');

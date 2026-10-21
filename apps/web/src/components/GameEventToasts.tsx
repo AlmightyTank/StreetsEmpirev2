@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BELL_CATEGORY_BY_ACTIVITY, formatCents, levelRewardsAt, type ActivityDto, type RoundDto, type RoundPlayerDto } from '@streets/shared';
+import { BELL_CATEGORY_BY_ACTIVITY, formatCents, formatNumber, levelRewardsAt, type ActivityDto, type RoundDto, type RoundPlayerDto } from '@streets/shared';
 import { describeActivity } from './ActivityFeed.js';
 import { notificationsApi } from '../api/notifications.js';
 import { useSession } from '../stores/session.js';
@@ -256,6 +256,13 @@ export function gameEventToastFor(activity: ActivityDto, crackWord: string): Omi
   const detail = [described.text, described.detail].filter(Boolean).join(' ');
 
   switch (activity.type) {
+    case 'AMMO_LOW':
+      return {
+        title: 'Ammunition running low',
+        detail: `You have ${formatNumber(num(p.ammoRemaining))} rounds left. Restock before the next fight.`,
+        tone: 'warn',
+        href: '/game/store',
+      };
     case 'QUEST_OBJECTIVE_COMPLETE':
       return {
         title: p.bonus ? `Bonus done: ${str(p.title, 'quest')}` : `Objective done: ${str(p.title, 'quest')}`,

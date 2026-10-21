@@ -349,6 +349,7 @@ export function CinematicEncounterAlerts() {
                 <div className="se-encounter-cinema__resolution" role="status">
                   <strong>{choiceResult.choiceLabel}</strong>
                   <p>{choiceResult.text}</p>
+                  {choiceResult.ammoSpentRounds ? <em>{choiceResult.ammoSpentRounds.toLocaleString()} ammo rounds spent.</em> : null}
                   {encounterEffectSummary(choiceResult.effects) ? <em>{encounterEffectSummary(choiceResult.effects)}</em> : null}
                   <EncounterEggNote egg={choiceResult.easterEgg} />
                 </div>

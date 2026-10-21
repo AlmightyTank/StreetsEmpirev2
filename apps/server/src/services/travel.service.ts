@@ -15,6 +15,7 @@ import {
   findRoutes,
   loadRulesetForRound,
   marketView,
+  MAX_INVENTORY,
   planDriveOn,
   planHeadHome,
   planLaunch,
@@ -473,6 +474,12 @@ export const TravelService = {
           const service = ruleset.vehicleCatalog?.service;
           const damaged = player[VEHICLE_FIELDS[vehicleClass.id].damaged];
           const disabled = player[VEHICLE_FIELDS[vehicleClass.id].disabled];
+          const partsRules = ruleset.ammoParts?.vehicleParts;
+          const partsService = partsRules?.enabled ? partsRules.repairs[vehicleClass.id] : undefined;
+          const discountRepair = discounts?.REPAIR.percent ?? 0;
+          const discountRecovery = discounts?.RECOVER.percent ?? 0;
+          const discounted = (cents: number, percent: number) => Math.floor(cents * (100 - Math.min(100, Math.max(0, percent))) / 100);
+          const fallbackMultiplier = partsRules?.cashOnlyMultiplierBps ?? 15_000;
           return {
             classId: vehicleClass.id,
             name: vehicleClass.name,
@@ -483,6 +490,7 @@ export const TravelService = {
             cargoPercent: vehicleClass.cargoPercent,
             crewSeats: vehicleClass.crewSeats,
             purchasePriceCents: vehicleClass.purchasePriceCents,
+            ...(vehicleClass.runFeeCents !== undefined ? { runFeeCents: vehicleClass.runFeeCents } : {}),
             charlie: charlieLock(vehicleClass.id),
             buyCents: vehicleClass.purchasePriceCents === null || vehicleClass.purchasePriceCents === undefined || charlieSells(ruleset, vehicleClass.id)
               ? null
@@ -494,6 +502,15 @@ export const TravelService = {
               disabled,
               repairCents: Number(vehicleServiceCents(ruleset, vehicleClass.id, 'REPAIR', 1, discounts?.REPAIR.percent ?? 0)),
               recoveryCents: Number(vehicleServiceCents(ruleset, vehicleClass.id, 'RECOVER', 1, discounts?.RECOVER.percent ?? 0)),
+              ...(partsService ? {
+                repairParts: partsService.damagedParts,
+                repairPartsCashCents: discounted(partsService.damagedCashCents, discountRepair),
+                recoveryParts: partsService.disabledParts,
+                recoveryPartsCashCents: discounted(partsService.disabledCashCents, discountRecovery),
+                repairCashOnlyCents: Math.floor(Number(vehicleServiceCents(ruleset, vehicleClass.id, 'REPAIR', 1, discountRepair)) * fallbackMultiplier / 10_000),
+                recoveryCashOnlyCents: Math.floor(Number(vehicleServiceCents(ruleset, vehicleClass.id, 'RECOVER', 1, discountRecovery)) * fallbackMultiplier / 10_000),
+                scrapYieldParts: partsRules?.scrapYieldParts?.[vehicleClass.id] ?? 0,
+              } : {}),
               ...(discounts?.REPAIR.percent ? { listRepairCents: listRepair } : {}),
               ...(discounts?.RECOVER.percent ? { listRecoveryCents: listRecovery } : {}),
             } : {}),
@@ -522,6 +539,7 @@ export const TravelService = {
       },
       home: {
         cashCents: Number(player.cashCents),
+        ...(ruleset.ammoParts?.enabled ? { vehicleParts: player.vehicleParts } : {}),
         beer: player.beer,
         lowRiders: player.lowRiders,
         vehicles: { LOW_RIDER: player.lowRiders, SEDAN: player.sedans, VAN: player.vans },
@@ -581,33 +599,62 @@ export const TravelService = {
       actionId: input.actionId,
       execute: async ({ tx, current, ruleset, player, skills }) => {
         const vehicleClass = ruleset.vehicleCatalog?.classes.find((entry) => entry.id === input.classId);
+        const partsRules = ruleset.ammoParts?.vehicleParts;
+        const fields = VEHICLE_FIELDS[input.classId];
+        const waitingField = input.kind === 'REPAIR' ? fields.damaged : fields.disabled;
+        const waiting = current[waitingField];
+        if (!vehicleClass || !ruleset.vehicleCatalog?.service) {
+          throw AppError.conflict('VEHICLE_SERVICE_UNAVAILABLE', 'The garage does not service vehicles in this round.');
+        }
+        if (input.quantity > waiting) {
+          const state = input.kind === 'REPAIR' ? 'damaged' : 'disabled';
+          throw AppError.badRequest('NOT_ENOUGH_VEHICLES', `You have ${waiting} ${state} ${vehicleClass.name}${waiting === 1 ? '' : 's'}.`, { quantity: `At most ${waiting}.` });
+        }
+        if (input.kind === 'SCRAP') {
+          if (!partsRules?.enabled) throw AppError.conflict('CHOP_SHOP_UNAVAILABLE', 'The chop shop does not strip vehicles in this round.');
+          const yieldPerVehicle = partsRules.scrapYieldParts?.[input.classId] ?? 0;
+          if (yieldPerVehicle <= 0) throw AppError.conflict('CHOP_SHOP_UNAVAILABLE', 'The chop shop will not strip that vehicle.');
+          const partsGained = yieldPerVehicle * input.quantity;
+          if (partsGained > MAX_INVENTORY - (current.vehicleParts ?? 0)) {
+            throw AppError.badRequest('INVENTORY_LIMIT', 'That would exceed your parts inventory limit.', { quantity: 'Make room for the parts first.' });
+          }
+          const vehiclePartsRemaining = (current.vehicleParts ?? 0) + partsGained;
+          return {
+            next: { ...current, [waitingField]: waiting - input.quantity, vehicleParts: vehiclePartsRemaining },
+            result: { classId: input.classId, name: vehicleClass.name, kind: 'SCRAP', quantity: input.quantity, paidCents: 0, readyCount: current[fields.ready], partsGained, vehiclePartsRemaining },
+            ledger: [],
+          };
+        }
         // 1.5.0-D: the road lane's cut, read as the action runs, never from the client.
         const discount = ruleset.vehicleCatalog?.service?.specialization
           ? (await vehicleServiceDiscounts(tx, roundPlayerId, ruleset, player.racketEffects))[input.kind].percent
           : 0;
-        const listed = vehicleServiceCents(ruleset, input.classId, input.kind, input.quantity, discount);
+        const partQuote = partsRules?.enabled ? partsRules.repairs[input.classId] : undefined;
+        const useParts = Boolean(input.useParts && partQuote);
+        const turnsSpent = !useParts ? (partsRules?.enabled ? (partsRules.cashOnlyServiceTurnsPerVehicle ?? 1) * input.quantity : 0) : 0;
+        if (turnsSpent) assertTurns(current.turns, turnsSpent);
+        const cashBaseEach = useParts
+          ? (input.kind === 'REPAIR' ? partQuote!.damagedCashCents : partQuote!.disabledCashCents)
+          : Number(vehicleServiceCents(ruleset, input.classId, input.kind, 1, discount)) * (partsRules?.enabled ? (partsRules.cashOnlyMultiplierBps ?? 15_000) / 10_000 : 1);
+        const discountEach = useParts ? Math.floor(cashBaseEach * (100 - Math.min(100, discount)) / 100) : Math.floor(cashBaseEach);
         // Grease Monkey: the garage bill comes down.
-        const repairPercent = listed === null ? 0 : skills.percent('REPAIR_COST');
-        const price = listed !== null && repairPercent ? listed * BigInt(Math.round((100 + repairPercent) * 100)) / 10_000n : listed;
-        if (!vehicleClass || price === null) {
-          throw AppError.conflict('VEHICLE_SERVICE_UNAVAILABLE', 'The garage does not service vehicles in this round.');
-        }
-        const fields = VEHICLE_FIELDS[input.classId];
-        const from = input.kind === 'REPAIR' ? fields.damaged : fields.disabled;
-        const waiting = current[from];
-        const plural = (count: number) => `${vehicleClass.name}${count === 1 ? '' : 's'}`;
-        if (input.quantity > waiting) {
-          const state = input.kind === 'REPAIR' ? 'damaged' : 'disabled';
-          throw AppError.badRequest('NOT_ENOUGH_VEHICLES', `You have ${waiting} ${state} ${plural(waiting)}.`, { quantity: `At most ${waiting}.` });
+        const repairPercent = skills.percent('REPAIR_COST');
+        const perVehicleCents = repairPercent ? Math.floor(discountEach * (100 + repairPercent) / 100) : discountEach;
+        const price = BigInt(perVehicleCents) * BigInt(input.quantity);
+        const partsEach = useParts ? (input.kind === 'REPAIR' ? partQuote!.damagedParts : partQuote!.disabledParts) : 0;
+        const partsUsed = partsEach * input.quantity;
+        if (partsUsed > (current.vehicleParts ?? 0)) {
+          throw AppError.badRequest('NOT_ENOUGH_PARTS', `You need ${partsUsed} parts for that service.`, { quantity: `You have ${current.vehicleParts ?? 0}.` });
         }
         if (current.cashCents < price) {
           throw AppError.badRequest('NOT_ENOUGH_CASH', `You need ${formatCents(Number(price))} at home for that.`, { quantity: 'Not enough cash.' });
         }
         const readyCount = current[fields.ready] + input.quantity;
         const verb = input.kind === 'REPAIR' ? 'repair' : 'recovery';
+        const vehiclePartsRemaining = (current.vehicleParts ?? 0) - partsUsed;
         return {
-          next: { ...current, cashCents: current.cashCents - price, [from]: waiting - input.quantity, [fields.ready]: readyCount },
-          result: { classId: input.classId, name: vehicleClass.name, kind: input.kind, quantity: input.quantity, paidCents: Number(price), readyCount, ...(discount ? { discountPercent: discount } : {}) },
+          next: { ...current, turns: current.turns - turnsSpent, cashCents: current.cashCents - price, [waitingField]: waiting - input.quantity, [fields.ready]: readyCount, ...(partsRules?.enabled ? { vehicleParts: vehiclePartsRemaining } : {}) },
+          result: { classId: input.classId, name: vehicleClass.name, kind: input.kind, quantity: input.quantity, paidCents: Number(price), readyCount, ...(partsUsed ? { partsUsed, vehiclePartsRemaining } : {}), ...(turnsSpent ? { turnsSpent } : {}), ...(discount ? { discountPercent: discount } : {}) },
           ledger: [{ source: 'VEHICLE_SERVICE', label: `Garage ${verb} · ${vehicleClass.name} × ${input.quantity}`, amountCents: -price }],
         };
       },
@@ -720,6 +767,10 @@ export const TravelService = {
           throw AppError.badRequest('NOT_ENOUGH_BEER', `You only have ${current.beer} beer at home.`, { beer: `At most ${current.beer}.` });
         }
         const inventory = await ProductInventoryService.read(tx, roundPlayerId, ruleset);
+        const vehicleFee = ruleset.ammoParts?.vehicleParts.enabled
+          ? ruleset.vehicleCatalog!.classes.reduce((sum, entry) => sum + (entry.runFeeCents ?? 0) * loadout[entry.id], 0)
+          : 0;
+        const vehicleFeeCents = BigInt(vehicleFee);
         /** Out of home stock. What the crew buys on the way out is added to `cargo` below. */
         const fromHome = Object.fromEntries(Object.entries(input.cargo).filter(([, quantity]) => quantity > 0));
         const cargo: Record<string, number> = { ...fromHome };
@@ -756,9 +807,9 @@ export const TravelService = {
             cargo[key] = (cargo[key] ?? 0) + quantity;
             marketTrades.push({ productKey: key, quantity, unitCents: Math.round(Number(fill.totalCents) / quantity), totalCents: fill.totalCents });
           }
-          if (cashCents + marketCents > current.cashCents) {
-            throw AppError.badRequest('NOT_ENOUGH_CASH', `The market comes to $${(Number(marketCents) / 100).toLocaleString('en-US')}, and with the cash in the car that is more than you have at home.`, { market: 'More than you have.' });
-          }
+        }
+        if (cashCents + marketCents + vehicleFeeCents > current.cashCents) {
+          throw AppError.badRequest('NOT_ENOUGH_CASH', `The cash in the car, market buys, and ${formatCents(vehicleFee)} fleet fee exceed your home cash.`, { cashCents: 'Cash, market buys, and fleet fee must fit your home balance.' });
         }
 
         const capacity = runCapacity(ruleset, loadout, skilledCargoShare(racketCargoShare(ruleset, readRacketEffects(player.racketEffects)), skills));
@@ -831,6 +882,7 @@ export const TravelService = {
           lowRiders: vehicleCount,
           escortThugs: input.escortThugs,
           cashCents: input.cashCents,
+          ...(vehicleFee ? { vehicleFeeCents: vehicleFee } : {}),
           beer: input.beer,
           cargo,
           market: Object.fromEntries(marketTrades.map((trade) => [trade.productKey, trade.quantity])),
@@ -840,7 +892,7 @@ export const TravelService = {
         const baseNext = {
           ...current,
           turns: current.turns - plan.turns,
-          cashCents: current.cashCents - cashCents - marketCents,
+          cashCents: current.cashCents - cashCents - marketCents - vehicleFeeCents,
           beer: current.beer - input.beer,
           lowRiders: current.lowRiders - loadout.LOW_RIDER,
           sedans: current.sedans - loadout.SEDAN,
@@ -875,7 +927,7 @@ export const TravelService = {
             source: 'RUN_LAUNCH',
             label: `Home market buy · ${productName(ruleset, trade.productKey)}`,
             amountCents: -trade.totalCents,
-          })),
+          })).concat(vehicleFee ? [{ source: 'RUN_LAUNCH', label: 'Run fleet fee', amountCents: -vehicleFeeCents }] : []),
           activity: {
             type: 'RUN_LAUNCHED',
             payload: {

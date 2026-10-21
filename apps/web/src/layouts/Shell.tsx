@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { APP_VERSION, formatCents, formatCentsCompact } from '@streets/shared';
+import { APP_VERSION, formatCents, formatCentsCompact, formatNumber } from '@streets/shared';
 import { rulesets } from '@streets/rulesets';
 import { GameEventToasts } from '../components/GameEventToasts.js';
 import { CinematicEncounterAlerts } from '../components/CinematicEncounterAlerts.js';
@@ -174,7 +174,7 @@ function LegacyHudIcon({ name }: { name: keyof typeof LEGACY_HUD_PATHS }) {
  * externally loaded images so the sticky HUD renders immediately offline.
  * The controls themselves retain their existing links and real game values.
  */
-function HudIcon({ name }: { name: 'cash' | 'turns' | 'heat' | 'worth' }) {
+function HudIcon({ name }: { name: 'cash' | 'turns' | 'heat' | 'worth' | 'ammo' | 'parts' }) {
   if (name === 'cash') {
     return (
       <>
@@ -215,6 +215,20 @@ function HudIcon({ name }: { name: 'cash' | 'turns' | 'heat' | 'worth' }) {
         <path d="M20 25c2 3.5 4 4.5 4 8a4 4 0 0 1-8 0c0-3 2-5 4-8Z" fill="#ffe57b"/>
       </svg>
       </>
+    );
+  }
+  if (name === 'ammo') {
+    return (
+      <svg className="se-statusbar__icon se-statusbar__icon--ammo" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="m7 3 4 4-4 4-4-4 4-4Z"/><path d="m17 13 4 4-4 4-4-4 4-4Z"/><path d="m7 11 4 4-4 4-4-4 4-4Z"/>
+      </svg>
+    );
+  }
+  if (name === 'parts') {
+    return (
+      <svg className="se-statusbar__icon se-statusbar__icon--parts" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M14.5 6.5a5 5 0 0 0-6.4 6.4L3 18l3 3 5.1-5.1a5 5 0 0 0 6.4-6.4L14 13l-3-3 3.5-3.5Z"/>
+      </svg>
     );
   }
   return (
@@ -290,6 +304,7 @@ function StatusBar() {
   const money = moneyFormat === 'compact' ? formatCentsCompact : formatCents;
   const turnActionPath = nextTurnActionPath(location.pathname);
   const ruleset = platform ? rulesets[platform.ruleset.id] : undefined;
+  const ammoPartsEnabled = ruleset?.ammoParts?.enabled === true;
   const turnIntervalMinutes = ruleset?.turns.intervalMinutes ?? 5;
 
   const heat = me.heat;
@@ -336,6 +351,20 @@ function StatusBar() {
           <span style={{ width: `${me.turns.turnCap > 0 ? Math.min(100, (me.turns.turns / me.turns.turnCap) * 100) : 0}%` }} />
         </span>
       </Link>
+      {ammoPartsEnabled ? (
+        <>
+          <Link className="se-statusbar__item se-statusbar__item--inventory" to="/game/stores/tommy" title="Ammunition: shop at Tommy’s">
+            <HudIcon name="ammo" />
+            <span className="se-statusbar__k">Ammo</span>
+            <span className="se-num se-statusbar__v">{formatNumber(me.resources.ammo ?? 0)}</span>
+          </Link>
+          <Link className="se-statusbar__item se-statusbar__item--inventory" to="/game/stores/charlie" title="Vehicle parts: shop at Charlie’s">
+            <HudIcon name="parts" />
+            <span className="se-statusbar__k">Parts</span>
+            <span className="se-num se-statusbar__v">{formatNumber(me.resources.vehicleParts ?? 0)}</span>
+          </Link>
+        </>
+      ) : null}
       {heat ? (
         <Link className="se-statusbar__item" to="/game#heat" title={heatTitle}>
           <HudIcon name="heat" />

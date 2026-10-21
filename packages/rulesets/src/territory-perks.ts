@@ -43,6 +43,11 @@ export interface TerritoryAccessDefinition {
   readonly localizationKey: string;
   readonly tollCentsPerUse?: number;
   readonly dailyTollCapCents?: number;
+  /** 2.4.0-F. Optional in-kind access tolls, paid into the holder's territory cache. */
+  readonly tollAmmoPerUse?: number;
+  readonly dailyTollCapAmmo?: number;
+  readonly tollVehiclePartsPerUse?: number;
+  readonly dailyTollCapVehicleParts?: number;
 }
 
 export interface TerritoryLocationDefinition {
@@ -123,7 +128,7 @@ export const TERRITORY_PERKS_CATALOG: TerritoryCatalog = {
 };
 
 /** Existing rounds have no opt-in field in their pinned ruleset, so this always fails closed. */
-export function territoryCatalogForRuleset(ruleset: Pick<Ruleset, 'turf' | 'cities'>): TerritoryCatalog | null {
+export function territoryCatalogForRuleset(ruleset: Pick<Ruleset, 'turf' | 'cities'> & Partial<Pick<Ruleset, 'ammoParts'>>): TerritoryCatalog | null {
   if (!ruleset.turf?.territory || !ruleset.turf.districts) return null;
   const districts = Object.fromEntries(Object.entries(TERRITORY_PERKS_CATALOG.districts)
     .filter(([key]) => Object.hasOwn(ruleset.turf!.districts!, key)));
@@ -134,7 +139,22 @@ export function territoryCatalogForRuleset(ruleset: Pick<Ruleset, 'turf' | 'citi
     const citySlugs = region.citySlugs.filter((slug) => Object.hasOwn(ruleset.cities ?? {}, slug));
     if (citySlugs.length >= 2) regions[key] = { ...region, citySlugs, tiers: region.tiers.slice(0, citySlugs.length), tierValueBasisPoints: region.tierValueBasisPoints.slice(0, citySlugs.length) };
   }
-  return { ...TERRITORY_PERKS_CATALOG, districts, cities, regions };
+  const resourceYields = ruleset.ammoParts?.territoryYieldsEnabled === true;
+  return {
+    ...TERRITORY_PERKS_CATALOG,
+    districts,
+    cities: resourceYields ? {
+      ...cities,
+      chicago: { ...cities.chicago!, access: { ...cities.chicago!.access, accessType: 'toll', tollAmmoPerUse: 20, dailyTollCapAmmo: 100 } },
+      detroit: { ...cities.detroit!, access: { ...cities.detroit!.access, tollVehiclePartsPerUse: 2, dailyTollCapVehicleParts: 10 } },
+    } : cities,
+    regions,
+    yieldProfiles: resourceYields ? {
+      ...TERRITORY_PERKS_CATALOG.yieldProfiles,
+      'chicago-ammo': { ...TERRITORY_PERKS_CATALOG.yieldProfiles['chicago-ammo']!, goodsPerHour: { AMMO: 150 } },
+      'detroit-parts': { ...TERRITORY_PERKS_CATALOG.yieldProfiles['detroit-parts']!, goodsPerHour: { VEHICLE_PARTS: 1 } },
+    } : TERRITORY_PERKS_CATALOG.yieldProfiles,
+  };
 }
 
 export function validateTerritoryCatalog(catalog: TerritoryCatalog, ruleset: Pick<Ruleset, 'turf' | 'cities'>): string[] {

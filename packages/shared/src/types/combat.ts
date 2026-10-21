@@ -83,12 +83,21 @@ export interface BattleReportDto {
   inventoryChanges?: Array<{
     product: string;
     name: string;
+    unitLabel?: string;
     change: number;
     after: number;
     used: number;
     gained: number;
     lost: number;
   }>;
+  /** 2.4.0-D. Ammo consumed, granted as defender floor, or looted in this raid. */
+  ammoCombat?: {
+    spentRounds: number;
+    freeDefenderRounds: number;
+    gainedRounds: number;
+    lostRounds: number;
+    afterRounds: number;
+  };
   /** 0.7.0-B. Defender assets that the Safe Room kept out of this raid. */
   raidProtection?: {
     protectedCashCents: number;
@@ -268,6 +277,8 @@ export interface EncounterGangIntelDto {
 export interface CombatPageDto {
   enabled: boolean;
   roundId: string;
+  /** Round-pinned catalog, used for the client-side combat preview. */
+  rulesetId?: string;
   serverTime: string;
   blockedReason: string | null;
   protectedUntil: string | null;
@@ -281,6 +292,14 @@ export interface CombatPageDto {
     minLootPercent?: number; maxLootPercent?: number; weightedLootExponent?: number;
     repeatLootPenaltyPercent?: number; repeatLootFloorPercent?: number;
     reconTurnCost?: number; reconFavorKey?: string; intelExpiresMinutes?: number; retaliationHours?: number;
+    /** 2.4.0-D. The exact ammo costs and weapon preference for the raid preview. */
+    ammo?: {
+      availableRounds: number;
+      roundsPerFight: Record<string, number>;
+      defenderFloor: number;
+      lootShareBps: number;
+      weaponPriority: 'POWER' | 'CONSERVE';
+    };
   };
   targets: CombatTargetDto[];
   nextTarget: number | null;

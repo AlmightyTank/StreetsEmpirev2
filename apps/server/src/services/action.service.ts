@@ -51,6 +51,23 @@ import { coolHeat, PlayerSkillService, type SkillEffects, type SkillXpAward } fr
 
 export { fitThugs, workingWhores } from './crew-availability.js';
 
+function typicalSquadAmmo(state: PlayerState, ruleset: Ruleset): number {
+  const rounds = ruleset.ammoParts?.ammo.roundsPerFight;
+  if (!rounds) return 0;
+  const armed = [
+    [state.ak47s, rounds.AK47], [state.tek9s, rounds.TEK9],
+    [state.shotguns, rounds.SHOTGUN], [state.pistols, rounds.PISTOL],
+  ] as const;
+  let remaining = Math.min(fitThugs(state), ruleset.combat?.squadCap ?? Number.MAX_SAFE_INTEGER);
+  let total = 0;
+  for (const [count, cost] of armed) {
+    const assigned = Math.min(remaining, count);
+    total += assigned * cost;
+    remaining -= assigned;
+  }
+  return total;
+}
+
 async function casinoCashEquivalentCents(tx: Db, roundPlayerId: string, ruleset: Ruleset): Promise<bigint> {
   if (!ruleset.casino?.enabled) return 0n;
   const [wallets, sessions, sportsbook] = await Promise.all([
@@ -83,6 +100,11 @@ export interface PlayerState {
   shotguns: number;
   tek9s: number;
   ak47s: number;
+  /** 2.4.0-C. Versioned stores add these only to rulesets that enable the catalog. */
+  ammo?: number;
+  vehicleParts?: number;
+  ammoStock?: number;
+  vehiclePartsStock?: number;
 
   lowRiders: number;
   sedans: number;
@@ -266,6 +288,8 @@ export function toState(player: RoundPlayer): PlayerState {
     shotguns: player.shotguns,
     tek9s: player.tek9s,
     ak47s: player.ak47s,
+    ammo: player.ammo,
+    vehicleParts: player.vehicleParts,
     lowRiders: player.lowRiders,
     sedans: player.sedans,
     vans: player.vans,
@@ -379,7 +403,7 @@ function diff(before: PlayerSnapshot, after: PlayerSnapshot): ResourceChange[] {
   for (const key of Object.keys(before.resources) as (keyof typeof before.resources)[]) {
     if (key === 'cashCents') continue; // already reported above
     if (key === 'product') continue; // alias for crack during the product migration
-    push(key, before.resources[key], after.resources[key]);
+    push(key, before.resources[key] ?? 0, after.resources[key] ?? 0);
   }
 
   return changes;
@@ -640,6 +664,16 @@ export const ActionService = {
             ? activityPayloadWithEncounter(outcome.activity.payload, actionEncounter.encounter)
             : outcome.activity.payload,
         );
+      }
+      const ammoThreshold = ruleset.ammoParts?.lowAmmoNotificationsEnabled ? typicalSquadAmmo(current, ruleset) : 0;
+      const activityHasAmmoReceipt = outcome.activity?.payload && typeof outcome.activity.payload === 'object'
+        && !Array.isArray(outcome.activity.payload) && 'ammoCombat' in outcome.activity.payload;
+      if (!activityHasAmmoReceipt && ammoThreshold > 0 && (current.ammo ?? 0) > ammoThreshold && (next.ammo ?? 0) <= ammoThreshold) {
+        await ActivityService.log(tx, roundPlayerId, 'AMMO_LOW', {
+          ammoRemaining: next.ammo ?? 0,
+          ammoThreshold,
+          message: 'Your ammunition is running low. Restock before the next fight.',
+        });
       }
       if (outcome.questProgress) {
         await QuestProgressService.emit(tx, roundPlayerId, {

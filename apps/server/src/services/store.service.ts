@@ -566,7 +566,7 @@ export const StoreService = {
           const settled = item.restock ? stock.byField[item.restock.stockField] ?? null : null;
           const shipment = settled ? shipmentDto({ settlement: settled, trader: key, keeper: store.keeper, itemName: item.name }) : null;
           if (shipment) incomingShipments += 1;
-          const specialOrder = settled && item.restock && !ordered.has(`${key}:${itemKey}`) && (!item.unlockKey || hasWeaponAccess(player, item.unlockKey))
+          const specialOrder = (item.unitsPerOrder ?? 1) === 1 && settled && item.restock && !ordered.has(`${key}:${itemKey}`) && (!item.unlockKey || hasWeaponAccess(player, item.unlockKey))
             ? specialOrderQuote({
                 ruleset,
                 points: standings[key as TraderKey]?.points ?? 0,
@@ -611,13 +611,13 @@ export const StoreService = {
             ...(relationship.buyDiscountPercent > 0 ? { relationshipBuyDiscountPercent: relationship.buyDiscountPercent } : {}),
             ...(relationship.sellBonusPercent > 0 ? { relationshipSellBonusPercent: relationship.sellBonusPercent } : {}),
             ...(nudge ? { factionDiscount: factionDiscountDto(ruleset, nudge) } : {}),
-            owned: player[item.field],
+            owned: player[item.field] ?? 0,
             unlock: item.unlockKey
               ? weaponUnlockProgress(player, standings, item.unlockKey, ruleset)
               : null,
             questLock: questLockFor(ruleset, player, item, lockedVehicles),
             maxBuy: (item.unlockKey && !hasWeaponAccess(player, item.unlockKey)) || (item.vehicleClass && lockedVehicles.has(item.vehicleClass))
-              ? 0 : maxStoreBuy(player.cashCents, player[item.field], quotedItem, onHand),
+              ? 0 : maxStoreBuy(player.cashCents, player[item.field] ?? 0, quotedItem, onHand),
             market: storeMarketContext({
               buyCents: quotedBuyCents,
               baseBuyCents: item.buyCents,
@@ -630,6 +630,7 @@ export const StoreService = {
               ? {
                   stock: settled.stock,
                   cap: settled.cap,
+                  ...(item.inventoryUnitLabel ? { unitLabel: item.inventoryUnitLabel } : {}),
                   intervalMinutes: settled.intervalMinutes,
                   perInterval: settled.perInterval,
                   nextAt: settled.nextAt ? settled.nextAt.toISOString() : null,
@@ -757,9 +758,9 @@ export const StoreService = {
           next: {
             ...current,
             cashCents: current.cashCents + trade.cashChangeCents,
-            [trade.field]: current[trade.field] + trade.quantityChange,
+            [trade.field]: (current[trade.field] ?? 0) + trade.quantityChange,
             // Taking one off the shelf is what starts the wait for the next.
-            ...(stockField ? { [stockField]: current[stockField] - stockTaken } : {}),
+            ...(stockField ? { [stockField]: (current[stockField] ?? 0) - stockTaken } : {}),
           },
           result,
           ledger: [{
@@ -804,7 +805,7 @@ export const StoreService = {
           ? foundStore.store.items[itemKey]
           : undefined;
         if (!item) throw AppError.badRequest('UNKNOWN_ITEM', 'That item is not sold at this store.', { item: 'Pick an item.' });
-        if (!item.restock) throw AppError.badRequest('SPECIAL_ORDER_UNAVAILABLE', 'That item does not need special sourcing.', { item: 'Pick a scarce item.' });
+        if (!item.restock || (item.unitsPerOrder ?? 1) !== 1) throw AppError.badRequest('SPECIAL_ORDER_UNAVAILABLE', 'That item does not need special sourcing.', { item: 'Pick a scarce item.' });
         if (item.unlockKey && !hasWeaponAccess(current, item.unlockKey)) {
           throw AppError.conflict('WEAPON_LOCKED', `Complete Tommy’s favor to unlock ${item.name} purchases.`);
         }
@@ -1029,8 +1030,8 @@ export const StoreService = {
           }
 
           next.cashCents += trade.cashChangeCents;
-          next[trade.field] += trade.quantityChange;
-          if (stockField) next[stockField] -= stockTaken;
+          next[trade.field] = (next[trade.field] ?? 0) + trade.quantityChange;
+          if (stockField) next[stockField] = (next[stockField] ?? 0) - stockTaken;
         }
 
         if (discount && discountApplied) await SingleUseFavorService.consume(tx, discount.id);

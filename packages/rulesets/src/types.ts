@@ -30,6 +30,9 @@ export type ResourceField =
   | 'sedans'
   | 'vans';
 
+/** Store-only player balances added by versioned inventory catalogs. */
+export type StoreResourceField = ResourceField | 'ammo' | 'vehicleParts';
+
 export type DistrictKey =
   | 'CASINO'
   | 'WINO_SLUMS'
@@ -816,6 +819,8 @@ export interface VehicleClassDefinition {
   readonly crewSeats?: number | null;
   readonly purchasePriceCents?: number | null;
   readonly routeProfile?: 'NORMAL' | 'LOW_PROFILE' | 'HIGH_VISIBILITY';
+  /** 2.4.0-E. Cash charged for each vehicle at run launch. */
+  readonly runFeeCents?: number;
 }
 
 export type VehicleClassId = VehicleClassDefinition['id'];
@@ -1219,7 +1224,9 @@ export type StockField =
   | 'medicineStock'
   | 'beerStock'
   | 'crackStock'
-  | 'thugStock';
+  | 'thugStock'
+  | 'ammoStock'
+  | 'vehiclePartsStock';
 export type StockAtField =
   | 'pistolStockAt'
   | 'shotgunStockAt'
@@ -1230,7 +1237,46 @@ export type StockAtField =
   | 'medicineStockAt'
   | 'beerStockAt'
   | 'crackStockAt'
-  | 'thugStockAt';
+  | 'thugStockAt'
+  | 'ammoStockAt'
+  | 'vehiclePartsStockAt';
+
+/** 2.4.0-B. Versioned catalog data for the ammo and vehicle-parts foundation. */
+export interface AmmoPartsRules {
+  readonly enabled: boolean;
+  /** 2.4.0-D. Ammo is consumed by the standard raid engine when true. */
+  readonly combatEnabled?: boolean;
+  /** 2.4.0-F. Emit a one-time activity when a player crosses below one typical squad's ammo. */
+  readonly lowAmmoNotificationsEnabled?: boolean;
+  /** 2.4.0-F. Enables territory cache rewards and in-kind access tolls for new rounds. */
+  readonly territoryYieldsEnabled?: boolean;
+  readonly catalogVersion: string;
+  readonly ammo: {
+    readonly costPerRoundCents: number;
+    readonly roundsPerFight: Readonly<Record<WeaponKey, number>>;
+    readonly defenderFloor: number;
+    readonly lootShareBps: number;
+    readonly sellbackBps: number;
+    readonly storeStockCap: number;
+    readonly restockIntervalMinutes?: number;
+    readonly packs: readonly { readonly key: string; readonly rounds: number; readonly priceCents: number }[];
+  };
+  readonly vehicleParts: {
+    readonly enabled?: boolean;
+    readonly storeStockCap: number;
+    readonly restockIntervalMinutes?: number;
+    readonly cashOnlyMultiplierBps?: number;
+    readonly cashOnlyServiceTurnsPerVehicle?: number;
+    readonly scrapYieldParts?: Readonly<Record<'SEDAN' | 'LOW_RIDER' | 'VAN', number>>;
+    readonly packs: readonly { readonly key: string; readonly parts: number; readonly priceCents: number }[];
+    readonly repairs: Readonly<Record<'SEDAN' | 'LOW_RIDER' | 'VAN', {
+      readonly damagedParts: number;
+      readonly damagedCashCents: number;
+      readonly disabledParts: number;
+      readonly disabledCashCents: number;
+    }>>;
+  };
+}
 
 /**
  * How many of something a shopkeeper can actually get hold of, and how often.
@@ -1278,7 +1324,11 @@ export interface StoreItem {
    */
   readonly vehicleClass?: 'SEDAN' | 'VAN';
   readonly name: string;
-  readonly field: ResourceField;
+  readonly field: StoreResourceField;
+  /** Units in the player's balance represented by one quantity at the counter. */
+  readonly unitsPerOrder?: number;
+  /** Label for the underlying inventory and shelf units when packs are sold. */
+  readonly inventoryUnitLabel?: string;
   readonly buyCents: number;
   /** Null means the store does not buy this back. */
   readonly sellCents: number | null;
@@ -3156,6 +3206,8 @@ export interface Ruleset {
     };
   };
   readonly meta: RulesetMeta;
+  /** 2.4.0-B. Absent on rounds pinned before the ammo and parts catalog. */
+  readonly ammoParts?: AmmoPartsRules;
   /** 2.4.0-A. Per-round catalog opt-in; the round feature flag must also be enabled. */
   readonly territoryPerks?: { readonly catalogVersion: string; readonly enabled: boolean; readonly dailyYieldCapCentsPerMember: number };
   /** 3.0-A. Presence gates read-only city holdings; identity multipliers do not alter settlement. */

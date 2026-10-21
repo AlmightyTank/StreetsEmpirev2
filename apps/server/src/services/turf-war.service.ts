@@ -1,5 +1,5 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
-import { blockWarsOn, cornerMinimumFor, headsUpMinutes, turfPushCombatModel, type Ruleset } from '@streets/rules-engine';
+import { blockWarsOn, cornerMinimumFor, equipCombatSquadWithAmmo, headsUpMinutes, turfPushCombatModel, type Ruleset } from '@streets/rules-engine';
 import type { DistrictKey } from '@streets/rulesets';
 import type {
   TurfPushBackupInput,
@@ -152,6 +152,11 @@ export const TurfWarService = {
         if (!guns) throw AppError.conflict('TURF_NOT_ENOUGH_ARMED', `You need ${input.squad} home guns to send that squad.`);
         assertTurns(current.turns, turfRules.push.turnCost);
 
+        const ammoRules = ruleset.ammoParts?.enabled && ruleset.ammoParts.combatEnabled ? ruleset.ammoParts.ammo : null;
+        const ammoSquad = ammoRules ? equipCombatSquadWithAmmo({ thugs: fitThugs(current), thugHappiness: player.thugHappiness,
+          weapons: engineGuns(guns) }, Math.min(input.squad, model.squadCap), model, current.ammo ?? 0, ammoRules.roundsPerFight) : null;
+        const ammoSpentRounds = ammoSquad?.roundsSpent ?? 0;
+
         const landsAt = new Date(now.getTime() + turfRules.push.warningMinutes * 60_000);
         const push = await tx.turfPush.create({
           data: {
@@ -162,7 +167,7 @@ export const TurfWarService = {
             defenderId: defender.id,
             defenderAllianceId: defender.allianceId,
             squad: input.squad,
-            attackerCrew: json({ thugHappiness: player.thugHappiness, weapons: engineGuns(guns) }),
+            attackerCrew: json({ thugHappiness: player.thugHappiness, weapons: ammoSquad ? ammoSquad.equipment : engineGuns(guns), ...(ammoRules ? { ammoSpentRounds } : {}) }),
             turnsSpent: turfRules.push.turnCost,
             actionId: input.actionId,
             startedAt: now,
@@ -180,6 +185,7 @@ export const TurfWarService = {
           turnsUsed: turfRules.push.turnCost,
           startedAt: now.toISOString(),
           landsAt: landsAt.toISOString(),
+          ...(ammoRules ? { ammoSpentRounds } : {}),
         };
 
         return {
@@ -187,6 +193,7 @@ export const TurfWarService = {
             ...current,
             turns: current.turns - turfRules.push.turnCost,
             busyThugs: current.busyThugs + input.squad,
+            ...(ammoRules ? { ammo: (current.ammo ?? 0) - ammoSpentRounds } : {}),
             pistols: current.pistols - guns.pistols,
             shotguns: current.shotguns - guns.shotguns,
             tek9s: current.tek9s - guns.tek9s,

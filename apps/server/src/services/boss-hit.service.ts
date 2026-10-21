@@ -2,6 +2,7 @@ import type { PrismaClient, RoundPlayer } from '@prisma/client';
 import {
   convoyRules,
   equipCombatSquad,
+  equipCombatSquadWithAmmo,
   hashParts,
   headsUpMinutes,
   huntedRules,
@@ -188,13 +189,22 @@ export const BossHitService = {
 
         const landsAt = new Date(at.getTime() + rules.warningMinutes * 60_000);
         // Trips D: the squad takes the best of the home arsenal, in case there are bodyguards.
-        const squad = equipCombatSquad({
+        const crewInput = {
           thugs: Math.max(input.squad, fitThugs(current)),
           thugHappiness: player.thugHappiness,
           weapons: { PISTOL: current.pistols, SHOTGUN: current.shotguns, TEK9: current.tek9s, AK47: current.ak47s },
           weaponPriority: hideoutWeaponPriority(base, player),
-        }, Math.min(input.squad, model.squadCap), model);
-        const attackerCrew: BossHitCrew = { thugHappiness: player.thugHappiness, weapons: { ...NO_GUNS, ...squad.equipment } };
+        };
+        const ammoRules = base.ammoParts?.enabled && base.ammoParts.combatEnabled ? base.ammoParts.ammo : null;
+        const squad = ammoRules
+          ? equipCombatSquadWithAmmo(crewInput, Math.min(input.squad, model.squadCap), model, current.ammo ?? 0, ammoRules.roundsPerFight)
+          : equipCombatSquad(crewInput, Math.min(input.squad, model.squadCap), model);
+        const roundsSpent = ammoRules ? (squad as ReturnType<typeof equipCombatSquadWithAmmo>).roundsSpent : 0;
+        const attackerCrew: BossHitCrew = {
+          thugHappiness: player.thugHappiness,
+          weapons: { ...NO_GUNS, ...squad.equipment },
+          ...(ammoRules ? { ammoSpentRounds: roundsSpent } : {}),
+        };
         const hit = await tx.bossHit.create({
           data: {
             tripId: trip.id, ownerId: owner.id, attackerId, city: trip.city, squad: input.squad,
@@ -204,7 +214,12 @@ export const BossHitService = {
         });
         const result: BossHitResult = { hitId: hit.id, landsAt: landsAt.toISOString(), city: trip.city, cityName: cityName(base, trip.city), squad: input.squad, turns: rules.turnCost };
         return {
-          next: { ...current, turns: current.turns - rules.turnCost, busyThugs: current.busyThugs + input.squad },
+          next: {
+            ...current,
+            turns: current.turns - rules.turnCost,
+            busyThugs: current.busyThugs + input.squad,
+            ...(ammoRules ? { ammo: (current.ammo ?? 0) - roundsSpent } : {}),
+          },
           result,
           activity: { type: 'BOSS_HIT', payload: { ...result, owner: owner.displayName } },
         };
@@ -332,12 +347,15 @@ export const BossHitService = {
         const limit = backupLimit(base, player, hit, current, at);
         if (limit.reason) throw AppError.conflict('CANNOT_SEND', limit.reason);
         if (input.thugs > limit.max) throw AppError.badRequest('TOO_MANY', `Send at most ${limit.max}.`, { thugs: `At most ${limit.max}.` });
-        const squad = equipCombatSquad({
+        const crewInput = {
           thugs: Math.max(input.thugs, fitThugs(current)),
           thugHappiness: player.thugHappiness,
           weapons: { PISTOL: current.pistols, SHOTGUN: current.shotguns, TEK9: current.tek9s, AK47: current.ak47s },
           weaponPriority: hideoutWeaponPriority(base, player),
-        }, Math.min(input.thugs, model.squadCap), model);
+        };
+        // The visiting boss supplies the ammunition for the entire defense, including allies.
+        // Their guns stay in the snapshot; the trip owner's stock is charged when the fight lands.
+        const squad = equipCombatSquad(crewInput, Math.min(input.thugs, model.squadCap), model);
         const crew: BossHitCrew = { thugHappiness: player.thugHappiness, weapons: { ...NO_GUNS, ...squad.equipment } };
         await tx.bossHitBackup.create({ data: { hitId: hit.id, playerId: senderId, thugs: input.thugs, crew: JSON.parse(JSON.stringify(crew)), sentAt: at } });
         const result: BossHitBackupResult = { hitId: hit.id, thugs: input.thugs, landsAt: hit.landsAt.toISOString() };

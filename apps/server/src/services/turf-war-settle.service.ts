@@ -68,6 +68,7 @@ interface StoredPushResult {
   recoverAt: string | null;
   outpostLoot: OutpostLoot | null;
   stashGuardLootReductionPercent?: number;
+  ammoLootRounds?: number;
 }
 
 const EMPTY: CornerGuns = { pistols: 0, shotguns: 0, tek9s: 0, ak47s: 0 };
@@ -231,6 +232,7 @@ export const TurfWarSettlementService = {
       let territoryModifierReceipts: ReturnType<typeof resolveTerritoryModifiers> = [];
       let enforcerDefenseBonusPercent = 0;
       let cornerDefenseExperience = 0;
+      let ammoLootRounds = 0;
       let recoverAt: Date | null = null;
       const woundByBackup = new Map<string, number>();
 
@@ -266,6 +268,7 @@ export const TurfWarSettlementService = {
         }), 'TURF_DEFEND');
         const territoryDefenseMultiplier = territoryModifierReceipts.reduce((value, receipt) => value * receipt.multiplierBasisPoints / 10_000, 10_000);
 
+        const ammoRules = base.ammoParts?.enabled && base.ammoParts.combatEnabled ? base.ammoParts.ammo : null;
         const fight = simulateRaid({
           attacker: { thugs: loaded.squad, thugHappiness: attacker.thugHappiness, weapons: attacker.weapons },
           defender: {
@@ -277,7 +280,11 @@ export const TurfWarSettlementService = {
           attackingThugs: loaded.squad,
           attackerTurns: model.turnCost,
           defenderCashCents: 0n,
+          ...(ammoRules ? { ammo: { attackerRounds: 0, defenderRounds: defender.ammo,
+            roundsPerFight: ammoRules.roundsPerFight, defenderFloor: ammoRules.defenderFloor, lootShareBps: ammoRules.lootShareBps } } : {}),
         }, model, seededRng(hashParts(loaded.id, 'turf-fight')));
+        ammoLootRounds = fight.ammunition?.ammoLootRounds ?? 0;
+        if (fight.ammunition) await tx.roundPlayer.update({ where: { id: defender.id }, data: { ammo: fight.ammunition.defenderRoundsAfter } });
 
         won = fight.winner === 'ATTACKER';
         unopposed = false;
@@ -463,6 +470,7 @@ export const TurfWarSettlementService = {
         ...(territoryCacheRaidReceipt ? { territoryCacheRaidReceipt } : {}),
         shieldUntil: shieldUntil?.toISOString() ?? null, recoverAt: recoverAt?.toISOString() ?? null,
         outpostLoot,
+        ...(ammoLootRounds ? { ammoLootRounds } : {}),
         ...(stashGuardLootReductionPercent > 0 ? { stashGuardLootReductionPercent } : {}),
       };
       await tx.turfPush.update({
@@ -582,6 +590,7 @@ export const TurfWarSettlementService = {
     let postedNetWorthCents = player.postedNetWorthCents;
     let cashCents = player.cashCents;
     let beer = player.beer;
+    let ammo = player.ammo;
     const productLoot: Record<string, number> = {};
     let homeGuns: CornerGuns = { pistols: player.pistols, shotguns: player.shotguns, tek9s: player.tek9s, ak47s: player.ak47s };
 
@@ -592,6 +601,7 @@ export const TurfWarSettlementService = {
       homeGuns = addCornerGuns(homeGuns, result.attackerReturnedGuns);
       const returnedWorth = cornerGunWorthCents(ruleset, result.attackerReturnedGuns);
       postedNetWorthCents = postedNetWorthCents >= returnedWorth ? postedNetWorthCents - returnedWorth : 0n;
+      ammo = Math.min(2_147_483_647, ammo + (result.ammoLootRounds ?? 0));
       if (result.recoverAt && result.attackerWounds > 0) {
         await CombatRecoveryService.add(tx, playerId, null, result.attackerWounds, new Date(result.recoverAt));
       }
@@ -639,7 +649,7 @@ export const TurfWarSettlementService = {
     }
     await tx.roundPlayer.update({
       where: { id: playerId },
-      data: { cashCents, beer, busyThugs, postedThugs, postedNetWorthCents, ...homeGuns },
+      data: { cashCents, beer, busyThugs, postedThugs, postedNetWorthCents, ammo, ...homeGuns },
     });
   },
 };

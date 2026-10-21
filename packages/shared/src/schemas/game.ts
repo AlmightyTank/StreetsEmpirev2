@@ -511,16 +511,18 @@ export const raidSchema = z.object({
   roundId: z.string().min(1).max(64),
   targetPublicPimpId: z.number().int().positive().max(2_147_483_647),
   attackingThugs: z.number().int().positive().safe(),
+  /** 2.4.0-D. Optional per-raid ammunition spend ceiling, in rounds. */
+  attackerAmmoCapRounds: z.number().int().min(0).max(2_147_483_647).optional(),
   crewMemberIds: z.array(z.string().trim().min(1).max(64)).max(5).refine((ids) => new Set(ids).size === ids.length, 'Choose each crew member once.').optional(),
   actionId: actionIdSchema,
 }).strict();
 export type RaidInputDto = z.infer<typeof raidSchema>;
 
 /** Same intent as a raid: a target, how many go, and a retry-safe id. */
-export const driveBySchema = raidSchema.omit({ crewMemberIds: true });
+export const driveBySchema = raidSchema.omit({ crewMemberIds: true, attackerAmmoCapRounds: true });
 export type DriveByInputDto = z.infer<typeof driveBySchema>;
 
-export const specialRaidSchema = raidSchema.omit({ crewMemberIds: true }).extend({
+export const specialRaidSchema = raidSchema.omit({ crewMemberIds: true, attackerAmmoCapRounds: true }).extend({
   kind: z.enum(['DRUG_HOES', 'STEAL_RIDE', 'LURE_CREW']),
 }).strict();
 export type SpecialRaidInputDto = z.infer<typeof specialRaidSchema>;

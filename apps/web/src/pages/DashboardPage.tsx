@@ -392,6 +392,8 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
         {me.products ? null : <DashboardMetric label="Product" art="CRACK" value={formatNumber(me.resources.product)} />}
         <DashboardMetric label="Beer" art="BEER" value={formatNumber(me.resources.beer)} />
         <DashboardMetric label="Medicine" art="MEDICINE" value={formatNumber(me.resources.medicine)} />
+        {me.resources.ammo !== undefined ? <DashboardMetric label="Ammo" value={formatNumber(me.resources.ammo)} detail="Rounds" /> : null}
+        {me.resources.vehicleParts !== undefined ? <DashboardMetric label="Parts" value={formatNumber(me.resources.vehicleParts)} detail="Vehicle repair" /> : null}
       </div>
     </Panel>
   );

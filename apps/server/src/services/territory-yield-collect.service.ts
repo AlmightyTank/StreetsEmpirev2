@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import { productEconomy, type Ruleset } from '@streets/rules-engine';
+import { MAX_INVENTORY, productEconomy, type Ruleset } from '@streets/rules-engine';
 import { territoryCatalogForRuleset } from '@streets/rulesets';
 import type { GameActionResult, TerritoryYieldCollection } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
@@ -23,6 +23,11 @@ export function territoryYieldUnitValueCents(ruleset: Ruleset, key: string): num
     TEK9: netWorth.perTek9Cents,
     AK47: netWorth.perAk47Cents,
   };
+  if (key === 'AMMO') return Math.max(1, Math.trunc(ruleset.ammoParts?.ammo.costPerRoundCents ?? 30));
+  if (key === 'VEHICLE_PARTS') {
+    const prices = ruleset.ammoParts?.vehicleParts.packs.map((pack) => pack.priceCents / pack.parts) ?? [];
+    return Math.max(1, Math.trunc(Math.min(...prices, 800)));
+  }
   return Math.max(1, Math.trunc(values[key] ?? 1));
 }
 
@@ -114,11 +119,19 @@ export function collectTerritoryCityYield(
       const allianceRemaining = Math.max(0, Number(dailyCap - daily.valueCents));
       const playerRemaining = Math.max(0, Number(memberCap - playerDaily.valueCents));
       const availableValueCents = Math.min(allianceRemaining, playerRemaining);
+      const availableGoods = { ...goods };
+      // Inventory caps must not turn a valid cache collection into a failed action;
+      // any excess stays in the territory cache for a later visit.
+      availableGoods.AMMO = Math.min(availableGoods.AMMO ?? 0, MAX_INVENTORY - (current.ammo ?? 0));
+      availableGoods.VEHICLE_PARTS = Math.min(availableGoods.VEHICLE_PARTS ?? 0, MAX_INVENTORY - (current.vehicleParts ?? 0));
       const unitValues = Object.fromEntries(Object.keys(goods).map((key) => [key, territoryYieldUnitValueCents(ruleset, key)]));
-      const collection = allocateTerritoryYield({ goods, cashCents, tollCents, unitValues, availableValueCents });
+      const collection = allocateTerritoryYield({ goods: availableGoods, cashCents, tollCents, unitValues, availableValueCents });
       if (collection.valueCents === 0) throw AppError.conflict('TERRITORY_DAILY_CAP', 'Your alliance has reached its territory yield cap for today.');
 
-      if (Object.keys(collection.goods).length) await ProductInventoryService.adjust(tx, roundPlayerId, ruleset, collection.goods);
+      const productGoods = Object.fromEntries(Object.entries(collection.goods).filter(([key]) => key !== 'AMMO' && key !== 'VEHICLE_PARTS'));
+      if (Object.keys(productGoods).length) await ProductInventoryService.adjust(tx, roundPlayerId, ruleset, productGoods);
+      const ammoGained = collection.goods.AMMO ?? 0;
+      const partsGained = collection.goods.VEHICLE_PARTS ?? 0;
       const remainingGoods = { ...state.contents };
       for (const [key, quantity] of Object.entries(collection.goods)) remainingGoods[key] = Math.max(0, (remainingGoods[key] ?? 0) - quantity);
       await tx.territoryYieldCache.update({
@@ -132,7 +145,9 @@ export function collectTerritoryCityYield(
       await tx.territoryYieldDailyLedger.update({ where: { id: daily.id }, data: { valueCents: daily.valueCents + BigInt(collection.valueCents) } });
       await tx.territoryYieldPlayerDailyLedger.update({ where: { id: playerDaily.id }, data: { valueCents: playerDaily.valueCents + BigInt(collection.valueCents) } });
       return {
-        next: { ...current, cashCents: current.cashCents + BigInt(collection.cashCents + collection.tollCents), turns: current.turns - 1 },
+        next: { ...current, cashCents: current.cashCents + BigInt(collection.cashCents + collection.tollCents), turns: current.turns - 1,
+          ...(ammoGained ? { ammo: (current.ammo ?? 0) + ammoGained } : {}),
+          ...(partsGained ? { vehicleParts: (current.vehicleParts ?? 0) + partsGained } : {}) },
         result: { scope: input.scope, citySlug: input.citySlug, district: input.district ?? null, goods: collection.goods, cashCents: collection.cashCents, tollCents: collection.tollCents, valueCents: collection.valueCents, turnsUsed: 1 },
       };
     },

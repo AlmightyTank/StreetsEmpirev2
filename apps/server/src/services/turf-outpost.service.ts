@@ -4,6 +4,7 @@ import {
   cargoUnits,
   cornerMinimumFor,
   equipCombatSquad,
+  equipCombatSquadWithAmmo,
   runCapacity,
   runPosition,
   type Rng,
@@ -201,8 +202,14 @@ export const TurfOutpostService = {
         }, now);
         const model = ruleset.combat;
         if (!model) throw AppError.conflict('COMBAT_DISABLED', 'There is no street fight model in this round.');
-        const attacker = equipCombatSquad({ thugs: input.thugs, thugHappiness, weapons: engineGuns(guns) }, Math.min(input.thugs, model.squadCap), model);
-        const defender = equipCombatSquad({ thugs: locals, thugHappiness: 100, weapons: localsGuns(ruleset, locals) }, Math.min(locals, model.squadCap), model);
+        const ammoRules = ruleset.ammoParts?.enabled && ruleset.ammoParts.combatEnabled ? ruleset.ammoParts.ammo : null;
+        const attacker = ammoRules
+          ? equipCombatSquadWithAmmo({ thugs: input.thugs, thugHappiness, weapons: engineGuns(guns) }, Math.min(input.thugs, model.squadCap), model, current.ammo ?? 0, ammoRules.roundsPerFight)
+          : equipCombatSquad({ thugs: input.thugs, thugHappiness, weapons: engineGuns(guns) }, Math.min(input.thugs, model.squadCap), model);
+        const defender = ammoRules
+          ? equipCombatSquadWithAmmo({ thugs: locals, thugHappiness: 100, weapons: localsGuns(ruleset, locals) }, Math.min(locals, model.squadCap), model, 0, ammoRules.roundsPerFight, { defenderFloorFighters: ammoRules.defenderFloor })
+          : equipCombatSquad({ thugs: locals, thugHappiness: 100, weapons: localsGuns(ruleset, locals) }, Math.min(locals, model.squadCap), model);
+        const ammoSpentRounds = ammoRules ? (attacker as { roundsSpent?: number }).roundsSpent ?? 0 : 0;
         const variance = ruleset.turf!.push.fight.variance;
         const attackerStrength = attacker.strength * (1 + (rng() * 2 - 1) * variance);
         const defenderStrength = defender.strength * ruleset.turf!.push.fight.defenseMultiplier;
@@ -211,11 +218,11 @@ export const TurfOutpostService = {
         const name = districtName(ruleset, citySlug, key);
         if (!won) {
           return {
-            next: { ...current, turns: current.turns - turnsUsed },
+            next: { ...current, turns: current.turns - turnsUsed, ...(ammoRules ? { ammo: (current.ammo ?? 0) - ammoSpentRounds } : {}) },
             result: {
               outpostId: '', city: citySlug, cityName: ruleset.cities?.[citySlug]?.name ?? citySlug,
               district: key, districtName: name, won: false, squad: input.thugs, localsThugs: locals,
-              cornerThugs: 0, cashCents: 0, beer: 0, products: {}, turnsUsed,
+              cornerThugs: 0, cashCents: 0, beer: 0, products: {}, turnsUsed, ...(ammoRules ? { ammoSpentRounds } : {}),
             },
             activity: { type: 'TURF_OUTPOST_ESTABLISH', payload: {
               city: citySlug, district: key, won: false, thugs: input.thugs, locals,
@@ -279,11 +286,12 @@ export const TurfOutpostService = {
             postedNetWorthCents: current.postedNetWorthCents + postedWorth,
             outpostNetWorthCents: current.outpostNetWorthCents + seedWorth,
             awayNetWorthCents: newAway,
+            ...(ammoRules ? { ammo: (current.ammo ?? 0) - ammoSpentRounds } : {}),
           },
           result: {
             outpostId: outpost.id, city: citySlug, cityName: ruleset.cities?.[citySlug]?.name ?? citySlug,
             district: key, districtName: name, won: true, squad: input.thugs, localsThugs: locals,
-            cornerThugs: input.thugs, cashCents: input.cashCents, beer: input.beer, products, turnsUsed,
+            cornerThugs: input.thugs, cashCents: input.cashCents, beer: input.beer, products, turnsUsed, ...(ammoRules ? { ammoSpentRounds } : {}),
           },
           activity: { type: 'TURF_OUTPOST_ESTABLISH', payload: {
             outpostId: outpost.id, city: citySlug, district: key, won: true, thugs: input.thugs,

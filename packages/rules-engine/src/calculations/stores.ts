@@ -3,6 +3,7 @@ import type {
   Ruleset,
   Store,
   StoreItem,
+  StoreResourceField,
   StockField,
   StoreKey,
 } from '@streets/rulesets';
@@ -39,12 +40,13 @@ export function maxStoreBuy(
   item: StoreItem,
   stock: number | null = null,
 ): number {
-  const room = Math.max(0, MAX_INVENTORY - owned);
+  const unitsPerOrder = item.unitsPerOrder ?? 1;
+  const room = Math.max(0, Math.floor((MAX_INVENTORY - owned) / unitsPerOrder));
   const affordable = item.buyCents === 0
     ? room
     : Number(BigInt(room) < cashCents / BigInt(item.buyCents)
       ? BigInt(room) : cashCents / BigInt(item.buyCents));
-  return stock === null ? affordable : Math.min(affordable, stock);
+  return stock === null ? affordable : Math.min(affordable, Math.floor(stock / unitsPerOrder));
 }
 
 export class StoreTradeError extends Error {
@@ -63,7 +65,7 @@ export interface StoreTradeInput {
 /** Price and validate the entire order. No partial fills and no turn costs. */
 export function calculateStoreTrade(
   player: { cashCents: bigint } & Record<Exclude<ResourceField, 'sedans' | 'vans'>, number>
-    & Partial<Record<'sedans' | 'vans', number>> & WeaponUnlockState & StockHolder,
+    & Partial<Record<'sedans' | 'vans' | 'ammo' | 'vehicleParts', number>> & WeaponUnlockState & StockHolder,
   input: StoreTradeInput,
   ruleset: Ruleset,
   options?: { buyUnitCents?: number; sellUnitCents?: number | null },
@@ -80,6 +82,10 @@ export function calculateStoreTrade(
   }
 
   const buying = input.direction === 'buy';
+  const unitsPerOrder = item.unitsPerOrder ?? 1;
+  if (!Number.isSafeInteger(unitsPerOrder) || unitsPerOrder < 1) {
+    throw new StoreTradeError('INVALID_TRADE', 'The store pack size is invalid.', 'item');
+  }
   if (buying && item.unlockKey && !hasWeaponAccess(player, item.unlockKey)) {
     throw new StoreTradeError('WEAPON_LOCKED', `Complete Tommy’s favor to unlock ${item.name} purchases.`, 'item');
   }
@@ -96,11 +102,15 @@ export function calculateStoreTrade(
   if (unitCents === null) throw new StoreTradeError('SELL_NOT_ALLOWED', 'This store does not buy that item back.', 'item');
   const totalCents = BigInt(unitCents) * BigInt(input.quantity);
   // 1.5.0-E2: a crew from before Charlie sold Sedans and Vans owns none.
-  const owned = player[item.field] ?? 0;
+  const owned = player[item.field as StoreResourceField] ?? 0;
+  const units = input.quantity * unitsPerOrder;
+  if (!Number.isSafeInteger(units)) {
+    throw new StoreTradeError('INVALID_QUANTITY', 'That order is too large.', 'quantity');
+  }
   // Supply, not money. Selling back is always allowed: the shelf tracks what
   // Tommy can get for you, not what the two of you have traded.
   const stock = stockOnHand(player, item);
-  if (buying && item.restock && stock !== null && input.quantity > stock) {
+  if (buying && item.restock && stock !== null && units > stock) {
     const wait = item.restock.intervalMinutes >= 60
       ? `${item.restock.intervalMinutes / 60} hours`
       : `${item.restock.intervalMinutes} minutes`;
@@ -112,7 +122,7 @@ export function calculateStoreTrade(
       'OUT_OF_STOCK',
       stock === 0
         ? `${found.store.keeper} has no ${item.name} left. ${delivery}`
-        : `${found.store.keeper} only has ${stock.toLocaleString('en-US')} ${item.name} right now. ${delivery}`,
+        : `${found.store.keeper} only has enough stock for ${Math.floor(stock / unitsPerOrder).toLocaleString('en-US')} ${item.name} orders right now. ${delivery}`,
       'quantity',
     );
   }
@@ -120,11 +130,14 @@ export function calculateStoreTrade(
   if (buying && totalCents > player.cashCents) {
     throw new StoreTradeError('NOT_ENOUGH_CASH', `You can afford ${maxStoreBuy(player.cashCents, owned, { ...item, buyCents: safeBuyCents }, stock).toLocaleString('en-US')} of this item.`, 'quantity');
   }
-  if (buying && input.quantity > MAX_INVENTORY - owned) {
+  if (buying && units > MAX_INVENTORY - owned) {
     throw new StoreTradeError('INVENTORY_LIMIT', 'That purchase would exceed your inventory limit.', 'quantity');
   }
-  if (!buying && input.quantity > owned) {
-    throw new StoreTradeError('NOT_ENOUGH_ITEMS', `You only own ${owned.toLocaleString('en-US')} of this item.`, 'quantity');
+  if (!buying && units > owned) {
+    const message = unitsPerOrder === 1
+      ? `You only own ${owned.toLocaleString('en-US')} of this item.`
+      : `You can sell at most ${Math.floor(owned / unitsPerOrder).toLocaleString('en-US')} ${item.name} packs.`;
+    throw new StoreTradeError('NOT_ENOUGH_ITEMS', message, 'quantity');
   }
   // API money values are JSON numbers; never silently lose cents in a result.
   const cashChangeCents = buying ? -totalCents : totalCents;
@@ -134,9 +147,9 @@ export function calculateStoreTrade(
   return {
     storeKey: found.key, storeName: found.store.name, itemName: item.name,
     field: item.field, unitCents, totalCents, cashChangeCents,
-    quantityChange: buying ? input.quantity : -input.quantity,
+    quantityChange: buying ? units : -units,
     /** Set only when this purchase came off a restocked shelf. */
     stockField: buying && item.restock ? item.restock.stockField : null,
-    stockTaken: buying && item.restock ? input.quantity : 0,
+    stockTaken: buying && item.restock ? units : 0,
   };
 }

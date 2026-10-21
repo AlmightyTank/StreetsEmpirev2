@@ -51,6 +51,9 @@ run('Law balance bands', npm, ['run', 'qa:law', '--', '--quiet']);
 run('Faction balance and audit gates', npm, ['run', 'qa:factions', '--', '--quiet']);
 // 1.5.0-E: every vehicle class a reasonable pick somewhere, none a must-have, and the garage a cost, not a tax.
 run('Vehicle balance gates', npm, ['run', 'qa:vehicles', '--', '--quiet']);
+// 2.4.0-G: ammo/parts version pins, inventory conservation, free defender floor and deterministic combat under load.
+run('Ammo and parts release hardening', npm, ['run', 'qa:ammo-release', '--', '25000']);
+run('Ammo season balance projection', npm, ['run', 'qa:ammo-season', '--', '--samples', '10000', '--quiet']);
 // 1.8.6-I: assignment totals and the diminishing returns on corner staffing stay bounded.
 run('Crew staffing balance gates', npm, ['run', 'qa:crew-staffing']);
 // 1.6.5-G: affordability, debt/fee ceilings, capped collections, recovery, and pinned history.

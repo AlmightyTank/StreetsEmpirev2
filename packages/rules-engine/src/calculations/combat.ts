@@ -48,6 +48,34 @@ export interface RaidInput {
   readonly defenderCashCents: bigint;
   readonly defenderCrack?: number;
   readonly repeatTargetHits?: number;
+  /** Present only in a round whose versioned rules enable ammunition in raids. */
+  readonly ammo?: RaidAmmoInput;
+}
+
+export interface RaidAmmoInput {
+  readonly attackerRounds: number;
+  readonly defenderRounds: number;
+  readonly roundsPerFight: Readonly<Record<WeaponKey, number>>;
+  readonly defenderFloor: number;
+  readonly lootShareBps: number;
+  /** Optional cap set by the attacking player for this raid, in rounds. */
+  readonly attackerCapRounds?: number;
+}
+
+export interface RaidAmmoResult {
+  readonly attackerRoundsSpent: number;
+  readonly defenderRoundsSpent: number;
+  /** Free rounds supplied to the defender for the best fighters. */
+  readonly defenderFreeRounds: number;
+  readonly ammoLootRounds: number;
+  readonly attackerRoundsAfter: number;
+  readonly defenderRoundsAfter: number;
+}
+
+export interface CombatAmmoSquad extends CombatSquad {
+  readonly roundsSpent: number;
+  readonly freeRounds: number;
+  readonly roundsRequired: number;
 }
 
 export interface RaidResult {
@@ -75,6 +103,7 @@ export interface RaidResult {
   readonly crackChanges: { readonly attacker: number; readonly defender: number };
   readonly defenderCashAfterCents: bigint;
   readonly defenderCrackAfter: number;
+  readonly ammunition?: RaidAmmoResult;
 }
 
 export class CombatError extends Error {
@@ -176,6 +205,100 @@ function equip(crew: CombatCrew, committed: number, model: CombatModel): CombatS
   return { committed, armed: committed - remaining, unarmed: remaining, equipment, baseStrength, moraleMultiplier, strength: baseStrength * moraleMultiplier };
 }
 
+function squadWithEquipment(crew: CombatCrew, committed: number, equipment: Readonly<Record<WeaponKey, number>>, model: CombatModel): CombatSquad {
+  const armed = weaponKeys(model).reduce((sum, key) => sum + equipment[key], 0);
+  const weaponStrength = weaponKeys(model).reduce(
+    (sum, key) => sum + equipment[key] * model.weapons[key].power ** model.strength.weaponPowerExponent,
+    0,
+  );
+  const baseStrength = committed * model.strength.perThug + weaponStrength;
+  const moraleMultiplier = model.strength.moraleFloor + (1 - model.strength.moraleFloor) * crew.thugHappiness / 100;
+  return {
+    committed, armed, unarmed: committed - armed,
+    equipment: { ...equipment }, baseStrength, moraleMultiplier,
+    strength: baseStrength * moraleMultiplier,
+  };
+}
+
+const MAX_COMBAT_AMMO_ROUNDS = 2_147_483_647;
+
+/** Arm the squad with whole-fight ammo, assigning the best guns first. */
+export function equipCombatSquadWithAmmo(
+  crew: CombatCrew,
+  committed: number,
+  model: CombatModel,
+  rounds: number,
+  roundsPerFight: Readonly<Record<WeaponKey, number>>,
+  options: { defenderFloorFighters?: number; ammoCapRounds?: number } = {},
+): CombatAmmoSquad {
+  const base = equipCombatSquad(crew, committed, model);
+  count(rounds, 'Ammo rounds');
+  requireCondition(rounds <= MAX_COMBAT_AMMO_ROUNDS, 'INVALID_COUNT', 'Ammo exceeds the supported inventory limit.');
+  for (const key of weaponKeys(model)) {
+    count(roundsPerFight[key], `${key} rounds per fight`);
+    requireCondition(roundsPerFight[key] > 0, 'INVALID_MODEL', 'Every weapon must use at least one round per fight.');
+  }
+  const floorFighters = options.defenderFloorFighters ?? 0;
+  count(floorFighters, 'Defender floor');
+  const cap = options.ammoCapRounds ?? rounds;
+  count(cap, 'Ammo cap');
+  requireCondition(cap <= MAX_COMBAT_AMMO_ROUNDS, 'INVALID_COUNT', 'Ammo cap exceeds the supported inventory limit.');
+
+  const ordered = weaponKeys(model).sort((a, b) => model.weapons[b].power - model.weapons[a].power || a.localeCompare(b));
+  const free = Object.fromEntries(weaponKeys(model).map((key) => [key, 0])) as Record<WeaponKey, number>;
+  const funded = Object.fromEntries(weaponKeys(model).map((key) => [key, 0])) as Record<WeaponKey, number>;
+  let floorLeft = floorFighters;
+  let freeRounds = 0;
+  let roundsRequired = 0;
+  for (const key of ordered) {
+    const assigned = base.equipment[key];
+    roundsRequired += assigned * roundsPerFight[key];
+    const freeAssigned = Math.min(assigned, floorLeft);
+    free[key] = freeAssigned;
+    floorLeft -= freeAssigned;
+    freeRounds += freeAssigned * roundsPerFight[key];
+  }
+
+  let remaining = Math.min(rounds, cap);
+  let roundsSpent = 0;
+  for (const key of ordered) {
+    const availableWeapons = base.equipment[key] - free[key];
+    const supplied = Math.min(availableWeapons, Math.floor(remaining / roundsPerFight[key]));
+    funded[key] = supplied;
+    const spent = supplied * roundsPerFight[key];
+    remaining -= spent;
+    roundsSpent += spent;
+  }
+  const equipment = Object.fromEntries(weaponKeys(model).map((key) => [key, free[key] + funded[key]])) as Record<WeaponKey, number>;
+  return { ...squadWithEquipment(crew, committed, equipment, model), roundsSpent, freeRounds, roundsRequired };
+}
+
+/** Client and server use the same deterministic calculation for the raid planner. */
+export function previewCombatAmmo(
+  crew: CombatCrew,
+  committed: number,
+  model: CombatModel,
+  rounds: number,
+  roundsPerFight: Readonly<Record<WeaponKey, number>>,
+  ammoCapRounds?: number,
+) {
+  const full = equipCombatSquad(crew, committed, model);
+  const supplied = equipCombatSquadWithAmmo(crew, committed, model, rounds, roundsPerFight, { ammoCapRounds });
+  const emptyCrew: CombatCrew = {
+    ...crew,
+    weapons: Object.fromEntries(weaponKeys(model).map((key) => [key, 0])) as Record<WeaponKey, number>,
+  };
+  const withoutAmmo = equipCombatSquad(emptyCrew, committed, model);
+  return {
+    fullStrength: full.strength,
+    suppliedStrength: supplied.strength,
+    withoutAmmoStrength: withoutAmmo.strength,
+    roundsRequired: supplied.roundsRequired,
+    roundsSpent: supplied.roundsSpent,
+    suppliedSquad: supplied,
+  };
+}
+
 /** One weapon per committed thug; reserves and unused guns contribute no power. */
 export function equipCombatSquad(crew: CombatCrew, committed: number, model: CombatModel): CombatSquad {
   validateCombatModel(model);
@@ -241,11 +364,27 @@ export function simulateRaid(input: RaidInput, model: CombatModel, rng: Rng): Ra
     'INVALID_CASH', 'Defender cash must be nonnegative BigInt cents.');
   if (input.defenderCrack !== undefined) count(input.defenderCrack, 'Defender crack');
   if (input.repeatTargetHits !== undefined) count(input.repeatTargetHits, 'Repeat target hits');
+  if (input.ammo) {
+    count(input.ammo.attackerRounds, 'Attacker ammo');
+    count(input.ammo.defenderRounds, 'Defender ammo');
+    count(input.ammo.defenderFloor, 'Defender floor');
+    count(input.ammo.lootShareBps, 'Ammo loot share');
+    requireCondition(input.ammo.lootShareBps <= 10_000, 'INVALID_MODEL', 'Ammo loot share cannot exceed 100%.');
+  }
 
   const attackerBoost = boost(input.attackerBoost);
   const defenderBoost = boost(input.defenderBoost);
-  const attacker = equip(input.attacker, input.attackingThugs, model);
-  const defender = equip(input.defender, Math.min(input.defender.thugs, model.squadCap), model);
+  const defenderThugs = Math.min(input.defender.thugs, model.squadCap);
+  const attacker = input.ammo
+    ? equipCombatSquadWithAmmo(input.attacker, input.attackingThugs, model, input.ammo.attackerRounds, input.ammo.roundsPerFight, {
+        ammoCapRounds: input.ammo.attackerCapRounds,
+      })
+    : equip(input.attacker, input.attackingThugs, model);
+  const defender = input.ammo
+    ? equipCombatSquadWithAmmo(input.defender, defenderThugs, model, input.ammo.defenderRounds, input.ammo.roundsPerFight, {
+        defenderFloorFighters: input.ammo.defenderFloor,
+      })
+    : equip(input.defender, defenderThugs, model);
   const rolls = { attacker: checkedRoll(rng), defender: checkedRoll(rng) };
   const woundRolls = { attacker: checkedRoll(rng), defender: checkedRoll(rng) };
   const spread = (roll: number) => 1 + (roll * 2 - 1) * model.strength.variance;
@@ -255,6 +394,26 @@ export function simulateRaid(input: RaidInput, model: CombatModel, rng: Rng): Ra
   };
   // Holding the ground is sufficient: exact ties go to the defender.
   const won = effectiveStrength.attacker > effectiveStrength.defender;
+  const ammunition: RaidAmmoResult | undefined = input.ammo ? (() => {
+    const attackerAmmo = attacker as CombatAmmoSquad;
+    const defenderAmmo = defender as CombatAmmoSquad;
+    const attackerRoundsAfterSpend = input.ammo!.attackerRounds - attackerAmmo.roundsSpent;
+    const defenderRoundsAfterSpend = input.ammo!.defenderRounds - defenderAmmo.roundsSpent;
+    const lootRounds = won
+      ? Math.min(
+          Math.floor(defenderRoundsAfterSpend * input.ammo!.lootShareBps / 10_000),
+          MAX_COMBAT_AMMO_ROUNDS - attackerRoundsAfterSpend,
+        )
+      : 0;
+    return {
+      attackerRoundsSpent: attackerAmmo.roundsSpent,
+      defenderRoundsSpent: defenderAmmo.roundsSpent,
+      defenderFreeRounds: defenderAmmo.freeRounds,
+      ammoLootRounds: lootRounds,
+      attackerRoundsAfter: attackerRoundsAfterSpend + lootRounds,
+      defenderRoundsAfter: defenderRoundsAfterSpend - lootRounds,
+    };
+  })() : undefined;
   const uncontested = defender.committed === 0;
   const wounds = {
     attacker: uncontested ? 0 : wounded(attacker.committed, won, model, woundRolls.attacker, attackerBoost.wounds),
@@ -291,6 +450,7 @@ export function simulateRaid(input: RaidInput, model: CombatModel, rng: Rng): Ra
     crackChanges: { attacker: lootCrack, defender: -lootCrack },
     defenderCashAfterCents: input.defenderCashCents - lootCents,
     defenderCrackAfter: defenderCrack - lootCrack,
+    ...(ammunition ? { ammunition } : {}),
   };
 }
 
@@ -305,6 +465,8 @@ export interface DriveByInput {
   readonly defenderWhores: number;
   readonly attackerBoost?: CombatBoost;
   readonly defenderBoost?: CombatBoost;
+  /** 2.4.0-D. Ammunition is spent on both sides; drive-bys take no ammo loot. */
+  readonly ammo?: RaidAmmoInput;
 }
 
 /** One Low-Rider's run: who rode in it, who went down, and whether it came home. */
@@ -338,6 +500,7 @@ export interface DriveByResult {
   readonly whoreKillPercent: number;
   readonly whoresKilled: number;
   readonly defenderWhoresAfter: number;
+  readonly ammunition?: RaidAmmoResult;
 }
 
 function validateRange(range: WeightedPercentRange, name: string): void {
@@ -414,8 +577,12 @@ export function simulateDriveBy(input: DriveByInput, model: CombatModel, rules: 
   const attackerBoost = boost(input.attackerBoost);
   const defenderBoost = boost(input.defenderBoost);
   const fielded = Math.min(input.defender.thugs, model.squadCap, Math.ceil(input.defender.thugs * rules.defenderFieldedFraction));
-  const attacker = equip(input.attacker, input.shooters, model);
-  const defender = equip(input.defender, fielded, model);
+  const attacker = input.ammo
+    ? equipCombatSquadWithAmmo(input.attacker, input.shooters, model, input.ammo.attackerRounds, input.ammo.roundsPerFight, { ammoCapRounds: input.ammo.attackerCapRounds })
+    : equip(input.attacker, input.shooters, model);
+  const defender = input.ammo
+    ? equipCombatSquadWithAmmo(input.defender, fielded, model, input.ammo.defenderRounds, input.ammo.roundsPerFight, { defenderFloorFighters: input.ammo.defenderFloor })
+    : equip(input.defender, fielded, model);
   const rolls = { attacker: checkedRoll(rng), defender: checkedRoll(rng) };
   const hitRolls = { thugs: checkedRoll(rng), whores: checkedRoll(rng), thugRounding: checkedRoll(rng), whoreRounding: checkedRoll(rng) };
   const missRoll = checkedRoll(rng);
@@ -475,5 +642,13 @@ export function simulateDriveBy(input: DriveByInput, model: CombatModel, rules: 
     whoreKillPercent,
     whoresKilled,
     defenderWhoresAfter: input.defenderWhores - whoresKilled,
+    ...(input.ammo ? { ammunition: {
+      attackerRoundsSpent: (attacker as CombatAmmoSquad).roundsSpent,
+      defenderRoundsSpent: (defender as CombatAmmoSquad).roundsSpent,
+      defenderFreeRounds: (defender as CombatAmmoSquad).freeRounds,
+      ammoLootRounds: 0,
+      attackerRoundsAfter: input.ammo.attackerRounds - (attacker as CombatAmmoSquad).roundsSpent,
+      defenderRoundsAfter: input.ammo.defenderRounds - (defender as CombatAmmoSquad).roundsSpent,
+    } } : {}),
   };
 }

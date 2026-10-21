@@ -207,6 +207,7 @@ export function toRoundPlayerDto(
       shotguns: player.shotguns,
       tek9s: player.tek9s,
       ak47s: player.ak47s,
+      ...(ruleset.ammoParts?.enabled ? { ammo: player.ammo, vehicleParts: player.vehicleParts } : {}),
       lowRiders: player.lowRiders,
       sedans: player.sedans,
       vans: player.vans,

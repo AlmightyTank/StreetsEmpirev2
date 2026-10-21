@@ -1,6 +1,6 @@
 # StreetsEmpire — Ammo & Parts Roadmap
 
-Status: **Planned** · Target: **beta** · Scope: Combat, armed escorts, encounters, turf defense, gun store, garage service, Territory Rewards.
+Status: **Slices A–E implemented; Slice F planned** · Target: **beta** · Scope: Combat, armed escorts, encounters, turf defense, gun store, garage service, Territory Rewards.
 
 ## Vision
 Guns stop being a one-time purchase. Every gun burns ammo every time it fires, and bigger guns burn a lot more of it. Ammo is cheap per round and sold in bulk, because players go through so much of it. Vehicles scale the same way: every run costs cash, bigger vehicles cost more, and **parts** are used for repairs and upgrades.
@@ -119,31 +119,45 @@ The chop shop (strip your own disabled vehicles: sedan 10, low-rider 15, van 30 
 
 ## Slices
 
-### Slice A — Data and catalog
+### Slice A — Data and catalog (implemented)
 - `ammo` and `vehicleParts` on `RoundPlayer`, plus store stock/timestamp columns on the existing restock pattern.
 - Ruleset catalog: rounds per gun, pack sizes and prices, defender floor, loot share, parts per repair.
-- Feature flag off; older rulesets unchanged.
+- The foundation ruleset keeps the feature disabled; the next version enables inventory and storefront behavior. Combat and garage use arrive in later slices. Older pinned rulesets are unchanged.
 
-### Slice B — Buying, selling, display
-- Gun store packs, sell-back, restock. Ammo and parts shown in the inventory and header.
+### Slice B — Buying, selling, display (implemented)
+- Tommy's ammo packs, 25% sell-back, and a 25,000-round daily shelf using the existing restock clock.
+- Ammo and parts shown in the inventory and header. Charlie's parts packs remain in Slice E with garage service.
 
-### Slice C — Combat
-- Ammo allocation (biggest guns first), pistol-whip fallback, defender floor, attacker cap, loot share.
-- Combat preview shows rounds to be spent and strength with and without enough ammo; receipts show rounds spent per side.
-- Rerun combat simulations; tune rounds per gun and the defender floor.
+### Slice C — Combat (implemented)
+- Standard raids in the new 2.4.0-D ruleset spend ammo. The 2.4.0-C store ruleset stays store-only, preserving its free-firing combat behavior.
+- Ammo allocation funds the strongest guns first; unfunded fighters contribute thug strength only. Defenders receive the free round floor, while attackers can cap paid ammo per raid.
+- A winning attacker takes the configured share of the defender's post-fight ammo. Ammo balances, spend, loot, and losses are persisted with the raid result and action idempotency.
+- The raid planner uses the same allocator as combat to show expected rounds and strength with available, full, and zero ammo. Raid receipts show rounds spent, defender-floor rounds, ammo looted, and inventory remaining.
+- Engine tests cover allocation, floor, cap, loot, and preview consistency. `npm run qa:ammo-combat` runs repeatable 2.4.0-D ammo cases and reports win rate, ammo spend, and loot; the configured rates remain proposals for further beta tuning.
 
-### Slice D — Everywhere else guns fire
-- Armed escorts, turf/outpost defense and encounter gunfights spend ammo through the same allocation code.
+### Slice D — Everywhere else guns fire (implemented)
+- Drive-bys and special raids, convoy escort encounters, local turf claims, outpost establishment, turf pushes, and street-gang fight-back choices use the shared ammo allocator.
+- Block-war fights allocate each participating player's ammo independently, including the holder's posted corner crew and the defender floor; rounds spent are stored with the fight result.
+- Boss-trip hits fund the attacker when dispatched, consume the trip owner's ammo for the bodyguard side when a fight lands, and refund the attacker if the boss has escaped or no bodyguard fight occurs.
 
-### Slice E — Parts and garage
-- Per-run cash fee by vehicle size, charged at launch.
-- Repairs with and without parts, scaled by size; chop shop; Charlie's parts packs.
-- Run preview shows the cash fee per vehicle; rerun vehicle simulations so each fleet choice stays viable.
+### Slice E — Parts and garage (implemented)
+- 2.4.0-E charges a per-run cash fee at launch ($35 sedan, $65 low-rider, $130 van); fleet fee is previewed separately from run cash and market purchases.
+- Repairs/recovery can spend parts plus discounted cash, or cost 1.5× the existing cash price and one turn per vehicle. Disabled vehicles can be stripped for parts.
+- Charlie sells parts boxes, crates, and pallets from a 2,000-part daily shelf.
+- `npm run qa:vehicles -- --ruleset classic-og-v2.4-e` simulates fleet viability with the new fee included.
 
-### Slice F — Territory, balance and rollout
-- Ammo and parts in territory yields and tolls.
-- Full-season simulation: ammo spend per player per day, attacker vs. defender economy, new-player defense.
-- Low-ammo notifications; admin diagnostics; staged opt-in on new rounds.
+### Slice F — Territory, balance and rollout (implemented)
+- 2.4.0-F adds Chicago ammo and Detroit parts to territory caches, plus optional ammo/parts access tolls deposited into the holder's cache. Collection respects player inventory capacity; overflow remains cached.
+- `/rounds/:roundId/ammo-parts` reports round inventory totals, empty stocks, players below one armed-squad reserve, and recent combat ammo consumption.
+- Low-ammo notices are emitted once when an action or logged combat receipt crosses below the currently armed squad's one-fight reserve, and follow the player's Orders notification preference.
+- `npm run qa:ammo-season` produces a reproducible month projection for attacker and defender ammo budgets from sampled combat spend, calls out the free new-player defender floor, and states the activity-rate assumptions. Tune with `--attacks-per-day`, `--defenses-per-day`, `--days`, and `--seed`.
+- New rounds use the F ruleset by default, while existing rounds remain pinned to their current ruleset. Territory perks/yields remain controlled by each round's existing `territoryPerksEnabled` rollout flag.
+
+### Slice G — Balance, abuse hardening and release checks (implemented)
+- `npm run qa:ammo-release -- 25000` stress-simulates 100,000 fights across the ammo fixtures and fails on ammo creation/loss, negative balances, stock overspend, attacker-cap violations, nondeterministic replay, a broken empty-player defender floor, or incorrect historical/default ruleset pins.
+- `npm run qa:ammo-season -- --samples 10000 --quiet` is part of the standard release checks, alongside the existing vehicle balance gate, so ammo replacement costs and parts-enabled fleet choices are checked together before release.
+- The standard `qa:release` gate now runs both ammo/parts checks. Database transaction retry behavior remains covered by the combat and territory integration suites when run with `--with-db`.
+- Slice G adds QA only. It does not change balances, inventory, or already pinned rounds.
 
 ## Guardrails
 - Ammo is never needed to finish the tutorial or a story quest.

@@ -113,6 +113,8 @@ export async function territoryEmpirePage(prisma: PrismaClient, roundPlayerId: s
       accessKey: catalog.cities[city.slug]?.access.key ?? null,
       accessTollCents: catalog.cities[city.slug]?.access.tollCentsPerUse ?? 0,
       accessDailyTollCapCents: catalog.cities[city.slug]?.access.dailyTollCapCents ?? 0,
+      ...(catalog.cities[city.slug]?.access.tollAmmoPerUse ? { accessTollAmmo: catalog.cities[city.slug]!.access.tollAmmoPerUse, accessDailyTollCapAmmo: catalog.cities[city.slug]!.access.dailyTollCapAmmo ?? 0 } : {}),
+      ...(catalog.cities[city.slug]?.access.tollVehiclePartsPerUse ? { accessTollVehicleParts: catalog.cities[city.slug]!.access.tollVehiclePartsPerUse, accessDailyTollCapVehicleParts: catalog.cities[city.slug]!.access.dailyTollCapVehicleParts ?? 0 } : {}),
       perkKey: catalog.cities[city.slug]?.perk?.key ?? null,
       cache: cacheByLocation.get(`city:${city.slug}`) ?? null,
       districts: city.turf.map((turf) => ({
@@ -121,6 +123,8 @@ export async function territoryEmpirePage(prisma: PrismaClient, roundPlayerId: s
         accessKey: catalog.districts[turf.district]?.access.key ?? null,
         accessTollCents: catalog.districts[turf.district]?.access.tollCentsPerUse ?? 0,
         accessDailyTollCapCents: catalog.districts[turf.district]?.access.dailyTollCapCents ?? 0,
+        ...(catalog.districts[turf.district]?.access.tollAmmoPerUse ? { accessTollAmmo: catalog.districts[turf.district]!.access.tollAmmoPerUse, accessDailyTollCapAmmo: catalog.districts[turf.district]!.access.dailyTollCapAmmo ?? 0 } : {}),
+        ...(catalog.districts[turf.district]?.access.tollVehiclePartsPerUse ? { accessTollVehicleParts: catalog.districts[turf.district]!.access.tollVehiclePartsPerUse, accessDailyTollCapVehicleParts: catalog.districts[turf.district]!.access.dailyTollCapVehicleParts ?? 0 } : {}),
         cache: cacheByLocation.get(`district:${city.slug}:${turf.district}`) ?? null,
       })),
     };

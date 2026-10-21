@@ -9,6 +9,7 @@ import {
   convoyLoot,
   convoyRules,
   equipCombatSquad,
+  equipCombatSquadWithAmmo,
   hashParts,
   headsUpMinutes,
   homeBackupThugs,
@@ -74,6 +75,7 @@ interface CrewSnapshot {
   thugHappiness: number;
   weapons: Weapons;
   boost?: { strength: number; wounds: number } | null;
+  ammoSpentRounds?: number;
 }
 
 /** Stored on a landed tail: the fight and what moved. */
@@ -88,6 +90,7 @@ interface TailResult {
   loot: { cashCents: string; cargo: Record<string, number> };
   lowRider: number;
   recoverAt: string | null;
+  ammoSpentRounds?: { attacker: number; defender: number };
 }
 
 const RECENT_MS = 24 * 60 * 60_000;
@@ -408,7 +411,15 @@ export const ConvoyService = {
           }
         }
         // A squad from home takes the best of the home arsenal; a run's escorts fight with the guns they carry.
-        const crewSnapshot: CrewSnapshot = { thugHappiness: player.thugHappiness, weapons: runGuns ?? armedSquad(base, player, input.squad), boost };
+        const selectedGuns = runGuns ?? armedSquad(base, player, input.squad);
+        const ammoRules = base.ammoParts?.enabled && base.ammoParts.combatEnabled ? base.ammoParts.ammo : null;
+        const ammoSquad = ammoRules ? equipCombatSquadWithAmmo({ thugs: input.squad, thugHappiness: player.thugHappiness,
+          weapons: selectedGuns, weaponPriority: hideoutWeaponPriority(base, player) }, Math.min(input.squad, model.squadCap), model,
+        current.ammo ?? 0, ammoRules.roundsPerFight) : null;
+        const spentAmmo = ammoSquad?.roundsSpent ?? 0;
+        const crewSnapshot: CrewSnapshot = { thugHappiness: player.thugHappiness,
+          weapons: ammoSquad ? { ...ammoSquad.equipment } : selectedGuns, boost, ...(ammoRules ? { ammoSpentRounds: spentAmmo } : {}) };
+        if (ammoRules) next = { ...next, ammo: (current.ammo ?? 0) - spentAmmo };
         if (source === 'HOME') next = { ...next, busyThugs: current.busyThugs + input.squad };
 
         const landsAt = new Date(at.getTime() + rules.warningMinutes * 60_000);
@@ -419,7 +430,8 @@ export const ConvoyService = {
           },
         });
         // Nobody is told. The owner's lookouts may spot it in its last minutes.
-        const result: ConvoyTailResult = { tailId: tail.id, landsAt: landsAt.toISOString(), city, cityName: cityName(base, city), squad: input.squad, turns: rules.turnCost };
+        const result: ConvoyTailResult = { tailId: tail.id, landsAt: landsAt.toISOString(), city, cityName: cityName(base, city), squad: input.squad, turns: rules.turnCost,
+          ...(ammoRules ? { ammoSpentRounds: spentAmmo } : {}) };
         return {
           next, result, activity: { type: 'CONVOY_TAIL', payload: json({ ...result, owner: owner.displayName }) },
           // 1.3.0-A: the supply the squad burned leaving home draws its Heat there.
@@ -451,12 +463,19 @@ export const ConvoyService = {
         if (max.reason) throw AppError.conflict('CANNOT_SEND', max.reason);
         const thugs = Math.min(input.thugs, max.max);
         if (input.thugs > max.max) throw AppError.badRequest('TOO_MANY', `Send at most ${max.max}.`, { thugs: `At most ${max.max}.` });
+        const selectedGuns = armedSquad(base, player, Math.min(thugs, model.squadCap));
+        const ammoRules = base.ammoParts?.enabled && base.ammoParts.combatEnabled ? base.ammoParts.ammo : null;
+        const ammoSquad = ammoRules ? equipCombatSquadWithAmmo({ thugs, thugHappiness: player.thugHappiness,
+          weapons: selectedGuns, weaponPriority: hideoutWeaponPriority(base, player) }, Math.min(thugs, model.squadCap), model,
+        current.ammo ?? 0, ammoRules.roundsPerFight) : null;
+        const spentAmmo = ammoSquad?.roundsSpent ?? 0;
         await tx.convoyBackup.create({
-          data: { tailId: tail.id, playerId: senderId, kind, thugs, crew: json({ thugHappiness: player.thugHappiness, weapons: armedSquad(base, player, Math.min(thugs, model.squadCap)) }), sentAt: at },
+          data: { tailId: tail.id, playerId: senderId, kind, thugs, crew: json({ thugHappiness: player.thugHappiness,
+            weapons: ammoSquad ? ammoSquad.equipment : selectedGuns, ...(ammoRules ? { ammoSpentRounds: spentAmmo } : {}) }), sentAt: at },
         });
         const result: ConvoyBackupResult = { tailId: tail.id, thugs, landsAt: tail.landsAt.toISOString() };
         return {
-          next: { ...current, busyThugs: current.busyThugs + thugs },
+          next: { ...current, busyThugs: current.busyThugs + thugs, ...(ammoRules ? { ammo: (current.ammo ?? 0) - spentAmmo } : {}) },
           result,
           activity: { type: 'CONVOY_BACKUP', payload: json({ ...result, owner: tail.owner.displayName, city: cityName(base, tail.city), kind }) },
         };
@@ -553,7 +572,19 @@ export const ConvoyService = {
         attackingThugs: Math.min(tail.squad, model.squadCap),
         attackerTurns: model.turnCost,
         defenderCashCents: 0n,
+        ...(ruleset.ammoParts?.enabled && ruleset.ammoParts.combatEnabled ? { ammo: {
+          // Attackers and backup already paid from their own stock when they rode out.
+          attackerRounds: 0,
+          defenderRounds: owner.ammo,
+          roundsPerFight: ruleset.ammoParts.ammo.roundsPerFight,
+          defenderFloor: ruleset.ammoParts.ammo.defenderFloor,
+          lootShareBps: 0,
+        } } : {}),
       }, model, rng);
+      const attackerAmmoSpent = Number((tail.attackerCrew as unknown as CrewSnapshot | null)?.ammoSpentRounds ?? 0)
+        + tail.backups.reduce((sum, backup) => sum + Number((backup.crew as unknown as CrewSnapshot | null)?.ammoSpentRounds ?? 0), 0);
+      const defenderAmmoSpent = fight.ammunition?.defenderRoundsSpent ?? 0;
+      if (fight.ammunition) await tx.roundPlayer.update({ where: { id: ownerId }, data: { ammo: fight.ammunition.defenderRoundsAfter } });
       const won = fight.winner === 'ATTACKER';
       // Muscle: the tail, the run's owner and every ally who rode to its aid are paid by result.
       await PlayerSkillService.awardFight(tx, ruleset.streetSkills, { roundPlayerId: tail.attackerId, action: 'CONVOY_TAIL', won, fightKey: `convoy:${tail.id}`, now: at });
@@ -635,6 +666,7 @@ export const ConvoyService = {
         loot: { cashCents: lootCash.toString(), cargo: lootCargo },
         lowRider,
         recoverAt: recoverAt.toISOString(),
+        ...(fight.ammunition ? { ammoSpentRounds: { attacker: attackerAmmoSpent, defender: defenderAmmoSpent } } : {}),
       };
       await tx.convoyTail.update({ where: { id: tail.id }, data: { status: 'LANDED', settledAt: now, result: json(result) } });
       if (lootCash > 0n) {
@@ -649,6 +681,8 @@ export const ConvoyService = {
         tailId: tail.id, attacker: names.attacker, city: cityName(ruleset, tail.city), held: !won, cashCents: -Number(lootCash), cargo: lootCargo, lowRider,
         ...(vehiclesDamaged || vehiclesWrecked ? { vehiclesDamaged, vehiclesWrecked } : {}),
         ...(bossLaidUpUntil ? { bossLaidUpUntil: bossLaidUpUntil.toISOString() } : {}),
+        ...(fight.ammunition ? { ammoSpentRounds: { attacker: attackerAmmoSpent, defender: defenderAmmoSpent,
+          defenderFloorRounds: fight.ammunition.defenderFreeRounds } } : {}),
       }));
     }
     return run;

@@ -7,6 +7,7 @@ import {
   businessStaff,
   controlAfterBreak,
   fatigueAfter,
+  equipCombatSquadWithAmmo,
   regenerateTurns,
   hashParts,
   hoursToFullControl,
@@ -58,9 +59,9 @@ import { coolHeat, PlayerSkillService } from './player-skill.service.js';
  * `advance` walks the war's events in time order (fights landing, torches burning down,
  * Control reaching 100, the time limit) up to now.
  *
- * Only the holder's row and the block are written while a war settles. Everyone else's
- * committed thugs, guns, loot and Heat come back through their own credit pass, under
- * their own lock, exactly like a push squad.
+ * The holder's row and block state settle here. Ammo for the players who actually fight is
+ * charged here too, with participant rows locked in sorted order; committed thugs, guns,
+ * loot and Heat still come back through each player's own credit pass, like a push squad.
  */
 
 type Weapons = Record<WeaponKey, number>;
@@ -301,10 +302,10 @@ async function resolveFight(tx: Db, state: WarState, fight: BlockWarFight, at: D
   const attackers = squads.filter((squad) => squad.side === 'ATTACKER' && squad.thugs > 0);
   const helpers = squads.filter((squad) => squad.side === 'DEFENDER' && squad.fightId === fight.id && squad.thugs > 0);
   const cornerSnapshot: WarCrewSnapshot = { thugHappiness: defender.thugHappiness, weapons: toWeapons(gunsFromTurf(turf)) };
-  const attackerGroups = attackers.map((squad) => ({ key: squad.id, size: squad.thugs, snapshot: crewOf(squad.crew) }));
+  const attackerGroups = attackers.map((squad) => ({ key: squad.id, size: squad.thugs, playerId: squad.playerId, snapshot: crewOf(squad.crew) }));
   const defenderGroups = [
-    { key: 'corner', size: turf.cornerThugs, snapshot: cornerSnapshot },
-    ...helpers.map((squad) => ({ key: squad.id, size: squad.thugs, snapshot: crewOf(squad.crew) })),
+    { key: 'corner', size: turf.cornerThugs, playerId: war.defenderId, snapshot: cornerSnapshot },
+    ...helpers.map((squad) => ({ key: squad.id, size: squad.thugs, playerId: squad.playerId, snapshot: crewOf(squad.crew) })),
   ];
   const attackerEngaged = engagement(attackerGroups, model.squadCap);
   const defenderEngaged = engagement(defenderGroups, model.squadCap);
@@ -321,8 +322,65 @@ async function resolveFight(tx: Db, state: WarState, fight: BlockWarFight, at: D
     }
     return { thugs: count, thugHappiness: count > 0 ? Math.round(morale / count) : 50, weapons };
   };
-  const attack = side(attackerGroups, attackerEngaged);
-  const defend = side(defenderGroups, defenderEngaged);
+  let attack = side(attackerGroups, attackerEngaged);
+  let defend = side(defenderGroups, defenderEngaged);
+  let ammoSpentRounds = { attacker: 0, defender: 0, defenderFree: 0 };
+  const ammoRules = base.ammoParts?.enabled && base.ammoParts.combatEnabled ? base.ammoParts.ammo : null;
+  if (ammoRules && attack.thugs > 0 && defend.thugs > 0) {
+    const participantIds = [...new Set([...attackerGroups, ...defenderGroups].map((group) => group.playerId))].sort();
+    for (const id of participantIds) await lockRoundPlayer(tx, id);
+    const participants = await tx.roundPlayer.findMany({ where: { id: { in: participantIds } }, select: { id: true, ammo: true } });
+    const ammoLeft = new Map(participants.map((row) => [row.id, row.ammo]));
+    const spentByPlayer = new Map<string, number>();
+    let defenderFloorLeft = ammoRules.defenderFloor;
+    const fundSide = async (
+      groups: typeof attackerGroups,
+      engaged: Record<string, number>,
+      defenderSide: boolean,
+    ) => {
+      let weapons: Weapons = { ...NO_WEAPONS };
+      let roundsSpent = 0;
+      let freeRounds = 0;
+      const allocationGroups = defenderSide
+        ? [...groups].sort((a, b) => {
+            const topPower = (snapshot: WarCrewSnapshot) => Math.max(0, ...Object.entries(snapshot.weapons)
+              .filter(([, count]) => count > 0)
+              .map(([key]) => model.weapons[key as WeaponKey]?.power ?? 0));
+            return topPower(b.snapshot) - topPower(a.snapshot) || a.key.localeCompare(b.key);
+          })
+        : groups;
+      for (const group of allocationGroups) {
+        const committed = engaged[group.key] ?? 0;
+        if (committed <= 0) continue;
+        const availableWeapons = pickWeapons(group.snapshot, committed, model);
+        const allocation = equipCombatSquadWithAmmo({
+          thugs: committed,
+          thugHappiness: group.snapshot.thugHappiness,
+          weapons: availableWeapons,
+        }, committed, model, ammoLeft.get(group.playerId) ?? 0, ammoRules.roundsPerFight, {
+          defenderFloorFighters: defenderSide ? defenderFloorLeft : 0,
+        });
+        const rounds = allocation.roundsSpent;
+        ammoLeft.set(group.playerId, (ammoLeft.get(group.playerId) ?? 0) - rounds);
+        spentByPlayer.set(group.playerId, (spentByPlayer.get(group.playerId) ?? 0) + rounds);
+        roundsSpent += rounds;
+        freeRounds += allocation.freeRounds;
+        if (defenderSide) defenderFloorLeft = Math.max(0, defenderFloorLeft - Object.values(allocation.equipment).reduce((sum, count) => sum + count, 0));
+        weapons = addWeapons(weapons, allocation.equipment);
+      }
+      return { weapons, roundsSpent, freeRounds };
+    };
+    const [attackerAmmo, defenderAmmo] = await Promise.all([
+      fundSide(attackerGroups, attackerEngaged, false),
+      fundSide(defenderGroups, defenderEngaged, true),
+    ]);
+    attack = { ...attack, weapons: attackerAmmo.weapons };
+    defend = { ...defend, weapons: defenderAmmo.weapons };
+    ammoSpentRounds = { attacker: attackerAmmo.roundsSpent, defender: defenderAmmo.roundsSpent, defenderFree: defenderAmmo.freeRounds };
+    for (const [id, rounds] of spentByPlayer) {
+      if (rounds > 0) await tx.roundPlayer.update({ where: { id }, data: { ammo: { decrement: rounds } } });
+    }
+  }
 
   let attackerWon: boolean;
   let attackerWounds = 0;
@@ -440,6 +498,7 @@ async function resolveFight(tx: Db, state: WarState, fight: BlockWarFight, at: D
 
   const result = {
     kind: fight.kind, attackerWon, strength,
+    ...(ammoRules ? { ammoSpentRounds } : {}),
     attackers: attack.thugs, defenders: defend.thugs, corner: defenderEngaged.corner ?? 0,
     attackerWounds: Object.values(attackerSplit).reduce((sum, value) => sum + value, 0),
     defenderWounds, cornerWounds, control: Math.round(war.control),

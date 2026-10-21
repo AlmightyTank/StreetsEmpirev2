@@ -310,6 +310,7 @@ export function ScoutPage() {
                       <div className="se-scout-intel__note se-scout-intel__note--good">
                         <strong>{encounterAction.result.result.choiceLabel}</strong>
                         <span>{encounterAction.result.result.text}</span>
+                        {encounterAction.result.result.ammoSpentRounds ? <span>{formatNumber(encounterAction.result.result.ammoSpentRounds)} ammo rounds spent.</span> : null}
                         <EncounterEggNote egg={encounterAction.result.result.easterEgg} />
                       </div>
                     ) : (

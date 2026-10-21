@@ -130,6 +130,7 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
     VAN: typeof vehicleLoadout.VAN === 'number' ? vehicleLoadout.VAN : 0,
   };
   const totalVehicles = selected.LOW_RIDER + selected.SEDAN + selected.VAN;
+  const vehicleFeeCents = (data.vehicleFleet ?? []).reduce((sum, vehicle) => sum + (vehicle.runFeeCents ?? 0) * selected[vehicle.classId], 0);
   const owned = home.vehicles ?? { LOW_RIDER: home.lowRiders, SEDAN: 0, VAN: 0 };
   const vehicleSpec = (classId: 'LOW_RIDER' | 'SEDAN' | 'VAN') => data.vehicleFleet?.find((vehicle) => vehicle.classId === classId);
   // 1.5.0-C: cars waiting on the garage stay home.
@@ -163,7 +164,7 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
         : totalVehicles < 1 ? 'Choose at least one vehicle for this run.'
           : (['LOW_RIDER', 'SEDAN', 'VAN'] as const).some((classId) => selected[classId] > owned[classId]) ? 'You do not have that many vehicles ready at home.'
           : (typeof escorts === 'number' ? escorts : 0) > Math.min(home.fitThugs, seats) ? `Send at most ${Math.min(home.fitThugs, seats)} escorts: ${seats} seats, ${home.fitThugs} fit thugs at home.`
-            : cashCents + marketCents > home.cashCents ? `You have ${formatCents(home.cashCents)} at home, and that is ${formatCents(cashCents + marketCents)} with what the market comes to.`
+          : cashCents + marketCents + vehicleFeeCents > home.cashCents ? `Cash in the run, market buys, and the ${formatCents(vehicleFeeCents)} fleet fee exceed your ${formatCents(home.cashCents)} at home.`
               : beerUnits > home.beer ? `You only have ${formatNumber(home.beer)} beer at home.`
               : loaded > capacity ? `This loadout carries ${formatNumber(capacity)} units, and that is ${formatNumber(loaded)}.`
                 : held.some((product) => (typeof cargo[product.key] === 'number' ? cargo[product.key] as number : 0) > product.quantity) ? 'You cannot load more than you have.'
@@ -218,7 +219,7 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
                 <label className="se-label" htmlFor={`run-${key}`}><ItemLabel itemKey={classId}>{name} <span className="se-muted">of {owned[classId]}</span></ItemLabel></label>
                 <input id={`run-${key}`} className="se-input" type="number" inputMode="numeric" min={0} max={owned[classId]} value={vehicleLoadout[classId]}
                   onChange={(event) => setVehicleLoadout({ ...vehicleLoadout, [classId]: whole(event.target.value) })} />
-                {spec ? <span className="se-hint">{spec.cargoPercent ?? 100}% cargo · {spec.crewSeats ?? rules.thugsPerLowRider} seats · {routeProfileText(spec)}</span> : null}
+                {spec ? <span className="se-hint">{spec.cargoPercent ?? 100}% cargo · {spec.crewSeats ?? rules.thugsPerLowRider} seats · {routeProfileText(spec)}{spec.runFeeCents !== undefined ? ` · ${formatCents(spec.runFeeCents)} per run` : ''}</span> : null}
               </div>
             );
           })}
@@ -241,7 +242,7 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
               onChange={(event) => setBeer(whole(event.target.value))} />
           </div>
         </div>
-        <p className="se-hint">{totalVehicles} vehicle{totalVehicles === 1 ? '' : 's'} · {formatNumber(seats)} crew seats · {formatNumber(capacity)} cargo units. The run spends only the cash it carries. Beer takes trunk space too. Escorts ride armed with the best guns from home, one each, and are away while it is out: they don&rsquo;t defend, cover the street or cook. A bust or an arrest takes their guns.</p>
+        <p className="se-hint">{totalVehicles} vehicle{totalVehicles === 1 ? '' : 's'} · {formatNumber(seats)} crew seats · {formatNumber(capacity)} cargo units{vehicleFeeCents ? ` · ${formatCents(vehicleFeeCents)} fleet fee charged at launch` : ''}. That fee is separate from cash loaded into the run. Beer takes trunk space too. Escorts ride armed with the best guns from home, one each, and are away while it is out: they don&rsquo;t defend, cover the street or cook. A bust or an arrest takes their guns.</p>
         {trouble ? <p className="se-hint">{trouble}</p> : null}
 
         {ride && data.trips ? (

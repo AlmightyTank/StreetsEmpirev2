@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import { blockWarsOn, cornerMinimumFor, equipCombatSquad, headsUpMinutes, type Rng, type Ruleset } from '@streets/rules-engine';
+import { blockWarsOn, cornerMinimumFor, equipCombatSquad, equipCombatSquadWithAmmo, headsUpMinutes, type Rng, type Ruleset } from '@streets/rules-engine';
 import type { DistrictKey } from '@streets/rulesets';
 import type { TurfClaimInput, TurfClaimResult, TurfPostInput, TurfPostResult, TurfPullInput, TurfPullResult } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
@@ -121,8 +121,14 @@ export const TurfActionService = {
           ruleset,
           'LOCAL_TURF_STANDDOWN',
         );
-        const attacker = equipCombatSquad({ thugs: input.thugs, thugHappiness, weapons: engineGuns(guns) }, Math.min(input.thugs, model.squadCap), model);
-        const defender = equipCombatSquad({ thugs: locals, thugHappiness: 100, weapons: localsGuns(ruleset, locals) }, Math.min(locals, model.squadCap), model);
+        const ammoRules = ruleset.ammoParts?.enabled && ruleset.ammoParts.combatEnabled ? ruleset.ammoParts.ammo : null;
+        const attacker = ammoRules
+          ? equipCombatSquadWithAmmo({ thugs: input.thugs, thugHappiness, weapons: engineGuns(guns) }, Math.min(input.thugs, model.squadCap), model, current.ammo ?? 0, ammoRules.roundsPerFight)
+          : equipCombatSquad({ thugs: input.thugs, thugHappiness, weapons: engineGuns(guns) }, Math.min(input.thugs, model.squadCap), model);
+        const defender = ammoRules
+          ? equipCombatSquadWithAmmo({ thugs: locals, thugHappiness: 100, weapons: localsGuns(ruleset, locals) }, Math.min(locals, model.squadCap), model, 0, ammoRules.roundsPerFight, { defenderFloorFighters: ammoRules.defenderFloor })
+          : equipCombatSquad({ thugs: locals, thugHappiness: 100, weapons: localsGuns(ruleset, locals) }, Math.min(locals, model.squadCap), model);
+        const ammoSpentRounds = ammoRules && !standDown ? (attacker as { roundsSpent?: number }).roundsSpent ?? 0 : 0;
         const variance = ruleset.turf!.push.fight.variance;
         const attackerStrength = standDown
           ? attacker.strength
@@ -152,11 +158,13 @@ export const TurfActionService = {
         }
 
         const moved = won ? nextWithPostedGuns(current, guns, 1, ruleset) : current;
-        const next = { ...moved, turns: current.turns - ruleset.turf!.corner.postTurnCost, postedThugs: current.postedThugs + (won ? input.thugs : 0) };
+        const next = { ...moved, turns: current.turns - ruleset.turf!.corner.postTurnCost, postedThugs: current.postedThugs + (won ? input.thugs : 0),
+          ...(ammoRules ? { ammo: (current.ammo ?? 0) - ammoSpentRounds } : {}) };
         const districtName = localDistrictName(ruleset, player.city.slug, key);
         return {
           next,
-          result: { district: key, districtName, won, squad: input.thugs, localsThugs: locals, cornerThugs: won ? input.thugs : 0, turnsUsed: ruleset.turf!.corner.postTurnCost },
+          result: { district: key, districtName, won, squad: input.thugs, localsThugs: locals, cornerThugs: won ? input.thugs : 0, turnsUsed: ruleset.turf!.corner.postTurnCost,
+            ...(ammoRules ? { ammoSpentRounds } : {}) },
           activity: { type: 'TURF_CLAIM', payload: {
             district: key, districtName, won, thugs: input.thugs, locals,
             attackerStrength: Math.round(attackerStrength * 10) / 10, defenderStrength: Math.round(defenderStrength * 10) / 10,

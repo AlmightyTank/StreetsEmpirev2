@@ -792,6 +792,7 @@ export interface TurfClaimResult {
   localsThugs: number;
   cornerThugs: number;
   turnsUsed: number;
+  ammoSpentRounds?: number;
 }
 export interface TurfPostResult {
   district: TurfBlockDto['district'];
@@ -1059,6 +1060,8 @@ export interface TravelDto extends CitiesDto {
     cargoPercent?: number;
     crewSeats?: number | null;
     purchasePriceCents?: number | null;
+    /** 2.4.0-E. Cash fee charged per vehicle at run launch. */
+    runFeeCents?: number;
     routeProfile?: 'NORMAL' | 'LOW_PROFILE' | 'HIGH_VISIBILITY';
     /** 1.5.0-E. The profile's whole-percent change to route risk: -5 is 5% lower. */
     routeRiskPercent?: number;
@@ -1068,6 +1071,15 @@ export interface TravelDto extends CitiesDto {
     /** 1.5.0-C. Price per vehicle to put a Damaged / Disabled one back to Ready, after any 1.5.0-D discount. */
     repairCents?: number;
     recoveryCents?: number;
+    /** 2.4.0-E. Parts and cash for parts-based service. */
+    repairParts?: number;
+    repairPartsCashCents?: number;
+    recoveryParts?: number;
+    recoveryPartsCashCents?: number;
+    /** 2.4.0-E. Cash-only fallback, after discounts. */
+    repairCashOnlyCents?: number;
+    recoveryCashOnlyCents?: number;
+    scrapYieldParts?: number;
     /** 1.5.0-D. The garage's list prices, when a discount applies. */
     listRepairCents?: number;
     listRecoveryCents?: number;
@@ -1109,6 +1121,7 @@ export interface TravelDto extends CitiesDto {
   /** What home has to load up with. */
   home: {
     cashCents: number;
+    vehicleParts?: number;
     beer: number;
     lowRiders: number;
     vehicles?: { LOW_RIDER: number; SEDAN: number; VAN: number };
@@ -1148,10 +1161,14 @@ export interface VehicleDamageDto {
 export interface VehicleServiceResult {
   classId: 'LOW_RIDER' | 'SEDAN' | 'VAN';
   name: string;
-  kind: 'REPAIR' | 'RECOVER';
+  kind: 'REPAIR' | 'RECOVER' | 'SCRAP';
   quantity: number;
   paidCents: number;
   readyCount: number;
+  partsUsed?: number;
+  partsGained?: number;
+  vehiclePartsRemaining?: number;
+  turnsSpent?: number;
   /** 1.5.0-D. Percent the road lane took off. */
   discountPercent?: number;
 }
@@ -1426,6 +1443,8 @@ export interface RunLaunchResult {
   lowRiders: number;
   escortThugs: number;
   cashCents: number;
+  /** 2.4.0-E. Fleet fee paid at launch, separately from the cash loaded in the run. */
+  vehicleFeeCents?: number;
   beer: number;
   cargo: Record<string, number>;
   /** 0.5.0-F. What it bought on the home market on the way out, and what that cost. */
@@ -1451,6 +1470,7 @@ export interface RunOutpostEstablishResult {
   beer: number;
   products: Record<string, number>;
   turnsUsed: number;
+  ammoSpentRounds?: number;
 }
 
 export interface RunOutpostTransferResult {
@@ -1703,6 +1723,7 @@ export interface TurfPushStartResult {
   turnsUsed: number;
   startedAt: string;
   landsAt: string;
+  ammoSpentRounds?: number;
 }
 
 export interface TurfPushBackupResult {

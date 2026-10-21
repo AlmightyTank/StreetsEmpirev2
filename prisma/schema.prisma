@@ -2074,6 +2074,16 @@ model RoundPlayer {
   tek9s    Int @default(0)
   ak47s    Int @default(0)
 
+  /// 2.4.0-B. Generic ammunition and vehicle repair parts. Older pinned rulesets ignore these balances.
+  ammo             Int @default(0)
+  vehicleParts     Int @default(0)
+
+  /// 2.4.0-B. Ammunition and parts store shelves use the standard lazy restock clock.
+  ammoStock          Int      @default(0)
+  ammoStockAt        DateTime @default(now())
+  vehiclePartsStock Int      @default(0)
+  vehiclePartsStockAt DateTime @default(now())
+
   /// What each shop currently has on the shelf for this player, and the clock
   /// each shelf refills on. Same lazy-regeneration shape as turns: the counter only
   /// moves when the player is looked at. A ruleset with no limit on a weapon
@@ -2545,6 +2555,9 @@ model TerritoryTollPayment {
   accessKey         String
   locationKey       String
   chargedCents      BigInt
+  /// 2.4.0-F. In-kind access toll deposits.
+  chargedAmmo       Int         @default(0)
+  chargedVehicleParts Int        @default(0)
   actionId          String
   usedAt            DateTime    @default(now())
   consumedAt        DateTime?
@@ -4250,6 +4263,8 @@ enum ActivityType {
   FACTION_WARNING
   /// 1.6.0-H. A lane shipment landed: clean, partly searched, or seized.
   SUPPLY_LANE_ARRIVED
+  /// 2.4.0-F. The player's ammo crossed below one armed squad's reserve.
+  AMMO_LOW
   /// 1.6.5-D. Loan shark: a loan taken, a payment (scheduled or manual), a missed installment.
   LOAN_TAKEN
   LOAN_PAYMENT

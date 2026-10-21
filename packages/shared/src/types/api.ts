@@ -19,6 +19,7 @@ export type RoundStatus =
 
 export type ActivityType =
   | 'RAID_ATTACK'
+  | 'AMMO_LOW'
   | 'RAID_DEFENSE'
   | 'DRIVE_BY_ATTACK'
   | 'DRIVE_BY_DEFENSE'
@@ -459,6 +460,10 @@ export interface ResourcesDto {
   shotguns: number;
   tek9s: number;
   ak47s: number;
+
+  /** 2.4.0-C. Only present for rounds with the ammo and parts catalog enabled. */
+  ammo?: number;
+  vehicleParts?: number;
 
   lowRiders: number;
   /** 1.5.0-B/E2. Ready class vehicles; Charlie sells them from 1.5.0-E2. */
@@ -1410,6 +1415,7 @@ export interface RandomEncounterChoiceResult {
   text: string;
   cashCents: number;
   effects: RandomEncounterDto['effects'];
+  ammoSpentRounds?: number;
   /** The choice found an Easter egg. isNew is false when the title was already held. */
   easterEgg?: { title: string; description: string; isNew: boolean };
 }
@@ -1575,6 +1581,10 @@ export interface TerritoryEmpireDto {
     accessKey: string | null;
     accessTollCents: number;
     accessDailyTollCapCents: number;
+    accessTollAmmo?: number;
+    accessDailyTollCapAmmo?: number;
+    accessTollVehicleParts?: number;
+    accessDailyTollCapVehicleParts?: number;
     perkKey: string | null;
     cache: { goods: Record<string, number>; cashCents: number; tollCents: number } | null;
     districts: Array<{
@@ -1583,6 +1593,10 @@ export interface TerritoryEmpireDto {
       accessKey: string | null;
       accessTollCents: number;
       accessDailyTollCapCents: number;
+      accessTollAmmo?: number;
+      accessDailyTollCapAmmo?: number;
+      accessTollVehicleParts?: number;
+      accessDailyTollCapVehicleParts?: number;
       cache: { goods: Record<string, number>; cashCents: number; tollCents: number } | null;
     }>;
   }>;
@@ -1614,6 +1628,8 @@ export interface TerritoryAccessUseResult {
   locationKey: string;
   allowed: true;
   chargedCents: number;
+  chargedAmmo?: number;
+  chargedVehicleParts?: number;
   ownerAllianceId: string;
   grantId: string;
 }
@@ -1655,6 +1671,10 @@ export interface StoreItemDto {
   key: string;
   name: string;
   field: Exclude<keyof ResourcesDto, 'cashCents' | 'fitThugs' | 'woundedThugs'>;
+  /** Units added to inventory by one quantity at the counter. */
+  unitsPerOrder?: number;
+  /** Unit name for the stored balance and shelf count, such as rounds or parts. */
+  inventoryUnitLabel?: string;
   buyCents: number;
   /** Present when an armed single-use favor lowered the current buy quote. */
   baseBuyCents?: number;
@@ -1741,6 +1761,7 @@ export interface StoreSpecialOrderDto {
 export interface StoreRestockDto {
   stock: number;
   cap: number;
+  unitLabel?: string;
   intervalMinutes: number;
   /** How many arrive per delivery. */
   perInterval: number;

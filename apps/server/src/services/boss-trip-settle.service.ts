@@ -44,12 +44,14 @@ export interface BossHitOutcome {
   attackerWounds?: number;
   defenderWounds?: number;
   recoverAt?: string | null;
+  ammoSpentRounds?: { attacker: number; defender: number; defenderFree: number };
 }
 
 /** Trips D. A squad as it set out after a boss. */
 export interface BossHitCrew {
   thugHappiness: number;
   weapons: Record<WeaponKey, number>;
+  ammoSpentRounds?: number;
 }
 
 const NO_GUNS: Record<WeaponKey, number> = { PISTOL: 0, SHOTGUN: 0, TEK9: 0, AK47: 0 };
@@ -86,13 +88,21 @@ async function landHits(tx: Db, ownerId: string, ruleset: Ruleset, loaded: BossT
   for (const hit of due) {
     const at = hit.landsAt;
     if (!hunted || tripPosition(trip, at).phase !== 'town') {
+      if (ruleset.ammoParts?.enabled && ruleset.ammoParts.combatEnabled) {
+        const hitterRounds = (hit.attackerCrew as unknown as BossHitCrew | null)?.ammoSpentRounds ?? 0;
+        if (hitterRounds > 0) await tx.roundPlayer.update({ where: { id: hit.attackerId }, data: { ammo: { increment: hitterRounds } } });
+        for (const backup of hit.backups) {
+          const rounds = (backup.crew as unknown as BossHitCrew | null)?.ammoSpentRounds ?? 0;
+          if (rounds > 0) await tx.roundPlayer.update({ where: { id: backup.playerId }, data: { ammo: { increment: rounds } } });
+        }
+      }
       const outcome: BossHitOutcome = { escaped: true, squad: hit.squad, cashCents: '0', laidUpUntil: null };
       await tx.bossHit.update({ where: { id: hit.id }, data: { status: 'ESCAPED', settledAt: now, result: json(outcome) } });
       await ActivityService.log(tx, ownerId, 'BOSS_HIT_DEFENSE', json({ hitId: hit.id, attacker: hit.attacker.displayName, cityName: cityName(ruleset, trip.city), escaped: true }));
       continue;
     }
     const rng = seededRng(hashParts(hit.id, 'boss-hit'));
-    const owner = await tx.roundPlayer.findUniqueOrThrow({ where: { id: ownerId }, select: { laidUpUntil: true, thugHappiness: true } });
+    const owner = await tx.roundPlayer.findUniqueOrThrow({ where: { id: ownerId }, select: { laidUpUntil: true, thugHappiness: true, ammo: true } });
     // Trips D: standing bodyguards fight, with whatever they rented in town.
     const guardsStanding = Math.max(0, trip.bodyguards - trip.woundedBodyguards);
     // Trips D2: allies who live there and answered the call stand with the bodyguards.
@@ -104,15 +114,36 @@ async function landHits(tx: Db, ownerId: string, ruleset: Ruleset, loaded: BossT
     let attackerWounds = 0;
     let defenderWounds = 0;
     let recoverAt: Date | null = null;
+    const ammoRules = ruleset.ammoParts?.enabled && ruleset.ammoParts.combatEnabled ? ruleset.ammoParts.ammo : null;
+    let ammoSpentRounds: BossHitOutcome['ammoSpentRounds'];
+    const crew = (hit.attackerCrew as unknown as BossHitCrew | null) ?? { thugHappiness: 50, weapons: NO_GUNS };
     if (defenders > 0 && model) {
-      const crew = (hit.attackerCrew as unknown as BossHitCrew | null) ?? { thugHappiness: 50, weapons: NO_GUNS };
+      const attackerPrepaidRounds = ammoRules
+        ? Object.entries(crew.weapons).reduce((sum, [key, count]) => sum + count * ammoRules.roundsPerFight[key as WeaponKey], 0)
+        : 0;
       const fight = simulateRaid({
         attacker: { thugs: hit.squad, thugHappiness: crew.thugHappiness, weapons: crew.weapons },
         defender: { thugs: defenders, thugHappiness: owner.thugHappiness, weapons: addGuns(rentedGunsOf(trip), allyGuns) },
         attackingThugs: Math.min(hit.squad, model.squadCap),
         attackerTurns: model.turnCost,
         defenderCashCents: 0n,
+        ...(ammoRules ? { ammo: {
+          attackerRounds: attackerPrepaidRounds,
+          defenderRounds: owner.ammo,
+          roundsPerFight: ammoRules.roundsPerFight,
+          defenderFloor: ammoRules.defenderFloor,
+          lootShareBps: 0,
+        } } : {}),
       }, model, rng);
+      ammoSpentRounds = ammoRules && fight.ammunition ? {
+        // The attacker and responding allies paid for their dispatched ammunition when they left.
+        attacker: (crew.ammoSpentRounds ?? 0) + hit.backups.reduce((sum, backup) => sum + ((backup.crew as unknown as BossHitCrew).ammoSpentRounds ?? 0), 0),
+        defender: fight.ammunition.defenderRoundsSpent,
+        defenderFree: fight.ammunition.defenderFreeRounds,
+      } : undefined;
+      if (ammoRules && fight.ammunition?.defenderRoundsSpent) {
+        await tx.roundPlayer.update({ where: { id: ownerId }, data: { ammo: { decrement: fight.ammunition.defenderRoundsSpent } } });
+      }
       attackerWounds = Math.min(hit.squad, fight.wounds.attacker);
       defenderWounds = Math.min(defenders, fight.wounds.defender);
       const split = splitWounds(defenderWounds, { guards: guardsStanding, ...Object.fromEntries(hit.backups.map((backup) => [backup.id, backup.thugs])) });
@@ -132,6 +163,7 @@ async function landHits(tx: Db, ownerId: string, ruleset: Ruleset, loaded: BossT
         const outcome: BossHitOutcome = {
           escaped: false, held: true, squad: hit.squad, defenders, allies: allyThugs, cashCents: '0', laidUpUntil: null,
           attackerWounds, defenderWounds, recoverAt: recoverAt.toISOString(),
+          ...(ammoSpentRounds ? { ammoSpentRounds } : {}),
         };
         await tx.bossHit.update({ where: { id: hit.id }, data: { status: 'LANDED', settledAt: now, result: json(outcome) } });
         await ActivityService.log(tx, ownerId, 'BOSS_HIT_DEFENSE', json({
@@ -139,6 +171,11 @@ async function landHits(tx: Db, ownerId: string, ruleset: Ruleset, loaded: BossT
         }));
         continue;
       }
+    }
+    if (ammoRules && (defenders <= 0 || !model)) {
+      const hitterRounds = crew.ammoSpentRounds ?? 0;
+      if (hitterRounds > 0) await tx.roundPlayer.update({ where: { id: hit.attackerId }, data: { ammo: { increment: hitterRounds } } });
+      ammoSpentRounds = { attacker: 0, defender: 0, defenderFree: 0 };
     }
     // Nobody left standing between the squad and the boss: the hit lands.
     const loot = bossHitLootCents(ruleset, { bankrollCents: trip.bankrollCents, fitAttackers: hit.squad - attackerWounds, rng });
@@ -159,6 +196,7 @@ async function landHits(tx: Db, ownerId: string, ruleset: Ruleset, loaded: BossT
     const outcome: BossHitOutcome = {
       escaped: false, held: false, squad: hit.squad, defenders, allies: allyThugs, cashCents: loot.cashCents.toString(), laidUpUntil: laidUpUntil.toISOString(),
       attackerWounds, defenderWounds, recoverAt: recoverAt?.toISOString() ?? null,
+      ...(ammoSpentRounds ? { ammoSpentRounds } : {}),
     };
     await tx.bossHit.update({ where: { id: hit.id }, data: { status: 'LANDED', settledAt: now, result: json(outcome) } });
     if (loot.cashCents > 0n) {

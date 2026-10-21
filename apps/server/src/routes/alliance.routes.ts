@@ -45,7 +45,7 @@ const allianceRoutes: FastifyPluginAsync = async (app) => {
 
   app.post('/alliance/empire/access', { preHandler: app.requireAuth }, async (request) => {
     const player = await me(request.auth!.account.id);
-    const input = parseBody(z.object({ scope: z.enum(['city', 'district']), citySlug: z.string().min(1).max(80), district: z.string().min(1).max(80).optional(), accessKey: z.string().min(1).max(80), actionId: z.string().uuid() }).strict(), request.body ?? {});
+    const input = parseBody(z.object({ scope: z.enum(['city', 'district']), citySlug: z.string().min(1).max(80), district: z.string().min(1).max(80).optional(), accessKey: z.string().min(1).max(80), paymentKind: z.enum(['CASH', 'AMMO', 'VEHICLE_PARTS']).optional(), actionId: z.string().uuid() }).strict(), request.body ?? {});
     return useTerritoryAccess(app.prisma, player.id, input);
   });
 
