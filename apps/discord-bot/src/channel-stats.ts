@@ -55,20 +55,41 @@ export function startStatsChannelUpdater(
   let peakDay = '';
   let peakPlayers: number | null = null;
   const tick = async () => {
-    const current = await deps.getStats();
+    let current: Omit<RotatingStats, 'peakPlayers'>;
+    try {
+      current = await deps.getStats();
+    } catch (error) {
+      console.warn('Could not load stats for permanent voice channels:', error instanceof Error ? error.message : error);
+      return;
+    }
     const day = new Date().toISOString().slice(0, 10);
     if (day !== peakDay) { peakDay = day; peakPlayers = null; }
     if (typeof current.playerCount === 'number') peakPlayers = Math.max(peakPlayers ?? 0, current.playerCount);
     const me = await guild.members.fetchMe();
     await Promise.all(channels.map(async ({ channelId, template }) => {
       const channel = await guild.channels.fetch(channelId).catch(() => null);
-      if (!channel || !channel.isVoiceBased() || !channel.permissionsFor(me)?.has(PermissionFlagsBits.ManageChannels)) return;
+      if (!channel) {
+        console.warn(`Stats voice channel ${channelId} could not be found.`);
+        return;
+      }
+      if (!channel.isVoiceBased()) {
+        console.warn(`Stats channel ${channelId} is not a voice channel.`);
+        return;
+      }
+      if (!channel.permissionsFor(me)?.has(PermissionFlagsBits.ManageChannels)) {
+        console.warn(`Stats voice channel #${channel.name} is missing Manage Channels permission.`);
+        return;
+      }
       const name = renderStatsTemplate(template, { ...current, peakPlayers });
-      if (channel.name !== name) await channel.setName(name, 'Update StreetsEmpire live stats').catch(() => undefined);
+      if (channel.name !== name) {
+        await channel.setName(name, 'Update StreetsEmpire live stats').catch((error: unknown) => {
+          console.warn(`Could not rename stats voice channel #${channel.name}:`, error instanceof Error ? error.message : error);
+        });
+      }
     }));
   };
-  void tick().catch(() => undefined);
-  const timer = setInterval(() => void tick().catch(() => undefined), deps.minutes * 60_000);
+  void tick().catch((error: unknown) => console.warn('Stats voice channel update failed:', error));
+  const timer = setInterval(() => void tick().catch((error: unknown) => console.warn('Stats voice channel update failed:', error)), deps.minutes * 60_000);
   return () => clearInterval(timer);
 }
 
@@ -83,20 +104,40 @@ export function startStatsChannelRotator(
   let peakDay = '';
   let peakPlayers: number | null = null;
   const tick = async () => {
-    const current = await deps.getStats();
+    let current: Omit<RotatingStats, 'peakPlayers'>;
+    try {
+      current = await deps.getStats();
+    } catch (error) {
+      console.warn('Could not load stats for rotating voice channel:', error instanceof Error ? error.message : error);
+      return;
+    }
     const day = new Date().toISOString().slice(0, 10);
     if (day !== peakDay) { peakDay = day; peakPlayers = null; }
     if (typeof current.playerCount === 'number') peakPlayers = Math.max(peakPlayers ?? 0, current.playerCount);
     const names = rotatingStatsNames({ ...current, peakPlayers }, templates);
     const channel = await guild.channels.fetch(deps.channelId).catch(() => null);
-    if (!channel || !channel.isVoiceBased()) return;
+    if (!channel) {
+      console.warn(`Rotating stats voice channel ${deps.channelId} could not be found.`);
+      return;
+    }
+    if (!channel.isVoiceBased()) {
+      console.warn(`Rotating stats channel ${deps.channelId} is not a voice channel.`);
+      return;
+    }
     const me = await guild.members.fetchMe();
-    if (!channel.permissionsFor(me)?.has(PermissionFlagsBits.ManageChannels)) return;
+    if (!channel.permissionsFor(me)?.has(PermissionFlagsBits.ManageChannels)) {
+      console.warn(`Rotating stats voice channel #${channel.name} is missing Manage Channels permission.`);
+      return;
+    }
     const name = names[index % names.length]!;
     index += 1;
-    if (channel.name !== name) await channel.setName(name, 'Rotate StreetsEmpire live stats').catch(() => undefined);
+    if (channel.name !== name) {
+      await channel.setName(name, 'Rotate StreetsEmpire live stats').catch((error: unknown) => {
+        console.warn(`Could not rename rotating stats voice channel #${channel.name}:`, error instanceof Error ? error.message : error);
+      });
+    }
   };
-  void tick().catch(() => undefined);
-  const timer = setInterval(() => void tick().catch(() => undefined), deps.minutes * 60_000);
+  void tick().catch((error: unknown) => console.warn('Rotating stats voice channel update failed:', error));
+  const timer = setInterval(() => void tick().catch((error: unknown) => console.warn('Rotating stats voice channel update failed:', error)), deps.minutes * 60_000);
   return () => clearInterval(timer);
 }
