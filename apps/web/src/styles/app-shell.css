@@ -183,6 +183,43 @@
   display: none;
 }
 
+/* Turns recharge around the whole card, synced to the server's next tick. */
+.se-statusbar__item--turns {
+  isolation: isolate;
+}
+
+.se-statusbar__recharge {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.se-statusbar__recharge rect {
+  fill: none;
+  vector-effect: non-scaling-stroke;
+}
+
+.se-statusbar__recharge-track {
+  stroke: color-mix(in srgb, var(--se-shell-electric, var(--se-accent)) 18%, transparent);
+  stroke-width: 1.5;
+}
+
+.se-statusbar__recharge-fill {
+  stroke: var(--se-shell-electric, var(--se-accent));
+  stroke-width: 2;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--se-shell-electric, var(--se-accent)) 62%, transparent));
+  transition: stroke-dashoffset .35s linear;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .se-statusbar__recharge-fill { transition: none; }
+}
+
 @media (min-width: 900px) {
   .se-app--sidebar .se-statusbar__meter {
     position: absolute;

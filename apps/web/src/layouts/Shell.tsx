@@ -225,6 +225,32 @@ function HudIcon({ name }: { name: 'cash' | 'turns' | 'heat' | 'worth' }) {
   );
 }
 
+/** A live outline showing the time remaining until the next turn batch. */
+function TurnRechargeRing({ nextTurnAt, intervalMinutes }: { nextTurnAt: string; intervalMinutes: number }) {
+  const intervalMs = Math.max(1, intervalMinutes * 60_000);
+  const [progress, setProgress] = useState(() => rechargeProgress(nextTurnAt, intervalMs));
+
+  useEffect(() => {
+    const update = () => setProgress(rechargeProgress(nextTurnAt, intervalMs));
+    update();
+    const timer = window.setInterval(update, 1_000);
+    return () => window.clearInterval(timer);
+  }, [nextTurnAt, intervalMs]);
+
+  const dashOffset = 396 * (1 - progress);
+  return (
+    <svg className="se-statusbar__recharge" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+      <rect className="se-statusbar__recharge-track" x="1" y="1" width="98" height="98" rx="10" pathLength="396" />
+      <rect className="se-statusbar__recharge-fill" x="1" y="1" width="98" height="98" rx="10" pathLength="396" strokeDasharray="396" strokeDashoffset={dashOffset} />
+    </svg>
+  );
+}
+
+function rechargeProgress(nextTurnAt: string, intervalMs: number): number {
+  const remaining = new Date(nextTurnAt).getTime() - Date.now();
+  return Math.max(0, Math.min(1, 1 - remaining / intervalMs));
+}
+
 /**
  * Top bar. Section 23: cash, turns and net worth stay visible on every
  * authenticated page, and collapse to short form on a phone. Each number is
@@ -233,6 +259,7 @@ function HudIcon({ name }: { name: 'cash' | 'turns' | 'heat' | 'worth' }) {
 function StatusBar() {
   const me = useSession((s) => s.me);
   const moneyFormat = useSession((s) => s.profileSettings.moneyFormat);
+  const platform = useSession((s) => s.platform);
   const location = useLocation();
   const currentTurnAction = turnActionIndex(location.pathname);
 
@@ -251,6 +278,8 @@ function StatusBar() {
   if (!me) return null;
   const money = moneyFormat === 'compact' ? formatCentsCompact : formatCents;
   const turnActionPath = nextTurnActionPath(location.pathname);
+  const ruleset = platform ? rulesets[platform.ruleset.id] : undefined;
+  const turnIntervalMinutes = ruleset?.turns.intervalMinutes ?? 5;
 
   const heat = me.heat;
   const arresting = Boolean(heat?.arrest && heat.heat >= heat.arrest.startsAt);
@@ -278,13 +307,16 @@ function StatusBar() {
           {formatCentsCompact(me.resources.cashCents)}
         </span>
       </Link>
-      <Link className="se-statusbar__item" to={turnActionPath} title="Turns: cycle Scout, Produce and Raids">
+      <Link className="se-statusbar__item se-statusbar__item--turns" to={turnActionPath} title="Turns: cycle Scout, Produce and Raids">
         <HudIcon name="turns" />
         <span className="se-statusbar__k">Turns</span>
         <span className="se-num se-statusbar__v">
           {me.turns.turns}
           <span className="se-muted">/{me.turns.turnCap}</span>
         </span>
+        {me.turns.turnsGeneratedNextTick > 0 ? (
+          <TurnRechargeRing nextTurnAt={me.turns.nextTurnAt} intervalMinutes={turnIntervalMinutes} />
+        ) : null}
         <span className={`se-statusbar__meter${me.turns.turns >= me.turns.turnCap ? ' se-statusbar__meter--full' : ''}`} aria-hidden="true">
           <span style={{ width: `${me.turns.turnCap > 0 ? Math.min(100, (me.turns.turns / me.turns.turnCap) * 100) : 0}%` }} />
         </span>
