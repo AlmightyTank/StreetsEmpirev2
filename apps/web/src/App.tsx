@@ -70,6 +70,7 @@ import { ScoutPage } from './pages/ScoutPage.js';
 import { StatusPage } from './pages/StatusPage.js';
 import { VerifyEmailPage } from './pages/VerifyEmailPage.js';
 import { StorePage, StoresIndexPage } from './pages/StorePage.js';
+import { ArmoryPage } from './pages/ArmoryPage.js';
 import { SupplyPage } from './pages/SupplyPage.js';
 import { HoldingsPage } from './pages/HoldingsPage.js';
 import { LoanSharkPage } from './pages/LoanSharkPage.js';
@@ -233,6 +234,7 @@ export function App() {
         <Route path="insights" element={<Protected><EmpireInsightsPage /></Protected>} />
         <Route path="stores" element={<Protected><LiveRound><StoresIndexPage /></LiveRound></Protected>} />
         <Route path="stores/:slug" element={<Protected><LiveRound><StorePage /></LiveRound></Protected>} />
+        <Route path="armory" element={<Protected><LiveRound><ArmoryPage /></LiveRound></Protected>} />
         <Route path="supply" element={<Protected><LiveRound><SupplyPage /></LiveRound></Protected>} />
         <Route path="holdings" element={<Protected><LiveRound><HoldingsPage /></LiveRound></Protected>} />
         <Route path="loans" element={<Protected><LiveRound><LoanSharkPage /></LiveRound></Protected>} />

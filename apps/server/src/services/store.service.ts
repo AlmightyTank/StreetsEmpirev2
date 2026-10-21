@@ -59,6 +59,7 @@ import { CityConditionService } from './city-condition.service.js';
 import { applyTerritoryModifier, resolveTerritoryModifiers, territorySourcesForAction } from './territory-perks.service.js';
 import { consumeTerritoryAccessGrant } from './territory-access.service.js';
 import { NO_SKILL_EFFECTS, type SkillEffects } from './player-skill.service.js';
+import { IndividualItemsService } from './individual-items.service.js';
 
 const MAX_CITY_CONDITION_CASH_CENTS = BigInt(Number.MAX_SAFE_INTEGER);
 
@@ -735,6 +736,10 @@ export const StoreService = {
         }
         const { stockField, stockTaken, ...priced } = trade;
 
+        if (ruleset.individualItems?.enabled) {
+          await IndividualItemsService.trade(tx, roundPlayerId, trade.field, input.direction, Math.abs(trade.quantityChange), ruleset.individualItems);
+        }
+
         // Being a regular. Paid once a day per trader however much you buy,
         // so standing tracks showing up rather than spending.
         const trader = normalizedInput.store as TraderKey;
@@ -992,6 +997,9 @@ export const StoreService = {
             trade = territorySaleBonus(trade, normalized.quantity, territoryModifierReceipts);
           }
           const { stockField, stockTaken, ...priced } = trade;
+          if (ruleset.individualItems?.enabled) {
+            await IndividualItemsService.trade(tx, roundPlayerId, trade.field, normalized.direction, Math.abs(trade.quantityChange), ruleset.individualItems);
+          }
           const trader = normalized.store as TraderKey;
           const credit = creditedTraders.has(trader)
             ? { credited: false as const, gained: 0, points: 0, creditedOn: null }

@@ -66,6 +66,7 @@ export const SECTIONS: NavSection[] = [
     defaultOpen: false,
     pages: [
       { key: 'hideout', label: 'Hideout', to: '/game/hideout', icon: 'hideout' },
+      { key: 'armory', label: 'Armory & Garage', short: 'Armory', to: '/game/armory', icon: 'raids' },
       { key: 'crew-roster', label: 'Crew Assignments', short: 'Crew', to: '/game/crew', icon: 'contacts' },
       { key: 'dealers', label: 'Dealer Crews', short: 'Dealers', to: '/game/dealers', icon: 'contacts' },
       { key: 'stores', label: 'Stores', to: '/game/stores', icon: 'stores', prefix: '/game/stores/' },
@@ -231,7 +232,7 @@ export function newPlayerSectionsFor(sections: readonly NavSection[]): NavSectio
   // Preserve one visible command loop; no duplicate routes or separate rookie-only pages.
   const groups = [
     ['new-player-core', 'Start Here', ['dashboard', 'quests', 'scout', 'produce', 'raids', 'operations', 'black-book', 'stores']],
-    ['new-player-empire', 'Build Your Empire', ['hideout', 'crew-roster', 'dealers', 'supply', 'loans', 'travel', 'turf']],
+    ['new-player-empire', 'Build Your Empire', ['hideout', 'armory', 'crew-roster', 'dealers', 'supply', 'loans', 'travel', 'turf']],
     ['new-player-competition', 'Competition', ['casino', 'alliance', 'players', 'rankings']],
     ['new-player-career', 'Progress & Rewards', ['xp-progress', 'skills', 'events', 'street-pass', 'roll-call', 'drop', 'supporter', 'profile']],
     ['new-player-community', 'Messages & News', ['console', 'news']],

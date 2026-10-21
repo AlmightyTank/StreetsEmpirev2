@@ -2,6 +2,7 @@ import type { PrismaClient, Round } from '@prisma/client';
 import { calculateNetWorthCents, calculateThugHappiness, calculateWhoreHappiness, startingStock } from '@streets/rules-engine';
 import type { Ruleset, SeededRivalRule, StartingPlayer } from '@streets/rulesets';
 import { normalizeUsername } from '@streets/shared';
+import { IndividualItemsService } from './individual-items.service.js';
 
 /**
  * Local test bots, ported from prisma/seed.ts so the admin panel can add and
@@ -189,7 +190,7 @@ export async function seedDevBots(
     const netWorthCents = calculateNetWorthCents(resources, ruleset);
     const stock = startingStock(ruleset, now);
 
-    await prisma.roundPlayer.upsert({
+    const seededPlayer = await prisma.roundPlayer.upsert({
       where: { roundId_accountId: { roundId: round.id, accountId: account.id } },
       update: {
         publicPimpId,
@@ -224,6 +225,12 @@ export async function seedDevBots(
         ...stock,
       },
     });
+    if (ruleset.individualItems?.enabled) {
+      await prisma.playerGun.deleteMany({ where: { roundPlayerId: seededPlayer.id } });
+      await prisma.playerVehicle.deleteMany({ where: { roundPlayerId: seededPlayer.id } });
+      await prisma.playerArmorySummary.deleteMany({ where: { roundPlayerId: seededPlayer.id } });
+      await IndividualItemsService.seed(prisma, seededPlayer.id, start, ruleset.individualItems);
+    }
 
   }
 

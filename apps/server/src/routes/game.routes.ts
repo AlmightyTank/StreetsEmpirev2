@@ -34,6 +34,7 @@ import {
   hideoutUpgradeSchema,
   hideoutSpecializationSchema,
   hideoutWeaponPrioritySchema,
+  armoryBulkActionSchema,
   favorActivateSchema,
   favorArmSchema,
   streetPassClaimSchema,
@@ -56,6 +57,7 @@ import { toState } from '../services/action.service.js';
 import { StoreService } from '../services/store.service.js';
 import { HideoutService } from '../services/hideout.service.js';
 import { HideoutCosmeticService } from '../services/hideout-cosmetic.service.js';
+import { ArmoryService } from '../services/armory.service.js';
 import { parseBody } from '../utils/validate.js';
 import { ActivityService } from '../services/activity.service.js';
 import { PlayerStateService } from '../services/player-state.service.js';
@@ -614,6 +616,18 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
       toState(settled.player),
       settled.products,
     );
+  });
+
+  fastify.get('/armory', { preHandler: fastify.requireAuth }, async (request) => {
+    const { player } = await requirePlayer(request.auth!.account.id);
+    const settled = await PlayerStateService.settle(fastify.prisma, player.id, { markActive: true });
+    return ArmoryService.catalog(fastify.prisma, player.id, settled.ruleset);
+  });
+
+  fastify.post('/armory/actions', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(armoryBulkActionSchema, request.body);
+    const { player } = await requirePlayer(request.auth!.account.id);
+    return ArmoryService.update(fastify.prisma, player.id, body);
   });
 
   fastify.get('/hideout/cosmetics', { preHandler: fastify.requireAuth }, async (request) =>

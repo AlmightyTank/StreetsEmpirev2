@@ -12,6 +12,7 @@ import {
 } from './round-aftermath-reward.service.js';
 import { EncounterGangService } from './encounter-gang.service.js';
 import { buildRoundStartingResources } from './round-player-seed.js';
+import { IndividualItemsService } from './individual-items.service.js';
 
 export type RoundPlayerWithCity = Awaited<
   ReturnType<typeof RoundPlayerService.find>
@@ -132,6 +133,10 @@ export const RoundPlayerService = {
           dailyStartingNationalRank: ranks.nationalRank,
         },
       });
+
+      if (ruleset.individualItems?.enabled) {
+        await IndividualItemsService.seed(tx, player.id, start, ruleset.individualItems);
+      }
 
       if (reward.amountCents > 0n && !existingRewardClaim) {
         if (!reward.sourceRoundId) {

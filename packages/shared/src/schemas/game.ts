@@ -193,6 +193,19 @@ export const hideoutSpecializationSchema = z.object({
 }).strict();
 export type HideoutSpecializationInput = z.infer<typeof hideoutSpecializationSchema>;
 
+export const armoryBulkActionSchema = z.object({
+  actionId: actionIdSchema,
+  items: z.array(z.object({ kind: z.enum(['GUN', 'VEHICLE']), id: z.string().trim().min(1).max(64) }).strict()).min(1).max(100),
+  action: z.enum(['FAVORITE', 'RESERVE', 'CLEAR_FLAGS', 'RENAME']),
+  name: z.string().trim().min(1).max(40).optional(),
+}).strict().superRefine((value, context) => {
+  if (value.action === 'RENAME' && !value.name) context.addIssue({ code: z.ZodIssueCode.custom, path: ['name'], message: 'Enter a name.' });
+  if (value.action !== 'RENAME' && value.items.some((item) => item.kind === 'VEHICLE')) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ['items'], message: 'Favourite and reserve actions apply to guns.' });
+  }
+});
+export type ArmoryBulkActionInput = z.infer<typeof armoryBulkActionSchema>;
+
 export const storeTradeSchema = z.object({
   store: z.string().trim().min(1, 'Pick a store.').max(64),
   item: z.string().trim().min(1, 'Pick an item.').max(64),

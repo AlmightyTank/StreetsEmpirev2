@@ -1,6 +1,6 @@
 # StreetsEmpire — Armory & Garage Roadmap (individual guns and vehicles)
 
-Status: **Planned** · Target: **beta** · Builds on: [Ammo & Parts](ROADMAP-AMMO-PARTS.md) · Scope: gun store, Charlie's, combat, runs, garage, the Drop, Territory Rewards.
+Status: **Slices A–B implemented; Slices C–G planned** · Target: **beta** · Builds on: [Ammo & Parts](ROADMAP-AMMO-PARTS.md) · Scope: gun store, Charlie's, combat, runs, garage, the Drop, Territory Rewards.
 
 ## Vision
 Every gun and every vehicle is its own item. It has a model, a name, a condition, mods, a look and a history. A player's AK isn't "one of 12 AK-47s": it's *Widowmaker*, scoped, extended mag, 41 fights, taken off a rival in Detroit.
@@ -143,11 +143,11 @@ A player with 600 pistols has to stay comfortable:
 
 ## Slices
 
-### Slice A — Item tables and catalog
+### Slice A — Item tables and catalog (implemented)
 - `PlayerGun` and `PlayerVehicle` with stack rows, caps and armory summary. Ruleset catalog: slots, mods, tiers, costs, wear.
 - New ruleset flag switches buying, selling and the starting kit to items. Old rulesets untouched.
 
-### Slice B — Armory and garage screens
+### Slice B — Armory and garage screens (implemented)
 - Stacked list, filters, sort, search, naming, favourites/reserves, bulk select. Phone and desktop.
 
 ### Slice C — Mods and builds

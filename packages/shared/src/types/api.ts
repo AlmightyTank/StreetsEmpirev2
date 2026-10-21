@@ -1,3 +1,6 @@
+Warning: truncated output (original token count: 20593)
+Total output lines: 2573
+
 import type { StaffCapability, StaffRole } from '../staff.js';
 import type { HeatDto, TripHeatDto, TurfSummaryDto, TurfTripDto, WorkSupplyPlanDto } from './playing-together.js';
 import type { LawSummaryDto } from './law.js';
@@ -1234,53 +1237,12 @@ export interface HideoutDto {
   rooms: HideoutRoomDto[];
 }
 
-export interface RoundOverLegacyDto {
-  roundsPlayed: number;
-  roundWins: number;
-  topTenFinishes: number;
-  bestNationalRank: number | null;
-  bestLocalRank: number | null;
-  totalFinalNetWorthCents: number;
-}
-
-export interface RoundOverBadgeDto {
-  key: string;
-  title: string;
-  description: string;
-  rarity: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
-}
-
-export interface RoundOverDto {
-  round: RoundDto;
-  player: RoundOverPlayerDto;
-  legacy: RoundOverLegacyDto;
-  earnedLegacyBadges: RoundOverBadgeDto[];
-  newLegacyBadges: RoundOverBadgeDto[];
-}
-
-export interface CurrentRoundDto {
-  /** Current active or registration round, usually the next season after round-over. */
-  round: RoundDto | null;
-  /** The account's player in the current round, when already joined. */
-  me: RoundPlayerDto | null;
-  canJoin: boolean;
-  /** Most recent finished round for this account, for the round-over screen. */
-  roundOver: RoundOverDto | null;
-}
-
-/** A single resource moving. Section 44. */
-export interface ResourceChange {
-  resource: string;
-  before: number;
-  after: number;
-  change: number;
-}
-
-/** Section 43. Every action endpoint answers in this shape. */
-export interface PlayerSnapshot {
-  cashCents: number;
-  netWorthCents: number;
-  turns: number;
+export type ArmoryGunModel = 'PISTOL' | 'SHOTGUN' | 'TEK9' | 'AK47';
+export type GarageVehicleModel = 'SEDAN' | 'LOW_RIDER' | 'VAN';
+export interface IndividualArmoryItemDto {
+  id: string;
+  model: ArmoryGunModel;
+ …593 tokens truncated…turns: number;
   whoreHappiness: number;
   thugHappiness: number;
   resources: ResourcesDto;
