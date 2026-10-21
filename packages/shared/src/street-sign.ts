@@ -72,7 +72,7 @@ export const DEFAULT_STREET_SIGN: StreetSignDesign = {
   trim: 'double',
   shadow: 'soft',
   treatment: 'reflective',
-  backgroundColor: '#00691d',
+  backgroundColor: '#087b62',
   textColor: '#ffffff',
   tagColor: '#ffd34e',
 };
