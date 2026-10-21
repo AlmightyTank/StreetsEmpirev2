@@ -81,8 +81,10 @@ export function StreetSignBuilder({ value, savedValue = null, unlockedFontPacks 
         <div className="se-street-sign-preview__face" style={{ backgroundColor: design.backgroundColor, color: design.textColor }}>
           <span className="se-street-sign-preview__bolt se-street-sign-preview__bolt--left" aria-hidden="true" />
           <span className="se-street-sign-preview__bolt se-street-sign-preview__bolt--right" aria-hidden="true" />
-          <span className="se-street-sign-preview__street-type">{design.streetType}</span>
-          <span className={`se-street-sign-preview__name se-street-sign-font--${design.font}`}>{design.streetName || 'YOUR STREET'}</span>
+          <div className="se-street-sign-preview__lettering">
+            <span className={`se-street-sign-preview__name se-street-sign-font--${design.font}`}>{design.streetName || 'YOUR STREET'}</span>
+            <span className="se-street-sign-preview__street-type">{design.streetType}</span>
+          </div>
           {design.tag ? <span className={`se-street-sign-preview__tag se-street-sign-preview__tag--${design.tagScale} se-street-sign-preview__tag--${design.tagPlacement} se-street-sign-font--${design.tagFont}`} style={{ color: design.tagColor }}>{design.tag}</span> : null}
         </div>
       </div>
@@ -215,8 +217,10 @@ export function StreetSignDisplay({ design, compact = false }: { design: StreetS
       <div className="se-street-sign-preview__face" style={{ backgroundColor: design.backgroundColor, color: design.textColor }}>
         <span className="se-street-sign-preview__bolt se-street-sign-preview__bolt--left" aria-hidden="true" />
         <span className="se-street-sign-preview__bolt se-street-sign-preview__bolt--right" aria-hidden="true" />
-        <span className="se-street-sign-preview__street-type">{design.streetType}</span>
-        <span className={`se-street-sign-preview__name se-street-sign-font--${design.font}`}>{design.streetName}</span>
+        <div className="se-street-sign-preview__lettering">
+          <span className={`se-street-sign-preview__name se-street-sign-font--${design.font}`}>{design.streetName}</span>
+          <span className="se-street-sign-preview__street-type">{design.streetType}</span>
+        </div>
         {design.tag ? <span className={`se-street-sign-preview__tag se-street-sign-preview__tag--${design.tagScale} se-street-sign-preview__tag--${design.tagPlacement} se-street-sign-font--${design.tagFont}`} style={{ color: design.tagColor }}>{design.tag}</span> : null}
       </div>
     </div>
