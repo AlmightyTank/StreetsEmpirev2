@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_STREET_SIGN, readStreetSignDesign, streetSignDesignSchema, streetSignForCrewName } from '../street-sign.js';
+import { DEFAULT_STREET_SIGN, STREET_SIGN_BACKDROPS, readStreetSignDesign, streetSignDesignSchema, streetSignForCrewName } from '../street-sign.js';
 import { updateAccountProfileSettingsSchema } from '../schemas/auth.js';
 
 describe('street sign design', () => {
@@ -26,7 +26,7 @@ describe('street sign design', () => {
     expect(streetSignDesignSchema.parse({ ...DEFAULT_STREET_SIGN, shape: 'wide', streetName: 'Cedar', font: 'stencil' }).shape).toBe('wide');
   });
 
-  it('normalizes v1 signs to v2 controls without changing their visible design', () => {
+  it('normalizes v1 signs to v3 controls without changing their visible design', () => {
     const legacy = {
       version: 1,
       shape: 'wide',
@@ -40,7 +40,8 @@ describe('street sign design', () => {
       tagColor: '#ffd34e',
     };
     expect(readStreetSignDesign(legacy)).toMatchObject({
-      version: 2,
+      version: 3,
+      backdrop: 'plain',
       streetName: 'Cedar',
       shape: 'wide',
       tagScale: 'medium',
@@ -49,6 +50,35 @@ describe('street sign design', () => {
       shadow: 'soft',
       treatment: 'reflective',
     });
+  });
+
+  it('reads saved v2 signs as a plain backdrop and keeps their controls', () => {
+    const { backdrop: _backdrop, ...v2 } = { ...DEFAULT_STREET_SIGN, version: 2, streetName: 'Cedar', trim: 'beveled' };
+    expect(readStreetSignDesign(v2)).toMatchObject({ version: 3, backdrop: 'plain', trim: 'beveled', streetName: 'Cedar' });
+  });
+
+  it('accepts every collection backdrop and rejects unknown ones', () => {
+    for (const backdrop of STREET_SIGN_BACKDROPS) {
+      expect(streetSignDesignSchema.safeParse({ ...DEFAULT_STREET_SIGN, streetName: 'Cedar', backdrop: backdrop.key }).success).toBe(true);
+    }
+    expect(streetSignDesignSchema.safeParse({ ...DEFAULT_STREET_SIGN, streetName: 'Cedar', backdrop: 'url(evil.png)' }).success).toBe(false);
+    expect(streetSignDesignSchema.safeParse({ ...DEFAULT_STREET_SIGN, streetName: 'Cedar', version: 3, backdrop: undefined }).success).toBe(false);
+  });
+
+  it('gives each backdrop readable default lettering', () => {
+    const luminance = (color: string) => {
+      const [r, g, b] = (color.slice(1).match(/.{2}/g) ?? []).map((part) => {
+        const srgb = Number.parseInt(part, 16) / 255;
+        return srgb <= 0.04045 ? srgb / 12.92 : ((srgb + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
+    };
+    const contrast = (a: string, b: string) => (Math.max(luminance(a), luminance(b)) + 0.05) / (Math.min(luminance(a), luminance(b)) + 0.05);
+    for (const backdrop of STREET_SIGN_BACKDROPS) {
+      expect(contrast(backdrop.text, backdrop.background), backdrop.key).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(backdrop.tag, backdrop.background), backdrop.key).toBeGreaterThanOrEqual(3);
+    }
+    expect(new Set(STREET_SIGN_BACKDROPS.map((backdrop) => backdrop.key)).size).toBe(STREET_SIGN_BACKDROPS.length);
   });
 
   it.each(['shield', 'octagon', 'wood'])('rejects unsupported sign style %s', (shape) => {
@@ -83,7 +113,7 @@ describe('street sign design', () => {
     if (parsed.success) expect(parsed.data.streetSign?.streetName).toBe('Cedar');
   });
 
-  it('accepts v1 designs from older open clients and upgrades them to v2', () => {
+  it('accepts v1 designs from older open clients and upgrades them to v3', () => {
     const parsed = updateAccountProfileSettingsSchema.safeParse({
       activeTitleKey: null,
       titlePlacement: 'prefix',
@@ -102,7 +132,7 @@ describe('street sign design', () => {
       },
     });
     expect(parsed.success).toBe(true);
-    if (parsed.success) expect(parsed.data.streetSign).toMatchObject({ version: 2, trim: 'double' });
+    if (parsed.success) expect(parsed.data.streetSign).toMatchObject({ version: 3, trim: 'double', backdrop: 'plain' });
   });
 
   it('requires street text before saving a sign', () => {

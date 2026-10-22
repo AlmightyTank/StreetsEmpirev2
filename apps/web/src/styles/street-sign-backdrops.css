@@ -1,0 +1,259 @@
+/* Street sign backdrops: printed art for each Drop collection, unlocked by its shell theme
+   (STREET_SIGN_BACKDROPS in @streets/shared). ::before carries the full-bleed print and
+   ::after the frame or ornament; both sit under the lettering, tag and bolts so the face
+   still reads as a metal street sign. Sizes are mostly relative so the same art works on
+   the builder preview, the profile sign, the compact hover sign and the picker tiles. */
+.se-street-sign-backdrop{isolation:isolate;overflow:hidden}
+.se-street-sign-backdrop::before,.se-street-sign-backdrop::after{content:"";position:absolute;inset:0;z-index:0;border-radius:inherit;pointer-events:none}
+.se-street-sign-backdrop .se-street-sign-preview__lettering{position:relative;z-index:1}
+.se-street-sign-backdrop .se-street-sign-preview__tag,.se-street-sign-backdrop .se-street-sign-preview__bolt{z-index:1}
+
+/* Downtown Skyline (Street Singles on The Drop): a lit downtown silhouette along the bottom, a hazier row behind it, and a moon. */
+.se-street-sign-backdrop--skyline::before{background:
+  url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 50'%3E%3Cpath fill='%23070b14' fill-opacity='.78' d='M0 50V30h8v-8h6v8h5V18h10v32zM29 50V26h4v-6h8v6h4v24zM45 50V12h3V6h2v6h3v38zM53 50V28h12v22zM65 50V20l7-5 7 5v30zM79 50V32h9V24h8v26zM96 50V16h12v34zM108 50V30h12v20z'/%3E%3Cpath fill='%23ffd76a' fill-opacity='.8' d='M22 22h2v2h-2zM25 26h2v2h-2zM22 30h2v2h-2zM36 30h2v2h-2zM38 36h2v2h-2zM47 16h2v2h-2zM47 24h2v2h-2zM47 34h2v2h-2zM56 32h2v2h-2zM60 38h2v2h-2zM69 26h2v2h-2zM73 32h2v2h-2zM91 30h2v2h-2zM99 20h2v2h-2zM103 26h2v2h-2zM99 34h2v2h-2zM112 34h2v2h-2zM116 40h2v2h-2z'/%3E%3C/svg%3E") 0 100%/auto 62% repeat-x,
+  url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 50'%3E%3Cpath fill='%23b9c8e6' fill-opacity='.16' d='M0 50V22h10v28zM12 50V10h8v40zM22 50V28h14v22zM38 50V16l6-6 6 6v34zM52 50V24h10v26zM64 50V6h4v-6h2v6h4v44zM76 50V26h16v24zM94 50V14h10v36zM106 50V30h14v20z'/%3E%3C/svg%3E") 37px 100%/auto 88% repeat-x,
+  radial-gradient(ellipse 6% 26% at 88% 22%,#f4f1df 0 55%,#f4f1df40 70%,transparent 100%),
+  linear-gradient(180deg,#0000,#ffb36b2e 70%,#0000)}
+
+/* City skylines (Street Singles on The Drop). Built by a script from readable SVG: one
+   240x60 scene per city, stretched across the sign width and pinned to the bottom edge. */
+.se-street-sign-backdrop--skyline-new-york::before{background:
+  url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 60' preserveAspectRatio='none'%3E%3Cdefs%3E%3Cpattern id='w' width='5' height='6' patternUnits='userSpaceOnUse'%3E%3Crect x='1.6' y='2' width='1.3' height='1.7' fill='%23ffcf5a' fill-opacity='.8'/%3E%3C/pattern%3E%3C/defs%3E%3Cpath fill='none' stroke='%23070b14' stroke-opacity='.8' stroke-width='1' d='M-10 40L17 26Q35 44 53 26L80 40'/%3E%3Cpath fill='%23070b14' fill-opacity='.85' d='M14 60V26h6v34zM50 60V26h6v34zM0 45h72v2H0z'/%3E%3Cpath fill='%23070b14' fill-opacity='.82' d='M72 60V40h10V60zM84 60V32h8V60zM94 60V38h6V60zM126 60V34h10V60zM138 60V42h6V60zM162 60V30h10V60zM174 60V38h12V60zM188 60V26h9V60zM199 60V40h8V60zM209 60V34h10V60zM221 60V44h8V60zM231 60V36h11V60zM100 60V30h4v-8h4v-8h3V2h2v12h3v8h4v8h4v30zM144 60V24h2l5-12 1-12 1 12 5 12h2v36z'/%3E%3Cpath fill='url%28%23w%29' d='M72 60V40h10V60zM84 60V32h8V60zM94 60V38h6V60zM126 60V34h10V60zM138 60V42h6V60zM162 60V30h10V60zM174 60V38h12V60zM188 60V26h9V60zM199 60V40h8V60zM209 60V34h10V60zM221 60V44h8V60zM231 60V36h11V60zM100 60V30h4v-8h4v-8h3V2h2v12h3v8h4v8h4v30zM144 60V24h2l5-12 1-12 1 12 5 12h2v36z'/%3E%3C/svg%3E") 50% 100%/100% 80% no-repeat,
+  linear-gradient(180deg,#ffcf5a26,transparent 55%)}
+.se-street-sign-backdrop--skyline-chicago::before{background:
+  url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 60' preserveAspectRatio='none'%3E%3Cdefs%3E%3Cpattern id='w' width='5' height='6' patternUnits='userSpaceOnUse'%3E%3Crect x='1.6' y='2' width='1.3' height='1.7' fill='%237fd3ff' fill-opacity='.8'/%3E%3C/pattern%3E%3C/defs%3E%3Cpath fill='%23070b14' fill-opacity='.82' d='M117 8h1.4V0H117zM125.6 8h1.4V0h-1.4zM171.5 12h1.2V0h-1.2zM175.3 12h1.2V2h-1.2z'/%3E%3Cpath fill='%23070b14' fill-opacity='.82' d='M0 60V42h12V60zM14 60V34h10V60zM26 60V40h9V60zM37 60V28h8V60zM47 60V36h12V60zM61 60V44h8V60zM71 60V30h10V60zM83 60V38h12V60zM97 60V32h12V60zM136 60V36h10V60zM148 60V42h14V60zM186 60V34h10V60zM198 60V40h12V60zM212 60V30h9V60zM223 60V38h17V60zM112 60V14h6V8h8v6h6v46zM166 60L169 12h10l3 48z'/%3E%3Cpath fill='url%28%23w%29' d='M0 60V42h12V60zM14 60V34h10V60zM26 60V40h9V60zM37 60V28h8V60zM47 60V36h12V60zM61 60V44h8V60zM71 60V30h10V60zM83 60V38h12V60zM97 60V32h12V60zM136 60V36h10V60zM148 60V42h14V60zM186 60V34h10V60zM198 60V40h12V60zM212 60V30h9V60zM223 60V38h17V60zM112 60V14h6V8h8v6h6v46zM166 60L169 12h10l3 48z'/%3E%3C/svg%3E") 50% 100%/100% 80% no-repeat,
+  linear-gradient(0deg,#7fd3ff33 0 9%,transparent 9%),linear-gradient(180deg,#ff9a5c22,transparent 60%)}
+.se-street-sign-backdrop--skyline-las-vegas::before{background:
+  url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 60' preserveAspectRatio='none'%3E%3Cdefs%3E%3Cpattern id='w' width='5' height='6' patternUnits='userSpaceOnUse'%3E%3Crect x='1.6' y='2' width='1.3' height='1.7' fill='%23ffd23f' fill-opacity='.8'/%3E%3C/pattern%3E%3C/defs%3E%3Cpath fill='%23fffbe0' fill-opacity='.7' d='M194.4 30h1.2V0h-1.2z'/%3E%3Cpath fill='%23070b14' fill-opacity='.82' d='M39.4 11h1.2V0h-1.2zM170 60L195 28 220 60z'/%3E%3Cpath fill='none' stroke='%23ff4fd8' stroke-width='1' d='M94.5 60V26.5h11V60M170.8 59.5L195 29l24.2 30.5'/%3E%3Cpath fill='none' stroke='%233df5e0' stroke-width='1' d='M66.5 60V30.5h9V60M133.5 60V32.5h9V60'/%3E%3Cpath fill='%23070b14' fill-opacity='.82' d='M0 60V44h14V60zM52 60V36h12V60zM66 60V30h10V60zM78 60V40h14V60zM94 60V26h12V60zM108 60V34h9V60zM119 60V42h12V60zM133 60V32h10V60zM145 60V38h14V60zM224 60V40h16V60zM38 60V16h4v44zM33 16h14l-2-5H35z'/%3E%3Cpath fill='url%28%23w%29' d='M0 60V44h14V60zM52 60V36h12V60zM66 60V30h10V60zM78 60V40h14V60zM94 60V26h12V60zM108 60V34h9V60zM119 60V42h12V60zM133 60V32h10V60zM145 60V38h14V60zM224 60V40h16V60zM38 60V16h4v44zM33 16h14l-2-5H35z'/%3E%3C/svg%3E") 50% 100%/100% 80% no-repeat,
+  radial-gradient(ellipse 50% 90% at 50% 120%,#ff4fd855,transparent 70%)}
+.se-street-sign-backdrop--skyline-miami-beach::before{background:
+  url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 60' preserveAspectRatio='none'%3E%3Cdefs%3E%3Cpattern id='w' width='5' height='6' patternUnits='userSpaceOnUse'%3E%3Crect x='1.6' y='2' width='1.3' height='1.7' fill='%235ff2dc' fill-opacity='.8'/%3E%3C/pattern%3E%3C/defs%3E%3Cpath fill='%23070b14' fill-opacity='.82' d='M0 60V42h22v18zM50 60V40h4v-4h16v4h4v20zM60 36V26h2v10zM84 60V44h18v16zM108 60V34h3v-3h18v3h3v26zM118 31V20h3v11zM150 60V42h20v18zM182 60V38h4v-3h14v3h4v22zM191 35V27h2v8zM214 60V44h26v16z'/%3E%3Cpath fill='url%28%23w%29' d='M0 60V42h22v18zM50 60V40h4v-4h16v4h4v20zM60 36V26h2v10zM84 60V44h18v16zM108 60V34h3v-3h18v3h3v26zM118 31V20h3v11zM150 60V42h20v18zM182 60V38h4v-3h14v3h4v22zM191 35V27h2v8zM214 60V44h26v16z'/%3E%3Cpath fill='none' stroke='%235ff2dc' stroke-opacity='.8' stroke-width='.8' d='M50.5 44h23M108.5 38h23M182.5 42h21'/%3E%3Cpath fill='none' stroke='%23070b14' stroke-opacity='.88' stroke-width='2' stroke-linecap='round' d='M34 60Q36 41.3 32 26'/%3E%3Cpath fill='none' stroke='%23070b14' stroke-opacity='.88' stroke-width='1.5' stroke-linecap='round' d='M32 26q-8-2-12 4M32 26q8-3 12 3M32 26q-6-6-12-5M32 26q6-7 12-4M32 26q0-6 2-9'/%3E%3Cpath fill='none' stroke='%23070b14' stroke-opacity='.88' stroke-width='2' stroke-linecap='round' d='M140 60Q142 38.0 138 20'/%3E%3Cpath fill='none' stroke='%23070b14' stroke-opacity='.88' stroke-width='1.5' stroke-linecap='round' d='M138 20q-8-2-12 4M138 20q8-3 12 3M138 20q-6-6-12-5M138 20q6-7 12-4M138 20q0-6 2-9'/%3E%3Cpath fill='none' stroke='%23070b14' stroke-opacity='.88' stroke-width='2' stroke-linecap='round' d='M208 60Q210 43.5 206 30'/%3E%3Cpath fill='none' stroke='%23070b14' stroke-opacity='.88' stroke-width='1.5' stroke-linecap='round' d='M206 30q-8-2-12 4M206 30q8-3 12 3M206 30q-6-6-12-5M206 30q6-7 12-4M206 30q0-6 2-9'/%3E%3C/svg%3E") 50% 100%/100% 80% no-repeat,
+  linear-gradient(180deg,#ffb36b55,transparent 60%),linear-gradient(0deg,#5ff2dc40 0 8%,transparent 8%)}
+.se-street-sign-backdrop--skyline-seattle::before{background:
+  url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 60' preserveAspectRatio='none'%3E%3Cdefs%3E%3Cpattern id='w' width='5' height='6' patternUnits='userSpaceOnUse'%3E%3Crect x='1.6' y='2' width='1.3' height='1.7' fill='%239be7a8' fill-opacity='.8'/%3E%3C/pattern%3E%3C/defs%3E%3Cpath fill='%23e8f4ff' fill-opacity='.22' d='M140 60L186 26 236 60z'/%3E%3Cpath fill='%23ffffff' fill-opacity='.35' d='M178 32l8-6 8 6-4-1-4 3-4-3z'/%3E%3Cpath fill='%23070b14' fill-opacity='.85' d='M56 60L59 22h2l3 38h-2l-2-30-2 30zM50 22h20l-4-5H54zM57 17h6l-1-2h-4zM59.4 15h1.2V5h-1.2z'/%3E%3Cpath fill='%23070b14' fill-opacity='.82' d='M0 60V44h12V60zM14 60V38h10V60zM26 60V46h10V60zM84 60V36h10V60zM96 60V22h9V60zM107 60V30h12V60zM121 60V40h10V60zM133 60V34h9V60zM144 60V44h12V60zM200 60V42h14V60zM216 60V36h10V60zM228 60V44h12V60z'/%3E%3Cpath fill='url%28%23w%29' d='M0 60V44h12V60zM14 60V38h10V60zM26 60V46h10V60zM84 60V36h10V60zM96 60V22h9V60zM107 60V30h12V60zM121 60V40h10V60zM133 60V34h9V60zM144 60V44h12V60zM200 60V42h14V60zM216 60V36h10V60zM228 60V44h12V60z'/%3E%3C/svg%3E") 50% 100%/100% 80% no-repeat,
+  linear-gradient(180deg,#9be7a81c,transparent 55%),repeating-linear-gradient(100deg,transparent 0 13px,#ffffff0d 13px 14px)}
+.se-street-sign-backdrop--skyline-san-francisco::before{background:
+  url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 60' preserveAspectRatio='none'%3E%3Cdefs%3E%3Cpattern id='w' width='5' height='6' patternUnits='userSpaceOnUse'%3E%3Crect x='1.6' y='2' width='1.3' height='1.7' fill='%23ff8a5c' fill-opacity='.8'/%3E%3C/pattern%3E%3C/defs%3E%3Cpath fill='none' stroke='%23d4402f' stroke-width='1.2' d='M-10 40Q8 16 22 18Q47 44 72 18Q88 30 104 40'/%3E%3Cpath fill='%23d4402f' d='M20 60V18h4v42zM70 60V18h4v42zM20 24h4v1.5h-4zM70 24h4v1.5h-4zM0 44h104v2.2H0z'/%3E%3Cpath fill='%23070b14' fill-opacity='.82' d='M169.6 6h.8V0h-.8z'/%3E%3Cpath fill='%23070b14' fill-opacity='.82' d='M112 60V44h10V60zM124 60V38h9V60zM135 60V30h10V60zM147 60V40h12V60zM182 60V34h10V60zM194 60V42h12V60zM208 60V36h9V60zM219 60V46h21V60zM164 60L170 6 176 60z'/%3E%3Cpath fill='url%28%23w%29' d='M112 60V44h10V60zM124 60V38h9V60zM135 60V30h10V60zM147 60V40h12V60zM182 60V34h10V60zM194 60V42h12V60zM208 60V36h9V60zM219 60V46h21V60zM164 60L170 6 176 60z'/%3E%3C/svg%3E") 50% 100%/100% 80% no-repeat,
+  linear-gradient(180deg,transparent 30%,#ffffff2e 48%,transparent 66%),linear-gradient(180deg,#ff8a5c22,transparent 50%)}
+
+/* Gun Stockpile (Street Singles on The Drop): ammo crates and racked rifles on both flanks, with live rounds. */
+.se-street-sign-backdrop--stockpile::before{opacity:.82;background:
+  url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 110 60'%3E%3Cg fill='%236b4a2b' stroke='%23332212' stroke-width='1'%3E%3Crect x='1' y='38' width='42' height='21'/%3E%3Crect x='7' y='21' width='30' height='17'/%3E%3C/g%3E%3Cpath stroke='%23332212' stroke-width='1' d='M1 45h42M1 52h42M7 27h30M7 33h30'/%3E%3Cpath fill='%23e9d8a6' fill-opacity='.7' d='M14 41h16v2H14zM12 24h10v2H12z'/%3E%3Cg fill='%23101211'%3E%3Cpath transform='translate(50 60) rotate(-76)' d='M0 4 14 2 16 0h28v2h16v1.5H44L40 4h-4l1 6-4 1-2-6.5h-7l-2 3.5h-3l1-3.5-6 1L2 9H0z'/%3E%3Cpath transform='translate(61 60) rotate(-82)' d='M0 4 14 2 16 0h28v2h16v1.5H44L40 4h-4l1 6-4 1-2-6.5h-7l-2 3.5h-3l1-3.5-6 1L2 9H0z'/%3E%3Cpath transform='translate(72 60) rotate(-70)' d='M0 4 14 2 16 0h28v2h16v1.5H44L40 4h-4l1 6-4 1-2-6.5h-7l-2 3.5h-3l1-3.5-6 1L2 9H0z'/%3E%3C/g%3E%3Crect x='80' y='47' width='24' height='13' fill='%234b5320' stroke='%2323270f'/%3E%3Cpath fill='%23e9d8a6' fill-opacity='.75' d='M84 52h16v2H84z'/%3E%3Cg fill='%23d9a441'%3E%3Cpath d='M84 47v-5a1.5 1.5 0 0 1 3 0v5zM89 47v-5a1.5 1.5 0 0 1 3 0v5zM94 47v-5a1.5 1.5 0 0 1 3 0v5z'/%3E%3C/g%3E%3C/svg%3E") 0 100%/auto 74% no-repeat,
+  url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 110 60'%3E%3Cg transform='translate(110 0) scale(-1 1)'%3E%3Cg fill='%236b4a2b' stroke='%23332212' stroke-width='1'%3E%3Crect x='1' y='38' width='42' height='21'/%3E%3Crect x='10' y='24' width='26' height='14'/%3E%3C/g%3E%3Cpath stroke='%23332212' stroke-width='1' d='M1 45h42M1 52h42M10 31h26'/%3E%3Cg fill='%23101211'%3E%3Cpath transform='translate(52 60) rotate(-80)' d='M0 4 14 2 16 0h28v2h16v1.5H44L40 4h-4l1 6-4 1-2-6.5h-7l-2 3.5h-3l1-3.5-6 1L2 9H0z'/%3E%3Cpath transform='translate(64 60) rotate(-72)' d='M0 4 14 2 16 0h28v2h16v1.5H44L40 4h-4l1 6-4 1-2-6.5h-7l-2 3.5h-3l1-3.5-6 1L2 9H0z'/%3E%3C/g%3E%3Crect x='76' y='50' width='28' height='10' fill='%234b5320' stroke='%2323270f'/%3E%3Cg fill='%23d9a441'%3E%3Cpath d='M80 50v-5a1.5 1.5 0 0 1 3 0v5zM85 50v-5a1.5 1.5 0 0 1 3 0v5zM90 50v-5a1.5 1.5 0 0 1 3 0v5zM95 50v-5a1.5 1.5 0 0 1 3 0v5z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E") 100% 100%/auto 66% no-repeat,
+  radial-gradient(ellipse 60% 120% at 50% 0,#fff2c626,transparent 70%),
+  repeating-linear-gradient(90deg,#ffffff08 0 2px,transparent 2px 11px)}
+
+/* Kingpin Luxe: black lacquer, brass pinlines and deco fans. */
+.se-street-sign-backdrop--kingpin-luxe::before{background:
+  radial-gradient(ellipse 22% 70% at 0 100%,transparent 0 40%,#d6a35c66 41% 44%,transparent 45% 60%,#d6a35c4d 61% 63%,transparent 64% 80%,#d6a35c33 81% 83%,transparent 84%),
+  radial-gradient(ellipse 22% 70% at 100% 0,transparent 0 40%,#d6a35c66 41% 44%,transparent 45% 60%,#d6a35c4d 61% 63%,transparent 64% 80%,#d6a35c33 81% 83%,transparent 84%),
+  linear-gradient(162deg,#ffffff1c 0,transparent 32%,transparent 70%,#00000040)}
+.se-street-sign-backdrop--kingpin-luxe::after{inset:5px;border:1px solid #d6a35cb3;outline:1px solid #d6a35c55;outline-offset:2px;border-radius:2px}
+
+/* Neon Underworld: violet and teal glow on a wet street. */
+.se-street-sign-backdrop--neon-underworld::before{background:
+  linear-gradient(180deg,transparent 64%,#b46bff40 70%,transparent 75%,#3df5e033 83%,transparent 88%),
+  radial-gradient(ellipse 60% 120% at 8% 115%,#b46bff70,transparent 70%),
+  radial-gradient(ellipse 50% 110% at 94% -15%,#3df5e055,transparent 70%),
+  repeating-linear-gradient(100deg,transparent 0 17px,#ffffff0b 17px 18px)}
+.se-street-sign-backdrop--neon-underworld::after{inset:5px;border:1.5px solid #e9c8ff;border-radius:3px;box-shadow:0 0 6px #b46bff,inset 0 0 6px #b46bffaa}
+
+/* Winter Heist: frosted corners, snowfall and an icy road edge. */
+.se-street-sign-backdrop--winter-heist::before{background:
+  radial-gradient(ellipse 30% 75% at 0 0,#ffffff66,transparent 75%),
+  radial-gradient(ellipse 30% 75% at 100% 100%,#dff6ff55,transparent 75%),
+  radial-gradient(circle,#ffffffb3 0 1px,transparent 1.6px) 0 0/23px 19px,
+  radial-gradient(circle,#ffffff80 0 .8px,transparent 1.4px) 11px 9px/37px 29px,
+  linear-gradient(0deg,#e8f8ff4d,transparent 24%)}
+.se-street-sign-backdrop--winter-heist::after{inset:4px;border:1px solid #ffffff66;border-radius:3px}
+
+/* Biscayne Sunset: striped deco sun over sea-glass water. */
+.se-street-sign-backdrop--biscayne-sunset::before{background:
+  linear-gradient(0deg,#2fd6c0aa 0 7%,#2fd6c055 7% 11%,transparent 11%),
+  repeating-linear-gradient(180deg,transparent 0 6px,var(--se-sign-bg) 6px 9px) 100% 100%/34% 50% no-repeat,
+  radial-gradient(ellipse 17% 62% at 84% 100%,#ffbf6b 0 98%,transparent 100%),
+  linear-gradient(180deg,#ffb36b66,transparent 65%)}
+.se-street-sign-backdrop--biscayne-sunset::after{inset:5px;border:1px solid #fff8ef80;border-radius:3px}
+
+/* Velvet Speakeasy: merlot velvet lattice under cream pinlines. */
+.se-street-sign-backdrop--velvet-speakeasy::before{background:
+  radial-gradient(ellipse at 50% 40%,#ffffff18,transparent 65%),
+  radial-gradient(ellipse at center,transparent 55%,#00000066),
+  repeating-linear-gradient(45deg,#00000033 0 1px,transparent 1px 13px),
+  repeating-linear-gradient(-45deg,#00000033 0 1px,transparent 1px 13px),
+  radial-gradient(circle,#f7e8c91f 0 1.5px,transparent 2px) 6px 6px/13px 13px}
+.se-street-sign-backdrop--velvet-speakeasy::after{inset:5px;border:1px solid #f7e8c9b3;outline:1px solid #f7e8c955;outline-offset:2px;border-radius:2px}
+
+/* Platinum Funk: seventies stripe arcs and a mirror-ball sparkle. */
+.se-street-sign-backdrop--platinum-funk::before{background:
+  radial-gradient(circle at 92% 20%,#ffffff55 0 3%,transparent 16%),
+  radial-gradient(circle,#ffffff4d 0 .8px,transparent 1.4px) 0 0/19px 15px,
+  radial-gradient(ellipse 22% 110% at 0 100%,transparent 0 60%,#ff5a1f 60% 67%,#ff8a2a 67% 74%,#ffc23a 74% 81%,#e7d9c4 81% 85%,transparent 85%),
+  radial-gradient(ellipse 18% 75% at 100% 100%,transparent 0 52%,#ffc23a99 52% 64%,#ff8a2a99 64% 76%,transparent 76%)}
+.se-street-sign-backdrop--platinum-funk::after{inset:4px;border:1.5px solid #e6e8ec99;border-radius:3px}
+
+/* Redline Syndicate: carbon weave, race stripes and a tail-light trail. */
+.se-street-sign-backdrop--redline-syndicate::before{background:
+  linear-gradient(110deg,transparent 0 73%,#ff3344 73% 77%,transparent 77% 79%,#ff3344 79% 81%,transparent 81%),
+  linear-gradient(0deg,transparent 7%,#ff334477 8% 10%,transparent 11%),
+  linear-gradient(45deg,#ffffff0d 25%,transparent 25% 75%,#ffffff0d 75%) 0 0/6px 6px,
+  linear-gradient(-45deg,#0000004d 25%,transparent 25% 75%,#0000004d 75%) 0 0/6px 6px,
+  linear-gradient(170deg,#ffffff14,transparent 45%)}
+
+/* Wet Paint: mint drips off the top and yellow overspray. */
+.se-street-sign-backdrop--wet-paint::before{background:
+  linear-gradient(#36e2a0,#36e2a0) 0 0/100% 9% no-repeat,
+  radial-gradient(circle at 50% 0,#36e2a0 0 6px,transparent 6.5px) 0 7%/22px 14px repeat-x,
+  linear-gradient(#36e2a0,#36e2a0) 9% 0/3px 46% no-repeat,
+  linear-gradient(#36e2a0,#36e2a0) 24% 0/2px 30% no-repeat,
+  linear-gradient(#36e2a0,#36e2a0) 63% 0/3px 56% no-repeat,
+  linear-gradient(#36e2a0,#36e2a0) 88% 0/2px 38% no-repeat,
+  radial-gradient(circle,#ffe14d99 0 1.2px,transparent 1.8px) 3px 5px/31px 23px,
+  radial-gradient(circle,#ffffff40 0 1px,transparent 1.5px) 17px 11px/43px 27px}
+
+/* Hazard Cook: hazmat yellow between black warning stripes. */
+.se-street-sign-backdrop--hazard-cook::before{background:
+  repeating-linear-gradient(-45deg,#121212 0 7px,transparent 7px 14px) 0 0/100% 15% no-repeat,
+  repeating-linear-gradient(-45deg,#121212 0 7px,transparent 7px 14px) 0 100%/100% 15% no-repeat,
+  linear-gradient(180deg,#ffffff26,transparent 40%,#0000001a)}
+.se-street-sign-backdrop--hazard-cook::after{inset:15% 0;border-block:1px solid #12121266;border-radius:0}
+
+/* Dockside: corrugated container steel, rust and a safety-orange band. */
+.se-street-sign-backdrop--dockside::before{background:
+  linear-gradient(0deg,transparent 8%,#ff8a1f 8% 13%,transparent 13%),
+  radial-gradient(ellipse 20% 45% at 10% 85%,#a0522d66,transparent 70%),
+  radial-gradient(ellipse 16% 40% at 90% 12%,#a0522d55,transparent 70%),
+  linear-gradient(180deg,#ffffff1f,transparent 50%),
+  repeating-linear-gradient(90deg,#ffffff12 0 3px,#00000030 3px 6px,transparent 6px 14px)}
+
+/* Crown Jewels: platinum lattice set with ruby, emerald and sapphire. */
+.se-street-sign-backdrop--crown-jewels::before{background:
+  radial-gradient(circle at 5% 20%,#ff3d5a 0 3px,#ffffff80 3.5px,transparent 4.5px),
+  radial-gradient(circle at 95% 20%,#2ee68a 0 3px,#ffffff80 3.5px,transparent 4.5px),
+  radial-gradient(circle at 5% 80%,#2ee68a 0 3px,#ffffff80 3.5px,transparent 4.5px),
+  radial-gradient(circle at 95% 80%,#ff3d5a 0 3px,#ffffff80 3.5px,transparent 4.5px),
+  radial-gradient(ellipse at 50% 30%,#6f8cff40,transparent 70%),
+  repeating-linear-gradient(60deg,#e8ecff26 0 1px,transparent 1px 17px),
+  repeating-linear-gradient(-60deg,#e8ecff26 0 1px,transparent 1px 17px)}
+.se-street-sign-backdrop--crown-jewels::after{inset:5px;border:1.5px solid #e3e8f8b3;outline:1px solid #ffd76a66;outline-offset:2px;border-radius:2px}
+
+/* Bayou Smoke: gator-hide scales, evening haze and fireflies. */
+.se-street-sign-backdrop--bayou-smoke::before{background:
+  radial-gradient(circle at 14% 28%,#f1ff8c 0 1.5px,#f1ff8c66 2.2px,transparent 6px),
+  radial-gradient(circle at 34% 78%,#f1ff8c 0 1.3px,#f1ff8c55 2px,transparent 5px),
+  radial-gradient(circle at 71% 22%,#f1ff8c 0 1.5px,#f1ff8c66 2.2px,transparent 6px),
+  radial-gradient(circle at 90% 70%,#f1ff8c 0 1.2px,#f1ff8c55 2px,transparent 5px),
+  linear-gradient(0deg,#c8d9a866,transparent 45%),
+  radial-gradient(ellipse 45% 38% at 50% 50%,#00000038 0 60%,transparent 64%) 0 0/16px 11px,
+  radial-gradient(ellipse 45% 38% at 50% 50%,#00000038 0 60%,transparent 64%) 8px 5.5px/16px 11px}
+
+/* Desert Mirage: white sun, canyon strata, turquoise line and heat shimmer. */
+.se-street-sign-backdrop--desert-mirage::before{background:
+  radial-gradient(ellipse 9% 38% at 9% 22%,#fff4d6 0 45%,#fff4d655 55%,transparent 100%),
+  linear-gradient(0deg,#3fc1c9 0 4%,transparent 4%),
+  linear-gradient(180deg,transparent 0 58%,#e39a5866 58% 66%,#f0c38a40 66% 74%,#5e231266 74% 84%,#e39a5840 84%),
+  repeating-linear-gradient(180deg,transparent 0 5px,#ffffff10 5px 6px)}
+
+/* Rewind: CRT scan lines, tracking glitches and split color lettering. */
+.se-street-sign-backdrop--rewind::before{background:
+  linear-gradient(#e04bff,#e04bff) 0 20%/17% 3px no-repeat,
+  linear-gradient(#b6ff3b,#b6ff3b) 74% 72%/22% 2px no-repeat,
+  linear-gradient(#e04bff,#e04bff) 52% 90%/11% 3px no-repeat,
+  linear-gradient(#b6ff3b99,#b6ff3b99) 92% 14%/8% 2px no-repeat,
+  radial-gradient(ellipse at center,#e04bff1f,transparent 60%,#00000080),
+  repeating-linear-gradient(0deg,#ffffff0d 0 1px,transparent 1px 3px)}
+.se-street-sign-backdrop--rewind .se-street-sign-preview__name{text-shadow:-1.5px 0 #e04bffcc,1.5px 0 #3bffd0aa}
+
+/* Snake Eyes: green felt under a low lamp, with the four suits. */
+.se-street-sign-backdrop--snake-eyes::before{background:
+  radial-gradient(ellipse 70% 100% at 50% 0,#fff6d640,transparent 75%),
+  radial-gradient(ellipse at center,transparent 50%,#00000070),
+  radial-gradient(circle,#ffffff0e 0 .6px,transparent 1px) 0 0/3px 3px}
+.se-street-sign-backdrop--snake-eyes::after{content:"\2660\2665\2663\2666";inset:6% auto auto 5%;color:#fdf8ea66;font:700 11px/1 Georgia,serif;letter-spacing:3px;border-radius:0}
+
+/* Quarter Mile: checkered strip, start lights and tuner livery. */
+.se-street-sign-backdrop--quarter-mile::before{background:
+  radial-gradient(circle at 84% 18%,#ffb000 0 3px,transparent 3.6px),
+  radial-gradient(circle at 88% 18%,#ffb000 0 3px,transparent 3.6px),
+  radial-gradient(circle at 92% 18%,#3dff6a 0 3px,#3dff6a55 4.5px,transparent 7px),
+  conic-gradient(#f4f4f4 25%,#111 0 50%,#f4f4f4 0 75%,#111 0) 0 100%/8px 8px repeat-x,
+  linear-gradient(100deg,transparent 0 6%,#ffffff2e 6% 10%,transparent 10% 12%,#ffd40055 12% 14%,transparent 14%),
+  linear-gradient(170deg,#ffffff18,transparent 50%)}
+
+/* 88 Club: flux glow, twin fire trails and a lightning strike. */
+.se-street-sign-backdrop--88-club::before{background:
+  linear-gradient(#ff9a2e,#ff9a2e) 0 81%/58% 2px no-repeat,
+  linear-gradient(#ffd27a,#ffd27a) 0 89%/68% 2px no-repeat,
+  linear-gradient(90deg,#ff5a1f66,transparent 70%) 0 78%/68% 14% no-repeat,
+  radial-gradient(ellipse 70% 90% at 50% 120%,#4fd2ff66,transparent 70%),
+  radial-gradient(ellipse 30% 80% at 92% 0,#bff3ff40,transparent 70%)}
+.se-street-sign-backdrop--88-club::after{inset:6% 6% auto auto;width:7%;height:62%;background:#dff8ff;clip-path:polygon(60% 0,15% 52%,45% 52%,20% 100%,90% 38%,55% 38%,85% 0);filter:drop-shadow(0 0 3px #4fd2ff);border-radius:0}
+
+/* Swamp Kingdom: loch ripples, reeds and an orange fin breaking the water. */
+.se-street-sign-backdrop--swamp-kingdom::before{background:
+  linear-gradient(#7fa543,#7fa543) 3% 100%/2px 44% no-repeat,
+  linear-gradient(#6f8f3a,#6f8f3a) 5% 100%/2px 62% no-repeat,
+  linear-gradient(#8fb550,#8fb550) 6.6% 100%/2px 36% no-repeat,
+  repeating-radial-gradient(ellipse 60% 40% at 82% 105%,transparent 0 6px,#ffffff16 6px 7px),
+  linear-gradient(0deg,#16260b99,transparent 45%)}
+.se-street-sign-backdrop--swamp-kingdom::after{inset:auto 7% 0 auto;width:9%;height:28%;background:linear-gradient(90deg,#ff9a3c,#e2671f);clip-path:polygon(0 100%,40% 0,100% 100%);border-radius:0}
+
+/* Zombie Apocalypse: boarded-up planks, a nailed cross brace and an orange spray slash. */
+.se-street-sign-backdrop--zombie-apocalypse::before{background:
+  linear-gradient(158deg,transparent 0 44%,#6b5638 44% 56%,transparent 56%) 0 0/20% 100% no-repeat,
+  radial-gradient(ellipse 30% 60% at 85% 80%,#ff6b2c26,transparent 70%),
+  radial-gradient(ellipse at 20% 30%,#00000040,transparent 50%),
+  repeating-linear-gradient(180deg,transparent 0 calc(33.33% - 2px),#0000008c calc(33.33% - 2px) 33.33%),
+  repeating-linear-gradient(90deg,#ffffff07 0 2px,transparent 2px 9px)}
+.se-street-sign-backdrop--zombie-apocalypse::after{inset:auto 4% 9% auto;width:14%;height:18%;background:#ff6b2c;clip-path:polygon(0 70%,100% 0,100% 30%,0 100%);opacity:.75;border-radius:0}
+
+/* Graveyard Shift: ghost-green moonlight over a wrought-iron fence. */
+.se-street-sign-backdrop--graveyard-shift::before{background:
+  radial-gradient(ellipse 8% 30% at 91% 22%,#f4fff7 0 50%,#a8f0c655 65%,transparent 100%),
+  radial-gradient(ellipse at 50% 30%,#a8f0c62e,transparent 65%),
+  radial-gradient(circle at 1px 50%,#05090799 0 2.5px,transparent 3px) 0 64%/14px 7px repeat-x,
+  linear-gradient(#05090799,#05090799) 0 76%/100% 2px no-repeat,
+  repeating-linear-gradient(90deg,#05090799 0 2px,transparent 2px 14px) 0 100%/100% 34% no-repeat}
+
+/* Naughty List: candy-cane stripes and a foil-green ribbon. */
+.se-street-sign-backdrop--naughty-list::before{background:
+  linear-gradient(90deg,transparent 0 8%,#ffd76a 8% 8.6%,#2fae58 8.6% 13.4%,#ffd76a 13.4% 14%,transparent 14%),
+  repeating-linear-gradient(-55deg,#ffffff26 0 9px,transparent 9px 21px),
+  linear-gradient(180deg,#ffffff1a,transparent 45%)}
+
+/* Heartbreaker: crimson satin, black roses and a thorned vine. */
+.se-street-sign-backdrop--heartbreaker::before{background:
+  radial-gradient(circle at 6% 84%,#0d0206 0 2px,#3a0612 2px 4px,#0d0206 4px 6px,#2a040d 6px 8px,#0d0206 8px 9.5px,transparent 10px),
+  radial-gradient(circle at 12% 70%,#0d0206 0 1.5px,#3a0612 1.5px 3px,#0d0206 3px 4.5px,#2a040d 4.5px 6px,transparent 6.5px),
+  radial-gradient(circle at 94% 18%,#0d0206 0 2px,#3a0612 2px 4px,#0d0206 4px 6px,#2a040d 6px 8px,#0d0206 8px 9.5px,transparent 10px),
+  linear-gradient(160deg,transparent 0 60%,#0d020699 60% 61.5%,transparent 61.5%) 0 0/24% 100% no-repeat,
+  linear-gradient(120deg,#ffffff14 0 18%,transparent 34%,#ffffff10 54%,transparent 70%)}
+.se-street-sign-backdrop--heartbreaker::after{inset:5px;border:1px solid #ff4d6d80;border-radius:3px}
+
+/* Block Party: mango sun, confetti and a hydrant-red curb. */
+.se-street-sign-backdrop--block-party::before{background:
+  radial-gradient(ellipse 12% 50% at 7% 12%,#ffb627 0 48%,#ffb62755 60%,transparent 100%),
+  linear-gradient(0deg,#e5322d 0 6%,#ffffffaa 6% 7.5%,transparent 7.5%),
+  radial-gradient(circle,#ff4d4d 0 1.5px,transparent 2px) 0 0/27px 21px,
+  radial-gradient(circle,#ffd400 0 1.3px,transparent 1.8px) 9px 7px/31px 19px,
+  radial-gradient(circle,#ffffffcc 0 1px,transparent 1.6px) 4px 13px/23px 29px}
+
+/* Smaller signs: pull frame insets in so they never crowd the lettering. */
+.se-street-sign-display--compact .se-street-sign-backdrop::after,
+.se-street-sign-builder__backdrop-swatch.se-street-sign-backdrop::after{inset:3px}
+.se-street-sign-display--compact .se-street-sign-backdrop--snake-eyes::after{inset:5% auto auto 4%;font-size:8px;letter-spacing:1px}
+
+/* Backdrop picker */
+.se-street-sign-builder__backdrops{min-width:0;margin:0;padding:0;border:0}
+.se-street-sign-builder__backdrops legend{margin-bottom:9px;font-size:.78rem;font-weight:700}
+.se-street-sign-builder__backdrop-options{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:8px;max-height:332px;overflow-y:auto;padding:2px}
+.se-street-sign-builder__backdrop-choice{display:grid;gap:3px;min-width:0;min-height:44px;padding:7px;border:1px solid var(--se-border,#373e36);border-radius:10px;background:var(--se-surface-raised,#202520);color:inherit;text-align:left;font:inherit;cursor:pointer}
+.se-street-sign-builder__backdrop-choice.is-selected{border-color:var(--se-accent,#b0df62);box-shadow:0 0 0 2px color-mix(in srgb,var(--se-accent,#b0df62) 18%,transparent)}
+.se-street-sign-builder__backdrop-choice.is-locked{cursor:not-allowed}
+.se-street-sign-builder__backdrop-choice.is-locked .se-street-sign-builder__backdrop-swatch{filter:grayscale(.85) brightness(.6)}
+.se-street-sign-builder__backdrop-swatch{position:relative;display:block;height:38px;border:2px solid #aeb4b0;border-radius:4px;box-shadow:inset 0 0 0 1px #ffffff99}
+.se-street-sign-builder__backdrop-name{overflow:hidden;font-size:.76rem;font-weight:700;text-overflow:ellipsis;white-space:nowrap}
+.se-street-sign-builder__backdrop-choice small{overflow:hidden;color:var(--se-text-muted,#a6ada2);font-size:.66rem;text-overflow:ellipsis;white-space:nowrap}
+.se-street-sign-builder__backdrop-swatch.se-street-sign-backdrop--snake-eyes::after{inset:4px auto auto 4px;font-size:7px;letter-spacing:1px}
+.se-street-sign-builder__backdrop-choice:focus-visible{outline:3px solid var(--se-accent,#b0df62);outline-offset:3px}
+@media(max-width:520px){.se-street-sign-builder__backdrop-options{grid-template-columns:repeat(2,minmax(0,1fr));max-height:300px}}

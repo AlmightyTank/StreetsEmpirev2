@@ -64,4 +64,14 @@
 - [x] Document the rollout and rollback path in `docs/STREET-SIGN-BUILDER-RELEASE.md`.
 - [ ] Run the authenticated desktop/mobile browser visual and axe matrix against the beta API before public rollout.
 
-**Done when:** automated checks pass, the authenticated desktop/mobile browser matrix is reviewed, and rollback can disable the feature without data loss. Local code/release checks are complete; authenticated beta-browser sign-off remains a deployment check because it requires the beta runtime and a player session.
+**Done when:** automated checks pass, the authenticated desktop/mobile browser matrix is reviewed, and rollback can disable the feature without data loss.
+
+### Slice G — Sign backdrops
+
+- [x] Bump the saved design to v3 with a `backdrop` key; v1 and v2 designs (saved or from open tabs) read as `plain`.
+- [x] Add one printed backdrop per Drop collection (`STREET_SIGN_BACKDROPS` in `@streets/shared`), unlocked by owning that collection's shell theme, alone or in its bundle. These are never sold separately.
+- [x] Sell backdrops with no shell theme as Street Singles on The Drop (`STREET_SIGN_BACKDROP` kind, `SIGN` preview): Downtown, New York, Chicago, Las Vegas, Miami Beach, Seattle and San Francisco skylines, plus the Gun Stockpile.
+- [x] Enforce ownership on the server (`options.streetSignBackdrops` lists owned keys); show locked backdrops in the picker with where to get them.
+- [x] Server tests pair every shell with exactly one backdrop and every sold backdrop with its Drop item; a shared test keeps every default palette at readable contrast.
+
+The art is CSS only (`street-sign-backdrops.css`): gradients for the collection prints and inline SVG silhouettes for the skylines and stockpile. No uploads, the same as the rest of the builder. Local code/release checks are complete; authenticated beta-browser sign-off remains a deployment check because it requires the beta runtime and a player session.

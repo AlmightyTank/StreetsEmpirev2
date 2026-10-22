@@ -1,6 +1,6 @@
 import { Prisma, type AccountProfile, type PrismaClient } from '@prisma/client';
-import { classicOgStreetPassA, classicOgV07AA } from '@streets/rulesets';
-import { AVATAR_UNLOCKS, DEFAULT_AVATAR_PARTS, type UpdateAccountProfileSettingsInput } from '@streets/shared';
+import { classicOgStreetPassA, classicOgV07AA, DROP_COLLECTIONS, DROP_ITEMS } from '@streets/rulesets';
+import { AVATAR_UNLOCKS, DEFAULT_AVATAR_PARTS, STREET_SIGN_BACKDROPS, type UpdateAccountProfileSettingsInput } from '@streets/shared';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AccountProfileService, PROFILE_EFFECTS } from '../account-profile.service.js';
 import { RoundService } from '../round.service.js';
@@ -149,7 +149,8 @@ describe('AccountProfileService admin site theme QA', () => {
   it('saves a street sign design and keeps it when older settings omit the field', async () => {
     const prisma = prismaFor(false);
     const streetSign = {
-      version: 2 as const,
+      version: 3 as const,
+      backdrop: 'plain' as const,
       shape: 'wide' as const,
       streetName: 'Cedar Avenue',
       streetType: 'AVE' as const,
@@ -177,7 +178,7 @@ describe('AccountProfileService admin site theme QA', () => {
 
   it('requires the earned font or graffiti pack before saving its styles', async () => {
     const streetSign = {
-      version: 2 as const, shape: 'classic' as const, streetName: 'Cedar', streetType: 'ST' as const,
+      version: 3 as const, backdrop: 'plain' as const, shape: 'classic' as const, streetName: 'Cedar', streetType: 'ST' as const,
       font: 'sign-painter' as const, tag: 'NIGHT SHIFT', tagFont: 'graffiti-script' as const,
       tagScale: 'medium' as const, tagPlacement: 'lower-right' as const, trim: 'double' as const,
       shadow: 'soft' as const, treatment: 'reflective' as const, backgroundColor: '#00691d',
@@ -199,13 +200,77 @@ describe('AccountProfileService admin site theme QA', () => {
     })).rejects.toMatchObject({ code: 'COSMETIC_NOT_EARNED' });
   });
 
+  it('pairs every Drop shell theme with exactly one street sign backdrop', () => {
+    const shellStyleKeys = Object.values(DROP_ITEMS)
+      .filter((item) => item.kind === 'SITE_THEME' && item.category === 'SHELLS')
+      .map((item) => item.styleKey);
+    const collectionBackdrops = STREET_SIGN_BACKDROPS.filter((backdrop) => backdrop.themeKey !== null);
+    expect(collectionBackdrops.map((backdrop) => backdrop.themeKey).sort()).toEqual([...shellStyleKeys].sort());
+    for (const backdrop of collectionBackdrops) {
+      expect(DROP_COLLECTIONS[backdrop.key as keyof typeof DROP_COLLECTIONS]?.name, backdrop.key).toBe(backdrop.collection);
+      expect(backdrop.dropKey, backdrop.key).toBeNull();
+    }
+  });
+
+  it('sells every backdrop without a shell theme as a Drop item of the same style key', () => {
+    const soldItems = Object.values(DROP_ITEMS).filter((item) => item.kind === 'STREET_SIGN_BACKDROP');
+    const soldBackdrops = STREET_SIGN_BACKDROPS.filter((backdrop) => backdrop.themeKey === null);
+    expect(soldBackdrops.length).toBeGreaterThan(0);
+    expect(soldItems.map((item) => item.key).sort()).toEqual(soldBackdrops.map((backdrop) => backdrop.dropKey).sort());
+    for (const backdrop of soldBackdrops) {
+      const item = DROP_ITEMS[backdrop.dropKey!];
+      expect(item?.styleKey, backdrop.key).toBe(backdrop.key);
+      expect(item?.preview).toEqual({ type: 'SIGN' });
+    }
+  });
+
+  it('lets a backdrop bought on The Drop be saved and lists it as owned', async () => {
+    const streetSign = {
+      version: 3 as const, backdrop: 'skyline-chicago' as const, shape: 'wide' as const, streetName: 'Cedar', streetType: 'ST' as const,
+      font: 'road-condensed' as const, tag: '', tagFont: 'handstyle' as const,
+      tagScale: 'medium' as const, tagPlacement: 'lower-right' as const, trim: 'double' as const,
+      shadow: 'soft' as const, treatment: 'reflective' as const, backgroundColor: '#23324f',
+      textColor: '#ffffff', tagColor: '#7fd3ff',
+    };
+    await expect(AccountProfileService.update(prismaFor(false), 'account-1', {
+      ...updateInput, crewName: 'Cedar', activeSiteThemeKey: null, streetSign,
+    })).rejects.toMatchObject({ code: 'COSMETIC_NOT_EARNED' });
+
+    const bought = prismaFor(false, [{
+      key: 'drop-street-singles-sign-skyline-chicago', kind: 'STREET_SIGN_BACKDROP', title: 'Chicago Skyline Sign',
+      description: '', styleKey: 'skyline-chicago', awardedAt: new Date(0),
+    }, themeUnlock('rewind-shell')]);
+    const saved = await AccountProfileService.update(bought, 'account-1', { ...updateInput, crewName: 'Cedar', activeSiteThemeKey: null, streetSign });
+    expect(saved.settings.streetSign?.backdrop).toBe('skyline-chicago');
+    expect(saved.options.streetSignBackdrops).toEqual(['rewind', 'skyline-chicago']);
+  });
+
+  it('requires the matching shell theme before saving a collection backdrop', async () => {
+    const streetSign = {
+      version: 3 as const, backdrop: 'wet-paint' as const, shape: 'classic' as const, streetName: 'Cedar', streetType: 'ST' as const,
+      font: 'road-condensed' as const, tag: '', tagFont: 'handstyle' as const,
+      tagScale: 'medium' as const, tagPlacement: 'lower-right' as const, trim: 'double' as const,
+      shadow: 'soft' as const, treatment: 'reflective' as const, backgroundColor: '#0d5f47',
+      textColor: '#ffffff', tagColor: '#ffe14d',
+    };
+    await expect(AccountProfileService.update(prismaFor(false, [themeUnlock('rewind-shell')]), 'account-1', {
+      ...updateInput, crewName: 'Cedar', activeSiteThemeKey: null, streetSign,
+    })).rejects.toMatchObject({ code: 'COSMETIC_NOT_EARNED' });
+
+    const saved = await AccountProfileService.update(prismaFor(false, [themeUnlock('wet-paint-shell')]), 'account-1', {
+      ...updateInput, crewName: 'Cedar', activeSiteThemeKey: null, streetSign,
+    });
+    expect(saved.settings.streetSign?.backdrop).toBe('wet-paint');
+  });
+
   it('rejects a severe slur in street sign text', async () => {
     await expect(AccountProfileService.update(prismaFor(false), 'account-1', {
       ...updateInput,
       activeSiteThemeKey: null,
       crewName: `Bad n${'ig' + 'ger'} street`,
       streetSign: {
-        version: 2,
+        version: 3,
+        backdrop: 'plain',
         shape: 'classic',
         streetName: `Bad n${'ig' + 'ger'} street`,
         streetType: 'ST',

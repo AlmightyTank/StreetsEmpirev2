@@ -868,6 +868,7 @@ export function AccountSettingsPage() {
                   crewName={cosmetics.crewName}
                   savedValue={profileSettings?.settings.streetSign ?? null}
                   unlockedFontPacks={profileSettings?.options.streetSignFontPacks ?? []}
+                  ownedBackdrops={profileSettings?.options.streetSignBackdrops ?? []}
                   onChange={(streetSign) => setCosmetics((current) => ({ ...current, streetSign }))}
                 />
 

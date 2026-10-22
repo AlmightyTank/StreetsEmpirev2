@@ -66,7 +66,7 @@ export const QuestCosmeticService = {
   async optionsForAccount(
     db: Db | PrismaClient,
     accountId: string,
-    kind: 'ACCENT' | 'PROFILE_FRAME' | 'SITE_THEME' | 'ITEM_COLLECTION' | 'HIDEOUT_DECOR' | 'STREET_SIGN' | 'STREET_SIGN_FONT_PACK' | 'CREW_BANNER',
+    kind: 'ACCENT' | 'PROFILE_FRAME' | 'SITE_THEME' | 'ITEM_COLLECTION' | 'HIDEOUT_DECOR' | 'STREET_SIGN' | 'STREET_SIGN_FONT_PACK' | 'STREET_SIGN_BACKDROP' | 'CREW_BANNER',
   ): Promise<CosmeticOptionDto[]> {
     const rows = await db.accountCosmeticUnlock.findMany({
       where: { accountId, kind },

@@ -1,4 +1,5 @@
-import { DEFAULT_STREET_SIGN, STREET_SIGN_FONTS, STREET_SIGN_FONT_PACKS, STREET_SIGN_SHADOWS, STREET_SIGN_STREET_TYPES, STREET_SIGN_TAG_MAX, STREET_SIGN_TAG_PLACEMENTS, STREET_SIGN_TAG_SCALES, STREET_SIGN_TEXT_MAX, STREET_SIGN_TREATMENTS, STREET_SIGN_TRIMS, STREET_SIGN_VERSION, type StreetSignDesign } from '@streets/shared';
+import type { CSSProperties } from 'react';
+import { DEFAULT_STREET_SIGN, STREET_SIGN_BACKDROPS, STREET_SIGN_FONTS, STREET_SIGN_FONT_PACKS, STREET_SIGN_SHADOWS, STREET_SIGN_STREET_TYPES, STREET_SIGN_TAG_MAX, STREET_SIGN_TAG_PLACEMENTS, STREET_SIGN_TAG_SCALES, STREET_SIGN_TEXT_MAX, STREET_SIGN_TREATMENTS, STREET_SIGN_TRIMS, STREET_SIGN_VERSION, streetSignBackdropFor, type StreetSignDesign } from '@streets/shared';
 
 const FONT_LABELS: Record<(typeof STREET_SIGN_FONTS)[number], string> = {
   'road-condensed': 'Road Condensed',
@@ -26,6 +27,15 @@ const TRIM_LABELS = { single: 'Single steel edge', double: 'Double steel edge', 
 const SHADOW_LABELS = { soft: 'Soft shadow', strong: 'Deep shadow', none: 'No shadow' } as const;
 const TREATMENT_LABELS = { reflective: 'Reflective', municipal: 'Clean enamel', weathered: 'Weathered metal' } as const;
 
+/** Face class and colors shared by the live preview, the public display and the backdrop tiles. */
+function signFace(design: Pick<StreetSignDesign, 'backdrop' | 'backgroundColor' | 'textColor'>, base = 'se-street-sign-preview__face') {
+  const themed = design.backdrop !== 'plain';
+  return {
+    className: themed ? `${base} se-street-sign-backdrop se-street-sign-backdrop--${design.backdrop}` : base,
+    style: { backgroundColor: design.backgroundColor, color: design.textColor, '--se-sign-bg': design.backgroundColor } as CSSProperties,
+  };
+}
+
 function channel(value: number): number {
   const srgb = value / 255;
   return srgb <= 0.04045 ? srgb / 12.92 : ((srgb + 0.055) / 1.055) ** 2.4;
@@ -46,10 +56,12 @@ interface StreetSignBuilderProps {
   crewName?: string | null;
   savedValue?: StreetSignDesign | null;
   unlockedFontPacks?: readonly string[];
+  /** Backdrop keys the account owns, from its shell themes and Drop purchases. */
+  ownedBackdrops?: readonly string[];
   onChange: (value: StreetSignDesign | null) => void;
 }
 
-export function StreetSignBuilder({ value, crewName = '', savedValue = null, unlockedFontPacks = [], onChange }: StreetSignBuilderProps) {
+export function StreetSignBuilder({ value, crewName = '', savedValue = null, unlockedFontPacks = [], ownedBackdrops = [], onChange }: StreetSignBuilderProps) {
   const design = { ...(value ?? DEFAULT_STREET_SIGN), streetName: (crewName ?? '').trim() };
   const hasDraftChanges = JSON.stringify(value ?? null) !== JSON.stringify(savedValue ?? null);
   const textNeedsContrastHelp = streetSignContrastRatio(design.textColor, design.backgroundColor) < 4.5;
@@ -62,6 +74,8 @@ export function StreetSignBuilder({ value, crewName = '', savedValue = null, unl
     const pack = fontPackFor(font);
     return !pack || (pack[slot] && unlockedFontPacks.includes(pack.key));
   };
+  const lockedBackdropHint = (backdrop: (typeof STREET_SIGN_BACKDROPS)[number]) => backdrop.themeKey ? `${backdrop.collection} shell` : 'On The Drop';
+  const activeBackdrop = streetSignBackdropFor(design.backdrop);
   const lockedFontHint = STREET_SIGN_FONT_PACKS.filter((pack) => !unlockedFontPacks.includes(pack.key)).map((pack) => `${pack.label} · level ${pack.level}`).join(' · ');
 
   return (
@@ -80,7 +94,7 @@ export function StreetSignBuilder({ value, crewName = '', savedValue = null, unl
       </header>
 
       <div className={`se-street-sign-preview se-street-sign-preview--${design.shape} se-street-sign-trim--${design.trim} se-street-sign-shadow--${design.shadow} se-street-sign-treatment--${design.treatment}`} role="img" aria-label={`Live preview of ${design.shape} metal street sign with ${TREATMENT_LABELS[design.treatment].toLowerCase()} finish`}>
-        <div className="se-street-sign-preview__face" style={{ backgroundColor: design.backgroundColor, color: design.textColor }}>
+        <div {...signFace(design)}>
           <span className="se-street-sign-preview__bolt se-street-sign-preview__bolt--left" aria-hidden="true" />
           <span className="se-street-sign-preview__bolt se-street-sign-preview__bolt--right" aria-hidden="true" />
           <div className="se-street-sign-preview__lettering">
@@ -98,6 +112,46 @@ export function StreetSignBuilder({ value, crewName = '', savedValue = null, unl
       ) : null}
 
       <div className="se-street-sign-builder__fields">
+        <fieldset className="se-street-sign-builder__backdrops">
+          <legend>Sign backdrop</legend>
+          <div className="se-street-sign-builder__backdrop-options">
+            <button
+              type="button"
+              className={`se-street-sign-builder__backdrop-choice${design.backdrop === 'plain' ? ' is-selected' : ''}`}
+              aria-pressed={design.backdrop === 'plain'}
+              onClick={() => update({ backdrop: 'plain' })}
+            >
+              <span {...signFace({ backdrop: 'plain', backgroundColor: design.backgroundColor, textColor: design.textColor }, 'se-street-sign-builder__backdrop-swatch')} aria-hidden="true" />
+              <span className="se-street-sign-builder__backdrop-name">Plain</span>
+              <small>Any sign color</small>
+            </button>
+            {STREET_SIGN_BACKDROPS.map((backdrop) => {
+              const owned = ownedBackdrops.includes(backdrop.key);
+              const selected = design.backdrop === backdrop.key;
+              return (
+                <button
+                  key={backdrop.key}
+                  type="button"
+                  className={`se-street-sign-builder__backdrop-choice${selected ? ' is-selected' : ''}${owned ? '' : ' is-locked'}`}
+                  aria-pressed={selected}
+                  disabled={!owned && !selected}
+                  title={owned ? `${backdrop.label} · ${backdrop.collection}` : backdrop.themeKey ? `Comes with the ${backdrop.collection} shell theme` : 'Sold on The Drop as a Street Singles piece'}
+                  onClick={() => update({ backdrop: backdrop.key, backgroundColor: backdrop.background, textColor: backdrop.text, tagColor: backdrop.tag })}
+                >
+                  <span {...signFace({ backdrop: backdrop.key, backgroundColor: backdrop.background, textColor: backdrop.text }, 'se-street-sign-builder__backdrop-swatch')} aria-hidden="true" />
+                  <span className="se-street-sign-builder__backdrop-name">{backdrop.label}</span>
+                  <small>{owned ? backdrop.collection : lockedBackdropHint(backdrop)}</small>
+                </button>
+              );
+            })}
+          </div>
+          <p className="se-street-sign-builder__hint">
+            {activeBackdrop
+              ? `${activeBackdrop.themeKey ? `${activeBackdrop.label} comes with the ${activeBackdrop.collection} shell theme.` : `${activeBackdrop.label} is a Street Singles piece from The Drop.`} Picking it sets its colors; you can still change them below.`
+              : 'Every Drop shell theme you own unlocks a matching backdrop. City skylines and the stockpile are sold on The Drop.'}
+          </p>
+        </fieldset>
+
         <fieldset className="se-street-sign-builder__shape">
           <legend>Sign shape</legend>
           <div className="se-street-sign-builder__shape-options">
@@ -217,7 +271,7 @@ export function StreetSignDisplay({ design, compact = false }: { design: StreetS
   if (!design) return null;
   return (
     <div className={`se-street-sign-preview se-street-sign-display${compact ? ' se-street-sign-display--compact' : ''} se-street-sign-preview--${design.shape} se-street-sign-trim--${design.trim} se-street-sign-shadow--${design.shadow} se-street-sign-treatment--${design.treatment}`} role="img" aria-label={`${design.streetName} ${design.streetType} metal street sign`}>
-      <div className="se-street-sign-preview__face" style={{ backgroundColor: design.backgroundColor, color: design.textColor }}>
+      <div {...signFace(design)}>
         <span className="se-street-sign-preview__bolt se-street-sign-preview__bolt--left" aria-hidden="true" />
         <span className="se-street-sign-preview__bolt se-street-sign-preview__bolt--right" aria-hidden="true" />
         <div className="se-street-sign-preview__lettering">

@@ -379,6 +379,8 @@ export interface AccountProfileSettingsResponseDto {
     avatarUnlocks?: string[];
     /** Permanent sign font packs earned through account progression. */
     streetSignFontPacks?: string[];
+    /** Street sign backdrop keys this account owns (shell themes plus Drop purchases). */
+    streetSignBackdrops?: string[];
     densities: CosmeticOptionDto[];
     moneyFormats: CosmeticOptionDto[];
     defaultLandings: CosmeticOptionDto[];
