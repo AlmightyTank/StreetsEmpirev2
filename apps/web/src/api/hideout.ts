@@ -11,6 +11,8 @@ import type {
   HideoutV2Dto,
   HideoutCosmeticsDto,
   UpdateHideoutCosmeticsInput,
+  StashDto,
+  UpdateStashLayoutInput,
 } from '@streets/shared';
 import { api } from './client.js';
 
@@ -57,4 +59,6 @@ export const hideoutApi = {
     api.post<GameActionResult<HideoutWeaponPriorityResult>>('/game/hideout/armory/priority', input),
   specialize: (input: HideoutSpecializationInput) =>
     api.post<GameActionResult<HideoutSpecializationResult>>('/game/hideout/specialization', input),
+  stash: () => api.get<StashDto>('/game/hideout/stash'),
+  saveStashLayout: (input: UpdateStashLayoutInput) => api.put<StashDto>('/game/hideout/stash/layout', input),
 };

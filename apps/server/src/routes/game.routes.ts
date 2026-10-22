@@ -55,6 +55,7 @@ import { ScoutService } from '../services/scout.service.js';
 import { toState } from '../services/action.service.js';
 import { StoreService } from '../services/store.service.js';
 import { HideoutService } from '../services/hideout.service.js';
+import { StashService } from '../services/stash.service.js';
 import { HideoutCosmeticService } from '../services/hideout-cosmetic.service.js';
 import { ArmoryService } from '../services/armory.service.js';
 import { parseBody } from '../utils/validate.js';
@@ -567,6 +568,21 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
       toState(settled.player),
       settled.products,
     );
+  });
+
+  fastify.get('/hideout/stash', { preHandler: fastify.requireAuth }, async (request) => {
+    const { player } = await requirePlayer(request.auth!.account.id);
+    return StashService.page(fastify.prisma, player.id);
+  });
+
+  fastify.put('/hideout/stash/layout', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(z.object({ items: z.array(z.object({
+      key: z.enum(['CONDOM', 'MEDICINE', 'BEER', 'AMMO_BOX', 'PARTS_BOX', 'PISTOL', 'SHOTGUN', 'TEK9', 'AK47', 'LOW_RIDER', 'SEDAN', 'VAN']),
+      x: z.number().int().min(0).max(9),
+      y: z.number().int().min(0).max(5),
+    }).strict()).max(12) }).strict(), request.body);
+    const { player } = await requirePlayer(request.auth!.account.id);
+    return StashService.saveLayout(fastify.prisma, player.id, body);
   });
 
   fastify.get('/armory', { preHandler: fastify.requireAuth }, async (request) => {

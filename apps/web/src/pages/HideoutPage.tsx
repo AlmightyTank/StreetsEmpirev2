@@ -10,6 +10,8 @@ import type {
   HideoutV2Dto,
   HideoutCosmeticsDto,
   TravelDto,
+  StashDto,
+  StashItemDto,
 } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
 import { hideoutApi } from '../api/hideout.js';
@@ -27,6 +29,7 @@ import { ItemLabel, ItemTile } from '../components/ItemTile.js';
 import { hasItemArt } from '../items/itemArt.js';
 import { EmpirePageHeader } from '../components/EmpireManagement.js';
 import { StreetSignDisplay } from '../components/StreetSignBuilder.js';
+import { StashGrid } from '../components/StashGrid.js';
 
 function securityTierLabel(tier: NonNullable<HideoutV2Dto['security']>['reconWarningTier']): string {
   if (tier === 'SOURCE') return 'Named warnings';
@@ -300,6 +303,9 @@ export function HideoutPage() {
   const [cosmetics, setCosmetics] = useState<HideoutCosmeticsDto | null>(null);
   const [cosmeticBusy, setCosmeticBusy] = useState(false);
   const [cosmeticError, setCosmeticError] = useState<string | null>(null);
+  const [stash, setStash] = useState<StashDto | null>(null);
+  const [stashError, setStashError] = useState<string | null>(null);
+  const [stashBusy, setStashBusy] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -312,6 +318,9 @@ export function HideoutPage() {
       .catch((caught: unknown) => {
         if (active) setLoadError(caught instanceof ApiError ? caught.message : 'Could not load the hideout.');
       });
+    hideoutApi.stash()
+      .then((data) => { if (active) { setStash(data); setStashError(null); } })
+      .catch((caught: unknown) => { if (active) setStashError(caught instanceof ApiError ? caught.message : 'Could not load the supply stash.'); });
     hideoutApi.cosmetics().then((data) => { if (active) setCosmetics(data); }).catch(() => { if (active) setCosmetics(null); });
 
     api.get<TravelDto>('/game/travel')
@@ -319,7 +328,19 @@ export function HideoutPage() {
       .catch(() => { if (active) setTravel(null); });
 
     return () => { active = false; };
-  }, [me?.resources.cashCents, reload]);
+  }, [me?.resources.cashCents, me?.resources.condoms, me?.resources.medicine, me?.resources.beer, me?.resources.ammo, me?.resources.vehicleParts, me?.resources.pistols, me?.resources.shotguns, me?.resources.tek9s, me?.resources.ak47s, me?.resources.lowRiders, me?.resources.sedans, me?.resources.vans, reload]);
+
+  async function saveStash(items: Array<Pick<StashItemDto, 'key' | 'x' | 'y'>>) {
+    setStashBusy(true);
+    setStashError(null);
+    try {
+      setStash(await hideoutApi.saveStashLayout({ items }));
+    } catch (caught) {
+      setStashError(caught instanceof ApiError ? caught.message : 'Could not save the stash layout.');
+    } finally {
+      setStashBusy(false);
+    }
+  }
 
   async function saveCosmetics(decorationKey: string | null, streetSignKey: string | null) {
     setCosmeticBusy(true);
@@ -418,6 +439,14 @@ export function HideoutPage() {
         {action.error ? <Alert>{action.error}</Alert> : null}
         {specializationAction.error ? <Alert>{specializationAction.error}</Alert> : null}
         {cosmeticError ? <Alert>{cosmeticError}</Alert> : null}
+        {stashError ? <Alert>{stashError}</Alert> : null}
+
+        {me && stash ? (
+          <section id="hideout-stash" className="se-hideout-section">
+            <SectionHeading eyebrow="Inventory" title="Your stash" copy="Arrange your owned items in the hideout grid. Store, Armory, and Garage balances remain connected to this stock." />
+            <StashGrid stash={stash} busy={stashBusy} onSave={(items) => void saveStash(items)} />
+          </section>
+        ) : null}
 
         {!hideout && !loadError ? (
           <Panel title="Loading"><p className="se-muted">Checking the locks...</p></Panel>
@@ -433,6 +462,7 @@ export function HideoutPage() {
           <>
             <nav className="se-hideout-nav" aria-label="Hideout sections">
               <a href="#hideout-overview">Overview</a>
+              <a href="#hideout-stash">Stash</a>
               <a href="#hideout-look">Look</a>
               <a href="#hideout-upgrades">Upgrades <span>{formatNumber(readyRooms.length)}</span></a>
               {hasSecurity ? <a href="#hideout-security">Security</a> : null}

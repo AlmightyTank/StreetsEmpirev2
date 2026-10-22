@@ -2005,6 +2005,9 @@ model RoundPlayer {
   /// Player-visible OG id, unique inside the round.
   publicPimpId Int
 
+  /// Saved placement of currently owned stash item stacks.
+  stashLayout Json @default("[]")
+
   displayName String
 
   cityId String

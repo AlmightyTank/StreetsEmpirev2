@@ -397,6 +397,28 @@ export interface HideoutCosmeticsDto {
   streetSign?: StreetSignDesign | null;
 }
 
+/** Stacks arranged in the player's personal Hideout stash grid. */
+export type StashItemKeyDto = 'CONDOM' | 'MEDICINE' | 'BEER' | 'AMMO_BOX' | 'PARTS_BOX'
+  | 'PISTOL' | 'SHOTGUN' | 'TEK9' | 'AK47' | 'LOW_RIDER' | 'SEDAN' | 'VAN';
+export interface StashItemDto {
+  key: StashItemKeyDto;
+  quantity: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+export interface StashDto {
+  columns: number;
+  rows: number;
+  usedCells: number;
+  totalCells: number;
+  items: StashItemDto[];
+}
+export interface UpdateStashLayoutInput {
+  items: Array<Pick<StashItemDto, 'key' | 'x' | 'y'>>;
+}
+
 export interface UpdateHideoutCosmeticsInput {
   decorationKey: string | null;
   streetSignKey: string | null;
