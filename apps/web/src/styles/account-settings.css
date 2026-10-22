@@ -378,3 +378,52 @@
     text-align: left;
   }
 }
+
+
+/* Show the player's saved crew sign in the profile-cover wordmark slot. */
+.se-profile-card-preview__banner--street-sign {
+  display: grid;
+  place-items: center;
+  min-height: 96px;
+  padding: 12px 18px 16px;
+}
+
+.se-profile-card-preview__banner--street-sign .se-street-sign-display {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+}
+
+.se-profile-card-preview__banner--street-sign .se-street-sign-preview__face {
+  width: 100%;
+  max-width: none;
+  height: 66px;
+}
+
+.se-profile-card-preview__banner--street-sign .se-street-sign-preview--wide .se-street-sign-preview__face {
+  height: 58px;
+}
+
+@media (max-width: 620px) {
+  .se-profile-card-preview__banner--street-sign {
+    min-height: 84px;
+    padding: 10px 14px 14px;
+  }
+
+  .se-profile-card-preview__banner--street-sign .se-street-sign-preview__face {
+    height: 58px;
+  }
+
+  .se-profile-card-preview__banner--street-sign .se-street-sign-preview--wide .se-street-sign-preview__face {
+    height: 50px;
+  }
+
+  .se-profile-card-preview__banner--street-sign .se-street-sign-preview__name {
+    font-size: clamp(.78rem, 3.2vw, 1.08rem);
+  }
+
+  .se-profile-card-preview__banner--street-sign .se-street-sign-preview__tag {
+    font-size: clamp(.55rem, 2.3vw, .72rem);
+  }
+}
