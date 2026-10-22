@@ -1437,6 +1437,61 @@ const ITEMS: readonly DropItemDefinition[] = [
     kind: 'STREET_SIGN_BACKDROP', rarity: 'rare', category: 'PROFILES', priceCrowns: 350, styleKey: 'stockpile',
     preview: { type: 'SIGN' },
   }),
+  item('street-singles', 'sign-alley-dice', {
+    name: 'Back Alley Dice Sign', description: 'A street sign backdrop: brick wall, a chalk ring and two thrown dice from the street dice game.',
+    kind: 'STREET_SIGN_BACKDROP', rarity: 'uncommon', category: 'PROFILES', priceCrowns: 300, styleKey: 'alley-dice',
+    preview: { type: 'SIGN' },
+  }),
+  item('street-singles', 'sign-royal-flush', {
+    name: 'Royal Flush Sign', description: 'A street sign backdrop: a fanned royal flush and chip stacks on the poker felt.',
+    kind: 'STREET_SIGN_BACKDROP', rarity: 'rare', category: 'PROFILES', priceCrowns: 350, styleKey: 'royal-flush',
+    preview: { type: 'SIGN' },
+  }),
+  item('street-singles', 'sign-roulette', {
+    name: 'Roulette Wheel Sign', description: 'A street sign backdrop: half a roulette wheel turning in from the edge of the table.',
+    kind: 'STREET_SIGN_BACKDROP', rarity: 'rare', category: 'PROFILES', priceCrowns: 350, styleKey: 'roulette',
+    preview: { type: 'SIGN' },
+  }),
+  item('street-singles', 'sign-finish-line', {
+    name: 'Finish Line Sign', description: 'A street sign backdrop: track rails, mowed turf and the checkered post at the horse races.',
+    kind: 'STREET_SIGN_BACKDROP', rarity: 'uncommon', category: 'PROFILES', priceCrowns: 300, styleKey: 'finish-line',
+    preview: { type: 'SIGN' },
+  }),
+  item('street-singles', 'sign-cash-stack', {
+    name: 'Cash Stack Sign', description: 'A street sign backdrop: banded bricks of bills stacked on both ends of your crew sign.',
+    kind: 'STREET_SIGN_BACKDROP', rarity: 'rare', category: 'PROFILES', priceCrowns: 350, styleKey: 'cash-stack',
+    preview: { type: 'SIGN' },
+  }),
+  item('street-singles', 'sign-black-book', {
+    name: 'Black Book Sign', description: 'A street sign backdrop: a stitched leather cover with gold page edges, like the book your contacts live in.',
+    kind: 'STREET_SIGN_BACKDROP', rarity: 'uncommon', category: 'PROFILES', priceCrowns: 300, styleKey: 'black-book',
+    preview: { type: 'SIGN' },
+  }),
+  item('street-singles', 'sign-loan-shark', {
+    name: 'Loan Shark Sign', description: 'A street sign backdrop: a fin cutting through dark water.',
+    kind: 'STREET_SIGN_BACKDROP', rarity: 'uncommon', category: 'PROFILES', priceCrowns: 300, styleKey: 'loan-shark',
+    preview: { type: 'SIGN' },
+  }),
+  item('street-singles', 'sign-police-lights', {
+    name: 'Police Lights Sign', description: 'A street sign backdrop: a red and blue light bar washing over a wet street.',
+    kind: 'STREET_SIGN_BACKDROP', rarity: 'rare', category: 'PROFILES', priceCrowns: 350, styleKey: 'police-lights',
+    preview: { type: 'SIGN' },
+  }),
+  item('street-singles', 'sign-turf-map', {
+    name: 'Turf Map Sign', description: 'A street sign backdrop: a street grid with your blocks, a rival crew’s and a river.',
+    kind: 'STREET_SIGN_BACKDROP', rarity: 'uncommon', category: 'PROFILES', priceCrowns: 300, styleKey: 'turf-map',
+    preview: { type: 'SIGN' },
+  }),
+  item('street-singles', 'sign-getaway-route', {
+    name: 'Getaway Route Sign', description: 'A street sign backdrop: a folded road map with a dashed escape route to the X.',
+    kind: 'STREET_SIGN_BACKDROP', rarity: 'uncommon', category: 'PROFILES', priceCrowns: 300, styleKey: 'getaway-route',
+    preview: { type: 'SIGN' },
+  }),
+  item('street-singles', 'sign-grow-house', {
+    name: 'Grow House Sign', description: 'A street sign backdrop: rows of potted plants under purple grow lights.',
+    kind: 'STREET_SIGN_BACKDROP', rarity: 'uncommon', category: 'PROFILES', priceCrowns: 300, styleKey: 'grow-house',
+    preview: { type: 'SIGN' },
+  }),
 ];
 
 export const DROP_ITEMS: Readonly<Record<string, DropItemDefinition>> = Object.fromEntries(ITEMS.map((entry) => [entry.key, entry]));

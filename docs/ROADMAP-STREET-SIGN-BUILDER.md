@@ -71,6 +71,7 @@
 - [x] Bump the saved design to v3 with a `backdrop` key; v1 and v2 designs (saved or from open tabs) read as `plain`.
 - [x] Add one printed backdrop per Drop collection (`STREET_SIGN_BACKDROPS` in `@streets/shared`), unlocked by owning that collection's shell theme, alone or in its bundle. These are never sold separately.
 - [x] Sell backdrops with no shell theme as Street Singles on The Drop (`STREET_SIGN_BACKDROP` kind, `SIGN` preview): Downtown, New York, Chicago, Las Vegas, Miami Beach, Seattle and San Francisco skylines, plus the Gun Stockpile.
+- [x] Add game-subject singles drawn from areas of the game: Back Alley Dice, Royal Flush, Roulette Wheel and Finish Line (Casino), Cash Stack, Black Book, Loan Shark, Police Lights, Turf Map, Getaway Route and Grow House.
 - [x] Enforce ownership on the server (`options.streetSignBackdrops` lists owned keys); show locked backdrops in the picker with where to get them.
 - [x] Server tests pair every shell with exactly one backdrop and every sold backdrop with its Drop item; a shared test keeps every default palette at readable contrast.
 

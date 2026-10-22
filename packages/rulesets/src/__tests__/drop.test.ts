@@ -35,8 +35,8 @@ describe('The Drop catalogue', () => {
     expect(Object.keys(DROP_COLLECTIONS)).toHaveLength(24);
     expect(items.length).toBeGreaterThanOrEqual(18);
     const singles = items.filter((item) => item.collection === 'street-singles');
-    expect(singles).toHaveLength(39);
-    expect(singles.filter((item) => item.kind === 'STREET_SIGN_BACKDROP')).toHaveLength(8);
+    expect(singles).toHaveLength(50);
+    expect(singles.filter((item) => item.kind === 'STREET_SIGN_BACKDROP')).toHaveLength(19);
     expect(singles.some((item) => item.kind === 'SITE_THEME')).toBe(false);
     expect(bundles.some((bundle) => bundle.collection === 'street-singles')).toBe(false);
     expect(evergreenDropCollections()).not.toContain('street-singles');
