@@ -294,6 +294,13 @@
   repeating-linear-gradient(90deg,#ffffff07 0 2px,transparent 2px 9px)}
 .se-street-sign-backdrop--zombie-apocalypse::after{inset:auto 4% 9% auto;width:14%;height:18%;background:#ff6b2c;clip-path:polygon(0 70%,100% 0,100% 30%,0 100%);opacity:.75;border-radius:0}
 
+/* Iron Front: steel armor panels, rivets and a brass hazard stripe. */
+.se-street-sign-backdrop--iron-front::before{background:
+  radial-gradient(circle at 5px 5px,#c7c9b8 0 1.5px,#111a16 2px,transparent 3px) 0 0/28px 28px,
+  repeating-linear-gradient(115deg,transparent 0 28%,#00000045 29% 30%,transparent 31% 60%),
+  linear-gradient(170deg,#ffffff20,transparent 50%,#00000040)}
+.se-street-sign-backdrop--iron-front::after{inset:auto 0 0;height:12%;background:repeating-linear-gradient(125deg,#ffd06a 0 8px,#171e19 8px 16px);border-radius:0}
+
 /* Graveyard Shift: ghost-green moonlight over a wrought-iron fence. */
 .se-street-sign-backdrop--graveyard-shift::before{background:
   radial-gradient(ellipse 8% 30% at 91% 22%,#f4fff7 0 50%,#a8f0c655 65%,transparent 100%),

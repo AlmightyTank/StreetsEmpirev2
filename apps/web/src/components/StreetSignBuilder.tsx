@@ -62,7 +62,7 @@ interface StreetSignBuilderProps {
 }
 
 export function StreetSignBuilder({ value, crewName = '', savedValue = null, unlockedFontPacks = [], ownedBackdrops = [], onChange }: StreetSignBuilderProps) {
-  const design = { ...(value ?? DEFAULT_STREET_SIGN), streetName: value?.streetName ?? (crewName ?? '').trim() };
+  const design = { ...(value ?? DEFAULT_STREET_SIGN), streetName: (crewName ?? '').trim().slice(0, STREET_SIGN_TEXT_MAX) };
   const [draggingTag, setDraggingTag] = useState(false);
   const hasDraftChanges = JSON.stringify(value ?? null) !== JSON.stringify(savedValue ?? null);
   const textNeedsContrastHelp = streetSignContrastRatio(design.textColor, design.backgroundColor) < 4.5;
@@ -193,9 +193,9 @@ export function StreetSignBuilder({ value, crewName = '', savedValue = null, unl
         <div className="se-street-sign-builder__grid">
           <div className="se-street-sign-builder__field se-street-sign-builder__field--wide">
             <label htmlFor="street-sign-name">Crew name on sign</label>
-            <input id="street-sign-name" className="se-input" maxLength={STREET_SIGN_TEXT_MAX} value={design.streetName} placeholder="Set your crew name above" onChange={(event) => update({ streetName: event.target.value })} />
+            <input id="street-sign-name" className="se-input" maxLength={STREET_SIGN_TEXT_MAX} value={design.streetName} placeholder="Set your crew name above" readOnly />
             <small>{design.streetName.length}/{STREET_SIGN_TEXT_MAX}</small>
-            <p className="se-street-sign-builder__hint">Edit the lettering here, or use the Crew name field above as the starting point.</p>
+            <p className="se-street-sign-builder__hint">The sign lettering stays linked to your crew name.</p>
           </div>
           <div className="se-street-sign-builder__field">
             <label htmlFor="street-sign-type">Street type</label>
