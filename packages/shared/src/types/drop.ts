@@ -23,7 +23,9 @@ export type DropPreviewDto =
   | { type: 'TITLE'; title: string }
   | { type: 'THEME'; styleKey: string }
   /** An avatar wearable: the slot and option to draw on the viewer's built avatar. */
-  | { type: 'AVATAR'; part: string; option: string };
+  | { type: 'AVATAR'; part: string; option: string }
+  /** A street sign backdrop key, drawn on a sample sign. */
+  | { type: 'SIGN'; styleKey: string };
 
 export interface DropCollectionDto {
   key: string;

@@ -15,6 +15,8 @@ import {
   SUPPORTER_UNLOCK_HINT,
   DROP_UNLOCK_HINT,
   STREET_SIGN_FONT_PACKS,
+  streetSignBackdropFor,
+  STREET_SIGN_BACKDROPS,
   experienceLevelFor,
 } from '@streets/shared';
 import type {
@@ -350,6 +352,8 @@ async function appearanceOptions(prisma: PrismaClient, accountId: string): Promi
   /** Unlock keys of the avatar wearables this account may wear. */
   avatarUnlocks: Set<string>;
   streetSignFontPackKeys: Set<string>;
+  /** Street sign backdrop keys: those of owned shell themes plus backdrops bought on The Drop. */
+  streetSignBackdropKeys: Set<string>;
 }> {
   const account = await prisma.account.findUnique({ where: { id: accountId }, select: { isAdmin: true, experiencePoints: true } });
   const earnedFontPacks = STREET_SIGN_FONT_PACKS.filter((pack) => pack.level <= experienceLevelFor(account?.experiencePoints ?? 0));
@@ -371,7 +375,7 @@ async function appearanceOptions(prisma: PrismaClient, accountId: string): Promi
       skipDuplicates: true,
     });
   }
-  const [questAccents, frames, themes, bannerUnlocks, collectionUnlocks, trialActive, birthday, avatarUnlocks, streetSignFontUnlocks] = await Promise.all([
+  const [questAccents, frames, themes, bannerUnlocks, collectionUnlocks, trialActive, birthday, avatarUnlocks, streetSignFontUnlocks, streetSignBackdropUnlocks] = await Promise.all([
     QuestCosmeticService.optionsForAccount(prisma, accountId, 'ACCENT'),
     QuestCosmeticService.optionsForAccount(prisma, accountId, 'PROFILE_FRAME'),
     QuestCosmeticService.optionsForAccount(prisma, accountId, 'SITE_THEME'),
@@ -381,6 +385,7 @@ async function appearanceOptions(prisma: PrismaClient, accountId: string): Promi
     birthdayLookOptions(prisma, accountId, new Date()),
     AvatarWearableService.ownedKeys(prisma, accountId),
     QuestCosmeticService.optionsForAccount(prisma, accountId, 'STREET_SIGN_FONT_PACK'),
+    QuestCosmeticService.optionsForAccount(prisma, accountId, 'STREET_SIGN_BACKDROP'),
   ]);
   const accents = [...PROFILE_ACCENTS];
   const known = new Set(accents.map((option) => option.key));
@@ -433,11 +438,16 @@ async function appearanceOptions(prisma: PrismaClient, accountId: string): Promi
       }
     }
     for (const key of AVATAR_LOCKED_OPTIONS.keys()) avatarUnlocks.add(key);
+    for (const backdrop of STREET_SIGN_BACKDROPS) streetSignBackdropUnlocks.push({ key: backdrop.key, label: backdrop.label, description: '' });
+  }
+  const streetSignBackdropKeys = new Set(streetSignBackdropUnlocks.map((option) => option.key));
+  for (const backdrop of STREET_SIGN_BACKDROPS) {
+    if (backdrop.themeKey && knownThemes.has(backdrop.themeKey)) streetSignBackdropKeys.add(backdrop.key);
   }
   if (account?.isAdmin && env.seasonalEvents.adminTestMode) {
     for (const style of RELEASED_ITEM_COSMETIC_STYLES) collections.add(style.key);
   }
-  return { accents, frames: withThemeCompanionFrames(frameOptions, themeOptions), themes: themeOptions, collections, crewBanners, avatarUnlocks, streetSignFontPackKeys: new Set(streetSignFontUnlocks.map((option) => option.key)) };
+  return { accents, frames: withThemeCompanionFrames(frameOptions, themeOptions), themes: themeOptions, collections, crewBanners, avatarUnlocks, streetSignFontPackKeys: new Set(streetSignFontUnlocks.map((option) => option.key)), streetSignBackdropKeys };
 }
 
 export const AccountProfileService = {
@@ -471,6 +481,7 @@ export const AccountProfileService = {
          crewBanners: appearance.crewBanners,
         avatarUnlocks: [...appearance.avatarUnlocks].sort(),
         streetSignFontPacks: [...appearance.streetSignFontPackKeys].sort(),
+        streetSignBackdrops: [...appearance.streetSignBackdropKeys].sort(),
         densities: UI_DENSITIES,
         moneyFormats: MONEY_FORMATS,
         defaultLandings: DEFAULT_LANDINGS,
@@ -592,6 +603,14 @@ export const AccountProfileService = {
             streetSign: `${pack.label} unlocks at account level ${pack.level}.`,
           });
         }
+      }
+      const backdrop = streetSignBackdropFor(streetSign.backdrop);
+      if (backdrop && !appearance.streetSignBackdropKeys.has(backdrop.key)) {
+        throw AppError.badRequest('COSMETIC_NOT_EARNED', 'Own that street sign backdrop before using it.', {
+          streetSign: backdrop.themeKey
+            ? `${backdrop.label} comes with the ${backdrop.collection} shell theme.`
+            : `${backdrop.label} is sold on The Drop.`,
+        });
       }
     }
     const profileBio = input.profileBio === undefined ? undefined : input.profileBio;

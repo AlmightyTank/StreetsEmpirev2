@@ -278,6 +278,8 @@ function equipHint(item: DropItemDefinition): string {
       return 'Equip it in Account → Profile as your site theme. It reskins the whole game for you.';
     case 'AVATAR_PART':
       return 'Wear it in Account → Profile → Build one. It shows on your built avatar.';
+    case 'STREET_SIGN_BACKDROP':
+      return 'Pick it in Account → Profile → Your street sign as the sign backdrop.';
     default:
       return 'Wear it as your title, or feature it as a badge, in Account → Profile.';
   }
@@ -295,6 +297,8 @@ function previewDto(item: DropItemDefinition): DropPreviewDto {
       return { type: 'THEME', styleKey: item.styleKey ?? '' };
     case 'AVATAR':
       return { type: 'AVATAR', part: item.preview.part, option: item.preview.option };
+    case 'SIGN':
+      return { type: 'SIGN', styleKey: item.styleKey ?? '' };
     default:
       return { type: 'TITLE', title: item.preview.title };
   }

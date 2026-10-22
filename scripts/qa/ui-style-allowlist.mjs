@@ -17,6 +17,7 @@ export const APPROVED_ART_FILES = [
   { pattern: /^profile(?:-hover)?\.css$/, reason: 'Player-owned frames, cosmetics and profile previews.' },
   { pattern: /^site-themes\.css$/, reason: 'Premium theme token definitions and decorative effects.' },
   { pattern: /^street-sign-builder\.css$/, reason: 'Player-authored street-sign artwork preview: the metal face, trim, bolts, and bundled display type styles use design-specific colors.' },
+  { pattern: /^street-sign-backdrops\.css$/, reason: 'Street sign backdrop artwork: collection, skyline and stockpile prints use the art palette of the Drop set or scene they belong to.' },
 ];
 
 export const APPROVED_SEMANTIC_SELECTORS = [

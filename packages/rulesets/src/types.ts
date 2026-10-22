@@ -411,7 +411,7 @@ export type PermanentUnlockCatalog = Readonly<Record<string, PermanentUnlockDefi
  * `ITEM_COLLECTION` unlocks one authored art collection (its `styleKey` is the
  * collection key, e.g. 'cartel-gold') for every customizable item and crew type.
  */
-export type QuestCosmeticKind = 'TITLE_BADGE' | 'PROFILE_FRAME' | 'ACCENT' | 'SITE_THEME' | 'HIDEOUT_DECOR' | 'STREET_SIGN' | 'STREET_SIGN_FONT_PACK' | 'ITEM_COLLECTION' | 'CREW_BANNER' | 'AVATAR_PART';
+export type QuestCosmeticKind = 'TITLE_BADGE' | 'PROFILE_FRAME' | 'ACCENT' | 'SITE_THEME' | 'HIDEOUT_DECOR' | 'STREET_SIGN' | 'STREET_SIGN_FONT_PACK' | 'STREET_SIGN_BACKDROP' | 'ITEM_COLLECTION' | 'CREW_BANNER' | 'AVATAR_PART';
 export type QuestCosmeticRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
 
 export interface QuestCosmeticDefinition {

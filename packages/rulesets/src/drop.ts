@@ -49,10 +49,12 @@ export type DropPreview =
   /** A full game-shell theme: palette, panels, controls and an illustrated backdrop. */
   | { readonly type: 'THEME' }
   /** An avatar wearable, drawn on the viewer's built avatar. */
-  | { readonly type: 'AVATAR'; readonly part: string; readonly option: string };
+  | { readonly type: 'AVATAR'; readonly part: string; readonly option: string }
+  /** A street sign backdrop (STREET_SIGN_BACKDROPS in @streets/shared), drawn on a sample sign. */
+  | { readonly type: 'SIGN' };
 
 export interface DropItemDefinition extends QuestCosmeticDefinition {
-  readonly kind: Extract<QuestCosmeticKind, 'ITEM_COLLECTION' | 'PROFILE_FRAME' | 'ACCENT' | 'TITLE_BADGE' | 'SITE_THEME' | 'AVATAR_PART'>;
+  readonly kind: Extract<QuestCosmeticKind, 'ITEM_COLLECTION' | 'PROFILE_FRAME' | 'ACCENT' | 'TITLE_BADGE' | 'SITE_THEME' | 'AVATAR_PART' | 'STREET_SIGN_BACKDROP'>;
   readonly collection: string;
   readonly category: DropCategory;
   /** List price in Crowns. Admins can override it per catalog entry. */
@@ -1392,6 +1394,103 @@ const ITEMS: readonly DropItemDefinition[] = [
     name: 'Clean Money', description: 'A Street Singles title. Wear it as a title or feature it as a badge.',
     kind: 'TITLE_BADGE', rarity: 'uncommon', category: 'PROFILES', priceCrowns: 150,
     preview: { type: 'TITLE', title: 'Clean Money' },
+  }),
+  // Street sign backdrops with no shell theme of their own. The style key is the
+  // backdrop key in STREET_SIGN_BACKDROPS (@streets/shared; a server test checks).
+  item('street-singles', 'sign-skyline', {
+    name: 'Downtown Skyline Sign', description: 'A street sign backdrop: a lit downtown skyline along the bottom of your crew sign.',
+    kind: 'STREET_SIGN_BACKDROP', rarity: 'uncommon', category: 'PROFILES', priceCrowns: 250, styleKey: 'skyline',
+    preview: { type: 'SIGN' },
+  }),
+  item('street-singles', 'sign-skyline-new-york', {
+    name: 'New York Skyline Sign', description: 'A street sign backdrop: midtown spires and a bridge span under a gold night sky.',
+    kind: 'STREET_SIGN_BACKDROP', rarity: 'rare', category: 'PROFILES', priceCrowns: 350, styleKey: 'skyline-new-york',
+    preview: { type: 'SIGN' },
+  }),
+  item('street-singles', 'sign-skyline-chicago', {
+    name: 'Chicago Skyline Sign', description: 'A street sign backdrop: twin-antenna towers over the lakefront at dusk.',
+    kind: 'STREET_SIGN_BACKDROP', rarity: 'rare', category: 'PROFILES', priceCrowns: 350, styleKey: 'skyline-chicago',
+    preview: { type: 'SIGN' },
+  }),
+  item('street-singles', 'sign-skyline-las-vegas', {
+    name: 'Las Vegas Skyline Sign', description: 'A street sign backdrop: the Strip in neon, a needle tower and a light beam into the desert night.',
+    kind: 'STREET_SIGN_BACKDROP', rarity: 'rare', category: 'PROFILES', priceCrowns: 350, styleKey: 'skyline-las-vegas',
+    preview: { type: 'SIGN' },
+  }),
+  item('street-singles', 'sign-skyline-miami-beach', {
+    name: 'Miami Beach Skyline Sign', description: 'A street sign backdrop: deco hotel fronts and palms against a pink sunset.',
+    kind: 'STREET_SIGN_BACKDROP', rarity: 'rare', category: 'PROFILES', priceCrowns: 350, styleKey: 'skyline-miami-beach',
+    preview: { type: 'SIGN' },
+  }),
+  item('street-singles', 'sign-skyline-seattle', {
+    name: 'Seattle Skyline Sign', description: 'A street sign backdrop: the needle tower over a rain-blue harbour skyline.',
+    kind: 'STREET_SIGN_BACKDROP', rarity: 'rare', category: 'PROFILES', priceCrowns: 350, styleKey: 'skyline-seattle',
+    preview: { type: 'SIGN' },
+  }),
+  item('street-singles', 'sign-skyline-san-francisco', {
+    name: 'San Francisco Skyline Sign', description: 'A street sign backdrop: a red suspension bridge and a pyramid tower in the bay fog.',
+    kind: 'STREET_SIGN_BACKDROP', rarity: 'rare', category: 'PROFILES', priceCrowns: 350, styleKey: 'skyline-san-francisco',
+    preview: { type: 'SIGN' },
+  }),
+  item('street-singles', 'sign-stockpile', {
+    name: 'Gun Stockpile Sign', description: 'A street sign backdrop: ammo crates, racked rifles and live rounds on both ends of your crew sign.',
+    kind: 'STREET_SIGN_BACKDROP', rarity: 'rare', category: 'PROFILES', priceCrowns: 350, styleKey: 'stockpile',
+    preview: { type: 'SIGN' },
+  }),
+  item('street-singles', 'sign-alley-dice', {
+    name: 'Back Alley Dice Sign', description: 'A street sign backdrop: brick wall, a chalk ring and two thrown dice from the street dice game.',
+    kind: 'STREET_SIGN_BACKDROP', rarity: 'uncommon', category: 'PROFILES', priceCrowns: 300, styleKey: 'alley-dice',
+    preview: { type: 'SIGN' },
+  }),
+  item('street-singles', 'sign-royal-flush', {
+    name: 'Royal Flush Sign', description: 'A street sign backdrop: a fanned royal flush and chip stacks on the poker felt.',
+    kind: 'STREET_SIGN_BACKDROP', rarity: 'rare', category: 'PROFILES', priceCrowns: 350, styleKey: 'royal-flush',
+    preview: { type: 'SIGN' },
+  }),
+  item('street-singles', 'sign-roulette', {
+    name: 'Roulette Wheel Sign', description: 'A street sign backdrop: half a roulette wheel turning in from the edge of the table.',
+    kind: 'STREET_SIGN_BACKDROP', rarity: 'rare', category: 'PROFILES', priceCrowns: 350, styleKey: 'roulette',
+    preview: { type: 'SIGN' },
+  }),
+  item('street-singles', 'sign-finish-line', {
+    name: 'Finish Line Sign', description: 'A street sign backdrop: track rails, mowed turf and the checkered post at the horse races.',
+    kind: 'STREET_SIGN_BACKDROP', rarity: 'uncommon', category: 'PROFILES', priceCrowns: 300, styleKey: 'finish-line',
+    preview: { type: 'SIGN' },
+  }),
+  item('street-singles', 'sign-cash-stack', {
+    name: 'Cash Stack Sign', description: 'A street sign backdrop: banded bricks of bills stacked on both ends of your crew sign.',
+    kind: 'STREET_SIGN_BACKDROP', rarity: 'rare', category: 'PROFILES', priceCrowns: 350, styleKey: 'cash-stack',
+    preview: { type: 'SIGN' },
+  }),
+  item('street-singles', 'sign-black-book', {
+    name: 'Black Book Sign', description: 'A street sign backdrop: a stitched leather cover with gold page edges, like the book your contacts live in.',
+    kind: 'STREET_SIGN_BACKDROP', rarity: 'uncommon', category: 'PROFILES', priceCrowns: 300, styleKey: 'black-book',
+    preview: { type: 'SIGN' },
+  }),
+  item('street-singles', 'sign-loan-shark', {
+    name: 'Loan Shark Sign', description: 'A street sign backdrop: a fin cutting through dark water.',
+    kind: 'STREET_SIGN_BACKDROP', rarity: 'uncommon', category: 'PROFILES', priceCrowns: 300, styleKey: 'loan-shark',
+    preview: { type: 'SIGN' },
+  }),
+  item('street-singles', 'sign-police-lights', {
+    name: 'Police Lights Sign', description: 'A street sign backdrop: a red and blue light bar washing over a wet street.',
+    kind: 'STREET_SIGN_BACKDROP', rarity: 'rare', category: 'PROFILES', priceCrowns: 350, styleKey: 'police-lights',
+    preview: { type: 'SIGN' },
+  }),
+  item('street-singles', 'sign-turf-map', {
+    name: 'Turf Map Sign', description: 'A street sign backdrop: a street grid with your blocks, a rival crew’s and a river.',
+    kind: 'STREET_SIGN_BACKDROP', rarity: 'uncommon', category: 'PROFILES', priceCrowns: 300, styleKey: 'turf-map',
+    preview: { type: 'SIGN' },
+  }),
+  item('street-singles', 'sign-getaway-route', {
+    name: 'Getaway Route Sign', description: 'A street sign backdrop: a folded road map with a dashed escape route to the X.',
+    kind: 'STREET_SIGN_BACKDROP', rarity: 'uncommon', category: 'PROFILES', priceCrowns: 300, styleKey: 'getaway-route',
+    preview: { type: 'SIGN' },
+  }),
+  item('street-singles', 'sign-grow-house', {
+    name: 'Grow House Sign', description: 'A street sign backdrop: rows of potted plants under purple grow lights.',
+    kind: 'STREET_SIGN_BACKDROP', rarity: 'uncommon', category: 'PROFILES', priceCrowns: 300, styleKey: 'grow-house',
+    preview: { type: 'SIGN' },
   }),
 ];
 

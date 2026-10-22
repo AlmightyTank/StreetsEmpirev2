@@ -15,13 +15,14 @@ import type {
   StreetPassSkipQuoteDto,
 } from '@streets/shared';
 import { discountedDropPrice } from '@streets/rulesets';
-import { DEFAULT_AVATAR_PARTS, formatNumber, type AvatarParts } from '@streets/shared';
+import { DEFAULT_AVATAR_PARTS, DEFAULT_STREET_SIGN, formatNumber, streetSignBackdropFor, type AvatarParts, type StreetSignDesign } from '@streets/shared';
 import { dropApi } from '../api/drop.js';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
 import { BuiltAvatar } from '../components/BuiltAvatar.js';
 import { ItemTile } from '../components/ItemTile.js';
+import { StreetSignDisplay } from '../components/StreetSignBuilder.js';
 import { Panel, Stat } from '../components/Panel.js';
 import { hasItemArt } from '../items/itemArt.js';
 import { GameLayout } from '../layouts/GameLayout.js';
@@ -125,12 +126,27 @@ function leavingSoon(offer: DropOfferDto | undefined, now: number): boolean {
 export function DropArt({ item, size = 'md' }: { item: DropItemDto; size?: 'sm' | 'md' | 'lg' }) {
   const preview = item.preview;
   const builtAvatar = useSession((state) => state.profileSettings.profileAvatar);
+  const crewName = useSession((state) => state.profileSettings.crewName);
   if (preview.type === 'AVATAR') {
     // The viewer's own built avatar when they have one, else the starter look.
     const parts = { ...(builtAvatar ?? DEFAULT_AVATAR_PARTS.boy), [preview.part]: preview.option } as AvatarParts;
     return (
       <div className={`se-drop-art se-drop-art--avatar se-drop-art--${size}`} role="img" aria-label={`${item.name} on your avatar`}>
         <span className="se-drop-avatar"><BuiltAvatar parts={parts} live={size !== 'sm'} /></span>
+      </div>
+    );
+  }
+  if (preview.type === 'SIGN') {
+    const backdrop = streetSignBackdropFor(preview.styleKey);
+    const design: StreetSignDesign = {
+      ...DEFAULT_STREET_SIGN,
+      streetName: crewName?.trim() || 'Your Crew',
+      streetType: 'ST',
+      ...(backdrop ? { backdrop: backdrop.key, backgroundColor: backdrop.background, textColor: backdrop.text, tagColor: backdrop.tag } : {}),
+    };
+    return (
+      <div className={`se-drop-art se-drop-art--sign se-drop-art--${size}`}>
+        <StreetSignDisplay design={design} compact={size !== 'lg'} />
       </div>
     );
   }

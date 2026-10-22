@@ -131,6 +131,12 @@
 }
 .se-drop-art--lg .se-drop-title-plate { font-size: 24px; padding: 14px 22px; }
 
+/* Street sign backdrops: a sample crew sign wearing the backdrop. */
+.se-drop-art--sign { padding: 0 6px; }
+.se-drop-art--sign .se-street-sign-display { width: 100%; margin: 0; }
+.se-drop-art--sign .se-street-sign-display--compact { margin: 0; }
+.se-drop-art--lg.se-drop-art--sign .se-street-sign-preview__face { width: min(100%, 520px); }
+
 /* ---------- Motion ---------- */
 .se-reduced-motion .se-drop-frame--neon-underworld-frame,
 .se-reduced-motion .se-drop-frame--winter-heist-frame::after,
