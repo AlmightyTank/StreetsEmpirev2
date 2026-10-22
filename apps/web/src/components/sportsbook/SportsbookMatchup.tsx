@@ -21,11 +21,30 @@ function splitName(name: string): { city: string; nickname: string } {
 
 /** One side of a matchup: badge, the name stacked city over nickname, the away/home tag and a price slot. */
 export function TeamSide({
-  league, name, selection, picked = false, children,
-}: { league: SportsbookLeagueKey; name: string; selection: SportsbookSelection; picked?: boolean; children?: ReactNode }) {
+  league, name, selection, picked = false, children, onSelect,
+}: { league: SportsbookLeagueKey; name: string; selection: SportsbookSelection; picked?: boolean; children?: ReactNode; onSelect?: () => void }) {
   const { city, nickname } = splitName(name);
+  const clickable = Boolean(onSelect);
+  const selectFromSide = () => onSelect?.();
   return (
-    <div className={`sb-side sb-side--${selection.toLowerCase()}${picked ? ' is-picked' : ''}`}>
+    <div
+      className={`sb-side sb-side--${selection.toLowerCase()}${picked ? ' is-picked' : ''}${clickable ? ' is-clickable' : ''}`}
+      role={clickable ? 'button' : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      aria-pressed={clickable ? picked : undefined}
+      aria-label={clickable ? `${name}${picked ? ', selected' : ''}` : undefined}
+      onClick={(event) => {
+        // The price control is also inside this side; let its own handler run once.
+        if ((event.target as HTMLElement).closest('button')) return;
+        selectFromSide();
+      }}
+      onKeyDown={(event) => {
+        if (clickable && (event.key === 'Enter' || event.key === ' ')) {
+          event.preventDefault();
+          selectFromSide();
+        }
+      }}
+    >
       <span className="sb-badge"><SportsbookTeamLogo sport={league} team={name} /></span>
       <span className="sb-side__name">
         {city ? <small>{city}</small> : null}

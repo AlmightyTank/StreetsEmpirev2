@@ -24,7 +24,7 @@ import { Panel } from './Panel.js';
 import { useSession } from '../stores/session.js';
 import { newActionId } from '../utils/actionId.js';
 import { rememberedKey, useRememberedState } from '../utils/remembered.js';
-import { formatAgo, formatDuration, formatWeekdayTime } from '../utils/time.js';
+import { formatDuration, formatWeekdayTime } from '../utils/time.js';
 import {
   casinoSoundEnabled,
   playCasinoSound,
@@ -35,8 +35,8 @@ type LeagueFilter = 'ALL' | SportsbookLeagueKey;
 type TicketView = 'open' | 'settled';
 type Pick = { eventId: string; selection: SportsbookSelection; seenOdds: number };
 
-const LEAGUE_FILTERS: readonly LeagueFilter[] = ['ALL', 'NFL', 'NBA', 'MLB', 'NHL'];
-const LEAGUE_MARKS: Record<LeagueFilter, string> = { ALL: '◆', NFL: '🏈', NBA: '🏀', MLB: '⚾', NHL: '🏒' };
+const LEAGUE_FILTERS: readonly LeagueFilter[] = ['ALL', 'NFL', 'NBA', 'MLB', 'NHL', 'SOFTBALL', 'MMA'];
+const LEAGUE_MARKS: Record<LeagueFilter, string> = { ALL: '◆', NFL: '🏈', NBA: '🏀', MLB: '⚾', NHL: '🏒', SOFTBALL: '🥎', MMA: '🥊' };
 const QUICK_STAKES = [1_000, 2_500, 10_000, 50_000] as const;
 /** Under this, the countdown turns urgent so a late pick is not a surprise. */
 const CLOSING_SOON_MS = 15 * 60_000;
@@ -82,25 +82,6 @@ function liveLineState(event: SportsbookEventDto, feed: SportsbookFeedDto, now: 
 
 function sideOdds(event: SportsbookEventDto, selection: SportsbookSelection): number | null {
   return selection === 'HOME' ? event.homeOdds : event.awayOdds;
-}
-
-type FeedBanner = { tone: 'good' | 'warn' | 'off'; title: string; text: string; badge: string };
-
-/** The live banner. Odds refresh on a poll, so it says how fresh they are rather than "real time". */
-function feedBanner(feed: SportsbookFeedDto, now: number): FeedBanner {
-  const fallback = feed.fallbacks.length
-    ? ` · ${feed.fallbacks.map((row) => `${row.league} using ${row.providerName}`).join(', ')}`
-    : '';
-  switch (feed.status) {
-    case 'FRESH':
-      return { tone: 'good', title: 'Lines live', text: `Updated ${formatAgo(feed.refreshedAt!, now)} · refreshes about every ${feed.pollMinutes} min${fallback}`, badge: fallback ? 'Backup feed' : 'All systems go' };
-    case 'STALE':
-      return { tone: 'warn', title: 'Lines paused', text: `Odds last updated ${formatAgo(feed.refreshedAt!, now)}. Betting resumes when the feed refreshes.`, badge: 'Stale odds' };
-    case 'WAITING':
-      return { tone: 'warn', title: 'Lines opening', text: 'Waiting for the first odds snapshot. Lines open as soon as it lands.', badge: 'Warming up' };
-    case 'OFF':
-      return { tone: 'off', title: 'Feed offline', text: 'The odds feed is offline, so betting is paused.', badge: 'Offline' };
-  }
 }
 
 function signedCents(value: number): string {
@@ -283,7 +264,6 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
     }
   }
 
-  const banner = feed ? feedBanner(feed, now) : null;
   const tickets = page?.tickets ?? null;
   const summary = tickets?.summary ?? null;
   const settledTotal = summary ? summary.won + summary.lost + summary.push + summary.void : 0;
@@ -385,17 +365,6 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
         {!mobileLayout ? soundToolbar : null}
         {mobileLayout ? ticketHeader : null}
 
-        {banner ? (
-          <div className={`sb-banner is-${banner.tone}`} role="status">
-            <span className="sb-banner__pulse" aria-hidden="true" />
-            <span className="sb-banner__copy">
-              <strong>{banner.title}</strong>
-              <small>{banner.text}</small>
-            </span>
-            <span className="sb-banner__badge">{banner.badge}</span>
-          </div>
-        ) : null}
-
         <div className="sb-leagues" role="group" aria-label="Filter by league">
           {LEAGUE_FILTERS.map((key) => {
             const count = key === 'ALL' ? events.length : page?.leagues.find((item) => item.key === key)?.eventCount ?? 0;
@@ -448,7 +417,13 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
                     const team = selection === 'HOME' ? event.homeTeam : event.awayTeam;
                     const selected = pick?.eventId === event.id && pick.selection === selection;
                     return (
-                      <TeamSide league={event.sport} name={team} selection={selection} picked={selected}>
+                      <TeamSide
+                        league={event.sport}
+                        name={team}
+                        selection={selection}
+                        picked={selected}
+                        onSelect={busy || !available || state !== 'OPEN' || odds === null ? undefined : () => choose(event, selection)}
+                      >
                         <button
                           type="button"
                           className={`sb-odds sb-odds--pick${selected ? ' is-selected' : ''}`}
