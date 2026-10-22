@@ -380,16 +380,17 @@
 }
 
 
-/* Show the player's saved crew sign in the profile-cover wordmark slot. */
+/* Keep the crew sign in the same compact profile-cover slot as the old wordmark. */
 .se-profile-card-preview__banner--street-sign {
-  display: grid;
-  place-items: center;
-  min-height: 96px;
-  padding: 12px 18px 16px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
 }
 
 .se-profile-card-preview__banner--street-sign .se-street-sign-display {
-  width: 100%;
+  flex: 0 1 210px;
+  width: min(210px, 58%);
+  max-width: 210px;
   margin: 0;
   padding: 0;
   overflow: visible;
@@ -398,32 +399,57 @@
 .se-profile-card-preview__banner--street-sign .se-street-sign-preview__face {
   width: 100%;
   max-width: none;
-  height: 66px;
+  height: auto;
+  min-height: 0;
+  aspect-ratio: 4.2 / 1;
+  box-sizing: border-box;
+  padding: 8px 20px;
 }
 
 .se-profile-card-preview__banner--street-sign .se-street-sign-preview--wide .se-street-sign-preview__face {
-  height: 58px;
+  aspect-ratio: 5 / 1;
+}
+
+.se-profile-card-preview__banner--street-sign .se-street-sign-preview__name {
+  font-size: clamp(.58rem, 2vw, .82rem);
+}
+
+.se-profile-card-preview__banner--street-sign .se-street-sign-preview__street-type {
+  top: 5px;
+  right: 11px;
+  font-size: .45rem;
+}
+
+.se-profile-card-preview__banner--street-sign .se-street-sign-preview__tag {
+  right: 18px;
+  bottom: 3px;
+  font-size: .5rem;
+}
+
+.se-profile-card-preview__banner--street-sign .se-street-sign-preview__bolt {
+  width: 5px;
+  height: 5px;
+}
+
+.se-profile-card-preview__banner--street-sign .se-street-sign-preview__bolt--left {
+  left: 8px;
+}
+
+.se-profile-card-preview__banner--street-sign .se-street-sign-preview__bolt--right {
+  right: 8px;
 }
 
 @media (max-width: 620px) {
-  .se-profile-card-preview__banner--street-sign {
-    min-height: 84px;
-    padding: 10px 14px 14px;
-  }
-
-  .se-profile-card-preview__banner--street-sign .se-street-sign-preview__face {
-    height: 58px;
-  }
-
-  .se-profile-card-preview__banner--street-sign .se-street-sign-preview--wide .se-street-sign-preview__face {
-    height: 50px;
+  .se-profile-card-preview__banner--street-sign .se-street-sign-display {
+    flex-basis: 190px;
+    width: min(190px, 68%);
   }
 
   .se-profile-card-preview__banner--street-sign .se-street-sign-preview__name {
-    font-size: clamp(.78rem, 3.2vw, 1.08rem);
+    font-size: clamp(.55rem, 2.5vw, .72rem);
   }
 
   .se-profile-card-preview__banner--street-sign .se-street-sign-preview__tag {
-    font-size: clamp(.55rem, 2.3vw, .72rem);
+    font-size: .45rem;
   }
 }
