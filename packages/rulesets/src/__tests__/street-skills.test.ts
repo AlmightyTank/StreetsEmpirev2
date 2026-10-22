@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { STREET_SKILLS_V1, streetSkillPassiveModifiers, streetSkillPaysAtLaunch, streetSkillPerk, streetSkillPointsForXp, streetSkillSourceForAction, streetSkillTaperedXp, streetSkillXpForPoints } from '../street-skills.js';
+import { STREET_SKILLS_V1, STREET_SKILLS_V2, streetSkillPassiveModifiers, streetSkillPaysAtLaunch, streetSkillPerk, streetSkillPointsForXp, streetSkillSourceForAction, streetSkillTaperedXp, streetSkillXpForPoints } from '../street-skills.js';
 
 describe('street skills slice A catalog', () => {
   it('uses a rising point curve capped at forty', () => {
@@ -61,6 +61,18 @@ describe('street skills slice A catalog', () => {
     }
     expect(streetSkillPerk(STREET_SKILLS_V1, 'GHOST')?.requires).toBe('Armory & Garage');
     expect(streetSkillPerk(STREET_SKILLS_V1, 'HIT_FIRST')?.offensive).toBe(true);
+  });
+
+  it('unlocks the beta Ammo, Armory and implemented Territory skills without changing 2.3.0-A', () => {
+    expect(STREET_SKILLS_V1.milestones.MUSCLE?.[1]?.choices[0]?.requires).toBe('Armory & Garage');
+    for (const effectId of ['AMMO_PER_FIGHT', 'RUN_FEES', 'TOLLS']) {
+      expect(STREET_SKILLS_V2.passives.find((passive) => passive.effectId === effectId)?.requires).toBeUndefined();
+    }
+    for (const key of ['STEADY_HANDS', 'KINGPINS_CUT', 'GHOST', 'TRIPWIRE', 'TOLL_BOOTH']) {
+      expect(streetSkillPerk(STREET_SKILLS_V2, key)?.requires, key).toBeUndefined();
+    }
+    expect(streetSkillPerk(STREET_SKILLS_V2, 'FAST_PASS')?.requires).toBe('Territory Rewards');
+    expect(streetSkillPerk(STREET_SKILLS_V2, 'INSIDE_LINE')?.requires).toBe('Territory Rewards');
   });
 
   it('pays fights that resolve later when they resolve, and setup actions at launch', () => {

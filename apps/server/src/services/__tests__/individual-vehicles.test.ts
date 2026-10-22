@@ -13,6 +13,7 @@ function vehicleDb(initial: PlayerVehicle[]) {
   let nextId = 0;
   return {
     records,
+    playerSkill: { findMany: async () => [] },
     playerVehicle: {
       findMany: async ({ where }: any = {}) => [...records.values()].filter((vehicle) => (!where?.roundPlayerId || vehicle.roundPlayerId === where.roundPlayerId) && (!where?.status || vehicle.status === where.status)),
       groupBy: async () => [...new Set([...records.values()].map((vehicle) => vehicle.model))].map((model) => ({ model, _sum: { quantity: [...records.values()].filter((vehicle) => vehicle.model === model).reduce((sum, vehicle) => sum + vehicle.quantity, 0) } })),

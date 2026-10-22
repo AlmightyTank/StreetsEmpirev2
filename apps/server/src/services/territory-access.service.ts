@@ -18,7 +18,7 @@ export function useTerritoryAccess(
   return ActionService.run<TerritoryAccessUseResult>(prisma, roundPlayerId, {
     action: 'TERRITORY_ACCESS_USE',
     actionId: input.actionId,
-    execute: async ({ tx, current, player, round, ruleset, now }) => {
+    execute: async ({ tx, current, player, round, ruleset, now, skills }) => {
       if (!territoryFeatureEnabled(round, ruleset)) throw AppError.conflict('TERRITORY_REWARDS_DISABLED', 'Territory rewards are not enabled for this round.');
       if (player.city.slug !== input.citySlug) throw AppError.conflict('NOT_IN_ACCESS_CITY', 'Travel to this city before using its territory access.');
       if (input.scope === 'district' && !input.district) throw AppError.badRequest('DISTRICT_REQUIRED', 'Choose a district access point.');
@@ -49,8 +49,9 @@ export function useTerritoryAccess(
       if (!holderAllianceId) throw AppError.conflict('TERRITORY_ACCESS_UNOWNED', 'This access point has no controlling alliance right now.');
 
       const paymentKind = input.paymentKind ?? 'CASH';
-      const fee = Math.max(0, Math.trunc(paymentKind === 'CASH' ? access.tollCentsPerUse ?? 0
+      const listedFee = Math.max(0, Math.trunc(paymentKind === 'CASH' ? access.tollCentsPerUse ?? 0
         : paymentKind === 'AMMO' ? access.tollAmmoPerUse ?? 0 : access.tollVehiclePartsPerUse ?? 0));
+      const fee = Math.max(0, Math.floor(skills.scale('TOLLS', listedFee)));
       const dailyCap = Math.max(0, Math.trunc(paymentKind === 'CASH' ? access.dailyTollCapCents ?? 0
         : paymentKind === 'AMMO' ? access.dailyTollCapAmmo ?? 0 : access.dailyTollCapVehicleParts ?? 0));
       let dailyPaid = 0;
@@ -65,7 +66,7 @@ export function useTerritoryAccess(
       }
       const remaining = Math.max(0, dailyCap - dailyPaid);
       const owns = player.allianceId === holderAllianceId;
-      const allowed = owns || (access.accessType === 'toll' && fee > 0 && remaining >= fee);
+      const allowed = owns || (access.accessType === 'toll' && listedFee > 0 && remaining >= fee);
       if (!allowed) {
         if (access.accessType === 'toll' && fee > 0 && remaining < fee) throw AppError.conflict('TERRITORY_TOLL_DAILY_CAP', `You have reached today's ${access.key.replaceAll('-', ' ')} toll limit.`);
         const toll = paymentKind === 'CASH' && fee > 0 ? ` The toll is $${(fee / 100).toFixed(2)}.` : '';

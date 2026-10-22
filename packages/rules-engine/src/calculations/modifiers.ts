@@ -7,7 +7,8 @@ export type ModifierCategory =
   | 'HEAT'
   | 'RECOVERY'
   | 'VEHICLE'
-  | 'LUCK';
+  | 'LUCK'
+  | 'ARMORY';
 
 export interface ModifierContribution {
   readonly effectId: string;
@@ -41,7 +42,7 @@ export interface ModifierResolution {
   readonly targets: Readonly<Record<string, number>>;
 }
 
-const CATEGORIES: readonly ModifierCategory[] = ['ECONOMY', 'COMBAT', 'COST', 'HEAT', 'RECOVERY', 'VEHICLE', 'LUCK'];
+const CATEGORIES: readonly ModifierCategory[] = ['ECONOMY', 'COMBAT', 'COST', 'HEAT', 'RECOVERY', 'VEHICLE', 'LUCK', 'ARMORY'];
 
 /**
  * Resolve in input order. A cap is shared by every source (skills, territory,

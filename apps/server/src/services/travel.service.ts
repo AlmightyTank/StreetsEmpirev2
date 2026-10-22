@@ -825,7 +825,7 @@ export const TravelService = {
           throw AppError.badRequest('NOT_ENOUGH_BEER', `You only have ${current.beer} beer at home.`, { beer: `At most ${current.beer}.` });
         }
         const inventory = await ProductInventoryService.read(tx, roundPlayerId, ruleset);
-        const vehicleFee = ruleset.ammoParts?.vehicleParts.enabled
+        const baseVehicleFee = ruleset.ammoParts?.vehicleParts.enabled
           ? individualSelection
             ? selectedSnapshots.reduce((sum, vehicle) => {
                 const entry = ruleset.vehicleCatalog!.classes.find((candidate) => candidate.id === vehicle.model);
@@ -834,6 +834,7 @@ export const TravelService = {
               }, 0)
             : ruleset.vehicleCatalog!.classes.reduce((sum, entry) => sum + (entry.runFeeCents ?? 0) * loadout[entry.id], 0)
           : 0;
+        const vehicleFee = Math.max(0, Math.floor(skills.scale('RUN_FEES', baseVehicleFee)));
         const vehicleFeeCents = BigInt(vehicleFee);
         /** Out of home stock. What the crew buys on the way out is added to `cargo` below. */
         const fromHome = Object.fromEntries(Object.entries(input.cargo).filter(([, quantity]) => quantity > 0));

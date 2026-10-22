@@ -4,6 +4,7 @@ import type { Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { IndividualItemsService } from './individual-items.service.js';
 import { appendItemEvent } from './individual-item-history.js';
+import { stolenItemHotUntil } from './item-hot-window.js';
 import type { VehicleLoadout } from './vehicle-fleet.service.js';
 
 export type IndividualVehicleSnapshot = {
@@ -203,7 +204,7 @@ export async function transferReadyVehicles(db: Db, fromRoundPlayerId: string, t
     return Array.from({ length: row.quantity }, () => ({ row, recovered }));
   }).sort((a, b) => Number(b.recovered) - Number(a.recovered));
   const stolen: IndividualVehicleSnapshot[] = [];
-  const hotUntil = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  const hotUntil = quantity > 0 ? await stolenItemHotUntil(db, toRoundPlayerId, fromRoundPlayerId, now) : null;
   while (quantity > 0 && pool.length) {
     const recoveryPriority = pool[0]?.recovered;
     const eligibleCount = pool.filter((item) => item.recovered === recoveryPriority).length;
@@ -217,7 +218,7 @@ export async function transferReadyVehicles(db: Db, fromRoundPlayerId: string, t
     const history = Array.isArray(previousOrigin.history) ? previousOrigin.history : [];
     const origin = recovered
       ? Object.fromEntries(Object.entries({ ...previousOrigin, kind: 'RECOVERED', history: [...history, { event: 'RECOVERED_FROM_PLAYER', fromRoundPlayerId, at: now.toISOString() }] }).filter(([key]) => !['stolenFromRoundPlayerId', 'stolenAt', 'hotUntil'].includes(key)))
-      : { ...previousOrigin, kind: 'STOLEN', stolenFromRoundPlayerId: fromRoundPlayerId, stolenAt: now.toISOString(), hotUntil: hotUntil.toISOString(), history: [...history, { event: 'STOLEN', fromRoundPlayerId, at: now.toISOString() }] };
+      : { ...previousOrigin, kind: 'STOLEN', stolenFromRoundPlayerId: fromRoundPlayerId, stolenAt: now.toISOString(), hotUntil: hotUntil!.toISOString(), history: [...history, { event: 'STOLEN', fromRoundPlayerId, at: now.toISOString() }] };
     let saved: PlayerVehicle;
     if (current.quantity === 1) {
       saved = await db.playerVehicle.update({ where: { id: current.id }, data: { roundPlayerId: toRoundPlayerId, lookKey: null, origin: origin as Prisma.InputJsonValue,

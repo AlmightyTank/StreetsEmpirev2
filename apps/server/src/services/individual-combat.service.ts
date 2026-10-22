@@ -2,8 +2,11 @@ import { randomInt } from 'node:crypto';
 import { Prisma, type PlayerGun } from '@prisma/client';
 import type { CombatCrew } from '@streets/rules-engine';
 import type { IndividualItemsRules } from '@streets/rulesets';
+import { STREET_SKILLS_V2 } from '@streets/rulesets';
 import type { Db } from '../utils/db.js';
 import { appendItemEvent } from './individual-item-history.js';
+import { stolenItemHotUntil } from './item-hot-window.js';
+import { PlayerSkillService } from './player-skill.service.js';
 
 type AmmoRules = { roundsPerFight: Readonly<Record<'PISTOL' | 'SHOTGUN' | 'TEK9' | 'AK47', number>>; defenderFloor: number; lootShareBps: number };
 type Candidate = { row: PlayerGun; unit: number; power: number; rounds: number; jamChance: number; wear: number };
@@ -66,6 +69,7 @@ export async function planIndividualCombat(db: Db, roundPlayerId: string, crew: 
   rules: IndividualItemsRules, ammo: AmmoRules, availableRounds: number, side: 'ATTACKER' | 'DEFENDER', rng: () => number,
   attackerCapRounds?: number): Promise<IndividualCombatPlan> {
   const rows = await db.playerGun.findMany({ where: { roundPlayerId, status: 'READY', condition: { gt: 0 }, reserve: false }, orderBy: [{ favorite: 'desc' }, { createdAt: 'asc' }] });
+  const skills = await PlayerSkillService.effects(db, roundPlayerId, STREET_SKILLS_V2);
   const candidates: Candidate[] = [];
   for (const row of rows) {
     const mods = modList(row.mods);
@@ -75,12 +79,14 @@ export async function planIndividualCombat(db: Db, roundPlayerId: string, crew: 
     const conditionFactor = row.condition < 50 ? 0.5 + row.condition / 100 : 1;
     const power = model.weapons[modelKey(row.model)].power * (1 + powerMod / 100) * conditionFactor;
     const comp = effect(mods, rules, row.model, 'COMPENSATOR');
-    const rounds = Math.max(1, Math.ceil(ammo.roundsPerFight[modelKey(row.model)] * (100 - comp) / 100));
+    const moddedRounds = Math.ceil(ammo.roundsPerFight[modelKey(row.model)] * (100 - comp) / 100);
+    const rounds = Math.max(1, Math.floor(skills.scale('AMMO_PER_FIGHT', moddedRounds)));
     const extendedMag = effect(mods, rules, row.model, 'EXTENDED_MAG');
     const baseJam = Math.min(30, 5 + Math.max(0, 50 - row.condition) * 0.5);
-    const jamChance = baseJam * (1 - extendedMag / 100);
+    const jamChance = skills.scale('GUN_JAM_CHANCE', baseJam * (1 - extendedMag / 100));
     const reinforced = effect(mods, rules, row.model, 'REINFORCED_FRAME');
-    const wear = Math.max(1, Math.ceil(modelRule.wearPerFight * (100 - reinforced) / 100));
+    const baseWear = Math.max(1, Math.ceil(modelRule.wearPerFight * (100 - reinforced) / 100));
+    const wear = Math.max(1, Math.floor(baseWear * (100 + skills.percent('GUN_WEAR')) / 100));
     for (let unit = 0; unit < row.quantity; unit++) candidates.push({ row, unit, power, rounds, jamChance, wear });
   }
   candidates.sort((a, b) => Number(b.row.favorite) - Number(a.row.favorite) || b.power - a.power || a.row.createdAt.getTime() - b.row.createdAt.getTime() || a.row.id.localeCompare(b.row.id) || a.unit - b.unit);
@@ -190,13 +196,13 @@ export async function lootIndividualGun(db: Db, fromRoundPlayerId: string, toRou
   const totalUnits = rows.reduce((total, row) => total + row.quantity, 0);
   let draw = randomInt(0, totalUnits);
   const gun = rows.find((row) => (draw -= row.quantity) < 0)!;
-  const hotUntil = new Date(now.getTime() + 24 * 60 * 60_000);
   const origin = gun.origin && typeof gun.origin === 'object' && !Array.isArray(gun.origin) ? gun.origin as Record<string, unknown> : {};
   const history = Array.isArray(origin.history) ? origin.history : [];
   const recovered = origin.stolenFromRoundPlayerId === toRoundPlayerId && typeof origin.hotUntil === 'string' && Date.parse(origin.hotUntil) > now.getTime();
+  const hotUntil = recovered ? null : await stolenItemHotUntil(db, toRoundPlayerId, fromRoundPlayerId, now);
   const nextOrigin: Record<string, unknown> = recovered
     ? { ...origin, kind: 'RECOVERED', history: [...history, { event: 'RECOVERED_BY_OWNER', roundPlayerId: toRoundPlayerId, at: now.toISOString() }] }
-    : { ...origin, kind: 'LOOTED', stolenFromRoundPlayerId: fromRoundPlayerId, hotUntil: hotUntil.toISOString(), history: [...history, { event: 'TAKEN_IN_COMBAT', fromRoundPlayerId, fromName: takenFrom.displayName, cityName: takenFrom.cityName, at: now.toISOString() }] };
+    : { ...origin, kind: 'LOOTED', stolenFromRoundPlayerId: fromRoundPlayerId, hotUntil: hotUntil!.toISOString(), history: [...history, { event: 'TAKEN_IN_COMBAT', fromRoundPlayerId, fromName: takenFrom.displayName, cityName: takenFrom.cityName, at: now.toISOString() }] };
   if (recovered) { delete nextOrigin.hotUntil; delete nextOrigin.stolenFromRoundPlayerId; }
   const data = { roundPlayerId: toRoundPlayerId, model: gun.model, name: gun.name, condition: gun.condition, mods: inputJson(gun.mods), lookKey: null,
     origin: nextOrigin as Prisma.InputJsonValue,
@@ -206,5 +212,5 @@ export async function lootIndividualGun(db: Db, fromRoundPlayerId: string, toRou
   if (gun.quantity === 1) await db.playerGun.delete({ where: { id: gun.id } });
   else await db.playerGun.update({ where: { id: gun.id }, data: { quantity: { decrement: 1 } } });
   await db.playerGun.create({ data });
-  return { model: gun.model, name: gun.name, mods: modList(gun.mods), condition: gun.condition, hotUntil: recovered ? null : hotUntil.toISOString(), recovered };
+  return { model: gun.model, name: gun.name, mods: modList(gun.mods), condition: gun.condition, hotUntil: hotUntil?.toISOString() ?? null, recovered };
 }

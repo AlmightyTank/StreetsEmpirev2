@@ -2,7 +2,7 @@
 export const STREET_SKILL_KEYS = ['HUSTLE', 'MUSCLE', 'WHEELS', 'FIXER', 'CONNECTIONS', 'LUCK'] as const;
 export type StreetSkillKey = (typeof STREET_SKILL_KEYS)[number];
 
-export type StreetSkillModifierCategory = 'ECONOMY' | 'COMBAT' | 'COST' | 'HEAT' | 'RECOVERY' | 'VEHICLE' | 'LUCK';
+export type StreetSkillModifierCategory = 'ECONOMY' | 'COMBAT' | 'COST' | 'HEAT' | 'RECOVERY' | 'VEHICLE' | 'LUCK' | 'ARMORY';
 
 /**
  * What a passive or perk changes. Caps apply per effect, so two different
@@ -14,7 +14,8 @@ export type StreetSkillEffectId =
   | 'RUN_FEES' | 'VEHICLE_DAMAGE' | 'TRAVEL_TIME' | 'CARGO' | 'REPAIR_COST' | 'POLICE_STOPS' | 'ESCORT_STRENGTH'
   | 'HEAT_GAIN' | 'HEAT_COOLING' | 'FIGHT_HEAT' | 'LAWYER_FEE' | 'EVIDENCE_GAIN' | 'CASE_COOLING'
   | 'TOLLS' | 'SUPPLY_ORDER_PRICE' | 'STANDING_GAIN' | 'JOB_CASH'
-  | 'ENCOUNTER_GAINS' | 'GOOD_ENCOUNTER_WEIGHT' | 'RARE_ENCOUNTER_WEIGHT' | 'ENCOUNTER_LOSSES' | 'GOOD_ENCOUNTER_GAINS' | 'BAD_ENCOUNTER_WEIGHT';
+  | 'ENCOUNTER_GAINS' | 'GOOD_ENCOUNTER_WEIGHT' | 'RARE_ENCOUNTER_WEIGHT' | 'ENCOUNTER_LOSSES' | 'GOOD_ENCOUNTER_GAINS' | 'BAD_ENCOUNTER_WEIGHT'
+  | 'GUN_JAM_CHANCE' | 'GUN_WEAR' | 'TERRITORY_CACHE_CASH' | 'TOLL_COLLECTED';
 
 export interface StreetSkillEffect {
   readonly effectId: StreetSkillEffectId;
@@ -40,6 +41,8 @@ export interface StreetSkillMilestoneChoice {
   readonly description: string;
   /** A capped percent effect. Perks without one are rule changes read with `has`. */
   readonly effect?: StreetSkillEffect;
+  /** A perk may adjust more than one independent mechanic. */
+  readonly effects?: readonly StreetSkillEffect[];
   /** Offensive perks stop working against targets much smaller than you. */
   readonly offensive?: true;
   /** A system this perk needs that is not in the game yet. It cannot be chosen until then. */
@@ -232,6 +235,55 @@ export const STREET_SKILLS_V1: StreetSkillsRules = {
     { key: 'CONNECTIONS_JOB', skill: 'CONNECTIONS', label: 'Job, supply, or toll action', baseXp: 10, actionPrefixes: ['QUEST_', 'JOB_', 'CONTACT_', 'SUPPLY_', 'TOLL_', 'REPUTATION_'] },
     { key: 'LUCK_EVENT', skill: 'LUCK', label: 'Scouting, random event or loot action', baseXp: 10, actionPrefixes: ['SCOUT', 'ENCOUNTER_', 'RANDOM_', 'LOOT_', 'DROP_'] },
   ],
+};
+
+/** 2.5.0-A adds the Armory perk while older pinned rounds keep their original catalog. */
+export const STREET_SKILLS_V2: StreetSkillsRules = {
+  ...STREET_SKILLS_V1,
+  modifierCaps: [...STREET_SKILLS_V1.modifierCaps, { category: 'ARMORY', maxPercent: 20 }],
+  passives: STREET_SKILLS_V1.passives.map((passive) => {
+    if (passive.requires !== AMMO && passive.requires !== RUN_FEES && passive.requires !== TERRITORY) return passive;
+    const { requires: _requires, ...available } = passive;
+    return available;
+  }),
+  milestones: {
+    ...STREET_SKILLS_V1.milestones,
+    HUSTLE: [
+      STREET_SKILLS_V1.milestones.HUSTLE![0]!,
+      STREET_SKILLS_V1.milestones.HUSTLE![1]!,
+      { threshold: 40, choices: [
+        { key: 'KINGPINS_CUT', label: "Kingpin's Cut", description: 'Collect 10% more cash from territory caches.', effect: { effectId: 'TERRITORY_CACHE_CASH', category: 'ECONOMY', percent: 10 } },
+        STREET_SKILLS_V1.milestones.HUSTLE![2]!.choices[1],
+      ] },
+    ],
+    MUSCLE: [
+      STREET_SKILLS_V1.milestones.MUSCLE![0]!,
+      { threshold: 25, choices: [
+        { key: 'STEADY_HANDS', label: 'Steady Hands', description: 'Gun jams and wear are reduced by 20%.', effects: [
+          { effectId: 'GUN_JAM_CHANCE', category: 'ARMORY', percent: -20 },
+          { effectId: 'GUN_WEAR', category: 'ARMORY', percent: -20 },
+        ] },
+        STREET_SKILLS_V1.milestones.MUSCLE![1]!.choices[1],
+      ] },
+      STREET_SKILLS_V1.milestones.MUSCLE![2]!,
+    ],
+    FIXER: [
+      STREET_SKILLS_V1.milestones.FIXER![0]!,
+      STREET_SKILLS_V1.milestones.FIXER![1]!,
+      { threshold: 40, choices: [
+        { key: 'GHOST', label: 'Ghost', description: 'Taken items you hold stay hot 12h instead of 24h.' },
+        { key: 'TRIPWIRE', label: 'Tripwire', description: 'Your stolen items stay hot 36h, giving you longer to recover them.' },
+      ] },
+    ],
+    CONNECTIONS: [
+      STREET_SKILLS_V1.milestones.CONNECTIONS![0]!,
+      { threshold: 25, choices: [
+        { key: 'TOLL_BOOTH', label: 'Toll Booth', description: 'Collect 10% more tolls on your alliance territory.', effect: { effectId: 'TOLL_COLLECTED', category: 'ECONOMY', percent: 10 } },
+        STREET_SKILLS_V1.milestones.CONNECTIONS![1]!.choices[1],
+      ] },
+      STREET_SKILLS_V1.milestones.CONNECTIONS![2]!,
+    ],
+  },
 };
 
 /** Every perk choice in the catalog, by key. */

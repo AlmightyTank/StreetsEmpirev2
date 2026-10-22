@@ -1,4 +1,5 @@
 import { classicOgV24F } from '../classic-og-v2.4-f/index.js';
+import { STREET_SKILLS_V2 } from '../street-skills.js';
 import type { IndividualItemModRule, Ruleset } from '../types.js';
 
 const gunMods: readonly IndividualItemModRule[] = [
@@ -21,6 +22,7 @@ const vehicleMods: readonly IndividualItemModRule[] = [
 export const classicOgV25A = {
   ...classicOgV24F,
   meta: { ...classicOgV24F.meta, id: 'classic-og-v2.5-a', version: '2.5.0-A', name: 'Classic OG - Individual Armory' },
+  streetSkills: STREET_SKILLS_V2,
   individualItems: {
     enabled: true,
     catalogVersion: 'armory-garage-v1',

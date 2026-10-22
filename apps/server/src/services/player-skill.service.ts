@@ -95,12 +95,12 @@ export function skillContributions(
       // A choice only counts while the points that unlocked it are still there.
       if (!perk || perk.requires || row.points < Number(threshold)) continue;
       perks.add(perk.key);
-      if (perk.effect) {
+      for (const effect of perk.effects ?? (perk.effect ? [perk.effect] : [])) {
         contributions.push({
-          effectId: perk.effect.effectId,
-          target: perk.effect.effectId,
-          category: perk.effect.category,
-          percent: perk.effect.percent,
+          effectId: effect.effectId,
+          target: effect.effectId,
+          category: effect.category,
+          percent: effect.percent,
           sourceId: `street-perk:${perk.key}`,
           label: `${labels[key]} · ${perk.label}`,
           offensive: Boolean(perk.offensive),

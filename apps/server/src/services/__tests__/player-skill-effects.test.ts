@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { STREET_SKILLS_V1 } from '@streets/rulesets';
+import { STREET_SKILLS_V1, STREET_SKILLS_V2 } from '@streets/rulesets';
 import { buildSkillEffects, coolHeat, NO_SKILL_EFFECTS } from '../player-skill.service.js';
 import { withSkillHeat } from '../action.service.js';
 import { skillSellCents } from '../store.service.js';
@@ -23,6 +23,26 @@ describe('street skill effects', () => {
     expect(buildSkillEffects([row('WHEELS', 40, { 40: 'WHEELMAN' })], rules).has('WHEELMAN')).toBe(true);
     // A perk that needs an unbuilt system never applies, even if a stale row names it.
     expect(buildSkillEffects([row('FIXER', 40, { 40: 'GHOST' })], rules).has('GHOST')).toBe(false);
+  });
+
+  it('activates Steady Hands with independent jam and wear modifiers in the armory ruleset', () => {
+    const skills = buildSkillEffects([row('MUSCLE', 25, { 25: 'STEADY_HANDS' })], STREET_SKILLS_V2);
+    expect(skills.scale('GUN_JAM_CHANCE', 10)).toBe(8);
+    expect(skills.percent('GUN_WEAR')).toBe(-20);
+    expect(buildSkillEffects([row('MUSCLE', 25, { 25: 'STEADY_HANDS' })], STREET_SKILLS_V1).percent('GUN_WEAR')).toBe(0);
+  });
+
+  it('activates ammo, run-fee and live territory bonuses in the beta ruleset', () => {
+    const skills = buildSkillEffects([
+      row('MUSCLE', 40),
+      row('WHEELS', 40),
+      row('CONNECTIONS', 40),
+      row('HUSTLE', 40, { 40: 'KINGPINS_CUT' }),
+    ], STREET_SKILLS_V2);
+    expect(skills.percent('AMMO_PER_FIGHT')).toBe(-10);
+    expect(skills.percent('RUN_FEES')).toBe(-15);
+    expect(skills.percent('TOLLS')).toBe(-20);
+    expect(skills.percent('TERRITORY_CACHE_CASH')).toBe(10);
   });
 
   it('drops offensive perks against a weak target but keeps defensive ones', () => {

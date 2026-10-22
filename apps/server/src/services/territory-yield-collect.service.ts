@@ -40,7 +40,7 @@ export function collectTerritoryCityYield(
   return ActionService.run<TerritoryYieldCollection>(prisma, roundPlayerId, {
     action: 'TERRITORY_YIELD_COLLECT',
     actionId: input.actionId,
-    execute: async ({ tx, current, player, round, ruleset, now }) => {
+    execute: async ({ tx, current, player, round, ruleset, now, skills }) => {
       if (!territoryFeatureEnabled(round, ruleset)) {
         throw AppError.conflict('TERRITORY_REWARDS_DISABLED', 'Territory rewards are not enabled for this round.');
       }
@@ -127,6 +127,13 @@ export function collectTerritoryCityYield(
       const unitValues = Object.fromEntries(Object.keys(goods).map((key) => [key, territoryYieldUnitValueCents(ruleset, key)]));
       const collection = allocateTerritoryYield({ goods: availableGoods, cashCents, tollCents, unitValues, availableValueCents });
       if (collection.valueCents === 0) throw AppError.conflict('TERRITORY_DAILY_CAP', 'Your alliance has reached its territory yield cap for today.');
+      const cacheBonusPercent = collection.cashCents > 0 ? skills.percent('TERRITORY_CACHE_CASH') : 0;
+      const tollBonusPercent = collection.tollCents > 0 ? skills.percent('TOLL_COLLECTED') : 0;
+      const requestedBonusCash = Math.floor(collection.cashCents * Math.max(0, cacheBonusPercent) / 100)
+        + Math.floor(collection.tollCents * Math.max(0, tollBonusPercent) / 100);
+      // The extra cash counts against both daily ceilings just like the cache value.
+      const bonusCash = Math.min(requestedBonusCash, Math.max(0, availableValueCents - collection.valueCents));
+      const totalValueCents = collection.valueCents + bonusCash;
 
       const productGoods = Object.fromEntries(Object.entries(collection.goods).filter(([key]) => key !== 'AMMO' && key !== 'VEHICLE_PARTS'));
       if (Object.keys(productGoods).length) await ProductInventoryService.adjust(tx, roundPlayerId, ruleset, productGoods);
@@ -142,13 +149,13 @@ export function collectTerritoryCityYield(
           carryMillis: state.carryMillis,
         },
       });
-      await tx.territoryYieldDailyLedger.update({ where: { id: daily.id }, data: { valueCents: daily.valueCents + BigInt(collection.valueCents) } });
-      await tx.territoryYieldPlayerDailyLedger.update({ where: { id: playerDaily.id }, data: { valueCents: playerDaily.valueCents + BigInt(collection.valueCents) } });
+      await tx.territoryYieldDailyLedger.update({ where: { id: daily.id }, data: { valueCents: daily.valueCents + BigInt(totalValueCents) } });
+      await tx.territoryYieldPlayerDailyLedger.update({ where: { id: playerDaily.id }, data: { valueCents: playerDaily.valueCents + BigInt(totalValueCents) } });
       return {
-        next: { ...current, cashCents: current.cashCents + BigInt(collection.cashCents + collection.tollCents), turns: current.turns - 1,
+        next: { ...current, cashCents: current.cashCents + BigInt(collection.cashCents + collection.tollCents + bonusCash), turns: current.turns - 1,
           ...(ammoGained ? { ammo: (current.ammo ?? 0) + ammoGained } : {}),
           ...(partsGained ? { vehicleParts: (current.vehicleParts ?? 0) + partsGained } : {}) },
-        result: { scope: input.scope, citySlug: input.citySlug, district: input.district ?? null, goods: collection.goods, cashCents: collection.cashCents, tollCents: collection.tollCents, valueCents: collection.valueCents, turnsUsed: 1 },
+        result: { scope: input.scope, citySlug: input.citySlug, district: input.district ?? null, goods: collection.goods, cashCents: collection.cashCents + bonusCash, tollCents: collection.tollCents, valueCents: totalValueCents, turnsUsed: 1 },
       };
     },
   });

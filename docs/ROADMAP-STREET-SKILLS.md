@@ -134,10 +134,10 @@ The skill catalog (XP sources, curve, caps, passives, milestone perks, taper, ca
 ### Slice E — Balance and rollout
 - Full-season simulation across solo and alliance players, late joiners and heavy attackers. Abuse tests for XP farming. Admin skill inspector. Staged opt-in on new rounds.
 
-## Built state (2.3.0-A)
-What the beta ruleset actually does, where it differs from the plan above.
+## Built state (beta 2.5.0-A)
+What the current beta ruleset does, where it differs from the original plan above. Earlier rounds keep their pinned 2.3.0-A catalog.
 
-**Effects and caps.** Every passive and perk is applied at the point it changes: store and product sale prices, scouting income, business income, loan fees, raid/drive-by/special-raid strength, wounds and loot, fight Heat, Heat gained and cooled, wounded-thug recovery, run cargo and drive time, police stops, run vehicle damage, garage bills, convoy escorts, lawyers, evidence, case cooling, Job cash and standing, supply orders, and random encounters. Caps apply per effect rather than per category, so different costs (or Heat gained vs. Heat cooled) never share a cap. Action receipts list only the effects that action used.
+**Effects and caps.** Every live passive and perk is applied at the point it changes: store and product sale prices, scouting income, business income, loan fees, raid/drive-by/special-raid strength, wounds and loot, gun jams and wear, rounds per fight, fight Heat, Heat gained and cooled, wounded-thug recovery, run fees, run cargo and drive time, police stops, run vehicle damage, garage bills, convoy escorts, lawyers, evidence, case cooling, Job cash and standing, supply orders, territory tolls and cache collection, stolen-item recovery windows, and random encounters. Caps apply per effect category; Action receipts list only effects that action used.
 
 **XP.** Raids, drive-bys and special raids pay Muscle XP to both sides, with the loser getting half. Trips, lawyers, officials, informants, cooking and scouting earn XP (Scouting feeds Luck). The 100-point total cap is enforced: once the other skills leave no room, a skill stops gaining points.
 
@@ -149,13 +149,18 @@ What the beta ruleset actually does, where it differs from the plan above.
 | Plugged In | One extra job offer a day | Jobs pay 10% more cash |
 | Supplier's Friend | Larger supply restock | Two more supply orders can wait for pickup at once |
 | Wheelman | Protect run vehicles from encounter gangs | Street gangs never try to steal your ride |
+| Muscle passive | Reduce rounds in a fight | 10% fewer rounds per equipped gun at 40 Muscle points |
+| Wheels passive | Lower run fees | 15% lower vehicle run fees at 40 Wheels points |
+| Steady Hands | Reduce gun jams and wear | Both jam chance and wear reduced by 20% |
+| Kingpin's Cut | More cash from collected territory caches | 10% more cache cash, still bounded by daily territory yield caps |
+| Toll Booth | Collect more tolls | 10% more toll cash when collecting territory caches, within the same daily caps |
+| Ghost / Tripwire | Change the stolen-item recovery window | Ghost shortens it to 12 hours; Tripwire extends it to 36 hours. If both sides have one, their adjustments offset. |
 
 **Waiting on unbuilt systems.** These show as "Coming with …" on the Skills page and cannot be chosen; the passives apply nothing:
-- Ammo & Parts: Muscle's rounds-per-fight passive; Wheels' run-fee passive.
-- Territory Rewards: Connections' toll passive; Kingpin's Cut, Toll Booth, Fast Pass, Inside Line.
-- Armory & Garage: Steady Hands, Ghost, Tripwire.
+- Territory access waits: Fast Pass. No non-holder access-wait mechanic exists yet.
+- Remote territory intelligence: Inside Line. The distinct perk-gated view is not implemented yet.
 
-Fixer 40 and Connections 25 have no choosable perk until those systems ship.
+Earlier round catalogs remain unchanged; the current beta catalog only unlocks these perks where their gameplay path exists.
 
 **Curve.** The nth point costs n × 30 XP, so 10 points take 1,650 XP, 25 take 9,750 and 40 take 24,600. At the full-rate daily band (1,000 XP a skill) that is under 2 days, about 10 days and about 25 days: one maxed skill fits a 28-day round. A player who also uses the half-rate band reaches 40 in about 16 days. A skill's stored points catch up to the curve the next time it earns XP.
 

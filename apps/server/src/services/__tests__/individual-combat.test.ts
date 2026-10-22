@@ -3,6 +3,7 @@ import type { PlayerGun } from '@prisma/client';
 import { classicOgV25A } from '@streets/rulesets';
 import { IndividualItemsService } from '../individual-items.service.js';
 import { lootIndividualGun, planIndividualCombat, releaseReservedIndividualGuns, settleReservedIndividualGuns } from '../individual-combat.service.js';
+import { stolenItemHotUntil } from '../item-hot-window.js';
 
 const row = (id: string, model: string, values: Record<string, unknown> = {}) => ({
   id, roundPlayerId: 'player', model, name: null, condition: 100, mods: [], lookKey: null, origin: {}, stats: {},
@@ -11,8 +12,8 @@ const row = (id: string, model: string, values: Record<string, unknown> = {}) =>
 const crew = { thugs: 4, thugHappiness: 100, weapons: { PISTOL: 0, SHOTGUN: 0, TEK9: 0, AK47: 0 } };
 const model = classicOgV25A.combat!;
 const ammo = { roundsPerFight: { PISTOL: 10, SHOTGUN: 10, TEK9: 10, AK47: 10 }, defenderFloor: 1, lootShareBps: 0 };
-function mockDb(rows: PlayerGun[]) {
-  return { playerGun: { findMany: async () => rows, update: async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => ({ ...rows.find((gun) => gun.id === where.id), ...data }), create: async ({ data }: { data: Record<string, unknown> }) => ({ id: 'created', ...data }) } };
+function mockDb(rows: PlayerGun[], skills: Array<{ roundPlayerId?: string; skill: string; points: number; choices: Record<string, string> }> = []) {
+  return { playerSkill: { findMany: async ({ where }: any = {}) => skills.filter((row) => !where?.roundPlayerId || !row.roundPlayerId || row.roundPlayerId === where.roundPlayerId) }, playerGun: { findMany: async () => rows, update: async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => ({ ...rows.find((gun) => gun.id === where.id), ...data }), create: async ({ data }: { data: Record<string, unknown> }) => ({ id: 'created', ...data }) } };
 }
 
 describe('individual gun combat plans', () => {
@@ -36,11 +37,33 @@ describe('individual gun combat plans', () => {
     expect(plan.receipts[0]).toMatchObject({ id: 'ak', rounds: 10, jammed: true, conditionBefore: 40, conditionAfter: 38 });
   });
 
+  it('applies Steady Hands to both jam odds and condition wear', async () => {
+    const guns = [row('ak', 'AK47', { condition: 40 })];
+    const db = mockDb(guns, [{ skill: 'MUSCLE', points: 25, choices: { 25: 'STEADY_HANDS' } }]);
+    const plan = await planIndividualCombat(db as never, 'player', crew, 1, model, classicOgV25A.individualItems!, ammo, 10, 'ATTACKER', () => 0.09);
+    expect(plan.crew.weapons.AK47).toBe(1); // 20% lower than the gun's 10% base jam chance.
+    await plan.settle(db as never, 'player');
+    expect(plan.receipts[0]).toMatchObject({ conditionBefore: 40, conditionAfter: 37 });
+  });
+
+  it('reduces ammo per gun for a maxed Muscle skill', async () => {
+    const guns = [row('ak', 'AK47')];
+    const db = mockDb(guns, [{ roundPlayerId: 'player', skill: 'MUSCLE', points: 40, choices: {} }]);
+    const plan = await planIndividualCombat(db as never, 'player', crew, 1, model, classicOgV25A.individualItems!, ammo, 10, 'ATTACKER', () => 0.99);
+    expect(plan.roundsSpent).toBe(9);
+  });
+
+  it('lets Tripwire keep a stolen gun recoverable for 36 hours', async () => {
+    const db = { playerSkill: { findMany: async ({ where }: any) => where.roundPlayerId === 'owner' ? [{ skill: 'FIXER', points: 40, choices: { 40: 'TRIPWIRE' } }] : [] } };
+    const hotUntil = await stolenItemHotUntil(db as never, 'thief', 'owner', new Date('2026-10-21T12:00:00.000Z'));
+    expect(hotUntil.toISOString()).toBe('2026-10-23T00:00:00.000Z');
+  });
+
   it('reserves only the selected copy and applies wear at landing, or releases it without wear on cancellation', async () => {
     const stacked = row('stacked-ak', 'AK47', { quantity: 2 });
     const records = new Map<string, any>([[stacked.id, { ...stacked }]]);
     let created = 0;
-    const db = { playerGun: {
+    const db = { playerSkill: { findMany: async () => [] }, playerGun: {
       findMany: async () => [...records.values()].filter((gun) => gun.status === 'READY'),
       findFirst: async ({ where }: any) => records.get(where.id) ?? null,
       update: async ({ where, data }: any) => { const gun = { ...records.get(where.id), ...data }; records.set(where.id, gun); return gun; },
@@ -72,11 +95,11 @@ describe('individual gun combat plans', () => {
     const ownedGun = row('taken-ak', 'AK47', { name: 'Widowmaker', lookKey: 'gold-ak', mods: [{ key: 'BARREL', tier: 2 }],
       origin: { kind: 'PURCHASED', history: [{ event: 'OLD' }] } });
     let created: Record<string, unknown> | null = null;
-    const db = { playerGun: { findMany: async () => [ownedGun], delete: async () => ({}), create: async ({ data }: { data: Record<string, unknown> }) => { created = data; return data; } } };
+    const db = { playerSkill: { findMany: async ({ where }: any) => where.roundPlayerId === 'victim' ? [{ skill: 'FIXER', points: 40, choices: { 40: 'GHOST' } }] : [] }, playerGun: { findMany: async () => [ownedGun], delete: async () => ({}), create: async ({ data }: { data: Record<string, unknown> }) => { created = data; return data; } } };
     const receipt = await lootIndividualGun(db as never, 'holder', 'victim', now, { displayName: 'The Holder', cityName: 'Detroit' });
     expect(receipt).toMatchObject({ model: 'AK47', name: 'Widowmaker', condition: 100, mods: [{ key: 'BARREL', tier: 2 }], recovered: false });
     expect((created as any).lookKey).toBeNull();
-    expect((created as any).origin).toMatchObject({ stolenFromRoundPlayerId: 'holder', hotUntil: '2026-10-22T12:00:00.000Z' });
+    expect((created as any).origin).toMatchObject({ stolenFromRoundPlayerId: 'holder', hotUntil: '2026-10-22T00:00:00.000Z' });
     expect((created as any).origin.history.at(-1)).toMatchObject({ fromName: 'The Holder', cityName: 'Detroit' });
     expect((created as any).favorite).toBe(false);
     expect((created as any).reserve).toBe(false);
@@ -86,7 +109,7 @@ describe('individual gun combat plans', () => {
     const now = new Date('2026-10-21T12:00:00.000Z');
     const ownedGun = row('stolen-ak', 'AK47', { origin: { stolenFromRoundPlayerId: 'victim', hotUntil: '2026-10-22T12:00:00.000Z', history: [] } });
     let created: Record<string, unknown> | null = null;
-    const db = { playerGun: { findMany: async () => [ownedGun], delete: async () => ({}), create: async ({ data }: { data: Record<string, unknown> }) => { created = data; return data; } } };
+    const db = { playerSkill: { findMany: async () => [] }, playerGun: { findMany: async () => [ownedGun], delete: async () => ({}), create: async ({ data }: { data: Record<string, unknown> }) => { created = data; return data; } } };
     const receipt = await lootIndividualGun(db as never, 'holder', 'victim', now, { displayName: 'The Holder', cityName: 'Detroit' });
     expect(receipt).toMatchObject({ recovered: true, hotUntil: null });
     expect(created).not.toHaveProperty('origin.hotUntil');
