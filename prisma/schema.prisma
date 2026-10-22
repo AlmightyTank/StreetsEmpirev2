@@ -125,8 +125,6 @@ model Account {
   notificationOutbox               NotificationOutbox[]
   pushSubscriptions                PushSubscription[]
   profile                          AccountProfile?
-  advisorSuppressions              AdvisorSuppression[]
-  advisorEvaluations               AdvisorEvaluationEvent[]
   cosmeticUnlocks                  AccountCosmeticUnlock[]
   legacyEntries                    LegacyEntry[]
   playerCareer                     PlayerCareer?
@@ -387,8 +385,6 @@ model AccountProfile {
   /// 1.0.0-B. Tutorial progress: intro completed/skipped, page intros seen, guide
   /// dismissed for a season. Never gameplay state; see OnboardingService.
   onboarding                 Json    @default("{}")
-  /// 2.3.0. Account-wide advisor planning and silence preferences.
-  advisorPreferences         Json    @default("{}")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1804,8 +1800,6 @@ model Round {
   turfCrackdown            TurfCrackdown?
   cityMemoryEvents         CityMemoryEvent[]
   operations               Operation[]
-  advisorSuppressions      AdvisorSuppression[]
-  advisorEvaluations       AdvisorEvaluationEvent[]
   legacyEntries            LegacyEntry[]
   intelRumors              IntelRumor[]
   directMessages           DirectMessage[]
@@ -1821,25 +1815,6 @@ model Round {
 
   @@index([status])
   @@index([discordEndedAt, discordEndedClaimedAt])
-}
-
-/// 2.3.0. Round-scoped advisor suppression; the source key remains stable even
-/// when presentation copy changes.
-model AdvisorSuppression {
-  id            String    @id @default(cuid())
-  accountId     String
-  roundId       String
-  suggestionKey String
-  mode          String
-  until         DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  round   Round   @relation(fields: [roundId], references: [id], onDelete: Cascade)
-
-  @@unique([accountId, roundId, suggestionKey])
-  @@index([roundId, accountId])
 }
 
 /// 2.4.0. Round-scoped career story progress pinned to an immutable catalog.
@@ -1919,28 +1894,6 @@ model CareerStoryPortfolio {
   instance          CareerStoryInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
 
   @@index([accountId, visibility])
-}
-
-/// 2.3.0. Privacy-safe append-only advisor outcome trace.
-model AdvisorEvaluationEvent {
-  id                String   @id @default(cuid())
-  accountId         String
-  roundId           String
-  event             String
-  ruleId            String
-  suggestionKey     String
-  slot              Int
-  focus             String
-  rulesetVersion    String
-  sourceFingerprint String?
-  outcome           String?
-  createdAt         DateTime @default(now())
-
-  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  round   Round   @relation(fields: [roundId], references: [id], onDelete: Cascade)
-
-  @@index([accountId, roundId, suggestionKey, event])
-  @@index([roundId, createdAt])
 }
 
 /// Immutable end-of-round report. A round gets one report for its schema

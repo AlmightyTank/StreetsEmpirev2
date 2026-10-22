@@ -1,4 +1,4 @@
-import type { AdvisorDto, NotificationCategory, PlatformMetaDto } from '@streets/shared';
+import type { NotificationCategory, PlatformMetaDto } from '@streets/shared';
 import { platformApi } from '../api/platform.js';
 import type {
   AccountDto,
@@ -83,7 +83,6 @@ interface SessionState {
   roundOver: RoundOverDto | null;
   canJoin: boolean;
   recentActivity: ActivityDto[];
-  advisor: AdvisorDto | null;
   /** Player whose activity list has completed its first authoritative snapshot load. */
   activityHydratedForPlayerId: string | null;
   /** 0.9.0-G. Categories muted in the bell; their live toasts are skipped too. */
@@ -127,7 +126,6 @@ export const useSession = create<SessionState>((set, get) => ({
   roundOver: null,
   canJoin: false,
   recentActivity: [],
-  advisor: null,
   activityHydratedForPlayerId: null,
   bellMuted: [],
   platform: null,
@@ -241,7 +239,6 @@ export const useSession = create<SessionState>((set, get) => ({
         me: snapshot.player,
         roundOver: null,
         recentActivity: snapshot.recentActivity,
-        advisor: snapshot.advisor ?? null,
         activityHydratedForPlayerId: snapshot.player.id,
         canJoin: false,
       });

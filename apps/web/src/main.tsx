@@ -25,7 +25,6 @@ import './styles/page-identities.css';
 // 5. Page art and feature-specific composition.
 import './styles/hideout.css';
 import './styles/dashboard.css';
-import './styles/advisor.css';
 import './styles/career-story.css';
 import './styles/scout.css';
 import './styles/produce.css';

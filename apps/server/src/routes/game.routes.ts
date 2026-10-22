@@ -42,10 +42,6 @@ import {
   favorArmSchema,
   streetPassClaimSchema,
   CLIENT_EASTER_EGG_IDS,
-  advisorFocusInputSchema,
-  advisorPreferenceSchema,
-  advisorSuppressionSchema,
-  advisorEvaluationSchema,
 } from '@streets/shared';
 import { toGameSnapshotDto } from '../game/dto.js';
 import { PayoutService } from '../services/payout.service.js';
@@ -93,9 +89,6 @@ import { RandomEncounterService } from '../services/random-encounter.service.js'
 import { EasterEggService } from '../services/easter-egg.service.js';
 import { RingService } from '../services/ring.service.js';
 import { CityHoldingsService } from '../services/city-holdings.service.js';
-import { buildAdvisor, shouldDeferAdvisor } from '../services/advisor.service.js';
-import { AdvisorContextService } from '../services/advisor-context.service.js';
-import { AdvisorEvaluationService } from '../services/advisor-evaluation.service.js';
 import { PlayerSkillService } from '../services/player-skill.service.js';
 
 const RECENT_ACTIVITY_LIMIT = 10;
@@ -197,19 +190,15 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
       markActive: !isBackground,
     });
 
-    const [playerCount, recentActivity, streetPass, roundRollCall, law, pendingEncounters, advisorPreferences, advisorSuppressions, onboarding] = await Promise.all([
+    const [playerCount, recentActivity, streetPass, roundRollCall, law, pendingEncounters] = await Promise.all([
       RoundService.playerCount(fastify.prisma, round.id),
       ActivityService.recent(fastify.prisma, existing.id, RECENT_ACTIVITY_LIMIT),
       StreetPassService.summary(fastify.prisma, existing.id, settled.ruleset),
       RoundRollCallService.summary(fastify.prisma, settled.round, existing.id),
       LawService.summary(fastify.prisma, existing.id, settled.ruleset),
       RandomEncounterService.pendingForPlayer(fastify.prisma, existing.id, new Date(), settled.ruleset),
-      AdvisorContextService.preferences(fastify.prisma, settled.player.accountId),
-      AdvisorContextService.suppressions(fastify.prisma, settled.player.accountId, settled.round.id),
-      OnboardingService.state(fastify.prisma, settled.player.accountId),
     ]);
 
-    const advisorEnabled = process.env.EMPIRE_ADVISOR_ENABLED !== '0';
     const snapshot = toGameSnapshotDto({
       round: settled.round,
       playerCount,
@@ -223,44 +212,9 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
       turf: settled.turf,
       pendingEncounters,
       recentActivity,
-        advisor: !advisorEnabled || advisorPreferences.silenced || shouldDeferAdvisor(Boolean(onboarding.tour?.active)) ? undefined : buildAdvisor({
-        cashCents: Number(settled.player.cashCents),
-        turns: settled.turns.turns,
-        turnCap: settled.turns.turnCap,
-        crewSize: settled.player.thugs + settled.player.whores,
-        heat: settled.player.heat,
-        heatMax: settled.ruleset.heat?.max ?? null,
-        products: settled.products ? Object.entries(settled.products).map(([key, quantity]) => ({ key, quantity })) : null,
-        // Holdings are filled by the bounded holdings read in the recommendation
-        // slice; do not add a per-card query to this authoritative dashboard read.
-        holdingsAvailable: false,
-        quest: null,
-        paused: Boolean(settled.round.pausedAt),
-        rules: {
-          heat: Boolean(settled.ruleset.heat),
-          holdings: Boolean((settled.ruleset as unknown as { holdings?: unknown }).holdings),
-          quests: true,
-        },
-      }, settled.round.rulesetVersion, advisorPreferences.focus, advisorSuppressions),
     });
     const experience = await PlayerExperienceService.view(fastify.prisma, settled.player.accountId);
     return { ...snapshot, player: { ...snapshot.player, streetPass, roundRollCall, experience, ...(law ? { law } : {}) } };
-  });
-
-  fastify.get('/advisor/preferences', { preHandler: fastify.requireAuth }, async (request) =>
-    AdvisorContextService.preferences(fastify.prisma, request.auth!.account.id));
-
-  fastify.put('/advisor/preferences', { preHandler: fastify.requireAuth }, async (request) =>
-    AdvisorContextService.updatePreferences(fastify.prisma, request.auth!.account.id, parseBody(advisorPreferenceSchema, request.body)));
-
-  fastify.put('/advisor/focus', { preHandler: fastify.requireAuth }, async (request) =>
-    AdvisorContextService.updatePreferences(fastify.prisma, request.auth!.account.id, parseBody(advisorFocusInputSchema, request.body)));
-
-  fastify.post('/advisor/suppressions', { preHandler: fastify.requireAuth }, async (request) => {
-    const { round } = await requirePlayer(request.auth!.account.id);
-    const body = parseBody(advisorSuppressionSchema, request.body);
-    await AdvisorContextService.suppress(fastify.prisma, request.auth!.account.id, round.id, body.suggestionKey, body.mode);
-    return { ok: true };
   });
 
   /** 2.3.0-C. Server-authoritative street skill milestones and choices. */
@@ -297,12 +251,6 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
       skill,
       now: new Date(),
     }));
-  });
-
-  fastify.post('/advisor/evaluations', { preHandler: fastify.requireAuth }, async (request) => {
-    const { round } = await requirePlayer(request.auth!.account.id);
-    await AdvisorEvaluationService.record(fastify.prisma, request.auth!.account.id, round.id, parseBody(advisorEvaluationSchema, request.body));
-    return { ok: true };
   });
 
   /**
