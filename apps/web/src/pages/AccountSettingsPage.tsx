@@ -36,7 +36,7 @@ import { DEFAULT_PROFILE_SETTINGS, useSession } from '../stores/session.js';
 import { isBoolean, isString, readRemembered, rememberedKey, useRememberedState } from '../utils/remembered.js';
 import { ReplayTutorial } from '../components/onboarding/ReplayTutorial.js';
 import { formatWhen } from '../utils/time.js';
-import { StreetSignBuilder } from '../components/StreetSignBuilder.js';
+import { StreetSignBuilder, StreetSignDisplay } from '../components/StreetSignBuilder.js';
 import { useOnboarding } from '../stores/onboarding.js';
 
 /** Sessions listed before "Show all": this one first, then the most recently used. */
@@ -497,6 +497,9 @@ export function AccountSettingsPage() {
   const selectedAvatarFrame = profileSettings?.options.frames.find((option) => option.key === cosmetics.activeAvatarFrameKey);
   // Signature Profile Card (supporter reward): on while its frame is the avatar frame.
   const signature = cosmetics.activeAvatarFrameKey === SIGNATURE_CARD_FRAME_KEY;
+  const previewStreetSign = cosmetics.streetSign
+    ? { ...cosmetics.streetSign, streetName: (cosmetics.crewName ?? '').trim() || cosmetics.streetSign.streetName }
+    : null;
   const surfaceOptions = profileSettings?.options.surfaces ?? [];
   const selectedSurface = surfaceOptions.find((option) => option.key === (cosmetics.profileSurface ?? 'brushed'));
   const displayName = me?.displayName ?? account.username;
@@ -1091,10 +1094,12 @@ export function AccountSettingsPage() {
                   data-surface={signature ? cosmetics.profileSurface ?? 'brushed' : undefined}
                 >
                   <div
-                    className="se-profile-card-preview__banner"
+                    className={`se-profile-card-preview__banner${previewStreetSign ? ' se-profile-card-preview__banner--street-sign' : ''}`}
                     style={cosmetics.profileBannerUrl ? { backgroundImage: `linear-gradient(90deg, rgba(5, 8, 8, 0.52), rgba(5, 8, 8, 0.86)), url("${cosmetics.profileBannerUrl}")` } : undefined}
                   >
-                    <span>Street Empire</span>
+                    {previewStreetSign
+                      ? <StreetSignDisplay design={previewStreetSign} compact />
+                      : <span>Street Empire</span>}
                   </div>
                   <div className="se-profile-card-preview__identity">
                     <span className="se-profile-card-preview__avatar" aria-hidden="true" title={selectedAvatarFrame?.label}>
