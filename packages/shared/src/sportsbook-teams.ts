@@ -145,6 +145,26 @@ export const SPORTSBOOK_TEAMS: Record<SportsbookLeagueKey, Record<string, Sports
     WPG: team('Winnipeg Jets', 'WPG', 'Winnipeg', 'Jets', 'Atlanta Thrashers'),
     WSH: team('Washington Capitals', 'WSH', 'WAS', 'Washington', 'Capitals', 'Caps'),
   },
+  SOFTBALL: {
+    UCLA: team('UCLA Bruins', 'UCLA', 'Los Angeles', 'Bruins'),
+    OU: team('Oklahoma Sooners', 'OU', 'Norman', 'Sooners'),
+    FSU: team('Florida State Seminoles', 'FSU', 'Tallahassee', 'Seminoles'),
+    TEX: team('Texas Longhorns', 'TEX', 'Austin', 'Longhorns'),
+    LSU: team('LSU Tigers', 'LSU', 'Baton Rouge', 'Tigers'),
+    TENN: team('Tennessee Volunteers', 'TENN', 'Knoxville', 'Volunteers'),
+    STAN: team('Stanford Cardinal', 'STAN', 'Stanford', 'Cardinal'),
+    DUKE: team('Duke Blue Devils', 'DUKE', 'Durham', 'Blue Devils'),
+  },
+  MMA: {
+    JONES: team('Jon Jones', 'Jones', 'Jon'),
+    ASPINALL: team('Tom Aspinall', 'Aspinall', 'Tom'),
+    SHEVCHENKO: team('Valentina Shevchenko', 'Shevchenko', 'Valentina'),
+    GRASSO: team('Alexa Grasso', 'Grasso', 'Alexa'),
+    PEREIRA: team('Alex Pereira', 'Pereira', 'Alex'),
+    ANKALAEV: team('Magomed Ankalaev', 'Ankalaev', 'Magomed'),
+    OMALLEY: team('Sean O’Malley', 'O Malley', 'O\'Malley', 'Sean'),
+    DVALISHVILI: team('Merab Dvalishvili', 'Dvalishvili', 'Merab'),
+  },
 };
 
 export function normalizeSportsbookTeamAlias(value: string): string {
@@ -175,4 +195,25 @@ export function resolveSportsbookTeam(league: SportsbookLeagueKey, label: string
 
 export function sportsbookTeamName(league: SportsbookLeagueKey, teamId: string): string | null {
   return SPORTSBOOK_TEAMS[league][teamId]?.name ?? null;
+}
+
+/** Returns data-quality issues for the canonical team registry. */
+export function validateSportsbookTeamRegistry(): string[] {
+  const issues: string[] = [];
+  for (const [league, teams] of Object.entries(SPORTSBOOK_TEAMS) as [SportsbookLeagueKey, typeof SPORTSBOOK_TEAMS[SportsbookLeagueKey]][]) {
+    const seen = new Map<string, string>();
+    for (const [teamId, identity] of Object.entries(teams)) {
+      if (!teamId.trim()) issues.push(`${league}: team ID is empty`);
+      if (!identity.name.trim()) issues.push(`${league}/${teamId}: name is empty`);
+      const labels = [teamId, identity.name, ...identity.aliases];
+      for (const label of labels) {
+        const normalized = normalizeSportsbookTeamAlias(label);
+        if (!normalized) issues.push(`${league}/${teamId}: empty alias`);
+        const previous = seen.get(normalized);
+        if (previous && previous !== teamId) issues.push(`${league}: alias "${label}" is shared by ${previous} and ${teamId}`);
+        else seen.set(normalized, teamId);
+      }
+    }
+  }
+  return issues;
 }

@@ -117,12 +117,82 @@
 
 .se-economy-batch:focus-within { outline-color: rgba(var(--se-accent-rgb), 0.38); }
 
+/* Economy lane: stores, supply, holdings and operations share the same
+   command-center treatment without coupling their data or actions. */
+.se-stores .se-stores-toolbar,
+.se-supply__grid,
+.se-holdings__facts,
+.se-operations .se-operation-start {
+  border: 1px solid color-mix(in srgb, var(--se-experience-accent, var(--se-accent)) 24%, var(--se-line));
+  border-radius: var(--se-radius-lg, 8px);
+  background: color-mix(in srgb, var(--se-panel-hi) 72%, var(--se-bg));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--se-text) 4%, transparent);
+}
+
+.se-stores .se-stores-toolbar,
+.se-operations .se-operation-start {
+  padding: 10px;
+}
+
+.se-stores .se-stores-toolbar .se-label,
+.se-operation-start label,
+.se-holdings__facts dt {
+  color: var(--se-text-dim);
+  font-weight: 800;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+
+.se-stores .se-stores-filter,
+.se-holdings__actions .se-btn,
+.se-operations .se-operation-start .se-btn,
+.se-supply__form > .se-btn {
+  min-height: 40px;
+}
+
+.se-supply__grid,
+.se-holdings__facts {
+  padding: 12px;
+}
+
+.se-supply__grid:focus-within,
+.se-holdings__facts:focus-within,
+.se-operations .se-operation-start:focus-within {
+  border-color: color-mix(in srgb, var(--se-experience-accent, var(--se-accent)) 55%, var(--se-line));
+}
+
+.se-operations .se-operation-start {
+  border-left: 3px solid var(--se-experience-accent, var(--se-accent));
+}
+
+@media (max-width: 700px) {
+  .se-operations .se-operation-start {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .se-operations .se-operation-start .se-btn {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .se-supply__grid,
+  .se-holdings__facts {
+    padding: 10px;
+  }
+}
+
 @media (max-width: 899px) {
   .se-supply__form { display: flex; flex-direction: column; }
   .se-supply__form > .se-field,
   .se-supply__form > .se-supply__description { order: 0; }
   .se-supply__form > .se-btn { order: 1; }
   .se-supply__form > .se-economy-quote { order: 2; }
+}
+
+@media (max-width: 520px) {
+  .se-operations .se-operation-start {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 620px) {

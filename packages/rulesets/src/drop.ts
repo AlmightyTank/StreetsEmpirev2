@@ -212,6 +212,13 @@ export const DROP_COLLECTIONS = {
     description: 'The city fell overnight. Your crew didn\'t: an armoured survivor van, scavenged gear, a barricaded street and the horde shambling in from the edge of town.',
     accent: '#ff6b2c',
   },
+  'iron-front': {
+    key: 'iron-front',
+    name: 'Iron Front',
+    tagline: 'Hold the line. Take the street.',
+    description: 'A fictional command-industrial collection: olive drab, riveted steel, signal red and bold tactical geometry.',
+    accent: '#d9363e',
+  },
   'street-singles': {
     key: 'street-singles',
     name: 'Street Singles',
@@ -1239,6 +1246,47 @@ const ITEMS: readonly DropItemDefinition[] = [
     kind: 'TITLE_BADGE', rarity: 'rare', category: 'PROFILES', priceCrowns: 200,
     preview: { type: 'TITLE', title: 'Last One Standing' },
   }),
+  // Iron Front
+  item('iron-front', 'sedan', {
+    name: 'Iron Front Sedan', description: 'A riveted command sedan with olive paint, signal-red panels and a reinforced grille. A Sedan look only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'VEHICLES', priceCrowns: 700, styleKey: 'iron-front-sedan',
+    preview: { type: 'ITEM', items: ['SEDAN'] }, dresses: 'SEDAN',
+  }),
+  item('iron-front', 'van', {
+    name: 'Iron Front Van', description: 'A field-command van with armour plates, blackout windows and a red tactical stripe. A Van look only.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'VEHICLES', priceCrowns: 700, styleKey: 'iron-front-van',
+    preview: { type: 'ITEM', items: ['VAN'] }, dresses: 'VAN',
+  }),
+  item('iron-front', 'crew', {
+    name: 'Iron Front Crew', description: 'Matching field coats, peaked caps and command patches for both crew types.',
+    kind: 'ITEM_COLLECTION', rarity: 'epic', category: 'CREW', priceCrowns: 750, styleKey: 'iron-front-crew',
+    preview: { type: 'ITEM', items: ['THUG', 'HOE'] },
+  }),
+  item('iron-front', 'ak47', {
+    name: 'Iron Front AK-47', description: 'Stamped steel, red enamel and brass sight marks. A visual finish only; it never grants an AK-47.',
+    kind: 'ITEM_COLLECTION', rarity: 'rare', category: 'WEAPONS', priceCrowns: 550, styleKey: 'iron-front-ak47',
+    preview: { type: 'ITEM', items: ['AK47'] }, dresses: 'AK47',
+  }),
+  item('iron-front', 'frame', {
+    name: 'Iron Front Frame', description: 'A riveted steel profile frame with a pulsing command beacon.',
+    kind: 'PROFILE_FRAME', rarity: 'epic', category: 'PROFILES', priceCrowns: 400, styleKey: 'iron-front-frame',
+    preview: { type: 'FRAME' },
+  }),
+  item('iron-front', 'accent', {
+    name: 'Signal Red Accent', description: 'A signal-red profile and banner accent.',
+    kind: 'ACCENT', rarity: 'rare', category: 'SHELLS', priceCrowns: 300, styleKey: 'signal-red',
+    preview: { type: 'ACCENT', color: '#d9363e' },
+  }),
+  item('iron-front', 'shell', {
+    name: 'Iron Front Shell', description: 'A command-room game shell with olive panels, steel trim, red controls and a tactical grid backdrop.',
+    kind: 'SITE_THEME', rarity: 'legendary', category: 'SHELLS', priceCrowns: 1050, styleKey: 'iron-front-shell',
+    preview: { type: 'THEME' },
+  }),
+  item('iron-front', 'title', {
+    name: 'Field Marshal', description: 'An Iron Front title. Wear it as a title or feature it as a badge.',
+    kind: 'TITLE_BADGE', rarity: 'rare', category: 'PROFILES', priceCrowns: 200,
+    preview: { type: 'TITLE', title: 'Field Marshal' },
+  }),
   // Street Singles: one-off pieces with no set or bundle, for the daily picks.
   item('street-singles', 'taxi-hustle', {
     name: 'Taxi Hustle Sedan', description: 'Cab yellow with a checker stripe, a roof light and a meter in the window. Nobody looks twice at a taxi. A Sedan look only.',
@@ -1531,6 +1579,7 @@ export const DROP_BUNDLES: Readonly<Record<string, DropBundleDefinition>> = Obje
   bundleOf('88-club', 1700, 'All eight 88 Club pieces: the Van, both crew outfits, the Pistol finish, the frame, the accent, the shell theme and the Ahead of Time title.'),
   bundleOf('swamp-kingdom', 1700, 'All eight Swamp Kingdom pieces: the Van, both crew outfits, the Shotgun finish, the frame, the accent, the shell theme and the Could You Ever Love Me? title.'),
   bundleOf('zombie-apocalypse', 1700, 'All eight Zombie Apocalypse pieces: the Van, both crew outfits, the Shotgun finish, the frame, the accent, the shell theme and the Last One Standing title.'),
+  bundleOf('iron-front', 1900, 'All eight Iron Front pieces: the Sedan, Van, crew set, AK-47 finish, frame, accent, shell theme and Field Marshal title.'),
 ].map((bundle) => [bundle.key, bundle]));
 
 /** Whether a holiday set is inside one of its release windows at `now`. */

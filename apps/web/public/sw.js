@@ -7,6 +7,7 @@
 // stale build or pretend the game works offline.
 
 const OFFLINE_CACHE = 'se-offline-v1';
+const SPORTS_LOGO_CACHE = 'se-sports-logos-v1';
 const OFFLINE_URL = '/offline.html';
 const OFFLINE_ASSETS = [OFFLINE_URL, '/icons/icon-192.png'];
 
@@ -21,7 +22,7 @@ self.addEventListener('install', (event) => {
 
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
-    for (const name of await caches.keys()) if (name !== OFFLINE_CACHE) await caches.delete(name);
+    for (const name of await caches.keys()) if (![OFFLINE_CACHE, SPORTS_LOGO_CACHE].includes(name)) await caches.delete(name);
     // Faster navigations where supported; the fetch below still decides.
     if (self.registration.navigationPreload) await self.registration.navigationPreload.enable();
     await self.clients.claim();
@@ -31,6 +32,21 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
+  if (url.hostname === 'a.espncdn.com' && url.pathname.includes('/teamlogos/') && request.method === 'GET') {
+    event.respondWith((async () => {
+      const cache = await caches.open(SPORTS_LOGO_CACHE);
+      const cached = await cache.match(request);
+      if (cached) return cached;
+      try {
+        const response = await fetch(request, { mode: 'no-cors' });
+        if (response.ok || response.type === 'opaque') await cache.put(request, response.clone());
+        return response;
+      } catch {
+        return Response.error();
+      }
+    })());
+    return;
+  }
   if (url.origin !== self.location.origin || request.method !== 'GET') return;
   // The offline page's own icon, so it shows while offline.
   if (request.mode !== 'navigate' && url.pathname !== OFFLINE_URL && OFFLINE_ASSETS.includes(url.pathname)) {

@@ -233,6 +233,7 @@ export type ProfileAccent =
   | 'night-map-plum'
   | 'supporter-crimson'
   | 'luxe-lacquer'
+  | 'signal-red'
   | 'underworld-violet'
   | 'heist-frost'
   | 'biscayne-flamingo'
@@ -392,6 +393,8 @@ export interface HideoutCosmeticsDto {
   activeStreetSignKey: string | null;
   decorations: CosmeticOptionDto[];
   streetSigns: CosmeticOptionDto[];
+  /** The custom sign configured in Account Settings. */
+  streetSign?: StreetSignDesign | null;
 }
 
 export interface UpdateHideoutCosmeticsInput {

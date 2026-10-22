@@ -197,6 +197,7 @@ export const profileAccentSchema = z.enum([
   'supporter-crimson',
   // The Drop accents, bought with Crowns.
   'luxe-lacquer',
+  'signal-red',
   'underworld-violet',
   'heist-frost',
   'biscayne-flamingo',
@@ -377,6 +378,10 @@ export const itemCosmeticStyleSchema = z.enum([
   'zombie-apocalypse-thug',
   'zombie-apocalypse-hoe',
   'zombie-apocalypse-shotgun',
+  'iron-front-sedan',
+  'iron-front-van',
+  'iron-front-ak47',
+  'iron-front-crew',
   'graveyard-shift-sedan',
   'graveyard-shift-thug',
   'graveyard-shift-hoe',

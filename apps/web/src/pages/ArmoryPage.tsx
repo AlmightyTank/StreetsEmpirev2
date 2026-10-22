@@ -96,6 +96,7 @@ export function ArmoryPage() {
   const [origin, setOrigin] = useState('ALL');
   const [sort, setSort] = useState('POWER');
   const [selected, setSelected] = useState<Set<ItemKey>>(new Set());
+  const [modScope, setModScope] = useState<'ONE' | 'STACK'>('ONE');
   const [name, setName] = useState('');
   const [buildName, setBuildName] = useState('');
   const [modKey, setModKey] = useState('');
@@ -287,20 +288,21 @@ export function ArmoryPage() {
                     <div className="se-armory-customize__grid">
                       <label>Modification<select value={selectedMod?.key ?? ''} onChange={(event) => setModKey(event.target.value)}>{modOptions.map((mod) => <option key={mod.key} value={mod.key}>{mod.key.replaceAll('_', ' ')}</option>)}</select></label>
                       <label>Tier<select value={modTier} onChange={(event) => setModTier(Number(event.target.value))}>{selectedMod?.tiers.map(({ tier, effectPercent }) => <option key={tier} value={tier}>Tier {tier} · {effectPercent}%</option>)}</select></label>
-                      <Button size="sm" variant="primary" disabled={!selectedMod || modAction.busy} onClick={() => applyModAction({ action: 'INSTALL_MOD', items: selectedItems.map(({ id, kind }) => ({ id, kind })), modKey: selectedMod!.key, tier: modTier })}>Install / replace</Button>
+                       <Button size="sm" variant="primary" disabled={!selectedMod || modAction.busy} onClick={() => applyModAction({ action: 'INSTALL_MOD', scope: modScope, items: selectedItems.map(({ id, kind }) => ({ id, kind })), modKey: selectedMod!.key, tier: modTier })}>Install / replace</Button>
                       <label>Remove<select value={removeModKey} onChange={(event) => setRemoveModKey(event.target.value)}><option value="">Choose installed mod</option>{installedMods.map((key) => <option key={key} value={key}>{key.replaceAll('_', ' ')}</option>)}</select></label>
-                      <Button size="sm" variant="ghost" disabled={!removeModKey || modAction.busy} onClick={() => applyModAction({ action: 'REMOVE_MOD', items: selectedItems.map(({ id, kind }) => ({ id, kind })), modKey: removeModKey })}>Remove mod</Button>
+                       <Button size="sm" variant="ghost" disabled={!removeModKey || modAction.busy} onClick={() => applyModAction({ action: 'REMOVE_MOD', scope: modScope, items: selectedItems.map(({ id, kind }) => ({ id, kind })), modKey: removeModKey })}>Remove mod</Button>
                     </div>
                     {selectedModCost ? <small>Base install: {formatCents(selectedModCost.cashCents)} + {selectedModCost.parts} parts per item · {selectedUnits.toLocaleString()} selected. Replacements return half the old mod’s parts; the receipt shows the exact total.</small> : null}
-                    <small>Each selected stack is customized in full. Costs are charged per item; removing a mod returns half its parts.</small>
+                     <label>Apply to<select value={modScope} onChange={(event) => setModScope(event.target.value as 'ONE' | 'STACK')}><option value="ONE">One item from each selected stack</option><option value="STACK">Every item in each selected stack</option></select></label>
+                     <small>Customization defaults to one item from each selected stack. Costs are charged only for the items changed; removing a mod returns half its parts.</small>
                     <div className="se-armory-customize__grid">
                       <label>Save current setup<input value={buildName} onChange={(event) => setBuildName(event.target.value)} maxLength={40} placeholder="Build name" /></label>
                       <Button size="sm" disabled={selectedItems.length !== 1 || !buildName.trim() || modAction.busy} onClick={() => applyModAction({ action: 'SAVE_BUILD', items: [{ id: firstSelected.id, kind: firstSelected.kind }], name: buildName })}>Save build</Button>
                       <label>Saved builds<select value={buildId} onChange={(event) => setBuildId(event.target.value)}><option value="">Choose a build</option>{compatibleBuilds.map((build) => <option key={build.id} value={build.id}>{build.name}</option>)}</select></label>
-                      <Button size="sm" variant="primary" disabled={!buildId || modAction.busy} onClick={() => applyModAction({ action: 'APPLY_BUILD', items: selectedItems.map(({ id, kind }) => ({ id, kind })), buildId })}>Apply to selected</Button>
+                       <Button size="sm" variant="primary" disabled={!buildId || modAction.busy} onClick={() => applyModAction({ action: 'APPLY_BUILD', scope: modScope, items: selectedItems.map(({ id, kind }) => ({ id, kind })), buildId })}>Apply to selected</Button>
                       <Button size="sm" variant="ghost" disabled={!buildId || modAction.busy} onClick={() => applyModAction({ action: 'DELETE_BUILD', buildId })}>Delete build</Button>
                     </div>
-                    <small>Saved builds belong to this equipment model. Applying one charges only for changes and applies to every item in each selected stack.</small>
+                     <small>Saved builds belong to this equipment model. Applying one follows the scope above and charges only for changed items.</small>
                     <small>Cash: {formatCents(data.resources.cashCents)} · Parts: {data.resources.vehicleParts.toLocaleString()}</small>
                   </> : <small>Select items of one model to install mods, remove mods, or use builds.</small>}
                 </div>

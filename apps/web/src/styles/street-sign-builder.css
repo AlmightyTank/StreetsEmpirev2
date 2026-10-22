@@ -17,6 +17,7 @@
 .se-street-sign-display .se-street-sign-preview__tag{right:26px;bottom:5px;font-size:.8rem}
 .se-street-sign-display .se-street-sign-preview__bolt--left{left:9px}.se-street-sign-display .se-street-sign-preview__bolt--right{right:9px}
 .se-street-sign-display--compact{margin:8px 16px 0;padding:0}
+.se-street-sign-display--compact{min-height:0;border:0;border-radius:0;background:transparent!important;box-shadow:none;overflow:visible}
 .se-street-sign-display--compact .se-street-sign-preview__face{width:100%;height:64px;padding:9px 23px;border-width:4px;border-radius:10px}
 .se-street-sign-display--compact.se-street-sign-preview--wide .se-street-sign-preview__face{height:54px;padding-inline:22px;border-radius:7px}
 .se-street-sign-display--compact .se-street-sign-preview__name,.se-street-sign-display--compact.se-street-sign-preview--wide .se-street-sign-preview__name{font-size:clamp(.8rem,3.2vw,1.2rem)}
@@ -58,6 +59,23 @@
   .se-street-sign-builder__swatch{min-width:40px;min-height:40px}
   .se-street-sign-preview__tag--lower-left{left:25px}
   .se-street-sign-preview__tag--lower-right{right:25px}
+}
+
+/* Keep custom lettering readable instead of clipping it with the legacy
+   single-line ellipsis rule. Long names may wrap inside the sign face. */
+.se-street-sign-preview__lettering {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.se-street-sign-preview__name {
+  min-width: 0;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  white-space: normal;
+  line-height: 1.05;
+  text-align: center;
 }
 
 /* Slice F visual refinement: flat reflective blade, like the supplied street-sign references. */
@@ -187,4 +205,18 @@
     gap: 8px;
     padding: 8px;
   }
+}
+/* The builder preview tag can be repositioned directly with pointer input. */
+.se-street-sign-preview .se-street-sign-preview__tag {
+  touch-action: none;
+  cursor: grab;
+  transform: translate(var(--se-tag-offset-x, 0px), var(--se-tag-offset-y, 0px)) rotate(-8deg);
+}
+
+.se-street-sign-preview .se-street-sign-preview__tag--lower-center {
+  transform: translateX(-50%) translate(var(--se-tag-offset-x, 0px), var(--se-tag-offset-y, 0px)) rotate(-8deg);
+}
+
+.se-street-sign-preview .se-street-sign-preview__tag.is-dragging {
+  cursor: grabbing;
 }

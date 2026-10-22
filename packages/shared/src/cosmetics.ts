@@ -524,6 +524,33 @@ export const ITEM_COSMETIC_STYLES = [
     released: true,
     items: ['SHOTGUN'],
   },
+  {
+    key: 'iron-front-sedan',
+    label: 'Iron Front',
+    description: 'A red-star industrial sedan with riveted armour and a command-stripe finish.',
+    released: true,
+    items: ['SEDAN'],
+  },
+  {
+    key: 'iron-front-van',
+    label: 'Iron Front',
+    description: 'A field-command van in olive drab, hazard yellow and heavy steel plating.',
+    released: true,
+    items: ['VAN'],
+  },
+  {
+    key: 'iron-front-ak47',
+    label: 'Iron Front',
+    description: 'A utilitarian rifle finish with red enamel, stamped steel and brass sights.',
+    released: true,
+    items: ['AK47'],
+  },
+  {
+    key: 'iron-front-crew',
+    label: 'Iron Front',
+    description: 'Field coats, peaked caps and signal-red command patches for both crew types.',
+    released: true,
+  },
   // The Drop: Street Singles, one-off pieces for the daily picks.
   {
     key: 'taxi-hustle-sedan',
@@ -964,6 +991,7 @@ export const COLLECTION_COVERAGE: Partial<Record<ItemCosmeticStyleKey, readonly 
   'swamp-kingdom-hoe': ['HOE'],
   'zombie-apocalypse-thug': ['THUG'],
   'zombie-apocalypse-hoe': ['HOE'],
+  'iron-front-crew': ['THUG', 'HOE'],
   'graveyard-shift-thug': ['THUG'],
   'graveyard-shift-hoe': ['HOE'],
   'naughty-list-crew': ['THUG', 'HOE'],

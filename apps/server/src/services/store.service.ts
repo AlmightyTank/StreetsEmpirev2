@@ -7,7 +7,6 @@ import {
   maxStoreBuy,
   productEconomy,
   restockIntervalFor,
-  stockOnHand,
   StoreTradeError,
   restockSpeedup,
   tierFor,
@@ -563,7 +562,6 @@ export const StoreService = {
     const stores = Object.entries(ruleset.stores).map(([key, store]) => {
         const news: string[] = [];
         const items = Object.entries(store.items).map(([itemKey, item]) => {
-          const onHand = stockOnHand(player, item);
           const settled = item.restock ? stock.byField[item.restock.stockField] ?? null : null;
           const shipment = settled ? shipmentDto({ settlement: settled, trader: key, keeper: store.keeper, itemName: item.name }) : null;
           if (shipment) incomingShipments += 1;
@@ -618,7 +616,7 @@ export const StoreService = {
               : null,
             questLock: questLockFor(ruleset, player, item, lockedVehicles),
             maxBuy: (item.unlockKey && !hasWeaponAccess(player, item.unlockKey)) || (item.vehicleClass && lockedVehicles.has(item.vehicleClass))
-              ? 0 : maxStoreBuy(player.cashCents, player[item.field] ?? 0, quotedItem, onHand),
+              ? 0 : maxStoreBuy(player.cashCents, player[item.field] ?? 0, quotedItem, shelfStock),
             market: storeMarketContext({
               buyCents: quotedBuyCents,
               baseBuyCents: item.buyCents,

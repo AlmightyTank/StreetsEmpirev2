@@ -26,6 +26,7 @@ import { formatWhen } from '../utils/time.js';
 import { ItemLabel, ItemTile } from '../components/ItemTile.js';
 import { hasItemArt } from '../items/itemArt.js';
 import { EmpirePageHeader } from '../components/EmpireManagement.js';
+import { StreetSignDisplay } from '../components/StreetSignBuilder.js';
 
 function securityTierLabel(tier: NonNullable<HideoutV2Dto['security']>['reconWarningTier']): string {
   if (tier === 'SOURCE') return 'Named warnings';
@@ -249,14 +250,11 @@ function HideoutLook({
   onSave: (decorationKey: string | null, streetSignKey: string | null) => void;
 }) {
   const [decorationKey, setDecorationKey] = useState(cosmetics.activeDecorationKey);
-  const [streetSignKey, setStreetSignKey] = useState(cosmetics.activeStreetSignKey);
   useEffect(() => {
     setDecorationKey(cosmetics.activeDecorationKey);
-    setStreetSignKey(cosmetics.activeStreetSignKey);
-  }, [cosmetics.activeDecorationKey, cosmetics.activeStreetSignKey]);
+  }, [cosmetics.activeDecorationKey]);
   const decoration = cosmetics.decorations.find((option) => option.key === decorationKey);
-  const sign = cosmetics.streetSigns.find((option) => option.key === streetSignKey);
-  const changed = decorationKey !== cosmetics.activeDecorationKey || streetSignKey !== cosmetics.activeStreetSignKey;
+  const changed = decorationKey !== cosmetics.activeDecorationKey;
   return (
     <section id="hideout-look" className="se-hideout-section">
       <SectionHeading eyebrow="Presentation" title="Make the hideout yours" copy="Equip account cosmetics for the headquarters wall and the street-facing sign. These looks never change room levels or gameplay." />
@@ -264,10 +262,14 @@ function HideoutLook({
         <div className="se-hideout-renderer" aria-label="Hideout cosmetic preview">
           <div className={`se-hideout-renderer__room${decoration ? ` se-hideout-renderer__room--${decoration.key}` : ''}`}>
             <span className="se-hideout-renderer__light" aria-hidden="true" />
-            <div className="se-hideout-renderer__sign">{sign?.label ?? 'STREETS EMPIRE'}</div>
+            <div className="se-hideout-renderer__sign">
+              {cosmetics.streetSign
+                ? <StreetSignDisplay design={cosmetics.streetSign} />
+                : <span className="se-hideout-renderer__sign-empty">Set your street sign in Account Settings</span>}
+            </div>
             <div className="se-hideout-renderer__decor">{decoration?.label ?? 'Your headquarters'}</div>
           </div>
-          <p>{decoration?.description ?? 'Unlock a hideout decoration to light the room.'} {sign?.description ?? 'Street signs earned in future rewards will appear here.'}</p>
+          <p>{decoration?.description ?? 'Unlock a hideout decoration to light the room.'} Your street sign is managed from Account Settings.</p>
         </div>
         <div className="se-hideout-look__controls">
           <label>Hideout decoration
@@ -276,13 +278,7 @@ function HideoutLook({
               {cosmetics.decorations.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}
             </select>
           </label>
-          <label>Street sign
-            <select value={streetSignKey ?? ''} onChange={(event) => setStreetSignKey(event.target.value || null)}>
-              <option value="">Default sign</option>
-              {cosmetics.streetSigns.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}
-            </select>
-          </label>
-          <Button type="button" className="se-btn se-btn--primary" disabledReason={busy ? 'Saving your hideout look.' : !changed ? 'Your hideout look is already saved.' : null} onClick={() => onSave(decorationKey, streetSignKey)}>
+          <Button type="button" className="se-btn se-btn--primary" disabledReason={busy ? 'Saving your hideout look.' : !changed ? 'Your hideout look is already saved.' : null} onClick={() => onSave(decorationKey, cosmetics.activeStreetSignKey)}>
             Save hideout look
           </Button>
         </div>

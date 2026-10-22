@@ -70,37 +70,37 @@ function modsJson(mods: Array<{ key: string; tier: number }>): Prisma.InputJsonA
 
 function gunCopyData(roundPlayerId: string, gun: PlayerGun, mods: Array<{ key: string; tier: number }>) {
   return {
-    roundPlayerId, model: gun.model, name: gun.name, condition: gun.condition,
+    roundPlayerId, quantity: gun.quantity, model: gun.model, name: gun.name, condition: gun.condition,
     mods: modsJson(mods), lookKey: gun.lookKey, origin: jsonInput(gun.origin), stats: jsonInput(gun.stats), history: jsonInput(gun.history), status: gun.status,
     favorite: gun.favorite, reserve: gun.reserve,
   };
 }
 
-function vehicleCopyData(roundPlayerId: string, vehicle: { model: string; name: string | null; plate: string | null; condition: number; mods: Prisma.JsonValue; lookKey: string | null; origin: Prisma.JsonValue; stats: Prisma.JsonValue; history: Prisma.JsonValue; status: string }, mods: Array<{ key: string; tier: number }>) {
+function vehicleCopyData(roundPlayerId: string, vehicle: { quantity: number; model: string; name: string | null; plate: string | null; condition: number; mods: Prisma.JsonValue; lookKey: string | null; origin: Prisma.JsonValue; stats: Prisma.JsonValue; history: Prisma.JsonValue; status: string }, mods: Array<{ key: string; tier: number }>) {
   return {
-    roundPlayerId, model: vehicle.model, name: vehicle.name, plate: vehicle.plate, condition: vehicle.condition,
+    roundPlayerId, quantity: vehicle.quantity, model: vehicle.model, name: vehicle.name, plate: vehicle.plate, condition: vehicle.condition,
     mods: modsJson(mods), lookKey: vehicle.lookKey, origin: jsonInput(vehicle.origin), stats: jsonInput(vehicle.stats), history: jsonInput(vehicle.history), status: vehicle.status,
   };
 }
 
-async function writeGunMods(db: Db, roundPlayerId: string, gun: PlayerGun, mods: Array<{ key: string; tier: number }>) {
+async function writeGunMods(db: Db, roundPlayerId: string, gun: PlayerGun, mods: Array<{ key: string; tier: number }>, quantity: number) {
   const data = { ...gunCopyData(roundPlayerId, gun, mods), history: appendItemEvent(gun.history, { type: 'MODIFIED', summary: 'Changed weapon modifications' }) };
-  if (gun.quantity === 1) {
+  if (quantity >= gun.quantity) {
     await db.playerGun.update({ where: { id: gun.id }, data: { mods: data.mods, history: data.history } });
     return;
   }
-  await db.playerGun.update({ where: { id: gun.id }, data: { quantity: 1, mods: data.mods } });
-  await db.playerGun.createMany({ data: Array.from({ length: gun.quantity - 1 }, () => data) });
+  await db.playerGun.update({ where: { id: gun.id }, data: { quantity: { decrement: quantity } } });
+  await db.playerGun.create({ data: { ...data, quantity } });
 }
 
-async function writeVehicleMods(db: Db, roundPlayerId: string, vehicle: PlayerVehicle, mods: Array<{ key: string; tier: number }>) {
+async function writeVehicleMods(db: Db, roundPlayerId: string, vehicle: PlayerVehicle, mods: Array<{ key: string; tier: number }>, quantity: number) {
   const data = { ...vehicleCopyData(roundPlayerId, vehicle, mods), history: appendItemEvent(vehicle.history, { type: 'MODIFIED', summary: 'Changed vehicle modifications' }) };
-  if (vehicle.quantity === 1) {
+  if (quantity >= vehicle.quantity) {
     await db.playerVehicle.update({ where: { id: vehicle.id }, data: { mods: data.mods, history: data.history } });
     return;
   }
-  await db.playerVehicle.update({ where: { id: vehicle.id }, data: { quantity: 1, mods: data.mods } });
-  await db.playerVehicle.createMany({ data: Array.from({ length: vehicle.quantity - 1 }, () => data) });
+  await db.playerVehicle.update({ where: { id: vehicle.id }, data: { quantity: { decrement: quantity } } });
+  await db.playerVehicle.create({ data: { ...data, quantity } });
 }
 
 async function renameGun(db: Db, roundPlayerId: string, id: string, name: string) {
@@ -394,7 +394,7 @@ export const ArmoryService = {
         let partsRefunded = 0;
         let cashSpentCents = 0;
         let affectedItems = 0;
-        const updates: Array<{ kind: ArmoryItemKind; row: PlayerGun | PlayerVehicle; mods: Array<{ key: string; tier: number }> }> = [];
+        const updates: Array<{ kind: ArmoryItemKind; row: PlayerGun | PlayerVehicle; mods: Array<{ key: string; tier: number }>; quantity: number }> = [];
         for (const row of targetRows) {
           const before = validateModSet(normalizeMods(row.mods), itemRule);
           let desired: Array<{ key: string; tier: number }>;
@@ -408,24 +408,20 @@ export const ArmoryService = {
           }
           const transition = transitionModSet(before, desired, itemRule, catalog.modCosts);
           if (JSON.stringify(before) === JSON.stringify(transition.mods)) continue;
-          updates.push({ kind, row, mods: transition.mods });
-          affectedItems += row.quantity;
-          partsSpent += transition.partsSpent * row.quantity;
-          partsRefunded += transition.partsRefunded * row.quantity;
-          cashSpentCents += transition.cashSpentCents * row.quantity;
+           const quantity = input.scope === 'STACK' ? row.quantity : 1;
+           updates.push({ kind, row, mods: transition.mods, quantity });
+           affectedItems += quantity;
+           partsSpent += transition.partsSpent * quantity;
+           partsRefunded += transition.partsRefunded * quantity;
+           cashSpentCents += transition.cashSpentCents * quantity;
         }
         if (!updates.length) throw AppError.conflict('ARMORY_MOD_NO_CHANGE', 'The selected equipment already has that setup.');
         if (current.cashCents < BigInt(cashSpentCents)) throw AppError.conflict('NOT_ENOUGH_CASH', 'You do not have enough cash for that modification.');
         const vehicleParts = current.vehicleParts ?? 0;
         if (vehicleParts + partsRefunded < partsSpent) throw AppError.conflict('NOT_ENOUGH_VEHICLE_PARTS', 'You do not have enough parts for that modification.');
         for (const update of updates) {
-          if (update.row.quantity > 1) {
-            if (update.kind === 'GUN') await writeGunMods(tx, roundPlayerId, update.row as PlayerGun, update.mods);
-            else await writeVehicleMods(tx, roundPlayerId, update.row as PlayerVehicle, update.mods);
-            continue;
-          }
-          if (update.kind === 'GUN') await tx.playerGun.update({ where: { id: update.row.id }, data: { mods: modsJson(update.mods), history: appendItemEvent(update.row.history, { type: 'MODIFIED', summary: 'Changed weapon modifications' }) } });
-          else await tx.playerVehicle.update({ where: { id: update.row.id }, data: { mods: modsJson(update.mods), history: appendItemEvent(update.row.history, { type: 'MODIFIED', summary: 'Changed vehicle modifications' }) } });
+           if (update.kind === 'GUN') await writeGunMods(tx, roundPlayerId, update.row as PlayerGun, update.mods, update.quantity);
+           else await writeVehicleMods(tx, roundPlayerId, update.row as PlayerVehicle, update.mods, update.quantity);
         }
         await IndividualItemsService.refreshSummary(tx, roundPlayerId);
         return {

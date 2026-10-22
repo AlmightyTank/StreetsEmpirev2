@@ -452,6 +452,12 @@
 /* Nailed planks across the ring, and a green glow seeping through behind them. */
 .se-drop-frame--zombie-apocalypse-frame::before { background: linear-gradient(12deg, transparent 0 22%, #8a7454 22% 34%, transparent 34% 62%, #7a6648 62% 74%, transparent 74%); -webkit-mask: radial-gradient(circle closest-side, transparent 72%, #000 74%); mask: radial-gradient(circle closest-side, transparent 72%, #000 74%); }
 .se-drop-frame--zombie-apocalypse-frame::after { background: radial-gradient(circle, #9ccf4a33, transparent 70%); animation: se-drop-glint 5s ease-in-out infinite; }
+.se-profile-frame--iron-front-frame { --se-theme-frame: #d9363e; border-color: #8d9582; box-shadow: inset 0 0 0 3px #20251f, inset 0 0 24px #d9363e22, 0 0 18px #d9363e44; }
+.se-profile-frame--iron-front-frame::before { inset: 0; background: repeating-conic-gradient(#8d9582 0 3deg, transparent 3deg 18deg); -webkit-mask: radial-gradient(circle closest-side, transparent 78%, #000 80%); mask: radial-gradient(circle closest-side, transparent 78%, #000 80%); }
+.se-profile-frame--iron-front-frame::after { border: 1px solid #d9363e; }
+.se-profile-pagehead__avatar--iron-front-frame { --se-profile-avatar-frame: #d9363e; --se-profile-avatar-glow: #d5b15a77; }
+.se-drop-frame--iron-front-frame { --se-drop-ring: #d9363e; background: radial-gradient(circle at 40% 35%, #68745f, #222821); box-shadow: 0 0 0 3px #0b0b0f, 0 0 0 7px #8d9582, 0 0 0 9px #d9363e, 0 0 22px #d9363e55; }
+.se-drop-frame--iron-front-frame::before { content: ''; position: absolute; inset: 0; border-radius: 50%; pointer-events: none; background: repeating-conic-gradient(transparent 0 14deg, #d5b15a 14deg 16deg); -webkit-mask: radial-gradient(circle closest-side, transparent 82%, #000 84%); mask: radial-gradient(circle closest-side, transparent 82%, #000 84%); }
 .se-reduced-motion .se-profile-frame--zombie-apocalypse-frame::before,
 .se-reduced-motion .se-drop-frame--zombie-apocalypse-frame::after { animation: none; }
 @media (prefers-reduced-motion: reduce) {

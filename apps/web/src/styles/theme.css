@@ -2154,6 +2154,17 @@ a:hover { color: var(--se-accent-hover); }
   font-weight: 800;
   text-transform: uppercase;
 }
+
+/* Filter pills are buttons in several game pages. Give them the same forgiving
+   hit area as the rest of the mobile command surface without making passive
+   status tags consume extra space. */
+@media (pointer: coarse) {
+  button.se-tag {
+    min-height: 44px;
+    padding-inline: 12px;
+    cursor: pointer;
+  }
+}
 .se-tag--good {
   border-color: rgba(var(--se-good-rgb), 0.42);
   color: var(--se-good);

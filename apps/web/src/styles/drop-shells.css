@@ -742,6 +742,11 @@
     radial-gradient(720px 440px at 2% 100%, rgba(156, 207, 74, 0.09), transparent 60%),
     linear-gradient(180deg, #14160f, #0a0b08 62%);
 }
+.se-site-theme--iron-front-shell { --se-theme-bg: #20271f; --se-theme-panel: #30392d; --se-theme-panel-strong: #3d4939; --se-theme-line: #778269; --se-theme-accent: #d9363e; --se-theme-text: #e4e8d9; --se-theme-muted: #a8b09d; }
+.se-site-theme-decor--iron-front-shell { --se-pack-color: #d9363e; }
+.se-iron-front-scene { position: absolute; inset: 0; overflow: hidden; opacity: .8; pointer-events: none; }
+.se-iron-front-scene__grid { position: absolute; inset: 0; background-image: linear-gradient(var(--se-iron-grid) 1px, transparent 1px), linear-gradient(90deg, var(--se-iron-grid) 1px, transparent 1px); background-size: 44px 44px; transform: perspective(420px) rotateX(58deg) scale(1.4); transform-origin: 50% 100%; }
+.se-iron-front-scene__beacon { position: absolute; right: 12%; bottom: 14%; width: 90px; height: 90px; border: 2px solid #d9363e66; border-radius: 50%; box-shadow: 0 0 0 14px #d9363e1c, 0 0 0 28px #d9363e0d; }
 
 /* Shared component surfaces, the same contract as the other premium shells. */
 :is(

@@ -274,6 +274,8 @@
 
   /* The same bottom navigation interactions, but with softly lit icons. */
   .se-app--tabbar .se-tabbar {
+    width: 100%;
+    max-width: 100vw;
     min-height: calc(var(--se-shell-tabbar-h) + var(--se-safe-bottom));
     padding: 2px calc(5px + var(--se-safe-right)) var(--se-safe-bottom) calc(5px + var(--se-safe-left));
     border-top: 1px solid color-mix(in srgb, var(--se-shell-electric) 35%, var(--se-line));
@@ -283,6 +285,7 @@
     box-shadow: 0 -8px 27px color-mix(in srgb, var(--se-bg) 72%, transparent);
     backdrop-filter: blur(17px);
     -webkit-backdrop-filter: blur(17px);
+    overflow: clip;
   }
 
   .se-app--tabbar .se-tabbar__tab {

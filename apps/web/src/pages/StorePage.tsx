@@ -445,7 +445,11 @@ function StoreView({
   const [reload, setReload] = useState(0);
   const [retryOrder, setRetryOrder] = useState<PendingStoreCommand | null>(null);
   const [shelfQuery, setShelfQuery] = useState('');
-  const [shelfFilter, setShelfFilter] = useState<StoreShelfFilter>('all');
+  const [shelfFilter, setShelfFilter] = useRememberedState<StoreShelfFilter>(
+    rememberedKey('store.shelf-filter', me?.id),
+    'all',
+    { accept: (value): value is StoreShelfFilter => value === 'all' || value === 'available' || value === 'locked' || value === 'sold-out' },
+  );
   // 0.4.0-D: Pip deals every product. Other stores never ask.
   const [products, setProducts] = useState<ProductsDto | null>(null);
   const loadProducts = useCallback(() => {

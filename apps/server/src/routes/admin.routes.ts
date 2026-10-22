@@ -170,12 +170,12 @@ const supporterPollSchema = z.object({
   closesAt: z.string().datetime().nullable().optional(),
 }).strict();
 const sportsbookEventParams = z.object({ eventId: id }).strict();
-const sportsbookProviderId = z.enum(['therundown', 'theoddsapi']);
-const sportsbookLeague = z.enum(['NFL', 'NBA', 'MLB', 'NHL']);
+const sportsbookProviderId = z.literal('internal');
+const sportsbookLeague = z.enum(['NFL', 'NBA', 'MLB', 'NHL', 'SOFTBALL', 'MMA']);
 const sportsbookProviderCheckBody = z.object({ league: sportsbookLeague, provider: sportsbookProviderId.optional() }).strict();
 const sportsbookProviderPinBody = z.object({ provider: sportsbookProviderId, reason: reason.optional() }).strict();
 const sportsbookResolveBody = z.discriminatedUnion('action', [
-  z.object({ action: z.literal('SETTLE'), provider: z.enum(['therundown', 'theoddsapi', 'espn']), reason }).strict(),
+  z.object({ action: z.literal('SETTLE'), provider: z.literal('internal'), reason }).strict(),
   z.object({ action: z.literal('VOID'), reason }).strict(),
 ]);
 const sportsbookLeagueParams = z.object({ league: sportsbookLeague }).strict();
@@ -1273,9 +1273,8 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
 
   /** 1.8.0-C: sportsbook feed health, quota and unresolved results. The feed is global, not per round. */
   const sportsbookFeed = () => ({
-    configured: Boolean(env.THERUNDOWN_API_KEY || env.THE_ODDS_API_KEY), pollMinutes: env.SPORTSBOOK_POLL_MINUTES,
-    apiKey: env.THERUNDOWN_API_KEY,
-    keys: { therundown: env.THERUNDOWN_API_KEY, theoddsapi: env.THE_ODDS_API_KEY },
+    configured: true, pollMinutes: env.SPORTSBOOK_POLL_MINUTES,
+    keys: { internal: 'internal' },
   });
   fastify.get('/sportsbook', async () => AdminSportsbookService.report(fastify.prisma, sportsbookFeed()));
 
@@ -1289,6 +1288,11 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post('/sportsbook/pull', async (request) => {
     parseBody(emptyBody, request.body ?? {});
     return AdminSportsbookService.pullNow(fastify.prisma, sportsbookFeed(), request.auth!.account);
+  });
+
+  fastify.post('/sportsbook/refresh-slate', async (request) => {
+    parseBody(emptyBody, request.body ?? {});
+    return AdminSportsbookService.refreshSlate(fastify.prisma, sportsbookFeed(), request.auth!.account);
   });
 
   fastify.post('/sportsbook/provider-check', async (request) => {

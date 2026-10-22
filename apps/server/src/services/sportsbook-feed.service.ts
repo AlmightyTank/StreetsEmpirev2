@@ -56,7 +56,7 @@ export const SPORTSBOOK_FALLBACKS_PER_LEAGUE = 1;
 export const SPORTSBOOK_FALLBACKS_PER_RUN = 2;
 const RESULT_CHECKS_PER_RUN = 40;
 /** The earliest a final score is plausible after the scheduled start. */
-const RESULT_FIRST_CHECK_MINUTES: Record<SportsbookLeagueKey, number> = { NFL: 180, NBA: 135, MLB: 150, NHL: 135 };
+const RESULT_FIRST_CHECK_MINUTES: Record<SportsbookLeagueKey, number> = { NFL: 180, NBA: 135, MLB: 150, NHL: 135, SOFTBALL: 150, MMA: 240 };
 /**
  * The provider may date events in a US time zone rather than UTC. Assuming any offset from UTC
  * back to UTC-10 keeps both the fetched dates and the "missing from the snapshot" check honest.
@@ -167,7 +167,7 @@ export function isResultCheckDue(
   return event.startsAt.getTime() + firstCheck * 60_000 <= now.getTime();
 }
 
-/** The UTC dates to request: today and tomorrow, plus yesterday while US evening games are still ahead. */
+/** The UTC dates to request: today plus the next two days keeps the board focused. */
 /** Only skip a future date when its most recent successful snapshot was empty and is recent.
  * Never skip today: new lines and schedule changes must remain visible promptly.
  */
@@ -179,7 +179,7 @@ export function shouldPollSportsbookDate(date: string, now: Date, cached?: { eve
 }
 
 export function sportsbookPollDates(now: Date): string[] {
-  const dates = [dateKey(now), dateKey(new Date(now.getTime() + 86_400_000))];
+  const dates = Array.from({ length: 3 }, (_, offset) => dateKey(new Date(now.getTime() + offset * 86_400_000)));
   if (now.getUTCHours() < PROVIDER_DATE_OFFSET_HOURS) dates.unshift(dateKey(new Date(now.getTime() - 86_400_000)));
   return dates;
 }
@@ -642,8 +642,8 @@ export async function refreshSportsbookCache(
     skipped: null, oddsPolled: false, cacheUpdatedAt: null, nextOddsPollAt: null, snapshots: 0, failedSnapshots: 0, pulled: 0, resultChecks: 0, settled: 0, failovers: 0, errors: [], warnings: [],
   };
   const keys: SportsbookFeedKeys = {
-    ...(typeof keyOrKeys === 'string' ? { [SPORTSBOOK_PROVIDER_ID]: keyOrKeys } : keyOrKeys),
-    espn: 'public',
+    ...(typeof keyOrKeys === 'string' ? {} : keyOrKeys),
+    [SPORTSBOOK_PROVIDER_ID]: 'internal',
   };
   const configuredOddsIds = SPORTSBOOK_ODDS_PROVIDER_IDS.filter((id) => Boolean(keys[id]));
   const configuredIds = SPORTSBOOK_PROVIDER_IDS.filter((id) => Boolean(keys[id]));
@@ -694,7 +694,8 @@ export async function refreshSportsbookCache(
     .sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
   const latestOddsAt = fileUpdatedAt ?? latestDbOddsAt;
   const minOddsIntervalMs = Math.max(SPORTSBOOK_ODDS_CACHE_INTERVAL_MS, options.minIntervalMs ?? 0, options.normalIntervalMs ?? 0);
-  const oddsCacheDue = sportsbookOddsCacheDue(latestOddsAt, now, minOddsIntervalMs);
+  const internalOnly = configuredIds.length === 1 && configuredIds[0] === SPORTSBOOK_PROVIDER_ID;
+  const oddsCacheDue = internalOnly || sportsbookOddsCacheDue(latestOddsAt, now, minOddsIntervalMs);
   result.cacheUpdatedAt = latestOddsAt?.toISOString() ?? null;
   result.nextOddsPollAt = latestOddsAt ? new Date(latestOddsAt.getTime() + minOddsIntervalMs).toISOString() : null;
   let crash: unknown = null;
@@ -789,7 +790,7 @@ export async function refreshSportsbookCache(
       const preferred = pinned && chain.includes(pinned) ? pinned : primaryRecovered ? primary : active;
       const activeStatus = providerRuns.get(active)?.leagues[league.key];
       // A successful recovery just refreshed this league; do not charge for it again.
-      if (normalOddsPoll && activeStatus?.lastAttemptAt === activeStatus?.lastSuccessAt
+      if (!internalOnly && normalOddsPoll && activeStatus?.lastAttemptAt === activeStatus?.lastSuccessAt
         && !sportsbookProviderCooldownElapsed(activeStatus, now)) continue;
       const order = pinned ? [preferred]
         : normalOddsPoll ? [preferred, ...chain.filter((id) => id !== preferred)]
@@ -801,7 +802,7 @@ export async function refreshSportsbookCache(
       for (const id of order) {
         const providerStatus = providerRuns.get(id)?.leagues[league.key];
         // Normal and recovery runs both honour the last odds attempt per provider/league.
-        if (!sportsbookProviderCooldownElapsed(providerStatus, now)) continue;
+        if (!internalOnly && !sportsbookProviderCooldownElapsed(providerStatus, now)) continue;
         if (id !== preferred) {
           if (alternates >= SPORTSBOOK_FALLBACKS_PER_LEAGUE || fallbacksThisRun >= SPORTSBOOK_FALLBACKS_PER_RUN) break;
           alternates += 1;
@@ -845,7 +846,7 @@ export async function refreshSportsbookCache(
         let allDatesFetched = true;
         for (const date of dates) {
           const cached = cachedSnapshots.get(cacheKey(id, league.key, date));
-          if (!shouldPollSportsbookDate(date, now, cached)) {
+          if (!internalOnly && !shouldPollSportsbookDate(date, now, cached)) {
             allDatesFetched = false;
             continue;
           }

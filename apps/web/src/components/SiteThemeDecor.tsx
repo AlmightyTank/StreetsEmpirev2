@@ -131,6 +131,7 @@ const themeScenes: Partial<Record<string, ComponentType>> = {
   '88-club-shell': lazy(() => import('./theme-scenes/EightyEightClubScene.js')),
   'swamp-kingdom-shell': lazy(() => import('./theme-scenes/SwampKingdomScene.js')),
   'zombie-apocalypse-shell': lazy(() => import('./theme-scenes/ZombieApocalypseScene.js')),
+  'iron-front-shell': lazy(() => import('./theme-scenes/IronFrontScene.js')),
   'graveyard-shift-shell': lazy(() => import('./theme-scenes/GraveyardShiftScene.js')),
   'naughty-list-shell': lazy(() => import('./theme-scenes/NaughtyListScene.js')),
   'heartbreaker-shell': lazy(() => import('./theme-scenes/HeartbreakerScene.js')),

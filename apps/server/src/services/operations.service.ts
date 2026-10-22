@@ -101,6 +101,32 @@ export const OperationsService = {
     });
     const now = new Date();
     const pauseMs = pauseOffsetMs(round, now);
+    const [stash, shipments, blockWars, turfPushes] = await Promise.all([
+      prisma.supplyStock.findMany({
+        where: { warehouse: { roundPlayerId, isActive: true }, quantity: { gt: 0 } },
+        select: { id: true, productKey: true, quantity: true, warehouse: { select: { citySlug: true } } },
+        orderBy: [{ warehouse: { citySlug: 'asc' } }, { productKey: 'asc' }],
+      }),
+      prisma.run.findMany({
+        where: { roundPlayerId },
+        select: { id: true, homeCity: true, status: true },
+        orderBy: { launchedAt: 'desc' },
+      }),
+      prisma.blockWar.findMany({
+        where: {
+          roundId: me.roundId,
+          status: { in: ['OPENING', 'SIEGE', 'BETWEEN'] },
+          OR: [{ attackerId: roundPlayerId }, { defenderId: roundPlayerId }],
+        },
+        select: { id: true, status: true, endsBy: true, turf: { select: { district: true, city: { select: { slug: true } } } } },
+        orderBy: { endsBy: 'asc' },
+      }),
+      prisma.turfPush.findMany({
+        where: { roundId: me.roundId, defenderId: roundPlayerId, status: 'PENDING' },
+        select: { id: true, status: true, landsAt: true, turf: { select: { district: true, city: { select: { slug: true } } } } },
+        orderBy: { landsAt: 'asc' },
+      }),
+    ]);
     return {
       operations: operations.map((operation) => toOperationDto(operation, operation.participants, roundPlayerId, now, pauseMs)),
       leaderCooldownHours: LEADER_COOLDOWN_HOURS,
@@ -117,6 +143,37 @@ export const OperationsService = {
         },
         ...TemplatedOperations.offers(round),
       ],
+      sources: {
+        stash: stash.map((source) => ({
+          id: source.id,
+          citySlug: source.warehouse.citySlug,
+          productKey: source.productKey,
+          quantity: source.quantity,
+        })),
+        shipments: shipments.map((source) => ({
+          id: source.id,
+          homeCity: source.homeCity,
+          status: source.status,
+        })),
+        threats: [
+          ...blockWars.map((source) => ({
+            kind: 'block-war' as const,
+            id: source.id,
+            citySlug: source.turf.city.slug,
+            district: source.turf.district,
+            status: source.status,
+            endsAt: source.endsBy.toISOString(),
+          })),
+          ...turfPushes.map((source) => ({
+            kind: 'turf-push' as const,
+            id: source.id,
+            citySlug: source.turf.city.slug,
+            district: source.turf.district,
+            status: source.status,
+            endsAt: source.landsAt.toISOString(),
+          })),
+        ],
+      },
     };
   },
 

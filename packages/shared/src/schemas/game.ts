@@ -213,6 +213,7 @@ const armoryItemSelectionSchema = z.object({
 export const armoryModActionSchema = z.object({
   actionId: actionIdSchema,
   action: z.enum(['INSTALL_MOD', 'REMOVE_MOD', 'SAVE_BUILD', 'APPLY_BUILD', 'DELETE_BUILD']),
+  scope: z.enum(['ONE', 'STACK']).default('ONE'),
   items: z.array(armoryItemSelectionSchema).max(2_100).optional(),
   modKey: z.string().trim().toUpperCase().regex(/^[A-Z][A-Z0-9_]{1,31}$/).optional(),
   tier: z.number().int().min(1).max(3).optional(),
@@ -227,7 +228,7 @@ export const armoryModActionSchema = z.object({
   if (value.action === 'SAVE_BUILD' && !value.name) context.addIssue({ code: z.ZodIssueCode.custom, path: ['name'], message: 'Name this build.' });
   if (value.action === 'SAVE_BUILD' && (value.items?.length ?? 0) !== 1) context.addIssue({ code: z.ZodIssueCode.custom, path: ['items'], message: 'Select one item to save its setup.' });
 });
-export type ArmoryModActionInput = z.infer<typeof armoryModActionSchema>;
+export type ArmoryModActionInput = z.input<typeof armoryModActionSchema>;
 
 export const armoryLookActionSchema = z.object({
   actionId: actionIdSchema,

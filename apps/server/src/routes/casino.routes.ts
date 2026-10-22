@@ -66,7 +66,7 @@ const casinoRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/sportsbook', { preHandler: fastify.requireAuth }, async (request) => {
     const player = await requirePlayer(request.auth!.account.id);
     const [board, tickets, limits] = await Promise.all([
-      SportsbookService.board(fastify.prisma, { configured: Boolean(env.THERUNDOWN_API_KEY || env.THE_ODDS_API_KEY), pollMinutes: env.SPORTSBOOK_POLL_MINUTES }),
+      SportsbookService.board(fastify.prisma, { configured: true, pollMinutes: env.SPORTSBOOK_POLL_MINUTES }),
       SportsbookService.tickets(fastify.prisma, player.id),
       SportsbookService.limits(fastify.prisma, player.id),
     ]);

@@ -191,3 +191,291 @@
 .se-app.se-density--compact .se-gamemain .se-panel__body:not(.se-panel__body--flush) {
   padding: 9px 10px;
 }
+
+/* Command-center foundation: route identity supplies the accent while the
+   shared shell supplies the hierarchy. These rules deliberately style the
+   interaction layer, not page-specific business content. */
+.se-app--sidebar .se-gamemain,
+.se-app--tabbar .se-gamemain {
+  --se-experience-accent: var(--se-page-art-accent, var(--se-accent));
+  --se-experience-rgb: var(--se-page-art-rgb, var(--se-accent-rgb));
+}
+
+.se-app--sidebar .se-gamemain :where(
+  a,
+  button,
+  input,
+  select,
+  textarea,
+  summary,
+  [tabindex]:not([tabindex='-1'])
+):focus-visible,
+.se-app--tabbar .se-gamemain :where(
+  a,
+  button,
+  input,
+  select,
+  textarea,
+  summary,
+  [tabindex]:not([tabindex='-1'])
+):focus-visible {
+  outline: 2px solid var(--se-experience-accent);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--se-experience-accent) 18%, transparent);
+}
+
+/* Give primary page surfaces a shared elevation without flattening route art. */
+.se-app--sidebar .se-gamemain > :is(.se-panel, .se-stats, .se-pagehead, .se-info-hero),
+.se-app--tabbar .se-gamemain > :is(.se-panel, .se-stats, .se-pagehead, .se-info-hero) {
+  box-shadow:
+    0 12px 28px color-mix(in srgb, var(--se-bg) 72%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--se-experience-accent) 5%, transparent);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .se-app--sidebar .se-gamemain :where(a, button, summary),
+  .se-app--tabbar .se-gamemain :where(a, button, summary) {
+    transition: outline-color .15s ease, box-shadow .15s ease, border-color .15s ease, background-color .15s ease;
+  }
+}
+
+/* Fourth slice: shared briefing surfaces for crew, turf, combat and
+   progression boards. Their controls and data remain page-specific. */
+.se-route--combat .se-panel,
+.se-route--turf .se-panel,
+.se-route--crew .se-panel,
+.se-route--rankings .se-panel,
+.se-crew-board,
+.se-turfboard,
+.se-rankings-summary,
+.se-rankings-board {
+  border-color: color-mix(in srgb, var(--se-experience-accent, var(--se-accent)) 22%, var(--se-line));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--se-text) 4%, transparent);
+}
+
+.se-crew-board__sectionhead,
+.se-turfboard__head,
+.se-rankings-sectionhead {
+  border-bottom-color: color-mix(in srgb, var(--se-experience-accent, var(--se-accent)) 22%, var(--se-line));
+}
+
+@media (max-width: 700px) {
+  .se-crew-board,
+  .se-turfboard,
+  .se-rankings-summary,
+  .se-rankings-board {
+    border-radius: var(--se-radius-lg, 8px);
+  }
+}
+
+/* Community and help surfaces: directories should read as navigable boards,
+   not as disconnected lists of controls. */
+.se-app--sidebar .se-gamemain :is(
+  .se-players-toolbar,
+  .se-players-panel,
+  .se-activity-board,
+  .se-activity-panel,
+  .se-alliance-hero,
+  .se-tablewrap,
+  .se-news-list
+),
+.se-app--tabbar .se-gamemain :is(
+  .se-players-toolbar,
+  .se-players-panel,
+  .se-activity-board,
+  .se-activity-panel,
+  .se-alliance-hero,
+  .se-tablewrap,
+  .se-news-list
+) {
+  border-color: color-mix(in srgb, var(--se-experience-accent, var(--se-accent)) 22%, var(--se-line));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--se-text) 4%, transparent);
+}
+
+.se-app--sidebar .se-gamemain :is(
+  .se-players-toolbar,
+  .se-activity-tabs,
+  .se-players-tabs,
+  .se-news-list,
+  .se-tablewrap
+),
+.se-app--tabbar .se-gamemain :is(
+  .se-players-toolbar,
+  .se-activity-tabs,
+  .se-players-tabs,
+  .se-news-list,
+  .se-tablewrap
+) {
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--se-experience-accent, var(--se-accent)) 4%, transparent), transparent 58%),
+    var(--se-panel);
+}
+
+.se-app--sidebar .se-gamemain :is(.se-playerlink, .se-news, .se-activity-tabs__tab, .se-players-tabs__tab),
+.se-app--tabbar .se-gamemain :is(.se-playerlink, .se-news, .se-activity-tabs__tab, .se-players-tabs__tab) {
+  transition: border-color .16s ease, background-color .16s ease, color .16s ease;
+}
+
+.se-app--sidebar .se-gamemain :is(.se-playerlink, .se-news, .se-activity-tabs__tab, .se-players-tabs__tab):hover,
+.se-app--sidebar .se-gamemain :is(.se-playerlink, .se-news, .se-activity-tabs__tab, .se-players-tabs__tab):focus-visible,
+.se-app--tabbar .se-gamemain :is(.se-playerlink, .se-news, .se-activity-tabs__tab, .se-players-tabs__tab):hover,
+.se-app--tabbar .se-gamemain :is(.se-playerlink, .se-news, .se-activity-tabs__tab, .se-players-tabs__tab):focus-visible {
+  border-color: color-mix(in srgb, var(--se-experience-accent, var(--se-accent)) 56%, var(--se-line));
+  background-color: color-mix(in srgb, var(--se-experience-accent, var(--se-accent)) 6%, transparent);
+}
+
+.se-app--sidebar .se-gamemain :is(.se-players-toolbar__count, .se-news__date, .se-news__byline, .se-activity-sectionhead__meta),
+.se-app--tabbar .se-gamemain :is(.se-players-toolbar__count, .se-news__date, .se-news__byline, .se-activity-sectionhead__meta) {
+  color: var(--se-text-dim);
+}
+
+@media (max-width: 700px) {
+  .se-app--sidebar .se-gamemain :is(.se-players-toolbar, .se-activity-board, .se-alliance-hero, .se-news-list),
+  .se-app--tabbar .se-gamemain :is(.se-players-toolbar, .se-activity-board, .se-alliance-hero, .se-news-list) {
+    border-radius: var(--se-radius-lg, 8px);
+  }
+
+  .se-app--sidebar .se-gamemain :is(.se-tablewrap, .se-players-panel),
+  .se-app--tabbar .se-gamemain :is(.se-tablewrap, .se-players-panel) {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .se-app--sidebar .se-gamemain :is(.se-playerlink, .se-news, .se-activity-tabs__tab, .se-players-tabs__tab),
+  .se-app--tabbar .se-gamemain :is(.se-playerlink, .se-news, .se-activity-tabs__tab, .se-players-tabs__tab) {
+    transition: none;
+  }
+}
+
+/* Final accessibility pass: keep the command center usable without a mouse
+   or color-dependent perception. */
+@media (forced-colors: active) {
+  .se-app--sidebar .se-gamemain :focus-visible,
+  .se-app--tabbar .se-gamemain :focus-visible {
+    outline: 2px solid CanvasText;
+    outline-offset: 3px;
+    box-shadow: none;
+  }
+
+  .se-app--sidebar .se-gamemain .se-panel,
+  .se-app--tabbar .se-gamemain .se-panel,
+  .se-app--sidebar .se-topbar,
+  .se-app--tabbar .se-topbar {
+    border-color: CanvasText;
+  }
+}
+
+/* Final cross-site resilience pass: page-specific grids should never force the
+   command center wider than its available column. */
+.se-gamemain > *,
+.se-gamemain > * > *,
+.se-gamemain .se-panel,
+.se-gamemain .se-pagehead,
+.se-gamemain .se-info-hero {
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.se-gamemain h1,
+.se-gamemain h2,
+.se-gamemain h3,
+.se-gamemain h4,
+.se-gamemain p,
+.se-gamemain li,
+.se-gamemain label,
+.se-gamemain summary {
+  overflow-wrap: anywhere;
+}
+
+.se-gamemain img,
+.se-gamemain video,
+.se-gamemain canvas {
+  max-width: 100%;
+}
+
+.se-gamemain pre,
+.se-gamemain code {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.se-gamemain .se-alert,
+.se-gamemain .se-empty-state,
+.se-gamemain .se-info-loading,
+.se-gamemain .se-info-empty,
+.se-gamemain .se-stores-loading,
+.se-gamemain .se-stores-empty,
+.se-gamemain .se-activity-loading,
+.se-gamemain .se-activity-empty,
+.se-gamemain .se-alliance-loading,
+.se-gamemain .se-players-empty,
+.se-gamemain .se-raids-loading,
+.se-gamemain .se-raids-empty,
+.se-gamemain .se-quests-loading,
+.se-gamemain .se-quests-empty,
+.se-gamemain .se-profile-loading,
+.se-gamemain .se-rankings-loading,
+.se-gamemain .se-travel-loading,
+.se-gamemain .se-cityblocks-loading,
+.se-gamemain .se-pass-empty {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-wrap: anywhere;
+}
+
+/* Keep the guided tour above both sticky shell layers. On phones, lift the
+   fallback card clear of the bottom navigation instead of hiding its actions. */
+.se-app--sidebar .se-tour,
+.se-app--tabbar .se-tour {
+  z-index: 120;
+}
+
+.se-app--tabbar .se-tour__card--fallback {
+  bottom: calc(var(--se-shell-tabbar-h) + var(--se-safe-bottom) + 10px);
+}
+
+/* Final interaction polish: keep page rhythm stable while controls feel
+   deliberate on both pointer and touch devices. */
+.se-app--sidebar .se-gamemain,
+.se-app--tabbar .se-gamemain {
+  scrollbar-gutter: stable;
+  scroll-behavior: smooth;
+}
+
+.se-gamemain :where(input, select, textarea) {
+  accent-color: var(--se-experience-accent, var(--se-accent));
+}
+
+.se-gamemain :where(button, a, summary, [role='button']) {
+  -webkit-tap-highlight-color: color-mix(in srgb, var(--se-experience-accent, var(--se-accent)) 18%, transparent);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .se-gamemain :where(button, a, summary, [role='button']):not(:disabled):hover {
+    filter: brightness(1.035);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .se-app--sidebar .se-gamemain,
+  .se-app--tabbar .se-gamemain {
+    scroll-behavior: auto;
+  }
+
+  .se-gamemain :where(button, a, summary, [role='button']):not(:disabled):hover {
+    filter: none;
+  }
+}
+
+@media (max-width: 700px) {
+  .se-route--account .se-settings-nav a {
+    min-height: 42px;
+  }
+
+  .se-route--account .se-settings-section {
+    scroll-margin-top: var(--se-mobile-header-offset, 160px);
+  }
+}

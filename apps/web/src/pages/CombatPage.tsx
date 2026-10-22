@@ -1113,12 +1113,6 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
             ) : null}
             {ammoPreview ? (
               <div className="se-raids-ammo-preview" aria-live="polite">
-                <div className="se-rows">
-                  <Row label="Ammo used if launched" value={`${formatNumber(ammoPreview.roundsSpent)} rounds`} />
-                  <Row label="Strength with available ammo" value={ammoPreview.suppliedStrength.toFixed(1)} />
-                  <Row label="Strength with a full load" value={ammoPreview.fullStrength.toFixed(1)} />
-                  <Row label="Strength with no ammo" value={ammoPreview.withoutAmmoStrength.toFixed(1)} />
-                </div>
                 {Math.min(ammunition!.availableRounds, ammoCapRounds ?? ammunition!.availableRounds) < ammoPreview.roundsRequired ? (
                   <p className="se-hint se-warn">
                     This squad needs {formatNumber(ammoPreview.roundsRequired)} rounds to fire every assigned gun. Some thugs will fight unarmed at the current stock or cap.

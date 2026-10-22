@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import type {
   AccountProfileSettingsDto,
@@ -33,7 +33,7 @@ import { Panel, Row } from '../components/Panel.js';
 import { Shell } from '../layouts/Shell.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { DEFAULT_PROFILE_SETTINGS, useSession } from '../stores/session.js';
-import { isBoolean, isString, readRemembered, rememberedKey, useRememberedState } from '../utils/remembered.js';
+import { isBoolean, isString, rememberedKey, useRememberedState } from '../utils/remembered.js';
 import { ReplayTutorial } from '../components/onboarding/ReplayTutorial.js';
 import { formatWhen } from '../utils/time.js';
 import { StreetSignBuilder, StreetSignDisplay } from '../components/StreetSignBuilder.js';
@@ -133,7 +133,6 @@ export function AccountSettingsPage() {
   const accountId = account.id;
   const cosmeticsKey = rememberedKey('account-settings:cosmetics', accountId);
   // Captured before useRememberedState writes: true only when an unsaved draft survived navigation.
-  const hadCosmeticsDraft = useRef(readRemembered(cosmeticsKey, { accept: isCosmeticsDraft }).found).current;
 
   // Non-sensitive drafts survive leaving the page and coming back (per browser, per account).
   // Passwords and one-time codes stay ephemeral on purpose and are never remembered.
@@ -168,7 +167,6 @@ export function AccountSettingsPage() {
         if (!active) return;
         setProfileSettings(response);
         // An unsaved draft left on the page wins over the saved server copy.
-        if (hadCosmeticsDraft) return;
         setCosmetics(response.settings);
         setAvatarMode(avatarModeOf(response.settings));
         setImageDraft(response.settings.profileImageUrl ?? '');
@@ -505,6 +503,19 @@ export function AccountSettingsPage() {
   const displayName = me?.displayName ?? account.username;
   const previewCity = me?.city.name ?? 'Your city';
   const previewRank = me ? `#${me.publicPimpId.toLocaleString()}` : 'Preview';
+  const cosmeticsDirty = Boolean(profileSettings && JSON.stringify(cosmetics) !== JSON.stringify(profileSettings.settings));
+
+  function resetCosmeticsDraft() {
+    if (!profileSettings) return;
+    const saved = profileSettings.settings;
+    setCosmetics(saved);
+    setAvatarMode(avatarModeOf(saved));
+    setImageDraft(saved.profileImageUrl ?? '');
+    setAvatarDraft(readAvatarParts(saved.profileAvatar) ?? DEFAULT_AVATAR_PARTS.boy);
+    setFields({});
+    setMessage('Draft reset to your last saved profile.');
+    setTone('info');
+  }
 
   return (
     <Frame>
@@ -513,6 +524,23 @@ export function AccountSettingsPage() {
           <p className="se-eyebrow">Private account · Command center</p>
           <h1 className="se-title">Your settings</h1>
           <p>Shape how StreetsEmpire looks, feels and reaches you. Your criminal record stays on the streets; everything here is yours alone.</p>
+          <div className="se-settings-hero__summary" aria-label="Account overview">
+            <div>
+              <span>Profile</span>
+              <strong>{me ? 'Live' : 'Not joined'}</strong>
+              <small>{me ? 'Visible to players' : 'Join a round to publish'}</small>
+            </div>
+            <div>
+              <span>Recovery</span>
+              <strong className={account.emailVerifiedAt ? 'is-ready' : 'is-attention'}>{account.emailVerifiedAt ? 'Ready' : 'Action needed'}</strong>
+              <small>{account.emailVerifiedAt ? 'Email address verified' : 'Verify your email'}</small>
+            </div>
+            <div>
+              <span>Protection</span>
+              <strong className={account.twoFactorEnabled ? 'is-ready' : ''}>{account.twoFactorEnabled ? '2-step on' : '2-step off'}</strong>
+              <small>{account.twoFactorEnabled ? 'Extra sign-in protection' : 'Add an authenticator'}</small>
+            </div>
+          </div>
         </div>
         <div className="se-settings-hero__identity">
           <span className={`se-settings-hero__avatar${cosmetics.activeAvatarFrameKey ? ' se-settings-hero__avatar--framed' : ''}`} aria-hidden="true">
@@ -537,13 +565,13 @@ export function AccountSettingsPage() {
         <aside className="se-settings-nav" aria-label="Settings categories">
           <span className="se-settings-nav__eyebrow">Settings index</span>
           <nav>
-            <a href="#settings-account"><span>01</span>Account</a>
-            <a href="#settings-connections"><span>02</span>Connections</a>
-            <a href="#settings-alerts"><span>03</span>Alerts</a>
-            <a href="#settings-security"><span>04</span>Security</a>
-            <a href="#settings-game"><span>05</span>Game</a>
-            <a href="#settings-profile"><span>06</span>Profile & look</a>
-            <a href="#settings-data"><span>07</span>Data & privacy</a>
+            <a className={lastSection === 'settings-account' ? 'is-active' : undefined} aria-current={lastSection === 'settings-account' ? 'location' : undefined} href="#settings-account"><span>01</span>Account</a>
+            <a className={lastSection === 'settings-connections' ? 'is-active' : undefined} aria-current={lastSection === 'settings-connections' ? 'location' : undefined} href="#settings-connections"><span>02</span>Connections</a>
+            <a className={lastSection === 'settings-alerts' ? 'is-active' : undefined} aria-current={lastSection === 'settings-alerts' ? 'location' : undefined} href="#settings-alerts"><span>03</span>Alerts</a>
+            <a className={lastSection === 'settings-security' ? 'is-active' : undefined} aria-current={lastSection === 'settings-security' ? 'location' : undefined} href="#settings-security"><span>04</span>Security</a>
+            <a className={lastSection === 'settings-game' ? 'is-active' : undefined} aria-current={lastSection === 'settings-game' ? 'location' : undefined} href="#settings-game"><span>05</span>Game</a>
+            <a className={lastSection === 'settings-profile' ? 'is-active' : undefined} aria-current={lastSection === 'settings-profile' ? 'location' : undefined} href="#settings-profile"><span>06</span>Profile & look</a>
+            <a className={lastSection === 'settings-data' ? 'is-active' : undefined} aria-current={lastSection === 'settings-data' ? 'location' : undefined} href="#settings-data"><span>07</span>Data & privacy</a>
           </nav>
           <p>Changes to your look and interface are saved together. Account and alert actions save as you make them.</p>
         </aside>
@@ -657,6 +685,14 @@ export function AccountSettingsPage() {
             </form>
           </Panel>
 
+          <Panel title="Profile shortcuts">
+            <p>Your game profile is where other players see your public record, awards and achievements.</p>
+            <div className="se-actions-row">
+              {me ? <Link className="se-btn se-btn--primary" to="/game/profile">Open public profile</Link> : <Link className="se-btn se-btn--primary" to="/join">Join the round</Link>}
+              <Link className="se-btn se-btn--ghost" to="/game">Back to game</Link>
+            </div>
+          </Panel>
+
           <Panel title="Account record" flush>
             <div className="se-rows">
               <Row label="Created" value={formatDate(account.createdAt)} />
@@ -671,10 +707,6 @@ export function AccountSettingsPage() {
               account={account}
               onConnectionsChanged={() => setConnectionsVersion((current) => current + 1)}
             />
-          </div>
-
-          <div id="settings-alerts" className="se-settings-anchor">
-            <NotificationsPanel refreshKey={connectionsVersion} />
           </div>
 
           <Panel title="Current email verification">
@@ -710,14 +742,10 @@ export function AccountSettingsPage() {
             </form>
           </Panel>
 
-          <Panel title="Profile shortcuts">
-            <p>Your game profile is where other players see your public record, awards and achievements.</p>
-            <div className="se-actions-row">
-              {me ? <Link className="se-btn se-btn--primary" to="/game/profile">Open public profile</Link> : <Link className="se-btn se-btn--primary" to="/join">Join the round</Link>}
-              <Link className="se-btn se-btn--ghost" to="/game">Back to game</Link>
-            </div>
-          </Panel>
         </div>
+      </div>
+      <div id="settings-alerts" className="se-settings-anchor">
+        <NotificationsPanel refreshKey={connectionsVersion} />
       </div>
       </section>
 
@@ -820,11 +848,34 @@ export function AccountSettingsPage() {
           <p className="se-muted">Loading your unlocked badges...</p>
         ) : (
           <form onSubmit={saveCosmetics} noValidate>
-            <p className="se-hint">
+            <div className="se-cosmetics-intro">
+              <div>
+                <span className="se-eyebrow">Personalization studio</span>
+                <strong>Make the profile people remember.</strong>
+              </div>
+              <p className="se-hint">
               {profileSettings.convenience.hasRewards
                 ? `Supporter rewards active: ${formatNumber(profileSettings.convenience.presetSlots)} profile presets and ${formatNumber(profileSettings.convenience.loadoutSlots)} cosmetic loadout slots are available.`
                 : `Free account limits: ${formatNumber(profileSettings.convenience.presetSlots)} profile preset and ${formatNumber(profileSettings.convenience.loadoutSlots)} cosmetic loadout slot. Supporting expands both to 4.`}
-            </p>
+              </p>
+            </div>
+            <div className="se-cosmetics-toolbar" aria-label="Profile draft controls">
+              <div>
+                <span className={`se-draft-status${cosmeticsDirty ? ' is-dirty' : ''}`}>
+                  <span aria-hidden="true" />
+                  {cosmeticsDirty ? 'Unsaved changes' : 'All changes saved'}
+                </span>
+                <p>{cosmeticsDirty ? 'Your profile preview reflects a draft. Save when it is ready.' : 'Your public profile matches the saved version.'}</p>
+              </div>
+              <Button
+                type="button"
+                className="se-btn se-btn--ghost se-btn--sm"
+                onClick={resetCosmeticsDraft}
+                disabledReason={busy !== null ? working : cosmeticsDirty ? null : 'There are no draft changes to reset.'}
+              >
+                Reset draft
+              </Button>
+            </div>
             <div className="se-account-cosmetics">
               <div>
                 <div className="se-field">
@@ -1099,7 +1150,7 @@ export function AccountSettingsPage() {
                     style={cosmetics.profileBannerUrl ? { backgroundImage: `linear-gradient(90deg, rgba(5, 8, 8, 0.52), rgba(5, 8, 8, 0.86)), url("${cosmetics.profileBannerUrl}")` } : undefined}
                   >
                     {previewStreetSign
-                      ? <StreetSignDisplay design={previewStreetSign} compact />
+                       ? <StreetSignDisplay design={previewStreetSign} />
                       : <span>Street Empire</span>}
                   </div>
                   <div className="se-profile-card-preview__identity">
@@ -1163,15 +1214,32 @@ export function AccountSettingsPage() {
               </div>
             </div>
 
-            <ItemCrewCosmeticsEditor
-              settings={cosmetics}
-              styles={profileSettings.options.itemStyles ?? FALLBACK_ITEM_STYLES}
-              crewStyles={profileSettings.options.crewStyles ?? FALLBACK_CREW_STYLES}
-              bannerStyles={profileSettings.options.crewBanners ?? []}
-              onChange={setCosmetics}
-            />
+            <div className="se-cosmetics-subsection">
+              <div className="se-cosmetics-subsection__head">
+                <div>
+                  <span className="se-eyebrow">Loadout</span>
+                  <h3>Street collection</h3>
+                </div>
+                <p>Choose the look that follows you through the city.</p>
+              </div>
+              <ItemCrewCosmeticsEditor
+                settings={cosmetics}
+                styles={profileSettings.options.itemStyles ?? FALLBACK_ITEM_STYLES}
+                crewStyles={profileSettings.options.crewStyles ?? FALLBACK_CREW_STYLES}
+                bannerStyles={profileSettings.options.crewBanners ?? []}
+                onChange={setCosmetics}
+              />
+            </div>
 
-            <div className="se-interface-preferences">
+            <div className="se-cosmetics-subsection se-cosmetics-subsection--interface">
+              <div className="se-cosmetics-subsection__head">
+                <div>
+                  <span className="se-eyebrow">Interface</span>
+                  <h3>How StreetsEmpire feels</h3>
+                </div>
+                <p>Set the pace, clarity and landing point for every session.</p>
+              </div>
+              <div className="se-interface-preferences">
               <div className="se-field">
                 <label className="se-label" htmlFor="ui-density">Interface density</label>
                 <select
@@ -1290,14 +1358,21 @@ export function AccountSettingsPage() {
                   <small>Visitors see your item and crew collections. Never your counts.</small>
                 </span>
               </label>
+              </div>
             </div>
 
-            <Button
-              className="se-btn se-btn--primary se-btn--block"
-              disabledReason={busy !== null ? working : avatarLocked ? 'Your avatar is trying on a locked piece. Take it off to save.' : null}
-            >
-              {busy === 'cosmetics' ? 'Saving...' : 'Save settings'}
-            </Button>
+            <div className="se-cosmetics-savebar">
+              <div>
+                <strong>{cosmeticsDirty ? 'Ready to publish your look?' : 'Your look is up to date.'}</strong>
+                <span>{cosmeticsDirty ? 'Save once to update your public profile and game interface.' : 'Make a change above to create a new draft.'}</span>
+              </div>
+              <Button
+                className="se-btn se-btn--primary"
+                disabledReason={busy !== null ? working : avatarLocked ? 'Your avatar is trying on a locked piece. Take it off to save.' : cosmeticsDirty ? null : 'No unsaved changes.'}
+              >
+                {busy === 'cosmetics' ? 'Saving...' : 'Save changes'}
+              </Button>
+            </div>
           </form>
         )}
       </Panel>

@@ -565,7 +565,6 @@ export function CasinoPage() {
             <CasinoBankrollSummary
               metrics={[
                 { label: 'Cash here', value: formatCents(data.cashCents) },
-                { label: 'Chips at the cage', value: venue ? formatCents(venue.walletChipsCents) : '—' },
                 { label: 'On the floor', value: floorCents !== null ? formatCents(floorCents) : 'No session', active: Boolean(session) },
               ]}
               actions={

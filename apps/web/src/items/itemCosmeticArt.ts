@@ -177,6 +177,7 @@ export const DROP_ART_FILES = {
     'taxi-hustle-sedan': 'cosmetics/drop/sedan-taxi-hustle.svg',
     'two-tone-classic-sedan': 'cosmetics/drop/sedan-two-tone.svg',
     'quarter-mile-sedan': 'cosmetics/drop/sedan-quarter-mile.svg',
+    'iron-front-sedan': 'cosmetics/drop/sedan-iron-front.svg',
   },
   LOW_RIDER: {
     'neon-underworld-low-rider': 'cosmetics/drop/low-rider-neon-underworld.svg',
@@ -201,6 +202,7 @@ export const DROP_ART_FILES = {
     '88-club-van': 'cosmetics/drop/van-88-club.svg',
     'swamp-kingdom-van': 'cosmetics/drop/van-swamp-kingdom.svg',
     'zombie-apocalypse-van': 'cosmetics/drop/van-zombie-apocalypse.svg',
+    'iron-front-van': 'cosmetics/drop/van-iron-front.svg',
   },
   PISTOL: {
     'biscayne-sunset-pistol': 'cosmetics/drop/pistol-biscayne-sunset.svg',
@@ -234,6 +236,7 @@ export const DROP_ART_FILES = {
     'dockside-ak47': 'cosmetics/drop/ak47-dockside.svg',
     'crown-jewels-ak47': 'cosmetics/drop/ak47-crown-jewels.svg',
     'damascus-ak47': 'cosmetics/drop/ak47-damascus.svg',
+    'iron-front-ak47': 'cosmetics/drop/ak47-iron-front.svg',
   },
   THUG: {
     'kingpin-luxe-thug': 'cosmetics/drop/thug-kingpin-luxe.svg',
@@ -261,6 +264,7 @@ export const DROP_ART_FILES = {
     '88-club-thug': 'cosmetics/drop/thug-88-club.svg',
     'swamp-kingdom-thug': 'cosmetics/drop/thug-swamp-kingdom.svg',
     'zombie-apocalypse-thug': 'cosmetics/drop/thug-zombie-apocalypse.svg',
+    'iron-front-crew': 'cosmetics/drop/thug-iron-front.svg',
   },
   HOE: {
     'kingpin-luxe-hoe': 'cosmetics/drop/hoe-kingpin-luxe.svg',
@@ -288,6 +292,7 @@ export const DROP_ART_FILES = {
     '88-club-hoe': 'cosmetics/drop/hoe-88-club.svg',
     'swamp-kingdom-hoe': 'cosmetics/drop/hoe-swamp-kingdom.svg',
     'zombie-apocalypse-hoe': 'cosmetics/drop/hoe-zombie-apocalypse.svg',
+    'iron-front-crew': 'cosmetics/drop/hoe-iron-front.svg',
   },
 } as const satisfies Partial<Record<ItemArtKey, Partial<Record<ItemCosmeticStyleKey, string>>>>;
 

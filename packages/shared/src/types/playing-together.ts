@@ -710,6 +710,18 @@ export interface OperationsPageDto {
   leaderCooldownHours: number;
   underworldOperationsEnabled: boolean;
   catalog: OperationCatalogCardDto[];
+  sources: {
+    stash: Array<{ id: string; citySlug: string; productKey: string; quantity: number }>;
+    shipments: Array<{ id: string; homeCity: string; status: string }>;
+    threats: Array<{
+      kind: 'block-war' | 'turf-push';
+      id: string;
+      citySlug: string;
+      district: string;
+      status: string;
+      endsAt: string | null;
+    }>;
+  };
 }
 
 export interface TurfTripDto {

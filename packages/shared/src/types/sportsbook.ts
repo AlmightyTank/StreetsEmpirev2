@@ -1,4 +1,4 @@
-export type SportsbookLeagueKey = 'NFL' | 'NBA' | 'MLB' | 'NHL';
+export type SportsbookLeagueKey = 'NFL' | 'NBA' | 'MLB' | 'NHL' | 'SOFTBALL' | 'MMA';
 export type SportsbookSelection = 'HOME' | 'AWAY';
 export type SportsbookBetStatus = 'OPEN' | 'WON' | 'LOST' | 'PUSH' | 'VOID';
 /** PULLED (1.8.0-C): the provider dropped or postponed the line; it reopens if the game returns. */

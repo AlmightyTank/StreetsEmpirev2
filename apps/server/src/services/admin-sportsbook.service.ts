@@ -457,6 +457,24 @@ export const AdminSportsbookService = {
     return { message, report: await this.report(prisma, config, now) };
   },
 
+  /** Rebuilds the fictional today-plus-two-day slate immediately, without touching settled games. */
+  async refreshSlate(
+    prisma: PrismaClient,
+    config: FeedConfig,
+    actor: AuditActor,
+    now = new Date(),
+  ): Promise<AdminSportsbookActionDto> {
+    const result = await refreshSportsbookCache(prisma, { internal: 'internal' }, now, { minIntervalMs: 0, normalIntervalMs: 0 });
+    const message = result.skipped === 'BUSY'
+      ? 'A sportsbook slate refresh is already running.'
+      : `Sportsbook slate refreshed: ${result.snapshots} snapshot(s), ${result.failedSnapshots} failed.`;
+    await AdminAuditService.record(prisma, actor, {
+      action: 'sportsbook.refresh-slate', targetType: 'sportsbook-provider', targetId: SPORTSBOOK_PROVIDER_ID,
+      after: result,
+    });
+    return { message, report: await this.report(prisma, config, now) };
+  },
+
   /**
    * 1.8.0-E release gate: fetch one league's live snapshot for today and report what the feed makes
    * of it, without storing events. One request, so a few datapoints.

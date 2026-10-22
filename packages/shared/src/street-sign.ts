@@ -3,7 +3,7 @@ import { z } from 'zod';
 /** Saved street-sign design contract. Bump the version when the persisted shape changes. */
 export const STREET_SIGN_VERSION = 3 as const;
 export const STREET_SIGN_TEXT_MAX = 32;
-export const STREET_SIGN_TAG_MAX = 18;
+export const STREET_SIGN_TAG_MAX = 20;
 
 export const STREET_SIGN_SHAPES = ['classic', 'wide'] as const;
 export const STREET_SIGN_FONTS = ['road-condensed', 'block', 'stencil', 'handstyle', 'rounded', 'sign-painter', 'graffiti-script', 'wildstyle'] as const;
@@ -106,6 +106,8 @@ const streetSignV2Fields = {
   tagFont: z.enum(STREET_SIGN_FONTS),
   tagScale: z.enum(STREET_SIGN_TAG_SCALES),
   tagPlacement: z.enum(STREET_SIGN_TAG_PLACEMENTS),
+  tagOffsetX: z.number().min(-160).max(160).optional(),
+  tagOffsetY: z.number().min(-80).max(80).optional(),
   trim: z.enum(STREET_SIGN_TRIMS),
   shadow: z.enum(STREET_SIGN_SHADOWS),
   treatment: z.enum(STREET_SIGN_TREATMENTS),

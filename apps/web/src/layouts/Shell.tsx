@@ -265,7 +265,7 @@ function TurnRechargeRing({ nextTurnAt, intervalMinutes, onElapsed }: { nextTurn
   return (
     <svg className="se-statusbar__recharge" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true" focusable="false">
       <rect className="se-statusbar__recharge-track" x="1" y="1" width="98" height="98" rx="10" pathLength="396" />
-      <rect className="se-statusbar__recharge-fill" x="1" y="1" width="98" height="98" rx="10" pathLength="396" strokeDasharray="396" strokeDashoffset={dashOffset} />
+      <rect className="se-statusbar__recharge-fill" x="1" y="1" width="98" height="98" rx="10" pathLength="396" strokeDasharray="396" strokeDashoffset={dashOffset} transform="rotate(180 50 50) scale(-1 1)" />
     </svg>
   );
 }

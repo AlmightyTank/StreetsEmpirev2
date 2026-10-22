@@ -220,6 +220,38 @@
   font-size: 10px;
 }
 
+/* The account street sign is artwork, not a small room label. Give the
+   renderer a real stage so the configured design remains visible. */
+.se-hideout-renderer__sign {
+  display: flex;
+  width: min(100%, 560px);
+  min-height: 96px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.se-hideout-renderer__sign .se-street-sign-display {
+  width: 100%;
+  margin: 0;
+}
+
+.se-hideout-renderer__sign-empty {
+  padding: 12px 18px;
+  border: 1px dashed color-mix(in srgb, var(--se-accent) 45%, var(--se-line));
+  color: var(--se-muted);
+  font-family: var(--se-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
 .se-hideout-renderer > p {
   margin: 10px 0 0;
   color: var(--se-text-dim);

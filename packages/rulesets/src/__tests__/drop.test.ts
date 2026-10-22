@@ -32,7 +32,7 @@ const bundles = Object.values(DROP_BUNDLES);
 
 describe('The Drop catalogue', () => {
   it('ships twenty-three sets with a shell theme and a bundle each, plus Street Singles', () => {
-    expect(Object.keys(DROP_COLLECTIONS)).toHaveLength(24);
+    expect(Object.keys(DROP_COLLECTIONS)).toHaveLength(25);
     expect(items.length).toBeGreaterThanOrEqual(18);
     const singles = items.filter((item) => item.collection === 'street-singles');
     expect(singles).toHaveLength(50);

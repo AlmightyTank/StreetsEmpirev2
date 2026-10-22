@@ -5,6 +5,7 @@
   grid-template-columns: minmax(0, 1fr) minmax(300px, 0.62fr);
   gap: 24px;
   align-items: stretch;
+  min-width: 0;
   margin-bottom: 16px;
   padding: 28px;
   overflow: hidden;
@@ -36,6 +37,7 @@
 
 .se-settings-hero__copy {
   align-self: center;
+  min-width: 0;
   max-width: 720px;
 }
 
@@ -54,12 +56,62 @@
   line-height: 1.55;
 }
 
+.se-settings-hero__summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  max-width: 700px;
+  margin-top: 24px;
+}
+
+.se-settings-hero__summary > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--se-line-soft);
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--se-bg) 76%, transparent);
+}
+
+.se-settings-hero__summary small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.se-settings-hero__summary span,
+.se-settings-hero__summary small {
+  color: var(--se-muted);
+  font-size: 0.68rem;
+}
+
+.se-settings-hero__summary span {
+  font-family: var(--se-mono);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.se-settings-hero__summary strong {
+  overflow: hidden;
+  color: var(--se-text);
+  font-size: 0.88rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.se-settings-hero__summary strong.is-ready { color: #7ee2a2; }
+.se-settings-hero__summary strong.is-attention { color: var(--se-warn); }
+
 .se-settings-hero__identity {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 12px;
   align-items: center;
   min-width: 0;
+  max-width: 520px;
   padding: 16px;
   border: 1px solid var(--se-line-soft);
   border-radius: 6px;
@@ -165,8 +217,8 @@
 
 .se-settings-layout {
   display: grid;
-  grid-template-columns: 190px minmax(0, 1fr);
-  gap: 18px;
+  grid-template-columns: 208px minmax(0, 1fr);
+  gap: 22px;
   align-items: start;
 }
 
@@ -175,12 +227,15 @@
   top: 76px;
   display: grid;
   gap: 12px;
-  padding: 16px;
-  border: 1px solid var(--se-line-soft);
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--se-panel) 92%, transparent);
-  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.14);
+  padding: 13px;
+  border: 1px solid color-mix(in srgb, var(--se-page-art-accent, var(--se-accent)) 22%, var(--se-line-soft));
+  border-radius: 9px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--se-page-art-accent, var(--se-accent)) 5%, var(--se-panel)), var(--se-panel));
+  box-shadow: var(--se-shadow-soft);
 }
+
+.se-settings-nav::-webkit-scrollbar { display: none; }
+.se-settings-nav { scrollbar-width: none; }
 
 .se-settings-nav nav {
   display: grid;
@@ -210,10 +265,19 @@
 }
 
 .se-settings-nav a:hover,
-.se-settings-nav a:focus-visible {
+.se-settings-nav a:focus-visible,
+.se-settings-nav a.is-active {
   border-left-color: var(--se-accent);
   background: color-mix(in srgb, var(--se-accent) 7%, transparent);
   color: var(--se-text);
+}
+
+.se-route--account .se-settings-nav a:target,
+.se-route--account .se-settings-nav a:hover,
+.se-route--account .se-settings-nav a:focus-visible,
+.se-route--account .se-settings-nav a.is-active {
+  border-left-color: var(--se-page-art-accent, var(--se-accent));
+  background: color-mix(in srgb, var(--se-page-art-accent, var(--se-accent)) 9%, transparent);
 }
 
 .se-settings-nav > p {
@@ -245,8 +309,8 @@
   justify-content: space-between;
   gap: 18px;
   align-items: end;
-  padding: 0 2px 8px;
-  border-bottom: 1px solid var(--se-line-soft);
+  padding: 0 3px 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--se-page-art-accent, var(--se-accent)) 24%, var(--se-line-soft));
 }
 
 .se-settings-section__head > div {
@@ -256,7 +320,7 @@
 }
 
 .se-settings-section__head span {
-  color: var(--se-accent);
+  color: var(--se-page-art-accent, var(--se-accent));
   font-family: var(--se-mono);
   font-size: 0.66rem;
   font-weight: 900;
@@ -296,6 +360,328 @@
   color: var(--se-bad, #ef6a6a);
 }
 
+/* Account is a control room: use the route's violet accent instead of the
+   gameplay green for navigation, section rules, and focused surfaces. */
+.se-route--account .se-settings-hero {
+  border-color: color-mix(in srgb, var(--se-page-art-accent) 42%, var(--se-line));
+  background:
+    radial-gradient(560px 220px at 88% 0%, color-mix(in srgb, var(--se-page-art-accent) 18%, transparent), transparent 68%),
+    linear-gradient(115deg, color-mix(in srgb, var(--se-bg) 24%, transparent), transparent 56%),
+    repeating-linear-gradient(135deg, transparent 0 18px, color-mix(in srgb, var(--se-text) 2%, transparent) 18px 19px),
+    var(--se-panel);
+  box-shadow: inset 4px 0 0 var(--se-page-art-accent), var(--se-shadow);
+}
+
+.se-route--account .se-settings-hero__status span.is-ready,
+.se-route--account .se-settings-hero__identity,
+.se-route--account .se-settings-nav,
+.se-route--account .se-settings-section > .se-panel {
+  border-color: color-mix(in srgb, var(--se-page-art-accent) 22%, var(--se-line-soft));
+  border-radius: 8px;
+  box-shadow: var(--se-shadow-soft);
+}
+
+.se-cosmetics-intro {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.7fr) minmax(0, 1.3fr);
+  gap: 18px;
+  align-items: center;
+  margin-bottom: 18px;
+  padding: 14px 16px;
+  border: 1px solid color-mix(in srgb, var(--se-page-art-accent) 24%, var(--se-line-soft));
+  border-left: 3px solid var(--se-page-art-accent);
+  border-radius: 6px;
+  background: linear-gradient(105deg, color-mix(in srgb, var(--se-page-art-accent) 8%, transparent), transparent 62%);
+}
+
+.se-cosmetics-intro > div,
+.se-cosmetics-subsection__head > div {
+  display: grid;
+  gap: 3px;
+}
+
+.se-cosmetics-intro strong {
+  color: var(--se-text);
+  font-size: 1rem;
+}
+
+.se-cosmetics-intro .se-hint {
+  margin: 0;
+}
+
+.se-cosmetics-toolbar,
+.se-cosmetics-savebar {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--se-line-soft);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--se-bg) 38%, var(--se-panel));
+}
+
+.se-cosmetics-toolbar {
+  margin-bottom: 18px;
+}
+
+.se-cosmetics-toolbar > div,
+.se-cosmetics-savebar > div {
+  min-width: 0;
+}
+
+.se-cosmetics-toolbar p,
+.se-cosmetics-savebar span {
+  display: block;
+  margin: 4px 0 0;
+  color: var(--se-muted);
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+.se-draft-status {
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  color: var(--se-text-dim);
+  font-family: var(--se-mono);
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.se-draft-status > span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--se-muted);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--se-muted) 12%, transparent);
+}
+
+.se-draft-status.is-dirty {
+  color: var(--se-warn);
+}
+
+.se-draft-status.is-dirty > span {
+  background: var(--se-warn);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--se-warn) 14%, transparent);
+}
+
+.se-cosmetics-savebar {
+  position: sticky;
+  bottom: 12px;
+  z-index: 2;
+  margin-top: 22px;
+  border-color: color-mix(in srgb, var(--se-page-art-accent) 30%, var(--se-line));
+  background: color-mix(in srgb, var(--se-panel-hi) 92%, transparent);
+  box-shadow: var(--se-shadow-soft);
+  backdrop-filter: blur(12px);
+}
+
+.se-cosmetics-savebar strong {
+  display: block;
+  color: var(--se-text);
+  font-size: 0.84rem;
+}
+
+.se-cosmetics-savebar .se-btn {
+  flex: 0 0 auto;
+  min-width: 150px;
+}
+
+.se-cosmetics-subsection {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--se-line-soft);
+}
+
+.se-cosmetics-subsection__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: end;
+  margin-bottom: 12px;
+}
+
+.se-cosmetics-subsection__head h3 {
+  margin: 0;
+  color: var(--se-text);
+  font-size: 1rem;
+}
+
+.se-cosmetics-subsection__head p {
+  max-width: 360px;
+  margin: 0;
+  color: var(--se-muted);
+  font-size: 0.72rem;
+  text-align: right;
+}
+
+.se-cosmetics-subsection--interface .se-interface-preferences {
+  margin: 0;
+  padding: 0;
+  border-top: 0;
+}
+
+.se-cosmetics-subsection--interface .se-checkrow--toggle {
+  min-height: 68px;
+}
+
+/* The profile editor lives inside the shell's already-constrained content
+   column. Keep every child shrinkable so the preview cannot push the panel
+   past the viewport. */
+.se-route--account .se-account-cosmetics,
+.se-route--account .se-account-cosmetics > *,
+.se-route--account .se-account-cosmetics__side,
+.se-route--account .se-profile-card-preview {
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.se-route--account .se-account-cosmetics {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.se-route--account .se-account-cosmetics > :first-child {
+  order: 1;
+}
+
+.se-route--account .se-account-cosmetics__side {
+  order: 0;
+}
+
+.se-route--account .se-profile-card-preview {
+  width: 100%;
+}
+
+@media (max-width: 1080px) {
+  .se-route--account .se-account-cosmetics {
+    grid-template-columns: 1fr;
+  }
+
+  .se-route--account .se-account-cosmetics__side {
+    order: 0;
+  }
+
+  .se-route--account .se-account-cosmetics__side,
+  .se-route--account .se-profile-card-preview {
+    width: min(100%, 620px);
+  }
+}
+
+@media (max-width: 760px) {
+  .se-cosmetics-intro {
+    grid-template-columns: 1fr;
+    gap: 7px;
+  }
+
+  .se-cosmetics-subsection__head {
+    align-items: start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .se-cosmetics-subsection__head p {
+    max-width: none;
+    text-align: left;
+  }
+}
+
+/* Account command-center shell: keep the shared live HUD, but give it a
+   quieter surface and the account route's violet signal. */
+.se-route--account .se-topbar {
+  --se-account-shell-accent: var(--se-page-art-accent, var(--se-accent));
+  border-bottom-color: color-mix(in srgb, var(--se-account-shell-accent) 34%, var(--se-line));
+  background:
+    radial-gradient(ellipse at 72% 0, color-mix(in srgb, var(--se-account-shell-accent) 13%, transparent), transparent 62%),
+    color-mix(in srgb, var(--se-panel) 90%, var(--se-bg));
+  box-shadow: 0 10px 26px color-mix(in srgb, var(--se-account-shell-accent) 7%, transparent);
+}
+
+.se-route--account .se-topbar .se-brand .se-accent,
+.se-route--account .se-topbar .se-brand__crown {
+  color: var(--se-account-shell-accent);
+}
+
+.se-route--account .se-topbar .se-statusbar {
+  gap: 10px;
+}
+
+.se-route--account .se-topbar .se-statusbar__item {
+  border-color: color-mix(in srgb, var(--se-account-shell-accent) 28%, var(--se-line));
+}
+
+.se-route--account .se-topbar .se-statusbar__item:hover,
+.se-route--account .se-topbar .se-statusbar__item:focus-visible {
+  border-color: color-mix(in srgb, var(--se-account-shell-accent) 72%, var(--se-line));
+}
+
+@media (min-width: 900px) {
+  .se-route--account.se-app--sidebar .se-topbar .se-statusbar {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin-right: auto;
+  }
+
+  .se-route--account.se-app--sidebar .se-topbar .se-statusbar__item {
+    min-width: 96px;
+    background: color-mix(in srgb, var(--se-account-shell-accent) 5%, var(--se-panel));
+  }
+}
+
+@media (max-width: 899px) {
+  .se-route--account.se-app--tabbar .se-topbar {
+    gap: 6px 8px;
+    padding-top: 7px;
+    padding-bottom: 8px;
+  }
+
+  .se-route--account.se-app--tabbar .se-topbar .se-statusbar {
+    gap: 6px;
+  }
+
+  .se-route--account.se-app--tabbar .se-topbar a.se-statusbar__item {
+    min-height: 44px;
+    padding: 4px 8px 4px 6px;
+    border-color: color-mix(in srgb, var(--se-account-shell-accent) 38%, var(--se-line));
+    background:
+      linear-gradient(145deg, color-mix(in srgb, var(--se-account-shell-accent) 10%, transparent), transparent 70%),
+      color-mix(in srgb, var(--se-panel-hi) 82%, var(--se-bg));
+  }
+
+  .se-route--account.se-app--tabbar .se-topbar .se-statusbar__icon {
+    width: 23px;
+    height: 23px;
+  }
+
+  .se-route--account.se-app--tabbar .se-topbar .se-statusbar__v {
+    font-size: clamp(12px, 3.2vw, 15px);
+  }
+}
+
+@media (max-width: 390px) {
+  .se-route--account.se-app--tabbar .se-topbar {
+    padding-left: calc(8px + var(--se-safe-left));
+    padding-right: calc(8px + var(--se-safe-right));
+  }
+
+  .se-route--account.se-app--tabbar .se-topbar .se-statusbar {
+    gap: 4px;
+  }
+
+  .se-route--account.se-app--tabbar .se-topbar a.se-statusbar__item {
+    min-height: 44px;
+    padding-right: 5px;
+  }
+
+  .se-route--account.se-app--tabbar .se-topbar .se-statusbar__icon {
+    width: 21px;
+    height: 21px;
+  }
+}
+
 @media (max-width: 1080px) {
   .se-settings-hero {
     grid-template-columns: 1fr;
@@ -314,16 +700,19 @@
   .se-settings-nav nav {
     display: flex;
     min-width: max-content;
+    width: max-content;
   }
 
   .se-settings-nav a {
+    flex: 0 0 auto;
     grid-template-columns: auto auto;
     border-bottom: 2px solid transparent;
     border-left: 0;
   }
 
   .se-settings-nav a:hover,
-  .se-settings-nav a:focus-visible {
+  .se-settings-nav a:focus-visible,
+  .se-settings-nav a.is-active {
     border-bottom-color: var(--se-accent);
   }
 
@@ -334,6 +723,17 @@
 }
 
 @media (max-width: 620px) {
+  .se-cosmetics-toolbar,
+  .se-cosmetics-savebar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .se-cosmetics-toolbar .se-btn,
+  .se-cosmetics-savebar .se-btn {
+    width: 100%;
+  }
+
   .se-settings-hero {
     gap: 10px;
     padding: 12px 14px;
@@ -345,6 +745,23 @@
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
   }
+
+  .se-settings-hero__summary {
+    grid-template-columns: 1fr;
+    gap: 6px;
+    margin-top: 14px;
+  }
+
+  .se-settings-hero__summary > div {
+    grid-template-columns: 82px minmax(0, 1fr);
+    align-items: baseline;
+  }
+
+  .se-settings-hero__summary small {
+    white-space: normal;
+  }
+
+  .se-settings-hero__summary span { grid-row: span 2; }
 
   .se-settings-hero__identity {
     grid-template-columns: auto minmax(0, 1fr);
@@ -379,18 +796,114 @@
   }
 }
 
-
-/* Keep the crew sign in the same compact profile-cover slot as the old wordmark. */
+/* The account card uses the banner as the sign's hero area. Give the full
+   design room to breathe, then keep the identity block below it. */
 .se-profile-card-preview__banner--street-sign {
-  display: flex;
-  align-items: flex-start;
-  justify-content: flex-end;
+  min-height: 184px;
+  padding: 18px 16px;
 }
 
 .se-profile-card-preview__banner--street-sign .se-street-sign-display {
-  flex: 0 1 210px;
-  width: min(210px, 58%);
-  max-width: 210px;
+  width: min(100%, 620px);
+  max-width: 620px;
+}
+
+.se-profile-card-preview__banner--street-sign .se-street-sign-preview__face {
+  height: 148px;
+  padding: 18px 44px;
+}
+
+.se-profile-card-preview__banner--street-sign .se-street-sign-preview__lettering {
+  width: calc(100% - 40px);
+  max-width: 100%;
+}
+
+.se-profile-card-preview__banner--street-sign .se-street-sign-preview__name {
+  max-width: 100%;
+  font-size: clamp(1.1rem, 3vw, 1.9rem);
+  line-height: 1;
+}
+
+.se-profile-card-preview__banner--street-sign .se-street-sign-preview__tag {
+  right: 22px;
+  bottom: 14px;
+  left: auto;
+  max-width: calc(100% - 44px);
+  overflow: visible;
+  white-space: normal;
+  text-overflow: clip;
+  font-size: clamp(.72rem, 2vw, 1.05rem);
+  line-height: 1;
+  transform: translate(var(--se-tag-offset-x, 0px), var(--se-tag-offset-y, 0px)) rotate(-8deg);
+}
+
+.se-profile-card-preview__banner--street-sign .se-street-sign-preview__tag--lower-left {
+  right: auto;
+  left: 22px;
+  transform-origin: left center;
+}
+
+.se-profile-card-preview__banner--street-sign .se-street-sign-preview__tag--lower-center {
+  right: auto;
+  left: 50%;
+  transform: translateX(-50%) translate(var(--se-tag-offset-x, 0px), var(--se-tag-offset-y, 0px)) rotate(-8deg);
+  transform-origin: center;
+}
+
+@media (max-width: 620px) {
+  .se-profile-card-preview__banner--street-sign {
+    min-height: 146px;
+    padding: 12px 10px;
+  }
+
+  .se-profile-card-preview__banner--street-sign .se-street-sign-preview__face {
+    height: 116px;
+    padding: 14px 32px;
+  }
+
+  .se-profile-card-preview__banner--street-sign .se-street-sign-preview__tag {
+    right: 16px;
+    bottom: 10px;
+    max-width: calc(100% - 32px);
+  }
+
+  .se-profile-card-preview__banner--street-sign .se-street-sign-preview__tag--lower-left {
+    left: 16px;
+  }
+}
+
+@media (max-width: 760px) {
+  .se-account-columns {
+    grid-template-columns: 1fr;
+  }
+
+  .se-settings-section__head {
+    align-items: start;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .se-settings-section__head p {
+    max-width: none;
+    text-align: left;
+  }
+}
+
+
+/* Reuse the live street-sign design in the profile preview instead of
+   rendering a separate simplified wordmark. */
+.se-profile-card-preview__banner--street-sign {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 132px;
+  padding: 12px;
+}
+
+.se-profile-card-preview__banner--street-sign .se-street-sign-display {
+  flex: 1 1 auto;
+  width: min(100%, 430px);
+  max-width: 430px;
   margin: 0;
   padding: 0;
   overflow: visible;
@@ -399,31 +912,29 @@
 .se-profile-card-preview__banner--street-sign .se-street-sign-preview__face {
   width: 100%;
   max-width: none;
-  height: auto;
+  height: 86px;
   min-height: 0;
-  aspect-ratio: 4.2 / 1;
+  aspect-ratio: auto;
   box-sizing: border-box;
-  padding: 8px 20px;
+  padding: 12px 30px;
 }
 
-.se-profile-card-preview__banner--street-sign .se-street-sign-preview--wide .se-street-sign-preview__face {
-  aspect-ratio: 5 / 1;
+.se-profile-card-preview__banner--street-sign .se-street-sign-preview__lettering {
+  width: calc(100% - 30px);
+  min-width: 0;
 }
 
 .se-profile-card-preview__banner--street-sign .se-street-sign-preview__name {
-  font-size: clamp(.58rem, 2vw, .82rem);
+  font-size: clamp(.9rem, 2.4vw, 1.5rem);
 }
 
 .se-profile-card-preview__banner--street-sign .se-street-sign-preview__street-type {
-  top: 5px;
-  right: 11px;
-  font-size: .45rem;
+  font-size: clamp(.65rem, 1.6vw, .9rem);
 }
 
 .se-profile-card-preview__banner--street-sign .se-street-sign-preview__tag {
-  right: 18px;
-  bottom: 3px;
-  font-size: .5rem;
+  bottom: 5px;
+  font-size: .9rem;
 }
 
 .se-profile-card-preview__banner--street-sign .se-street-sign-preview__bolt {
@@ -441,15 +952,24 @@
 
 @media (max-width: 620px) {
   .se-profile-card-preview__banner--street-sign .se-street-sign-display {
-    flex-basis: 190px;
-    width: min(190px, 68%);
+    width: 100%;
+  }
+
+  .se-profile-card-preview__banner--street-sign {
+    min-height: 108px;
+    padding: 8px;
+  }
+
+  .se-profile-card-preview__banner--street-sign .se-street-sign-preview__face {
+    height: 70px;
+    padding: 9px 22px;
   }
 
   .se-profile-card-preview__banner--street-sign .se-street-sign-preview__name {
-    font-size: clamp(.55rem, 2.5vw, .72rem);
+    font-size: clamp(.75rem, 2.8vw, 1rem);
   }
 
   .se-profile-card-preview__banner--street-sign .se-street-sign-preview__tag {
-    font-size: .45rem;
+    bottom: 3px;
   }
 }

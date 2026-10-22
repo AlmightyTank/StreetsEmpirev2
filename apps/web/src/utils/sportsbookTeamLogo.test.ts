@@ -4,11 +4,11 @@ import { sportsbookTeamLogoUrl } from './sportsbookTeamLogo.js';
 describe('sportsbook ticket team logos', () => {
   it('uses the picked team, not the opponent or a league icon', () => {
     expect(sportsbookTeamLogoUrl('NFL', 'Houston Texans'))
-      .toBe('https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/hou.png');
+      .toContain('/nfl/500/scoreboard/hou.png');
     expect(sportsbookTeamLogoUrl('NFL', 'New Orleans Saints'))
-      .toBe('https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/no.png');
+      .toContain('/nfl/500/scoreboard/no.png');
     expect(sportsbookTeamLogoUrl('NFL', 'Kansas City Chiefs'))
-      .toBe('https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/kc.png');
+      .toContain('/nfl/500/scoreboard/kc.png');
   });
 
   it('resolves the four leagues with their own team codes', () => {

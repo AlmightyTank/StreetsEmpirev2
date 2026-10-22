@@ -169,13 +169,47 @@ function OperationCard({ operation, busy, act }: {
   );
 }
 
-function OfferForm({ offer, citySlug, busy, act }: { offer: OperationCatalogCardDto; citySlug: string; busy: boolean; act: (path: string, body: unknown) => Promise<void> }) {
+function OfferForm({ offer, citySlug, sources, busy, act }: {
+  offer: OperationCatalogCardDto;
+  citySlug: string;
+  sources: OperationsPageDto['sources'];
+  busy: boolean;
+  act: (path: string, body: unknown) => Promise<void>;
+}) {
   const [supplyStockId, setSupplyStockId] = useState('');
   const [runId, setRunId] = useState('');
   const [escort, setEscort] = useState('1');
   const [routeRisk, setRouteRisk] = useState<'LOW' | 'BALANCED' | 'HIGH'>('BALANCED');
   const [threatKind, setThreatKind] = useState<'block-war' | 'turf-push'>('block-war');
   const [threatId, setThreatId] = useState('');
+  const stashSources = sources.stash.filter((source) => source.citySlug === citySlug);
+  const threatSources = sources.threats.filter((source) => source.kind === threatKind);
+
+  useEffect(() => {
+    if (offer.key === 'STASH_RECOVERY' && !stashSources.some((source) => source.id === supplyStockId)) {
+      setSupplyStockId('');
+    }
+  }, [offer.key, stashSources, supplyStockId]);
+
+  useEffect(() => {
+    if (offer.key === 'CONVOY_PROTECTION' && !sources.shipments.some((source) => source.id === runId)) {
+      setRunId('');
+    }
+  }, [offer.key, runId, sources.shipments]);
+
+  useEffect(() => {
+    if (offer.key === 'BLOCK_DEFENSE' && !threatSources.some((source) => source.id === threatId)) {
+      setThreatId('');
+    }
+  }, [offer.key, threatId, threatSources]);
+
+  const sourceMissing = offer.key === 'STASH_RECOVERY'
+    ? stashSources.length === 0 || !supplyStockId
+    : offer.key === 'CONVOY_PROTECTION'
+      ? sources.shipments.length === 0 || !runId
+      : offer.key === 'BLOCK_DEFENSE'
+        ? threatSources.length === 0 || !threatId
+        : false;
   if (offer.key === 'CORNER_TAKEOVER') return null;
   return (
     <form className="se-operation-offer" onSubmit={(event) => {
@@ -194,10 +228,18 @@ function OfferForm({ offer, citySlug, busy, act }: { offer: OperationCatalogCard
         {offer.unavailableReason ?? `Stake ${formatCentsExact(offer.startCostCents)}. Deadline ${offer.deadlineHours ?? 0}h.`}
         {offer.bands ? ` Success ${formatCentsExact(offer.bands.success.payoutCents)}, partial ${formatCentsExact(offer.bands.partial.payoutCents)}, failure ${offer.bands.failure.label}.` : ''}
       </p>
-      {offer.key === 'STASH_RECOVERY' ? <input className="se-input" aria-label="Stash id" placeholder="Stash id" value={supplyStockId} onChange={(event) => setSupplyStockId(event.target.value)} /> : null}
+      {offer.key === 'STASH_RECOVERY' ? (
+        <select className="se-input" aria-label="Stash" value={supplyStockId} onChange={(event) => setSupplyStockId(event.target.value)} disabled={busy || stashSources.length === 0}>
+          <option value="">{stashSources.length ? 'Choose a stash' : 'No eligible stash in this city'}</option>
+          {stashSources.map((source) => <option key={source.id} value={source.id}>Stash {source.id.slice(0, 8)} · {source.productKey} · {source.quantity.toLocaleString()} available</option>)}
+        </select>
+      ) : null}
       {offer.key === 'CONVOY_PROTECTION' ? (
         <>
-          <input className="se-input" aria-label="Shipment id" placeholder="Shipment id" value={runId} onChange={(event) => setRunId(event.target.value)} />
+          <select className="se-input" aria-label="Shipment" value={runId} onChange={(event) => setRunId(event.target.value)} disabled={busy || sources.shipments.length === 0}>
+            <option value="">{sources.shipments.length ? 'Choose a shipment' : 'No shipments available'}</option>
+            {sources.shipments.map((source) => <option key={source.id} value={source.id}>Shipment {source.id.slice(0, 8)} · {source.homeCity} · {source.status.toLowerCase()}</option>)}
+          </select>
           <input className="se-input" aria-label="Escort count" inputMode="numeric" type="number" min="0" value={escort} onChange={(event) => setEscort(event.target.value)} />
           <select className="se-input" aria-label="Route risk" value={routeRisk} onChange={(event) => setRouteRisk(event.target.value as 'LOW' | 'BALANCED' | 'HIGH')}>
             <option value="LOW">Low risk</option>
@@ -212,10 +254,13 @@ function OfferForm({ offer, citySlug, busy, act }: { offer: OperationCatalogCard
             <option value="block-war">Block war</option>
             <option value="turf-push">Turf push</option>
           </select>
-          <input className="se-input" aria-label="Threat id" placeholder="Threat id" value={threatId} onChange={(event) => setThreatId(event.target.value)} />
+          <select className="se-input" aria-label="Threat" value={threatId} onChange={(event) => setThreatId(event.target.value)} disabled={busy || threatSources.length === 0}>
+            <option value="">{threatSources.length ? 'Choose a threat' : `No ${threatKind === 'block-war' ? 'block wars' : 'turf pushes'} available`}</option>
+            {threatSources.map((source) => <option key={source.id} value={source.id}>{source.kind === 'block-war' ? 'Block war' : 'Turf push'} · {source.district} · {source.citySlug}{source.endsAt ? ` · until ${new Date(source.endsAt).toLocaleDateString()}` : ''}</option>)}
+          </select>
         </>
       ) : null}
-      <button className="se-btn" type="submit" disabled={busy || !offer.available}>Confirm {offer.label}</button>
+      <button className="se-btn" type="submit" disabled={busy || !offer.available || sourceMissing}>Confirm {offer.label}</button>
     </form>
   );
 }
@@ -298,7 +343,7 @@ export function OperationsPage() {
             <button className="se-btn" type="submit" disabled={busy || loading || !citySlug}>Start operation</button>
           </form>
           {(page?.catalog ?? []).map((offer) => (
-            <OfferForm key={offer.key} offer={offer} citySlug={citySlug} busy={busy || loading} act={act} />
+            <OfferForm key={offer.key} offer={offer} citySlug={citySlug} sources={page?.sources ?? { stash: [], shipments: [], threats: [] }} busy={busy || loading} act={act} />
           ))}
         </Panel>
 

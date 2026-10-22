@@ -30,14 +30,14 @@ CREATE TABLE "CareerStoryPortfolio" (
   "updatedAt" TIMESTAMP(3) NOT NULL,
   CONSTRAINT "CareerStoryPortfolio_pkey" PRIMARY KEY ("id")
 );
-CREATE UNIQUE INDEX "CareerStoryInstance_player_career_version_key" ON "CareerStoryInstance"("roundPlayerId", "career", "catalogVersion");
-CREATE INDEX "CareerStoryInstance_round_career_status_idx" ON "CareerStoryInstance"("roundId", "career", "status");
-CREATE UNIQUE INDEX "CareerStorySourceClaim_idempotency_key" ON "CareerStorySourceClaim"("instanceId", "sourceKind", "sourceId", "objectiveKey");
-CREATE INDEX "CareerStorySourceClaim_instance_objective_idx" ON "CareerStorySourceClaim"("instanceId", "objectiveKey");
-CREATE UNIQUE INDEX "CareerStoryChoice_instance_chapter_key" ON "CareerStoryChoice"("instanceId", "chapterKey");
-CREATE UNIQUE INDEX "CareerStoryRelationship_instance_subject_key" ON "CareerStoryRelationship"("instanceId", "subjectKey", "relationshipKey");
-CREATE UNIQUE INDEX "CareerStoryPortfolio_instance_key" ON "CareerStoryPortfolio"("instanceId");
-CREATE INDEX "CareerStoryPortfolio_account_visibility_idx" ON "CareerStoryPortfolio"("accountId", "visibility");
+CREATE UNIQUE INDEX "CareerStoryInstance_roundPlayerId_career_catalogVersion_key" ON "CareerStoryInstance"("roundPlayerId", "career", "catalogVersion");
+CREATE INDEX "CareerStoryInstance_roundId_career_status_idx" ON "CareerStoryInstance"("roundId", "career", "status");
+CREATE UNIQUE INDEX "CareerStorySourceClaim_instanceId_sourceKind_sourceId_objec_key" ON "CareerStorySourceClaim"("instanceId", "sourceKind", "sourceId", "objectiveKey");
+CREATE INDEX "CareerStorySourceClaim_instanceId_objectiveKey_idx" ON "CareerStorySourceClaim"("instanceId", "objectiveKey");
+CREATE UNIQUE INDEX "CareerStoryChoice_instanceId_chapterKey_key" ON "CareerStoryChoice"("instanceId", "chapterKey");
+CREATE UNIQUE INDEX "CareerStoryRelationship_instanceId_subjectKey_relationshipK_key" ON "CareerStoryRelationship"("instanceId", "subjectKey", "relationshipKey");
+CREATE UNIQUE INDEX "CareerStoryPortfolio_instanceId_key" ON "CareerStoryPortfolio"("instanceId");
+CREATE INDEX "CareerStoryPortfolio_accountId_visibility_idx" ON "CareerStoryPortfolio"("accountId", "visibility");
 ALTER TABLE "CareerStoryInstance" ADD CONSTRAINT "CareerStoryInstance_roundPlayerId_fkey" FOREIGN KEY ("roundPlayerId") REFERENCES "RoundPlayer"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "CareerStoryInstance" ADD CONSTRAINT "CareerStoryInstance_roundId_fkey" FOREIGN KEY ("roundId") REFERENCES "Round"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "CareerStorySourceClaim" ADD CONSTRAINT "CareerStorySourceClaim_instanceId_fkey" FOREIGN KEY ("instanceId") REFERENCES "CareerStoryInstance"("id") ON DELETE CASCADE ON UPDATE CASCADE;

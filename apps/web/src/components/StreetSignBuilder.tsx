@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react';
+import { useState, type CSSProperties, type PointerEvent } from 'react';
 import { DEFAULT_STREET_SIGN, STREET_SIGN_BACKDROPS, STREET_SIGN_FONTS, STREET_SIGN_FONT_PACKS, STREET_SIGN_SHADOWS, STREET_SIGN_STREET_TYPES, STREET_SIGN_TAG_MAX, STREET_SIGN_TAG_PLACEMENTS, STREET_SIGN_TAG_SCALES, STREET_SIGN_TEXT_MAX, STREET_SIGN_TREATMENTS, STREET_SIGN_TRIMS, STREET_SIGN_VERSION, streetSignBackdropFor, type StreetSignDesign } from '@streets/shared';
 
 const FONT_LABELS: Record<(typeof STREET_SIGN_FONTS)[number], string> = {
@@ -62,12 +62,23 @@ interface StreetSignBuilderProps {
 }
 
 export function StreetSignBuilder({ value, crewName = '', savedValue = null, unlockedFontPacks = [], ownedBackdrops = [], onChange }: StreetSignBuilderProps) {
-  const design = { ...(value ?? DEFAULT_STREET_SIGN), streetName: (crewName ?? '').trim() };
+  const design = { ...(value ?? DEFAULT_STREET_SIGN), streetName: value?.streetName ?? (crewName ?? '').trim() };
+  const [draggingTag, setDraggingTag] = useState(false);
   const hasDraftChanges = JSON.stringify(value ?? null) !== JSON.stringify(savedValue ?? null);
   const textNeedsContrastHelp = streetSignContrastRatio(design.textColor, design.backgroundColor) < 4.5;
   const tagNeedsContrastHelp = Boolean(design.tag) && streetSignContrastRatio(design.tagColor, design.backgroundColor) < 3;
   function update(patch: Partial<StreetSignDesign>) {
     onChange({ ...design, ...patch, version: STREET_SIGN_VERSION });
+  }
+  function moveTag(event: PointerEvent<HTMLSpanElement>) {
+    const face = event.currentTarget.parentElement;
+    if (!face) return;
+    const bounds = face.getBoundingClientRect();
+    const currentX = design.tagOffsetX ?? 0;
+    const currentY = design.tagOffsetY ?? 0;
+    const nextX = Math.max(-160, Math.min(160, currentX + event.movementX));
+    const nextY = Math.max(-80, Math.min(80, currentY + event.movementY));
+    if (bounds.width > 0 && bounds.height > 0) update({ tagOffsetX: nextX, tagOffsetY: nextY });
   }
   const fontPackFor = (font: StreetSignDesign['font']) => STREET_SIGN_FONT_PACKS.find((pack) => (pack.fonts as readonly string[]).includes(font));
   const fontIsAvailable = (font: StreetSignDesign['font'], slot: 'streetText' | 'graffiti') => {
@@ -101,7 +112,15 @@ export function StreetSignBuilder({ value, crewName = '', savedValue = null, unl
             <span className={`se-street-sign-preview__name se-street-sign-font--${design.font}`}>{design.streetName || 'Your Crew'}</span>
             <span className="se-street-sign-preview__street-type">{design.streetType}</span>
           </div>
-          {design.tag ? <span className={`se-street-sign-preview__tag se-street-sign-preview__tag--${design.tagScale} se-street-sign-preview__tag--${design.tagPlacement} se-street-sign-font--${design.tagFont}`} style={{ color: design.tagColor }}>{design.tag}</span> : null}
+          {design.tag ? <span
+            className={`se-street-sign-preview__tag se-street-sign-preview__tag--${design.tagScale} se-street-sign-preview__tag--${design.tagPlacement} se-street-sign-font--${design.tagFont}${draggingTag ? ' is-dragging' : ''}`}
+            style={{ color: design.tagColor, '--se-tag-offset-x': `${design.tagOffsetX ?? 0}px`, '--se-tag-offset-y': `${design.tagOffsetY ?? 0}px` } as CSSProperties}
+            onPointerDown={(event) => { event.preventDefault(); event.currentTarget.setPointerCapture(event.pointerId); setDraggingTag(true); }}
+            onPointerMove={(event) => { if (draggingTag) moveTag(event); }}
+            onPointerUp={(event) => { event.currentTarget.releasePointerCapture(event.pointerId); setDraggingTag(false); }}
+            onPointerCancel={() => setDraggingTag(false)}
+            title="Drag to move the graffiti tag"
+          >{design.tag}</span> : null}
         </div>
       </div>
       {textNeedsContrastHelp || tagNeedsContrastHelp ? (
@@ -174,9 +193,9 @@ export function StreetSignBuilder({ value, crewName = '', savedValue = null, unl
         <div className="se-street-sign-builder__grid">
           <div className="se-street-sign-builder__field se-street-sign-builder__field--wide">
             <label htmlFor="street-sign-name">Crew name on sign</label>
-            <input id="street-sign-name" className="se-input" maxLength={STREET_SIGN_TEXT_MAX} value={design.streetName} placeholder="Set your crew name above" readOnly />
+            <input id="street-sign-name" className="se-input" maxLength={STREET_SIGN_TEXT_MAX} value={design.streetName} placeholder="Set your crew name above" onChange={(event) => update({ streetName: event.target.value })} />
             <small>{design.streetName.length}/{STREET_SIGN_TEXT_MAX}</small>
-            <p className="se-street-sign-builder__hint">The sign lettering stays linked to your crew name. Change it in the Crew name field above.</p>
+            <p className="se-street-sign-builder__hint">Edit the lettering here, or use the Crew name field above as the starting point.</p>
           </div>
           <div className="se-street-sign-builder__field">
             <label htmlFor="street-sign-type">Street type</label>
@@ -198,6 +217,7 @@ export function StreetSignBuilder({ value, crewName = '', savedValue = null, unl
           <div className="se-street-sign-builder__field se-street-sign-builder__field--wide">
             <label htmlFor="street-sign-tag">Graffiti tag <span>(optional)</span></label>
             <input id="street-sign-tag" className="se-input" maxLength={STREET_SIGN_TAG_MAX} value={design.tag} placeholder="Add your tag" onChange={(event) => update({ tag: event.target.value })} />
+            <small>{design.tag.length}/{STREET_SIGN_TAG_MAX}</small>
           </div>
           <div className="se-street-sign-builder__field">
             <label htmlFor="street-sign-tag-font">Tag font</label>

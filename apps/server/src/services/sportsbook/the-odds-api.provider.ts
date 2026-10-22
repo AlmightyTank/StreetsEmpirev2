@@ -21,6 +21,8 @@ const SPORT_KEYS: Record<SportsbookLeagueKey, string> = {
   NBA: 'basketball_nba',
   MLB: 'baseball_mlb',
   NHL: 'icehockey_nhl',
+  SOFTBALL: 'baseball_ncaa_softball',
+  MMA: 'mma_mixed_martial_arts',
 };
 
 type JsonRecord = Record<string, unknown>;
