@@ -90,8 +90,8 @@ export function StreetSignBuilder({ value, crewName = '', savedValue = null, unl
   const lockedFontHint = STREET_SIGN_FONT_PACKS.filter((pack) => !unlockedFontPacks.includes(pack.key)).map((pack) => `${pack.label} · level ${pack.level}`).join(' · ');
 
   return (
-    <section className="se-street-sign-builder" aria-labelledby="street-sign-title" data-tour="build-street-sign">
-      <header className="se-street-sign-builder__head">
+    <section className="se-street-sign-builder" aria-labelledby="street-sign-title">
+      <header className="se-street-sign-builder__head" data-tour="build-street-sign">
         <div>
           <h3 id="street-sign-title">Your street sign</h3>
           <p>Make your crew’s mark. This sign is cosmetic and does not claim a city block.</p>

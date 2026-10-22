@@ -26,15 +26,15 @@ function showTour(overrides: Partial<Tour> = {}): Tour {
 const render = (tour?: Tour) => renderToStaticMarkup(h(MemoryRouter, null, h(TourOverlay, { tour })));
 
 describe('tour step helpers', () => {
-  it('indexes steps for N-of-8 progress', () => {
+  it('indexes steps for N-of-9 progress', () => {
     expect(tourStepIndex('build-street-sign')).toBe(0);
     expect(tourStepIndex('accept-quest')).toBe(1);
-    expect(tourStepIndex('recon-raid')).toBe(7);
+    expect(tourStepIndex('recon-raid')).toBe(8);
     expect(tourStepIndex(null)).toBe(-1);
   });
 
   it('moves Next/Back across open steps only', () => {
-    const state = steps(['build-street-sign', 'accept-quest', 'scout']);
+    const state = steps(['build-street-sign', 'accept-quest', 'scout', 'complete-quest']);
     expect(neighborStep(state, 'scout', 1)).toBe('shop-supplies');
     expect(neighborStep(state, 'shop-supplies', -1)).toBeNull();
     expect(neighborStep(state, 'accept-quest', -1)).toBeNull();
@@ -46,7 +46,7 @@ describe('TourOverlay', () => {
     const html = render(showTour());
     // No DOM in SSR, so the target is missing and the fallback renders.
     expect(html).toContain('data-testid="tour-overlay"');
-    expect(html).toContain('Guided tour · Step 3 of 8');
+    expect(html).toContain('Guided tour · Step 3 of 9');
     expect(html).toContain('Work the block');
     expect(html).toContain('Guide me to the action');
     expect(html).toContain('Skip tour');
@@ -62,7 +62,7 @@ describe('TourOverlay', () => {
 
   it('derives the current step from server progress, not clicks', () => {
     const html = render(showTour({ step: 'produce', steps: steps(['accept-quest', 'scout', 'shop-supplies', 'grow-crew']) }));
-    expect(html).toContain('Guided tour · Step 6 of 8');
+    expect(html).toContain('Guided tour · Step 7 of 9');
     expect(html).toContain('Cook your first batch');
   });
 });

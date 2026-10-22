@@ -32,6 +32,10 @@ export const SPORTSBOOK_LEAGUES = [
 ] as const;
 
 const ODDS_MAX_AGE_MS = SPORTSBOOK_ODDS_MAX_AGE_MINUTES * 60_000;
+// Keep the player-facing slate close to what a person would actually scan at
+// once. The feed can contain a full multi-day schedule, but the board should
+// not turn into a schedule dump.
+const PLAYER_BOARD_EVENT_LIMIT = 6;
 
 export type JsonRecord = Record<string, unknown>;
 
@@ -375,8 +379,10 @@ export const SportsbookService = {
       prisma.sportsbookEvent.findMany({
         // 1.8.0-C: a pulled line stays listed (closed, with a reason) until it returns or starts.
         where: { startsAt: { gt: now, lt: boardHorizon }, status: { in: ['PRE', 'PULLED'] } },
-        // Keep the player-facing board focused on today and the next two days.
-        orderBy: [{ startsAt: 'asc' }, { sport: 'asc' }], take: 300,
+        // Show only the next few games across all leagues. This also keeps the
+        // league filter counts meaningful instead of displaying a multi-day
+        // schedule dump (the feed itself still stores every event).
+        orderBy: [{ startsAt: 'asc' }, { sport: 'asc' }], take: PLAYER_BOARD_EVENT_LIMIT,
       }),
       prisma.sportsbookProviderState.findMany(),
       prisma.sportsbookLeagueProviderState.findMany(),

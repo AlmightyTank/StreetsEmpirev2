@@ -12,13 +12,15 @@ interface PanelProps {
   className?: string;
   /** Anchor for links that land on this panel, e.g. /game#heat. */
   id?: string;
+  /** Optional guided-tour target attached to the panel itself. */
+  tourTarget?: string;
   loading?: boolean;
 }
 
-export function Panel({ title, subtitle, aside, children, flush, className, id, loading }: PanelProps) {
+export function Panel({ title, subtitle, aside, children, flush, className, id, tourTarget, loading }: PanelProps) {
   const titleId = id ? `${id}-title` : undefined;
   return (
-    <section id={id} tabIndex={id ? -1 : undefined} className={`se-panel ${className ?? ''}`} aria-labelledby={titleId} aria-busy={loading || undefined}>
+    <section id={id} tabIndex={id ? -1 : undefined} data-tour={tourTarget} className={`se-panel ${className ?? ''}`} aria-labelledby={titleId} aria-busy={loading || undefined}>
       <header className="se-panel__head">
         <div>
           <h2 id={titleId} className="se-panel__title">{title}</h2>

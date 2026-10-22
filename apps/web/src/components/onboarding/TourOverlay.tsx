@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { TOUR_STEP_KEYS, type OnboardingStateDto, type TourStepKey } from '@streets/shared';
 import { TOUR_STEPS } from '../../help/catalog.js';
 import { useOnboarding } from '../../stores/onboarding.js';
@@ -33,9 +33,7 @@ export function TourOverlay({ tour: tourOverride }: { tour?: OnboardingStateDto[
   const tour = tourOverride ?? storeTour;
   const act = useOnboarding((s) => s.act);
   const navigate = useNavigate();
-  const { pathname } = useLocation();
   const [rect, setRect] = useState<TargetRect | null>(null);
-  const [pendingGuide, setPendingGuide] = useState(false);
   const cardRef = useRef<HTMLElement>(null);
 
   const step = tour?.step ?? null;
@@ -55,15 +53,30 @@ export function TourOverlay({ tour: tourOverride }: { tour?: OnboardingStateDto[
 
   useEffect(() => {
     if (!visible || !copy) return;
+    const markTargets = () => {
+      document.querySelectorAll(`[data-tour="${copy.target}"]`).forEach((element, index) => {
+        element.classList.add('se-tour__page-target');
+        element.classList.toggle('se-tour__page-target--blocked', index > 0);
+        element.setAttribute('data-tour-focus', index === 0 ? 'active' : 'blocked');
+      });
+    };
     measure();
+    markTargets();
     const target = document.querySelector(`[data-tour="${copy.target}"]`);
     const observer = target && typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null;
     if (observer && target) observer.observe(target);
-    const mutationObserver = typeof MutationObserver !== 'undefined' ? new MutationObserver(measure) : null;
-    mutationObserver?.observe(document.body, { childList: true, subtree: true, attributes: true });
+    const mutationObserver = typeof MutationObserver !== 'undefined' ? new MutationObserver(() => {
+      markTargets();
+      measure();
+    }) : null;
+    mutationObserver?.observe(document.body, { childList: true, subtree: true });
     window.addEventListener('resize', measure);
     window.addEventListener('scroll', measure, true);
     return () => {
+      document.querySelectorAll(`[data-tour="${copy.target}"]`).forEach((element) => {
+        element.classList.remove('se-tour__page-target', 'se-tour__page-target--blocked');
+        element.removeAttribute('data-tour-focus');
+      });
       window.removeEventListener('resize', measure);
       window.removeEventListener('scroll', measure, true);
       observer?.disconnect();
@@ -81,37 +94,36 @@ export function TourOverlay({ tour: tourOverride }: { tour?: OnboardingStateDto[
     return () => window.removeEventListener('keydown', onKey);
   }, [visible, act]);
 
-  useEffect(() => {
-    if (!pendingGuide || !copy) return undefined;
-    const targetPath = copy.to.split('#')[0];
-    if (pathname !== targetPath) return undefined;
-    const frame = window.requestAnimationFrame(() => {
-      document.querySelector(`[data-tour="${copy.target}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
-      setPendingGuide(false);
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, [copy, pathname, pendingGuide]);
-
   if (!visible || !tour || !step || !copy) return null;
 
   const index = tourStepIndex(step);
   const previous = neighborStep(tour.steps, step, -1);
   const anchored = Boolean(rect);
   const guideMe = () => {
-    setPendingGuide(true);
-    navigate(copy.to);
+    navigate(copy.to.split('#')[0]!, { state: { tourTarget: copy.target } });
   };
   const cardStyle =
     anchored && rect && typeof window !== 'undefined'
       ? {
-          top: Math.max(8, Math.min(window.innerHeight - 190, rect.top + rect.height + 12)),
+          top: rect.top + rect.height + 12 <= window.innerHeight - 220
+            ? rect.top + rect.height + 12
+            : Math.max(8, rect.top - 220 - 12),
           left: Math.max(8, Math.min(window.innerWidth - 336, rect.left)),
         }
       : undefined;
 
   return (
     <div className="se-tour" data-testid="tour-overlay" aria-hidden={false}>
-      <div className="se-tour__scrim" aria-hidden="true" />
+      <div className={`se-tour__scrim${anchored ? '' : ' se-tour__scrim--full'}`} aria-hidden="true">
+        {anchored && rect ? (
+          <>
+            <span className="se-tour__scrim-pane" style={{ top: 0, left: 0, right: 0, height: Math.max(0, rect.top - 8) }} />
+            <span className="se-tour__scrim-pane" style={{ top: rect.top - 8, left: 0, width: Math.max(0, rect.left - 8), height: rect.height + 16 }} />
+            <span className="se-tour__scrim-pane" style={{ top: rect.top - 8, right: 0, left: rect.left + rect.width + 8, height: rect.height + 16 }} />
+            <span className="se-tour__scrim-pane" style={{ top: rect.top + rect.height + 8, right: 0, bottom: 0, left: 0 }} />
+          </>
+        ) : null}
+      </div>
       {anchored && rect ? (
         <div
           className="se-tour__spotlight"

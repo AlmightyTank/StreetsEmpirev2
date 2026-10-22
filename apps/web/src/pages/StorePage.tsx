@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { rememberedKey, useRememberedState } from '../utils/remembered.js';
-import { Link, Navigate, NavLink, useParams } from 'react-router-dom';
+import { Link, Navigate, NavLink, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { formatCents, formatNumber, type ProductsDto, type StoreCheckoutLineInput, type StoreCheckoutResult, type StoreDto, type StoreItemDto, type StoreMarketContextDto, type StoreRestockDto, type StoresDto, type StoreSpecialOrderResult, type StoreTradeInput, type StoreTradeResult } from '@streets/shared';
 import { api, ApiError } from '../api/client.js';
 import { onQuestsChanged } from '../quests/questSignals.js';
@@ -22,6 +22,7 @@ import { useCountdown } from '../hooks/useCountdown.js';
 import { useGameAction } from '../hooks/useGameAction.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
+import { useOnboarding } from '../stores/onboarding.js';
 import { formatClockTime, formatDuration } from '../utils/time.js';
 import { browserSessionStorage, clearPendingAction, loadPendingAction, savePendingAction } from '../utils/pendingAction.js';
 import { addStoreBasketLine, basketOverStockReason, capBasketToStock, isStoreBasket, quantityInBasket, removeStoreBasketLine, STORE_BASKET_MAX_AGE_MS, type StoreBasketLine } from '../utils/storeBasket.js';
@@ -30,6 +31,20 @@ type Order = Omit<StoreTradeInput, 'actionId'>;
 type BasketLine = StoreBasketLine;
 type StoreCommand = { kind: 'trade'; order: Order } | { kind: 'checkout'; lines: StoreCheckoutLineInput[] } | { kind: 'specialOrder'; store: string; item: string };
 type PendingStoreCommand = { actionId: string; command: StoreCommand };
+
+const STOCK_UP_GUIDE = [
+  { id: 'condoms', slug: 'corner', store: 'CORNER', field: 'condoms', quantity: 1_000 },
+  { id: 'beer', slug: 'corner', store: 'CORNER', field: 'beer', quantity: 1_000 },
+  { id: 'medicine', slug: 'corner', store: 'CORNER', field: 'medicine', quantity: 15 },
+  { id: 'pistols', slug: 'tommy', store: 'TOMMY', field: 'pistols', quantity: 5 },
+  { id: 'ammo-crate', slug: 'tommy', store: 'TOMMY', item: 'AMMO_CRATE', quantity: 1 },
+] as const;
+
+type StockUpGuideItem = (typeof STOCK_UP_GUIDE)[number];
+
+function stockUpItemMatches(item: StoreItemDto, guideItem: StockUpGuideItem): boolean {
+  return 'item' in guideItem ? item.key === guideItem.item : item.field === guideItem.field;
+}
 
 /** "every 4 hours" - the wait, in the units it was written in. */
 function restockCadence(intervalMinutes: number): string {
@@ -137,7 +152,7 @@ function relationshipSummary(input: {
   return parts.join(' · ');
 }
 
-function StoreItem({ item, store, storeName, keeper, owned, cashCents, bulkHelpers, blocked, basket, onTrade, onSpecialOrder, onAddToBasket, onRestock }: {
+function StoreItem({ item, store, storeName, keeper, owned, cashCents, bulkHelpers, blocked, basket, onTrade, onSpecialOrder, onAddToBasket, onRestock, tourTarget, tourQuantity }: {
   item: StoreItemDto; store: string; storeName: string; keeper: string; owned: number; cashCents: number;
   /** Why the whole shelf is off, or null when it is open for business. */
   bulkHelpers: number[]; blocked: string | null;
@@ -146,9 +161,14 @@ function StoreItem({ item, store, storeName, keeper, owned, cashCents, bulkHelpe
   onSpecialOrder: (store: string, item: string) => Promise<void>;
   onAddToBasket: (line: BasketLine) => void;
   onRestock: () => void;
+  tourTarget?: string;
+  tourQuantity?: number;
 }) {
-  const [quantity, setQuantity] = useState<number | ''>(1);
+  const [quantity, setQuantity] = useState<number | ''>(tourQuantity ?? 1);
   const [direction, setDirection] = useState<'buy' | 'sell'>('buy');
+  useEffect(() => {
+    if (tourQuantity !== undefined) setQuantity(tourQuantity);
+  }, [tourQuantity]);
   const buying = direction === 'buy';
   const favor = item.unlock;
   // 1.5.0-E2: a job-opened shelf (a weapon rack or one of Charlie's vehicles) says which job.
@@ -218,6 +238,7 @@ function StoreItem({ item, store, storeName, keeper, owned, cashCents, bulkHelpe
     <Panel
       title={item.name}
       className={`se-store-shelf${locked ? ' se-store-shelf--locked' : ''}${soldOut ? ' se-store-shelf--soldout' : ''}`}
+      tourTarget={tourTarget}
       aside={<span className={`se-store-shelf__status${soldOut ? ' se-store-shelf__status--warn' : locked ? ' se-store-shelf__status--locked' : ''}`}>{locked ? `Buy locked · ${stockLabel}` : stockLabel}</span>}
     >
       <div className="se-store-shelf__top">
@@ -286,7 +307,7 @@ function StoreItem({ item, store, storeName, keeper, owned, cashCents, bulkHelpe
           </p>
         </EconomyQuote>
         <div className="se-store-actions">
-          <Button className="se-btn se-btn--primary se-btn--block" disabledReason={tradeBlock} data-tour="shop-supplies">
+          <Button className="se-btn se-btn--primary se-btn--block" disabledReason={tradeBlock}>
             {purchaseLocked ? 'Purchases locked' : `${buying ? 'Buy' : 'Sell'}${total !== null ? ` · ${formatCents(total)}` : ''}`}
           </Button>
           <Button
@@ -439,6 +460,9 @@ function StoreView({
   onCapBasket: (limits: Readonly<Record<string, number>>) => void;
 }) {
   const me = useSession((s) => s.me);
+  const tour = useOnboarding((s) => s.state?.tour ?? null);
+  const location = useLocation();
+  const navigate = useNavigate();
   const action = useGameAction<StoreTradeResult | StoreCheckoutResult | StoreSpecialOrderResult>();
   const [catalog, setCatalog] = useState<StoresDto | null>(() => (cachedCatalog && cachedCatalog.playerId === me?.id ? cachedCatalog.data : null));
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -452,6 +476,11 @@ function StoreView({
   );
   // 0.4.0-D: Pip deals every product. Other stores never ask.
   const [products, setProducts] = useState<ProductsDto | null>(null);
+  const guidedStock = Boolean(tour?.active && !tour.dismissed && !tour.complete && tour.step === 'shop-supplies');
+  const tourItemId = new URLSearchParams(location.search).get('tourItem');
+  const guidedItem = guidedStock
+    ? STOCK_UP_GUIDE.find((item) => item.id === tourItemId) ?? STOCK_UP_GUIDE[0]
+    : null;
   const loadProducts = useCallback(() => {
     if (slug !== 'pip') return;
     api.get<ProductsDto>('/game/products').then(setProducts).catch(() => setProducts(null));
@@ -533,6 +562,21 @@ function StoreView({
           onClearBasket();
           // A basket can carry Pip's products, whose shelves live on their own page.
           loadProducts();
+        }
+        if (guidedStock && guidedItem) {
+          const purchased = command.kind === 'trade'
+            ? command.order.direction === 'buy' && command.order.store === guidedItem.store
+              && catalog?.stores.find((entry) => entry.key === command.order.store)?.items.some((item) => item.key === command.order.item && stockUpItemMatches(item, guidedItem))
+            : command.kind === 'checkout'
+              ? command.lines.some((line) => line.direction === 'buy' && line.store === guidedItem.store
+                && catalog?.stores.find((entry) => entry.key === line.store)?.items.some((item) => item.key === line.item && stockUpItemMatches(item, guidedItem)))
+              : false;
+          if (purchased) {
+            const next = STOCK_UP_GUIDE[STOCK_UP_GUIDE.findIndex((item) => item.id === guidedItem.id) + 1];
+            if (next) {
+              navigate(`/game/stores/${next.slug}?tourItem=${next.id}`, { replace: true, state: { tourTarget: 'shop-supplies' } });
+            }
+          }
         }
         return result;
       } catch (error) {
@@ -787,6 +831,8 @@ function StoreView({
                       bulkHelpers={catalog.bulkHelpers}
                       blocked={counterBlock}
                       basket={basket}
+                      tourTarget={guidedStock && guidedItem && store.key === guidedItem.store && stockUpItemMatches(item, guidedItem) ? 'shop-supplies' : undefined}
+                      tourQuantity={guidedStock && guidedItem && store.key === guidedItem.store && stockUpItemMatches(item, guidedItem) ? guidedItem.quantity : undefined}
                       onTrade={(order) => execute({ kind: 'trade', order })}
                       onSpecialOrder={(sourceStore, sourceItem) => execute({ kind: 'specialOrder', store: sourceStore, item: sourceItem })}
                       onAddToBasket={onAddToBasket}

@@ -3,11 +3,9 @@ import type { Prisma, PrismaClient, RoundPlayer } from '@prisma/client';
 import { startingStock, type Ruleset } from '@streets/rules-engine';
 import { normalizeUsername } from '@streets/shared';
 import { lockAccount } from '../utils/db.js';
-import { fitThugs } from './action.service.js';
 import { HappinessService } from './happiness.service.js';
 import { NetWorthService } from './net-worth.service.js';
 
-const QUEST_KEY = 'TOUR_RAID';
 const PASSWORD_MARKER = 'internal:tutorial-raid-target:no-login';
 const DISPLAY_NAME = 'Practice Crew';
 
@@ -24,14 +22,14 @@ function identity(ownerId: string) {
 }
 
 async function questActive(db: QuestDb, ownerId: string): Promise<boolean> {
-  return Boolean(await db.playerQuest.findFirst({
-    where: {
-      roundPlayerId: ownerId,
-      status: 'ACTIVE',
-      questDefinition: { key: QUEST_KEY, isEnabled: true },
-    },
+  // The practice mark is strictly one-shot. The onboarding tour can advance
+  // without creating a visible PlayerQuest row, so use the round activity
+  // ledger as the source of truth instead of depending on TOUR_RAID state.
+  const alreadyRaided = await db.playerActivity.findFirst({
+    where: { roundPlayerId: ownerId, type: 'RAID_ATTACK' },
     select: { id: true },
-  }));
+  });
+  return !alreadyRaided;
 }
 
 function isMarkedAccount(ownerId: string, account: { username: string; usernameNormalized: string; email: string; passwordHash: string; isActive: boolean }): boolean {
@@ -72,21 +70,21 @@ export const TutorialCombatTargetService = {
         select: { nextPublicPimpId: true },
       })).nextPublicPimpId - 1;
 
-      const thugs = Math.max(1, Math.min(fitThugs(owner), model.squadCap));
+       const thugs = 0;
       const state = {
         cashCents: BigInt(model.loot.protectedCashCents + Math.max(100_000, model.loot.perFitAttackerCents * thugs)),
         turns: ruleset.round.startingPlayer.turns,
-        whores: Math.max(1, Math.min(owner.whores, 10)),
+         whores: 0,
         thugs,
         woundedThugs: 0,
         condoms: 0,
         medicine: 0,
         crack: 0,
         beer: 0,
-        pistols: owner.pistols,
-        shotguns: owner.shotguns,
-        tek9s: owner.tek9s,
-        ak47s: owner.ak47s,
+         pistols: 0,
+         shotguns: 0,
+         tek9s: 0,
+         ak47s: 0,
         lowRiders: 0,
         payoutPercent: 50,
       };

@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import type {
   AccountProfileSettingsDto,
   AccountProfileSettingsResponseDto,
@@ -128,7 +128,10 @@ export function AccountSettingsPage() {
   const setSessionProfileSettings = useSession((s) => s.setProfileSettings);
   const reloadOnboarding = useOnboarding((s) => s.load);
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const accountMessage = searchParams.get('accountMessage');
+  const tourTarget = (location.state as { tourTarget?: unknown } | null)?.tourTarget;
+  const guidedTourScrolled = useRef(false);
 
   const accountId = account.id;
   const cosmeticsKey = rememberedKey('account-settings:cosmetics', accountId);
@@ -246,11 +249,26 @@ export function AccountSettingsPage() {
       if ((SETTING_SECTIONS as readonly string[]).includes(seen)) setLastSection(seen);
       return;
     }
+    if (tourTarget === 'build-street-sign') return;
     if (lastSection && lastSection !== 'settings-account') {
       document.getElementById(lastSection)?.scrollIntoView();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [tourTarget]);
+
+  useEffect(() => {
+    if (tourTarget !== 'build-street-sign' || !profileSettings || guidedTourScrolled.current) return;
+    const frame = window.requestAnimationFrame(() => {
+      const target = document.querySelector('[data-tour="build-street-sign"]');
+      if (!target) return;
+      guidedTourScrolled.current = true;
+      target.scrollIntoView({
+        block: 'center',
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+      });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [profileSettings, tourTarget]);
 
   useEffect(() => {
     const onHash = () => {

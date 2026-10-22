@@ -35,6 +35,7 @@ import { AppError } from '../utils/errors.js';
 import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { ActionService, type PlayerState } from './action.service.js';
 import { QuestProgressService } from './quest-progress.service.js';
+import { createPlayerActivity } from './in-app-notification.service.js';
 import { FavorInventoryService } from './favor-inventory.service.js';
 import { TimedFavorService } from './timed-favor.service.js';
 import { SingleUseFavorService } from './single-use-favor.service.js';
@@ -993,6 +994,11 @@ async function startQuest(db: Db, roundPlayerId: string, row: QuestRow, ruleset:
     type: 'QUEST_ACCEPTED',
     payload: { questKey: row.questDefinition.key },
     at: acceptedAt,
+  });
+  // Acceptance is also onboarding ledger progress. Keep this separate from
+  // QuestProgressService so recording it cannot recursively advance quests.
+  await createPlayerActivity(db, roundPlayerId, 'QUEST_ACCEPTED', {
+    questKey: row.questDefinition.key,
   });
 }
 

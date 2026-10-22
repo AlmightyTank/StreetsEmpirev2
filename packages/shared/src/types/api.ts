@@ -399,7 +399,9 @@ export interface HideoutCosmeticsDto {
 
 /** Stacks arranged in the player's personal Hideout stash grid. */
 export type StashItemKeyDto = 'CONDOM' | 'MEDICINE' | 'BEER' | 'AMMO_BOX' | 'PARTS_BOX'
-  | 'PISTOL' | 'SHOTGUN' | 'TEK9' | 'AK47' | 'LOW_RIDER' | 'SEDAN' | 'VAN';
+  | 'PISTOL' | 'SHOTGUN' | 'TEK9' | 'AK47' | 'LOW_RIDER' | 'SEDAN' | 'VAN'
+  | 'SCRAP_METAL' | 'WIRING' | 'TOOL_KIT' | 'BOTTLES' | 'LABELS' | 'PACKAGING' | 'LUMBER' | 'FASTENERS' | 'CLOTH'
+  | 'BASIC_MEDICINE' | 'FUEL_CAN' | 'RADIO' | 'MOTOR_ASSEMBLY' | 'REPAIR_SUPPLIES' | 'SPECIALTY_CONTAINER' | 'PRECISION_PARTS' | 'ADVANCED_MEDICAL' | 'HIGH_CAPACITY_FUEL_CELL' | 'SPECIALIST_CIRCUITRY';
 export interface StashItemDto {
   key: StashItemKeyDto;
   quantity: number;
@@ -417,6 +419,42 @@ export interface StashDto {
 }
 export interface UpdateStashLayoutInput {
   items: Array<Pick<StashItemDto, 'key' | 'x' | 'y'>>;
+}
+
+export type ScavengeRarityDto = 'COMMON' | 'UNCOMMON' | 'RARE' | 'EPIC' | 'LEGENDARY';
+export interface ScavengeComponentDto {
+  key: string;
+  name: string;
+  quantity: number;
+  rarity: ScavengeRarityDto;
+  purpose: string;
+}
+export interface CacheOddsDto {
+  COMMON: number;
+  UNCOMMON: number;
+  RARE: number;
+  EPIC: number;
+  LEGENDARY: number;
+}
+export interface ScavengeCacheDto {
+  id: string;
+  quality: 'STREET_STASH' | 'SUPPLY_CACHE' | 'SECURED_CACHE' | 'BLACK_MARKET_CACHE';
+  label: string;
+  districtKey: string;
+  districtName: string;
+  createdAt: string;
+  opened: boolean;
+  odds: CacheOddsDto;
+  eligiblePool: Array<{ key: string; name: string; rarity: ScavengeRarityDto; purpose: string }>;
+  rewards?: ScavengeComponentDto[];
+}
+export interface ScavengePageDto {
+  components: ScavengeComponentDto[];
+  caches: ScavengeCacheDto[];
+}
+export interface OpenScavengeCacheResult {
+  cache: ScavengeCacheDto;
+  rewards: ScavengeComponentDto[];
 }
 
 export interface UpdateHideoutCosmeticsInput {
@@ -1244,7 +1282,7 @@ export interface SeasonHideoutDto {
   }>;
 }
 
-export type HideoutRoomKeyDto = 'SAFE_ROOM' | 'LOOKOUTS' | 'WORKSHOP' | 'BACK_OFFICE' | 'GARAGE';
+export type HideoutRoomKeyDto = 'SAFE_ROOM' | 'LOOKOUTS' | 'WORKSHOP' | 'BACK_OFFICE' | 'GARAGE' | 'STORAGE';
 
 export interface HideoutRoomDto {
   key: HideoutRoomKeyDto;
@@ -1457,6 +1495,8 @@ export interface DistrictDto {
   /** Fit thugs without weapons; E/F rounds do not count them as street cover. */
   unarmedThugs: number;
   requiresArmedThugs: boolean;
+  /** Scouting clue: likely supply families, not exact rewards or rates. */
+  supplyClue?: { theme: string; common: string[]; scarce: string[] };
   /** Quest gate for Scout and Turf access. The district remains visible while locked. */
   districtAccess?: { unlocked: boolean; unlockName: string; unlockDescription: string; unlockQuest: QuestLinkDto | null };
 }
@@ -1566,6 +1606,9 @@ export interface ScoutResult {
   crackFound: number;
   /** 0.4.0+ product rounds: everything picked up on the street during the trip. */
   productsFound?: FoundProductDto[];
+  /** Slice B. Components and caches found on this scouting trip. */
+  componentsFound?: ScavengeComponentDto[];
+  cacheFound?: ScavengeCacheDto;
 
   condomsUsed: number;
   crackUsed: number;

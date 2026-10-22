@@ -7,6 +7,7 @@ describe('guided walkthrough tour actions', () => {
       'build-street-sign',
       'accept-quest',
       'scout',
+      'complete-quest',
       'shop-supplies',
       'grow-crew',
       'produce',

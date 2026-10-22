@@ -26,6 +26,7 @@ interface RunnerStyle extends CSSProperties {
   '--rank': number;
   '--speed': number;
   '--bob-delay': number;
+  '--runner-start-offset': string;
 }
 
 export function HorseRacingPanel({ casinoPage, onPageChange }: Props) {
@@ -192,12 +193,15 @@ export function HorseRacingPanel({ casinoPage, onPageChange }: Props) {
                 '--rank': rank ?? index,
                 '--speed': 1,
                 '--bob-delay': index * 0.12,
+                // Leave enough room for the runner's name before the horse;
+                // otherwise the starting position is clipped by the track.
+                '--runner-start-offset': '4.5rem',
               };
               return (
                 <div className={`se-horse-racing__lane${race && !racing && runner.key === race.winnerKey ? ' is-winner' : ''}`} key={runner.key}>
                   <span>{index + 1}</span>
                   <div className="se-horse-racing__runner" style={style}>
-                    <div className={`se-horse-racing__horse${race && !racing && runner.key === race.winnerKey ? ' is-winner' : ''}`} style={{ left: `min(${pos * 100}%, calc(100% - 6rem))` }}>
+                    <div className={`se-horse-racing__horse${race && !racing && runner.key === race.winnerKey ? ' is-winner' : ''}`} style={{ left: `min(calc(${pos * 100}% + var(--runner-start-offset)), calc(100% - 3rem))` }}>
                       <small>{runner.name}</small>
                       <b aria-hidden="true">🏇</b>
                     </div>

@@ -390,7 +390,7 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
         <div className="sb-board-head">
           <h3>Lines</h3>
           <p className="se-hint">
-            Moneylines for today and tomorrow, paid in chips from your open casino bankroll. The price locks when the ticket is accepted and betting closes at the scheduled start.
+            Moneylines for the next few scheduled games, paid in chips from your open casino bankroll. The price locks when the ticket is accepted and betting closes at the scheduled start.
             {' '}Tickets run {formatCents(limits.minStakeCents)} to {formatCents(limits.maxStakeCents)} and can win up to {formatCents(limits.maxProfitCents)}.
           </p>
         </div>
@@ -400,7 +400,7 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
             {!page && !error ? <p className="se-muted">Loading the board…</p> : null}
             {page && visible.length === 0 ? (
               <p className="sb-empty">
-                {league === 'ALL' ? 'No upcoming games are on the board right now.' : `No ${league} games are on the board for today or tomorrow.`}
+                {league === 'ALL' ? 'No upcoming games are on the board right now.' : `No ${league} games are on the current board.`}
               </p>
             ) : null}
             {feed ? groups.map((group) => (

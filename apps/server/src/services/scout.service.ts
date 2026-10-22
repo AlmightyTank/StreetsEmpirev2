@@ -18,6 +18,7 @@ import { CrewRosterService } from './crew-roster.service.js';
 import { CityConditionService } from './city-condition.service.js';
 import { applyTerritoryModifier, resolveTerritoryModifiers, territorySourcesForAction } from './territory-perks.service.js';
 import { consumeTerritoryAccessGrant } from './territory-access.service.js';
+import { districtSupplyClue, ScavengingService } from './scavenging.service.js';
 
 export interface Crew {
   whores: number;
@@ -67,6 +68,7 @@ export function toDistrictDto(
     armedThugs,
     unarmedThugs,
     requiresArmedThugs: !!ruleset.scouting.requiresArmedThugs,
+    supplyClue: districtSupplyClue(key),
   };
 }
 
@@ -307,6 +309,16 @@ export const ScoutService = {
           beer: current.beer - outcome.consumption.beer,
         };
 
+        const scavenging = await ScavengingService.addFinds(
+          tx,
+          roundPlayerId,
+          player,
+          found.key,
+          localDistrict(ruleset, player.city.slug, found.key, found.district).name,
+          input.turns,
+          rng ?? Math.random,
+        );
+
         // 0.4.0-C: the trip's Heat lands, and a hot crew can be busted on the way home.
         const trip = await HeatService.afterTrip(tx, roundPlayerId, ruleset, { startHeat: current.heat, plans: [supply], next: worked, rng, now });
         let next = trip.next;
@@ -355,6 +367,8 @@ export const ScoutService = {
 
           crackFound,
           ...(ruleset.productEconomy ? { productsFound } : {}),
+          ...(scavenging.components.length ? { componentsFound: scavenging.components } : {}),
+          ...(scavenging.cache ? { cacheFound: scavenging.cache } : {}),
           condomsUsed: outcome.consumption.condoms,
           crackUsed: outcome.consumption.crack,
           beerUsed: outcome.consumption.beer,

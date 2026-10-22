@@ -56,6 +56,9 @@ import { toState } from '../services/action.service.js';
 import { StoreService } from '../services/store.service.js';
 import { HideoutService } from '../services/hideout.service.js';
 import { StashService } from '../services/stash.service.js';
+import { ScavengingService } from '../services/scavenging.service.js';
+import { GeneratorService, type GeneratorUpdate } from '../services/generator.service.js';
+import { WorkshopService } from '../services/workshop.service.js';
 import { HideoutCosmeticService } from '../services/hideout-cosmetic.service.js';
 import { ArmoryService } from '../services/armory.service.js';
 import { parseBody } from '../utils/validate.js';
@@ -577,12 +580,49 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.put('/hideout/stash/layout', { preHandler: fastify.requireAuth }, async (request) => {
     const body = parseBody(z.object({ items: z.array(z.object({
-      key: z.enum(['CONDOM', 'MEDICINE', 'BEER', 'AMMO_BOX', 'PARTS_BOX', 'PISTOL', 'SHOTGUN', 'TEK9', 'AK47', 'LOW_RIDER', 'SEDAN', 'VAN']),
+      key: z.enum(['CONDOM', 'MEDICINE', 'BEER', 'AMMO_BOX', 'PARTS_BOX', 'PISTOL', 'SHOTGUN', 'TEK9', 'AK47', 'LOW_RIDER', 'SEDAN', 'VAN', 'SCRAP_METAL', 'WIRING', 'TOOL_KIT', 'BOTTLES', 'LABELS', 'PACKAGING', 'LUMBER', 'FASTENERS', 'CLOTH', 'BASIC_MEDICINE', 'FUEL_CAN', 'RADIO', 'MOTOR_ASSEMBLY', 'REPAIR_SUPPLIES', 'SPECIALTY_CONTAINER', 'PRECISION_PARTS', 'ADVANCED_MEDICAL', 'HIGH_CAPACITY_FUEL_CELL', 'SPECIALIST_CIRCUITRY']),
       x: z.number().int().min(0).max(9),
       y: z.number().int().min(0).max(5),
     }).strict()).max(12) }).strict(), request.body);
     const { player } = await requirePlayer(request.auth!.account.id);
     return StashService.saveLayout(fastify.prisma, player.id, body);
+  });
+
+  fastify.get('/hideout/scavenging', { preHandler: fastify.requireAuth }, async (request) => {
+    const { player } = await requirePlayer(request.auth!.account.id);
+    return ScavengingService.page(fastify.prisma, player.id);
+  });
+
+  fastify.post('/hideout/scavenging/:cacheId/open', { preHandler: fastify.requireAuth }, async (request) => {
+    const { cacheId } = parseBody(z.object({ cacheId: z.string().trim().min(1).max(64) }).strict(), request.params);
+    const { player } = await requirePlayer(request.auth!.account.id);
+    return ScavengingService.open(fastify.prisma, player.id, cacheId);
+  });
+
+  fastify.get('/hideout/generator', { preHandler: fastify.requireAuth }, async (request) => {
+    const { player } = await requirePlayer(request.auth!.account.id);
+    return GeneratorService.page(fastify.prisma, player.id);
+  });
+
+  fastify.post('/hideout/generator', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(z.object({
+      powered: z.boolean().optional(),
+      refuelCans: z.number().int().min(0).max(100).optional(),
+      upgrade: z.enum(['CAPACITY', 'EFFICIENCY']).optional(),
+    }).strict(), request.body) as GeneratorUpdate;
+    const { player } = await requirePlayer(request.auth!.account.id);
+    return GeneratorService.update(fastify.prisma, player.id, body);
+  });
+
+  fastify.get('/hideout/workshop', { preHandler: fastify.requireAuth }, async (request) => {
+    const { player } = await requirePlayer(request.auth!.account.id);
+    return WorkshopService.page(fastify.prisma, player.id);
+  });
+
+  fastify.post('/hideout/workshop/craft', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(z.object({ recipeKey: z.string().trim().min(1).max(64), actionId: z.string().trim().min(1).max(128).optional() }).strict(), request.body);
+    const { player } = await requirePlayer(request.auth!.account.id);
+    return WorkshopService.craft(fastify.prisma, player.id, body.recipeKey, body.actionId);
   });
 
   fastify.get('/armory', { preHandler: fastify.requireAuth }, async (request) => {

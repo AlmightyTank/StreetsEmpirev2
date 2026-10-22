@@ -4371,8 +4371,18 @@ button.se-notification-empty:hover { color: var(--se-text); }
 }
 
 .se-tour__scrim {
-  position: absolute;
+  position: fixed;
   inset: 0;
+  pointer-events: none;
+}
+
+.se-tour__scrim--full {
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.se-tour__scrim-pane {
+  position: absolute;
+  display: block;
   background: rgba(0, 0, 0, 0.45);
 }
 
@@ -4381,6 +4391,16 @@ button.se-notification-empty:hover { color: var(--se-text); }
   border: 2px solid var(--se-accent);
   border-radius: 8px;
   box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
+}
+
+/* When a page renders several copies of the guided action, only the first
+   highlighted copy may be used. The remaining copies stay visible but gray so
+   the tour cannot accidentally accept a second job. */
+.se-tour__page-target--blocked {
+  opacity: .45;
+  filter: grayscale(1);
+  pointer-events: none !important;
+  cursor: not-allowed;
 }
 
 .se-tour__card {
@@ -4397,9 +4417,16 @@ button.se-notification-empty:hover { color: var(--se-text); }
 
 .se-tour__card--fallback {
   position: fixed;
-  inset: auto 8px calc(8px + env(safe-area-inset-bottom, 0px)) 8px;
-  width: auto;
+  right: auto;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  left: 50%;
+  width: min(380px, calc(100vw - 24px));
+  padding: 14px;
+  transform: translateX(-50%);
 }
+
+.se-tour__card--fallback h2 { font-size: 18px; }
+.se-tour__card--fallback p { font-size: .88rem; line-height: 1.4; }
 
 .se-tour__card h2 {
   margin: 4px 0 8px;

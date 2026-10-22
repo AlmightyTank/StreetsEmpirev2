@@ -30,6 +30,11 @@ import { hasItemArt } from '../items/itemArt.js';
 import { EmpirePageHeader } from '../components/EmpireManagement.js';
 import { StreetSignDisplay } from '../components/StreetSignBuilder.js';
 import { StashGrid } from '../components/StashGrid.js';
+import { ScavengingPanel } from '../components/ScavengingPanel.js';
+import { GeneratorPanel } from '../components/GeneratorPanel.js';
+import { WorkshopPanel } from '../components/WorkshopPanel.js';
+import type { CraftingWorkshopDto } from '@streets/shared';
+import type { ScavengePageDto } from '@streets/shared';
 
 function securityTierLabel(tier: NonNullable<HideoutV2Dto['security']>['reconWarningTier']): string {
   if (tier === 'SOURCE') return 'Named warnings';
@@ -99,6 +104,7 @@ function RoomCard({
   onSpecialize: (room: HideoutRoomV2Dto, key: string) => void;
 }) {
   const maxed = room.nextCostCents === null;
+  const nextCostComponents = room.nextCostComponents ?? [];
   const affordable = !maxed && cashCents >= room.nextCostCents!;
   const selectedSpecialization = room.specialization?.selectedKey
     ? room.specialization.choices.find((choice) => choice.key === room.specialization!.selectedKey) ?? null
@@ -161,7 +167,7 @@ function RoomCard({
           </div>
           <div className="se-hideout-room__price">
             <span>Cost</span>
-            <strong>{formatCents(room.nextCostCents!)}</strong>
+            <strong>{formatCents(room.nextCostCents!)} · {formatNumber(room.nextCostTurns!)} turns</strong>
           </div>
         </div>
       ) : (
@@ -172,6 +178,17 @@ function RoomCard({
           </div>
         </div>
       )}
+
+      {!maxed && nextCostComponents.length ? (
+        <div className="se-hideout-room__requirements">
+          {nextCostComponents.map((component) => (
+            <div key={component.key} className={component.met ? 'is-met' : undefined}>
+              <span>{component.key.replaceAll('_', ' ')}</span>
+              <strong>{formatNumber(component.current)} / {formatNumber(component.quantity)}</strong>
+            </div>
+          ))}
+        </div>
+      ) : null}
 
       {room.nextRequirements.length ? (
         <div className="se-hideout-room__requirements">
@@ -306,6 +323,8 @@ export function HideoutPage() {
   const [stash, setStash] = useState<StashDto | null>(null);
   const [stashError, setStashError] = useState<string | null>(null);
   const [stashBusy, setStashBusy] = useState(false);
+  const [scavenging, setScavenging] = useState<ScavengePageDto | null>(null);
+  const [workshop, setWorkshop] = useState<CraftingWorkshopDto | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -322,6 +341,8 @@ export function HideoutPage() {
       .then((data) => { if (active) { setStash(data); setStashError(null); } })
       .catch((caught: unknown) => { if (active) setStashError(caught instanceof ApiError ? caught.message : 'Could not load the supply stash.'); });
     hideoutApi.cosmetics().then((data) => { if (active) setCosmetics(data); }).catch(() => { if (active) setCosmetics(null); });
+    hideoutApi.scavenging().then((data) => { if (active) setScavenging(data); }).catch(() => { if (active) setScavenging(null); });
+    hideoutApi.workshop().then((data) => { if (active) setWorkshop(data); }).catch(() => { if (active) setWorkshop(null); });
 
     api.get<TravelDto>('/game/travel')
       .then((data) => { if (active) setTravel(data); })
@@ -447,6 +468,10 @@ export function HideoutPage() {
             <StashGrid stash={stash} busy={stashBusy} onSave={(items) => void saveStash(items)} />
           </section>
         ) : null}
+
+        {scavenging ? <ScavengingPanel page={scavenging} onChanged={setScavenging} /> : null}
+        {workshop ? <WorkshopPanel workshop={workshop} onChanged={setWorkshop} /> : null}
+        {hideout?.generator ? <GeneratorPanel generator={hideout.generator} onChanged={(generator) => setHideout((current) => current ? { ...current, generator } : current)} /> : null}
 
         {!hideout && !loadError ? (
           <Panel title="Loading"><p className="se-muted">Checking the locks...</p></Panel>

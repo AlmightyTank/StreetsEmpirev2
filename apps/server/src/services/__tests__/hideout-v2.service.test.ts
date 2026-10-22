@@ -42,6 +42,17 @@ function player(overrides: Partial<PlayerState> = {}): PlayerState {
 }
 
 describe('hideout v2 catalog', () => {
+  it('exposes the Slice E Storage module and concrete next-level costs', () => {
+    const catalog = hideoutCatalog(classicOgV07A, player({ scavengedComponents: {} }));
+    const storage = catalog.rooms.find((room) => room.key === 'STORAGE')!;
+
+    expect(storage).toMatchObject({ maxLevel: 3, level: 0, nextCostCents: 60_000, nextCostTurns: 2 });
+    expect(storage.nextCostComponents).toEqual(expect.arrayContaining([
+      expect.objectContaining({ key: 'LUMBER', quantity: 3, current: 0, met: false }),
+    ]));
+    expect(storage.nextEffect).toContain('12×7');
+  });
+
   it('keeps older rounds cash-only', () => {
     const catalog = hideoutCatalog(classicOgV06F, player());
     const safeRoom = catalog.rooms.find((room) => room.key === 'SAFE_ROOM')!;

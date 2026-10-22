@@ -42,6 +42,7 @@ import { TurfWarSettlementService } from './turf-war-settle.service.js';
 import { QuestProgressService } from './quest-progress.service.js';
 import { EconomyLedgerService, type EconomyLedgerWrite } from './economy-ledger.service.js';
 import { StreetPassCredService } from './street-pass-cred.service.js';
+import { consumeGeneratorFuel } from './generator.service.js';
 import { LawService, type CaseEvidence } from './law.service.js';
 import { LawWarrantService } from './law-warrant.service.js';
 import { CrewRosterService } from './crew-roster.service.js';
@@ -162,6 +163,7 @@ export interface PlayerState {
   hideoutWorkshopLevel: number;
   hideoutBackOfficeLevel: number;
   hideoutGarageLevel: number;
+  hideoutStorageLevel?: number;
   hideoutWeaponPriority: string;
   hideoutSafeRoomSpecialization: string | null;
   hideoutLookoutsSpecialization: string | null;
@@ -183,6 +185,13 @@ export interface PlayerState {
   beerStock: number;
   crackStock: number;
   thugStock: number;
+
+  /** 2.3.0. Hideout generator state; fuel is charged per spent game turn. */
+  generatorPowered?: boolean;
+  generatorFuel?: number;
+  generatorCapacityLevel?: number;
+  generatorEfficiencyLevel?: number;
+  scavengedComponents?: Prisma.InputJsonValue;
 }
 
 export interface ActionContext {
@@ -325,6 +334,7 @@ export function toState(player: RoundPlayer): PlayerState {
     hideoutWorkshopLevel: player.hideoutWorkshopLevel,
     hideoutBackOfficeLevel: player.hideoutBackOfficeLevel,
     hideoutGarageLevel: player.hideoutGarageLevel,
+    hideoutStorageLevel: player.hideoutStorageLevel,
     hideoutWeaponPriority: player.hideoutWeaponPriority,
     hideoutSafeRoomSpecialization: player.hideoutSafeRoomSpecialization,
     hideoutLookoutsSpecialization: player.hideoutLookoutsSpecialization,
@@ -340,6 +350,11 @@ export function toState(player: RoundPlayer): PlayerState {
     beerStock: player.beerStock,
     crackStock: player.crackStock,
     thugStock: player.thugStock,
+    generatorPowered: player.generatorPowered,
+    generatorFuel: player.generatorFuel,
+    generatorCapacityLevel: player.generatorCapacityLevel,
+    generatorEfficiencyLevel: player.generatorEfficiencyLevel,
+    scavengedComponents: player.scavengedComponents as Prisma.InputJsonValue,
   };
 }
 
@@ -553,7 +568,10 @@ export const ActionService = {
         skills,
       });
       // Fixer: whatever Heat the action added comes in smaller.
-      const executed = withSkillHeat(current, outcome.next, skills);
+      const executed = consumeGeneratorFuel(
+        withSkillHeat(current, outcome.next, skills),
+        Math.max(0, current.turns - outcome.next.turns),
+      );
 
       const trigger = encounterTriggerForAction(options.action);
       const actionEncounter = trigger ? await RandomEncounterService.action({

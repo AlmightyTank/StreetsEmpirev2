@@ -1012,7 +1012,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
               {selected ? (
                 <>
                   <TargetCard target={selected} selectedBlock={selectedBlock} driving={driving} />
-                  {selected.tutorial ? <p className="se-hint">This practice crew is here for Take a Shot. Resolve one standard raid—win or lose—to finish the objective.</p> : null}
+                   {selected.tutorial ? <p className="se-hint">This practice crew is here for Take a Shot. You always win this practice raid, and the dummy disappears after one attack.</p> : null}
 
                   {rules?.reconTurnCost !== undefined ? (
                     <div className="se-raids-recon">

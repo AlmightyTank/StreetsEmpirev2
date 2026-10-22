@@ -22,6 +22,7 @@ import { hasItemArt } from '../items/itemArt.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { Portrait } from '../components/Portrait.js';
 import { useSession } from '../stores/session.js';
+import { useOnboarding } from '../stores/onboarding.js';
 import { formatClockTime, formatWhen, serverAdjustedNowMs, serverClockOffsetMs } from '../utils/time.js';
 import { confirmAction } from '../stores/confirm.js';
 import { publishQuestsChanged, trackedFromQuests } from '../quests/questSignals.js';
@@ -198,6 +199,11 @@ function QuestCard({
   const [showDetails, setShowDetails] = useState(featured || focused || (quest.status === 'READY_TO_TURN_IN' && quest.branchChoices.length > 0));
   const primaryObjective = quest.objectives.find((item) => !item.bonus && !item.completed)
     ?? quest.objectives.find((item) => !item.bonus);
+  const tourTarget = quest.status === 'AVAILABLE'
+    ? 'accept-quest'
+    : quest.status === 'READY_TO_TURN_IN' && !quest.branchChoices.length
+      ? 'complete-quest'
+      : undefined;
 
   useEffect(() => {
     if (focused) setShowDetails(true);
@@ -206,6 +212,7 @@ function QuestCard({
   return (
     <Panel
       id={`quest-${quest.key}`}
+      tourTarget={tourTarget}
       className={'se-quest-card'
         + (featured ? ' se-quest-card--featured' : '')
         + (quest.status === 'READY_TO_TURN_IN' ? ' se-quest-card--ready' : '')
@@ -393,7 +400,6 @@ function QuestCard({
             className="se-btn se-btn--primary"
             disabledReason={busy}
             onClick={() => onAccept(quest.key)}
-            data-tour="accept-quest"
           >
             Accept job
           </Button>
@@ -444,6 +450,7 @@ export function QuestPage() {
   const location = useLocation();
   const me = useSession((state) => state.me);
   const refreshSnapshot = useSession((state) => state.refreshSnapshot);
+  const reloadOnboarding = useOnboarding((state) => state.load);
   const [page, setPage] = useState<QuestPageDto | null>(null);
   const [expandedGroups, setExpandedGroups] = useState<Partial<Record<QuestBoardGroupKey, boolean>>>({});
   const [showConnections, setShowConnections] = useState(false);
@@ -591,7 +598,7 @@ export function QuestPage() {
     [page, nowMs],
   );
 
-  async function mutate(key: string, action: () => Promise<QuestPageDto>, success?: string) {
+  async function mutate(key: string, action: () => Promise<QuestPageDto>, success?: string, refreshTour = false) {
     setBusy(key);
     setError(null);
     setNotice(null);
@@ -606,6 +613,7 @@ export function QuestPage() {
         tracked: trackedFromQuests(next.quests),
       });
       if (success) setNotice(success);
+      if (refreshTour && me?.id) await reloadOnboarding(me.id);
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : 'That job could not be updated.');
     } finally {
@@ -746,7 +754,7 @@ export function QuestPage() {
       focused={focusKey === quest.key}
       busy={busy ? 'Another job update is still going through.' : null}
       nowMs={nowMs}
-      onAccept={(key) => void mutate(key, () => questsApi.accept(key, crypto.randomUUID()), 'Job accepted.')}
+       onAccept={(key) => void mutate(key, () => questsApi.accept(key, crypto.randomUUID()), 'Job accepted.', true)}
       onClaim={(key, branchKey, branchTitle) => void claim(key, branchKey, branchTitle)}
       onTrack={(key, tracked) => void mutate(key, () => questsApi.track(key, tracked))}
       onAbandon={(key) => void mutate(key, () => questsApi.abandon(key), 'Job abandoned.')}

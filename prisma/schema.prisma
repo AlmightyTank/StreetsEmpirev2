@@ -2008,6 +2008,21 @@ model RoundPlayer {
   /// Saved placement of currently owned stash item stacks.
   stashLayout Json @default("[]")
 
+  /// 2.3.0. Hideout components found while scouting; keyed by component id.
+  scavengedComponents Json @default("{}")
+  /// 2.3.0. Cache rewards earned from scouting, before they are opened.
+  scavengedCaches Json @default("[]")
+
+  /// 2.3.0. Generator state; fuel is measured in powered turns.
+  generatorPowered       Boolean @default(false)
+  generatorFuel          Int     @default(0)
+  generatorCapacityLevel Int     @default(0)
+  generatorEfficiencyLevel Int   @default(0)
+
+  /// 2.4.0. Workshop crafting progression; recipe repetition has diminishing returns.
+  workshopSkillXp Int @default(0)
+  workshopLastRecipe String?
+
   displayName String
 
   cityId String
@@ -2275,6 +2290,7 @@ model RoundPlayer {
   hideoutBackOfficeLevel          Int     @default(0)
   /// 0.6.0-D. One level opens a second concurrent travel run.
   hideoutGarageLevel              Int     @default(0)
+  hideoutStorageLevel             Int     @default(0)
   /// 0.7.0-F. Which guns home squads and run escorts consume first.
   hideoutWeaponPriority           String  @default("POWER")
   /// 0.7.0-G. Permanent for this RoundPlayer; the next season starts clean.

@@ -35,6 +35,8 @@ export interface HideoutRoomV2Dto extends HideoutRoomDto {
   /** Player-facing explanation when the next level cannot be bought. */
   lockReason: string | null;
   nextRequirements: HideoutRequirementDto[];
+  nextCostTurns?: number | null;
+  nextCostComponents?: Array<{ key: string; quantity: number; current: number; met: boolean }>;
   specialization: HideoutSpecializationDto | null;
 }
 
@@ -94,11 +96,44 @@ export interface HideoutWorkshopRecipeDto {
   effectiveIngredientCentsPerUnit: number;
 }
 
+export interface CraftingIngredientDto {
+  key: string;
+  name: string;
+  quantity: number;
+}
+
+export interface CraftingRecipeDto {
+  key: string;
+  name: string;
+  purpose: string;
+  ingredients: CraftingIngredientDto[];
+  output: { key: string; name: string; quantity: number; footprint: { width: number; height: number } };
+  turns: number;
+  requiresPower: boolean;
+  unlockLevel: number;
+  unlocked: boolean;
+}
+
+export interface CraftingWorkshopDto {
+  level: number;
+  skill: number;
+  skillXp: number;
+  recipes: CraftingRecipeDto[];
+}
+
+export interface CraftingResultDto {
+  recipe: CraftingRecipeDto;
+  output: { key: string; name: string; quantity: number; footprint: { width: number; height: number } };
+  skill: number;
+  skillXp: number;
+}
+
 export interface HideoutWorkshopDto {
   level: number;
   outputBonusPercent: number;
   ingredientEfficiencyPercent: number;
   recipes: HideoutWorkshopRecipeDto[];
+  crafting?: CraftingWorkshopDto;
 }
 
 export interface HideoutGarageDto {
@@ -136,6 +171,26 @@ export interface HideoutInfirmaryDto {
   medicineEfficiencyPercent: number;
   medicineNeededForAll: number;
   maxTreatableThugs: number;
+}
+
+export interface HideoutGeneratorUpgradeDto {
+  key: 'CAPACITY' | 'EFFICIENCY';
+  level: number;
+  nextLevel: number;
+  costCents: number;
+  components: Array<{ key: string; quantity: number }>;
+  benefit: string;
+}
+
+export interface HideoutGeneratorDto {
+  powered: boolean;
+  fuel: number;
+  capacity: number;
+  fuelPerTurn: number;
+  estimatedPoweredTurns: number;
+  capacityLevel: number;
+  efficiencyLevel: number;
+  upgrades: HideoutGeneratorUpgradeDto[];
 }
 
 export interface HideoutWeaponPriorityResult {
@@ -196,4 +251,6 @@ export interface HideoutV2Dto extends Omit<HideoutDto, 'rooms'> {
   armory?: HideoutArmoryDto;
   /** Present only on rulesets with the 0.7-F Infirmary model. */
   infirmary?: HideoutInfirmaryDto;
+  /** 2.3.0. Turn-based generator fuel and upgrade preview. */
+  generator?: HideoutGeneratorDto;
 }

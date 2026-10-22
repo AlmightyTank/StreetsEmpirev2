@@ -966,16 +966,21 @@ export const CombatService = {
         // Stored, because 0.4.0-D worth includes product rows this list does not load.
         netWorthCents: Number(target.netWorthCents),
         strength: strength(target, model, ruleset, 'DEFENDER') < ownStrength * (1 - model.strength.variance) ? 'Weaker' : strength(target, model, ruleset, 'DEFENDER') > ownStrength * (1 + model.strength.variance) ? 'Stronger' : 'Comparable',
-        blockedReason: (target.id === tutorialTarget?.id ? blockedReason : tutorialTarget ? normalAttackerBlock : null) ?? truces.get(target.id) ?? combatTargetBlock(
-          player,
-          target,
-          modelWithDefenderHideout(model, ruleset, target),
-          now,
-          revengeIds.has(target.id),
-          otherProducts.get(target.id) ?? 0,
-          Math.max(0, target.crack + (otherProducts.get(target.id) ?? 0) - hideoutProtectedProductCapacity(ruleset, target)),
-          ruleset,
-        ),
+         blockedReason: (target.id === tutorialTarget?.id ? blockedReason : tutorialTarget ? normalAttackerBlock : null)
+           ?? truces.get(target.id)
+           ?? (target.id === tutorialTarget?.id && !intelByTarget.has(target.id)
+             ? 'Recon the Practice Crew before launching the raid.'
+             : null)
+           ?? (target.id === tutorialTarget?.id ? null : combatTargetBlock(
+            player,
+            target,
+            modelWithDefenderHideout(model, ruleset, target),
+            now,
+            revengeIds.has(target.id),
+            otherProducts.get(target.id) ?? 0,
+            Math.max(0, target.crack + (otherProducts.get(target.id) ?? 0) - hideoutProtectedProductCapacity(ruleset, target)),
+            ruleset,
+          )),
         protectedUntil: combatProtectionUntil(target, model) > now ? iso(combatProtectionUntil(target, model)) : null,
         ...(model.strategy ? { revengeAvailable: revengeIds.has(target.id), intel: intelByTarget.get(target.id) ?? null } : {}),
         ...(model.driveBy ? { driveByBlockedReason: target.id === tutorialTarget?.id ? 'Use a standard raid against the training target.' : truces.get(target.id) ?? driveByTargetBlock(player, target, model, now, revengeIds.has(target.id)) } : {}),
@@ -1052,17 +1057,21 @@ export const CombatService = {
       const defenderModel = modelWithDefenderHideout(model, ruleset, defender, bossAwayMultiplier);
       const defenderProductProtection = hideoutProductProtection(ruleset, defender, d.products ?? {});
       const retaliation = (await retaliationTargets(tx, attacker, [target.id], model, now)).has(target.id);
-      const attackerIntel = await attackerIntelSource(tx, attacker, target.id, ruleset, now);
-      const blocked = combatAttackerBlock(attacker, model, now, { bypassNewcomerProtection: target.tutorial }) ?? combatTargetBlock(
-        attacker,
-        defender,
-        defenderModel,
-        now,
-        retaliation,
-        ruleset.productEconomy ? Object.values(d.products ?? {}).reduce((sum, units) => sum + Math.max(0, units), 0) : 0,
-        defenderProductProtection.exposedUnits,
-        ruleset,
-      );
+       const attackerIntel = await attackerIntelSource(tx, attacker, target.id, ruleset, now);
+       if (target.tutorial && !attackerIntel) {
+         throw AppError.conflict('RECON_REQUIRED', 'Recon the Practice Crew before launching the raid.');
+       }
+       const blocked = combatAttackerBlock(attacker, model, now, { bypassNewcomerProtection: target.tutorial })
+        ?? (target.tutorial ? null : combatTargetBlock(
+          attacker,
+          defender,
+          defenderModel,
+          now,
+          retaliation,
+          ruleset.productEconomy ? Object.values(d.products ?? {}).reduce((sum, units) => sum + Math.max(0, units), 0) : 0,
+          defenderProductProtection.exposedUnits,
+          ruleset,
+        ));
       if (blocked) throw AppError.conflict('RAID_BLOCKED', blocked);
       // Trips D2: a sit-down's truce holds both ways.
       const truce = await truceBlock(tx, attacker.id, defender.id, now);
@@ -1092,12 +1101,12 @@ export const CombatService = {
       const itemRules = ruleset.individualItems?.enabled && ammoRules ? ruleset.individualItems : null;
       const individualA = itemRules && ammoRules ? await planIndividualCombat(tx, attackerId, crew(attacker, ruleset), input.attackingThugs,
         model, itemRules, ammoRules, attacker.ammo, 'ATTACKER', () => randomInt(0, 2 ** 32 - 1) / 2 ** 32, input.attackerAmmoCapRounds) : null;
-      const individualD = itemRules && ammoRules ? await planIndividualCombat(tx, target.id, crew(defender, ruleset), Math.min(fitThugs(defender), model.squadCap),
-        defenderModel, itemRules, ammoRules, defender.ammo, 'DEFENDER', () => randomInt(0, 2 ** 32 - 1) / 2 ** 32) : null;
+       const individualD = !target.tutorial && itemRules && ammoRules ? await planIndividualCombat(tx, target.id, crew(defender, ruleset), Math.min(fitThugs(defender), model.squadCap),
+         defenderModel, itemRules, ammoRules, defender.ammo, 'DEFENDER', () => randomInt(0, 2 ** 32 - 1) / 2 ** 32) : null;
       const finalAttackerBoost = individualA ? { strength: (attackerBoost?.strength ?? 1) * individualA.strengthMultiplier, wounds: attackerBoost?.wounds ?? 1 } : attackerBoost;
-      const defenseBoost = skilledBoost(boostOf(d), skillsD, 'DEFENSE_STRENGTH');
+       const defenseBoost = target.tutorial ? undefined : skilledBoost(boostOf(d), skillsD, 'DEFENSE_STRENGTH');
       const finalDefenderBoost = individualD ? { strength: (defenseBoost?.strength ?? 1) * individualD.strengthMultiplier, wounds: defenseBoost?.wounds ?? 1 } : defenseBoost;
-      const simulated = simulateRaid({ attacker: individualA?.crew ?? crew(attacker, ruleset), defender: individualD?.crew ?? crew(defender, ruleset), attackerBoost: finalAttackerBoost, defenderBoost: finalDefenderBoost, attackingThugs: input.attackingThugs,
+       const simulatedResult = simulateRaid({ attacker: individualA?.crew ?? crew(attacker, ruleset), defender: individualD?.crew ?? crew(defender, ruleset), attackerBoost: finalAttackerBoost, defenderBoost: finalDefenderBoost, attackingThugs: input.attackingThugs,
         attackerTurns: attacker.turns, defenderCashCents: defender.cashCents, defenderCrack: lootable, repeatTargetHits,
         ...(ammoRules && !itemRules ? { ammo: {
           attackerRounds: attacker.ammo,
@@ -1107,7 +1116,11 @@ export const CombatService = {
           lootShareBps: ammoRules.lootShareBps,
           ...(input.attackerAmmoCapRounds !== undefined ? { attackerCapRounds: input.attackerAmmoCapRounds } : {}),
         } } : {}),
-      }, defenderModel, () => randomInt(0, 2 ** 32) / 2 ** 32);
+       }, defenderModel, () => randomInt(0, 2 ** 32) / 2 ** 32);
+       // The tutorial mark is a safe practice target, never a real combat
+       // challenge. Keep the normal simulation for the report details, but
+       // make the outcome deterministic for this synthetic defender only.
+       const simulated = target.tutorial ? { ...simulatedResult, winner: 'ATTACKER' as const } : simulatedResult;
       let itemAmmo: { attackerRoundsAfter: number; defenderRoundsAfter: number; attackerRoundsSpent: number; defenderRoundsSpent: number; defenderFreeRounds: number; ammoLootRounds: number } | null = null;
       if (individualA && individualD && ammoRules) {
         const attackerAfterSpend = attacker.ammo - individualA.roundsSpent;

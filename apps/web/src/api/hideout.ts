@@ -13,6 +13,11 @@ import type {
   UpdateHideoutCosmeticsInput,
   StashDto,
   UpdateStashLayoutInput,
+  ScavengePageDto,
+  OpenScavengeCacheResult,
+  HideoutGeneratorDto,
+  CraftingWorkshopDto,
+  CraftingResultDto,
 } from '@streets/shared';
 import { api } from './client.js';
 
@@ -61,4 +66,10 @@ export const hideoutApi = {
     api.post<GameActionResult<HideoutSpecializationResult>>('/game/hideout/specialization', input),
   stash: () => api.get<StashDto>('/game/hideout/stash'),
   saveStashLayout: (input: UpdateStashLayoutInput) => api.put<StashDto>('/game/hideout/stash/layout', input),
+  scavenging: () => api.get<ScavengePageDto>('/game/hideout/scavenging'),
+  openCache: (cacheId: string) => api.post<OpenScavengeCacheResult>(`/game/hideout/scavenging/${encodeURIComponent(cacheId)}/open`, {}),
+  generator: () => api.get<HideoutGeneratorDto>('/game/hideout/generator'),
+  updateGenerator: (input: { powered?: boolean; refuelCans?: number; upgrade?: 'CAPACITY' | 'EFFICIENCY' }) => api.post<HideoutGeneratorDto>('/game/hideout/generator', input),
+  workshop: () => api.get<CraftingWorkshopDto>('/game/hideout/workshop'),
+  craft: (recipeKey: string, actionId?: string) => api.post<import('@streets/shared').GameActionResult<CraftingResultDto>>('/game/hideout/workshop/craft', { recipeKey, ...(actionId ? { actionId } : {}) }),
 };

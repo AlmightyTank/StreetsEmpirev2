@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { PrismaClient } from '@prisma/client';
-import { StashService } from '../stash.service.js';
+import { StashService, stashDimensions } from '../stash.service.js';
 
 function makePrisma(overrides: Partial<{ condoms: number; medicine: number; beer: number; ammo: number; vehicleParts: number; shotguns: number; stashLayout: unknown }> = {}) {
   const player = { condoms: 3, medicine: 2, beer: 0, ammo: 120, vehicleParts: 0, pistols: 0, shotguns: 1, tek9s: 0, ak47s: 0, lowRiders: 0, sedans: 0, vans: 0, stashLayout: [], ...overrides };
@@ -18,6 +18,12 @@ function makePrisma(overrides: Partial<{ condoms: number; medicine: number; beer
 }
 
 describe('Hideout stash layout', () => {
+  it('expands storage capacity by level', () => {
+    expect(stashDimensions()).toEqual({ columns: 10, rows: 6 });
+    expect(stashDimensions(1)).toEqual({ columns: 12, rows: 7 });
+    expect(stashDimensions(3)).toEqual({ columns: 16, rows: 9 });
+  });
+
   it('builds a grid from current supply balances without duplicating product stock', async () => {
     const { prisma } = makePrisma();
     const stash = await StashService.page(prisma, 'player-1');
