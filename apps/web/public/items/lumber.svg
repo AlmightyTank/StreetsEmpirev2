@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <filter id="s" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="2.5" flood-color="#000" flood-opacity=".6"/></filter>
+    <linearGradient id="wd" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f0c27e"/><stop offset=".45" stop-color="#cc8f48"/><stop offset="1" stop-color="#7e4c1c"/></linearGradient>
+    <linearGradient id="dk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d49a58"/><stop offset=".45" stop-color="#a86c30"/><stop offset="1" stop-color="#5e3412"/></linearGradient>
+    <linearGradient id="rp" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#5a4220"/><stop offset=".5" stop-color="#c8b080"/><stop offset="1" stop-color="#5a4220"/></linearGradient>
+  </defs>
+  <g transform="rotate(-14 64 70)">
+    <g filter="url(#s)" stroke="#3a1e06" stroke-width="1.5" stroke-linejoin="round">
+      <path d="M14 82 H104 V100 H14 Z" fill="url(#dk)"/>
+      <path d="M104 82 H112 V100 H104 Z" fill="#f2d29a"/>
+      <path d="M22 64 H110 V82 H22 Z" fill="url(#wd)"/>
+      <path d="M110 64 H118 V82 H110 Z" fill="#f6dcaa"/>
+      <path d="M10 46 H98 V64 H10 Z" fill="url(#wd)"/>
+      <path d="M98 46 H106 V64 H98 Z" fill="#f6dcaa"/>
+    </g>
+    <g fill="none" stroke="#8a5222" stroke-width="1" stroke-linecap="round">
+      <path d="M106 85 Q109 91 106 97M114 67 Q117 73 114 79M102 49 Q105 55 102 61"/>
+    </g>
+    <g fill="none" stroke="#6a3a12" stroke-opacity=".55" stroke-width="1.1" stroke-linecap="round">
+      <path d="M20 91 Q46 88 64 92 T100 90M28 72 Q52 69 74 73 T106 71M16 55 Q40 52 58 56 T94 54"/>
+      <ellipse cx="44" cy="93" rx="3.5" ry="2"/>
+      <ellipse cx="82" cy="57" rx="3.5" ry="2"/>
+    </g>
+    <path d="M16 84 H102M24 66 H108M12 48 H96" stroke="#fff0c8" stroke-opacity=".5" stroke-width="1.5"/>
+    <g filter="url(#s)" stroke="#2e2008" stroke-width="1.2">
+      <path d="M32 42 H42 V104 H32 Z" fill="url(#rp)"/>
+      <path d="M78 42 H88 V104 H78 Z" fill="url(#rp)"/>
+    </g>
+    <path d="M32 50 L42 46M32 60 L42 56M32 70 L42 66M32 80 L42 76M32 90 L42 86M32 100 L42 96M78 50 L88 46M78 60 L88 56M78 70 L88 66M78 80 L88 76M78 90 L88 86M78 100 L88 96" stroke="#2e2008" stroke-opacity=".6" stroke-width="1"/>
+  </g>
+</svg>
