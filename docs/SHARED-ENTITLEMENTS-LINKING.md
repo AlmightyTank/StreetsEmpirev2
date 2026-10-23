@@ -1,8 +1,8 @@
 # Shared Entitlements Account Linking
 
 Slice 1 adds the operator-controlled link and one-time import for the shared
-beta/main Crown and Drop entitlement store. It does not yet route live Crown
-operations through that store; that is the next integration slice.
+beta/main Crown and Drop entitlement store. Slice 2 routes wallet and Drop
+ownership reads through the canonical store and charges Drop purchases there.
 
 ## Safety rules
 
@@ -46,3 +46,19 @@ After success, inspect the shared database for exactly two
 and the union of Drop unlock keys. Each non-zero source balance has a
 `SharedCrownLedgerEntry` with a stable `legacy-import:<environment>:<accountId>`
 reference, so the amount is recorded once.
+
+## Runtime behavior
+
+Set `SHARED_ENTITLEMENTS_ENABLED=true` and `ENTITLEMENT_DATABASE_URL` on both
+beta and production after both deployments have the shared schema. Signed-in
+wallet and Drop catalog requests resolve the explicit environment/account link;
+unlinked accounts receive `SHARED_ENTITLEMENT_LINK_REQUIRED`. The wallet
+balance/history, Drop ownership, and Drop purchase debit then use the shared
+database. Shared Drop unlocks are copied idempotently into each local account
+unlock table so existing equip and collection checks continue to work.
+
+Other Crown earning and pack billing paths still write the environment-local
+Crown ledger. They need a follow-up integration before Crown gains from play
+or Crown pack purchases made in one environment appear in the other. Keep
+shared mode disabled until that integration and the production account linking
+are complete.

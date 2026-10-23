@@ -15,6 +15,7 @@ import { RoundService } from '../services/round.service.js';
 import { StreetPassSkipService } from '../services/street-pass-skip.service.js';
 import { AppError } from '../utils/errors.js';
 import { parseBody } from '../utils/validate.js';
+import { sharedEntitlementRuntime } from '../services/shared-entitlement-runtime.js';
 
 const slugParams = z.object({ slug: z.string().trim().min(1).max(80).regex(/^[a-z0-9-]+$/) }).strict();
 const purchaseSchema = z.object({
@@ -53,22 +54,28 @@ const dropRoutes: FastifyPluginAsync = async (fastify) => {
     return { enabled: switchesFor(settings).storefront };
   });
 
-  fastify.get('/', async (request) =>
-    DropCatalogService.storefront(fastify.prisma, request.auth?.account.id ?? null));
+  fastify.get('/', async (request) => {
+    const accountId = request.auth?.account.id ?? null;
+    const shared = accountId ? await sharedEntitlementRuntime(fastify, accountId) : null;
+    return DropCatalogService.storefront(fastify.prisma, accountId, undefined, shared);
+  });
 
   fastify.get('/items/:slug', async (request) => {
     const { slug } = parseBody(slugParams, request.params);
-    return DropCatalogService.detail(fastify.prisma, request.auth?.account.id ?? null, slug);
+    const accountId = request.auth?.account.id ?? null;
+    const shared = accountId ? await sharedEntitlementRuntime(fastify, accountId) : null;
+    return DropCatalogService.detail(fastify.prisma, accountId, slug, undefined, shared);
   });
 
   fastify.get('/wallet', { preHandler: fastify.requireAuth }, async (request): Promise<DropWalletDetailDto> => {
     const accountId = request.auth!.account.id;
+    const shared = await sharedEntitlementRuntime(fastify, accountId);
     const [settings, round] = await Promise.all([DropSettingsService.get(fastify.prisma), RoundService.getCurrent(fastify.prisma)]);
     const player = round ? await RoundPlayerService.find(fastify.prisma, round.id, accountId) : null;
     const [wallet, opportunities, history, orders, packOrders] = await Promise.all([
-      CrownWalletService.view(fastify.prisma, accountId, round?.id ?? null, settings.roundEarnCap),
+      CrownWalletService.view(fastify.prisma, accountId, round?.id ?? null, settings.roundEarnCap, shared),
       CrownEarnService.opportunities(fastify.prisma, accountId, round?.id ?? null, player?.id ?? null),
-      CrownWalletService.history(fastify.prisma, accountId),
+      CrownWalletService.history(fastify.prisma, accountId, 50, shared),
       DropPurchaseService.orders(fastify.prisma, accountId),
       CrownPackService.orders(fastify.prisma, accountId),
     ]);
@@ -77,7 +84,8 @@ const dropRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.post('/purchase', { preHandler: fastify.requireAuth }, async (request) => {
     const body = parseBody(purchaseSchema, request.body ?? {});
-    const result = await DropPurchaseService.purchase(fastify.prisma, request.auth!.account.id, body);
+    const shared = await sharedEntitlementRuntime(fastify, request.auth!.account.id);
+    const result = await DropPurchaseService.purchase(fastify.prisma, request.auth!.account.id, body, undefined, shared);
     if (!result.replayed) {
       await queueDropOrderNotification(fastify.prisma, request.auth!.account.id, `drop-order:${result.order.id}`, 'The Drop purchase is complete', `${result.order.label} is now in your collection.`);
     }
