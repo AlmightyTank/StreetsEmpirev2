@@ -75,6 +75,8 @@ let snapshotLoad: Promise<void> | null = null;
 
 interface SessionState {
   phase: Phase;
+  /** Explains a failed first load and lets the player retry without a full refresh. */
+  bootstrapError: string | null;
 
   account: AccountDto | null;
   profileSettings: AccountProfileSettingsDto;
@@ -119,6 +121,7 @@ interface SessionState {
 
 export const useSession = create<SessionState>((set, get) => ({
   phase: 'booting',
+  bootstrapError: null,
   account: null,
   profileSettings: DEFAULT_PROFILE_SETTINGS,
   round: null,
@@ -143,21 +146,27 @@ export const useSession = create<SessionState>((set, get) => ({
   },
 
   async bootstrap() {
-    // Never blocks sign-in: an older server simply has no /meta.
-    void get().loadPlatform();
-    // A 401 here is the normal signed-out case, not an error worth surfacing.
-    const account = await authApi
-      .me()
-      .then((r) => r.account)
-      .catch((error: unknown) => {
-        if (error instanceof ApiError && (error.isUnauthenticated || error.code === 'BETA_APPROVAL_REQUIRED')) return null;
-        throw error;
-      });
+    set({ bootstrapError: null });
+    try {
+      // Never blocks sign-in: an older server simply has no /meta.
+      void get().loadPlatform();
+      // A 401 here is the normal signed-out case, not an error worth surfacing.
+      const account = await authApi
+        .me()
+        .then((r) => r.account)
+        .catch((error: unknown) => {
+          if (error instanceof ApiError && (error.isUnauthenticated || error.code === 'BETA_APPROVAL_REQUIRED')) return null;
+          throw error;
+        });
 
-    set({ account });
-    if (account) await get().refreshProfileSettings();
-    await get().refreshRound();
-    set({ phase: 'ready' });
+      set({ account });
+      if (account) await get().refreshProfileSettings();
+      await get().refreshRound();
+      set({ phase: 'ready' });
+    } catch (error) {
+      // A failed startup request must not leave the app showing its loading screen forever.
+      set({ bootstrapError: error instanceof ApiError ? error.message : 'The game could not finish loading. Please try again.' });
+    }
   },
 
   async refreshAccount() {
