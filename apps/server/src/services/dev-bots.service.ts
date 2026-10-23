@@ -88,6 +88,8 @@ function resourceSeed(start: StartingPlayer) {
     shotguns: start.shotguns,
     tek9s: start.tek9s,
     ak47s: start.ak47s,
+    ammo: start.ammo,
+    vehicleParts: start.vehicleParts,
     lowRiders: start.lowRiders,
     payoutPercent: start.payoutPercent,
     cashCents: BigInt(start.cashCents),
