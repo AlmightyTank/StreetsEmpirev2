@@ -151,13 +151,17 @@ function accountRedirect(message: string): string {
 
 function postLoginRedirect(callbackUri?: string, returnOrigin?: string | null): string {
   const redirect = callbackUri ? new URL(callbackUri) : null;
-  return oauthPostLoginRedirect(env.frontendOrigin, returnOrigin ?? (redirect ? redirect.origin : null));
+  // The callback URI is the trusted host that completed OAuth. Prefer it over
+  // the configured frontend when the browser did not preserve the start
+  // origin (or when that origin is no longer valid). This keeps the newly set
+  // host-only session cookie on the same host as the redirect.
+  return oauthPostLoginRedirect(redirect?.origin ?? env.frontendOrigin, returnOrigin);
 }
 
 /** rc.3. Where an OAuth callback sends a sign-in that still needs its authenticator code. */
 function twoFactorRedirect(callbackUri?: string, returnOrigin?: string | null): string {
   const redirect = callbackUri ? new URL(callbackUri) : null;
-  return oauthTwoFactorRedirect(env.frontendOrigin, returnOrigin ?? (redirect ? redirect.origin : null));
+  return oauthTwoFactorRedirect(redirect?.origin ?? env.frontendOrigin, returnOrigin);
 }
 
 function passwordResetUrl(token: string): string {
