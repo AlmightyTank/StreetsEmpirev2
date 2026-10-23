@@ -93,9 +93,8 @@ else
     || fail "the pre-deploy backup failed, so nothing was migrated. Fix it (see docs/RECOVERY.md) or rerun with SKIP_BACKUP=1 to deploy without one."
 fi
 
-step "Starting the shared entitlements database (single persistent instance)"
+step "Checking the manually started shared entitlements database"
 command -v docker >/dev/null 2>&1 || fail "Docker is required to start postgres-entitlements."
-docker compose up -d postgres-entitlements
 for attempt in $(seq 1 30); do
   health="$(docker inspect --format '{{.State.Health.Status}}' streets-empire-entitlements-db 2>/dev/null || true)"
   if [ "$health" = "healthy" ]; then
@@ -104,7 +103,7 @@ for attempt in $(seq 1 30); do
   fi
   if [ "$attempt" -eq 30 ]; then
     docker compose logs --tail=50 postgres-entitlements || true
-    fail "the shared entitlements database did not become healthy within 60 seconds."
+    fail "the shared entitlements database is not healthy. Start it manually with: cd $APP_DIR && docker compose up -d postgres-entitlements"
   fi
   sleep 2
 done
