@@ -1,5 +1,6 @@
 import { createHmac } from 'node:crypto';
 import type { PrismaClient } from '@prisma/client';
+import { crownPack } from '@streets/rulesets';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const HASH_SECRET = 'play-hash-secret-for-tests-0123456789';
@@ -44,6 +45,7 @@ type Row = Record<string, any>;
 const ACCOUNT = 'acc_play';
 const TOKEN = 'play-token-1';
 const accountHash = createHmac('sha256', HASH_SECRET).update(ACCOUNT).digest('hex');
+const STARTER_CROWNS = crownPack('starter').crowns;
 
 /** Just the tables a Play Crown pack touches. Transactions run inline. */
 function fakeDb() {
@@ -102,14 +104,14 @@ describe('Google Play Crown packs', () => {
   it('credits once, then consumes the pack so it can be bought again', async () => {
     const db = fakeDb();
     await buyStarter(db);
-    expect(db.state.wallets.get(ACCOUNT).balance).toBe(500);
+    expect(db.state.wallets.get(ACCOUNT).balance).toBe(STARTER_CROWNS);
     const consume = playCalls.requests.filter((call) => call.method === 'POST');
     expect(consume).toHaveLength(1);
     expect(consume[0]!.url).toMatch(/\/purchases\/products\/crowns_starter\/tokens\/play-token-1:consume$/);
 
     // A retried verify after a failed consume never pays twice, and consumes again.
     await buyStarter(db);
-    expect(db.state.wallets.get(ACCOUNT).balance).toBe(500);
+    expect(db.state.wallets.get(ACCOUNT).balance).toBe(STARTER_CROWNS);
     expect(playCalls.requests.filter((call) => call.method === 'POST')).toHaveLength(2);
   });
 
@@ -146,7 +148,7 @@ describe('Google Play Crown packs', () => {
     const db = fakeDb();
     await buyStarter(db);
     await GooglePlayBillingService.handleRtdn(prisma(db), rtdn({ voidedPurchaseNotification: { purchaseToken: TOKEN, productType: 2, refundType: 2 } }));
-    expect(db.state.wallets.get(ACCOUNT).balance).toBe(500);
+    expect(db.state.wallets.get(ACCOUNT).balance).toBe(STARTER_CROWNS);
     expect(db.state.wallets.get(ACCOUNT).heldAt).toBeInstanceOf(Date);
   });
 
