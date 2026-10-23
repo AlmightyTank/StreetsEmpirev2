@@ -107,10 +107,11 @@ export const SharedEntitlementLinkingService = {
 
   async start(prisma: PrismaClient, shared: PrismaClient | null, localAccountId: string, now = new Date()) {
     assertSharedStore(shared);
-    if (env.appEnvironment !== 'beta') throw AppError.forbidden('Start the account link while signed into beta.');
-    const local = await snapshot(prisma, 'beta', localAccountId);
+    if (env.appEnvironment !== 'beta' && env.appEnvironment !== 'production') throw AppError.forbidden('Account linking is available only on beta and main.');
+    const environment = env.appEnvironment;
+    const local = await snapshot(prisma, environment, localAccountId);
     const priorLink = await shared.sharedEntitlementLink.findUnique({
-      where: { environment_localAccountId: { environment: 'beta', localAccountId } },
+      where: { environment_localAccountId: { environment, localAccountId } },
       include: { account: { select: { id: true, identityKey: true, links: { select: { environment: true } } } } },
     });
     if (priorLink && (!priorLink.account.identityKey.startsWith('pairing:') || priorLink.account.links.length !== 1)) {
@@ -124,7 +125,7 @@ export const SharedEntitlementLinkingService = {
         ? await tx.sharedEntitlementAccount.update({ where: { id: priorLink.accountId }, data: { identityKey }, select: { id: true } })
         : await tx.sharedEntitlementAccount.create({ data: { identityKey }, select: { id: true } });
       if (!priorLink) {
-        await tx.sharedEntitlementLink.create({ data: { accountId: canonical.id, environment: 'beta', localAccountId } });
+        await tx.sharedEntitlementLink.create({ data: { accountId: canonical.id, environment, localAccountId } });
         await tx.sharedCrownWallet.create({ data: { accountId: canonical.id } });
       }
       await importSnapshot(tx, canonical.id, local.snapshot);
@@ -134,17 +135,18 @@ export const SharedEntitlementLinkingService = {
 
   async complete(prisma: PrismaClient, shared: PrismaClient | null, localAccountId: string, codeInput: string, now = new Date()) {
     assertSharedStore(shared);
-    if (env.appEnvironment !== 'production') throw AppError.forbidden('Complete the account link while signed into main.');
+    if (env.appEnvironment !== 'beta' && env.appEnvironment !== 'production') throw AppError.forbidden('Account linking is available only on beta and main.');
+    const environment = env.appEnvironment;
     const code = codeInput.trim();
     if (!codeIsFresh(code, now)) throw AppError.conflict('SHARED_LINK_CODE_EXPIRED', 'That pairing code is invalid or has expired. Start a new link from beta.');
-    const local = await snapshot(prisma, 'production', localAccountId);
+    const local = await snapshot(prisma, environment, localAccountId);
     const identityKey = `pairing:${codeHash(code)}`;
     const account = await shared.sharedEntitlementAccount.findUnique({ where: { identityKey }, include: { links: true } });
-    if (!account || account.links.length !== 1 || account.links[0]?.environment !== 'beta') {
-      throw AppError.conflict('SHARED_LINK_CODE_INVALID', 'That pairing code is invalid, already used, or not from beta.');
+    if (!account || account.links.length !== 1 || !['beta', 'production'].includes(account.links[0]?.environment ?? '') || account.links[0]?.environment === environment) {
+      throw AppError.conflict('SHARED_LINK_CODE_INVALID', 'That pairing code is invalid, already used, or was created in this environment.');
     }
     const existing = await shared.sharedEntitlementLink.findUnique({
-      where: { environment_localAccountId: { environment: 'production', localAccountId } },
+      where: { environment_localAccountId: { environment, localAccountId } },
       select: { accountId: true },
     });
     if (existing) throw AppError.conflict('SHARED_ENTITLEMENT_ALREADY_LINKED', 'This main account is already linked. Existing links cannot be replaced here.');
@@ -152,7 +154,7 @@ export const SharedEntitlementLinkingService = {
     await shared.$transaction(async (tx) => {
       const claimed = await tx.sharedEntitlementAccount.updateMany({ where: { id: account.id, identityKey }, data: { identityKey: `linked:${randomUUID()}` } });
       if (claimed.count !== 1) throw AppError.conflict('SHARED_LINK_CODE_INVALID', 'That pairing code was just used. Start a new link from beta.');
-      await tx.sharedEntitlementLink.create({ data: { accountId: account.id, environment: 'production', localAccountId } });
+      await tx.sharedEntitlementLink.create({ data: { accountId: account.id, environment, localAccountId } });
       await importSnapshot(tx, account.id, local.snapshot);
     });
     return { linked: true, account: { ...local.account, crowns: local.snapshot.balance, dropUnlocks: local.snapshot.unlocks.length } };
