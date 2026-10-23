@@ -7,6 +7,10 @@ import { CrownWalletService, lockCrownWallet } from './crown-wallet.service.js';
 import { dropDiscountFor, offerKeys, priceForAccount, resolveOffer } from './drop-catalog.service.js';
 import { DropSettingsService, requireDropEnabled, switchesFor } from './drop-settings.service.js';
 import { RoundService } from './round.service.js';
+import type { sharedEntitlementRuntime } from './shared-entitlement-runtime.js';
+import { applySharedDropPurchase } from './shared-entitlement-runtime.js';
+
+type SharedRuntime = NonNullable<Awaited<ReturnType<typeof sharedEntitlementRuntime>>>;
 
 /**
  * The Drop, Slice C: buying an item or bundle with Crowns. One transaction:
@@ -84,6 +88,7 @@ export const DropPurchaseService = {
     accountId: string,
     input: { offerId: string; actionId: string },
     now = new Date(),
+    shared?: SharedRuntime | null,
   ): Promise<DropPurchaseResultDto> {
     requireDropEnabled();
     assertActionId(input.actionId);
@@ -94,7 +99,7 @@ export const DropPurchaseService = {
 
     return prisma.$transaction(async (tx) => {
       // The wallet lock comes first so a racing duplicate waits, then sees the order below.
-      await lockCrownWallet(tx, accountId);
+      if (!shared) await lockCrownWallet(tx, accountId);
       const replay = await tx.dropOrder.findUnique({ where: { accountId_actionId: { accountId, actionId: input.actionId } } });
       if (replay) {
         if (replay.offerId !== input.offerId) {
@@ -102,7 +107,7 @@ export const DropPurchaseService = {
         }
         return {
           order: orderDto(replay),
-          wallet: await CrownWalletService.view(tx, accountId, round?.id ?? null, settings.roundEarnCap),
+          wallet: await CrownWalletService.view(tx, accountId, round?.id ?? null, settings.roundEarnCap, shared),
           replayed: true,
         };
       }
@@ -118,10 +123,13 @@ export const DropPurchaseService = {
           throw new AppError(403, 'DROP_LEVEL_REQUIRED', `This set is for account level ${minLevel} and up. You are level ${level}.`);
         }
       }
-      const owned = new Set((await tx.accountCosmeticUnlock.findMany({
+      const [localOwnedRows, sharedOwnedRows] = await Promise.all([(tx.accountCosmeticUnlock.findMany({
         where: { accountId, key: { in: keys } },
         select: { key: true },
-      })).map((row) => row.key));
+      })), shared ? shared.db.sharedCosmeticUnlock.findMany({
+        where: { accountId: shared.accountId, key: { in: keys }, source: 'drop' }, select: { key: true },
+      }) : Promise.resolve([])]);
+      const owned = new Set([...localOwnedRows, ...sharedOwnedRows].map((row) => row.key));
       const discount = await dropDiscountFor(tx, accountId, now);
       const { price, basePrice, grants } = priceForAccount(offer, catalog, owned, discount?.percent ?? 0);
       if (!grants.length) {
@@ -150,15 +158,19 @@ export const DropPurchaseService = {
           createdAt: now,
         },
       });
-      await CrownWalletService.apply(tx, {
-        accountId,
-        kind: 'SPEND',
-        delta: -price,
-        source: 'drop-order',
-        externalRef: `order:${order.id}`,
-        reason: orderLabel(order),
-        metadata: { orderId: order.id, offerId: offer.id, refKey: offer.refKey },
-      });
+      if (shared) {
+        await applySharedDropPurchase(shared, { actionId: input.actionId, orderId: order.id, refKey: offer.refKey, price, keys: grants, now });
+      } else {
+        await CrownWalletService.apply(tx, {
+          accountId,
+          kind: 'SPEND',
+          delta: -price,
+          source: 'drop-order',
+          externalRef: `order:${order.id}`,
+          reason: orderLabel(order),
+          metadata: { orderId: order.id, offerId: offer.id, refKey: offer.refKey },
+        });
+      }
       const granted = await grantDropUnlocks(tx, accountId, grants, now);
       if (granted.length !== grants.length) {
         // Another path granted one of these inside our lock window; never charge for it.
@@ -166,7 +178,7 @@ export const DropPurchaseService = {
       }
       return {
         order: orderDto(order),
-        wallet: await CrownWalletService.view(tx, accountId, round?.id ?? null, settings.roundEarnCap),
+        wallet: await CrownWalletService.view(tx, accountId, round?.id ?? null, settings.roundEarnCap, shared),
         replayed: false,
       };
     });

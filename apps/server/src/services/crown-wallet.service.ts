@@ -2,6 +2,9 @@ import type { CrownLedgerEntry, Prisma, PrismaClient } from '@prisma/client';
 import type { CrownLedgerEntryDto, CrownLedgerKindDto, DropWalletDto } from '@streets/shared';
 import type { Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
+import type { sharedEntitlementRuntime } from './shared-entitlement-runtime.js';
+
+type SharedRuntime = NonNullable<Awaited<ReturnType<typeof sharedEntitlementRuntime>>>;
 
 /**
  * The Drop, Slice A: the account's Crown wallet. Every change runs here, in the
@@ -159,7 +162,25 @@ export const CrownWalletService = {
     return sum._sum.delta ?? 0;
   },
 
-  async view(db: Db | PrismaClient, accountId: string, roundId: string | null, roundCap: number): Promise<DropWalletDto> {
+  async view(db: Db | PrismaClient, accountId: string, roundId: string | null, roundCap: number, shared?: SharedRuntime | null): Promise<DropWalletDto> {
+    if (shared) {
+      const [wallet, earned] = await Promise.all([
+        shared.db.sharedCrownWallet.findUnique({ where: { accountId: shared.accountId } }),
+        roundId ? shared.db.sharedCrownLedgerEntry.aggregate({
+          where: { accountId: shared.accountId, localAccountId: accountId, environment: shared.environment, kind: 'EARN', roundId },
+          _sum: { delta: true },
+        }) : Promise.resolve({ _sum: { delta: null } }),
+      ]);
+      const earnedThisRound = earned._sum.delta ?? 0;
+      return {
+        balance: wallet?.balance ?? 0,
+        earnedThisRound,
+        remainingEarnable: roundId ? Math.max(0, roundCap - earnedThisRound) : 0,
+        roundCap,
+        held: Boolean(wallet?.heldAt),
+        holdReason: wallet?.holdReason ?? null,
+      };
+    }
     const [wallet, earned] = await Promise.all([
       db.crownWallet.findUnique({ where: { accountId } }),
       CrownWalletService.earnedInRound(db, accountId, roundId),
@@ -174,7 +195,23 @@ export const CrownWalletService = {
     };
   },
 
-  async history(db: Db | PrismaClient, accountId: string, limit = 50): Promise<CrownLedgerEntryDto[]> {
+  async history(db: Db | PrismaClient, accountId: string, limit = 50, shared?: SharedRuntime | null): Promise<CrownLedgerEntryDto[]> {
+    if (shared) {
+      const rows = await shared.db.sharedCrownLedgerEntry.findMany({
+        where: { accountId: shared.accountId },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: limit,
+      });
+      return rows.map((entry) => ({
+        id: entry.id,
+        kind: entry.kind as CrownLedgerKind,
+        delta: entry.delta,
+        balanceAfter: entry.balanceAfter,
+        source: entry.source,
+        label: ledgerLabel({ source: entry.source, reason: entry.reason }),
+        createdAt: entry.createdAt.toISOString(),
+      }));
+    }
     const rows = await db.crownLedgerEntry.findMany({
       where: { accountId },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],

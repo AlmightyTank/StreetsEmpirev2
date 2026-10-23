@@ -38,6 +38,9 @@ import { birthdayDiscount } from './birthday.service.js';
 import { CrownWalletService } from './crown-wallet.service.js';
 import { DropSettingsService, switchesFor, type DropSettingsValues } from './drop-settings.service.js';
 import { RoundService } from './round.service.js';
+import type { sharedEntitlementRuntime } from './shared-entitlement-runtime.js';
+
+type SharedRuntime = NonNullable<Awaited<ReturnType<typeof sharedEntitlementRuntime>>>;
 
 /**
  * The Drop, Slices A, B and E: the catalog, the rotation and what one account
@@ -400,13 +403,19 @@ function offerDto(offer: ResolvedOffer, catalog: Catalog, owned: ReadonlySet<str
   };
 }
 
-async function ownedDropKeys(db: Db | PrismaClient, accountId: string | null): Promise<Set<string>> {
+async function ownedDropKeys(db: Db | PrismaClient, accountId: string | null, shared?: SharedRuntime | null): Promise<Set<string>> {
   if (!accountId) return new Set();
-  const rows = await db.accountCosmeticUnlock.findMany({
+  const [rows, sharedRows] = await Promise.all([
+    db.accountCosmeticUnlock.findMany({
     where: { accountId, key: { startsWith: DROP_KEY_PREFIX } },
     select: { key: true },
-  });
-  return new Set(rows.map((row) => row.key));
+    }),
+    shared ? shared.db.sharedCosmeticUnlock.findMany({
+      where: { accountId: shared.accountId, source: 'drop' },
+      select: { key: true },
+    }) : Promise.resolve([]),
+  ]);
+  return new Set([...rows, ...sharedRows].map((row) => row.key));
 }
 
 /** A player sees LIVE and VAULTED entries, owned ones whatever their state, and anything coming soon. */
@@ -416,18 +425,18 @@ function visible(entry: CatalogEntry | undefined, owned: boolean, upcoming: bool
 }
 
 export const DropCatalogService = {
-  async storefront(prisma: PrismaClient, accountId: string | null, now = new Date()): Promise<DropStorefrontDto> {
+  async storefront(prisma: PrismaClient, accountId: string | null, now = new Date(), shared?: SharedRuntime | null): Promise<DropStorefrontDto> {
     const [settings, catalog, owned, round, discount] = await Promise.all([
       DropSettingsService.get(prisma),
       loadCatalog(prisma, now),
-      ownedDropKeys(prisma, accountId),
+      ownedDropKeys(prisma, accountId, shared),
       RoundService.getCurrent(prisma),
       dropDiscountFor(prisma, accountId, now),
     ]);
     const switches = switchesFor(settings);
     const rotation = await rotationAt(prisma, settings, catalog, now);
     const upcomingKeys = new Set(rotation.upcoming.map((offer) => offer.refKey));
-    const wallet = accountId ? await CrownWalletService.view(prisma, accountId, round?.id ?? null, settings.roundEarnCap) : null;
+    const wallet = accountId ? await CrownWalletService.view(prisma, accountId, round?.id ?? null, settings.roundEarnCap, shared) : null;
     const items = Object.values(DROP_ITEMS)
       .filter((item) => visible(catalog.get(item.key), owned.has(item.key), upcomingKeys.has(item.key)))
       .map((item) => itemDto(item, catalog.get(item.key)!, owned));
@@ -458,12 +467,12 @@ export const DropCatalogService = {
     };
   },
 
-  async detail(prisma: PrismaClient, accountId: string | null, slug: string, now = new Date()): Promise<DropItemDetailDto> {
+  async detail(prisma: PrismaClient, accountId: string | null, slug: string, now = new Date(), shared?: SharedRuntime | null): Promise<DropItemDetailDto> {
     const key = `${DROP_KEY_PREFIX}${slug}`;
     const [settings, catalog, owned, discount] = await Promise.all([
       DropSettingsService.get(prisma),
       loadCatalog(prisma, now),
-      ownedDropKeys(prisma, accountId),
+      ownedDropKeys(prisma, accountId, shared),
       dropDiscountFor(prisma, accountId, now),
     ]);
     const rotation = await rotationAt(prisma, settings, catalog, now);
