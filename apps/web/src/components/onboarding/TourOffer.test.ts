@@ -35,7 +35,7 @@ describe('TourOffer', () => {
   it('resumes an active tour with the next step and a Guide me action', () => {
     const html = render({ ...base, active: true, step: 'produce', steps: steps(['accept-quest', 'scout', 'shop-supplies', 'grow-crew']) });
     expect(html).toContain('Next: Cook your first batch');
-    expect(html).toContain('4 of 8');
+    expect(html).toContain(`4 of ${TOUR_STEP_KEYS.length}`);
     expect(html).toContain('>Guide me</button>');
     expect(html).not.toContain('href="/game/produce"');
   });

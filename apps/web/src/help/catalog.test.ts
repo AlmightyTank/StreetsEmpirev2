@@ -68,8 +68,14 @@ describe('1.0.0-B help catalog', () => {
     };
     for (const key of TOUR_STEP_KEYS) {
       const copy = TOUR_STEPS[key];
-      const route = copy.to.split(/[?#]/)[0] ?? copy.to;
-      expect(sources[route], `${key} anchor in ${copy.to}`).toContain(`data-tour="${copy.target}"`);
+      const path = copy.to.split(/[?#]/)[0] ?? copy.to;
+      // Each store lives at /game/stores/:slug on the same page.
+      const route = path.startsWith('/game/stores/') ? '/game/stores' : path;
+      const source = sources[route] ?? '';
+      // Panels take the anchor as a `tourTarget` prop, so it can appear as a string literal.
+      const anchored = source.includes(`data-tour="${copy.target}"`)
+        || (source.includes('tourTarget') && source.includes(`'${copy.target}'`));
+      expect(anchored, `${key} anchor in ${copy.to}`).toBe(true);
     }
   });
 });

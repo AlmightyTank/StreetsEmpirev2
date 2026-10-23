@@ -4377,13 +4377,13 @@ button.se-notification-empty:hover { color: var(--se-text); }
 }
 
 .se-tour__scrim--full {
-  background: rgba(0, 0, 0, 0.45);
+  background: color-mix(in srgb, var(--se-overlay-mix) 45%, transparent);
 }
 
 .se-tour__scrim-pane {
   position: absolute;
   display: block;
-  background: rgba(0, 0, 0, 0.45);
+  background: color-mix(in srgb, var(--se-overlay-mix) 45%, transparent);
 }
 
 .se-tour__spotlight {
