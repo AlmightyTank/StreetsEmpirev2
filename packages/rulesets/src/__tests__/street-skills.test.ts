@@ -71,8 +71,8 @@ describe('street skills slice A catalog', () => {
     for (const key of ['STEADY_HANDS', 'KINGPINS_CUT', 'GHOST', 'TRIPWIRE', 'TOLL_BOOTH']) {
       expect(streetSkillPerk(STREET_SKILLS_V2, key)?.requires, key).toBeUndefined();
     }
-    expect(streetSkillPerk(STREET_SKILLS_V2, 'FAST_PASS')?.requires).toBeUndefined();
-    expect(streetSkillPerk(STREET_SKILLS_V2, 'INSIDE_LINE')?.requires).toBeUndefined();
+    expect(streetSkillPerk(STREET_SKILLS_V2, 'FAST_PASS')?.requires).toBe('Territory Rewards');
+    expect(streetSkillPerk(STREET_SKILLS_V2, 'INSIDE_LINE')?.requires).toBe('Territory Rewards');
   });
 
   it('pays fights that resolve later when they resolve, and setup actions at launch', () => {

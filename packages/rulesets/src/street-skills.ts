@@ -279,11 +279,11 @@ export const STREET_SKILLS_V2: StreetSkillsRules = {
       STREET_SKILLS_V1.milestones.CONNECTIONS![0]!,
       { threshold: 25, choices: [
         { key: 'TOLL_BOOTH', label: 'Toll Booth', description: 'Collect 10% more tolls on your alliance territory.', effect: { effectId: 'TOLL_COLLECTED', category: 'ECONOMY', percent: 10 } },
-        { key: 'FAST_PASS', label: 'Fast Pass', description: 'Halve non-holder access waits.' },
+        { key: 'FAST_PASS', label: 'Fast Pass', description: 'Halve non-holder access waits.', requires: TERRITORY },
       ] },
       { threshold: 40, choices: [
         STREET_SKILLS_V1.milestones.CONNECTIONS![2]!.choices[0],
-        { key: 'INSIDE_LINE', label: 'Inside Line', description: 'See who holds each locked place, and their toll, from any city.' },
+        { key: 'INSIDE_LINE', label: 'Inside Line', description: 'See who holds each locked place, and their toll, from any city.', requires: TERRITORY },
       ] },
     ],
   },

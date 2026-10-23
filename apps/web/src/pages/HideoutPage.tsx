@@ -501,7 +501,7 @@ export function HideoutPage() {
           <>
             <nav className="se-hideout-nav" aria-label="Hideout sections">
               <a href="#hideout-overview">Overview</a>
-              <a href="#hideout-stash">Stash</a>
+              <a href="#hideout-stash" onClick={() => setHideoutTab('stash')}>Stash</a>
               <a href="#hideout-look">Look</a>
               <a href="#hideout-upgrades">Upgrades <span>{formatNumber(readyRooms.length)}</span></a>
               {hasSecurity ? <a href="#hideout-security">Security</a> : null}

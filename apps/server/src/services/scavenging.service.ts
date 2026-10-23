@@ -108,7 +108,7 @@ export const ScavengingService = {
        caches: jsonCaches(player.scavengedCaches).filter((cache) => !cache.opened).map(cacheDto),
      };
   },
-  async addFinds(tx: Prisma.TransactionClient, roundPlayerId: string, player: { scavengedComponents: Prisma.JsonValue; scavengedCaches: Prisma.JsonValue }, districtKey: string, districtName: string, turns: number, rng = Math.random, telemetryDb?: PrismaClient): Promise<{ components: ScavengeComponentDto[]; cache: ScavengeCacheDto | null }> {
+  async addFinds(tx: Prisma.TransactionClient, roundPlayerId: string, player: { scavengedComponents: Prisma.JsonValue; scavengedCaches: Prisma.JsonValue }, districtKey: string, districtName: string, turns: number, rng = Math.random): Promise<{ components: ScavengeComponentDto[]; cache: ScavengeCacheDto | null }> {
     const theme = districtSupplyClue(districtKey).theme;
     const pool = eligiblePool(theme);
     const found: Record<string, number> = {};
@@ -126,9 +126,8 @@ export const ScavengingService = {
       const { StashService } = await import('./stash.service.js');
       const stash = await StashService.page(tx, roundPlayerId);
       const newStacks = Object.keys(found).filter((key) => !stash.items.some((item) => item.key === key));
-       if (newStacks.length > stash.totalCells - stash.usedCells) {
-         await recordHideoutEconomy(telemetryDb ?? tx, roundPlayerId, 'STASH_FULL', { quantity: newStacks.length, payload: { source: 'SCOUT', newStacks } });
-         throw AppError.conflict('STASH_FULL', 'There is no room in the stash for these scavenged components. Upgrade Storage or clear a slot.');
+        if (newStacks.length > stash.totalCells - stash.usedCells) {
+          throw AppError.conflict('STASH_FULL', 'There is no room in the stash for these scavenged components. Upgrade Storage or clear a slot.');
        }
     }
      await tx.roundPlayer.update({ where: { id: roundPlayerId }, data: { scavengedComponents: components as Prisma.InputJsonValue, scavengedCaches: caches as unknown as Prisma.InputJsonValue } });

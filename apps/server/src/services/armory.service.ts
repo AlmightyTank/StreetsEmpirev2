@@ -147,9 +147,29 @@ async function updateGunFlags(db: Db, roundPlayerId: string, gun: PlayerGun, fla
   });
 }
 
+function stableJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
+  if (value && typeof value === 'object') {
+    return `{${Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([key, entry]) => `${JSON.stringify(key)}:${stableJson(entry)}`).join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
+
 function combineKey(row: PlayerGun | PlayerVehicle, kind: 'GUN' | 'VEHICLE'): string {
-  const common = [row.model, row.name, row.condition, row.mods, row.lookKey, row.status];
-  return JSON.stringify(kind === 'GUN' && 'favorite' in row ? [...common, row.favorite, row.reserve] : common);
+  return stableJson({
+    kind,
+    model: row.model,
+    name: row.name,
+    condition: row.condition,
+    mods: row.mods,
+    lookKey: row.lookKey,
+    status: row.status,
+    origin: row.origin,
+    stats: row.stats,
+    history: row.history,
+    ...(kind === 'GUN' && 'favorite' in row ? { favorite: row.favorite, reserve: row.reserve } : {}),
+    ...(kind === 'VEHICLE' && 'plate' in row ? { plate: row.plate } : {}),
+  });
 }
 
 export const ArmoryService = {
