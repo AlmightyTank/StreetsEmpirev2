@@ -16,7 +16,7 @@ declare module 'fastify' {
  * point its rounds at production.
  */
 const entitlementsPlugin: FastifyPluginAsync = async (fastify) => {
-  if (!env.sharedEntitlements.enabled) {
+  if (!env.sharedEntitlements.databaseUrl) {
     configureSharedEntitlements(null);
     fastify.decorate('entitlements', null);
     return;
@@ -28,7 +28,10 @@ const entitlementsPlugin: FastifyPluginAsync = async (fastify) => {
     transactionOptions: { maxWait: 10_000, timeout: 15_000 },
   });
   await prisma.$connect();
-  configureSharedEntitlements(prisma);
+  // Keep the canonical connection available to player account linking
+  // before shared runtime mode is enabled. Wallet routes still obey the
+  // explicit SHARED_ENTITLEMENTS_ENABLED switch in sharedEntitlementRuntime.
+  configureSharedEntitlements(env.sharedEntitlements.enabled ? prisma : null);
   fastify.decorate('entitlements', prisma);
   fastify.addHook('onClose', async () => {
     configureSharedEntitlements(null);

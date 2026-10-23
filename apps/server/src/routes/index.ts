@@ -36,12 +36,14 @@ import admissionRoutes from './admission.routes.js';
 import empireInsightsRoutes from './empire-insights.routes.js';
 import rivalryRoutes from './rivalry.routes.js';
 import adminRivalryRoutes from './admin-rivalry.routes.js';
+import accountEntitlementsRoutes from './account-entitlements.routes.js';
 
 const routes: FastifyPluginAsync = async (fastify) => {
   await fastify.register(healthRoutes);
   await fastify.register(publicRoutes, { prefix: '/public' });
   await fastify.register(siteRoutes, { prefix: '/site' });
   await fastify.register(authRoutes, { prefix: '/auth' });
+  await fastify.register(accountEntitlementsRoutes, { prefix: '/account-entitlements' });
   await fastify.register(forumRoutes, { prefix: '/forum' });
   await fastify.register(supportRoutes, { prefix: '/support' });
   await fastify.register(supporterRoutes, { prefix: '/supporter' });

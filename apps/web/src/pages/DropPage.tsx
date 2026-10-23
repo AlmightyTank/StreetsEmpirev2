@@ -679,16 +679,60 @@ function ItemView() {
 function WalletView() {
   const [data, setData] = useState<DropWalletDetailDto | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [linkStatus, setLinkStatus] = useState<{ available: boolean; environment: string; status: 'unavailable' | 'not-linked' | 'pending' | 'linked' } | null>(null);
+  const [linkError, setLinkError] = useState<string | null>(null);
+  const [linkBusy, setLinkBusy] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
+  const [pairingCode, setPairingCode] = useState('');
+  const [issuedCode, setIssuedCode] = useState<{ code: string; expiresAt: string } | null>(null);
   const [params] = useSearchParams();
   useEffect(() => {
     dropApi.wallet().then(setData).catch((caught) => setError(errorText(caught)));
+    dropApi.accountLinkStatus().then(setLinkStatus).catch((caught) => setLinkError(errorText(caught)));
   }, []);
   const thanks = params.get('crowns') === 'thanks';
-  if (error) return <DropFrame wallet={null}><Alert>{error}</Alert></DropFrame>;
-  if (!data) return <DropFrame wallet={null}><Panel title="Wallet" loading>{null}</Panel></DropFrame>;
-  const { wallet } = data;
+  const wallet = data?.wallet ?? null;
+  const beginLink = async () => {
+    setLinkBusy(true); setLinkError(null);
+    try {
+      const result = await dropApi.startAccountLink(confirmed);
+      setIssuedCode({ code: result.code, expiresAt: result.expiresAt });
+      setLinkStatus({ available: true, environment: 'beta', status: 'pending' });
+    } catch (caught) { setLinkError(errorText(caught)); }
+    finally { setLinkBusy(false); }
+  };
+  const finishLink = async () => {
+    setLinkBusy(true); setLinkError(null);
+    try {
+      await dropApi.completeAccountLink(pairingCode, confirmed);
+      setIssuedCode(null); setPairingCode('');
+      const [status, walletData] = await Promise.all([dropApi.accountLinkStatus(), dropApi.wallet()]);
+      setLinkStatus(status); setData(walletData); setError(null);
+    } catch (caught) { setLinkError(errorText(caught)); }
+    finally { setLinkBusy(false); }
+  };
   return (
     <DropFrame wallet={wallet}>
+      <Panel title="Link your beta and main accounts" subtitle="Use this on both environments to combine your Drop Crowns and cosmetics.">
+        <p className="se-hint">This is permanent. It combines only The Drop balances and Drop cosmetics. You must control both accounts; we never match accounts by username or email.</p>
+        {linkError ? <Alert tone="warning">{linkError}</Alert> : null}
+        {!linkStatus ? <p className="se-hint">Checking account link…</p> : !linkStatus.available ? <p className="se-hint">Account linking is not configured on this environment yet.</p> : linkStatus.status === 'linked' ? <Alert tone="success" title="Accounts linked">Your beta and main Drop wallet now use the same Crowns and cosmetics.</Alert> : linkStatus.status === 'pending' || (linkStatus.environment === 'production' && linkStatus.status === 'not-linked') ? (
+          <div><p className="se-hint">A beta pairing code is waiting to be used on main. Codes expire after 48 hours.</p>
+            {issuedCode ? <><label htmlFor="drop-pairing-code">Pairing code</label><input id="drop-pairing-code" readOnly value={issuedCode.code} onFocus={(event) => event.currentTarget.select()} /><p className="se-hint">Expires {new Date(issuedCode.expiresAt).toLocaleString()} · Copy this code, sign into main, and enter it there.</p></> : null}
+            {linkStatus.environment === 'production' ? <><label htmlFor="drop-pairing-entry">Beta pairing code</label><input id="drop-pairing-entry" value={pairingCode} onChange={(event) => setPairingCode(event.target.value)} autoComplete="off" />
+              <label><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} /> I control both accounts and want to permanently link them.</label>
+              <button type="button" disabled={!confirmed || !pairingCode.trim() || linkBusy} onClick={() => void finishLink()}>{linkBusy ? 'Linking…' : 'Link accounts'}</button></> : null}
+            {linkStatus.environment === 'beta' && !issuedCode ? <><label><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} /> I control the beta account I’m signed into and the main account I’ll use to redeem this code. I want to permanently link them.</label>
+              <button type="button" disabled={!confirmed || linkBusy} onClick={() => void beginLink()}>{linkBusy ? 'Creating code…' : 'Create a new pairing code'}</button></> : null}
+          </div>
+        ) : linkStatus.environment === 'beta' ? (
+          <div><label><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} /> I control the beta account I’m signed into and the main account I’ll use to redeem this code. I want to permanently link them.</label>
+            <button type="button" disabled={!confirmed || linkBusy} onClick={() => void beginLink()}>{linkBusy ? 'Creating code…' : 'Create pairing code'}</button></div>
+        ) : <p className="se-hint">To link, sign into the beta account first and create a pairing code. Then sign into this main account and redeem it here.</p>}
+      </Panel>
+      {error && !data ? <Alert>{error}</Alert> : null}
+      {!data ? <Panel title="Wallet" loading>{null}</Panel> : null}
+      {data && wallet ? <>
       {thanks ? (
         <Alert tone="success" title="Thanks for your purchase">
           Your Crowns land as soon as the payment is confirmed, usually within a minute. They show in the history below.
@@ -755,6 +799,7 @@ function WalletView() {
           <p className="se-hint">Payment questions? Open a ticket from <Link to="/game/status">Status & Support</Link> with the order number.</p>
         </Panel>
       </div>
+      </> : null}
     </DropFrame>
   );
 }
