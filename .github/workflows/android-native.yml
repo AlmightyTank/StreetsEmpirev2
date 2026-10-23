@@ -11,14 +11,45 @@ on:
     paths:
       - "android/**"
       - ".github/workflows/android-native.yml"
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: App to release (beta → StreetsEmpire Beta, live → StreetsEmpire)
+        type: choice
+        required: true
+        default: beta
+        options:
+          - beta
+          - live
+      play_track:
+        description: Play track to upload to when Play publishing is configured
+        type: choice
+        required: true
+        default: internal
+        options:
+          - internal
+          - alpha
+          - beta
+          - production
 
 permissions:
   contents: read
 
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
+  # Every PR and push compiles both apps, debug and minified release, so an R8
+  # or flavor-specific break shows up before anything is released.
   build-android:
+    name: Build ${{ matrix.flavor }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        flavor: [Beta, Production]
     steps:
       - uses: actions/checkout@v4
       - name: Install Java 17
@@ -26,16 +57,169 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-      - name: Install API 35 SDK
+      - name: Install API 36 SDK
         run: |
           SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)"
           test -n "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null
-          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
+          "$SDKMANAGER" "platforms;android-36" "build-tools;35.0.0"
       - name: Use runner Android SDK path
         run: printf 'sdk.dir=%s\n' "$ANDROID_HOME" > android/local.properties
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
-      - name: Compile native Android beta APK
+      - name: Compile ${{ matrix.flavor }} debug APK and unsigned release bundle
         working-directory: android
-        run: bash ./gradlew :app:assembleBetaDebug --no-daemon --stacktrace
+        run: >-
+          bash ./gradlew
+          :app:assemble${{ matrix.flavor }}Debug
+          :app:bundle${{ matrix.flavor }}Release
+          --no-daemon --stacktrace
+      - name: Upload ${{ matrix.flavor }} debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-${{ matrix.flavor }}-debug-apk
+          path: android/app/build/outputs/apk/*/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14
+
+  # Pushes to beta release the beta app; pushes to main release the live app.
+  # Manual runs pick the app and the Play track.
+  release-android:
+    name: Release ${{ ((github.event_name == 'workflow_dispatch' && inputs.environment == 'live') || (github.event_name == 'push' && github.ref_name == 'main')) && 'live' || 'beta' }}
+    needs: build-android
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      ANDROID_RELEASE_KEYSTORE_BASE64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}
+      ANDROID_RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_STORE_PASSWORD }}
+      ANDROID_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}
+      ANDROID_RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEY_PASSWORD }}
+      PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+      PLAY_GAMES_PROJECT_ID: ${{ vars.PLAY_GAMES_PROJECT_ID }}
+      PLAY_GAMES_WEB_CLIENT_ID: ${{ vars.PLAY_GAMES_WEB_CLIENT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pick app variant
+        id: variant
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+          INPUT_ENVIRONMENT: ${{ inputs.environment }}
+          INPUT_TRACK: ${{ inputs.play_track }}
+        run: |
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            environment="$INPUT_ENVIRONMENT"
+            track="$INPUT_TRACK"
+          elif [ "$REF_NAME" = "main" ]; then
+            environment="live"
+            track="internal"
+          else
+            environment="beta"
+            track="internal"
+          fi
+          if [ "$environment" = "live" ]; then
+            flavor="Production"; package="dev.streetsempire.app"
+          else
+            flavor="Beta"; package="dev.streetsempire.app.beta"
+          fi
+          variant="$(printf '%s' "$flavor" | tr '[:upper:]' '[:lower:]')Release"
+          {
+            echo "environment=$environment"
+            echo "flavor=$flavor"
+            echo "variant=$variant"
+            echo "package=$package"
+            echo "track=$track"
+            # Above the hand-built versionCode 9 and increasing on every run.
+            echo "version_code=$((100 + GITHUB_RUN_NUMBER))"
+          } >> "$GITHUB_OUTPUT"
+      - name: Check signing secrets
+        id: signing
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          missing=""
+          for name in ANDROID_RELEASE_KEYSTORE_BASE64 ANDROID_RELEASE_STORE_PASSWORD ANDROID_RELEASE_KEY_ALIAS ANDROID_RELEASE_KEY_PASSWORD; do
+            if [ -z "${!name}" ]; then missing="$missing $name"; fi
+          done
+          if [ -z "$missing" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "ready=false" >> "$GITHUB_OUTPUT"
+          message="Missing repository secrets:$missing. Add them under Settings → Secrets and variables → Actions to build a signed bundle Play will accept."
+          # A manual release cannot do its job without signing; automatic
+          # pushes skip the release quietly until the secrets exist.
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "::error::$message"
+            exit 1
+          fi
+          echo "::warning::$message Skipping the signed release."
+      - name: Restore upload keystore
+        if: steps.signing.outputs.ready == 'true'
+        run: |
+          printf '%s' "$ANDROID_RELEASE_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/upload.jks"
+          echo "ANDROID_RELEASE_STORE_FILE=$RUNNER_TEMP/upload.jks" >> "$GITHUB_ENV"
+      - name: Install Java 17
+        if: steps.signing.outputs.ready == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Install API 36 SDK
+        if: steps.signing.outputs.ready == 'true'
+        run: |
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)"
+          test -n "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null
+          "$SDKMANAGER" "platforms;android-36" "build-tools;35.0.0"
+      - name: Use runner Android SDK path
+        if: steps.signing.outputs.ready == 'true'
+        run: printf 'sdk.dir=%s\n' "$ANDROID_HOME" > android/local.properties
+      - name: Set up Gradle
+        if: steps.signing.outputs.ready == 'true'
+        uses: gradle/actions/setup-gradle@v4
+      - name: Build signed ${{ steps.variant.outputs.environment }} bundle
+        if: steps.signing.outputs.ready == 'true'
+        working-directory: android
+        env:
+          ANDROID_VERSION_CODE: ${{ steps.variant.outputs.version_code }}
+        run: >-
+          bash ./gradlew
+          :app:bundle${{ steps.variant.outputs.flavor }}Release
+          :app:zip${{ steps.variant.outputs.flavor }}ReleaseNativeSymbols
+          --no-daemon --stacktrace
+      - name: Verify bundle signature
+        if: steps.signing.outputs.ready == 'true'
+        run: |
+          bundle="$(ls android/app/build/outputs/bundle/${{ steps.variant.outputs.variant }}/*.aab)"
+          jarsigner -verify "$bundle" | tee "$RUNNER_TEMP/verify.txt"
+          grep -q "jar verified" "$RUNNER_TEMP/verify.txt"
+      - name: Upload bundle artifact
+        if: steps.signing.outputs.ready == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-${{ steps.variant.outputs.environment }}-aab-${{ steps.variant.outputs.version_code }}
+          path: |
+            android/app/build/outputs/bundle/${{ steps.variant.outputs.variant }}/*.aab
+            android/app/build/outputs/mapping/${{ steps.variant.outputs.variant }}/mapping.txt
+            android/app/build/outputs/native-debug-symbols-upload/${{ steps.variant.outputs.variant }}/native-debug-symbols.zip
+          if-no-files-found: error
+          retention-days: 30
+      - name: Publish to Google Play (${{ steps.variant.outputs.track }})
+        if: steps.signing.outputs.ready == 'true' && env.PLAY_SERVICE_ACCOUNT_JSON != ''
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: ${{ steps.variant.outputs.package }}
+          releaseFiles: android/app/build/outputs/bundle/${{ steps.variant.outputs.variant }}/*.aab
+          track: ${{ steps.variant.outputs.track }}
+          status: completed
+          mappingFile: android/app/build/outputs/mapping/${{ steps.variant.outputs.variant }}/mapping.txt
+          debugSymbols: android/app/build/outputs/native-debug-symbols-upload/${{ steps.variant.outputs.variant }}/native-debug-symbols.zip
+      - name: Note skipped Play upload
+        if: steps.signing.outputs.ready == 'true' && env.PLAY_SERVICE_ACCOUNT_JSON == ''
+        run: echo "::notice::PLAY_SERVICE_ACCOUNT_JSON is not set; the signed bundle is attached to this run as an artifact for manual upload."
+      - name: Remove keystore
+        if: always()
+        run: rm -f "$RUNNER_TEMP/upload.jks"

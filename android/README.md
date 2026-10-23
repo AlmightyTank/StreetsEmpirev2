@@ -74,6 +74,40 @@ keytool -genkeypair -v -keystore C:\secure\streets-empire-upload.jks `
 Back up the keystore and both passwords securely. Losing the upload key can
 block future Play updates.
 
+## CI builds and releases
+
+`.github/workflows/android-native.yml` runs on every PR and push to `beta` or
+`main` that touches `android/`:
+
+- **Build Beta / Build Production** compile each app's debug APK and minified
+  release bundle. Debug APKs are attached to the run for sideloading.
+- **Release beta** (push to `beta`) and **Release live** (push to `main`) build
+  a signed `.aab`, verify its signature, and attach it to the run together
+  with `mapping.txt` and the native symbols ZIP. CI sets `versionCode` to
+  `100 + run number`, so each bundle is newer than the last; locally you can
+  set `ANDROID_VERSION_CODE` to do the same.
+- **Run workflow** (Actions tab) releases either app on demand, to a Play track
+  you choose.
+
+Repository secrets (Settings → Secrets and variables → Actions):
+
+| Secret | Value |
+| --- | --- |
+| `ANDROID_RELEASE_KEYSTORE_BASE64` | `base64 -w0 streets-empire-upload.jks` (PowerShell: `[Convert]::ToBase64String([IO.File]::ReadAllBytes('C:\secure\streets-empire-upload.jks'))`) |
+| `ANDROID_RELEASE_STORE_PASSWORD` | Keystore password |
+| `ANDROID_RELEASE_KEY_ALIAS` | `streets-empire-upload` |
+| `ANDROID_RELEASE_KEY_PASSWORD` | Key password |
+| `PLAY_SERVICE_ACCOUNT_JSON` | Optional. Play Console service-account JSON with release permission; when set, bundles upload to Play automatically |
+
+Repository variables `PLAY_GAMES_PROJECT_ID` and `PLAY_GAMES_WEB_CLIENT_ID` are
+passed to release builds the same way as local Gradle properties.
+
+Until the signing secrets exist, automatic release jobs skip with a warning;
+a manual run fails. Pushes publish to the `internal` track; promote to
+production from Play Console, or use a manual run with `production`. Play only
+accepts API uploads for an app that already exists, so upload the first
+bundle of `dev.streetsempire.app.beta` by hand in Play Console.
+
 ## Google Play supporter setup
 
 1. Create the app in Play Console with package `dev.streetsempire.app`.

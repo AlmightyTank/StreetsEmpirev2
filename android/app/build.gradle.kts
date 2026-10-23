@@ -23,6 +23,12 @@ val playGamesProjectId = System.getenv("PLAY_GAMES_PROJECT_ID")
 val playGamesWebClientId = System.getenv("PLAY_GAMES_WEB_CLIENT_ID")
     ?: providers.gradleProperty("PLAY_GAMES_WEB_CLIENT_ID").orNull
     ?: ""
+// CI release builds pass a unique, increasing versionCode so every uploaded
+// bundle is accepted by Play; local builds keep the default below.
+val versionCodeOverride = (System.getenv("ANDROID_VERSION_CODE")
+    ?: providers.gradleProperty("ANDROID_VERSION_CODE").orNull)
+    ?.takeIf { it.isNotBlank() }
+    ?.toInt()
 
 android {
     namespace = "dev.streetsempire.app"
@@ -32,7 +38,7 @@ android {
         applicationId = "dev.streetsempire.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 9
+        versionCode = versionCodeOverride ?: 9
         versionName = "1.0.9"
     }
 
