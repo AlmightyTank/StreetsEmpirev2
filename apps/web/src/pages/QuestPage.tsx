@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate, useLocation } from 'react-router-dom';
 import {
   formatCents,
@@ -174,6 +174,7 @@ function ProgressLine({
 function QuestCard({
   quest,
   page,
+  trackedCount,
   busy,
   onAccept,
   onClaim,
@@ -187,6 +188,7 @@ function QuestCard({
   featured?: boolean;
   focused?: boolean;
   page: QuestPageDto;
+  trackedCount: number;
   busy: string | null;
   nowMs: number;
   onAccept: (key: string) => void;
@@ -195,7 +197,6 @@ function QuestCard({
   onAbandon: (key: string) => void;
 }) {
   const active = quest.status === 'ACTIVE' || quest.status === 'READY_TO_TURN_IN';
-  const trackedCount = page.quests.filter((item) => item.isTracked).length;
   const [showDetails, setShowDetails] = useState(featured || focused || (quest.status === 'READY_TO_TURN_IN' && quest.branchChoices.length > 0));
   const primaryObjective = quest.objectives.find((item) => !item.bonus && !item.completed)
     ?? quest.objectives.find((item) => !item.bonus);
@@ -464,6 +465,7 @@ export function QuestPage() {
   const [careerLens, setCareerLens] = useState(true);
   const [boardFilter, setBoardFilter] = useState<QuestBoardFilter>('all');
   const [boardSearch, setBoardSearch] = useState('');
+  const pageLoadInFlight = useRef<Promise<QuestPageDto | null> | null>(null);
 
   const applyPage = useCallback((
     next: QuestPageDto,
@@ -476,18 +478,26 @@ export function QuestPage() {
     setPage(next);
   }, []);
 
-  const load = useCallback(async () => {
-    const requestStartedAtMs = Date.now();
-    try {
-      const next = await questsApi.page();
-      const responseReceivedAtMs = Date.now();
-      applyPage(next, requestStartedAtMs, responseReceivedAtMs);
-      setError(null);
-      return next;
-    } catch {
-      setError('Could not load jobs right now. Try again.');
-      return null;
-    }
+  const load = useCallback(() => {
+    if (pageLoadInFlight.current) return pageLoadInFlight.current;
+    const pending = (async () => {
+      const requestStartedAtMs = Date.now();
+      try {
+        const next = await questsApi.page();
+        const responseReceivedAtMs = Date.now();
+        applyPage(next, requestStartedAtMs, responseReceivedAtMs);
+        setError(null);
+        return next;
+      } catch {
+        setError('Could not load jobs right now. Try again.');
+        return null;
+      }
+    })();
+    pageLoadInFlight.current = pending;
+    void pending.finally(() => {
+      if (pageLoadInFlight.current === pending) pageLoadInFlight.current = null;
+    });
+    return pending;
   }, [applyPage]);
 
   useEffect(() => {
@@ -508,11 +518,18 @@ export function QuestPage() {
   }, [load]);
 
   useEffect(() => {
-    const timer = window.setInterval(
-      () => setNowMs(serverAdjustedNowMs(Date.now(), clockOffsetMs)),
-      1_000,
-    );
-    return () => window.clearInterval(timer);
+    let interval: number | undefined;
+    const firstTick = window.setTimeout(() => {
+      setNowMs(serverAdjustedNowMs(Date.now(), clockOffsetMs));
+      interval = window.setInterval(
+        () => setNowMs(serverAdjustedNowMs(Date.now(), clockOffsetMs)),
+        60_000,
+      );
+    }, 60_000 - (Date.now() % 60_000));
+    return () => {
+      window.clearTimeout(firstTick);
+      if (interval !== undefined) window.clearInterval(interval);
+    };
   }, [clockOffsetMs]);
 
   useEffect(() => {
@@ -590,6 +607,10 @@ export function QuestPage() {
 
   const trackedToday = useMemo(
     () => page?.quests.filter((quest) => quest.isTracked && ['ACTIVE', 'READY_TO_TURN_IN'].includes(quest.status)) ?? [],
+    [page],
+  );
+  const trackedCount = useMemo(
+    () => page?.quests.filter((quest) => quest.isTracked).length ?? 0,
     [page],
   );
 
@@ -750,6 +771,7 @@ export function QuestPage() {
       key={quest.key + ':' + quest.attempt}
       quest={quest}
       page={page}
+      trackedCount={trackedCount}
       featured={featured}
       focused={focusKey === quest.key}
       busy={busy ? 'Another job update is still going through.' : null}
