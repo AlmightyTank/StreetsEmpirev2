@@ -121,18 +121,22 @@ async function refund(tx: Db, order: CrownPackOrder, full: boolean, at: Date): P
   const wallet = await lockCrownWallet(tx, order.accountId);
   const balance = await getSharedCrownBalance(order.accountId) ?? wallet.balance;
   if (full && balance >= order.crowns) {
-    await CrownWalletService.apply(tx, {
-      accountId: order.accountId,
-      kind: 'REVERSAL',
-      delta: -order.crowns,
-      source: 'refund',
-      externalRef: `refund:${order.id}`,
-      reason: `Refunded ${order.packId} pack`,
-      metadata: { orderId: order.id },
-      allowHeld: true,
-    });
-    await tx.crownPackOrder.update({ where: { id: order.id }, data: { status: 'refunded', refundedAt: at, lastEventAt: at } });
-    return 'applied';
+    try {
+      await CrownWalletService.apply(tx, {
+        accountId: order.accountId,
+        kind: 'REVERSAL',
+        delta: -order.crowns,
+        source: 'refund',
+        externalRef: `refund:${order.id}`,
+        reason: `Refunded ${order.packId} pack`,
+        metadata: { orderId: order.id },
+        allowHeld: true,
+      });
+      await tx.crownPackOrder.update({ where: { id: order.id }, data: { status: 'refunded', refundedAt: at, lastEventAt: at } });
+      return 'applied';
+    } catch (error) {
+      if (!(error instanceof AppError) || error.code !== 'INSUFFICIENT_CROWNS') throw error;
+    }
   }
   await CrownWalletService.hold(tx, order.accountId, `Refund on Crown pack order ${order.id} needs review.`, at);
   await tx.crownPackOrder.update({ where: { id: order.id }, data: { status: 'refund_review', refundedAt: at, lastEventAt: at } });

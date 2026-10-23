@@ -329,18 +329,22 @@ export const GooglePlayBillingService = {
       const wallet = await lockCrownWallet(tx, order.accountId);
       const balance = await getSharedCrownBalance(order.accountId) ?? wallet.balance;
       if (full && balance >= order.crowns) {
-        await CrownWalletService.apply(tx, {
-          accountId: order.accountId,
-          kind: 'REVERSAL',
-          delta: -order.crowns,
-          source: 'refund',
-          externalRef: `play-refund:${purchaseToken}`,
-          reason: `Refunded ${order.packId} pack (Google Play)`,
-          metadata: { purchaseToken, orderId: order.orderId, provider: 'google_play' },
-          allowHeld: true,
-        });
-        await tx.googlePlayCrownPackOrder.update({ where: { purchaseToken }, data: { status: 'refunded', refundedAt: at, lastVerifiedAt: at } });
-        return 'applied';
+        try {
+          await CrownWalletService.apply(tx, {
+            accountId: order.accountId,
+            kind: 'REVERSAL',
+            delta: -order.crowns,
+            source: 'refund',
+            externalRef: `play-refund:${purchaseToken}`,
+            reason: `Refunded ${order.packId} pack (Google Play)`,
+            metadata: { purchaseToken, orderId: order.orderId, provider: 'google_play' },
+            allowHeld: true,
+          });
+          await tx.googlePlayCrownPackOrder.update({ where: { purchaseToken }, data: { status: 'refunded', refundedAt: at, lastVerifiedAt: at } });
+          return 'applied';
+        } catch (error) {
+          if (!(error instanceof AppError) || error.code !== 'INSUFFICIENT_CROWNS') throw error;
+        }
       }
       await CrownWalletService.hold(tx, order.accountId, `Refund on Google Play Crown pack ${order.orderId ?? purchaseToken} needs review.`, at);
       await tx.googlePlayCrownPackOrder.update({ where: { purchaseToken }, data: { status: 'refund_review', refundedAt: at, lastVerifiedAt: at } });
