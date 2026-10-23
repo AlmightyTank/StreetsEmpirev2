@@ -834,6 +834,15 @@ async function refreshAvailability(
     })
     : [];
   const completedRows = existing.filter((row) => row.status === 'COMPLETED');
+  // Rows are ordered newest attempt first, so keep the first row per quest.
+  // The catalog and a player's history can both be large; avoid rescanning all
+  // attempts for every definition below.
+  const latestByDefinitionId = new Map<string, typeof existing[number]>();
+  for (const row of existing) {
+    if (!latestByDefinitionId.has(row.questDefinitionId)) {
+      latestByDefinitionId.set(row.questDefinitionId, row);
+    }
+  }
   const completed = new Set(completedRows.map((row) => row.questDefinition.key));
   const chosenBranches = Object.fromEntries(
     completedRows
@@ -851,7 +860,7 @@ async function refreshAvailability(
   for (const definitionRow of questDefinitions) {
     const definition = (ruleset.questDefinitions ?? {})[definitionRow.key];
     if (!definition || isRotatingBoardDefinition(definition)) continue;
-    const current = existing.find((row) => row.questDefinitionId === definitionRow.id);
+    const current = latestByDefinitionId.get(definitionRow.id);
     const seasonalAvailable = seasonalEventAvailable(definition, now, adminTestMode);
     const available = seasonalAvailable && questPrerequisitesMet(definition, completed, reps, chosenBranches, tiers, gateContext);
     if (!current) {
