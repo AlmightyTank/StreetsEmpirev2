@@ -96,11 +96,22 @@ function fixture(rowOverrides: Partial<Row> = {}) {
       aggregate: async () => ({ _sum: { theoBasis: null } }),
     },
     playerQuest: {
-      findMany: async () => row.status === 'ACTIVE' || row.status === 'READY_TO_TURN_IN' ? [{ id: row.id }] : [],
+      findMany: async (args?: { select?: { questDefinition?: unknown }; where?: { id?: { in?: string[] } } }) => {
+        const active = row.status === 'ACTIVE' || row.status === 'READY_TO_TURN_IN';
+        if (!active) return [];
+        if (args?.where?.id?.in) return args.where.id.in.includes(row.id) ? [row] : [];
+        if (args?.select?.questDefinition) return [row];
+        return [{ id: row.id }];
+      },
       findUnique: async () => row,
       update: async ({ data }: { data: Record<string, unknown> }) => {
         Object.assign(row, data);
         return row;
+      },
+      updateMany: async ({ where, data }: { where: { id: { in: string[] } }; data: Record<string, unknown> }) => {
+        if (!where.id.in.includes(row.id)) return { count: 0 };
+        Object.assign(row, data);
+        return { count: 1 };
       },
     },
     playerActivity: {
@@ -215,6 +226,7 @@ describe('QuestProgressService', () => {
       payload: { quantity: 100 },
     });
 
+    expect(result.considered).toBe(0);
     expect(result.matched).toBe(0);
     expect(result.advanced).toBe(0);
     expect(receipts.size).toBe(0);

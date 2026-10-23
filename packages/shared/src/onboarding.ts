@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { StreetSignDesign } from './street-sign.js';
 
 /**
  * 1.0.0-B. Onboarding and player education.
@@ -20,7 +21,7 @@ export const ONBOARDING_PAGE_KEYS = [
 export type OnboardingPageKey = (typeof ONBOARDING_PAGE_KEYS)[number];
 
 /** Instructional goals, not quests: nothing is rewarded, and they can be dismissed. */
-export const ONBOARDING_GUIDE_STEPS = ['scout', 'recruit', 'restock', 'produce', 'weapon'] as const;
+export const ONBOARDING_GUIDE_STEPS = ['meet_contact', 'open_front', 'face_encounter', 'choose_career'] as const;
 export type OnboardingGuideStepKey = (typeof ONBOARDING_GUIDE_STEPS)[number];
 
 /**
@@ -29,8 +30,10 @@ export type OnboardingGuideStepKey = (typeof ONBOARDING_GUIDE_STEPS)[number];
  * objectives, never from the tour itself.
  */
 export const TOUR_STEP_KEYS = [
+  'build-street-sign',
   'accept-quest',
   'scout',
+  'complete-quest',
   'shop-supplies',
   'grow-crew',
   'produce',
@@ -64,6 +67,8 @@ export interface OnboardingStateDto {
     /** First incomplete step key, or null when complete. */
     step: TourStepKey | null;
     steps: Array<{ key: TourStepKey; done: boolean }>;
+    /** One-time Make Your Mark reveal for this round; null after dismissal or without a valid sign. */
+    signRecap?: StreetSignDesign | null;
   } | null;
 }
 
@@ -79,5 +84,6 @@ export const onboardingActionSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('advance-tour'), step: z.enum(TOUR_STEP_KEYS) }).strict(),
   z.object({ action: z.literal('dismiss-tour') }).strict(),
   z.object({ action: z.literal('restore-tour') }).strict(),
+  z.object({ action: z.literal('dismiss-sign-recap') }).strict(),
 ]);
 export type OnboardingActionInput = z.infer<typeof onboardingActionSchema>;

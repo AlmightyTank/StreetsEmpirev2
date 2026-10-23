@@ -2,10 +2,12 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Link, Navigate, useLocation } from 'react-router-dom';
 import type { HappinessTermDto, RoundDto, RoundOverDto, RoundPlayerDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
+import { cityHoldingsEnabled, rulesets } from '@streets/rulesets';
 import { ActivityFeed } from '../components/ActivityFeed.js';
 import { NavIcon } from '../components/NavIcon.js';
 import type { IconName } from '../layouts/gameNav.js';
 import { DashboardStorySpotlight } from '../components/DashboardStorySpotlight.js';
+import { DashboardCaseSpotlight } from '../components/DashboardCaseSpotlight.js';
 import { ItemTile } from '../components/ItemTile.js';
 import { hasItemArt } from '../items/itemArt.js';
 import { Alert } from '../components/Alert.js';
@@ -21,8 +23,8 @@ import { CasePanel } from '../components/CasePanel.js';
 import { PendingEncountersPanel } from '../components/PendingEncountersPanel.js';
 import { formatClockTime, formatDate, formatDuration, formatWhen } from '../utils/time.js';
 import { dashboardAttentionState, dashboardDisclosureForHash } from '../utils/dashboardAttention.js';
-import { GettingStarted } from '../components/onboarding/GettingStarted.js';
 import { TourOffer } from '../components/onboarding/TourOffer.js';
+import { useOnboarding } from '../stores/onboarding.js';
 
 function RankMovement({ movement }: { movement: number | null }) {
   if (movement === null || movement === 0) {
@@ -339,6 +341,10 @@ function HideoutPanel({ hideout }: { hideout: RoundPlayerDto['hideout'] }) {
 }
 
 function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
+  const holdingsAvailable = useSession((s) => {
+    const ruleset = s.round ? rulesets[s.round.rulesetId] : undefined;
+    return ruleset ? cityHoldingsEnabled(ruleset) : false;
+  });
   const activity = useSession((s) => s.recentActivity);
   const { refreshing, error, refresh } = useLiveDashboard();
   const [showAllAlerts, setShowAllAlerts] = useState(false);
@@ -354,17 +360,6 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
     if (disclosure === 'happiness') setShowHappinessDetails(true);
     if (disclosure === 'pressure') setShowPressureDetails(true);
   }, [disclosure, location.key]);
-  useEffect(() => {
-    if (!disclosure) return;
-    const frame = window.requestAnimationFrame(() => {
-      const target = document.getElementById(location.hash.slice(1));
-      if (target && !target.closest('details:not([open])')) {
-        target.scrollIntoView({ block: 'start', behavior: 'instant' });
-      }
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, [disclosure, location.hash, location.key, showCrewDetails, showHappinessDetails, showPressureDetails]);
-
   const homeWeapons =
     me.resources.pistols + me.resources.shotguns + me.resources.tek9s + me.resources.ak47s;
   const postedWeapons = me.turf?.postedGuns.total ?? 0;
@@ -395,6 +390,8 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
         {me.products ? null : <DashboardMetric label="Product" art="CRACK" value={formatNumber(me.resources.product)} />}
         <DashboardMetric label="Beer" art="BEER" value={formatNumber(me.resources.beer)} />
         <DashboardMetric label="Medicine" art="MEDICINE" value={formatNumber(me.resources.medicine)} />
+        {me.resources.ammo !== undefined ? <DashboardMetric label="Ammo" value={formatNumber(me.resources.ammo)} detail="Rounds" /> : null}
+        {me.resources.vehicleParts !== undefined ? <DashboardMetric label="Parts" value={formatNumber(me.resources.vehicleParts)} detail="Vehicle repair" /> : null}
       </div>
     </Panel>
   );
@@ -423,7 +420,6 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
 
         {error ? <Alert>{error}</Alert> : null}
 
-        <GettingStarted />
         <TourOffer />
         <PendingEncountersPanel encounters={me.pendingEncounters} />
         <div className="se-dashboard-snapshot" aria-label="Empire at a glance">
@@ -461,6 +457,7 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
         </div>
         <section className="se-dashboard-overview" aria-label="Main story and important alerts">
           <DashboardStorySpotlight />
+          <DashboardCaseSpotlight />
           <div className={`se-dashboard-command__attention${attentionCount ? ' se-dashboard-command__attention--alerts' : ''}${criticalAttention ? ' se-dashboard-command__attention--urgent' : ''}`}>
             <div className="se-dashboard-sectionhead">
               <div>
@@ -795,6 +792,7 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
           </div>
 
           <div className="se-dashboard-controlgrid">
+            {holdingsAvailable ? <p><Link className="se-dashboard-holdings-link" to="/game/holdings">View city holdings →</Link></p> : null}
             <div className="se-dashboard-stack">
               <HeatPanel />
               <CasePanel />
@@ -847,7 +845,18 @@ export function DashboardPage() {
   const roundOver = useSession((s) => s.roundOver);
   const round = useSession((s) => s.round);
   const canJoin = useSession((s) => s.canJoin);
+  const onboardingLoaded = useOnboarding((s) => s.loadedFor === me?.id);
 
+  if (me && !onboardingLoaded) {
+    return (
+      <GameLayout>
+        <div className="se-dashboard-loading" role="status" aria-live="polite">
+          <span className="se-loading" aria-hidden="true" />
+          <span>Preparing Command Center…</span>
+        </div>
+      </GameLayout>
+    );
+  }
   if (me) return <LiveDashboardPage me={me} />;
   if (roundOver) return <RoundOverScreen roundOver={roundOver} nextRound={round} canJoin={canJoin} />;
 

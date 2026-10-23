@@ -59,6 +59,11 @@ export interface CrewMemberRow {
   assignmentRef: string | null;
   experiencePoints: number;
   dealerStaffId: string | null;
+  /** Evidence-based narrative identity survives release and reconciliation. */
+  loyaltyPoints?: number;
+  nicknameKey?: string | null;
+  apprenticeship?: { id: string } | null;
+  mentoringBonds?: ReadonlyArray<{ id: string }>;
 }
 
 export interface CrewTarget extends CrewPlace {
@@ -187,6 +192,8 @@ export function crewTargets(counts: CrewCounts, refs: CrewRefs): CrewTarget[] {
   });
   const runners = takeBusy(refs.runners ?? []);
   build('THUG', counts.thugs + physicalAway, [
+    // Hurt thugs are away first, so a job cannot keep someone the counts say is wounded.
+    { status: 'RECOVERING', assignmentKind: null, assignmentRef: null, count: counts.woundedThugs },
     ...careers.map((career) => ({
       status: 'ASSIGNED' as const, assignmentKind: 'DEALER' as const, assignmentRef: career.crewId, count: 1,
       staffId: career.staffId, staffExperience: career.experiencePoints,
@@ -200,7 +207,6 @@ export function crewTargets(counts: CrewCounts, refs: CrewRefs): CrewTarget[] {
     ...escorts.map((row) => ({ status: 'ASSIGNED' as const, assignmentKind: 'ESCORT' as const, assignmentRef: row.runId, count: row.count })),
     ...runners.map((row) => ({ status: 'ASSIGNED' as const, assignmentKind: 'RUNNER' as const, assignmentRef: row.crewId, count: row.count })),
     { status: 'IN_TRANSIT', assignmentKind: null, assignmentRef: null, count: busyLeft },
-    { status: 'RECOVERING', assignmentKind: null, assignmentRef: null, count: counts.woundedThugs },
   ]);
   build('WORKER', counts.whores, allocate(
     refs.businesses.filter((row) => row.role === 'WORKER').map((row) => ({ id: row.id, count: row.staff })),
@@ -301,7 +307,9 @@ export function planCrewRoster(input: CrewPlanInput): CrewPlan {
     const index = preferUnlinked
       ? (() => {
           const free = floating.findIndex((row) => row.role === role && !row.dealerStaffId);
-          return free >= 0 ? free : floating.findIndex((row) => row.role === role);
+          // A career is an identity, not a replaceable staffing token: a new dealer
+          // must never overwrite a veteran's existing DealerStaff link.
+          return free;
         })()
       : floating.findIndex((row) => row.role === role);
     return index >= 0 ? floating.splice(index, 1)[0] : undefined;
@@ -330,7 +338,10 @@ export function planCrewRoster(input: CrewPlanInput): CrewPlan {
   const dropped = new Set<string>();
   for (const member of floating) {
     move(member, null);
-    if (member.experiencePoints === 0 && !member.dealerStaffId) dropped.add(member.id);
+    if (member.experiencePoints === 0 && !member.dealerStaffId
+      && !(member.loyaltyPoints && member.loyaltyPoints > 0)
+      && !member.nicknameKey && !member.apprenticeship
+      && !member.mentoringBonds?.length) dropped.add(member.id);
   }
   plan.drops.push(...dropped);
 

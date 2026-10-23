@@ -1,0 +1,107 @@
+[
+  {
+    "url": "/dev/ui",
+    "finalPath": "/dev/ui",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 17,
+      "smallList": [
+        "a.se-btn.se-btn--ghost \"Log in\" 61x40",
+        "a.se-btn.se-btn--primary \"Register\" 75x40",
+        "button.se-btn.se-btn--primary \"Open dialog\" 131x40",
+        "select#gallery-theme.se-input \"nonecasino-floorfederal-casemidnight-mar\" 340x43",
+        "select#gallery-accent.se-input \"defaultgoldgreenbluepurpleoriginal-neon\" 340x43",
+        "select#gallery-density.se-input \"comfortablecompact\" 340x43",
+        "button.is-active \"Overview\" 80x32",
+        "button \"Inventory\" 82x32",
+        "button \"Locked\" 66x32",
+        "button.se-btn \"Default\" 97x40",
+        "button.se-btn.se-btn--primary \"Primary\" 100x40",
+        "button.se-btn.se-btn--ghost \"Ghost\" 85x40",
+        "button.se-btn.se-btn--danger \"Danger\" 97x40",
+        "button.se-btn \"Loading: Working\" 125x40",
+        "button.se-btn \"Disabled\" 104x40",
+        "button.se-btn.se-btn--sm \"Manage\" 344x36",
+        "button.se-btn.se-btn--primary \"Get started\" 128x40"
+      ],
+      "total": 22
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/dev/ui",
+    "finalPath": "/dev/ui",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 17,
+      "smallList": [
+        "a.se-btn.se-btn--ghost \"Log in\" 65x40",
+        "a.se-btn.se-btn--primary \"Register\" 79x40",
+        "button.se-btn.se-btn--primary \"Open dialog\" 131x40",
+        "select#gallery-theme.se-input \"nonecasino-floorfederal-casemidnight-mar\" 227x41",
+        "select#gallery-accent.se-input \"defaultgoldgreenbluepurpleoriginal-neon\" 227x41",
+        "select#gallery-density.se-input \"comfortablecompact\" 227x41",
+        "button.is-active \"Overview\" 80x32",
+        "button \"Inventory\" 82x32",
+        "button \"Locked\" 66x32",
+        "button.se-btn \"Default\" 97x40",
+        "button.se-btn.se-btn--primary \"Primary\" 100x40",
+        "button.se-btn.se-btn--ghost \"Ghost\" 85x40",
+        "button.se-btn.se-btn--danger \"Danger\" 97x40",
+        "button.se-btn \"Loading: Working\" 125x40",
+        "button.se-btn \"Disabled\" 104x40",
+        "button.se-btn.se-btn--sm \"Manage\" 76x36",
+        "button.se-btn.se-btn--primary \"Get started\" 128x40"
+      ],
+      "total": 22
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/dev/ui",
+    "finalPath": "/dev/ui",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  }
+]

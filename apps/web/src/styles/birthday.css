@@ -1,0 +1,145 @@
+/*
+ * Birthdays (docs/BIRTHDAYS.md): the cake by a name, the gift popup, the
+ * day-only birthday frame and the Birthday Bash shell theme. Party colours
+ * live here, on the art only; every animation stops under reduced motion.
+ */
+
+/* ---------- Cake by the name ---------- */
+.se-birthday-cake { display: inline-block; margin-left: 4px; font-size: .9em; line-height: 1; vertical-align: baseline; }
+
+/* ---------- Gift popup (built on the intro dialog) ---------- */
+.se-birthday-gift { position: relative; overflow: hidden; }
+.se-birthday-gift > :not(.se-birthday-gift__confetti) { position: relative; }
+.se-birthday-gift__confetti {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 90px;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle, #ff6fb5 0 2px, transparent 2.6px),
+    radial-gradient(circle, #ffd166 0 2px, transparent 2.6px),
+    radial-gradient(circle, #5ad1ff 0 1.6px, transparent 2.2px),
+    radial-gradient(circle, #7ef29d 0 1.6px, transparent 2.2px);
+  background-size: 46px 38px, 58px 44px, 34px 30px, 52px 36px;
+  background-position: 0 0, 17px 9px, 9px 21px, 29px 4px;
+  opacity: .55;
+  mask-image: linear-gradient(180deg, #000, transparent);
+  animation: se-bd-confetti 6s linear infinite;
+}
+.se-birthday-gift__list { margin: 8px 0 14px; padding-left: 18px; display: grid; gap: 6px; }
+@keyframes se-bd-confetti { to { background-position: 0 38px, 17px 53px, 9px 51px, 29px 40px; } }
+
+/* ---------- Birthday frame ---------- */
+.se-profile-frame--birthday-frame { --se-theme-frame: #ff6fb5; border-color: #ff6fb5; box-shadow: inset 0 0 0 2px #2a1238, inset 0 0 26px #ffd16624, 0 0 20px #ff6fb540; }
+.se-profile-frame--birthday-frame::after { border: 1px solid color-mix(in srgb, var(--se-theme-frame) 70%, white); }
+.se-profile-frame--birthday-frame::before {
+  inset: 0;
+  background-image:
+    radial-gradient(circle, #ff6fb5cc 0 1.4px, transparent 2px),
+    radial-gradient(circle, #ffd166cc 0 1.4px, transparent 2px),
+    radial-gradient(circle, #5ad1ffaa 0 1.2px, transparent 1.8px);
+  background-size: 52px 44px, 38px 50px, 30px 34px;
+  animation: se-bd-fall 10s linear infinite;
+}
+.se-profile-pagehead__avatar--birthday-frame { --se-profile-avatar-frame: #ff6fb5; --se-profile-avatar-glow: #ffd16699; }
+.se-profile-hover-card[data-frame="birthday-frame"], .se-profile-card-preview[data-popup-frame="birthday-frame"],
+.se-profile-hover-card[data-avatar-frame="birthday-frame"], .se-profile-card-preview[data-avatar-frame="birthday-frame"] { --se-theme-frame: #ff6fb5; }
+.se-profile-hover-card[data-frame="birthday-frame"], .se-profile-card-preview[data-popup-frame="birthday-frame"] {
+  border: 2px solid var(--se-theme-frame);
+  box-shadow: 0 18px 54px #000b, 0 0 20px color-mix(in srgb, var(--se-theme-frame) 30%, transparent);
+}
+.se-profile-hover-card[data-avatar-frame="birthday-frame"] .se-profile-hover-card__avatar,
+.se-profile-card-preview[data-avatar-frame="birthday-frame"] .se-profile-card-preview__avatar {
+  box-shadow: 0 0 0 2px #2a1238, 0 0 0 5px #ff6fb5, 0 0 0 7px #ffd166, 0 0 18px #ff6fb5aa;
+}
+@keyframes se-bd-fall { from { background-position: 0 0, 12px 0, 6px 0; } to { background-position: 0 88px, 12px 100px, 6px 68px; } }
+
+/* ---------- Birthday Bash shell ---------- */
+.se-site-theme--birthday-shell {
+  --se-bg: #120a1c;
+  --se-panel: #1c1229;
+  --se-panel-hi: #251836;
+  --se-line: rgba(255, 111, 181, 0.3);
+  --se-line-soft: rgba(255, 209, 102, 0.15);
+  --se-text: #fff4fb;
+  --se-text-dim: #d6bfd8;
+  --se-muted: #9d88a3;
+  --se-accent: #ff6fb5;
+  --se-accent-dim: #c94b8a;
+  --se-accent-hover: #ff9acb;
+  --se-accent-rgb: 255, 111, 181;
+  --se-accent-2: #ffd166;
+  --se-theme-panel-fill:
+    linear-gradient(150deg, rgba(255, 209, 102, 0.07), transparent 40%),
+    linear-gradient(180deg, rgba(40, 24, 56, 0.95), rgba(18, 10, 28, 0.96));
+  --se-theme-stat-fill:
+    linear-gradient(180deg, rgba(255, 111, 181, 0.08), rgba(90, 209, 255, 0.04)),
+    rgba(18, 10, 28, 0.96);
+  --se-theme-button-fill: linear-gradient(180deg, rgba(255, 111, 181, 0.14), rgba(18, 10, 28, 0.9));
+  --se-theme-head-fill:
+    linear-gradient(90deg, rgba(255, 111, 181, 0.2), rgba(255, 209, 102, 0.08) 55%, transparent),
+    linear-gradient(180deg, #251836, #1c1229);
+  --se-theme-topbar-layer:
+    linear-gradient(90deg, rgba(255, 111, 181, 0.16), transparent 32%, rgba(90, 209, 255, 0.12));
+  --se-theme-panel-glow: rgba(var(--se-accent-rgb), 0.12);
+  --se-theme-topbar-bg: color-mix(in srgb, var(--se-bg) 86%, #000);
+  color-scheme: dark;
+  background-image:
+    radial-gradient(900px 520px at 94% 0%, rgba(255, 111, 181, 0.18), transparent 62%),
+    radial-gradient(720px 440px at 2% 100%, rgba(90, 209, 255, 0.1), transparent 60%),
+    linear-gradient(180deg, #1c1229, #120a1c 62%);
+}
+.se-site-theme--birthday-shell .se-topbar {
+  background: var(--se-theme-topbar-layer), color-mix(in srgb, var(--se-theme-topbar-bg) 92%, transparent);
+  border-bottom-color: color-mix(in srgb, var(--se-accent) 48%, var(--se-line));
+}
+.se-site-theme--birthday-shell :is(.se-panel, .se-stats, .se-stat) {
+  background: var(--se-theme-panel-fill);
+  border-color: rgba(255, 111, 181, 0.36);
+  box-shadow: inset 0 2px 0 rgba(255, 209, 102, 0.18), 0 0 20px var(--se-theme-panel-glow);
+}
+.se-site-theme--birthday-shell :is(.se-stats, .se-stat) { background: var(--se-theme-stat-fill); }
+.se-site-theme--birthday-shell .se-panel__head { background: var(--se-theme-head-fill); }
+.se-site-theme--birthday-shell :is(.se-btn, .se-input) {
+  background: var(--se-theme-button-fill);
+  border-color: color-mix(in srgb, var(--se-accent) 34%, var(--se-line));
+  color: var(--se-text);
+}
+.se-site-theme--birthday-shell .se-btn--primary {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--se-accent) 40%, var(--se-panel-hi)), color-mix(in srgb, var(--se-accent-dim) 40%, #000));
+  border-color: color-mix(in srgb, var(--se-accent) 72%, var(--se-line));
+  color: #fff;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.72);
+}
+.se-site-theme--birthday-shell .se-footer {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--se-bg) 74%, transparent), var(--se-bg));
+  border-top-color: color-mix(in srgb, var(--se-accent) 36%, var(--se-line));
+}
+.se-site-theme-decor--birthday-shell { --se-pack-color: #ff6fb5; }
+
+/* Scene: balloons drifting up the corner, bunting and slow confetti. */
+.se-bd__balloons { right: 2%; bottom: 0; width: min(30vw, 380px); height: auto; }
+.se-bd__balloon { animation: se-bd-float 9s ease-in-out infinite alternate; }
+.se-bd__bunting { top: 0; right: 0; width: min(56vw, 760px); height: auto; }
+.se-bd__confetti {
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(circle, rgba(255, 111, 181, 0.55) 0 2px, transparent 2.6px),
+    radial-gradient(circle, rgba(255, 209, 102, 0.5) 0 2px, transparent 2.6px),
+    radial-gradient(circle, rgba(90, 209, 255, 0.45) 0 1.6px, transparent 2.2px),
+    radial-gradient(circle, rgba(126, 242, 157, 0.4) 0 1.6px, transparent 2.2px);
+  background-size: 220px 180px, 280px 240px, 190px 210px, 260px 200px;
+  background-position: 0 0, 70px 40px, 140px 90px, 30px 130px;
+  animation: se-bd-drift 30s linear infinite;
+}
+@keyframes se-bd-float { from { transform: translateY(0); } to { transform: translateY(-14px); } }
+@keyframes se-bd-drift { to { background-position: 0 180px, 70px 280px, 140px 300px, 30px 330px; } }
+
+/* ---------- Motion ---------- */
+.se-reduced-motion .se-birthday-gift__confetti,
+.se-reduced-motion .se-profile-frame--birthday-frame::before { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  .se-birthday-gift__confetti,
+  .se-profile-frame--birthday-frame::before { animation: none; }
+}

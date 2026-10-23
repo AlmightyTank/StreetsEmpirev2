@@ -93,6 +93,18 @@ describe('1.0.0-F metrics registry', () => {
     expect(areaOf('/api/health')).toBe('health');
     expect(areaOf('/api/public/status')).toBe('public');
   });
+
+  it('keeps onboarding telemetry aggregate and step-scoped', () => {
+    const registry = new MetricsRegistry(() => NOW);
+    registry.recordOnboarding('tour_started');
+    registry.recordOnboarding('step_completed', 'shop-supplies');
+    registry.recordOnboarding('step_completed', 'shop-supplies');
+    expect(registry.summary(5).onboarding).toEqual([
+      { event: 'step_completed', step: 'shop-supplies', count: 2 },
+      { event: 'tour_started', count: 1 },
+    ]);
+    expect(JSON.stringify(registry.summary(5))).not.toContain('account');
+  });
 });
 
 describe('1.0.0-F monitoring alerts', () => {
@@ -149,6 +161,15 @@ describe('1.0.0-F monitoring alerts', () => {
     expect(text).toContain('streets_request_duration_ms_bucket{le="5"} 1');
     expect(text).toContain('streets_request_duration_ms_bucket{le="+Inf"} 2');
     expect(text).toContain('streets_request_duration_ms_count 2');
+  });
+
+  it('exports onboarding milestones without player identifiers', () => {
+    const registry = new MetricsRegistry(() => NOW);
+    registry.recordOnboarding('chapter_graduated');
+    const base = snapshot({ windows: { fiveMinutes: registry.summary(5), hour: registry.summary(60) } });
+    const text = MonitoringService.prometheus({ ...base, alerts: [], status: 'ok' }, registry);
+    expect(text).toContain('streets_onboarding_events_last_hour{event="chapter_graduated"} 1');
+    expect(text).not.toContain('account');
   });
 });
 

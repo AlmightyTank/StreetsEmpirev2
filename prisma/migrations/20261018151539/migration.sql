@@ -1,0 +1,2 @@
+-- Legacy migration name retained for databases that recorded this historical migration.
+-- The actual ALTER runs in 20261107000100 after AdminLivingStoryDraft exists.

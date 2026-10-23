@@ -151,8 +151,7 @@ const statsSchema = z.object({
   rank: z.object({ local: z.number().nullable(), national: z.number().nullable() }),
 });
 
-const newsClaimSchema = z.object({
-  news: z.array(z.object({
+const newsPostSchema = z.object({
     id: z.string(),
     title: z.string(),
     body: z.string(),
@@ -160,8 +159,9 @@ const newsClaimSchema = z.object({
     publishedAt: z.string(),
     authorName: z.string().nullable(),
     url: z.string().url(),
-  })),
 });
+const newsClaimSchema = z.object({ news: z.array(newsPostSchema) });
+const newsEditsClaimSchema = z.object({ edits: z.array(newsPostSchema.extend({ messageId: z.string(), queuedAt: z.string() })) });
 
 const okSchema = z.object({ ok: z.literal(true) });
 
@@ -211,7 +211,10 @@ const staffPostSchema = z.object({
   editMessageId: z.string().nullable(),
   bugReport: staffBugReportSchema.optional(),
   messageReport: staffMessageReportSchema.optional(),
-  patchNotes: z.object({ id: z.string(), title: z.string(), body: z.string(), publishedAt: z.string(), url: z.string() }).optional(),
+  patchNotes: z.object({
+    id: z.string(), title: z.string(), body: z.string(), publishedAt: z.string(),
+    updatedAt: z.string().nullable(), state: z.enum(['HELD', 'PUBLISHED', 'DELETED']), url: z.string(),
+  }).optional(),
   deploy: z.object({ phase: z.enum(['started', 'finished', 'failed']), commit: z.string(), at: z.string() }).optional(),
   maintenance: z.object({ message: z.string(), startsAt: z.string(), endsAt: z.string() }).optional(),
 });
@@ -275,6 +278,14 @@ const openTicketSchema = z.union([
 ]);
 const closedTicketSchema = z.object({ ticket: ticketSchema });
 const staffCheckSchema = z.object({ admin: z.boolean() });
+const staffRoleSchema = z.enum(['FOUNDER', 'ADMIN', 'MOD', 'JR_MOD', 'HELPER']);
+export type StaffRoleName = z.infer<typeof staffRoleSchema>;
+const staffRoleSetSchema = z.object({ username: z.string(), fromRole: staffRoleSchema.nullable(), toRole: staffRoleSchema.nullable() });
+export type StaffRoleSet = z.infer<typeof staffRoleSetSchema>;
+const staffRosterSchema = z.object({
+  members: z.array(z.object({ username: z.string(), staffRole: staffRoleSchema, discordId: z.string().nullable(), forumLinked: z.boolean(), isActive: z.boolean() })),
+});
+export type StaffRoster = z.infer<typeof staffRosterSchema>;
 
 const newsCreatedSchema = z.object({ id: z.string(), title: z.string(), url: z.string().url(), roundName: z.string().nullable() });
 
@@ -523,6 +534,14 @@ const statusSchema = z.object({
   turns: z.object({ amountPerInterval: z.number(), intervalMinutes: z.number(), cap: z.number() }).nullable(),
 });
 
+const presenceHighlightsSchema = z.object({
+  highlights: z.array(z.object({
+    kind: z.enum(['jackpot', 'sportsbook', 'raid', 'scout']),
+    message: z.string().min(1).max(128),
+  })).max(4),
+});
+const presenceStatsSchema = z.object({ tradedCents: z.number().nonnegative(), raidsToday: z.number().int().nonnegative() });
+
 const newsSchema = z.object({
   news: z.array(z.object({
     title: z.string(),
@@ -573,6 +592,8 @@ export type BugCategory = BugReportCategory;
 export type BugResolution = BugReportResolution;
 export type RoundEvent = z.infer<typeof roundEventSchema>;
 export type RoundStatus = z.infer<typeof statusSchema>;
+export type PresenceHighlights = z.infer<typeof presenceHighlightsSchema>;
+export type PresenceStats = z.infer<typeof presenceStatsSchema>;
 export type NewsFeed = z.infer<typeof newsSchema>;
 
 /** 0.3.0-C. Live alliances in the current round, one Discord role each. */
@@ -642,6 +663,18 @@ export function createGameApi(options: { baseUrl: string; token: string; fetch?:
       call(newsCreatedSchema, '/api/internal/discord/news', { method: 'POST', body: input }),
     /** Claimed posts count as posted, even if sending them fails. */
     claimNews: async () => (await call(newsClaimSchema, '/api/internal/discord/news/claim', { method: 'POST' })).news,
+    /** Remember where the announcement went so later edits target that exact message. */
+    newsPosted: async (newsId: string, messageId: string) => {
+      await call(okSchema, `/api/internal/discord/news/${encodeURIComponent(newsId)}/posted`, { method: 'POST', body: { messageId } });
+    },
+    claimNewsEdits: async () =>
+      (await call(newsEditsClaimSchema, '/api/internal/discord/news/edits/claim', { method: 'POST' })).edits,
+    newsEditPosted: async (newsId: string, queuedAt: string) => {
+      await call(okSchema, `/api/internal/discord/news/${encodeURIComponent(newsId)}/edits/posted`, { method: 'POST', body: { queuedAt } });
+    },
+    newsEditFailed: async (newsId: string, error: string, queuedAt: string) => {
+      await call(okSchema, `/api/internal/discord/news/${encodeURIComponent(newsId)}/edits/failed`, { method: 'POST', body: { error, queuedAt } });
+    },
     /** Discord refused a claimed post; the admin panel shows why and offers a resend. */
     newsFailed: async (newsId: string, error: string) => {
       await call(okSchema, `/api/internal/discord/news/${encodeURIComponent(newsId)}/failed`, { method: 'POST', body: { error } });
@@ -661,6 +694,11 @@ export function createGameApi(options: { baseUrl: string; token: string; fetch?:
       (await call(reportActedSchema, `/api/internal/discord/message-reports/${encodeURIComponent(reportId)}/act`, { method: 'POST', body: input })).report,
     /** Whether a member may use staff buttons: a linked, active game admin. */
     isStaff: async (discordId: string) => (await call(staffCheckSchema, `/api/internal/discord/staff?${query({ discordId })}`)).admin,
+    /** /staff set and /staff remove; the game checks the caller's rank and audits it. */
+    setStaffRole: (input: { discordId: string; targetDiscordId: string; role: Exclude<StaffRoleName, 'FOUNDER'> | null; reason: string }) =>
+      call(staffRoleSetSchema, '/api/internal/discord/staff-roles', { method: 'POST', body: input }),
+    /** /staff list; Helpers and up. */
+    staffRoster: (discordId: string) => call(staffRosterSchema, `/api/internal/discord/staff-roles?${query({ discordId })}`),
     /** /support: their open ticket, or a new one with staff-only context. */
     openTicket: (input: { discordId: string; discordName: string; subject: string }) =>
       call(openTicketSchema, '/api/internal/discord/support-tickets', { method: 'POST', body: input }),
@@ -676,8 +714,11 @@ export function createGameApi(options: { baseUrl: string; token: string; fetch?:
     /** Staff channel posts, each handed out once. */
     claimStaffPosts: async (audience: 'staff' | 'status' = 'staff') =>
       (await call(staffClaimSchema, '/api/internal/discord/staff-posts/claim', { method: 'POST', body: { audience } })).posts,
-    staffPostPosted: async (postId: string, messageId: string) => {
-      await call(okSchema, `/api/internal/discord/staff-posts/${encodeURIComponent(postId)}/posted`, { method: 'POST', body: { messageId } });
+    staffPostPosted: async (
+      postId: string, messageId: string,
+      sync?: { state: 'HELD' | 'PUBLISHED' | 'DELETED'; updatedAt: string | null },
+    ) => {
+      await call(okSchema, `/api/internal/discord/staff-posts/${encodeURIComponent(postId)}/posted`, { method: 'POST', body: { messageId, ...(sync ? { sync } : {}) } });
     },
     staffPostFailed: async (postId: string, error: string) => {
       await call(okSchema, `/api/internal/discord/staff-posts/${encodeURIComponent(postId)}/failed`, { method: 'POST', body: { error } });
@@ -696,6 +737,9 @@ export function createGameApi(options: { baseUrl: string; token: string; fetch?:
       await call(okSchema, `/api/internal/discord/round-posts/${encodeURIComponent(roundId)}/failed`, { method: 'POST', body: { error } });
     },
     alliances: () => call(alliancesSchema, '/api/internal/discord/alliances'),
+    /** Anonymous public-presence copy; the response schema has no player fields. */
+    presenceHighlights: () => call(presenceHighlightsSchema, '/api/internal/discord/presence'),
+    presenceStats: () => call(presenceStatsSchema, '/api/internal/discord/presence/stats'),
     /** Admin-requested role resyncs, each handed out once. */
     claimResync: () => call(resyncClaimSchema, '/api/internal/discord/resync/claim', { method: 'POST' }),
     round: () => call(statusSchema, '/api/rounds/current/status', { auth: false }),

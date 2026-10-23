@@ -6,6 +6,7 @@ import { adminWireApi } from '../api/playing-together.js';
 import { adminWhen } from '../utils/admin.js';
 import { Alert } from './Alert.js';
 import { Button } from './Button.js';
+import { GameDialog } from './GameUI.js';
 
 /** 0.3.0-D. An alliance's wire as admins see it, removed posts included. Removing a post is audited. */
 export function AdminWireView({ allianceId, onClose }: { allianceId: string; onClose: () => void }) {
@@ -60,22 +61,31 @@ export function AdminWireView({ allianceId, onClose }: { allianceId: string; onC
                   <span className="se-tag se-tag--bad" title={post.removedReason ?? undefined}>
                     Removed by {post.removedByRole === 'admin' ? `admin ${post.removedByName}` : post.removedByRole}
                   </span>
-                ) : removing === post.id ? null : (
+                ) : (
                   <button type="button" className="se-btn se-btn--ghost se-btn--sm" onClick={() => { setRemoving(post.id); setReason(''); }}>Remove</button>
                 )}
               </div>
               <p className="se-wire__body">{post.body}</p>
               {removing === post.id ? (
-                <div className="se-field">
-                  <label className="se-label" htmlFor={`wire-reason-${post.id}`}>Reason</label>
-                  <textarea id={`wire-reason-${post.id}`} className="se-input se-admin-reason" maxLength={500} value={reason} onChange={(event) => setReason(event.target.value)} />
-                  <span className="se-inline-actions">
-                    <Button type="button" className="se-btn se-btn--primary se-btn--sm"
+                <GameDialog
+                  open
+                  dismissible={!busy}
+                  title={`Remove ${post.author.displayName}'s post`}
+                  onClose={() => { if (!busy) setRemoving(null); }}
+                >
+                  <p>{post.body}</p>
+                  <div className="se-field">
+                    <label className="se-label" htmlFor={`wire-reason-${post.id}`}>Reason</label>
+                    <textarea id={`wire-reason-${post.id}`} className="se-input se-admin-reason" maxLength={500} value={reason} onChange={(event) => setReason(event.target.value)} />
+                    <p className="se-hint">Saved to the audit log. At least 5 characters.</p>
+                  </div>
+                  <div className="se-cta">
+                    <Button type="button" className="se-btn se-btn--primary"
                       disabledReason={busy ? 'Still removing.' : reason.trim().length < 5 ? 'The audit log needs a reason of at least 5 characters.' : null}
                       onClick={() => void remove(post.id)}>Remove post</Button>
-                    <button type="button" className="se-btn se-btn--ghost se-btn--sm" onClick={() => setRemoving(null)}>Cancel</button>
-                  </span>
-                </div>
+                    <Button type="button" className="se-btn se-btn--ghost" onClick={() => setRemoving(null)} disabledReason={busy ? 'Still removing.' : null}>Cancel</Button>
+                  </div>
+                </GameDialog>
               ) : null}
             </li>
           ))}

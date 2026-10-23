@@ -1,0 +1,429 @@
+/*
+ * Mobile shell — the layered neon StreetsEmpire treatment.
+ *
+ * Shared gameplay chrome only: signed-out pages, desktop sidebar, individual
+ * game layouts, earned scene art, and each user's accent remain unchanged.
+ * The Cash / Turns / Heat cards use the existing links and actual live values.
+ * Do not change touch-action, scroll containment, or More-sheet gesture zones.
+ */
+/* The shared StatusBar also renders in the desktop sidebar. Keep its original
+   vector icons there; the colorful replacement is mobile game chrome only. */
+.se-statusbar__icon--illustrated { display: none; }
+
+@media (max-width: 899px) {
+  /* Default house chrome uses the mockup's electric blue; player-chosen
+     accents and earned site themes retain their own lighting. */
+  .se-app--tabbar {
+    --se-shell-electric: var(--se-accent);
+  }
+  .se-app--tabbar.se-site-theme--none.se-site-accent--default {
+    --se-shell-electric: #328dff;
+  }
+
+  .se-app--tabbar.se-site-theme--none {
+    background-image:
+      radial-gradient(70% 320px at 55% 0, color-mix(in srgb, var(--se-shell-electric) 15%, transparent), transparent 86%),
+      linear-gradient(180deg, color-mix(in srgb, var(--se-panel) 19%, var(--se-bg)), var(--se-bg) 380px);
+    background-attachment: scroll;
+  }
+
+  /* Two clearly separated tiers: identity/actions, then three HUD plates. */
+  .se-app--tabbar .se-topbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    align-items: center;
+    gap: 7px 8px;
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    padding: 8px calc(10px + var(--se-safe-right)) 9px calc(10px + var(--se-safe-left));
+    border-bottom: 1px solid color-mix(in srgb, var(--se-shell-electric) 28%, var(--se-line));
+    background:
+      radial-gradient(ellipse at 65% 0, color-mix(in srgb, var(--se-shell-electric) 15%, transparent), transparent 72%),
+      linear-gradient(180deg, color-mix(in srgb, var(--se-panel-hi) 85%, var(--se-bg)), var(--se-bg));
+    box-shadow:
+      0 12px 25px color-mix(in srgb, var(--se-bg) 70%, transparent),
+      inset 0 -1px 0 color-mix(in srgb, var(--se-accent) 9%, transparent);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+
+  /* Theme owners keep their earned top-bar texture and HUD surface. */
+  .se-app--tabbar:not(.se-site-theme--none) .se-topbar {
+    background: var(--se-theme-topbar-layer), color-mix(in srgb, var(--se-theme-topbar-bg) 94%, var(--se-bg));
+  }
+  .se-app--tabbar:not(.se-site-theme--none) .se-topbar a.se-statusbar__item {
+    background: var(--se-theme-stat-fill);
+    border-color: color-mix(in srgb, var(--se-accent) 36%, var(--se-line));
+  }
+  .se-app--tabbar:not(.se-site-theme--none) .se-tabbar {
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--se-accent) 7%, transparent), transparent 80%),
+      color-mix(in srgb, var(--se-theme-topbar-bg) 93%, var(--se-bg));
+  }
+
+  .se-app--tabbar .se-topbar > .se-brand {
+    grid-column: 1;
+    grid-row: 1;
+    display: flex;
+    align-items: center;
+    justify-self: start;
+    gap: 7px;
+    min-width: 0;
+    min-height: 42px;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  .se-app--tabbar .se-brand__crown {
+    width: 25px;
+    height: 25px;
+    flex: none;
+    color: var(--se-shell-electric);
+    filter: drop-shadow(0 0 9px color-mix(in srgb, var(--se-shell-electric) 55%, transparent));
+  }
+
+  .se-app--tabbar .se-brand__mark {
+    min-width: 0;
+    font-size: clamp(15px, 4.65vw, 21px);
+    font-weight: 900;
+    line-height: 1.1;
+    letter-spacing: -.045em;
+    white-space: nowrap;
+  }
+
+  .se-app--tabbar .se-brand__mark .se-accent {
+    color: var(--se-shell-electric);
+    text-shadow: 0 0 16px color-mix(in srgb, var(--se-shell-electric) 40%, transparent);
+  }
+
+  .se-app--tabbar .se-brand__ver { display: none; }
+
+  .se-app--tabbar .se-env-badge {
+    flex: none;
+    margin-left: 2px;
+    padding: 3px 7px;
+    border-radius: 5px;
+    font-size: 10px;
+    line-height: 1.3;
+    letter-spacing: .09em;
+    background: color-mix(in srgb, var(--se-warn) 7%, transparent);
+  }
+
+  .se-app--tabbar .se-topbar__right {
+    grid-column: 2;
+    grid-row: 1;
+    display: flex;
+    align-items: center;
+    justify-self: end;
+    gap: clamp(4px, 1.8vw, 12px);
+    min-width: 0;
+  }
+
+  .se-app--tabbar .se-notification-bell,
+  .se-app--tabbar .se-account__button {
+    min-width: 42px;
+    min-height: 42px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+  }
+
+  .se-app--tabbar .se-notification-bell {
+    color: var(--se-text-dim);
+    background: color-mix(in srgb, var(--se-panel-hi) 30%, transparent);
+    border: 1px solid transparent;
+  }
+  .se-app--tabbar .se-notification-bell:hover,
+  .se-app--tabbar .se-notification-bell--open {
+    color: var(--se-text);
+    border-color: color-mix(in srgb, var(--se-accent) 30%, var(--se-line));
+    background: color-mix(in srgb, var(--se-accent) 8%, var(--se-panel));
+  }
+  .se-app--tabbar .se-notification-bell svg { width: 23px; height: 23px; }
+  .se-app--tabbar .se-account__button { padding: 1px; }
+
+  /* Preserve premium avatar-frame sizes/shapes; only illuminate standard circles. */
+  .se-app--tabbar .se-account__avatar:not(.se-account__avatar--framed) {
+    width: 42px;
+    height: 42px;
+    border-color: var(--se-accent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--se-accent) 18%, var(--se-bg)), 0 0 19px color-mix(in srgb, var(--se-accent) 32%, transparent);
+  }
+
+  .se-app--tabbar .se-topbar .se-statusbar {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    order: initial;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: stretch;
+    gap: clamp(5px, 1.2vw, 10px);
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    overflow: visible;
+    background: transparent;
+  }
+
+  .se-app--tabbar .se-topbar a.se-statusbar__item {
+    position: relative;
+    display: grid;
+    grid-template-columns: 26px minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    align-content: center;
+    align-items: center;
+    gap: 1px 5px;
+    min-width: 0;
+    min-height: 49px;
+    margin: 0;
+    padding: 4px 10px 4px 7px;
+    overflow: hidden;
+    border: 1px solid color-mix(in srgb, var(--se-shell-electric) 42%, var(--se-line));
+    border-radius: 11px;
+    background:
+      linear-gradient(145deg, color-mix(in srgb, var(--se-shell-electric) 11%, transparent), transparent 65%),
+      linear-gradient(180deg, color-mix(in srgb, var(--se-panel-hi) 86%, var(--se-bg)), color-mix(in srgb, var(--se-panel) 53%, var(--se-bg)));
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, var(--se-text) 7%, transparent),
+      0 3px 11px color-mix(in srgb, var(--se-bg) 65%, transparent),
+      0 0 13px color-mix(in srgb, var(--se-shell-electric) 5%, transparent);
+    color: var(--se-text);
+    text-decoration: none;
+    transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease;
+  }
+
+  .se-app--tabbar .se-topbar a.se-statusbar__item:hover,
+  .se-app--tabbar .se-topbar a.se-statusbar__item:focus-visible {
+    border-color: color-mix(in srgb, var(--se-shell-electric) 78%, var(--se-line));
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--se-shell-electric) 20%, transparent);
+  }
+
+  .se-app--tabbar .se-topbar a.se-statusbar__item::after {
+    content: '';
+    position: absolute;
+    right: 7px;
+    top: calc(50% - 3px);
+    width: 6px;
+    height: 6px;
+    border-top: 1.5px solid var(--se-text-dim);
+    border-right: 1.5px solid var(--se-text-dim);
+    transform: rotate(45deg);
+    opacity: .7;
+    pointer-events: none;
+  }
+
+  /* Explicit SVG selector outranks the generic mobile icon display rule. */
+  .se-app--tabbar .se-topbar svg.se-statusbar__icon--legacy { display: none; }
+  .se-app--tabbar .se-topbar svg.se-statusbar__icon--illustrated { display: block; }
+
+  .se-app--tabbar .se-topbar .se-statusbar__icon {
+    grid-column: 1;
+    grid-row: 1 / 3;
+    display: block;
+    align-self: center;
+    width: 26px;
+    height: 26px;
+    filter: drop-shadow(0 0 6px color-mix(in srgb, var(--se-shell-electric) 25%, transparent));
+  }
+
+  .se-app--tabbar .se-topbar .se-statusbar__icon--turns { color: var(--se-shell-electric); }
+
+  .se-app--tabbar .se-topbar .se-statusbar__k,
+  .se-app--tabbar .se-topbar .se-statusbar__k:not(.se-statusbar__k--keep) {
+    grid-column: 2;
+    grid-row: 1;
+    display: block;
+    min-width: 0;
+    font-size: 9px;
+    font-weight: 750;
+    letter-spacing: .095em;
+    line-height: 1.15;
+    color: var(--se-text-dim);
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .se-app--tabbar .se-topbar .se-statusbar__v {
+    grid-column: 2;
+    grid-row: 2;
+    min-width: 0;
+    font-size: clamp(12px, 3.45vw, 17px);
+    line-height: 1.2;
+    font-weight: 850;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -.035em;
+    white-space: nowrap;
+  }
+
+  .se-app--tabbar .se-topbar .se-statusbar__v--wide { display: none; }
+  .se-app--tabbar .se-topbar .se-statusbar__v--narrow { display: inline; }
+  /* Older rulesets may omit Heat. The third plate becomes Net Worth then. */
+  .se-app--tabbar .se-topbar .se-statusbar--has-heat .se-statusbar__item--worth,
+  .se-app--tabbar .se-topbar .se-statusbar__meter { display: none; }
+
+  /* Native same-page links + the skip link honor the *measured* HUD height. */
+  .se-app--tabbar #main-content,
+  .se-app--tabbar #main-content [id] {
+    scroll-margin-top: var(--se-mobile-header-offset, 162px);
+  }
+
+  /* The same bottom navigation interactions, but with softly lit icons. */
+  .se-app--tabbar .se-tabbar {
+    width: 100%;
+    max-width: 100vw;
+    min-height: calc(var(--se-shell-tabbar-h) + var(--se-safe-bottom));
+    padding: 2px calc(5px + var(--se-safe-right)) var(--se-safe-bottom) calc(5px + var(--se-safe-left));
+    border-top: 1px solid color-mix(in srgb, var(--se-shell-electric) 35%, var(--se-line));
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--se-shell-electric) 8%, transparent), transparent 70%),
+      color-mix(in srgb, var(--se-bg) 91%, var(--se-panel));
+    box-shadow: 0 -8px 27px color-mix(in srgb, var(--se-bg) 72%, transparent);
+    backdrop-filter: blur(17px);
+    -webkit-backdrop-filter: blur(17px);
+    overflow: clip;
+  }
+
+  .se-app--tabbar .se-tabbar__tab {
+    gap: 4px;
+    color: var(--se-muted);
+    transition: color .15s ease;
+  }
+  .se-app--tabbar .se-tabbar__icon {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 29px;
+    color: var(--se-text-dim);
+  }
+  .se-app--tabbar .se-tabbar__icon > .se-navicon {
+    position: relative;
+    z-index: 1;
+    width: 25px;
+    height: 25px;
+    opacity: .88;
+  }
+
+  .se-app--tabbar .se-tabbar__tab--active,
+  .se-app--tabbar .se-tabbar__tab--active .se-tabbar__icon,
+  .se-app--tabbar .se-tabbar__tab[aria-expanded='true'],
+  .se-app--tabbar .se-tabbar__tab[aria-expanded='true'] .se-tabbar__icon {
+    color: var(--se-shell-electric);
+  }
+  .se-app--tabbar .se-tabbar__tab--active .se-tabbar__icon > .se-navicon,
+  .se-app--tabbar .se-tabbar__tab[aria-expanded='true'] .se-tabbar__icon > .se-navicon {
+    filter: drop-shadow(0 0 7px color-mix(in srgb, var(--se-shell-electric) 60%, transparent));
+  }
+
+  .se-app--tabbar .se-tabbar__tab--active .se-tabbar__icon::before,
+  .se-app--tabbar .se-tabbar__tab[aria-expanded='true'] .se-tabbar__icon::before {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
+    background: radial-gradient(circle, color-mix(in srgb, var(--se-shell-electric) 22%, transparent), transparent 75%);
+    pointer-events: none;
+  }
+
+  .se-app--tabbar .se-tabbar__label {
+    font-size: 11.5px;
+    font-weight: 720;
+    letter-spacing: .01em;
+  }
+
+  .se-app--tabbar .se-tabbar__icon .se-navbadge {
+    z-index: 2;
+    box-shadow: 0 0 0 2px var(--se-bg);
+  }
+}
+
+@media (max-width: 390px) {
+  .se-app--tabbar .se-topbar {
+    gap: 7px 5px;
+    padding-inline: calc(8px + var(--se-safe-left)) calc(8px + var(--se-safe-right));
+  }
+  .se-app--tabbar .se-topbar > .se-brand { gap: 4px; }
+  .se-app--tabbar .se-brand__crown { width: 20px; height: 20px; }
+  .se-app--tabbar .se-brand__mark { font-size: clamp(13px, 4vw, 16px); }
+  .se-app--tabbar .se-env-badge { padding: 2px 4px; font-size: 9px; }
+  .se-app--tabbar .se-topbar__right { gap: 3px; }
+  .se-app--tabbar .se-notification-bell,
+  .se-app--tabbar .se-account__button { min-width: 36px; min-height: 38px; }
+  .se-app--tabbar .se-account__avatar:not(.se-account__avatar--framed) { width: 36px; height: 36px; }
+
+  .se-app--tabbar .se-topbar a.se-statusbar__item {
+    grid-template-columns: 22px minmax(0, 1fr);
+    gap: 1px 3px;
+    min-height: 47px;
+    padding: 4px 3px;
+  }
+  .se-app--tabbar .se-topbar a.se-statusbar__item::after { display: none; }
+  .se-app--tabbar .se-topbar .se-statusbar__icon { width: 22px; height: 22px; }
+  .se-app--tabbar .se-topbar .se-statusbar__k,
+  .se-app--tabbar .se-topbar .se-statusbar__k:not(.se-statusbar__k--keep) { font-size: 8px; }
+  .se-app--tabbar .se-topbar .se-statusbar__v { font-size: clamp(11px, 3.2vw, 13px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .se-app--tabbar .se-topbar a.se-statusbar__item,
+  .se-app--tabbar .se-tabbar__tab { transition: none; }
+}
+
+
+/* Keep the mobile HUD legible without turning every resource into a large card. */
+@media (max-width: 899px) {
+  .se-app--tabbar .se-topbar {
+    gap: 6px 8px;
+    padding-top: 6px;
+    padding-bottom: 7px;
+    background: color-mix(in srgb, var(--se-panel) 92%, var(--se-bg));
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .se-app--tabbar .se-topbar .se-statusbar {
+    gap: 5px;
+  }
+
+  .se-app--tabbar .se-topbar a.se-statusbar__item {
+    min-height: 40px;
+    padding: 3px 7px;
+    border-color: color-mix(in srgb, var(--se-line) 82%, transparent);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--se-panel-hi) 70%, var(--se-bg));
+    box-shadow: none;
+    transition: border-color .15s ease, background-color .15s ease;
+  }
+
+  .se-app--tabbar .se-topbar a.se-statusbar__item:hover,
+  .se-app--tabbar .se-topbar a.se-statusbar__item:focus-visible {
+    border-color: color-mix(in srgb, var(--se-accent) 58%, var(--se-line));
+    box-shadow: none;
+  }
+
+  .se-app--tabbar .se-topbar a.se-statusbar__item::after {
+    display: none;
+  }
+
+  .se-app--tabbar .se-topbar .se-statusbar__icon {
+    width: 20px;
+    height: 20px;
+    filter: none;
+  }
+
+  .se-app--tabbar .se-topbar .se-statusbar__k,
+  .se-app--tabbar .se-topbar .se-statusbar__k:not(.se-statusbar__k--keep) {
+    font-size: 8px;
+    letter-spacing: .07em;
+  }
+
+  .se-app--tabbar .se-topbar .se-statusbar__v {
+    font-size: clamp(12px, 3.25vw, 15px);
+    letter-spacing: -.02em;
+  }
+}

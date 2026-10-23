@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="Obsidian Signal Thug outfit">
+  <defs><linearGradient id="cloth" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#273448"/><stop offset="1" stop-color="#080f19"/></linearGradient></defs>
+  <circle cx="64" cy="42" r="22" fill="#b98261" stroke="#c3913a" stroke-width="3"/><path d="M42 40Q40 12 64 10Q88 12 86 40L78 32H50Z" fill="#0b1420" stroke="#f3d68b" stroke-width="3"/><path d="M47 45H81" stroke="#78dee5" stroke-width="4"/><path d="M20 124L27 78Q35 66 50 64L64 72L78 64Q94 66 101 78L108 124Z" fill="url(#cloth)" stroke="#c3913a" stroke-width="4"/><path d="M64 73V124" stroke="#273448" stroke-width="4"/><path d="M38 82L54 95L64 77L74 95L90 82" fill="none" stroke="#f3d68b" stroke-width="3"/>
+</svg>

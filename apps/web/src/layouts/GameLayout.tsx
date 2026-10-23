@@ -1,23 +1,33 @@
-import { createContext, useContext, useEffect, useRef, useState, type KeyboardEvent, type TouchEvent, type ReactNode, type RefObject } from 'react';
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type TouchEvent, type ReactNode, type RefObject } from 'react';
 import { Link, Outlet, useLocation, useNavigationType } from 'react-router-dom';
 import { Shell, useSidebarRail } from './Shell.js';
 import { ConnectionBanner } from '../components/ConnectionBanner.js';
+import { RoundRollCallNotice } from '../components/RoundRollCall.js';
 import { TrackedQuests } from '../components/TrackedQuests.js';
 import { IntroDialog } from '../components/onboarding/IntroDialog.js';
+import { BirthdayGift } from '../components/BirthdayGift.js';
 import { TourOverlay } from '../components/onboarding/TourOverlay.js';
 import { PageGuide } from '../components/onboarding/PageGuide.js';
+import { TourTracker } from '../components/onboarding/TourTracker.js';
 import { useOnboarding } from '../stores/onboarding.js';
 import { NavIcon } from '../components/NavIcon.js';
 import { usePageFreshness } from '../hooks/usePageFreshness.js';
 import { useGamePresence } from '../hooks/useGamePresence.js';
 import { useStaleGameReload } from '../hooks/useStaleGameReload.js';
-import { classifySwipe, useTabSwipe } from '../hooks/useTabSwipe.js';
+import { useTabSwipe } from '../hooks/useTabSwipe.js';
+import { isMobileNavSwipe, isSheetDismissSwipe } from './mobileNavSwipe.js';
 import { useSession } from '../stores/session.js';
 import { PlayerProfileHoverLayer } from '../components/PlayerProfileHoverLayer.js';
 import { JokeDayBanner } from '../components/EasterEggs.js';
+import { CaseStoryAlerts } from '../components/CaseStoryAlerts.js';
+import { AdmissionGate } from '../components/AdmissionGate.js';
 import { AdminWorkspace } from '../components/AdminWorkspace.js';
+import { useStaff } from '../utils/staff.js';
 import { formatDuration } from '../utils/time.js';
+import { isPageScrollLocked } from '../utils/pageScrollLock.js';
+import { anchorScrollTop, isAnchorReady, preservedRouteScrollTarget, routeAnchorId, shouldPreserveRouteScroll } from '../utils/routeScroll.js';
 import {
+  adminSectionsFor,
   isCurrent,
   filterNavSections,
   useNavBadges,
@@ -167,27 +177,25 @@ function SeasonCard() {
 }
 
 const LONG_PRESS_MS = 500;
-/** The tab bar is short, so a smaller flick up is enough to pull up the sheet. */
-const SHEET_SWIPE_DISTANCE = 30;
-/** How far the sheet must be dragged down (px, or share of its height) before letting go closes it. */
-const SHEET_CLOSE_DISTANCE = 100;
-const SHEET_CLOSE_SHARE = 0.25;
 
 /**
  * Phone navigation: four tabs the player can rearrange and a More button for
  * everything else. Long-press a tab to swap what sits there.
  */
-function TabBar({ slots, pathname, badges, moreOpen, onMore, onEditSlot, moreButton }: {
+function TabBar({ slots, pathname, badges, moreOpen, onMore, onSwipeUp, onEditSlot, moreButton }: {
   slots: NavPage[];
   pathname: string;
   badges: Record<string, NavBadge>;
   moreOpen: boolean;
   onMore: () => void;
+  onSwipeUp: () => void;
   onEditSlot: (index: number) => void;
   moreButton: RefObject<HTMLButtonElement | null>;
 }) {
   const timer = useRef<number | null>(null);
   const fired = useRef(false);
+  const touchStart = useRef<{ identifier: number; x: number; y: number } | null>(null);
+  const suppressClickUntil = useRef(0);
   const onBar = new Set(slots.map((page) => page.key));
   const elsewhere = !slots.some((page) => isCurrent(page, pathname));
   const hiddenBadges = Object.entries(badges).filter(([key]) => !onBar.has(key));
@@ -195,37 +203,61 @@ function TabBar({ slots, pathname, badges, moreOpen, onMore, onEditSlot, moreBut
     ?? hiddenBadges.find(([key]) => key === 'console')?.[1]
     ?? null;
 
-  const swipeStart = useRef<{ x: number; y: number; at: number } | null>(null);
-
   function cancel() {
     if (timer.current !== null) window.clearTimeout(timer.current);
     timer.current = null;
   }
 
-  // Swiping up from the bar pulls up the All pages sheet.
-  function onSwipeStart(event: TouchEvent) {
+  function handleTouchStart(event: TouchEvent<HTMLElement>) {
+    touchStart.current = null;
+    if (moreOpen || event.touches.length !== 1) return;
     const touch = event.touches[0];
-    swipeStart.current = event.touches.length === 1 && touch
-      ? { x: touch.clientX, y: touch.clientY, at: event.timeStamp }
-      : null;
+    if (touch) touchStart.current = { identifier: touch.identifier, x: touch.clientX, y: touch.clientY };
   }
 
-  function onSwipeEnd(event: TouchEvent) {
-    const start = swipeStart.current;
-    swipeStart.current = null;
-    const touch = event.changedTouches[0];
-    if (!start || !touch) return;
-    const swipe = classifySwipe(touch.clientX - start.x, touch.clientY - start.y, event.timeStamp - start.at, SHEET_SWIPE_DISTANCE);
-    if (swipe !== 'up') return;
+  function handleTouchMove(event: TouchEvent<HTMLElement>) {
+    const initial = touchStart.current;
+    if (!initial) return;
+    if (event.touches.length !== 1) {
+      touchStart.current = null;
+      cancel();
+      return;
+    }
+    const touch = event.touches[0];
+    if (!touch || touch.identifier !== initial.identifier) {
+      touchStart.current = null;
+      cancel();
+      return;
+    }
+    // A swipe must cancel the long-press tab editor before the timer fires.
+    if (Math.abs(touch.clientY - initial.y) > 12 || Math.abs(touch.clientX - initial.x) > 12) cancel();
+  }
+
+  function handleTouchEnd(event: TouchEvent<HTMLElement>) {
+    const initial = touchStart.current;
+    touchStart.current = null;
+    if (!initial || moreOpen || event.touches.length !== 0) return;
+    const touch = Array.from(event.changedTouches).find((item) => item.identifier === initial.identifier);
+    if (!touch || !isMobileNavSwipe(initial.x, initial.y, touch.clientX, touch.clientY, 'up')) return;
+    // Don't let the touch-generated click navigate to the tab under the finger.
+    suppressClickUntil.current = Date.now() + 500;
     cancel();
-    // Swallow the tap the release would otherwise make on the tab under the finger.
-    event.preventDefault();
-    if (!moreOpen) onMore();
+    onSwipeUp();
+  }
+
+  function handleClickCapture(event: MouseEvent<HTMLElement>) {
+    if (Date.now() < suppressClickUntil.current) {
+      event.preventDefault();
+      event.stopPropagation();
+      suppressClickUntil.current = 0;
+    }
   }
 
   return (
-    <nav className="se-tabbar" aria-label="Game tabs" onTouchStart={onSwipeStart} onTouchEnd={onSwipeEnd}
-      onTouchCancel={() => { swipeStart.current = null; }}>
+    <nav className="se-tabbar" aria-label="Game tabs"
+      onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}
+      onTouchCancel={() => { touchStart.current = null; cancel(); }}
+      onClickCapture={handleClickCapture}>
       {slots.map((page, index) => {
         const current = isCurrent(page, pathname);
         return (
@@ -276,13 +308,14 @@ function TabBar({ slots, pathname, badges, moreOpen, onMore, onEditSlot, moreBut
  * Every game page as a grid, from the More tab. In edit mode the same grid
  * picks what goes in a tab slot instead of navigating.
  */
-function MoreSheet({ sections, pathname, badges, slots, editSlot, isDefault, onEditSlot, onPick, onReset, onClose }: {
+function MoreSheet({ sections, pathname, badges, slots, editSlot, fromTop, isDefault, onEditSlot, onPick, onReset, onClose }: {
   sections: NavSection[];
   pathname: string;
   badges: Record<string, NavBadge>;
   slots: NavPage[];
   /** The tab slot being changed, or null when browsing. */
   editSlot: number | null;
+  fromTop: boolean;
   isDefault: boolean;
   onEditSlot: (index: number | null) => void;
   onPick: (key: string) => void;
@@ -291,96 +324,27 @@ function MoreSheet({ sections, pathname, badges, slots, editSlot, isDefault, onE
 }) {
   const sheet = useRef<HTMLDivElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
+  const gripStart = useRef<{ identifier: number; x: number; y: number } | null>(null);
+  const suppressGripClickUntil = useRef(0);
   const editing = editSlot !== null;
   const [query, setQuery] = useState('');
   const visible = filterNavSections(sections, query);
   const slotOf = new Map(slots.map((page, index) => [page.key, index]));
 
   useEffect(() => {
-    closeButton.current?.focus();
+    // Isolate keyboard and wheel scrolling behind the modal, but never make
+    // the document body position:fixed (which causes viewport jumps on Android).
+    // Overflow hiding keeps the original scroll offset and layout intact.
     const root = document.documentElement;
-    const before = root.style.overflow;
+    const body = document.body;
+    const rootOverflow = root.style.overflow;
+    const bodyOverflow = body.style.overflow;
     root.style.overflow = 'hidden';
-    return () => { root.style.overflow = before; };
-  }, []);
-
-  // Dragging the sheet down (by its top, or anywhere once its list is scrolled to
-  // the top) slides it with the finger; letting go far or fast enough closes it.
-  const closeRef = useRef(onClose);
-  closeRef.current = onClose;
-  useEffect(() => {
-    const panel = sheet.current;
-    if (!panel) return;
-    const body = panel.querySelector<HTMLElement>('.se-sheet__body');
-    const backdrop = panel.parentElement?.querySelector<HTMLElement>('.se-sheet__backdrop') ?? null;
-    let drag: { x: number; y: number; at: number; armed: boolean; dragging: boolean; dy: number } | null = null;
-
-    const settle = (closing: boolean) => {
-      panel.style.transition = 'transform 180ms ease-out';
-      if (backdrop) backdrop.style.transition = 'opacity 180ms ease-out';
-      if (closing) {
-        panel.style.transform = 'translateY(100%)';
-        if (backdrop) backdrop.style.opacity = '0';
-        window.setTimeout(() => closeRef.current(), 180);
-      } else {
-        panel.style.transform = '';
-        if (backdrop) backdrop.style.opacity = '';
-      }
-    };
-
-    const onStart = (event: globalThis.TouchEvent) => {
-      const touch = event.touches[0];
-      const target = event.target instanceof Element ? event.target : null;
-      if (event.touches.length !== 1 || !touch || !target || target.closest('input, textarea, select')) {
-        drag = null;
-        return;
-      }
-      const inList = body?.contains(target) ?? false;
-      drag = { x: touch.clientX, y: touch.clientY, at: event.timeStamp, armed: !inList || (body?.scrollTop ?? 0) <= 0, dragging: false, dy: 0 };
-    };
-
-    const onMove = (event: globalThis.TouchEvent) => {
-      const touch = event.touches[0];
-      if (!drag?.armed || !touch) return;
-      const dx = touch.clientX - drag.x;
-      const dy = touch.clientY - drag.y;
-      if (!drag.dragging) {
-        if (dy > 8 && dy > Math.abs(dx)) drag.dragging = true;
-        else if (dy < -8 || Math.abs(dx) > 8) { drag.armed = false; return; }
-        else return;
-      }
-      event.preventDefault();
-      drag.dy = Math.max(0, dy);
-      panel.style.transition = 'none';
-      panel.style.transform = `translateY(${drag.dy}px)`;
-      if (backdrop) {
-        backdrop.style.transition = 'none';
-        backdrop.style.opacity = String(Math.max(0, 1 - drag.dy / panel.offsetHeight));
-      }
-    };
-
-    const onEnd = (event: globalThis.TouchEvent) => {
-      const done = drag;
-      drag = null;
-      if (!done?.dragging) return;
-      const fast = done.dy > 40 && done.dy / Math.max(1, event.timeStamp - done.at) > 0.5;
-      settle(fast || done.dy > Math.min(SHEET_CLOSE_DISTANCE, panel.offsetHeight * SHEET_CLOSE_SHARE));
-    };
-
-    const onCancel = () => {
-      if (drag?.dragging) settle(false);
-      drag = null;
-    };
-
-    panel.addEventListener('touchstart', onStart, { passive: true });
-    panel.addEventListener('touchmove', onMove, { passive: false });
-    panel.addEventListener('touchend', onEnd);
-    panel.addEventListener('touchcancel', onCancel);
+    body.style.overflow = 'hidden';
+    closeButton.current?.focus({ preventScroll: true });
     return () => {
-      panel.removeEventListener('touchstart', onStart);
-      panel.removeEventListener('touchmove', onMove);
-      panel.removeEventListener('touchend', onEnd);
-      panel.removeEventListener('touchcancel', onCancel);
+      root.style.overflow = rootOverflow;
+      body.style.overflow = bodyOverflow;
     };
   }, []);
 
@@ -399,12 +363,53 @@ function MoreSheet({ sections, pathname, badges, slots, editSlot, isDefault, onE
     else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
   }
 
+  function handleGripStart(event: TouchEvent<HTMLDivElement>) {
+    gripStart.current = null;
+    if (event.touches.length !== 1) return;
+    const target = event.target;
+    if (target instanceof Element && target.closest('button, a, input, select, textarea')
+      && !target.closest('.se-sheet__grip')) return;
+    const touch = event.touches[0];
+    if (touch) gripStart.current = { identifier: touch.identifier, x: touch.clientX, y: touch.clientY };
+  }
+
+  function handleGripMove(event: TouchEvent<HTMLDivElement>) {
+    const initial = gripStart.current;
+    if (!initial) return;
+    if (event.touches.length !== 1) { gripStart.current = null; return; }
+    const touch = event.touches[0];
+    if (!touch || touch.identifier !== initial.identifier) { gripStart.current = null; return; }
+    if (Math.abs(touch.clientY - initial.y) > 9 || Math.abs(touch.clientX - initial.x) > 9) {
+      suppressGripClickUntil.current = Date.now() + 500;
+    }
+  }
+
+  function handleGripEnd(event: TouchEvent<HTMLDivElement>) {
+    const initial = gripStart.current;
+    gripStart.current = null;
+    if (!initial || event.touches.length !== 0) return;
+    const touch = Array.from(event.changedTouches).find((item) => item.identifier === initial.identifier);
+    if (touch && isSheetDismissSwipe(initial.x, initial.y, touch.clientX, touch.clientY, fromTop ? 'up' : 'down')) onClose();
+  }
+
   return (
-    <div className="se-sheet" onKeyDown={onKeyDown}>
+    <div className={`se-sheet${fromTop ? ' se-sheet--from-top' : ''}`} onKeyDown={onKeyDown}>
       <div className="se-sheet__backdrop" onClick={onClose} aria-hidden="true" />
       <div ref={sheet} className="se-sheet__panel" role="dialog" aria-modal="true" aria-labelledby="se-sheet-title">
-        <div className="se-sheet__grip" aria-hidden="true" />
-        <header className="se-sheet__head">
+        <div className="se-sheet__drag-area" onTouchStart={handleGripStart}
+          onTouchMove={handleGripMove} onTouchEnd={handleGripEnd}
+          onTouchCancel={() => { gripStart.current = null; }}>
+          <button type="button" className="se-sheet__grip"
+            aria-label={fromTop ? 'Close All pages (swipe up or tap)' : 'Close All pages (swipe down or tap)'}
+            onClick={(event) => {
+              if (Date.now() < suppressGripClickUntil.current) {
+                event.preventDefault();
+                suppressGripClickUntil.current = 0;
+                return;
+              }
+              onClose();
+            }} />
+          <header className="se-sheet__head">
           <h2 id="se-sheet-title" className="se-sheet__title">{editing ? 'Edit tabs' : 'All pages'}</h2>
           <div className="se-sheet__actions">
             {editing ? (
@@ -417,7 +422,8 @@ function MoreSheet({ sections, pathname, badges, slots, editSlot, isDefault, onE
             )}
             <button ref={closeButton} type="button" className="se-btn se-btn--ghost se-btn--sm se-sheet__close" aria-label="Close" onClick={onClose}>✕</button>
           </div>
-        </header>
+          </header>
+        </div>
 
         {editing ? (
           <div className="se-sheet__edit">
@@ -478,48 +484,139 @@ function MoreSheet({ sections, pathname, badges, slots, editSlot, isDefault, onE
   );
 }
 
-/**
- * New pages open at the top, and `#id` links land on that panel. Back and forward
- * leave the browser's own scroll restoration alone.
- */
-function useRouteScroll(pathname: string, hash: string) {
+/** Navigate to the actual destination after async data and collapsed panels have rendered. */
+function useRouteScroll(pathname: string, search: string, hash: string, locationKey: string) {
   const navigationType = useNavigationType();
-  const lastTarget = useRef<{ pathname: string; hash: string } | null>(null);
+  const lastTarget = useRef<{ pathname: string; anchorId: string | null; key: string; completed: boolean } | null>(null);
+  const observedScrollY = useRef(typeof window === 'undefined' ? 0 : window.scrollY);
+
   useEffect(() => {
+    const remember = () => { observedScrollY.current = window.scrollY; };
+    window.addEventListener('scroll', remember, { passive: true });
+    // Capture the position before a click swaps the view, even in the same task.
+    document.addEventListener('click', remember, true);
+    return () => {
+      window.removeEventListener('scroll', remember);
+      document.removeEventListener('click', remember, true);
+    };
+  }, []);
+
+  useLayoutEffect(() => {
+    const anchorId = routeAnchorId(pathname, search, hash);
     const previous = lastTarget.current;
-    lastTarget.current = { pathname, hash };
-    if (previous && previous.pathname === pathname && previous.hash === hash) return;
-    if (navigationType === 'POP') return;
+    const current = { pathname, anchorId, key: locationKey, completed: !anchorId };
+    lastTarget.current = current;
+    // Re-clicking the same anchor should still navigate to it. Ordinary search
+    // changes within a page must not reset scroll position. A cancelled seek
+    // (e.g. React StrictMode's setup/cleanup replay) must retry on the next pass.
+    if (previous && previous.pathname === pathname && previous.anchorId === anchorId
+      && (!anchorId || (previous.key === locationKey && previous.completed))) return;
+    if (navigationType === 'POP' && !anchorId) return;
 
-    // Storefronts and casino games share a page shell. Switching counters or
-    // games should replace the active view without yanking the player upward.
-    const previousIsStore = previous?.pathname === '/game/stores' || previous?.pathname.startsWith('/game/stores/');
-    const nextIsStore = pathname === '/game/stores' || pathname.startsWith('/game/stores/');
-    if (previousIsStore && nextIsStore && !hash) return;
+    // Shared storefronts and casino games keep their scroll position without
+    // repeatedly fighting a swipe. Restore once, then only retry when an async
+    // view grows enough to reach the original position. Player input wins.
+    if (!anchorId && shouldPreserveRouteScroll(previous?.pathname, pathname, hash)) {
+      const desiredY = observedScrollY.current;
+      let frame = 0;
+      let timeout = 0;
+      let observer: ResizeObserver | null = null;
+      let stopped = false;
+      const onScrollKey = (event: globalThis.KeyboardEvent) => {
+        if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) stop();
+      };
+      const stop = () => {
+        if (stopped) return;
+        stopped = true;
+        if (frame) window.cancelAnimationFrame(frame);
+        if (timeout) window.clearTimeout(timeout);
+        observer?.disconnect();
+        document.removeEventListener('touchstart', stop, true);
+        document.removeEventListener('pointerdown', stop, true);
+        document.removeEventListener('wheel', stop, true);
+        document.removeEventListener('keydown', onScrollKey, true);
+      };
+      const restore = () => {
+        frame = 0;
+        if (stopped || isPageScrollLocked() || document.querySelector('.se-sheet')) return;
+        const { top, settled } = preservedRouteScrollTarget(
+          desiredY, document.documentElement.scrollHeight, window.innerHeight,
+        );
+        if (Math.abs(window.scrollY - top) > 1) window.scrollTo(0, top);
+        if (settled) stop();
+      };
+      const schedule = () => {
+        if (!stopped && !frame) frame = window.requestAnimationFrame(restore);
+      };
+      document.addEventListener('touchstart', stop, { capture: true, passive: true });
+      document.addEventListener('pointerdown', stop, { capture: true, passive: true });
+      document.addEventListener('wheel', stop, { capture: true, passive: true });
+      document.addEventListener('keydown', onScrollKey, true);
+      // ResizeObserver only fires when the new store/game actually changes size.
+      if (typeof ResizeObserver !== 'undefined') {
+        observer = new ResizeObserver(schedule);
+        const content = document.querySelector<HTMLElement>('.se-gamemain');
+        observer.observe(content ?? document.documentElement);
+      }
+      // Never keep scroll restoration alive indefinitely on a shorter store.
+      timeout = window.setTimeout(stop, 3000);
+      restore();
+      return stop;
+    }
 
-    const previousIsCasinoGame = previous?.pathname.startsWith('/game/casino/');
-    const nextIsCasinoGame = pathname.startsWith('/game/casino/');
-    if (previousIsCasinoGame && nextIsCasinoGame && !hash) return;
-
-    if (!hash) {
+    if (!anchorId) {
       window.scrollTo(0, 0);
+      observedScrollY.current = 0;
       return;
     }
-    // The target may render a frame or two after the page, once its data is in.
+
+    // Avoid a stale position while changing pages, but don't jump to the top
+    // when a player picks another link inside the page they're already on.
+    if (previous?.pathname !== pathname) window.scrollTo(0, 0);
+
     let frame = 0;
-    let tries = 0;
-    const seek = () => {
-      const target = document.getElementById(decodeURIComponent(hash.slice(1)));
-      if (target) {
-        target.scrollIntoView({ block: 'start' });
-        target.focus?.({ preventScroll: true });
-      } else if (tries++ < 60) {
-        frame = window.requestAnimationFrame(seek);
-      }
+    let timeout = 0;
+    let finished = false;
+    let observer: MutationObserver | null = null;
+    const stop = () => {
+      finished = true;
+      if (frame) window.cancelAnimationFrame(frame);
+      if (timeout) window.clearTimeout(timeout);
+      observer?.disconnect();
     };
-    seek();
-    return () => window.cancelAnimationFrame(frame);
-  }, [pathname, hash, navigationType]);
+    const seek = () => {
+      frame = 0;
+      if (finished || isPageScrollLocked() || document.querySelector('.se-sheet')) return;
+      const target = document.getElementById(anchorId);
+      if (!target || !isAnchorReady(target) || !target.getClientRects().length) return;
+      const header = document.querySelector<HTMLElement>('.se-app--tabbar .se-topbar');
+      const headerBottom = header?.getBoundingClientRect().bottom ?? 0;
+      window.scrollTo({
+        top: anchorScrollTop(target.getBoundingClientRect().top, window.scrollY, headerBottom),
+        left: window.scrollX,
+        behavior: 'auto',
+      });
+      target.focus({ preventScroll: true });
+      current.completed = true;
+      stop();
+    };
+    const schedule = () => {
+      if (!finished && !frame) frame = window.requestAnimationFrame(seek);
+    };
+    // Data-driven panels (Quests, News, rankings, etc.) can arrive long after
+    // two animation frames. Watch their actual DOM rather than guessing timing.
+    observer = new MutationObserver(schedule);
+    observer.observe(document.body, {
+      childList: true, subtree: true, attributes: true,
+      attributeFilter: ['open', 'hidden', 'class', 'style'],
+    });
+    // Closing a mobile More sheet or dialog restores its saved scroll position.
+    // Retry once the body/root scroll lock has been removed.
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['style'] });
+    timeout = window.setTimeout(stop, 15_000);
+    schedule();
+    return stop;
+  }, [pathname, search, hash, locationKey, navigationType]);
 }
 
 const GameLayoutMountedContext = createContext(false);
@@ -531,27 +628,27 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
   useTabSwipe();
   const round = useSession((s) => s.round);
   const experience = useSession((s) => s.me?.experience ?? null);
-  const isAdmin = useSession((s) => s.account?.isAdmin ?? false);
+  const { role: staffRole } = useStaff();
   const isBetaEnvironment = typeof window !== 'undefined' && window.location.hostname === 'beta.streetsempire.dev';
   const sections = useSections();
-  const { pathname, search, hash } = useLocation();
+  const { pathname, search, hash, key } = useLocation();
   const badges = useNavBadges(pathname, search);
   const pages = sections.flatMap((section) => section.pages);
   const tabs = useTabSlots(pages);
-  const [sheet, setSheet] = useState<{ editSlot: number | null } | null>(null);
+  const [sheet, setSheet] = useState<{ editSlot: number | null; fromTop: boolean } | null>(null);
   const moreButton = useRef<HTMLButtonElement>(null);
-  useRouteScroll(pathname, hash);
+  useRouteScroll(pathname, search, hash, key);
   // 1.0.0-B: tutorial progress, refreshed as the player acts so the goals tick off.
   const playerId = useSession((s) => s.me?.id ?? null);
   const activityHead = useSession((s) => s.recentActivity[0]?.id ?? null);
   const loadOnboarding = useOnboarding((s) => s.load);
   useEffect(() => {
-    if (playerId) void loadOnboarding();
+    if (playerId) void loadOnboarding(playerId);
   }, [playerId, activityHead, loadOnboarding]);
 
   function closeSheet() {
     setSheet(null);
-    moreButton.current?.focus();
+    moreButton.current?.focus({ preventScroll: true });
   }
 
   return (
@@ -561,12 +658,13 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
         tabbar={
       <>
         <TabBar slots={tabs.slots} pathname={pathname} badges={badges} moreOpen={sheet !== null} moreButton={moreButton}
-          onMore={() => setSheet((open) => (open ? null : { editSlot: null }))}
-          onEditSlot={(index) => setSheet({ editSlot: index })} />
+          onMore={() => setSheet((open) => (open ? null : { editSlot: null, fromTop: false }))}
+          onSwipeUp={() => setSheet((open) => open ?? { editSlot: null, fromTop: false })}
+          onEditSlot={(index) => setSheet({ editSlot: index, fromTop: false })} />
         {sheet ? (
           <MoreSheet sections={sections} pathname={pathname} badges={badges} slots={tabs.slots}
-            editSlot={sheet.editSlot} isDefault={tabs.isDefault}
-            onEditSlot={(editSlot) => setSheet({ editSlot })}
+            editSlot={sheet.editSlot} fromTop={sheet.fromTop} isDefault={tabs.isDefault}
+            onEditSlot={(editSlot) => setSheet((current) => ({ editSlot, fromTop: current?.fromTop ?? false }))}
             onPick={(key) => { if (sheet.editSlot !== null) tabs.setSlot(sheet.editSlot, key); }}
             onReset={tabs.reset}
             onClose={closeSheet} />
@@ -574,6 +672,7 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
       </>
     }>
       <ConnectionBanner />
+      <RoundRollCallNotice />
       <JokeDayBanner />
       {isBetaEnvironment ? (
         <div className="se-beta-banner" role="status">
@@ -611,13 +710,16 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
         </div>
       ) : null}
       <TrackedQuests />
+      <CaseStoryAlerts />
       <IntroDialog />
       <TourOverlay />
+      <BirthdayGift />
 
       <div className="se-gamegrid">
         <div className="se-gamemain">
-          {isAdmin && pathname.startsWith('/game/admin') ? <AdminWorkspace pathname={pathname} /> : null}
+          {staffRole && pathname.startsWith('/game/admin') ? <AdminWorkspace pathname={pathname} sections={adminSectionsFor(staffRole)} /> : null}
           <PageGuide />
+          <TourTracker />
           {children}
         </div>
       </div>
@@ -641,8 +743,8 @@ export function GameLayout({ children }: { children: ReactNode }) {
  * routes stay transparent so InfoLayout can continue to render its public Shell.
  */
 export function GameRouteLayout() {
-  const me = useSession((state) => state.me);
+  const account = useSession((state) => state.account);
   // An account that may not play yet gets no game frame (and none of its polling).
-  const blocked = useSession((state) => Boolean(state.account?.verificationRequired || state.account?.rulesAcceptanceRequired));
-  return me && !blocked ? <><GameLayoutFrame><Outlet /></GameLayoutFrame><PlayerProfileHoverLayer /></> : <Outlet />;
+  const blocked = useSession((state) => Boolean(state.account?.verificationRequired || state.account?.rulesAcceptanceRequired || state.account?.birthDateRequired));
+  return account && !blocked ? <><GameLayoutFrame><AdmissionGate /><Outlet /></GameLayoutFrame><PlayerProfileHoverLayer /></> : <Outlet />;
 }

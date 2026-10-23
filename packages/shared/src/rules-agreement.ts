@@ -2,10 +2,10 @@
  * The rules every player accepts before they play. Changing what they agree to means
  * bumping RULES_VERSION: everyone is asked to accept again on their next visit.
  */
-export const RULES_VERSION = '2026-09-27b';
+export const RULES_VERSION = '2026-10-15a';
 
 /** rc.5. Players must be at least this old. */
-export const MINIMUM_AGE = 13;
+export const MINIMUM_AGE = 16;
 
 export const RULES_AGREEMENT: ReadonlyArray<{ title: string; body: string }> = [
   { title: `You are ${MINIMUM_AGE} or older`, body: `StreetsEmpire is for players aged ${MINIMUM_AGE} and over: it is a crime strategy game about drugs, raids and turf. Accounts of younger players are closed and their data deleted.` },

@@ -6,6 +6,7 @@ import {
   allianceForumPostSchema,
   allianceSettingsSchema,
   createAllianceSchema,
+  experienceLevelFor,
   type AdminAlliancesDto,
   type AllianceDetailDto,
   type AllianceEventDto,
@@ -26,7 +27,9 @@ import {
   type CityControl,
 } from './turf-territory.service.js';
 import { endPlayerTurfHolds, startPlayerTurfHolds } from './turf-history.service.js';
-import { assertCanCommunicate } from './communication-guard.js';
+import { accountTrust, assertCanCommunicate, assertTrustGate } from './communication-guard.js';
+import { PlayerExperienceService } from './player-experience.service.js';
+import { PlayerSkillService } from './player-skill.service.js';
 
 type AllianceRules = NonNullable<Ruleset['alliances']>;
 
@@ -188,6 +191,8 @@ interface Standing {
   activeMembers: number;
   memberCount: number;
   rank: number;
+  /** Account levels of active members, added up. */
+  combinedLevel: number;
 }
 
 /** Live alliance standings for a round: combined net worth of active members, ties share a rank. */
@@ -196,10 +201,10 @@ async function standings(db: Db | PrismaClient, roundId: string): Promise<{ alli
   const members = alliances.length
     ? await db.roundPlayer.findMany({
         where: { roundId, allianceId: { in: alliances.map((alliance) => alliance.id) } },
-        select: { allianceId: true, netWorthCents: true, account: { select: { isActive: true } } },
+        select: { allianceId: true, netWorthCents: true, account: { select: { isActive: true, experiencePoints: true } } },
       })
     : [];
-  const totals = new Map<string, Standing>(alliances.map((alliance) => [alliance.id, { allianceId: alliance.id, combinedNetWorthCents: 0n, activeMembers: 0, memberCount: 0, rank: 0 }]));
+  const totals = new Map<string, Standing>(alliances.map((alliance) => [alliance.id, { allianceId: alliance.id, combinedNetWorthCents: 0n, activeMembers: 0, memberCount: 0, rank: 0, combinedLevel: 0 }]));
   for (const member of members) {
     const total = totals.get(member.allianceId!);
     if (!total) continue;
@@ -207,6 +212,7 @@ async function standings(db: Db | PrismaClient, roundId: string): Promise<{ alli
     if (member.account.isActive) {
       total.activeMembers += 1;
       total.combinedNetWorthCents += member.netWorthCents;
+      total.combinedLevel += experienceLevelFor(member.account.experiencePoints);
     }
   }
   const order = alliances.map((alliance) => totals.get(alliance.id)!)
@@ -220,7 +226,7 @@ async function standings(db: Db | PrismaClient, roundId: string): Promise<{ alli
   return { alliances: order.map((standing) => alliances.find((alliance) => alliance.id === standing.allianceId)!), byId: sorted };
 }
 
-async function detail(db: Db | PrismaClient, alliance: Alliance, standing: Standing, rules: AllianceRules, viewer: Pick<RoundPlayer, 'id' | 'allianceId'> | null): Promise<AllianceDetailDto> {
+async function detail(db: Db | PrismaClient, alliance: Alliance, standing: Standing, rules: AllianceRules, viewer: Pick<RoundPlayer, 'id' | 'allianceId'> | null, streetSkills?: Ruleset['streetSkills']): Promise<AllianceDetailDto> {
   const members = await db.roundPlayer.findMany({
     where: { allianceId: alliance.id, account: { isActive: true } },
     orderBy: [{ netWorthCents: 'desc' }, { publicPimpId: 'asc' }],
@@ -229,6 +235,9 @@ async function detail(db: Db | PrismaClient, alliance: Alliance, standing: Stand
     where: { roundId: alliance.roundId, netWorthCents: { gt: member.netWorthCents }, account: { isActive: true } },
   })));
   const leader = members.find((member) => member.id === alliance.leaderId);
+  const levels = await PlayerExperienceService.levels(db, members.map((member) => member.accountId));
+  const skillBadges = streetSkills ? await PlayerSkillService.publicBadges(db, members.map((member) => member.id)) : new Map();
+  const combinedLevel = members.reduce((total, member) => total + (levels.get(member.accountId) ?? 1), 0);
   return {
     name: alliance.name,
     tag: alliance.tag,
@@ -245,7 +254,10 @@ async function detail(db: Db | PrismaClient, alliance: Alliance, standing: Stand
       isLeader: member.id === alliance.leaderId,
       isYou: viewer ? member.id === viewer.id : false,
       joinedAt: (member.allianceJoinedAt ?? alliance.createdAt).toISOString(),
+      accountLevel: levels.get(member.accountId) ?? 1,
+      ...(skillBadges.get(member.id)?.length ? { streetSkillBadges: skillBadges.get(member.id) } : {}),
     })),
+    crewRep: { combinedLevel, averageLevel: members.length ? Math.round(combinedLevel / members.length) : 0 },
     foundedAt: alliance.createdAt.toISOString(),
     isYours: viewer ? viewer.allianceId === alliance.id : false,
     forumUrl: alliance.forumDiscussionId ? forumDiscussionUrl(alliance.forumDiscussionId) : null,
@@ -337,7 +349,7 @@ export const AllianceService = {
     if (!alliance) return base;
     const isLeader = alliance.leaderId === player.id;
     const [allianceDetail, outgoing, events] = await Promise.all([
-      detail(prisma, alliance, byId.get(alliance.id)!, rules, player),
+      detail(prisma, alliance, byId.get(alliance.id)!, rules, player, loadRulesetForRound(player.round).streetSkills),
       isLeader ? prisma.allianceInvite.findMany({ where: { allianceId: alliance.id, expiresAt: { gt: now } }, include: { invitee: true }, orderBy: { createdAt: 'desc' } }) : [],
       prisma.allianceEvent.findMany({ where: { allianceId: alliance.id }, orderBy: { createdAt: 'desc' }, take: 30 }),
     ]);
@@ -358,7 +370,10 @@ export const AllianceService = {
       enabled: true,
       alliances: alliances.slice(0, limit).map((alliance) => {
         const standing = byId.get(alliance.id)!;
-        return { name: alliance.name, tag: alliance.tag, rank: standing.rank, combinedNetWorthCents: Number(standing.combinedNetWorthCents), memberCount: standing.memberCount, isYours: player.allianceId === alliance.id };
+        return {
+          name: alliance.name, tag: alliance.tag, rank: standing.rank, combinedNetWorthCents: Number(standing.combinedNetWorthCents), memberCount: standing.memberCount, isYours: player.allianceId === alliance.id,
+          averageLevel: standing.activeMembers ? Math.round(standing.combinedLevel / standing.activeMembers) : 0,
+        };
       }),
     };
   },
@@ -374,7 +389,7 @@ export const AllianceService = {
     const { alliances, byId } = await standings(prisma, round.id);
     const alliance = alliances.find((row) => row.tagNormalized === tag.trim().toLowerCase());
     if (!alliance) throw AppError.notFound('ALLIANCE_NOT_FOUND', 'No alliance with that tag is running in this round.');
-    return detail(prisma, alliance, byId.get(alliance.id)!, rules, viewer);
+    return detail(prisma, alliance, byId.get(alliance.id)!, rules, viewer, loadRulesetForRound(round).streetSkills);
   },
 
   async publicDetail(prisma: PrismaClient, player: RoundPlayer & { round: Round }, tag: string): Promise<AllianceDetailDto> {
@@ -396,6 +411,7 @@ export const AllianceService = {
         if (me.allianceCooldownUntil && me.allianceCooldownUntil > now) {
           throw AppError.conflict('ALLIANCE_COOLDOWN', `You left an alliance recently. You can found or join one in ${waitText(me.allianceCooldownUntil, now)}.`);
         }
+        assertTrustGate(await accountTrust(tx, me.accountId), 'foundAlliance');
         const base = loadRulesetForRound(player.round);
         const territoryBefore = await territoryBeforeForPlayers(tx, me.roundId, [me.id], base);
         await endPlayerTurfHolds(tx, me.id, now);
@@ -607,7 +623,7 @@ export const AllianceService = {
     const claim = await withOwnAlliance(prisma, playerId, async ({ tx, alliance, me, rules, now, round }) => {
       requireLeader(alliance, me, 'post a recruitment thread');
       // 0.9.0-H: a public forum thread is communication too.
-      await assertCanCommunicate(tx, me.accountId, now);
+      assertTrustGate(await assertCanCommunicate(tx, me.accountId, now), 'foundAlliance');
       if (alliance.forumDiscussionId) throw AppError.conflict('FORUM_THREAD_EXISTS', `${alliance.name} already has a recruitment thread.`);
       if (alliance.forumPostStartedAt && now.getTime() - alliance.forumPostStartedAt.getTime() < 60_000) {
         throw AppError.conflict('FORUM_THREAD_POSTING', 'Your recruitment thread is already on its way.');

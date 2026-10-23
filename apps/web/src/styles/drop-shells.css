@@ -1,0 +1,1528 @@
+/*
+ * The Drop shell themes (docs/THE-DROP.md): full game-shell reskins sold in
+ * The Drop. Visual only, like site-themes.css: palette tokens, panel and
+ * control fills, and an illustrated backdrop under the page content. Scene
+ * animation stops under reduced motion (the shared .se-theme-scene rule).
+ */
+
+.se-site-theme--kingpin-luxe-shell {
+  --se-bg: #070709;
+  --se-panel: #111116;
+  --se-panel-hi: #19181f;
+  --se-line: rgba(214, 163, 92, 0.3);
+  --se-line-soft: rgba(214, 163, 92, 0.15);
+  --se-text: #f3ede2;
+  --se-text-dim: #bfb4a2;
+  --se-muted: #8f8676;
+  --se-accent: #d6a35c;
+  --se-accent-dim: #a57a3d;
+  --se-accent-hover: #ebc488;
+  --se-accent-rgb: 214, 163, 92;
+  --se-accent-2: #6d5a8a;
+  --se-theme-panel-fill:
+    linear-gradient(135deg, rgba(214, 163, 92, 0.07), transparent 38%),
+    linear-gradient(180deg, rgba(27, 26, 32, 0.96), rgba(9, 9, 12, 0.97));
+  --se-theme-stat-fill:
+    linear-gradient(90deg, transparent 0 calc(100% - 3px), rgba(214, 163, 92, 0.35) calc(100% - 3px)),
+    rgba(12, 12, 15, 0.96);
+  --se-theme-button-fill: linear-gradient(180deg, #1c1b21, #0c0c10);
+  --se-theme-head-fill:
+    linear-gradient(90deg, rgba(214, 163, 92, 0.16), transparent 60%),
+    linear-gradient(180deg, #1a1920, #111116);
+  --se-theme-topbar-layer:
+    linear-gradient(90deg, rgba(214, 163, 92, 0.12), transparent 30%, rgba(214, 163, 92, 0.06));
+  background-image:
+    repeating-linear-gradient(90deg, rgba(214, 163, 92, 0.025) 0 1px, transparent 1px 64px),
+    radial-gradient(900px 540px at 96% 0%, rgba(214, 163, 92, 0.13), transparent 62%),
+    linear-gradient(180deg, #0c0c10, #070709 60%);
+}
+
+.se-site-theme--neon-underworld-shell {
+  --se-bg: #07080e;
+  --se-panel: #11131c;
+  --se-panel-hi: #181b28;
+  --se-line: rgba(180, 107, 255, 0.32);
+  --se-line-soft: rgba(57, 230, 214, 0.16);
+  --se-text: #eef0fb;
+  --se-text-dim: #aab0c8;
+  --se-muted: #7d84a0;
+  --se-accent: #b46bff;
+  --se-accent-dim: #8447c4;
+  --se-accent-hover: #cc98ff;
+  --se-accent-rgb: 180, 107, 255;
+  --se-accent-2: #39e6d6;
+  --se-theme-panel-fill:
+    linear-gradient(160deg, rgba(57, 230, 214, 0.06), transparent 40%),
+    linear-gradient(180deg, rgba(27, 31, 46, 0.95), rgba(10, 11, 18, 0.96));
+  --se-theme-stat-fill:
+    linear-gradient(180deg, rgba(180, 107, 255, 0.08), rgba(57, 230, 214, 0.05)),
+    rgba(11, 12, 19, 0.96);
+  --se-theme-button-fill: linear-gradient(90deg, rgba(180, 107, 255, 0.12), rgba(57, 230, 214, 0.08));
+  --se-theme-head-fill:
+    linear-gradient(90deg, rgba(180, 107, 255, 0.2), rgba(57, 230, 214, 0.08) 55%, transparent);
+  --se-theme-topbar-layer:
+    linear-gradient(90deg, rgba(180, 107, 255, 0.16), transparent 30%, rgba(57, 230, 214, 0.14));
+  background-image:
+    linear-gradient(180deg, rgba(57, 230, 214, 0.035) 1px, transparent 1px),
+    radial-gradient(820px 500px at 94% 0%, rgba(180, 107, 255, 0.2), transparent 60%),
+    radial-gradient(760px 460px at 4% 100%, rgba(57, 230, 214, 0.12), transparent 60%),
+    linear-gradient(180deg, #0b0c14, #07080e 60%);
+  background-size: 100% 6px, auto, auto, auto;
+}
+
+.se-site-theme--winter-heist-shell {
+  --se-bg: #07101a;
+  --se-panel: #0f1b28;
+  --se-panel-hi: #152637;
+  --se-line: rgba(143, 211, 255, 0.3);
+  --se-line-soft: rgba(232, 244, 251, 0.14);
+  --se-text: #eef6fc;
+  --se-text-dim: #a9c2d4;
+  --se-muted: #7894a8;
+  --se-accent: #8fd3ff;
+  --se-accent-dim: #5c9fc9;
+  --se-accent-hover: #b9e4ff;
+  --se-accent-rgb: 143, 211, 255;
+  --se-accent-2: #b03a48;
+  --se-theme-panel-fill:
+    linear-gradient(180deg, rgba(232, 244, 251, 0.07), transparent 24%),
+    linear-gradient(180deg, rgba(22, 38, 55, 0.95), rgba(9, 17, 26, 0.96));
+  --se-theme-stat-fill:
+    linear-gradient(180deg, rgba(232, 244, 251, 0.06), transparent 50%),
+    rgba(10, 19, 29, 0.96);
+  --se-theme-button-fill: linear-gradient(180deg, rgba(143, 211, 255, 0.12), rgba(8, 16, 25, 0.9));
+  --se-theme-head-fill:
+    linear-gradient(90deg, rgba(143, 211, 255, 0.16), transparent 60%),
+    linear-gradient(180deg, #172a3c, #0f1b28);
+  --se-theme-topbar-layer:
+    linear-gradient(180deg, rgba(232, 244, 251, 0.1), transparent),
+    linear-gradient(90deg, rgba(143, 211, 255, 0.1), transparent 40%);
+  background-image:
+    radial-gradient(900px 520px at 90% -6%, rgba(143, 211, 255, 0.16), transparent 62%),
+    radial-gradient(720px 420px at 0% 100%, rgba(176, 58, 72, 0.08), transparent 60%),
+    linear-gradient(180deg, #0c1826, #07101a 62%);
+}
+
+.se-site-theme--biscayne-sunset-shell {
+  --se-bg: #140c16;
+  --se-panel: #1f1422;
+  --se-panel-hi: #2a1b2e;
+  --se-line: rgba(255, 143, 177, 0.3);
+  --se-line-soft: rgba(255, 143, 177, 0.15);
+  --se-text: #fff3f6;
+  --se-text-dim: #e0b9c6;
+  --se-muted: #a68592;
+  --se-accent: #ff8fb1;
+  --se-accent-dim: #c96283;
+  --se-accent-hover: #ffb3cb;
+  --se-accent-rgb: 255, 143, 177;
+  --se-accent-2: #4fd6c7;
+  --se-theme-panel-fill:
+    linear-gradient(150deg, rgba(255, 143, 177, 0.07), transparent 40%),
+    linear-gradient(180deg, rgba(36, 22, 40, 0.95), rgba(15, 9, 17, 0.96));
+  --se-theme-stat-fill:
+    linear-gradient(180deg, rgba(255, 143, 177, 0.07), rgba(79, 214, 199, 0.04)),
+    rgba(15, 9, 17, 0.96);
+  --se-theme-button-fill: linear-gradient(180deg, rgba(255, 143, 177, 0.12), rgba(15, 9, 17, 0.96));
+  --se-theme-head-fill:
+    linear-gradient(90deg, rgba(255, 143, 177, 0.18), rgba(79, 214, 199, 0.06) 55%, transparent),
+    linear-gradient(180deg, #2a1b2e, #1f1422);
+  --se-theme-topbar-layer:
+    linear-gradient(90deg, rgba(255, 143, 177, 0.14), transparent 32%, rgba(79, 214, 199, 0.1));
+  background-image:
+    radial-gradient(900px 520px at 94% 0%, rgba(255, 143, 177, 0.16), transparent 62%),
+    radial-gradient(720px 440px at 2% 100%, rgba(79, 214, 199, 0.09), transparent 60%),
+    linear-gradient(180deg, #1f1422, #140c16 62%);
+}
+
+.se-site-theme--velvet-speakeasy-shell {
+  --se-bg: #0e0709;
+  --se-panel: #1a0d11;
+  --se-panel-hi: #241218;
+  --se-line: rgba(194, 64, 92, 0.3);
+  --se-line-soft: rgba(194, 64, 92, 0.15);
+  --se-text: #f6ece2;
+  --se-text-dim: #cdb7a8;
+  --se-muted: #94807a;
+  --se-accent: #c2405c;
+  --se-accent-dim: #8f2a41;
+  --se-accent-hover: #da6a82;
+  --se-accent-rgb: 194, 64, 92;
+  --se-accent-2: #c9c2b4;
+  --se-theme-panel-fill:
+    linear-gradient(150deg, rgba(194, 64, 92, 0.07), transparent 40%),
+    linear-gradient(180deg, rgba(32, 15, 20, 0.95), rgba(12, 6, 8, 0.97));
+  --se-theme-stat-fill:
+    linear-gradient(180deg, rgba(194, 64, 92, 0.07), rgba(201, 194, 180, 0.04)),
+    rgba(12, 6, 8, 0.97);
+  --se-theme-button-fill: linear-gradient(180deg, rgba(194, 64, 92, 0.12), rgba(12, 6, 8, 0.97));
+  --se-theme-head-fill:
+    linear-gradient(90deg, rgba(194, 64, 92, 0.18), rgba(201, 194, 180, 0.06) 55%, transparent),
+    linear-gradient(180deg, #241218, #1a0d11);
+  --se-theme-topbar-layer:
+    linear-gradient(90deg, rgba(194, 64, 92, 0.14), transparent 32%, rgba(201, 194, 180, 0.1));
+  background-image:
+    radial-gradient(900px 520px at 94% 0%, rgba(194, 64, 92, 0.16), transparent 62%),
+    radial-gradient(720px 440px at 2% 100%, rgba(201, 194, 180, 0.09), transparent 60%),
+    linear-gradient(180deg, #1a0d11, #0e0709 62%);
+}
+
+.se-site-theme--platinum-funk-shell {
+  --se-bg: #120a05;
+  --se-panel: #1e130b;
+  --se-panel-hi: #2a1a0f;
+  --se-line: rgba(255, 138, 42, 0.3);
+  --se-line-soft: rgba(255, 138, 42, 0.15);
+  --se-text: #fff1e2;
+  --se-text-dim: #e0c2a2;
+  --se-muted: #a38a72;
+  --se-accent: #ff8a2a;
+  --se-accent-dim: #c9651a;
+  --se-accent-hover: #ffaa62;
+  --se-accent-rgb: 255, 138, 42;
+  --se-accent-2: #d9dee6;
+  --se-theme-panel-fill:
+    linear-gradient(150deg, rgba(255, 138, 42, 0.07), transparent 40%),
+    linear-gradient(180deg, rgba(38, 24, 14, 0.95), rgba(16, 10, 5, 0.96));
+  --se-theme-stat-fill:
+    linear-gradient(180deg, rgba(255, 138, 42, 0.07), rgba(217, 222, 230, 0.04)),
+    rgba(16, 10, 5, 0.96);
+  --se-theme-button-fill: linear-gradient(180deg, rgba(255, 138, 42, 0.12), rgba(16, 10, 5, 0.96));
+  --se-theme-head-fill:
+    linear-gradient(90deg, rgba(255, 138, 42, 0.18), rgba(217, 222, 230, 0.06) 55%, transparent),
+    linear-gradient(180deg, #2a1a0f, #1e130b);
+  --se-theme-topbar-layer:
+    linear-gradient(90deg, rgba(255, 138, 42, 0.14), transparent 32%, rgba(217, 222, 230, 0.1));
+  background-image:
+    radial-gradient(900px 520px at 94% 0%, rgba(255, 138, 42, 0.16), transparent 62%),
+    radial-gradient(720px 440px at 2% 100%, rgba(217, 222, 230, 0.09), transparent 60%),
+    linear-gradient(180deg, #1e130b, #120a05 62%);
+}
+
+.se-site-theme--redline-syndicate-shell {
+  --se-bg: #08090b;
+  --se-panel: #121417;
+  --se-panel-hi: #1a1d21;
+  --se-line: rgba(255, 51, 68, 0.3);
+  --se-line-soft: rgba(255, 51, 68, 0.15);
+  --se-text: #f3f4f6;
+  --se-text-dim: #b4b8c0;
+  --se-muted: #80858e;
+  --se-accent: #ff3344;
+  --se-accent-dim: #c21f2e;
+  --se-accent-hover: #ff6b78;
+  --se-accent-rgb: 255, 51, 68;
+  --se-accent-2: #f3f4f6;
+  --se-theme-panel-fill:
+    linear-gradient(150deg, rgba(255, 51, 68, 0.07), transparent 40%),
+    linear-gradient(180deg, rgba(24, 26, 30, 0.95), rgba(8, 9, 11, 0.97));
+  --se-theme-stat-fill:
+    linear-gradient(180deg, rgba(255, 51, 68, 0.07), rgba(243, 244, 246, 0.04)),
+    rgba(8, 9, 11, 0.97);
+  --se-theme-button-fill: linear-gradient(180deg, rgba(255, 51, 68, 0.12), rgba(8, 9, 11, 0.97));
+  --se-theme-head-fill:
+    linear-gradient(90deg, rgba(255, 51, 68, 0.18), rgba(243, 244, 246, 0.06) 55%, transparent),
+    linear-gradient(180deg, #1a1d21, #121417);
+  --se-theme-topbar-layer:
+    linear-gradient(90deg, rgba(255, 51, 68, 0.14), transparent 32%, rgba(243, 244, 246, 0.1));
+  background-image:
+    radial-gradient(900px 520px at 94% 0%, rgba(255, 51, 68, 0.16), transparent 62%),
+    radial-gradient(720px 440px at 2% 100%, rgba(243, 244, 246, 0.09), transparent 60%),
+    linear-gradient(180deg, #121417, #08090b 62%);
+}
+
+.se-site-theme--wet-paint-shell {
+  --se-bg: #0b0d0d;
+  --se-panel: #151a19;
+  --se-panel-hi: #1d2422;
+  --se-line: rgba(54, 226, 160, 0.3);
+  --se-line-soft: rgba(54, 226, 160, 0.15);
+  --se-text: #effaf5;
+  --se-text-dim: #b2c9c0;
+  --se-muted: #7f948c;
+  --se-accent: #36e2a0;
+  --se-accent-dim: #22a876;
+  --se-accent-hover: #76f0c0;
+  --se-accent-rgb: 54, 226, 160;
+  --se-accent-2: #ff5fa2;
+  --se-theme-panel-fill:
+    linear-gradient(150deg, rgba(54, 226, 160, 0.07), transparent 40%),
+    linear-gradient(180deg, rgba(26, 32, 30, 0.95), rgba(10, 12, 12, 0.96));
+  --se-theme-stat-fill:
+    linear-gradient(180deg, rgba(54, 226, 160, 0.07), rgba(255, 95, 162, 0.04)),
+    rgba(10, 12, 12, 0.96);
+  --se-theme-button-fill: linear-gradient(180deg, rgba(54, 226, 160, 0.12), rgba(10, 12, 12, 0.96));
+  --se-theme-head-fill:
+    linear-gradient(90deg, rgba(54, 226, 160, 0.18), rgba(255, 95, 162, 0.06) 55%, transparent),
+    linear-gradient(180deg, #1d2422, #151a19);
+  --se-theme-topbar-layer:
+    linear-gradient(90deg, rgba(54, 226, 160, 0.14), transparent 32%, rgba(255, 95, 162, 0.1));
+  background-image:
+    radial-gradient(900px 520px at 94% 0%, rgba(54, 226, 160, 0.16), transparent 62%),
+    radial-gradient(720px 440px at 2% 100%, rgba(255, 95, 162, 0.09), transparent 60%),
+    linear-gradient(180deg, #151a19, #0b0d0d 62%);
+}
+
+.se-site-theme--hazard-cook-shell {
+  --se-bg: #0c0c08;
+  --se-panel: #17170f;
+  --se-panel-hi: #202015;
+  --se-line: rgba(255, 212, 0, 0.3);
+  --se-line-soft: rgba(255, 212, 0, 0.15);
+  --se-text: #fbf8e6;
+  --se-text-dim: #cfcab0;
+  --se-muted: #959079;
+  --se-accent: #ffd400;
+  --se-accent-dim: #c9a700;
+  --se-accent-hover: #ffe45c;
+  --se-accent-rgb: 255, 212, 0;
+  --se-accent-2: #c7ccd2;
+  --se-theme-panel-fill:
+    linear-gradient(150deg, rgba(255, 212, 0, 0.07), transparent 40%),
+    linear-gradient(180deg, rgba(30, 30, 20, 0.95), rgba(11, 11, 7, 0.96));
+  --se-theme-stat-fill:
+    linear-gradient(180deg, rgba(255, 212, 0, 0.07), rgba(199, 204, 210, 0.04)),
+    rgba(11, 11, 7, 0.96);
+  --se-theme-button-fill: linear-gradient(180deg, rgba(255, 212, 0, 0.12), rgba(11, 11, 7, 0.96));
+  --se-theme-head-fill:
+    linear-gradient(90deg, rgba(255, 212, 0, 0.18), rgba(199, 204, 210, 0.06) 55%, transparent),
+    linear-gradient(180deg, #202015, #17170f);
+  --se-theme-topbar-layer:
+    linear-gradient(90deg, rgba(255, 212, 0, 0.14), transparent 32%, rgba(199, 204, 210, 0.1));
+  background-image:
+    radial-gradient(900px 520px at 94% 0%, rgba(255, 212, 0, 0.16), transparent 62%),
+    radial-gradient(720px 440px at 2% 100%, rgba(199, 204, 210, 0.09), transparent 60%),
+    linear-gradient(180deg, #17170f, #0c0c08 62%);
+}
+
+.se-site-theme--dockside-shell {
+  --se-bg: #060b12;
+  --se-panel: #0e1621;
+  --se-panel-hi: #14202e;
+  --se-line: rgba(91, 155, 213, 0.3);
+  --se-line-soft: rgba(91, 155, 213, 0.15);
+  --se-text: #eef3f8;
+  --se-text-dim: #a9b8c8;
+  --se-muted: #77889a;
+  --se-accent: #5b9bd5;
+  --se-accent-dim: #3d74a8;
+  --se-accent-hover: #8bbbe6;
+  --se-accent-rgb: 91, 155, 213;
+  --se-accent-2: #ff7a2f;
+  --se-theme-panel-fill:
+    linear-gradient(150deg, rgba(91, 155, 213, 0.07), transparent 40%),
+    linear-gradient(180deg, rgba(20, 30, 43, 0.95), rgba(6, 10, 16, 0.96));
+  --se-theme-stat-fill:
+    linear-gradient(180deg, rgba(91, 155, 213, 0.07), rgba(255, 122, 47, 0.04)),
+    rgba(6, 10, 16, 0.96);
+  --se-theme-button-fill: linear-gradient(180deg, rgba(91, 155, 213, 0.12), rgba(6, 10, 16, 0.96));
+  --se-theme-head-fill:
+    linear-gradient(90deg, rgba(91, 155, 213, 0.18), rgba(255, 122, 47, 0.06) 55%, transparent),
+    linear-gradient(180deg, #14202e, #0e1621);
+  --se-theme-topbar-layer:
+    linear-gradient(90deg, rgba(91, 155, 213, 0.14), transparent 32%, rgba(255, 122, 47, 0.1));
+  background-image:
+    radial-gradient(900px 520px at 94% 0%, rgba(91, 155, 213, 0.16), transparent 62%),
+    radial-gradient(720px 440px at 2% 100%, rgba(255, 122, 47, 0.09), transparent 60%),
+    linear-gradient(180deg, #0e1621, #060b12 62%);
+}
+
+.se-site-theme--crown-jewels-shell {
+  --se-bg: #080714;
+  --se-panel: #120f24;
+  --se-panel-hi: #1a1631;
+  --se-line: rgba(74, 120, 255, 0.3);
+  --se-line-soft: rgba(74, 120, 255, 0.15);
+  --se-text: #f5f3ff;
+  --se-text-dim: #bfb9da;
+  --se-muted: #8a84a8;
+  --se-accent: #4a78ff;
+  --se-accent-dim: #2f55c4;
+  --se-accent-hover: #7d9eff;
+  --se-accent-rgb: 74, 120, 255;
+  --se-accent-2: #2fbf71;
+  --se-theme-panel-fill:
+    linear-gradient(150deg, rgba(74, 120, 255, 0.07), transparent 40%),
+    linear-gradient(180deg, rgba(26, 21, 48, 0.95), rgba(9, 8, 20, 0.96));
+  --se-theme-stat-fill:
+    linear-gradient(180deg, rgba(74, 120, 255, 0.07), rgba(47, 191, 113, 0.04)),
+    rgba(9, 8, 20, 0.96);
+  --se-theme-button-fill: linear-gradient(180deg, rgba(74, 120, 255, 0.12), rgba(9, 8, 20, 0.96));
+  --se-theme-head-fill:
+    linear-gradient(90deg, rgba(74, 120, 255, 0.18), rgba(47, 191, 113, 0.06) 55%, transparent),
+    linear-gradient(180deg, #1a1631, #120f24);
+  --se-theme-topbar-layer:
+    linear-gradient(90deg, rgba(74, 120, 255, 0.14), transparent 32%, rgba(47, 191, 113, 0.1));
+  background-image:
+    radial-gradient(900px 520px at 94% 0%, rgba(74, 120, 255, 0.16), transparent 62%),
+    radial-gradient(720px 440px at 2% 100%, rgba(47, 191, 113, 0.09), transparent 60%),
+    linear-gradient(180deg, #120f24, #080714 62%);
+}
+
+.se-site-theme--bayou-smoke-shell {
+  --se-bg: #080c07;
+  --se-panel: #111810;
+  --se-panel-hi: #182217;
+  --se-line: rgba(182, 224, 90, 0.3);
+  --se-line-soft: rgba(182, 224, 90, 0.15);
+  --se-text: #f0f6e8;
+  --se-text-dim: #b8c6a8;
+  --se-muted: #84937a;
+  --se-accent: #b6e05a;
+  --se-accent-dim: #86a83c;
+  --se-accent-hover: #cdee86;
+  --se-accent-rgb: 182, 224, 90;
+  --se-accent-2: #a8743c;
+  --se-theme-panel-fill:
+    linear-gradient(150deg, rgba(182, 224, 90, 0.07), transparent 40%),
+    linear-gradient(180deg, rgba(22, 31, 20, 0.95), rgba(8, 11, 7, 0.96));
+  --se-theme-stat-fill:
+    linear-gradient(180deg, rgba(182, 224, 90, 0.07), rgba(168, 116, 60, 0.04)),
+    rgba(8, 11, 7, 0.96);
+  --se-theme-button-fill: linear-gradient(180deg, rgba(182, 224, 90, 0.12), rgba(8, 11, 7, 0.96));
+  --se-theme-head-fill:
+    linear-gradient(90deg, rgba(182, 224, 90, 0.18), rgba(168, 116, 60, 0.06) 55%, transparent),
+    linear-gradient(180deg, #182217, #111810);
+  --se-theme-topbar-layer:
+    linear-gradient(90deg, rgba(182, 224, 90, 0.14), transparent 32%, rgba(168, 116, 60, 0.1));
+  background-image:
+    radial-gradient(900px 520px at 94% 0%, rgba(182, 224, 90, 0.16), transparent 62%),
+    radial-gradient(720px 440px at 2% 100%, rgba(168, 116, 60, 0.09), transparent 60%),
+    linear-gradient(180deg, #111810, #080c07 62%);
+}
+
+.se-site-theme--desert-mirage-shell {
+  --se-bg: #120c08;
+  --se-panel: #1f1610;
+  --se-panel-hi: #2a1f17;
+  --se-line: rgba(63, 193, 201, 0.3);
+  --se-line-soft: rgba(63, 193, 201, 0.15);
+  --se-text: #fff6ea;
+  --se-text-dim: #e2c9ad;
+  --se-muted: #a8907a;
+  --se-accent: #3fc1c9;
+  --se-accent-dim: #2a8f96;
+  --se-accent-hover: #78d8de;
+  --se-accent-rgb: 63, 193, 201;
+  --se-accent-2: #d9733a;
+  --se-theme-panel-fill:
+    linear-gradient(150deg, rgba(63, 193, 201, 0.07), transparent 40%),
+    linear-gradient(180deg, rgba(40, 29, 21, 0.95), rgba(17, 12, 8, 0.96));
+  --se-theme-stat-fill:
+    linear-gradient(180deg, rgba(63, 193, 201, 0.07), rgba(217, 115, 58, 0.04)),
+    rgba(17, 12, 8, 0.96);
+  --se-theme-button-fill: linear-gradient(180deg, rgba(63, 193, 201, 0.12), rgba(17, 12, 8, 0.96));
+  --se-theme-head-fill:
+    linear-gradient(90deg, rgba(63, 193, 201, 0.18), rgba(217, 115, 58, 0.06) 55%, transparent),
+    linear-gradient(180deg, #2a1f17, #1f1610);
+  --se-theme-topbar-layer:
+    linear-gradient(90deg, rgba(63, 193, 201, 0.14), transparent 32%, rgba(217, 115, 58, 0.1));
+  background-image:
+    radial-gradient(900px 520px at 94% 0%, rgba(63, 193, 201, 0.16), transparent 62%),
+    radial-gradient(720px 440px at 2% 100%, rgba(217, 115, 58, 0.09), transparent 60%),
+    linear-gradient(180deg, #1f1610, #120c08 62%);
+}
+
+.se-site-theme--rewind-shell {
+  --se-bg: #07060a;
+  --se-panel: #110f17;
+  --se-panel-hi: #191621;
+  --se-line: rgba(224, 75, 255, 0.3);
+  --se-line-soft: rgba(224, 75, 255, 0.15);
+  --se-text: #f6f0ff;
+  --se-text-dim: #bdb3cf;
+  --se-muted: #857c98;
+  --se-accent: #e04bff;
+  --se-accent-dim: #a630c4;
+  --se-accent-hover: #ec85ff;
+  --se-accent-rgb: 224, 75, 255;
+  --se-accent-2: #c6ff3d;
+  --se-theme-panel-fill:
+    linear-gradient(150deg, rgba(224, 75, 255, 0.07), transparent 40%),
+    linear-gradient(180deg, rgba(24, 20, 32, 0.95), rgba(7, 6, 10, 0.96));
+  --se-theme-stat-fill:
+    linear-gradient(180deg, rgba(224, 75, 255, 0.07), rgba(198, 255, 61, 0.04)),
+    rgba(7, 6, 10, 0.96);
+  --se-theme-button-fill: linear-gradient(180deg, rgba(224, 75, 255, 0.12), rgba(7, 6, 10, 0.96));
+  --se-theme-head-fill:
+    linear-gradient(90deg, rgba(224, 75, 255, 0.18), rgba(198, 255, 61, 0.06) 55%, transparent),
+    linear-gradient(180deg, #191621, #110f17);
+  --se-theme-topbar-layer:
+    linear-gradient(90deg, rgba(224, 75, 255, 0.14), transparent 32%, rgba(198, 255, 61, 0.1));
+  background-image:
+    radial-gradient(900px 520px at 94% 0%, rgba(224, 75, 255, 0.16), transparent 62%),
+    radial-gradient(720px 440px at 2% 100%, rgba(198, 255, 61, 0.09), transparent 60%),
+    linear-gradient(180deg, #110f17, #07060a 62%);
+}
+
+.se-site-theme--snake-eyes-shell {
+  --se-bg: #050b08;
+  --se-panel: #0c1a12;
+  --se-panel-hi: #112419;
+  --se-line: rgba(31, 174, 106, 0.3);
+  --se-line-soft: rgba(31, 174, 106, 0.15);
+  --se-text: #f6f1e3;
+  --se-text-dim: #c3c6b4;
+  --se-muted: #8a9284;
+  --se-accent: #1fae6a;
+  --se-accent-dim: #16824f;
+  --se-accent-hover: #4fcc8e;
+  --se-accent-rgb: 31, 174, 106;
+  --se-accent-2: #e0263f;
+  --se-theme-panel-fill:
+    linear-gradient(150deg, rgba(31, 174, 106, 0.07), transparent 40%),
+    linear-gradient(180deg, rgba(14, 33, 22, 0.95), rgba(5, 11, 8, 0.96));
+  --se-theme-stat-fill:
+    linear-gradient(180deg, rgba(31, 174, 106, 0.07), rgba(224, 38, 63, 0.04)),
+    rgba(5, 11, 8, 0.96);
+  --se-theme-button-fill: linear-gradient(180deg, rgba(31, 174, 106, 0.12), rgba(5, 11, 8, 0.96));
+  --se-theme-head-fill:
+    linear-gradient(90deg, rgba(31, 174, 106, 0.18), rgba(224, 38, 63, 0.06) 55%, transparent),
+    linear-gradient(180deg, #112419, #0c1a12);
+  --se-theme-topbar-layer:
+    linear-gradient(90deg, rgba(31, 174, 106, 0.14), transparent 32%, rgba(224, 38, 63, 0.1));
+  background-image:
+    radial-gradient(900px 520px at 94% 0%, rgba(31, 174, 106, 0.16), transparent 62%),
+    radial-gradient(720px 440px at 2% 100%, rgba(224, 38, 63, 0.09), transparent 60%),
+    linear-gradient(180deg, #0c1a12, #050b08 62%);
+}
+
+.se-site-theme--graveyard-shift-shell {
+  --se-bg: #07090a;
+  --se-panel: #10161a;
+  --se-panel-hi: #172024;
+  --se-line: rgba(168, 240, 198, 0.3);
+  --se-line-soft: rgba(168, 240, 198, 0.15);
+  --se-text: #eef6f2;
+  --se-text-dim: #b3c4bb;
+  --se-muted: #7f9088;
+  --se-accent: #a8f0c6;
+  --se-accent-dim: #76b892;
+  --se-accent-hover: #c8f8dc;
+  --se-accent-rgb: 168, 240, 198;
+  --se-accent-2: #6f7d86;
+  --se-theme-panel-fill:
+    linear-gradient(150deg, rgba(168, 240, 198, 0.07), transparent 40%),
+    linear-gradient(180deg, rgba(22, 30, 33, 0.95), rgba(7, 9, 10, 0.96));
+  --se-theme-stat-fill:
+    linear-gradient(180deg, rgba(168, 240, 198, 0.07), rgba(111, 125, 134, 0.04)),
+    rgba(7, 9, 10, 0.96);
+  --se-theme-button-fill: linear-gradient(180deg, rgba(168, 240, 198, 0.12), rgba(7, 9, 10, 0.96));
+  --se-theme-head-fill:
+    linear-gradient(90deg, rgba(168, 240, 198, 0.18), rgba(111, 125, 134, 0.06) 55%, transparent),
+    linear-gradient(180deg, #172024, #10161a);
+  --se-theme-topbar-layer:
+    linear-gradient(90deg, rgba(168, 240, 198, 0.14), transparent 32%, rgba(111, 125, 134, 0.1));
+  background-image:
+    radial-gradient(900px 520px at 94% 0%, rgba(168, 240, 198, 0.16), transparent 62%),
+    radial-gradient(720px 440px at 2% 100%, rgba(111, 125, 134, 0.09), transparent 60%),
+    linear-gradient(180deg, #10161a, #07090a 62%);
+}
+
+.se-site-theme--naughty-list-shell {
+  --se-bg: #0c0708;
+  --se-panel: #170d0f;
+  --se-panel-hi: #1f1214;
+  --se-line: rgba(226, 58, 58, 0.3);
+  --se-line-soft: rgba(226, 58, 58, 0.15);
+  --se-text: #fff4f2;
+  --se-text-dim: #dcc0bc;
+  --se-muted: #a38783;
+  --se-accent: #e23a3a;
+  --se-accent-dim: #b02424;
+  --se-accent-hover: #f06a6a;
+  --se-accent-rgb: 226, 58, 58;
+  --se-accent-2: #2f8a4f;
+  --se-theme-panel-fill:
+    linear-gradient(150deg, rgba(226, 58, 58, 0.07), transparent 40%),
+    linear-gradient(180deg, rgba(36, 18, 20, 0.95), rgba(12, 7, 8, 0.96));
+  --se-theme-stat-fill:
+    linear-gradient(180deg, rgba(226, 58, 58, 0.07), rgba(47, 138, 79, 0.04)),
+    rgba(12, 7, 8, 0.96);
+  --se-theme-button-fill: linear-gradient(180deg, rgba(226, 58, 58, 0.12), rgba(12, 7, 8, 0.96));
+  --se-theme-head-fill:
+    linear-gradient(90deg, rgba(226, 58, 58, 0.18), rgba(47, 138, 79, 0.06) 55%, transparent),
+    linear-gradient(180deg, #1f1214, #170d0f);
+  --se-theme-topbar-layer:
+    linear-gradient(90deg, rgba(226, 58, 58, 0.14), transparent 32%, rgba(47, 138, 79, 0.1));
+  background-image:
+    radial-gradient(900px 520px at 94% 0%, rgba(226, 58, 58, 0.16), transparent 62%),
+    radial-gradient(720px 440px at 2% 100%, rgba(47, 138, 79, 0.09), transparent 60%),
+    linear-gradient(180deg, #170d0f, #0c0708 62%);
+}
+
+.se-site-theme--heartbreaker-shell {
+  --se-bg: #0d0609;
+  --se-panel: #190b11;
+  --se-panel-hi: #231019;
+  --se-line: rgba(255, 77, 109, 0.3);
+  --se-line-soft: rgba(255, 77, 109, 0.15);
+  --se-text: #fff0f3;
+  --se-text-dim: #dcb5bf;
+  --se-muted: #a1808a;
+  --se-accent: #ff4d6d;
+  --se-accent-dim: #c9304d;
+  --se-accent-hover: #ff8299;
+  --se-accent-rgb: 255, 77, 109;
+  --se-accent-2: #1d1d22;
+  --se-theme-panel-fill:
+    linear-gradient(150deg, rgba(255, 77, 109, 0.07), transparent 40%),
+    linear-gradient(180deg, rgba(36, 15, 24, 0.95), rgba(13, 6, 9, 0.96));
+  --se-theme-stat-fill:
+    linear-gradient(180deg, rgba(255, 77, 109, 0.07), rgba(29, 29, 34, 0.04)),
+    rgba(13, 6, 9, 0.96);
+  --se-theme-button-fill: linear-gradient(180deg, rgba(255, 77, 109, 0.12), rgba(13, 6, 9, 0.96));
+  --se-theme-head-fill:
+    linear-gradient(90deg, rgba(255, 77, 109, 0.18), rgba(29, 29, 34, 0.06) 55%, transparent),
+    linear-gradient(180deg, #231019, #190b11);
+  --se-theme-topbar-layer:
+    linear-gradient(90deg, rgba(255, 77, 109, 0.14), transparent 32%, rgba(29, 29, 34, 0.1));
+  background-image:
+    radial-gradient(900px 520px at 94% 0%, rgba(255, 77, 109, 0.16), transparent 62%),
+    radial-gradient(720px 440px at 2% 100%, rgba(29, 29, 34, 0.09), transparent 60%),
+    linear-gradient(180deg, #190b11, #0d0609 62%);
+}
+
+.se-site-theme--block-party-shell {
+  --se-bg: #08101a;
+  --se-panel: #101c2b;
+  --se-panel-hi: #162639;
+  --se-line: rgba(255, 182, 39, 0.3);
+  --se-line-soft: rgba(255, 182, 39, 0.15);
+  --se-text: #f4f9ff;
+  --se-text-dim: #b8cbe0;
+  --se-muted: #8299b2;
+  --se-accent: #ffb627;
+  --se-accent-dim: #c98a12;
+  --se-accent-hover: #ffcd66;
+  --se-accent-rgb: 255, 182, 39;
+  --se-accent-2: #e8443a;
+  --se-theme-panel-fill:
+    linear-gradient(150deg, rgba(255, 182, 39, 0.07), transparent 40%),
+    linear-gradient(180deg, rgba(22, 36, 54, 0.95), rgba(8, 16, 26, 0.96));
+  --se-theme-stat-fill:
+    linear-gradient(180deg, rgba(255, 182, 39, 0.07), rgba(232, 68, 58, 0.04)),
+    rgba(8, 16, 26, 0.96);
+  --se-theme-button-fill: linear-gradient(180deg, rgba(255, 182, 39, 0.12), rgba(8, 16, 26, 0.96));
+  --se-theme-head-fill:
+    linear-gradient(90deg, rgba(255, 182, 39, 0.18), rgba(232, 68, 58, 0.06) 55%, transparent),
+    linear-gradient(180deg, #162639, #101c2b);
+  --se-theme-topbar-layer:
+    linear-gradient(90deg, rgba(255, 182, 39, 0.14), transparent 32%, rgba(232, 68, 58, 0.1));
+  background-image:
+    radial-gradient(900px 520px at 94% 0%, rgba(255, 182, 39, 0.16), transparent 62%),
+    radial-gradient(720px 440px at 2% 100%, rgba(232, 68, 58, 0.09), transparent 60%),
+    linear-gradient(180deg, #101c2b, #08101a 62%);
+}
+
+.se-site-theme--quarter-mile-shell {
+  --se-bg: #07090c;
+  --se-panel: #11151b;
+  --se-panel-hi: #181e26;
+  --se-line: rgba(47, 155, 255, 0.3);
+  --se-line-soft: rgba(47, 155, 255, 0.15);
+  --se-text: #f2f6fb;
+  --se-text-dim: #aebccb;
+  --se-muted: #7b8a9a;
+  --se-accent: #2f9bff;
+  --se-accent-dim: #1f6fc0;
+  --se-accent-hover: #6ab8ff;
+  --se-accent-rgb: 47, 155, 255;
+  --se-accent-2: #ff8a1a;
+  --se-theme-panel-fill:
+    linear-gradient(150deg, rgba(47, 155, 255, 0.07), transparent 40%),
+    linear-gradient(180deg, rgba(24, 30, 38, 0.95), rgba(7, 9, 12, 0.96));
+  --se-theme-stat-fill:
+    linear-gradient(180deg, rgba(47, 155, 255, 0.07), rgba(255, 138, 26, 0.04)),
+    rgba(7, 9, 12, 0.96);
+  --se-theme-button-fill: linear-gradient(180deg, rgba(47, 155, 255, 0.12), rgba(7, 9, 12, 0.96));
+  --se-theme-head-fill:
+    linear-gradient(90deg, rgba(47, 155, 255, 0.18), rgba(255, 138, 26, 0.06) 55%, transparent),
+    linear-gradient(180deg, #181e26, #11151b);
+  --se-theme-topbar-layer:
+    linear-gradient(90deg, rgba(47, 155, 255, 0.14), transparent 32%, rgba(255, 138, 26, 0.1));
+  background-image:
+    radial-gradient(900px 520px at 94% 0%, rgba(47, 155, 255, 0.16), transparent 62%),
+    radial-gradient(720px 440px at 2% 100%, rgba(255, 138, 26, 0.09), transparent 60%),
+    linear-gradient(180deg, #11151b, #07090c 62%);
+}
+
+.se-site-theme--88-club-shell {
+  --se-bg: #06080e;
+  --se-panel: #0f1420;
+  --se-panel-hi: #151c2c;
+  --se-line: rgba(79, 210, 255, 0.3);
+  --se-line-soft: rgba(79, 210, 255, 0.15);
+  --se-text: #eef6ff;
+  --se-text-dim: #a8bad0;
+  --se-muted: #7688a0;
+  --se-accent: #4fd2ff;
+  --se-accent-dim: #2a9bc2;
+  --se-accent-hover: #8ae4ff;
+  --se-accent-rgb: 79, 210, 255;
+  --se-accent-2: #ff7a2a;
+  --se-theme-panel-fill:
+    linear-gradient(150deg, rgba(79, 210, 255, 0.07), transparent 40%),
+    linear-gradient(180deg, rgba(21, 28, 44, 0.95), rgba(6, 8, 14, 0.96));
+  --se-theme-stat-fill:
+    linear-gradient(180deg, rgba(79, 210, 255, 0.07), rgba(255, 122, 42, 0.04)),
+    rgba(6, 8, 14, 0.96);
+  --se-theme-button-fill: linear-gradient(180deg, rgba(79, 210, 255, 0.12), rgba(6, 8, 14, 0.96));
+  --se-theme-head-fill:
+    linear-gradient(90deg, rgba(79, 210, 255, 0.18), rgba(255, 122, 42, 0.06) 55%, transparent),
+    linear-gradient(180deg, #151c2c, #0f1420);
+  --se-theme-topbar-layer:
+    linear-gradient(90deg, rgba(79, 210, 255, 0.14), transparent 32%, rgba(255, 122, 42, 0.1));
+  background-image:
+    radial-gradient(900px 520px at 94% 0%, rgba(79, 210, 255, 0.16), transparent 62%),
+    radial-gradient(720px 440px at 2% 100%, rgba(255, 122, 42, 0.09), transparent 60%),
+    linear-gradient(180deg, #0f1420, #06080e 62%);
+}
+
+.se-site-theme--swamp-kingdom-shell {
+  --se-bg: #0a0c06;
+  --se-panel: #141a0d;
+  --se-panel-hi: #1c2412;
+  --se-line: rgba(122, 168, 58, 0.3);
+  --se-line-soft: rgba(122, 168, 58, 0.15);
+  --se-text: #f6f3e6;
+  --se-text-dim: #c6c9a8;
+  --se-muted: #8f9478;
+  --se-accent: #7aa83a;
+  --se-accent-dim: #557a24;
+  --se-accent-hover: #a2c96a;
+  --se-accent-rgb: 122, 168, 58;
+  --se-accent-2: #d9884a;
+  --se-theme-panel-fill:
+    linear-gradient(150deg, rgba(122, 168, 58, 0.07), transparent 40%),
+    linear-gradient(180deg, rgba(28, 36, 18, 0.95), rgba(10, 12, 6, 0.96));
+  --se-theme-stat-fill:
+    linear-gradient(180deg, rgba(122, 168, 58, 0.07), rgba(217, 136, 74, 0.04)),
+    rgba(10, 12, 6, 0.96);
+  --se-theme-button-fill: linear-gradient(180deg, rgba(122, 168, 58, 0.12), rgba(10, 12, 6, 0.96));
+  --se-theme-head-fill:
+    linear-gradient(90deg, rgba(122, 168, 58, 0.18), rgba(217, 136, 74, 0.06) 55%, transparent),
+    linear-gradient(180deg, #1c2412, #141a0d);
+  --se-theme-topbar-layer:
+    linear-gradient(90deg, rgba(122, 168, 58, 0.14), transparent 32%, rgba(217, 136, 74, 0.1));
+  background-image:
+    radial-gradient(900px 520px at 94% 0%, rgba(122, 168, 58, 0.16), transparent 62%),
+    radial-gradient(720px 440px at 2% 100%, rgba(217, 136, 74, 0.09), transparent 60%),
+    linear-gradient(180deg, #141a0d, #0a0c06 62%);
+}
+
+.se-site-theme--zombie-apocalypse-shell {
+  --se-bg: #0a0b08;
+  --se-panel: #14160f;
+  --se-panel-hi: #1c1f15;
+  --se-line: rgba(255, 107, 44, 0.3);
+  --se-line-soft: rgba(255, 107, 44, 0.15);
+  --se-text: #f0eee4;
+  --se-text-dim: #b9b8a4;
+  --se-muted: #868670;
+  --se-accent: #ff6b2c;
+  --se-accent-dim: #c24a14;
+  --se-accent-hover: #ff9a66;
+  --se-accent-rgb: 255, 107, 44;
+  --se-accent-2: #9ccf4a;
+  --se-theme-panel-fill:
+    linear-gradient(150deg, rgba(255, 107, 44, 0.07), transparent 40%),
+    linear-gradient(180deg, rgba(28, 31, 21, 0.95), rgba(10, 11, 8, 0.96));
+  --se-theme-stat-fill:
+    linear-gradient(180deg, rgba(255, 107, 44, 0.07), rgba(156, 207, 74, 0.04)),
+    rgba(10, 11, 8, 0.96);
+  --se-theme-button-fill: linear-gradient(180deg, rgba(255, 107, 44, 0.12), rgba(10, 11, 8, 0.96));
+  --se-theme-head-fill:
+    linear-gradient(90deg, rgba(255, 107, 44, 0.18), rgba(156, 207, 74, 0.06) 55%, transparent),
+    linear-gradient(180deg, #1c1f15, #14160f);
+  --se-theme-topbar-layer:
+    linear-gradient(90deg, rgba(255, 107, 44, 0.14), transparent 32%, rgba(156, 207, 74, 0.1));
+  background-image:
+    radial-gradient(900px 520px at 94% 0%, rgba(255, 107, 44, 0.16), transparent 62%),
+    radial-gradient(720px 440px at 2% 100%, rgba(156, 207, 74, 0.09), transparent 60%),
+    linear-gradient(180deg, #14160f, #0a0b08 62%);
+}
+.se-site-theme--iron-front-shell { --se-theme-bg: #20271f; --se-theme-panel: #30392d; --se-theme-panel-strong: #3d4939; --se-theme-line: #778269; --se-theme-accent: #d9363e; --se-theme-text: #e4e8d9; --se-theme-muted: #a8b09d; }
+.se-site-theme-decor--iron-front-shell { --se-pack-color: #d9363e; }
+.se-iron-front-scene { position: absolute; inset: 0; overflow: hidden; opacity: .8; pointer-events: none; }
+.se-iron-front-scene__grid { position: absolute; inset: 0; background-image: linear-gradient(var(--se-iron-grid) 1px, transparent 1px), linear-gradient(90deg, var(--se-iron-grid) 1px, transparent 1px); background-size: 44px 44px; transform: perspective(420px) rotateX(58deg) scale(1.4); transform-origin: 50% 100%; }
+.se-iron-front-scene__beacon { position: absolute; right: 12%; bottom: 14%; width: 90px; height: 90px; border: 2px solid #d9363e66; border-radius: 50%; box-shadow: 0 0 0 14px #d9363e1c, 0 0 0 28px #d9363e0d; }
+
+/* Shared component surfaces, the same contract as the other premium shells. */
+:is(
+  .se-site-theme--kingpin-luxe-shell,
+  .se-site-theme--neon-underworld-shell,
+  .se-site-theme--winter-heist-shell,
+  .se-site-theme--biscayne-sunset-shell,
+  .se-site-theme--velvet-speakeasy-shell,
+  .se-site-theme--platinum-funk-shell,
+  .se-site-theme--redline-syndicate-shell,
+  .se-site-theme--wet-paint-shell,
+  .se-site-theme--hazard-cook-shell,
+  .se-site-theme--dockside-shell,
+  .se-site-theme--crown-jewels-shell,
+  .se-site-theme--bayou-smoke-shell,
+  .se-site-theme--desert-mirage-shell,
+  .se-site-theme--rewind-shell,
+  .se-site-theme--snake-eyes-shell,
+  .se-site-theme--quarter-mile-shell,
+  .se-site-theme--88-club-shell,
+  .se-site-theme--swamp-kingdom-shell,
+  .se-site-theme--zombie-apocalypse-shell,
+  .se-site-theme--graveyard-shift-shell,
+  .se-site-theme--naughty-list-shell,
+  .se-site-theme--heartbreaker-shell,
+  .se-site-theme--block-party-shell
+) {
+  --se-theme-panel-glow: rgba(var(--se-accent-rgb), 0.12);
+  --se-theme-topbar-bg: color-mix(in srgb, var(--se-bg) 86%, #000);
+  --se-theme-border-style: solid;
+  color-scheme: dark;
+}
+:is(
+  .se-site-theme--kingpin-luxe-shell,
+  .se-site-theme--neon-underworld-shell,
+  .se-site-theme--winter-heist-shell,
+  .se-site-theme--biscayne-sunset-shell,
+  .se-site-theme--velvet-speakeasy-shell,
+  .se-site-theme--platinum-funk-shell,
+  .se-site-theme--redline-syndicate-shell,
+  .se-site-theme--wet-paint-shell,
+  .se-site-theme--hazard-cook-shell,
+  .se-site-theme--dockside-shell,
+  .se-site-theme--crown-jewels-shell,
+  .se-site-theme--bayou-smoke-shell,
+  .se-site-theme--desert-mirage-shell,
+  .se-site-theme--rewind-shell,
+  .se-site-theme--snake-eyes-shell,
+  .se-site-theme--quarter-mile-shell,
+  .se-site-theme--88-club-shell,
+  .se-site-theme--swamp-kingdom-shell,
+  .se-site-theme--zombie-apocalypse-shell,
+  .se-site-theme--graveyard-shift-shell,
+  .se-site-theme--naughty-list-shell,
+  .se-site-theme--heartbreaker-shell,
+  .se-site-theme--block-party-shell
+) .se-topbar {
+  background: var(--se-theme-topbar-layer), color-mix(in srgb, var(--se-theme-topbar-bg) 92%, transparent);
+  border-bottom-color: color-mix(in srgb, var(--se-accent) 48%, var(--se-line));
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.42), 0 0 26px var(--se-theme-panel-glow);
+}
+:is(
+  .se-site-theme--kingpin-luxe-shell,
+  .se-site-theme--neon-underworld-shell,
+  .se-site-theme--winter-heist-shell,
+  .se-site-theme--biscayne-sunset-shell,
+  .se-site-theme--velvet-speakeasy-shell,
+  .se-site-theme--platinum-funk-shell,
+  .se-site-theme--redline-syndicate-shell,
+  .se-site-theme--wet-paint-shell,
+  .se-site-theme--hazard-cook-shell,
+  .se-site-theme--dockside-shell,
+  .se-site-theme--crown-jewels-shell,
+  .se-site-theme--bayou-smoke-shell,
+  .se-site-theme--desert-mirage-shell,
+  .se-site-theme--rewind-shell,
+  .se-site-theme--snake-eyes-shell,
+  .se-site-theme--quarter-mile-shell,
+  .se-site-theme--88-club-shell,
+  .se-site-theme--swamp-kingdom-shell,
+  .se-site-theme--zombie-apocalypse-shell,
+  .se-site-theme--graveyard-shift-shell,
+  .se-site-theme--naughty-list-shell,
+  .se-site-theme--heartbreaker-shell,
+  .se-site-theme--block-party-shell
+) :is(.se-panel, .se-stats, .se-stat) {
+  background: var(--se-theme-panel-fill);
+  border-style: var(--se-theme-border-style);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035), 0 0 18px var(--se-theme-panel-glow);
+}
+:is(
+  .se-site-theme--kingpin-luxe-shell,
+  .se-site-theme--neon-underworld-shell,
+  .se-site-theme--winter-heist-shell,
+  .se-site-theme--biscayne-sunset-shell,
+  .se-site-theme--velvet-speakeasy-shell,
+  .se-site-theme--platinum-funk-shell,
+  .se-site-theme--redline-syndicate-shell,
+  .se-site-theme--wet-paint-shell,
+  .se-site-theme--hazard-cook-shell,
+  .se-site-theme--dockside-shell,
+  .se-site-theme--crown-jewels-shell,
+  .se-site-theme--bayou-smoke-shell,
+  .se-site-theme--desert-mirage-shell,
+  .se-site-theme--rewind-shell,
+  .se-site-theme--snake-eyes-shell,
+  .se-site-theme--quarter-mile-shell,
+  .se-site-theme--88-club-shell,
+  .se-site-theme--swamp-kingdom-shell,
+  .se-site-theme--zombie-apocalypse-shell,
+  .se-site-theme--graveyard-shift-shell,
+  .se-site-theme--naughty-list-shell,
+  .se-site-theme--heartbreaker-shell,
+  .se-site-theme--block-party-shell
+) :is(.se-stats, .se-stat) {
+  background: var(--se-theme-stat-fill);
+}
+:is(
+  .se-site-theme--kingpin-luxe-shell,
+  .se-site-theme--neon-underworld-shell,
+  .se-site-theme--winter-heist-shell,
+  .se-site-theme--biscayne-sunset-shell,
+  .se-site-theme--velvet-speakeasy-shell,
+  .se-site-theme--platinum-funk-shell,
+  .se-site-theme--redline-syndicate-shell,
+  .se-site-theme--wet-paint-shell,
+  .se-site-theme--hazard-cook-shell,
+  .se-site-theme--dockside-shell,
+  .se-site-theme--crown-jewels-shell,
+  .se-site-theme--bayou-smoke-shell,
+  .se-site-theme--desert-mirage-shell,
+  .se-site-theme--rewind-shell,
+  .se-site-theme--snake-eyes-shell,
+  .se-site-theme--quarter-mile-shell,
+  .se-site-theme--88-club-shell,
+  .se-site-theme--swamp-kingdom-shell,
+  .se-site-theme--zombie-apocalypse-shell,
+  .se-site-theme--graveyard-shift-shell,
+  .se-site-theme--naughty-list-shell,
+  .se-site-theme--heartbreaker-shell,
+  .se-site-theme--block-party-shell
+) .se-panel__head {
+  background: var(--se-theme-head-fill);
+}
+:is(
+  .se-site-theme--kingpin-luxe-shell,
+  .se-site-theme--neon-underworld-shell,
+  .se-site-theme--winter-heist-shell,
+  .se-site-theme--biscayne-sunset-shell,
+  .se-site-theme--velvet-speakeasy-shell,
+  .se-site-theme--platinum-funk-shell,
+  .se-site-theme--redline-syndicate-shell,
+  .se-site-theme--wet-paint-shell,
+  .se-site-theme--hazard-cook-shell,
+  .se-site-theme--dockside-shell,
+  .se-site-theme--crown-jewels-shell,
+  .se-site-theme--bayou-smoke-shell,
+  .se-site-theme--desert-mirage-shell,
+  .se-site-theme--rewind-shell,
+  .se-site-theme--snake-eyes-shell,
+  .se-site-theme--quarter-mile-shell,
+  .se-site-theme--88-club-shell,
+  .se-site-theme--swamp-kingdom-shell,
+  .se-site-theme--zombie-apocalypse-shell,
+  .se-site-theme--graveyard-shift-shell,
+  .se-site-theme--naughty-list-shell,
+  .se-site-theme--heartbreaker-shell,
+  .se-site-theme--block-party-shell
+) :is(.se-btn, .se-input) {
+  background: var(--se-theme-button-fill);
+  border-color: color-mix(in srgb, var(--se-accent) 34%, var(--se-line));
+  color: var(--se-text);
+}
+:is(
+  .se-site-theme--kingpin-luxe-shell,
+  .se-site-theme--neon-underworld-shell,
+  .se-site-theme--winter-heist-shell,
+  .se-site-theme--biscayne-sunset-shell,
+  .se-site-theme--velvet-speakeasy-shell,
+  .se-site-theme--platinum-funk-shell,
+  .se-site-theme--redline-syndicate-shell,
+  .se-site-theme--wet-paint-shell,
+  .se-site-theme--hazard-cook-shell,
+  .se-site-theme--dockside-shell,
+  .se-site-theme--crown-jewels-shell,
+  .se-site-theme--bayou-smoke-shell,
+  .se-site-theme--desert-mirage-shell,
+  .se-site-theme--rewind-shell,
+  .se-site-theme--snake-eyes-shell,
+  .se-site-theme--quarter-mile-shell,
+  .se-site-theme--88-club-shell,
+  .se-site-theme--swamp-kingdom-shell,
+  .se-site-theme--zombie-apocalypse-shell,
+  .se-site-theme--graveyard-shift-shell,
+  .se-site-theme--naughty-list-shell,
+  .se-site-theme--heartbreaker-shell,
+  .se-site-theme--block-party-shell
+) select.se-input {
+  color-scheme: dark;
+  background-color: color-mix(in srgb, var(--se-panel-hi) 82%, #000);
+}
+:is(
+  .se-site-theme--kingpin-luxe-shell,
+  .se-site-theme--neon-underworld-shell,
+  .se-site-theme--winter-heist-shell,
+  .se-site-theme--biscayne-sunset-shell,
+  .se-site-theme--velvet-speakeasy-shell,
+  .se-site-theme--platinum-funk-shell,
+  .se-site-theme--redline-syndicate-shell,
+  .se-site-theme--wet-paint-shell,
+  .se-site-theme--hazard-cook-shell,
+  .se-site-theme--dockside-shell,
+  .se-site-theme--crown-jewels-shell,
+  .se-site-theme--bayou-smoke-shell,
+  .se-site-theme--desert-mirage-shell,
+  .se-site-theme--rewind-shell,
+  .se-site-theme--snake-eyes-shell,
+  .se-site-theme--quarter-mile-shell,
+  .se-site-theme--88-club-shell,
+  .se-site-theme--swamp-kingdom-shell,
+  .se-site-theme--zombie-apocalypse-shell,
+  .se-site-theme--graveyard-shift-shell,
+  .se-site-theme--naughty-list-shell,
+  .se-site-theme--heartbreaker-shell,
+  .se-site-theme--block-party-shell
+) select.se-input option {
+  background: color-mix(in srgb, var(--se-panel-hi) 88%, #000);
+  color: var(--se-text);
+}
+:is(
+  .se-site-theme--kingpin-luxe-shell,
+  .se-site-theme--neon-underworld-shell,
+  .se-site-theme--winter-heist-shell,
+  .se-site-theme--biscayne-sunset-shell,
+  .se-site-theme--velvet-speakeasy-shell,
+  .se-site-theme--platinum-funk-shell,
+  .se-site-theme--redline-syndicate-shell,
+  .se-site-theme--wet-paint-shell,
+  .se-site-theme--hazard-cook-shell,
+  .se-site-theme--dockside-shell,
+  .se-site-theme--crown-jewels-shell,
+  .se-site-theme--bayou-smoke-shell,
+  .se-site-theme--desert-mirage-shell,
+  .se-site-theme--rewind-shell,
+  .se-site-theme--snake-eyes-shell,
+  .se-site-theme--quarter-mile-shell,
+  .se-site-theme--88-club-shell,
+  .se-site-theme--swamp-kingdom-shell,
+  .se-site-theme--zombie-apocalypse-shell,
+  .se-site-theme--graveyard-shift-shell,
+  .se-site-theme--naughty-list-shell,
+  .se-site-theme--heartbreaker-shell,
+  .se-site-theme--block-party-shell
+) select.se-input option:checked {
+  background: color-mix(in srgb, var(--se-accent) 36%, #000);
+  color: #fff;
+}
+:is(
+  .se-site-theme--kingpin-luxe-shell,
+  .se-site-theme--neon-underworld-shell,
+  .se-site-theme--winter-heist-shell,
+  .se-site-theme--biscayne-sunset-shell,
+  .se-site-theme--velvet-speakeasy-shell,
+  .se-site-theme--platinum-funk-shell,
+  .se-site-theme--redline-syndicate-shell,
+  .se-site-theme--wet-paint-shell,
+  .se-site-theme--hazard-cook-shell,
+  .se-site-theme--dockside-shell,
+  .se-site-theme--crown-jewels-shell,
+  .se-site-theme--bayou-smoke-shell,
+  .se-site-theme--desert-mirage-shell,
+  .se-site-theme--rewind-shell,
+  .se-site-theme--snake-eyes-shell,
+  .se-site-theme--quarter-mile-shell,
+  .se-site-theme--88-club-shell,
+  .se-site-theme--swamp-kingdom-shell,
+  .se-site-theme--zombie-apocalypse-shell,
+  .se-site-theme--graveyard-shift-shell,
+  .se-site-theme--naughty-list-shell,
+  .se-site-theme--heartbreaker-shell,
+  .se-site-theme--block-party-shell
+) .se-btn--primary {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--se-accent) 34%, var(--se-panel-hi)), color-mix(in srgb, var(--se-accent-dim) 34%, #000));
+  border-color: color-mix(in srgb, var(--se-accent) 72%, var(--se-line));
+  color: #fff;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.72);
+}
+:is(
+  .se-site-theme--kingpin-luxe-shell,
+  .se-site-theme--neon-underworld-shell,
+  .se-site-theme--winter-heist-shell,
+  .se-site-theme--biscayne-sunset-shell,
+  .se-site-theme--velvet-speakeasy-shell,
+  .se-site-theme--platinum-funk-shell,
+  .se-site-theme--redline-syndicate-shell,
+  .se-site-theme--wet-paint-shell,
+  .se-site-theme--hazard-cook-shell,
+  .se-site-theme--dockside-shell,
+  .se-site-theme--crown-jewels-shell,
+  .se-site-theme--bayou-smoke-shell,
+  .se-site-theme--desert-mirage-shell,
+  .se-site-theme--rewind-shell,
+  .se-site-theme--snake-eyes-shell,
+  .se-site-theme--quarter-mile-shell,
+  .se-site-theme--88-club-shell,
+  .se-site-theme--swamp-kingdom-shell,
+  .se-site-theme--zombie-apocalypse-shell,
+  .se-site-theme--graveyard-shift-shell,
+  .se-site-theme--naughty-list-shell,
+  .se-site-theme--heartbreaker-shell,
+  .se-site-theme--block-party-shell
+) .se-btn--primary:hover:not(:disabled) {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--se-accent-hover) 42%, var(--se-panel-hi)), color-mix(in srgb, var(--se-accent-dim) 42%, #000));
+  border-color: color-mix(in srgb, var(--se-accent-hover) 82%, var(--se-line));
+  color: #fff;
+}
+:is(
+  .se-site-theme--kingpin-luxe-shell,
+  .se-site-theme--neon-underworld-shell,
+  .se-site-theme--winter-heist-shell,
+  .se-site-theme--biscayne-sunset-shell,
+  .se-site-theme--velvet-speakeasy-shell,
+  .se-site-theme--platinum-funk-shell,
+  .se-site-theme--redline-syndicate-shell,
+  .se-site-theme--wet-paint-shell,
+  .se-site-theme--hazard-cook-shell,
+  .se-site-theme--dockside-shell,
+  .se-site-theme--crown-jewels-shell,
+  .se-site-theme--bayou-smoke-shell,
+  .se-site-theme--desert-mirage-shell,
+  .se-site-theme--rewind-shell,
+  .se-site-theme--snake-eyes-shell,
+  .se-site-theme--quarter-mile-shell,
+  .se-site-theme--88-club-shell,
+  .se-site-theme--swamp-kingdom-shell,
+  .se-site-theme--zombie-apocalypse-shell,
+  .se-site-theme--graveyard-shift-shell,
+  .se-site-theme--naughty-list-shell,
+  .se-site-theme--heartbreaker-shell,
+  .se-site-theme--block-party-shell
+) .se-btn:disabled {
+  color: color-mix(in srgb, var(--se-text) 82%, #fff);
+  opacity: 0.58;
+}
+:is(
+  .se-site-theme--kingpin-luxe-shell,
+  .se-site-theme--neon-underworld-shell,
+  .se-site-theme--winter-heist-shell,
+  .se-site-theme--biscayne-sunset-shell,
+  .se-site-theme--velvet-speakeasy-shell,
+  .se-site-theme--platinum-funk-shell,
+  .se-site-theme--redline-syndicate-shell,
+  .se-site-theme--wet-paint-shell,
+  .se-site-theme--hazard-cook-shell,
+  .se-site-theme--dockside-shell,
+  .se-site-theme--crown-jewels-shell,
+  .se-site-theme--bayou-smoke-shell,
+  .se-site-theme--desert-mirage-shell,
+  .se-site-theme--rewind-shell,
+  .se-site-theme--snake-eyes-shell,
+  .se-site-theme--quarter-mile-shell,
+  .se-site-theme--88-club-shell,
+  .se-site-theme--swamp-kingdom-shell,
+  .se-site-theme--zombie-apocalypse-shell,
+  .se-site-theme--graveyard-shift-shell,
+  .se-site-theme--naughty-list-shell,
+  .se-site-theme--heartbreaker-shell,
+  .se-site-theme--block-party-shell
+) .se-footer {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--se-bg) 74%, transparent), var(--se-bg)), color-mix(in srgb, var(--se-panel) 84%, #000);
+  border-top-color: color-mix(in srgb, var(--se-accent) 36%, var(--se-line));
+}
+
+/* Signature touches: a brass double rule, a neon edge, a frosted top light. */
+.se-site-theme--kingpin-luxe-shell :is(.se-panel, .se-stats) {
+  border-color: rgba(214, 163, 92, 0.34);
+  box-shadow: inset 0 0 0 1px #0b0b0f, inset 0 0 0 2px rgba(214, 163, 92, 0.14), 0 0 18px rgba(214, 163, 92, 0.08);
+}
+.se-site-theme--kingpin-luxe-shell .se-panel__title { letter-spacing: .06em; }
+.se-site-theme--neon-underworld-shell :is(.se-panel, .se-stats, .se-stat) {
+  border-color: rgba(180, 107, 255, 0.4);
+  box-shadow: inset 3px 0 0 rgba(180, 107, 255, 0.7), inset 0 1px 0 rgba(57, 230, 214, 0.22), 0 0 22px rgba(180, 107, 255, 0.12);
+}
+.se-site-theme--winter-heist-shell :is(.se-panel, .se-stats) {
+  border-color: rgba(143, 211, 255, 0.36);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.16), 0 0 20px rgba(143, 211, 255, 0.1);
+}
+
+.se-site-theme-decor--kingpin-luxe-shell { --se-pack-color: #d6a35c; }
+.se-site-theme-decor--neon-underworld-shell { --se-pack-color: #b46bff; }
+.se-site-theme-decor--winter-heist-shell { --se-pack-color: #8fd3ff; }
+.se-site-theme-decor--biscayne-sunset-shell { --se-pack-color: #ff8fb1; }
+.se-site-theme-decor--velvet-speakeasy-shell { --se-pack-color: #c2405c; }
+.se-site-theme-decor--platinum-funk-shell { --se-pack-color: #ff8a2a; }
+.se-site-theme-decor--redline-syndicate-shell { --se-pack-color: #ff3344; }
+.se-site-theme-decor--wet-paint-shell { --se-pack-color: #36e2a0; }
+.se-site-theme-decor--hazard-cook-shell { --se-pack-color: #ffd400; }
+.se-site-theme-decor--dockside-shell { --se-pack-color: #5b9bd5; }
+.se-site-theme-decor--crown-jewels-shell { --se-pack-color: #4a78ff; }
+.se-site-theme-decor--bayou-smoke-shell { --se-pack-color: #b6e05a; }
+.se-site-theme-decor--desert-mirage-shell { --se-pack-color: #3fc1c9; }
+.se-site-theme-decor--rewind-shell { --se-pack-color: #e04bff; }
+.se-site-theme-decor--snake-eyes-shell { --se-pack-color: #1fae6a; }
+.se-site-theme-decor--quarter-mile-shell { --se-pack-color: #2f9bff; }
+.se-site-theme-decor--88-club-shell { --se-pack-color: #4fd2ff; }
+.se-site-theme-decor--swamp-kingdom-shell { --se-pack-color: #7aa83a; }
+.se-site-theme-decor--zombie-apocalypse-shell { --se-pack-color: #ff6b2c; }
+.se-site-theme-decor--graveyard-shift-shell { --se-pack-color: #a8f0c6; }
+.se-site-theme-decor--naughty-list-shell { --se-pack-color: #e23a3a; }
+.se-site-theme-decor--heartbreaker-shell { --se-pack-color: #ff4d6d; }
+.se-site-theme-decor--block-party-shell { --se-pack-color: #ffb627; }
+
+/* ---------- Kingpin Luxe scene ---------- */
+.se-kl__sunburst { top: 0; right: 0; width: min(40vw, 520px); height: auto; }
+.se-kl__skyline { right: 0; bottom: 0; width: min(46vw, 620px); height: auto; opacity: .9; }
+.se-kl__window { animation: se-kl-window 9s ease-in-out infinite; }
+.se-kl__trim {
+  position: absolute;
+  inset: auto 0 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #d6a35c 50%, transparent);
+  background-size: 40% 100%;
+  background-repeat: no-repeat;
+  opacity: .55;
+  animation: se-kl-glint 12s ease-in-out infinite;
+}
+@keyframes se-kl-window { 0%, 100% { opacity: .85; } 50% { opacity: .35; } }
+@keyframes se-kl-glint { 0%, 30% { background-position: -40% 0; } 70%, 100% { background-position: 140% 0; } }
+
+/* ---------- Neon Underworld scene (a slow, soft buzz; never a hard flash) ---------- */
+.se-nu__signs { top: 0; right: 0; width: min(36vw, 460px); height: auto; }
+.se-nu__tube { animation: se-nu-buzz 6s ease-in-out infinite; }
+.se-nu__tube--teal { animation-delay: -2s; }
+.se-nu__tube--pink { animation-delay: -4s; animation-duration: 7.5s; }
+.se-nu__rain {
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(104deg, transparent 0 22px, rgba(200, 210, 255, 0.07) 22px 23px);
+  background-size: 120px 180px;
+  animation: se-nu-rain 1.6s linear infinite;
+}
+.se-nu__street {
+  position: absolute;
+  inset: auto 0 0;
+  height: 26vh;
+  background:
+    radial-gradient(ellipse 40% 60% at 78% 100%, rgba(180, 107, 255, 0.24), transparent 70%),
+    radial-gradient(ellipse 30% 50% at 92% 100%, rgba(57, 230, 214, 0.18), transparent 70%),
+    repeating-linear-gradient(180deg, transparent 0 9px, rgba(255, 255, 255, 0.025) 9px 10px);
+}
+@keyframes se-nu-buzz { 0%, 46%, 100% { opacity: .95; } 50% { opacity: .62; } 54% { opacity: .9; } }
+@keyframes se-nu-rain { to { background-position: -40px 180px; } }
+
+/* ---------- Winter Heist scene ---------- */
+.se-wh__vault { top: 0; right: 0; width: min(30vw, 360px); height: auto; }
+.se-wh__dial { transform-box: view-box; transform-origin: 200px 60px; animation: se-wh-dial 30s ease-in-out infinite alternate; }
+.se-wh__skyline { right: 0; bottom: 0; width: min(48vw, 640px); height: auto; }
+.se-wh__frost {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 30% 22% at 0 0, rgba(232, 244, 251, 0.16), transparent 70%),
+    radial-gradient(ellipse 26% 20% at 100% 100%, rgba(232, 244, 251, 0.12), transparent 70%);
+}
+.se-wh__snow i {
+  position: absolute;
+  top: -10px;
+  border-radius: 50%;
+  background: #f4fbff;
+  opacity: .75;
+  animation-name: se-wh-snow;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+@keyframes se-wh-dial { from { transform: rotate(-24deg); } to { transform: rotate(38deg); } }
+@keyframes se-wh-snow { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(-30px, 104vh, 0); } }
+/* With motion off the shared rule stops the snow; park it in view instead of above the screen. */
+.se-reduced-motion .se-wh__snow i:nth-child(odd) { top: 30%; }
+.se-reduced-motion .se-wh__snow i:nth-child(even) { top: 64%; }
+@media (prefers-reduced-motion: reduce) {
+  .se-wh__snow i:nth-child(odd) { top: 30%; }
+  .se-wh__snow i:nth-child(even) { top: 64%; }
+}
+
+/* ---------- Shop preview: a miniature shell drawn in the theme's own tokens ---------- */
+.se-drop-art--theme { padding: 0; }
+.se-drop-shell {
+  position: relative;
+  display: grid;
+  grid-template-columns: 22% 1fr;
+  grid-template-rows: 16% 1fr;
+  gap: 4px;
+  width: 100%;
+  max-width: 240px;
+  aspect-ratio: 16 / 10;
+  padding: 4px;
+  border: 1px solid var(--se-line);
+  border-radius: var(--se-radius-md);
+  background-color: var(--se-bg);
+  overflow: hidden;
+}
+.se-drop-art--lg .se-drop-shell { max-width: 460px; }
+.se-drop-shell__top { grid-column: 1 / -1; border-radius: 3px; background: var(--se-theme-topbar-layer, transparent), var(--se-panel); border-bottom: 1px solid color-mix(in srgb, var(--se-accent) 50%, var(--se-line)); }
+.se-drop-shell__side { border-radius: 3px; background: var(--se-panel); border: 1px solid var(--se-line-soft); display: grid; align-content: start; gap: 4px; padding: 4px; }
+.se-drop-shell__side i { height: 4px; border-radius: 2px; background: var(--se-text-dim); opacity: .4; }
+.se-drop-shell__side i:first-child { background: var(--se-accent); opacity: .9; }
+.se-drop-shell__main { display: grid; grid-template-rows: auto 1fr; gap: 4px; min-width: 0; }
+.se-drop-shell__panel { border-radius: 3px; border: 1px solid var(--se-line); background: var(--se-theme-panel-fill, var(--se-panel)); padding: 4px; display: grid; gap: 3px; align-content: start; }
+.se-drop-shell__panel b { height: 5px; width: 50%; border-radius: 2px; background: var(--se-text); opacity: .75; }
+.se-drop-shell__panel i { height: 3px; border-radius: 2px; background: var(--se-text-dim); opacity: .45; }
+.se-drop-shell__btn { justify-self: start; width: 34%; height: 8px; margin-top: 2px; border-radius: 3px; background: var(--se-accent); }
+
+/* ---------- Biscayne Sunset scene ---------- */
+.se-bs__bay { right: 0; bottom: 0; width: min(50vw, 680px); height: auto; }
+.se-bs__fronds { transform-box: view-box; transform-origin: -4px -120px; animation: se-bs-sway 7s ease-in-out infinite alternate; }
+@keyframes se-bs-sway { from { transform: rotate(-4deg); } to { transform: rotate(5deg); } }
+
+/* ---------- Velvet Speakeasy scene ---------- */
+.se-vs__gramophone { top: 0; right: 0; width: min(26vw, 300px); height: auto; }
+.se-vs__bar { right: 0; bottom: 0; width: min(40vw, 520px); height: auto; }
+.se-vs__smoke i {
+  position: absolute;
+  bottom: 18vh;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(239, 228, 204, 0.08), transparent 70%);
+  animation-name: se-vs-smoke;
+  animation-timing-function: ease-out;
+  animation-iteration-count: infinite;
+}
+@keyframes se-vs-smoke { from { transform: translate3d(0, 0, 0) scale(.6); opacity: 0; } 30% { opacity: 1; } to { transform: translate3d(-60px, -60vh, 0) scale(1.8); opacity: 0; } }
+
+/* ---------- Platinum Funk scene ---------- */
+.se-pf__ball { top: 0; right: 4%; width: min(20vw, 240px); height: auto; }
+.se-pf__tiles { animation: se-pf-turn 6s linear infinite; }
+.se-pf__stripes { right: 0; bottom: 0; width: min(44vw, 600px); height: auto; }
+.se-pf__flecks {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.5) 0 1.5px, transparent 2.5px), radial-gradient(circle, rgba(255, 207, 138, 0.4) 0 1.5px, transparent 2.5px);
+  background-size: 180px 140px, 240px 200px;
+  animation: se-pf-flecks 22s linear infinite;
+}
+@keyframes se-pf-turn { from { transform: translateX(0); } to { transform: translateX(-14px); } }
+@keyframes se-pf-flecks { to { background-position: -180px 70px, 240px -100px; } }
+
+/* ---------- Redline Syndicate scene ---------- */
+.se-rs__garage { right: 0; bottom: 0; width: min(46vw, 620px); height: auto; opacity: .85; }
+.se-rs__trails { left: 0; bottom: 2vh; width: 100%; height: 14vh; }
+.se-rs__trail { stroke-dasharray: 160 840; animation: se-rs-trail 3.4s linear infinite; }
+.se-rs__trail--white { animation-duration: 2.6s; animation-delay: -1s; }
+.se-rs__trail--slow { animation-duration: 5s; animation-delay: -2s; }
+@keyframes se-rs-trail { from { stroke-dashoffset: 1000; } to { stroke-dashoffset: 0; } }
+
+/* ---------- Wet Paint scene ---------- */
+.se-wp__wall { right: 0; bottom: 0; width: min(48vw, 640px); height: auto; }
+.se-wp__piece { stroke-dasharray: 900; animation: se-wp-draw 14s ease-in-out infinite; }
+.se-wp__drip { stroke-dasharray: 40; animation: se-wp-drip 6s ease-in infinite; }
+.se-wp__drip--late { animation-delay: -3s; }
+@keyframes se-wp-draw { 0% { stroke-dashoffset: 900; fill-opacity: 0; } 50%, 100% { stroke-dashoffset: 0; fill-opacity: .45; } }
+@keyframes se-wp-drip { from { stroke-dashoffset: 40; } to { stroke-dashoffset: 0; } }
+/* With motion off, show the finished piece. */
+.se-reduced-motion .se-wp__piece { stroke-dasharray: none; }
+@media (prefers-reduced-motion: reduce) { .se-wp__piece { stroke-dasharray: none; } }
+
+/* ---------- Hazard Cook scene ---------- */
+.se-hc__lamp { top: 0; right: 10%; width: min(22vw, 260px); height: auto; }
+.se-hc__cone { animation: se-hc-flicker 7s ease-in-out infinite; }
+.se-hc__bench { right: 0; bottom: 0; width: min(48vw, 640px); height: auto; }
+.se-hc__bubbles i {
+  position: absolute;
+  bottom: 22vh;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 212, 0, 0.6);
+  animation-name: se-hc-bubble;
+  animation-timing-function: ease-in;
+  animation-iteration-count: infinite;
+}
+@keyframes se-hc-flicker { 0%, 100% { opacity: 1; } 48% { opacity: .85; } 50% { opacity: .6; } 52% { opacity: .9; } }
+@keyframes se-hc-bubble { from { transform: translate3d(0, 0, 0); opacity: 0; } 20% { opacity: 1; } to { transform: translate3d(4px, -14vh, 0); opacity: 0; } }
+
+/* ---------- Dockside scene ---------- */
+.se-dk__light { top: 0; right: 0; width: min(34vw, 420px); height: auto; }
+.se-dk__beam { transform-box: view-box; transform-origin: 380px 20px; animation: se-dk-sweep 16s ease-in-out infinite alternate; }
+.se-dk__port { right: 0; bottom: 0; width: min(48vw, 640px); height: auto; }
+.se-dk__fog {
+  position: absolute;
+  inset: auto 0 0;
+  height: 22vh;
+  background: linear-gradient(0deg, rgba(169, 184, 200, 0.12), transparent);
+  animation: se-dk-fog 18s ease-in-out infinite alternate;
+}
+@keyframes se-dk-sweep { from { transform: rotate(-14deg); } to { transform: rotate(18deg); } }
+@keyframes se-dk-fog { from { opacity: .6; } to { opacity: 1; } }
+
+/* ---------- Crown Jewels scene ---------- */
+.se-cj__drape { top: 0; right: 0; width: min(28vw, 340px); height: auto; }
+.se-cj__hoard { right: 0; bottom: 0; width: min(46vw, 620px); height: auto; }
+.se-cj__glint { opacity: 0; animation: se-cj-glint 5.6s ease-in-out infinite; }
+@keyframes se-cj-glint { 0%, 70%, 100% { opacity: 0; } 80% { opacity: .9; } }
+.se-reduced-motion .se-cj__glint { opacity: .6; }
+@media (prefers-reduced-motion: reduce) { .se-cj__glint { opacity: .6; } }
+
+/* ---------- Bayou Smoke scene ---------- */
+.se-by__swamp { right: 0; bottom: 0; width: min(48vw, 640px); height: auto; }
+.se-by__haze {
+  position: absolute;
+  inset: auto 0 0;
+  height: 30vh;
+  background: linear-gradient(0deg, rgba(182, 224, 90, 0.06), transparent);
+}
+.se-by__fireflies i {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #e8ff6a;
+  box-shadow: 0 0 10px 3px rgba(232, 255, 106, 0.45);
+  animation-name: se-by-drift;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  animation-direction: alternate;
+}
+@keyframes se-by-drift { 0% { transform: translate3d(0, 0, 0); opacity: .2; } 50% { opacity: 1; } 100% { transform: translate3d(-30px, -24px, 0); opacity: .3; } }
+
+/* ---------- Desert Mirage scene ---------- */
+.se-dm__sun { top: 0; right: 0; width: min(32vw, 380px); height: auto; }
+.se-dm__mesas { right: 0; bottom: 0; width: min(48vw, 640px); height: auto; }
+.se-dm__shimmer {
+  position: absolute;
+  inset: auto 0 4vh;
+  height: 12vh;
+  background: repeating-linear-gradient(180deg, rgba(255, 233, 194, 0.06) 0 2px, transparent 2px 7px);
+  animation: se-dm-shimmer 3s ease-in-out infinite;
+}
+@keyframes se-dm-shimmer { 0%, 100% { transform: skewX(0) translateY(0); opacity: .6; } 50% { transform: skewX(4deg) translateY(-3px); opacity: 1; } }
+
+/* ---------- Rewind scene ---------- */
+.se-rw__crt { top: 0; right: 0; width: min(26vw, 320px); height: auto; }
+.se-rw__grid { right: 0; bottom: 0; width: min(52vw, 700px); height: auto; }
+.se-rw__scan { position: absolute; inset: 0; background: repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.025) 0 1px, transparent 1px 4px); }
+.se-rw__glitch {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 6vh;
+  background: linear-gradient(180deg, transparent, rgba(198, 255, 61, 0.06) 40%, rgba(224, 75, 255, 0.08) 60%, transparent);
+  animation: se-rw-roll 9s linear infinite;
+}
+@keyframes se-rw-roll { from { transform: translateY(-10vh); } to { transform: translateY(110vh); } }
+.se-reduced-motion .se-rw__glitch { display: none; }
+@media (prefers-reduced-motion: reduce) { .se-rw__glitch { display: none; } }
+
+/* ---------- Snake Eyes scene ---------- */
+.se-se__lamp { top: 0; right: 18%; width: min(20vw, 240px); height: auto; }
+.se-se__swing { transform-box: view-box; transform-origin: 120px 0; animation: se-se-swing 8s ease-in-out infinite alternate; }
+.se-se__table { right: 0; bottom: 0; width: min(48vw, 640px); height: auto; }
+@keyframes se-se-swing { from { transform: rotate(-3deg); } to { transform: rotate(3deg); } }
+
+/* ---------- Graveyard Shift scene (holiday) ---------- */
+.se-gs__yard { right: 0; bottom: 0; width: min(48vw, 640px); height: auto; }
+.se-gs__fog {
+  position: absolute;
+  inset: auto 0 0;
+  height: 26vh;
+  background: linear-gradient(0deg, rgba(168, 240, 198, 0.1), transparent);
+  background-size: 200% 100%;
+  animation: se-gs-fog 20s ease-in-out infinite alternate;
+}
+@keyframes se-gs-fog { from { transform: translateX(-3%); opacity: .7; } to { transform: translateX(3%); opacity: 1; } }
+
+/* ---------- Naughty List scene (holiday) ---------- */
+.se-nl__stash { right: 0; bottom: 0; width: min(48vw, 640px); height: auto; }
+.se-nl__glint { opacity: 0; animation: se-nl-glint 4.5s ease-in-out infinite; }
+@keyframes se-nl-glint { 0%, 70%, 100% { opacity: 0; } 80% { opacity: .9; } }
+.se-reduced-motion .se-nl__glint { opacity: .6; }
+@media (prefers-reduced-motion: reduce) { .se-nl__glint { opacity: .6; } }
+
+/* ---------- Heartbreaker scene (holiday; a soft flicker, never a flash) ---------- */
+.se-hb__sign { top: 0; right: 4%; width: min(26vw, 320px); height: auto; }
+.se-hb__tube { animation: se-hb-buzz 7s ease-in-out infinite; }
+.se-hb__rain {
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(104deg, transparent 0 22px, rgba(255, 200, 210, 0.06) 22px 23px);
+  background-size: 120px 180px;
+  animation: se-hb-rain 1.8s linear infinite;
+}
+.se-hb__street {
+  position: absolute;
+  inset: auto 0 0;
+  height: 24vh;
+  background: radial-gradient(ellipse 40% 60% at 82% 100%, rgba(255, 77, 109, 0.22), transparent 70%);
+}
+@keyframes se-hb-buzz { 0%, 44%, 100% { opacity: .95; } 48% { opacity: .6; } 52% { opacity: .9; } }
+@keyframes se-hb-rain { to { background-position: -40px 180px; } }
+
+/* ---------- Block Party scene (holiday) ---------- */
+.se-bp__flags { top: 0; right: 0; width: min(60vw, 760px); height: auto; }
+.se-bp__block { right: 0; bottom: 0; width: min(48vw, 640px); height: auto; }
+.se-bp__spray { stroke-dasharray: 8 6; animation: se-bp-spray 1.2s linear infinite; }
+@keyframes se-bp-spray { to { stroke-dashoffset: -28; } }
+
+/* ---------- Quarter Mile scene ---------- */
+.se-qm__tree { top: 0; right: 6%; width: min(9vw, 110px); height: auto; }
+.se-qm__strip { right: 0; bottom: 0; width: min(48vw, 640px); height: auto; }
+.se-qm__amber, .se-qm__green { opacity: .15; animation: se-qm-light 6s steps(1, end) infinite; }
+.se-qm__green { animation-name: se-qm-go; }
+@keyframes se-qm-light { 0% { opacity: .15; } 10%, 60% { opacity: 1; } 70%, 100% { opacity: .15; } }
+@keyframes se-qm-go { 0%, 30% { opacity: .15; } 40%, 80% { opacity: 1; } 90%, 100% { opacity: .15; } }
+.se-reduced-motion :is(.se-qm__amber, .se-qm__green) { opacity: .7; }
+@media (prefers-reduced-motion: reduce) { :is(.se-qm__amber, .se-qm__green) { opacity: .7; } }
+.se-qm__trails i {
+  position: absolute;
+  right: 0;
+  width: 22vw;
+  height: 2px;
+  opacity: .5;
+  animation: se-qm-trail 3.2s linear infinite;
+}
+@keyframes se-qm-trail { from { transform: translateX(30vw); } to { transform: translateX(-60vw); } }
+.se-reduced-motion .se-qm__trails { display: none; }
+@media (prefers-reduced-motion: reduce) { .se-qm__trails { display: none; } }
+
+/* ---------- 88 Club scene (the bolt glows slowly, never flashes) ---------- */
+.se-ec__tower { right: 4%; bottom: 0; width: min(30vw, 380px); height: auto; }
+.se-ec__road { right: 0; bottom: 0; width: min(52vw, 700px); height: auto; }
+.se-ec__bolt { opacity: .35; animation: se-ec-bolt 6s ease-in-out infinite; }
+.se-ec__fire { opacity: .55; animation: se-ec-fire 2.4s ease-in-out infinite alternate; }
+.se-ec__storm {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 30vh;
+  background: radial-gradient(ellipse 50% 70% at 78% 0%, rgba(79, 210, 255, 0.1), transparent 70%);
+}
+@keyframes se-ec-bolt { 0%, 100% { opacity: .35; } 50% { opacity: .85; } }
+@keyframes se-ec-fire { from { opacity: .4; } to { opacity: .75; } }
+
+/* ---------- Swamp Kingdom scene (a creature bobs in the loch; bubbles rise) ---------- */
+.se-sk__hill { right: 0; bottom: 0; width: min(48vw, 640px); height: auto; }
+.se-sk__creature { animation: se-sk-bob 6s ease-in-out infinite alternate; }
+@keyframes se-sk-bob { from { transform: translateY(0); } to { transform: translateY(6px); } }
+.se-sk__motes i {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  border: 1px solid rgba(207, 232, 240, 0.7);
+  background: rgba(207, 232, 240, 0.12);
+  animation: se-sk-rise 8s ease-in infinite;
+}
+@keyframes se-sk-rise { from { transform: translate3d(0, 0, 0); opacity: 0; } 30% { opacity: .8; } to { transform: translate3d(-6px, -60px, 0); opacity: 0; } }
+
+/* ---------- Zombie Apocalypse scene (the horde shambles slowly; nothing jumps out) ---------- */
+.se-za__sky {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 50vh;
+  background: radial-gradient(ellipse 60% 70% at 80% 0%, rgba(156, 207, 74, 0.12), transparent 70%);
+}
+.se-za__city { right: 0; bottom: 0; width: min(50vw, 680px); height: auto; }
+.se-za__smoke { animation: se-za-smoke 9s ease-in-out infinite alternate; }
+.se-za__horde svg {
+  position: absolute;
+  bottom: calc(min(50vw, 680px) * 0.143);
+  left: 100%;
+  width: calc(14px * var(--se-za-scale, 1));
+  height: auto;
+  opacity: .8;
+  animation-name: se-za-walk;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+.se-za__shamble { transform-box: fill-box; transform-origin: 50% 100%; animation: se-za-sway 1.8s ease-in-out infinite alternate; }
+@keyframes se-za-smoke { from { transform: translateX(0); opacity: .5; } to { transform: translateX(-8px); opacity: .9; } }
+@keyframes se-za-walk { from { transform: translateX(0); } to { transform: translateX(calc(-1 * min(50vw, 680px))); } }
+@keyframes se-za-sway { from { transform: rotate(-4deg); } to { transform: rotate(4deg); } }
+.se-reduced-motion .se-za__horde { display: none; }
+@media (prefers-reduced-motion: reduce) { .se-za__horde { display: none; } }

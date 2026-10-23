@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { formatCents, formatNumber, type PlayerQuestDto } from '@streets/shared';
-import { questsApi } from '../api/quests.js';
+import { loadTrackedQuests, onQuestsChanged, peekTrackedQuests, trackedFromQuests } from '../quests/questSignals.js';
 
 function primaryProgress(quest: PlayerQuestDto): string {
   const objective = quest.objectives.find((item) => !item.bonus && !item.completed)
@@ -12,26 +12,8 @@ function primaryProgress(quest: PlayerQuestDto): string {
   return formatNumber(objective.current) + ' / ' + formatNumber(objective.target);
 }
 
-let cachedQuests: PlayerQuestDto[] = [];
-let pendingLoad: Promise<PlayerQuestDto[]> | null = null;
-
-function loadTrackedQuests(): Promise<PlayerQuestDto[]> {
-  if (!pendingLoad) {
-    pendingLoad = questsApi.page()
-      .then((page) => {
-        cachedQuests = page.quests.filter((quest) => quest.isTracked && ['ACTIVE', 'READY_TO_TURN_IN'].includes(quest.status));
-        return cachedQuests;
-      })
-      .catch(() => cachedQuests)
-      .finally(() => {
-        pendingLoad = null;
-      });
-  }
-  return pendingLoad;
-}
-
 export function TrackedQuests() {
-  const [quests, setQuests] = useState<PlayerQuestDto[]>(cachedQuests);
+  const [quests, setQuests] = useState<PlayerQuestDto[]>(peekTrackedQuests);
 
   const load = useCallback(() => {
     void loadTrackedQuests().then(setQuests);
@@ -39,9 +21,17 @@ export function TrackedQuests() {
 
   useEffect(() => {
     void load();
-    const changed = () => void load();
-    window.addEventListener('streets:quests-changed', changed);
-    return () => window.removeEventListener('streets:quests-changed', changed);
+    return onQuestsChanged((detail) => {
+      if (detail.tracked) {
+        setQuests(detail.tracked);
+        return;
+      }
+      if (detail.quests) {
+        setQuests(trackedFromQuests(detail.quests));
+        return;
+      }
+      void load();
+    });
   }, [load]);
 
   if (!quests.length) return null;
@@ -51,7 +41,7 @@ export function TrackedQuests() {
       <Link to="/game/quests?tab=active" className="se-tracked-quests__head">Tracked jobs</Link>
       <div className="se-tracked-quests__list">
         {quests.map((quest) => (
-          <Link key={quest.key} to={{ pathname: '/game/quests', search: '?tab=active', hash: `#quest-${quest.key}` }} className={'se-tracked-quest' + (quest.status === 'READY_TO_TURN_IN' ? ' se-tracked-quest--ready' : '')}>
+          <Link key={quest.key} to={{ pathname: '/game/quests', search: '?tab=active', hash: `#quest-${encodeURIComponent(quest.key)}` }} className={'se-tracked-quest' + (quest.status === 'READY_TO_TURN_IN' ? ' se-tracked-quest--ready' : '')}>
             <span className="se-tracked-quest__name">{quest.title}</span>
             <span className="se-tracked-quest__progress">
               {quest.status === 'READY_TO_TURN_IN' ? 'Collect' : primaryProgress(quest)}

@@ -457,11 +457,24 @@ const HIDEOUT_V2_BY_RULESET_ID: Readonly<Record<string, HideoutV2Rules>> = {
   'classic-og-v1.8-q': CLASSIC_OG_V07G_HIDEOUT_V2,
   'classic-og-v1.8-r': CLASSIC_OG_V07G_HIDEOUT_V2,
   'classic-og-v1.8-s': CLASSIC_OG_V07G_HIDEOUT_V2,
+  // 1.9 through 2.2 build on 1.8-S and keep the same hideout extension.
+  'classic-og-v1.9-a': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v1.9-b': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v1.9-c': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v1.9-d': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v2.0-a': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v2.1-a': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v2.1-b': CLASSIC_OG_V07G_HIDEOUT_V2,
+  // 2.1.0-B adds narrative crew loyalty; existing hideout protection stays active.
+  'classic-og-v2.1-c': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v2.2-a': CLASSIC_OG_V07G_HIDEOUT_V2,
+  'classic-og-v2.3-a': CLASSIC_OG_V07G_HIDEOUT_V2,
+  // Frozen: from 2.4.0-A on, rulesets carry the extension as `hideoutV2` and children inherit it.
 };
 
-/** Returns the v2 extension registered for a ruleset, or null when none is registered. */
-export function hideoutV2For(ruleset: Pick<Ruleset, 'meta'>): HideoutV2Rules | null {
-  return HIDEOUT_V2_BY_RULESET_ID[ruleset.meta.id] ?? null;
+/** Returns the ruleset's v2 extension (its own, else the one registered by ID), or null when it has none. */
+export function hideoutV2For(ruleset: Pick<Ruleset, 'meta'> & Partial<Pick<Ruleset, 'hideoutV2'>>): HideoutV2Rules | null {
+  return ruleset.hideoutV2 ?? HIDEOUT_V2_BY_RULESET_ID[ruleset.meta.id] ?? null;
 }
 
 /** Returns configuration problems for an opted-in v2 extension, or an empty list when none exist. */

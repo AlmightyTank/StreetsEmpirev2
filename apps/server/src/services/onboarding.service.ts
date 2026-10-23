@@ -1,9 +1,11 @@
 import { Prisma, type PrismaClient } from '@prisma/client';
 import { loadRulesetForRound, type Ruleset } from '@streets/rules-engine';
 import {
+  ACTIVITY_EXPERIENCE,
   ONBOARDING_GUIDE_STEPS,
   ONBOARDING_PAGE_KEYS,
   TOUR_STEP_KEYS,
+  readStreetSignDesign,
   type OnboardingActionInput,
   type OnboardingGuideStepKey,
   type OnboardingPageKey,
@@ -11,6 +13,8 @@ import {
   type TourStepKey,
 } from '@streets/shared';
 import { RoundService } from './round.service.js';
+import { PlayerExperienceService } from './player-experience.service.js';
+import { metrics } from './metrics.service.js';
 
 /**
  * 1.0.0-B. Tutorial progress and the early "getting started" goals.
@@ -30,6 +34,7 @@ interface StoredOnboarding {
   tourStartedAt?: string;
   tourDismissedRoundId?: string | null;
   tourStep?: string;
+  signRecapDismissedRoundId?: string | null;
 }
 
 function stored(value: unknown): StoredOnboarding {
@@ -47,56 +52,97 @@ function itemNames(ruleset: Ruleset, fields: string[]): string[] {
   return [...names];
 }
 
-/** Store buys of a named item, as a single trade or as a line of a checkout. */
+/**
+ * Positive purchases of a named item, as a single trade or as a checkout line.
+ *
+ * Store activities are deliberately read from the resolved ledger rather than
+ * from client intent. Single trades carry direction/quantity at the top level;
+ * checkout activities carry them on each line and may be aggregated as either
+ * STORE_BUY or STORE_SELL when a basket contains both directions.
+ */
 function bought(names: string[]): Prisma.Sql {
   if (!names.length) return Prisma.sql`false`;
   const list = Prisma.join(names);
   return Prisma.sql`(
-    (a.type::text = 'STORE_BUY' AND a.payload->>'item' IN (${list}))
+    (
+      a.type::text = 'STORE_BUY'
+      AND a.payload->>'item' IN (${list})
+      AND a.payload->>'direction' = 'buy'
+      AND CASE
+        WHEN jsonb_typeof(a.payload->'quantity') = 'number' THEN (a.payload->>'quantity')::float8
+        ELSE 0
+      END > 0
+    )
     OR (a.type::text IN ('STORE_BUY', 'STORE_SELL') AND EXISTS (
       SELECT 1 FROM jsonb_array_elements(
         CASE WHEN jsonb_typeof(a.payload->'lines') = 'array' THEN a.payload->'lines' ELSE '[]'::jsonb END
       ) AS line
-      WHERE line->>'item' IN (${list}) AND line->>'direction' = 'buy'
+      WHERE line->>'item' IN (${list})
+        AND line->>'direction' = 'buy'
+        AND CASE
+          WHEN jsonb_typeof(line->'quantity') = 'number' THEN (line->>'quantity')::float8
+          ELSE 0
+        END > 0
     ))
   )`;
+}
+
+/** Total positive units bought for named store items, including basket lines. */
+function purchasedQuantity(names: string[]): Prisma.Sql {
+  if (!names.length) return Prisma.sql`0`;
+  const list = Prisma.join(names);
+  return Prisma.sql`COALESCE(SUM(
+    CASE
+      WHEN a.type::text = 'STORE_BUY'
+        AND a.payload->>'item' IN (${list})
+        AND a.payload->>'direction' = 'buy'
+        AND jsonb_typeof(a.payload->'quantity') = 'number'
+        THEN (a.payload->>'quantity')::float8
+      WHEN a.type::text IN ('STORE_BUY', 'STORE_SELL')
+        THEN COALESCE((
+          SELECT SUM(
+            CASE
+              WHEN line->>'item' IN (${list})
+                AND line->>'direction' = 'buy'
+                AND jsonb_typeof(line->'quantity') = 'number'
+                THEN (line->>'quantity')::float8
+              ELSE 0
+            END
+          )
+          FROM jsonb_array_elements(
+            CASE WHEN jsonb_typeof(a.payload->'lines') = 'array' THEN a.payload->'lines' ELSE '[]'::jsonb END
+          ) AS line
+        ), 0)
+      ELSE 0
+    END
+  ), 0)`;
 }
 
 /** What this season's play has already covered. One query over the player's own ledger. */
 export async function guideProgress(
   prisma: Pick<PrismaClient, '$queryRaw'>,
-  player: { id: string; thugs: number; pistols: number; shotguns: number; tek9s: number; ak47s: number },
-  ruleset: Ruleset,
+  player: { id: string },
+  _ruleset: Ruleset,
 ): Promise<Record<OnboardingGuideStepKey, boolean>> {
-  const weaponFields = ['pistols', 'shotguns', 'tek9s', 'ak47s'] as const;
-  const [row] = await prisma.$queryRaw<Array<Record<'scouted' | 'recruited' | 'hired' | 'produced' | 'condoms' | 'beer' | 'armed', boolean | null>>>(Prisma.sql`
+  const [row] = await prisma.$queryRaw<Array<Record<'scouted' | 'business' | 'encounter' | 'career', boolean | null>>>(Prisma.sql`
     SELECT
       bool_or(a.type::text = 'SCOUT') AS scouted,
-      bool_or(a.type::text = 'SCOUT' AND jsonb_typeof(a.payload->'thugs') = 'number' AND (a.payload->>'thugs')::float8 > 0) AS recruited,
-      bool_or(${bought(itemNames(ruleset, ['thugs']))}) AS hired,
-      bool_or(a.type::text = 'PRODUCE_CRACK') AS produced,
-      bool_or(${bought(itemNames(ruleset, ['condoms']))}) AS condoms,
-      bool_or(${bought(itemNames(ruleset, ['beer']))}) AS beer,
-      bool_or(${bought(itemNames(ruleset, [...weaponFields]))}) AS armed
+      bool_or(a.type::text = 'BUSINESS_BUILD') AS business,
+      bool_or(a.type::text = 'RANDOM_ENCOUNTER_CHOICE') AS encounter,
+      bool_or(a.type::text = 'CAREER_CHOSEN') AS career
     FROM "PlayerActivity" a
     WHERE a."roundPlayerId" = ${player.id}
   `);
-  // Every crew starts with some thugs and guns; only growth beyond that counts.
-  const start = ruleset.round.startingPlayer as unknown as Partial<Record<string, number>>;
-  const startingWeapons = weaponFields.reduce((sum, field) => sum + (start[field] ?? 0), 0);
-  const weapons = weaponFields.reduce((sum, field) => sum + player[field], 0);
   return {
-    scout: Boolean(row?.scouted),
-    // Hired, recruited or rewarded: any thug beyond the crew every player starts with.
-    recruit: Boolean(row?.recruited) || Boolean(row?.hired) || player.thugs > (start.thugs ?? 0),
-    restock: Boolean(row?.condoms) && Boolean(row?.beer),
-    produce: Boolean(row?.produced),
-    weapon: Boolean(row?.armed) || weapons > startingWeapons,
+    meet_contact: Boolean(row?.scouted),
+    open_front: Boolean(row?.business),
+    face_encounter: Boolean(row?.encounter),
+    choose_career: Boolean(row?.career),
   };
 }
 
 /**
- * Guided walkthrough progress: seven ordered core-loop steps, each derived
+ * Guided walkthrough progress: ordered core-loop steps, each derived
  * from real ledger-backed play. The raid step accepts any resolved raid
  * attempt (win or loss) so losing never strands the player; recon is taught
  * in the step copy but not gated.
@@ -105,26 +151,77 @@ export async function tourProgress(
   prisma: Pick<PrismaClient, '$queryRaw'>,
   player: { id: string; thugs: number },
   ruleset: Ruleset,
+  hasSavedSign = false,
 ): Promise<Record<TourStepKey, boolean>> {
-  const [row] = await prisma.$queryRaw<Array<Record<'quested' | 'scouted' | 'recruited' | 'hired' | 'condoms' | 'beer' | 'produced' | 'hideout' | 'raided', boolean | null>>>(Prisma.sql`
+  const eligibleProducts = [...new Set(['CRACK', ...Object.keys(ruleset.products ?? {})])];
+  const productList = Prisma.join(eligibleProducts);
+  const condoms = itemNames(ruleset, ['condoms']);
+  const beer = itemNames(ruleset, ['beer']);
+  const medicine = itemNames(ruleset, ['medicine']);
+  const pistols = itemNames(ruleset, ['pistols']);
+  const ammoCrate = itemNames(ruleset, ['ammo']).filter((name) => name.includes('10,000'));
+  const [row] = await prisma.$queryRaw<Array<Record<'quested' | 'scouted' | 'questCompleted' | 'recruited' | 'hired' | 'condoms' | 'beer' | 'produced' | 'hideout' | 'raided' | 'condomsBought' | 'beerBought' | 'medicineBought' | 'pistolsBought' | 'ammoCratesBought', boolean | number | null>>>(Prisma.sql`
     SELECT
-      bool_or(a.type::text = 'QUEST_ACCEPTED') AS quested,
-      bool_or(a.type::text = 'SCOUT') AS scouted,
+       (
+         bool_or(a.type::text = 'QUEST_ACCEPTED')
+         OR EXISTS (
+           SELECT 1
+           FROM "PlayerQuest" pq
+           JOIN "QuestDefinition" qd ON qd.id = pq."questDefinitionId"
+           WHERE pq."roundPlayerId" = ${player.id}
+             AND pq.status IN ('ACTIVE', 'READY_TO_TURN_IN')
+             AND pq."acceptedAt" IS NOT NULL
+             AND qd.type = 'STORY'
+         )
+       ) AS quested,
+       bool_or(a.type::text = 'SCOUT') AS scouted,
+       EXISTS (
+         SELECT 1
+         FROM "PlayerQuest" pq
+         JOIN "QuestDefinition" qd ON qd.id = pq."questDefinitionId"
+         WHERE pq."roundPlayerId" = ${player.id}
+           AND pq.status = 'COMPLETED'
+           AND pq."claimedAt" IS NOT NULL
+           AND qd.type = 'STORY'
+       ) AS "questCompleted",
       bool_or(a.type::text = 'SCOUT' AND jsonb_typeof(a.payload->'thugs') = 'number' AND (a.payload->>'thugs')::float8 > 0) AS recruited,
       bool_or(${bought(itemNames(ruleset, ['thugs']))}) AS hired,
       bool_or(${bought(itemNames(ruleset, ['condoms']))}) AS condoms,
       bool_or(${bought(itemNames(ruleset, ['beer']))}) AS beer,
-      bool_or(a.type::text = 'PRODUCE_CRACK') AS produced,
-      bool_or(a.type::text = 'HIDEOUT_UPGRADE') AS hideout,
-      bool_or(a.type::text = 'RAID_ATTACK') AS raided
+      bool_or(
+        a.type::text = 'PRODUCE_CRACK'
+        AND CASE
+          WHEN jsonb_typeof(a.payload->'product') = 'number' THEN (a.payload->>'product')::float8
+          ELSE 0
+        END > 0
+        AND COALESCE(NULLIF(a.payload->>'productType', ''), 'CRACK') IN (${productList})
+      ) AS produced,
+       bool_or(a.type::text = 'HIDEOUT_UPGRADE') AS hideout,
+       bool_or(a.type::text = 'RAID_ATTACK') AS raided,
+       ${purchasedQuantity(condoms)} AS "condomsBought",
+       ${purchasedQuantity(beer)} AS "beerBought",
+       ${purchasedQuantity(medicine)} AS "medicineBought",
+       ${purchasedQuantity(pistols)} AS "pistolsBought",
+       ${purchasedQuantity(ammoCrate)} AS "ammoCratesBought"
     FROM "PlayerActivity" a
     WHERE a."roundPlayerId" = ${player.id}
   `);
   const start = ruleset.round.startingPlayer as unknown as Partial<Record<string, number>>;
+  const legacyStepsComplete = Boolean(row?.quested) && Boolean(row?.scouted)
+    && Boolean(row?.condoms) && Boolean(row?.beer)
+    && (Boolean(row?.recruited) || Boolean(row?.hired) || player.thugs > (start.thugs ?? 0))
+    && Boolean(row?.produced) && Boolean(row?.hideout) && Boolean(row?.raided);
   return {
+    // Existing graduates keep their completed state when this identity step is added.
+    'build-street-sign': hasSavedSign || legacyStepsComplete,
     'accept-quest': Boolean(row?.quested),
     scout: Boolean(row?.scouted),
-    'shop-supplies': Boolean(row?.condoms) && Boolean(row?.beer),
+    'complete-quest': Boolean(row?.questCompleted),
+    'shop-supplies': Number(row?.condomsBought ?? 0) >= 1_000
+      && Number(row?.beerBought ?? 0) >= 1_000
+      && Number(row?.medicineBought ?? 0) >= 15
+      && Number(row?.pistolsBought ?? 0) >= 5
+      && Number(row?.ammoCratesBought ?? 0) >= 1,
     'grow-crew': Boolean(row?.recruited) || Boolean(row?.hired) || player.thugs > (start.thugs ?? 0),
     produce: Boolean(row?.produced),
     'upgrade-hideout': Boolean(row?.hideout),
@@ -148,11 +245,13 @@ async function writeStored(prisma: PrismaClient, accountId: string, value: Store
 
 export const OnboardingService = {
   async state(prisma: PrismaClient, accountId: string): Promise<OnboardingStateDto> {
-    const [value, round, finishedSeasons] = await Promise.all([
+    const [value, round, finishedSeasons, profile] = await Promise.all([
       readStored(prisma, accountId),
       RoundService.getCurrent(prisma),
       prisma.roundPlayer.count({ where: { accountId, round: { status: { in: ['ENDED', 'ARCHIVED'] } } } }),
+      prisma.accountProfile.findUnique({ where: { accountId }, select: { streetSign: true } }),
     ]);
+    const streetSign = readStreetSignDesign(profile?.streetSign);
     const player = round
       ? await prisma.roundPlayer.findUnique({
           where: { roundId_accountId: { roundId: round.id, accountId } },
@@ -171,7 +270,7 @@ export const OnboardingService = {
         complete: steps.every((step) => step.done),
         steps,
       };
-      const tourProgressMap = await tourProgress(prisma, player, ruleset);
+      const tourProgressMap = await tourProgress(prisma, player, ruleset, Boolean(streetSign));
       const tourSteps = TOUR_STEP_KEYS.map((key) => ({ key, done: tourProgressMap[key] }));
       const tourComplete = tourSteps.every((step) => step.done);
       const firstOpen = tourSteps.find((step) => !step.done)?.key ?? null;
@@ -188,6 +287,7 @@ export const OnboardingService = {
         complete: tourComplete,
         step: hintedOpen ?? firstOpen,
         steps: tourSteps,
+        signRecap: streetSign && value.signRecapDismissedRoundId !== round.id ? streetSign : null,
       };
     }
 
@@ -207,11 +307,16 @@ export const OnboardingService = {
   },
 
   async update(prisma: PrismaClient, accountId: string, input: OnboardingActionInput, now = new Date()): Promise<OnboardingStateDto> {
+    const before = await OnboardingService.state(prisma, accountId);
     const value = await readStored(prisma, accountId);
     const next: StoredOnboarding = { ...value };
     switch (input.action) {
       case 'complete-intro':
         next.introCompletedAt = now.toISOString();
+        // Once per account, however many times the intro is replayed.
+        await prisma.$transaction((tx) => PlayerExperienceService.award(tx, {
+          accountId, sourceKey: 'onboarding-intro', source: 'ONBOARDING', amount: ACTIVITY_EXPERIENCE.onboardingIntro, awardedAt: now,
+        }));
         break;
       case 'skip-intro':
         next.introSkippedAt = now.toISOString();
@@ -241,6 +346,10 @@ export const OnboardingService = {
         next.tourStartedAt = now.toISOString();
         next.tourDismissedRoundId = null;
         delete next.tourStep;
+        // The offer was actionable if the player could start it; avoid counting
+        // every repeated onboarding-state GET as a new impression.
+        metrics.recordOnboarding('tour_offered');
+        metrics.recordOnboarding('tour_started');
         break;
       case 'advance-tour':
         next.tourStep = input.step;
@@ -248,14 +357,29 @@ export const OnboardingService = {
       case 'dismiss-tour': {
         const round = await RoundService.getCurrent(prisma);
         next.tourDismissedRoundId = round?.id ?? null;
+        metrics.recordOnboarding('tour_skipped');
         break;
       }
       case 'restore-tour':
         next.tourDismissedRoundId = null;
         delete next.tourStep;
         break;
+      case 'dismiss-sign-recap': {
+        const round = await RoundService.getCurrent(prisma);
+        next.signRecapDismissedRoundId = round?.id ?? null;
+        break;
+      }
     }
     await writeStored(prisma, accountId, next);
-    return OnboardingService.state(prisma, accountId);
+    const after = await OnboardingService.state(prisma, accountId);
+    const beforeSteps = new Map(before.tour?.steps.map((step) => [step.key, step.done]) ?? []);
+    for (const step of after.tour?.steps ?? []) {
+      if (!beforeSteps.get(step.key) && step.done) metrics.recordOnboarding('step_completed', step.key);
+    }
+    if (!before.tour?.complete && after.tour?.complete) metrics.recordOnboarding('chapter_graduated');
+    if (input.action === 'advance-tour' && after.tour?.steps.find((step) => step.key === input.step)?.done) {
+      metrics.recordOnboarding('step_blocked', input.step);
+    }
+    return after;
   },
 };

@@ -228,7 +228,7 @@ export const AdminEventService = {
       schedule: entry.schedule, objectives: entry.config.objectives ?? [], rewards: entry.config.rewards ?? [], config: entry.config,
     }));
     return {
-      ruleset: { id: ruleset.meta.id, version: ruleset.meta.version, name: ruleset.meta.name },
+      ruleset: { id: ruleset.meta.id, version: ruleset.meta.version, name: ruleset.meta.name, streetSkills: Boolean(ruleset.streetSkills), individualItems: Boolean(ruleset.individualItems?.enabled) },
       firstClassTypes: firstClassTypes(ruleset),
       catalog: entries,
       modifierSimulation: modifierSimulation(ruleset),

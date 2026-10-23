@@ -2,6 +2,10 @@ import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { allianceForumPostSchema, allianceInviteAnswerSchema, alliancePlayerSchema, allianceSettingsSchema, allianceTagSchema, createAllianceSchema } from '@streets/shared';
 import { AllianceService } from '../services/alliance.service.js';
+import { territoryEmpirePage } from '../services/territory-empire.service.js';
+import { selectTerritoryPower } from '../services/territory-power.service.js';
+import { collectTerritoryCityYield } from '../services/territory-yield-collect.service.js';
+import { useTerritoryAccess } from '../services/territory-access.service.js';
 import { wakeDiscordBot } from '../services/discord-bot-push.service.js';
 import { RoundService } from '../services/round.service.js';
 import { AppError } from '../utils/errors.js';
@@ -19,6 +23,30 @@ const allianceRoutes: FastifyPluginAsync = async (app) => {
   app.get('/alliance', { preHandler: app.requireAuth }, async (request) => {
     const player = await me(request.auth!.account.id);
     return AllianceService.mine(app.prisma, player.id);
+  });
+
+  app.get('/alliance/empire', { preHandler: app.requireAuth }, async (request) => {
+    const player = await me(request.auth!.account.id);
+    return territoryEmpirePage(app.prisma, player.id);
+  });
+
+  app.post('/alliance/empire/select-region', { preHandler: app.requireAuth }, async (request) => {
+    const player = await me(request.auth!.account.id);
+    const { regionKey } = parseBody(z.object({ regionKey: z.string().min(1).max(80) }).strict(), request.body ?? {});
+    await selectTerritoryPower(app.prisma, player.id, regionKey);
+    return territoryEmpirePage(app.prisma, player.id);
+  });
+
+  app.post('/alliance/empire/collect', { preHandler: app.requireAuth }, async (request) => {
+    const player = await me(request.auth!.account.id);
+    const input = parseBody(z.object({ scope: z.enum(['city', 'district']), citySlug: z.string().min(1).max(80), district: z.string().min(1).max(80).optional(), actionId: z.string().uuid() }).strict(), request.body ?? {});
+    return collectTerritoryCityYield(app.prisma, player.id, input);
+  });
+
+  app.post('/alliance/empire/access', { preHandler: app.requireAuth }, async (request) => {
+    const player = await me(request.auth!.account.id);
+    const input = parseBody(z.object({ scope: z.enum(['city', 'district']), citySlug: z.string().min(1).max(80), district: z.string().min(1).max(80).optional(), accessKey: z.string().min(1).max(80), paymentKind: z.enum(['CASH', 'AMMO', 'VEHICLE_PARTS']).optional(), actionId: z.string().uuid() }).strict(), request.body ?? {});
+    return useTerritoryAccess(app.prisma, player.id, input);
   });
 
   app.get('/alliances', { preHandler: app.requireAuth }, async (request) => {

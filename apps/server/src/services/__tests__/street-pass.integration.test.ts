@@ -35,7 +35,7 @@ describe.runIf(process.env.STREET_PASS_INTEGRATION === '1')('Street Pass with Po
 
   async function makePlayer(round: Round, joinedAt = new Date()): Promise<{ id: string; accountId: string; cookie: string }> {
     const name = `sp_${randomUUID().slice(0, 8)}`;
-    const registered = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { username: name, email: `${name}@example.invalid`, password: randomUUID() } });
+    const registered = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { birthDate: '1990-01-01', ageConfirmed: true, username: name, email: `${name}@example.invalid`, password: randomUUID() } });
     expect(registered.statusCode, registered.body).toBe(201);
     const account = registered.json().account.id as string;
     accountIds.push(account);

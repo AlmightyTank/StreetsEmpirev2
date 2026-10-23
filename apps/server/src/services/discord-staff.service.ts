@@ -82,7 +82,7 @@ export interface DiscordStaffPostDto {
   editMessageId: string | null;
   bugReport?: StaffBugReportDto;
   messageReport?: StaffMessageReportDto;
-  patchNotes?: { id: string; title: string; body: string; publishedAt: string; url: string };
+  patchNotes?: { id: string; title: string; body: string; publishedAt: string; updatedAt: string | null; state: 'HELD' | 'PUBLISHED' | 'DELETED'; url: string };
   /** Status channel posts: a deploy starting, finishing or failing, or planned maintenance. */
   deploy?: { phase: DeployPhase; commit: string; at: string };
   maintenance?: { message: string; startsAt: string; endsAt: string };
@@ -91,8 +91,8 @@ export interface DiscordStaffPostDto {
 type Db = PrismaClient | Prisma.TransactionClient;
 
 /** The active account behind a Discord user, for /bug and the staff buttons. */
-export async function linkedDiscordAccount(prisma: PrismaClient, discordId: string): Promise<Pick<Account, 'id' | 'username' | 'isAdmin'>> {
-  const account = await prisma.account.findFirst({ where: { discordId, isActive: true }, select: { id: true, username: true, isAdmin: true } });
+export async function linkedDiscordAccount(prisma: PrismaClient, discordId: string): Promise<Pick<Account, 'id' | 'username' | 'isAdmin' | 'staffRole'>> {
+  const account = await prisma.account.findFirst({ where: { discordId, isActive: true }, select: { id: true, username: true, isAdmin: true, staffRole: true } });
   if (!account) throw AppError.notFound('DISCORD_NOT_LINKED', 'That Discord account is not linked to a StreetsEmpire account.');
   return account;
 }
@@ -190,15 +190,57 @@ export const DiscordStaffService = {
           id: row.id,
           kind,
           editMessageId: null,
-          patchNotes: { id: news.id, title: news.title, body: news.body, publishedAt: news.publishedAt.toISOString(), url: gameUrl('/game/admin/news') },
+          patchNotes: { id: news.id, title: news.title, body: news.body, publishedAt: news.publishedAt.toISOString(), updatedAt: news.updatedAt.toISOString(), state: 'HELD', url: gameUrl('/game/admin/news') },
         });
+      }
+    }
+    // Refresh the ORIGINAL staff notice, not a new message. This also notices when
+    // a held post publishes automatically after its review window, or is deleted.
+    if (audience === 'staff' && posts.length < limit) {
+      const held = await prisma.discordStaffPost.findMany({
+        where: { kind: 'PATCH_NOTES_HELD', messageId: { not: null } },
+        // Do not use the new-post expiry for an already posted review card:
+        // a seven-day hold must still turn green when its timer expires.
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+      });
+      if (held.length) {
+        const newsRows = await prisma.gameNews.findMany({ where: { id: { in: held.map((row) => row.targetId) } } });
+        const byId = new Map(newsRows.map((row) => [row.id, row]));
+        for (const row of held) {
+          const news = byId.get(row.targetId);
+          const state = !news ? 'DELETED' : news.publishedAt <= now ? 'PUBLISHED' : 'HELD';
+          if (row.syncedState === state && (!news || (row.syncedNewsAt && row.syncedNewsAt >= news.updatedAt))) continue;
+          posts.push({
+            id: row.id,
+            kind: 'PATCH_NOTES_HELD',
+            editMessageId: row.messageId,
+            patchNotes: {
+              id: row.targetId, title: news?.title ?? 'Patch notes', body: news?.body ?? '',
+              publishedAt: news?.publishedAt.toISOString() ?? now.toISOString(),
+              updatedAt: news?.updatedAt.toISOString() ?? null,
+              state,
+              url: gameUrl('/game/admin/news'),
+            },
+          });
+          if (posts.length >= limit) break;
+        }
       }
     }
     return posts;
   },
 
-  async posted(prisma: PrismaClient, postId: string, messageId: string): Promise<void> {
-    await prisma.discordStaffPost.updateMany({ where: { id: postId }, data: { messageId, error: null } });
+  async posted(
+    prisma: PrismaClient, postId: string, messageId: string,
+    sync?: { state: 'HELD' | 'PUBLISHED' | 'DELETED'; updatedAt: string | null },
+  ): Promise<void> {
+    await prisma.discordStaffPost.updateMany({
+      where: { id: postId },
+      data: {
+        messageId, error: null,
+        ...(sync ? { syncedState: sync.state, syncedNewsAt: sync.updatedAt ? new Date(sync.updatedAt) : null } : {}),
+      },
+    });
   },
 
   async failed(prisma: PrismaClient, postId: string, error: string): Promise<void> {

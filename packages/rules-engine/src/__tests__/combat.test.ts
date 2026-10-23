@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV01, combatPrototype, rulesets, type CombatModel } from '@streets/rulesets';
-import { CombatError, equipCombatSquad, simulateRaid, type CombatCrew, type RaidInput } from '../calculations/combat.js';
-import { combatScenarios, combatSimulationMarkdown, combatSimulationRng, runCombatSimulation } from '../simulations/combat.js';
+import { classicOgV01, classicOgV24D, combatPrototype, rulesets, type CombatModel } from '@streets/rulesets';
+import { CombatError, equipCombatSquad, equipCombatSquadWithAmmo, previewCombatAmmo, simulateRaid, type CombatCrew, type RaidInput } from '../calculations/combat.js';
+import { ammoCombatScenarios, combatScenarios, combatSimulationMarkdown, combatSimulationRng, runCombatSimulation } from '../simulations/combat.js';
 import { flatRng } from '../rng.js';
 
 const crew = (thugs: number, pistols = thugs): CombatCrew => ({
@@ -70,6 +70,42 @@ describe('experimental combat equipment', () => {
     expect(strengths[1]).toBe(3);
     expect(strengths[2]).toBe(4);
     expect(strengths[3]).toBeCloseTo(5.690416);
+  });
+});
+
+describe('ammo combat allocation', () => {
+  const mixed: CombatCrew = { thugs: 2, thugHappiness: 100, weapons: { PISTOL: 2, SHOTGUN: 0, TEK9: 0, AK47: 2 } };
+  const roundsPerFight = classicOgV24D.ammoParts!.ammo.roundsPerFight;
+
+  it('funds the strongest assigned guns first and leaves unfunded fighters unarmed', () => {
+    const squad = equipCombatSquadWithAmmo(mixed, 2, model, 180, roundsPerFight);
+    expect(squad).toMatchObject({ equipment: { PISTOL: 0, SHOTGUN: 0, TEK9: 0, AK47: 1 }, roundsSpent: 180, unarmed: 1 });
+    expect(equipCombatSquadWithAmmo(mixed, 2, model, 179, roundsPerFight).roundsSpent).toBe(0);
+  });
+
+  it('uses the defender floor on the strongest fighters before paid stock', () => {
+    const mixedLoadout: CombatCrew = { ...mixed, weapons: { ...mixed.weapons, AK47: 1 } };
+    const squad = equipCombatSquadWithAmmo(mixedLoadout, 2, model, 12, roundsPerFight, { defenderFloorFighters: 1 });
+    expect(squad).toMatchObject({ equipment: { AK47: 1, PISTOL: 1 }, freeRounds: 180, roundsSpent: 12 });
+  });
+
+  it('caps attacker rounds without changing the ammo preview algorithm', () => {
+    const preview = previewCombatAmmo(mixed, 2, model, 360, roundsPerFight, 179);
+    expect(preview.roundsSpent).toBe(0);
+    const capped = equipCombatSquadWithAmmo(mixed, 2, model, 360, roundsPerFight, { ammoCapRounds: 180 });
+    expect(capped).toMatchObject({ equipment: { AK47: 1, PISTOL: 0 }, roundsSpent: 180 });
+  });
+
+  it('spends each side ammo, gives the defender floor, and transfers 15% of remaining ammo on a win', () => {
+    const result = simulateRaid(input({
+      attacker: crew(40), defender: crew(10),
+      ammo: { attackerRounds: 12, defenderRounds: 120, roundsPerFight, defenderFloor: 1, lootShareBps: 1_500 },
+    }), model, flatRng);
+    expect(result.winner).toBe('ATTACKER');
+    expect(result.ammunition).toEqual({
+      attackerRoundsSpent: 12, defenderRoundsSpent: 108, defenderFreeRounds: 12,
+      ammoLootRounds: 1, attackerRoundsAfter: 1, defenderRoundsAfter: 11,
+    });
   });
 });
 
@@ -304,6 +340,21 @@ describe('combat balance experiments', () => {
     expect(report).toContain('Seed: 42');
     expect(report).toContain('Mean loot');
     expect(report).toContain('does not validate repeated attacks');
+  });
+  it('simulates ammo spend, loot, and the defender floor under the 2.4.0-D combat model', () => {
+    const ammoModel = classicOgV24D.combat!;
+    const rows = runCombatSimulation(1_000, 42, ammoModel, ammoCombatScenarios);
+    expect(rows).toHaveLength(4);
+    expect(rows[0]).toMatchObject({ meanAttackerAmmoSpent: 0, meanDefenderAmmoSpent: 0, meanAmmoLoot: 0 });
+    expect(rows[0]!.winPercent).toBe(0); // Dry attacking pistols cannot beat the defender floor.
+    expect(rows[1]!.meanAttackerAmmoSpent).toBe(120);
+    expect(rows[1]!.meanDefenderAmmoSpent).toBe(0); // Ten free defender pistols cover the whole squad.
+    expect(rows[2]!.meanAttackerAmmoSpent).toBeLessThanOrEqual(1_000); // The optional raid cap is enforced.
+    expect(rows[2]!.meanAttackerAmmoSpent).toBeGreaterThan(0);
+    expect(rows[2]!.meanDefenderAmmoSpent).toBe(0); // The floor covers every early defender.
+    const report = combatSimulationMarkdown(rows, 1_000, 42, ammoModel);
+    expect(report).toContain('Ammo spent A / D');
+    expect(report).toContain('Empty early mirror');
   });
   it.each([0, -1, NaN, 1.5, 1_000_001])('rejects invalid simulation samples %s', (samples) => {
     expect(() => runCombatSimulation(samples)).toThrow('Samples');

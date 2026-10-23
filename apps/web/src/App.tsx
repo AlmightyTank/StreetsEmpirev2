@@ -1,4 +1,5 @@
-import { useEffect, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, type ReactNode } from 'react';
+import type { StaffCapability } from '@streets/shared';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { AccountSettingsPage } from './pages/AccountSettingsPage.js';
 import { NotFoundPage } from './pages/NotFoundPage.js';
@@ -16,6 +17,7 @@ import { AdminCasinoPage } from './pages/AdminCasinoPage.js';
 import { AdminFactionsPage } from './pages/AdminFactionsPage.js';
 import { AdminCrewPage } from './pages/AdminCrewPage.js';
 import { AdminVehiclesPage } from './pages/AdminVehiclesPage.js';
+import { AdminArmoryPlayerPage } from './pages/AdminArmoryPlayerPage.js';
 import { AdminLawPage } from './pages/AdminLawPage.js';
 import { AdminLawPlayerPage } from './pages/AdminLawPlayerPage.js';
 import { AdminCombatPage } from './pages/AdminCombatPage.js';
@@ -31,13 +33,17 @@ import { AdminRulesetsPage } from './pages/AdminRulesetsPage.js';
 import { AdminSignalsPage } from './pages/AdminSignalsPage.js';
 import { AdminSurveysPage } from './pages/AdminSurveysPage.js';
 import { AdminSupportersPage } from './pages/AdminSupportersPage.js';
+import { AdminStaffPage } from './pages/AdminStaffPage.js';
 import { ForumLinkPage } from './pages/ForumLinkPage.js';
 import { AlliancePage } from './pages/AlliancePage.js';
 import { AllianceDetailPage } from './pages/AlliancesPage.js';
 import { CombatPage } from './pages/CombatPage.js';
 import { StreetPassPage } from './pages/StreetPassPage.js';
-import { CollectionPage } from './pages/CollectionPage.js';
+import { RoundRollCallPage } from './pages/RoundRollCallPage.js';
+import { DropPage } from './pages/DropPage.js';
+import { AdminDropPage } from './pages/AdminDropPage.js';
 import { SupporterPage } from './pages/SupporterPage.js';
+import { EmpireInsightsPage } from './pages/EmpireInsightsPage.js';
 import { XpProgressPage } from './pages/XpProgressPage.js';
 import { ConsolePage } from './pages/ConsolePage.js';
 import { DashboardPage } from './pages/DashboardPage.js';
@@ -54,6 +60,7 @@ import { ProducePage } from './pages/ProducePage.js';
 import { QuestPage } from './pages/QuestPage.js';
 import { EventsPage } from './pages/EventsPage.js';
 import { ProfilePage } from './pages/ProfilePage.js';
+import { SkillsPage } from './pages/SkillsPage.js';
 import { PlayersPage } from './pages/PlayersPage.js';
 import { RankingsPage } from './pages/RankingsPage.js';
 import { RegisterPage } from './pages/RegisterPage.js';
@@ -64,19 +71,35 @@ import { ScoutPage } from './pages/ScoutPage.js';
 import { StatusPage } from './pages/StatusPage.js';
 import { VerifyEmailPage } from './pages/VerifyEmailPage.js';
 import { StorePage, StoresIndexPage } from './pages/StorePage.js';
+import { ArmoryPage } from './pages/ArmoryPage.js';
 import { SupplyPage } from './pages/SupplyPage.js';
+import { HoldingsPage } from './pages/HoldingsPage.js';
 import { LoanSharkPage } from './pages/LoanSharkPage.js';
 import { DealersPage } from './pages/DealersPage.js';
 import { CrewRosterPage } from './pages/CrewRosterPage.js';
 import { TravelPage } from './pages/TravelPage.js';
 import { CasinoPage } from './pages/CasinoPage.js';
 import { TurfPage } from './pages/TurfPage.js';
+import { OperationsPage } from './pages/OperationsPage.js';
+import { BlackBookPage } from './pages/BlackBookPage.js';
 import { GameRouteLayout } from './layouts/GameLayout.js';
 import { useMaintenanceMessage } from './components/MaintenanceBanner.js';
 import { VerifyEmailGate } from './components/VerifyEmailGate.js';
 import { RulesGate } from './components/RulesGate.js';
+import { BirthDateGate } from './components/BirthDateGate.js';
 import { AdminDiscordGate } from './components/AdminDiscordGate.js';
+import { adminSectionsFor } from './layouts/gameNav.js';
+import { useStaff } from './utils/staff.js';
 import { landingPath, useSession } from './stores/session.js';
+
+const UiGalleryPage = import.meta.env.DEV ? lazy(() => import('./pages/UiGalleryPage.js').then((module) => ({ default: module.UiGalleryPage }))) : null;
+
+/** Roll Call used to live on Street Pass; old #round-roll-call links land on its own page. */
+function StreetPassRoute() {
+  const { hash } = useLocation();
+  if (hash === '#round-roll-call') return <Navigate to="/game/roll-call" replace />;
+  return <StreetPassPage />;
+}
 
 function SurveyRedirect() {
   const { search } = useLocation();
@@ -97,17 +120,21 @@ function Protected({ children }: { children: ReactNode }) {
 function RequirePlayable({ children }: { children: ReactNode }) {
   const unverified = useSession((s) => s.account?.verificationRequired ?? false);
   const rulesPending = useSession((s) => s.account?.rulesAcceptanceRequired ?? false);
+  const birthDatePending = useSession((s) => s.account?.birthDateRequired ?? false);
+  // Enforce birthday collection immediately on the next signed-in game visit.
+  if (birthDatePending) return <BirthDateGate />;
   if (unverified) return <VerifyEmailGate />;
   // First sign-in (or the rules changed): accept them before anything else.
   if (rulesPending) return <RulesGate />;
   return <>{children}</>;
 }
 
-/** Hides admin pages from players. The server checks isAdmin on every admin route regardless. */
-function RequireAdmin({ children }: { children: ReactNode }) {
-  const isAdmin = useSession((s) => s.account?.isAdmin ?? false);
+/** Hides admin pages from anyone whose staff role cannot use them. The server checks every admin route regardless. */
+function RequireStaff({ capability, children }: { capability: StaffCapability; children: ReactNode }) {
+  const { role, can } = useStaff();
   const needsDiscord = useSession((s) => s.account?.adminSignInRequired ?? false);
-  if (!isAdmin) return <Navigate to="/game" replace />;
+  if (!role) return <Navigate to="/game" replace />;
+  if (!can(capability)) return <Navigate to="/game/admin" replace />;
   // rc.2/rc.3: admin tools answer only a sign-in with a second factor (REQUIRE_ADMIN_2FA).
   if (needsDiscord) return <AdminDiscordGate />;
   return <>{children}</>;
@@ -146,7 +173,16 @@ function Booting() {
   );
 }
 
-const admin = (page: ReactNode) => <Protected><RequireAdmin>{page}</RequireAdmin></Protected>;
+const admin = (page: ReactNode, capability: StaffCapability = 'admin') => (
+  <Protected><RequireStaff capability={capability}>{page}</RequireStaff></Protected>
+);
+
+/** /game/admin opens the first page the viewer's staff role may use. */
+function AdminHome() {
+  const { role } = useStaff();
+  const first = adminSectionsFor(role)[0]?.pages[0];
+  return <Navigate to={first?.to ?? '/game'} replace />;
+}
 
 export function App() {
   const phase = useSession((s) => s.phase);
@@ -171,6 +207,7 @@ export function App() {
       <Route path="/account" element={<RequireAccount><AccountSettingsPage /></RequireAccount>} />
       <Route path="/account/forum-link" element={<ForumLinkPage />} />
       <Route path="/join" element={<Protected><JoinPage /></Protected>} />
+      {UiGalleryPage ? <Route path="/dev/ui" element={<Suspense fallback={<Booting />}><UiGalleryPage /></Suspense>} /> : null}
 
       <Route path="/game" element={<GameRouteLayout />}>
         <Route index element={<Protected><DashboardPage /></Protected>} />
@@ -179,17 +216,28 @@ export function App() {
         <Route path="quests" element={<Protected><LiveRound><QuestPage /></LiveRound></Protected>} />
         <Route path="events" element={<Protected><LiveRound><EventsPage /></LiveRound></Protected>} />
         <Route path="xp-progress" element={<Protected><XpProgressPage /></Protected>} />
+        <Route path="skills" element={<Protected><SkillsPage /></Protected>} />
         <Route path="surveys" element={<Protected><LiveRound><SurveyRedirect /></LiveRound></Protected>} />
         <Route path="hideout" element={<Protected><LiveRound><HideoutPage /></LiveRound></Protected>} />
         {/* 0.4.0-E: products are traded at Pip's; old links land there. */}
         <Route path="products" element={<Navigate to="/game/stores/pip" replace />} />
         <Route path="produce" element={<Protected><LiveRound><ProducePage /></LiveRound></Protected>} />
-        <Route path="street-pass" element={<Protected><LiveRound><StreetPassPage /></LiveRound></Protected>} />
-        <Route path="collection" element={<Protected><CollectionPage /></Protected>} />
+        <Route path="street-pass" element={<Protected><LiveRound><StreetPassRoute /></LiveRound></Protected>} />
+        <Route path="roll-call" element={<Protected><LiveRound><RoundRollCallPage /></LiveRound></Protected>} />
+        {/* The Collection page was retired; cosmetics are equipped from Account. */}
+        <Route path="collection" element={<Navigate to="/account" replace />} />
+        <Route path="drop" element={<DropPage view="shop" />} />
+        <Route path="drop/item/:slug" element={<DropPage view="item" />} />
+        <Route path="drop/wallet" element={<RequireAccount><DropPage view="wallet" /></RequireAccount>} />
+        <Route path="drop/crowns" element={<RequireAccount><DropPage view="crowns" /></RequireAccount>} />
+        <Route path="drop/pass" element={<Protected><LiveRound><DropPage view="pass" /></LiveRound></Protected>} />
         <Route path="supporter" element={<RequireAccount><SupporterPage /></RequireAccount>} />
+        <Route path="insights" element={<Protected><EmpireInsightsPage /></Protected>} />
         <Route path="stores" element={<Protected><LiveRound><StoresIndexPage /></LiveRound></Protected>} />
         <Route path="stores/:slug" element={<Protected><LiveRound><StorePage /></LiveRound></Protected>} />
+        <Route path="armory" element={<Protected><LiveRound><ArmoryPage /></LiveRound></Protected>} />
         <Route path="supply" element={<Protected><LiveRound><SupplyPage /></LiveRound></Protected>} />
+        <Route path="holdings" element={<Protected><LiveRound><HoldingsPage /></LiveRound></Protected>} />
         <Route path="loans" element={<Protected><LiveRound><LoanSharkPage /></LiveRound></Protected>} />
         <Route path="dealers" element={<Protected><LiveRound><DealersPage /></LiveRound></Protected>} />
         <Route path="crew" element={<Protected><LiveRound><CrewRosterPage /></LiveRound></Protected>} />
@@ -198,6 +246,8 @@ export function App() {
 
         <Route path="travel" element={<Protected><LiveRound><TravelPage /></LiveRound></Protected>} />
         <Route path="turf" element={<Protected><LiveRound><TurfPage /></LiveRound></Protected>} />
+        <Route path="operations" element={<Protected><LiveRound><OperationsPage /></LiveRound></Protected>} />
+        <Route path="black-book" element={<Protected><LiveRound><BlackBookPage /></LiveRound></Protected>} />
         <Route path="blocks" element={<Navigate to="/game/turf" replace />} />
         {/* 0.5.0-A had a Cities page; the road map still lives on Travel. */}
         <Route path="cities" element={<Navigate to="/game/travel" replace />} />
@@ -221,13 +271,15 @@ export function App() {
         <Route path="report-bug" element={<RequireAccount><ReportBugPage /></RequireAccount>} />
         <Route path="reputation" element={<Protected><LiveRound><Navigate to="/game/quests#contact-standing" replace /></LiveRound></Protected>} />
 
-        <Route path="admin" element={admin(<Navigate to="/game/admin/rounds" replace />)} />
+        <Route path="admin" element={<Protected><AdminHome /></Protected>} />
         <Route path="admin/rounds" element={admin(<AdminPage />)} />
         <Route path="admin/rounds/:roundId" element={admin(<AdminRoundPage />)} />
         <Route path="admin/news" element={admin(<AdminNewsPage />)} />
-        <Route path="admin/accounts" element={admin(<AdminAccountsPage />)} />
-        <Route path="admin/accounts/:accountId" element={admin(<AdminAccountPage />)} />
+        <Route path="admin/accounts" element={admin(<AdminAccountsPage />, 'accounts.view')} />
+        <Route path="admin/accounts/:accountId" element={admin(<AdminAccountPage />, 'accounts.view')} />
+        <Route path="admin/staff" element={admin(<AdminStaffPage />, 'staff.view')} />
         <Route path="admin/supporters" element={admin(<AdminSupportersPage />)} />
+        <Route path="admin/drop" element={admin(<AdminDropPage />)} />
         <Route path="admin/players/:roundPlayerId" element={admin(<AdminPlayerPage />)} />
         <Route path="admin/quests" element={admin(<AdminQuestContentPage />)} />
         <Route path="admin/surveys" element={admin(<AdminSurveysPage />)} />
@@ -236,8 +288,8 @@ export function App() {
         <Route path="admin/signals" element={admin(<AdminSignalsPage />)} />
         <Route path="admin/audit" element={admin(<AdminAuditPage />)} />
         <Route path="admin/events" element={admin(<AdminEventsPage />)} />
-        <Route path="admin/reports" element={admin(<AdminReportsPage />)} />
-        <Route path="admin/bugs" element={admin(<AdminBugReportsPage />)} />
+        <Route path="admin/reports" element={admin(<AdminReportsPage />, 'reports.handle')} />
+        <Route path="admin/bugs" element={admin(<AdminBugReportsPage />, 'bugs.triage')} />
         <Route path="admin/economy" element={admin(<AdminEconomyPage />)} />
         <Route path="admin/supply" element={admin(<AdminSupplyPage />)} />
         <Route path="admin/loans" element={admin(<AdminLoansPage />)} />
@@ -245,6 +297,7 @@ export function App() {
         <Route path="admin/factions" element={admin(<AdminFactionsPage />)} />
         <Route path="admin/crew" element={admin(<AdminCrewPage />)} />
         <Route path="admin/vehicles" element={admin(<AdminVehiclesPage />)} />
+        <Route path="admin/players/:roundPlayerId/armory" element={admin(<AdminArmoryPlayerPage />)} />
         <Route path="admin/law" element={admin(<AdminLawPage />)} />
         <Route path="admin/players/:roundPlayerId/law" element={admin(<AdminLawPlayerPage />)} />
         <Route path="admin/combat" element={admin(<AdminCombatPage />)} />

@@ -17,6 +17,7 @@ import { AuditEntryList } from '../components/AdminParts.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
 import { Field } from '../components/Field.js';
+import { GameDialog } from '../components/GameUI.js';
 import { Panel, Stat } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { adminWhen, localInputToIso } from '../utils/admin.js';
@@ -47,7 +48,7 @@ const statusPhrase: Record<RoundStatus, string> = {
   ARCHIVED: 'archived',
 };
 
-const emptyForm = { name: '', slug: '', rulesetId: '', startsAt: '', endsAt: '', registrationOpensAt: '' };
+const emptyForm = { name: '', rulesetId: '', startsAt: '', endsAt: '', registrationOpensAt: '' };
 
 function statusTone(status: RoundStatus): string {
   if (status === 'ACTIVE') return ' se-tag--good';
@@ -180,7 +181,6 @@ export function AdminPage() {
         name: form.name.trim(),
         rulesetId: form.rulesetId,
         startsAt,
-        ...(form.slug.trim() ? { slug: form.slug.trim() } : {}),
         ...(endsAt ? { endsAt } : {}),
         ...(registrationOpensAt ? { registrationOpensAt } : {}),
       });
@@ -227,7 +227,12 @@ export function AdminPage() {
       </div>
 
       {pending ? (
-        <Panel title={`${actionLabel[pending.action]}: ${pending.round.name}`} className="se-mb">
+        <GameDialog
+          open
+          dismissible={!busy}
+          title={`${actionLabel[pending.action]}: ${pending.round.name}`}
+          onClose={() => { if (!busy) setPending(null); }}
+        >
           <form onSubmit={confirmAction} noValidate>
             <p>{actionCopy[pending.action]}</p>
             {pending.action === 'resume' ? (
@@ -274,7 +279,7 @@ export function AdminPage() {
               <Button type="button" className="se-btn se-btn--ghost" onClick={() => setPending(null)} disabledReason={busy ? working : null}>Cancel</Button>
             </div>
           </form>
-        </Panel>
+        </GameDialog>
       ) : null}
 
       <Panel
@@ -380,23 +385,14 @@ export function AdminPage() {
           <form id="schedule-round" onSubmit={scheduleRound} noValidate>
             <Field
               id="admin-round-name"
-              label="Name"
+              label="Round name"
               value={form.name}
               onChange={(event) => update('name', event.target.value)}
               required
               minLength={3}
               maxLength={80}
               error={fields.name}
-              hint="Shown to players, e.g. Game #011 - Alliances."
-            />
-            <Field
-              id="admin-round-slug"
-              label="Slug"
-              value={form.slug}
-              onChange={(event) => update('slug', event.target.value)}
-              maxLength={60}
-              error={fields.slug}
-              hint="Optional. Made from the name when left blank."
+              hint="Just type the name. StreetsEmpire adds Game#001, Game#002, etc. automatically."
             />
             <div className="se-field">
               <label className="se-label" htmlFor="admin-round-ruleset">Ruleset</label>
@@ -407,10 +403,10 @@ export function AdminPage() {
                 onChange={(event) => update('rulesetId', event.target.value)}
               >
                 {data?.rulesets.map((ruleset) => (
-                  <option value={ruleset.id} key={ruleset.id}>{ruleset.version} · {ruleset.name}</option>
+                  <option value={ruleset.id} key={ruleset.id}>{ruleset.version} · {ruleset.name}{ruleset.streetSkills ? ' · Street Skills' : ''}{ruleset.individualItems ? ' · Individual Armory (new rounds only)' : ''}</option>
                 ))}
               </select>
-              {fields.rulesetId ? <p className="se-error" role="alert">{fields.rulesetId}</p> : <p className="se-hint">A round keeps its ruleset for the whole season.</p>}
+               {fields.rulesetId ? <p className="se-error" role="alert">{fields.rulesetId}</p> : <p className="se-hint">A round keeps its ruleset for the whole season. Street Skills are opt-in through the versioned ruleset marked above.</p>}
             </div>
             <Field
               id="admin-round-starts"

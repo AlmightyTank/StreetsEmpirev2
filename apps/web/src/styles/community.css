@@ -42,6 +42,10 @@
 }
 
 .se-playerlink {
+  display: inline-flex;
+  align-items: center;
+  min-inline-size: 24px;
+  min-block-size: 24px;
   color: var(--se-text);
   font-weight: 650;
   text-decoration: none;
@@ -100,7 +104,7 @@
 .se-news__byline { margin-bottom: 0; }
 
 @media (max-width: 600px) {
-  .se-shell { padding: 12px 10px 48px; }
+  .se-shell { padding: 12px var(--se-content-gutter-phone) var(--se-shell-content-bottom); }
   .se-gamebar { margin-bottom: 10px; }
 
   .se-pagehead {
@@ -436,6 +440,10 @@
 .se-run__node--stop { font-weight: 700; color: var(--se-text); }
 .se-run__node--pass { color: var(--se-muted); font-style: italic; }
 .se-run__node--here { color: var(--se-accent); }
+.se-run__escorts { display: grid; gap: 6px; margin-top: 10px; }
+.se-run__escorts ul { display: grid; gap: 4px; max-height: 220px; margin: 0; padding: 0; overflow: auto; list-style: none; }
+.se-run__escorts li { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; }
+.se-run__escorts small { color: var(--se-text-dim); }
 .se-run__leg { display: grid; gap: 4px; font-size: 12px; color: var(--se-text-dim); }
 .se-run__leg-head { display: grid; grid-template-columns: auto 1fr auto; align-items: baseline; gap: 10px; }
 .se-run__leg-head strong { color: var(--se-text); font-size: 12px; }

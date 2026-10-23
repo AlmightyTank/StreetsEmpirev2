@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ADMIN_SECTIONS, DEFAULT_TABS, filterNavSections, isCurrent, newPlayerSectionsFor, SECTIONS } from './gameNav.js';
+import { ADMIN_SECTIONS, adminOverviewSectionsFor, adminSectionsFor, DEFAULT_TABS, filterNavSections, isCurrent, newPlayerSectionsFor, SECTIONS } from './gameNav.js';
 
 const pages = SECTIONS.flatMap((section) => section.pages);
 const page = (key: string) => {
@@ -11,7 +11,9 @@ const page = (key: string) => {
 describe('consolidated game navigation', () => {
   it('makes the core loop immediately accessible and gives Quests a primary shortcut', () => {
     expect(SECTIONS[0]).toMatchObject({ id: 'command', title: 'Command' });
-    expect(SECTIONS[0]!.pages.map((item) => item.key)).toEqual(['dashboard', 'quests', 'scout', 'produce', 'raids']);
+    expect(SECTIONS[0]!.pages.map((item) => item.key)).toEqual([
+      'dashboard', 'quests', 'scout', 'produce', 'raids', 'operations', 'black-book',
+    ]);
     expect(DEFAULT_TABS).toEqual(['dashboard', 'quests', 'scout', 'stores']);
   });
 
@@ -27,7 +29,7 @@ describe('consolidated game navigation', () => {
     expect(filterNavSections(SECTIONS, '  piP  ')).toEqual([]);
     expect(filterNavSections(SECTIONS, ' STORES ').flatMap((section) => section.pages.map((item) => item.key))).toEqual(['stores']);
     expect(filterNavSections(SECTIONS, 'your empire').flatMap((section) => section.pages.map((item) => item.key)))
-      .toEqual(['hideout', 'crew-roster', 'dealers', 'stores', 'supply', 'loans', 'travel', 'turf']);
+      .toEqual(['hideout', 'armory', 'crew-roster', 'dealers', 'stores', 'supply', 'loans', 'travel', 'turf']);
     expect(filterNavSections(SECTIONS, '').flatMap((section) => section.pages)).toEqual(pages);
   });
 });
@@ -56,7 +58,7 @@ describe('admin workspace navigation', () => {
     expect(ADMIN_SECTIONS.map((section) => section.title)).toEqual([
       'Admin · Operations', 'Admin · Players', 'Admin · Economy', 'Admin · Content', 'Admin · Monitoring',
     ]);
-    expect(adminPages).toHaveLength(24);
+    expect(adminPages).toHaveLength(26);
     expect(new Set(adminPages.map((item) => item.key)).size).toBe(adminPages.length);
     expect(new Set(adminPages.map((item) => item.to)).size).toBe(adminPages.length);
   });
@@ -70,6 +72,25 @@ describe('admin workspace navigation', () => {
   it('does not put restricted admin destinations in ordinary player sections', () => {
     expect(SECTIONS.flatMap((section) => section.pages).some((page) => page.to.startsWith('/game/admin'))).toBe(false);
   });
+
+  it('shows each staff role only the admin pages it can use', () => {
+    const keys = (role: Parameters<typeof adminSectionsFor>[0]) => adminSectionsFor(role).flatMap((section) => section.pages.map((page) => page.key));
+    expect(keys(null)).toEqual([]);
+    expect(keys('FOUNDER')).toHaveLength(adminPages.length);
+    expect(keys('ADMIN')).toHaveLength(adminPages.length);
+    expect(keys('MOD')).toEqual(['admin-accounts', 'admin-staff', 'admin-reports', 'admin-bugs']);
+    expect(keys('JR_MOD')).toEqual(['admin-accounts', 'admin-staff', 'admin-reports', 'admin-bugs']);
+    expect(keys('HELPER')).toEqual(['admin-accounts', 'admin-staff', 'admin-bugs']);
+    expect(adminSectionsFor('HELPER').map((section) => section.id)).toEqual(['admin-players']);
+  });
+
+  it('condenses the admin sidebar to one destination per work area', () => {
+    const overview = adminOverviewSectionsFor('ADMIN');
+    expect(overview).toHaveLength(5);
+    expect(overview.flatMap((section) => section.pages)).toHaveLength(5);
+    expect(isCurrent(overview[1]!.pages[0]!, '/game/admin/accounts/account-id')).toBe(true);
+    expect(isCurrent(overview[0]!.pages[0]!, '/game/admin/rounds/round-id')).toBe(true);
+  });
 });
 
 describe('new player navigation model', () => {
@@ -77,7 +98,7 @@ describe('new player navigation model', () => {
     const sections = newPlayerSectionsFor(SECTIONS);
     expect(sections[0]).toMatchObject({ id: 'new-player-core', title: 'Start Here', defaultOpen: true });
     expect(sections[0]!.pages.map((item) => item.key)).toEqual([
-      'dashboard', 'quests', 'scout', 'produce', 'raids', 'stores',
+      'dashboard', 'quests', 'scout', 'produce', 'raids', 'operations', 'black-book', 'stores',
     ]);
     expect(sections.slice(1).every((section) => section.defaultOpen === false)).toBe(true);
   });

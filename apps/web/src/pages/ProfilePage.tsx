@@ -3,30 +3,38 @@ import { Link, Navigate, useParams } from 'react-router-dom';
 import type {
   PublicAwardDto,
   PublicCareerDto,
+  PublicLegacyEntryDto,
   PublicPlayerProfileDto,
   PublicSeasonResultDto,
   PublicStatSheetDto,
   SecretCollectionDto,
   DiscoveredSecretDto,
+  CareerStoryActiveDto,
+  CareerStoryArchiveDto,
 } from '@streets/shared';
-import { formatCents, formatNumber, profileNameParts, SIGNATURE_CARD_FRAME_KEY } from '@streets/shared';
+import { formatCents, formatNumber, profileNameParts, SIGNATURE_CARD_FRAME_KEY, type ItemCosmeticStyleKey } from '@streets/shared';
 import { communityApi } from '../api/community.js';
 import { ApiError } from '../api/client.js';
+import { BirthdayCake } from '../components/BirthdayCake.js';
 import { Alert } from '../components/Alert.js';
 import { AllianceTag } from '../components/AllianceTag.js';
 import { ContactButton } from '../components/ContactButton.js';
 import { CareerGuidance, CareerMetricStrip, CareerNavigation } from '../components/CareerExperience.js';
+import { CareerStoryPanel } from '../components/CareerStoryPanel.js';
 import { HideoutRoomChips } from '../components/HideoutRoomChips.js';
 import { ProfileBadgeArt } from '../components/ProfileBadgeArt.js';
+import { ItemTile } from '../components/ItemTile.js';
 import { ProfileBadges } from '../components/ProfileBadges.js';
 import { NameWithSupporterMark } from '../components/SupporterMark.js';
 import { hasProfileLook, ProfileLook } from '../components/ProfileLook.js';
+import { StreetSignDisplay } from '../components/StreetSignBuilder.js';
 import { Panel, Row, Stat } from '../components/Panel.js';
 import { AvatarPortrait, hasAvatarFrameArt } from '../components/BuiltAvatar.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { usePageTheme } from '../stores/pageTheme.js';
 import { useSession } from '../stores/session.js';
 import { formatDate, formatElapsed } from '../utils/time.js';
+import { RivalryTimeline } from '../components/RivalryTimeline.js';
 
 const categoryName: Record<PublicAwardDto['category'], string> = {
   rank: 'Rank',
@@ -360,6 +368,11 @@ const secretStatusLabel: Record<string, string> = {
   LOCKED: 'Whisper',
 };
 
+function familyLabel(family: string): string {
+  return family.toLowerCase().split('_').filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+}
+
 const secretTierLabel: Record<string, string> = {
   OBVIOUS: 'Out in the open',
   HIDDEN: 'Hidden',
@@ -368,9 +381,9 @@ const secretTierLabel: Record<string, string> = {
 
 function DiscoveryCard({ secret }: { secret: DiscoveredSecretDto }) {
   return (
-    <li className="se-ach">
+    <li className={`se-ach se-ach--discovery se-ach--tier-${secret.discoveryTier.toLowerCase()}`}>
       <div className="se-ach__top">
-        <span className="se-ach__cat">{secret.family}</span>
+        <span className="se-ach__cat">{familyLabel(secret.family)}</span>
         <span className="se-ach__rarity">{secretTierLabel[secret.discoveryTier] ?? secret.discoveryTier}</span>
       </div>
       <h3 className="se-ach__title">{secret.title}</h3>
@@ -443,8 +456,8 @@ function DiscoveriesPanel({ discoveries }: { discoveries: SecretCollectionDto | 
           <ul className="se-discovery-families">
             {families.map((family) => (
               <li key={family.family}>
-                <span aria-label={`${family.family}: ${family.found} uncovered${family.undiscovered ? `, ${family.undiscovered} still hidden` : ', fully uncovered'}`}>
-                  {family.family} — {formatNumber(family.found)} uncovered{family.undiscovered ? `, ${formatNumber(family.undiscovered)} still hidden (?)` : ', fully uncovered'}
+                <span aria-label={`${familyLabel(family.family)}: ${family.found} uncovered${family.undiscovered ? `, ${family.undiscovered} still hidden` : ', fully uncovered'}`}>
+                  {familyLabel(family.family)} — {formatNumber(family.found)} uncovered{family.undiscovered ? `, ${formatNumber(family.undiscovered)} still hidden (?)` : ', fully uncovered'}
                 </span>
               </li>
             ))}
@@ -460,9 +473,9 @@ function DiscoveriesPanel({ discoveries }: { discoveries: SecretCollectionDto | 
           <p className="se-muted">Trophies survive every season reset.</p>
           <ul className="se-ach-grid">
             {trophies.map((trophy) => (
-              <li className="se-ach" key={trophy.key}>
+              <li className={`se-ach se-ach--discovery se-ach--trophy se-ach--${trophy.rarity.toLowerCase()}`} key={trophy.key}>
                 <div className="se-ach__top">
-                  <span className="se-ach__cat">{trophy.family ?? 'Secret'}</span>
+                  <span className="se-ach__cat">{trophy.family ? familyLabel(trophy.family) : 'Secret'}</span>
                   <span className="se-ach__rarity">{trophy.rarity}</span>
                 </div>
                 <h3 className="se-ach__title">{trophy.title}</h3>
@@ -477,7 +490,40 @@ function DiscoveriesPanel({ discoveries }: { discoveries: SecretCollectionDto | 
   );
 }
 
-function SeasonHistory({ career }: { career: PublicCareerDto }) {
+function legacyKindLabel(kind: string): string {
+  if (kind === 'season_finish') return 'Season finish';
+  if (kind === 'daily_cover') return 'Streets Daily cover';
+  if (kind === 'city_event') return 'City memory';
+  return 'Legacy receipt';
+}
+
+function SeasonHistory({
+  career,
+  isOwner,
+  onLegacyEntriesChange,
+}: {
+  career: PublicCareerDto;
+  isOwner: boolean;
+  onLegacyEntriesChange: (entries: PublicLegacyEntryDto[]) => void;
+}) {
+  const entries = career.legacyEntries ?? [];
+  const featured = entries.find((entry) => entry.featured) ?? null;
+  const [legacyBusy, setLegacyBusy] = useState<string | null>(null);
+  const [legacyError, setLegacyError] = useState<string | null>(null);
+
+  async function featureLegacy(entryId: string | null) {
+    setLegacyBusy(entryId ?? 'clear');
+    setLegacyError(null);
+    try {
+      const response = await communityApi.featureLegacy(entryId);
+      onLegacyEntriesChange(response.entries);
+    } catch (caught: unknown) {
+      setLegacyError(caught instanceof ApiError ? caught.message : 'Could not update the featured receipt.');
+    } finally {
+      setLegacyBusy(null);
+    }
+  }
+
   return (
     <Panel title="Career history" className="se-profile-panel se-profile-career">
       {career.seasons.length === 0 ? (
@@ -545,6 +591,34 @@ function SeasonHistory({ career }: { career: PublicCareerDto }) {
 
         </div>
       )}
+
+      {entries.length ? (
+        <section className="se-legacy" aria-labelledby="empire-legacy-title">
+          <div className="se-legacy__head">
+            <div><span className="se-eyebrow">Permanent · cosmetic only</span><h3 id="empire-legacy-title">Empire Legacy</h3></div>
+            <span className="se-muted se-num">{formatNumber(entries.length)} receipts</span>
+          </div>
+          {featured ? (
+            <article className="se-legacy-featured">
+              <span className="se-legacy-card__kind">Featured · {legacyKindLabel(featured.kind)}</span>
+              <strong>{featured.title}</strong>
+              <span>{featured.round.name} · {formatDate(featured.round.endedAt)}</span>
+              {isOwner ? <button type="button" className="se-btn se-btn--ghost se-btn--sm" disabled={legacyBusy !== null} onClick={() => void featureLegacy(null)}>{legacyBusy === 'clear' ? 'Clearing…' : 'Clear showcase'}</button> : null}
+            </article>
+          ) : null}
+          {legacyError ? <Alert>{legacyError}</Alert> : null}
+          <div className="se-legacy-grid">
+            {entries.map((entry) => (
+              <article key={entry.id} className={`se-legacy-card${entry.featured ? ' is-featured' : ''}`}>
+                <span className="se-legacy-card__kind">{legacyKindLabel(entry.kind)}</span>
+                <strong>{entry.title}</strong>
+                <span className="se-muted">{entry.round.name} · {formatDate(entry.awardedAt)}</span>
+                {isOwner && !entry.featured ? <button type="button" className="se-btn se-btn--ghost se-btn--sm" disabled={legacyBusy !== null} onClick={() => void featureLegacy(entry.id)}>{legacyBusy === entry.id ? 'Featuring…' : 'Feature on profile'}</button> : null}
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
     </Panel>
   );
 }
@@ -556,6 +630,8 @@ export function ProfilePage() {
   const target = params.publicPimpId ? Number(params.publicPimpId) : me?.publicPimpId;
   const [player, setPlayer] = useState<PublicPlayerProfileDto | null>(null);
   const [career, setCareer] = useState<PublicCareerDto | null>(null);
+  const [careerStory, setCareerStory] = useState<CareerStoryActiveDto | null>(null);
+  const [careerStoryPortfolio, setCareerStoryPortfolio] = useState<CareerStoryArchiveDto[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [showLockedAchievements, setShowLockedAchievements] = useState(false);
   const [achievementStatusFilter, setAchievementStatusFilter] = useState<AchievementStatusFilter>('all');
@@ -585,12 +661,15 @@ export function ProfilePage() {
       let active = true;
       setPlayer(null);
       setCareer(null);
+      setCareerStory(null);
+      setCareerStoryPortfolio([]);
       setError(null);
       (params.forumUserId ? communityApi.forumProfile(params.forumUserId) : communityApi.profile(target!))
         .then((response) => {
           if (!active) return;
           setPlayer(response.player);
-          setCareer(response.player.career);
+           setCareer(response.player.career);
+           void communityApi.publicCareerStoryPortfolio(response.player.publicPimpId).then((result) => { if (active) setCareerStoryPortfolio(result.portfolio); }).catch(() => undefined);
         })
         .catch((caught: unknown) => {
           if (active) setError(caught instanceof ApiError ? caught.message : 'Could not load that profile.');
@@ -601,9 +680,11 @@ export function ProfilePage() {
     let active = true;
     setPlayer(null);
     setCareer(null);
+    setCareerStory(null);
+    setCareerStoryPortfolio([]);
     setError(null);
-    communityApi.career()
-      .then((response) => { if (active) setCareer(response.career); })
+    Promise.all([communityApi.career(), communityApi.careerStory(), communityApi.careerStoryPortfolio()])
+      .then(([response, storyResponse, portfolioResponse]) => { if (active) { setCareer(response.career); setCareerStory(storyResponse.story); setCareerStoryPortfolio(portfolioResponse.portfolio); } })
       .catch((caught: unknown) => {
         if (active) setError(caught instanceof ApiError ? caught.message : 'Could not load your season history.');
       });
@@ -631,6 +712,9 @@ export function ProfilePage() {
     const matchesCategory = achievementCategoryFilter === 'all' || award.category === achievementCategoryFilter;
     return matchesStatus && matchesCategory;
   });
+  const updateLegacyEntries = (entries: PublicLegacyEntryDto[]) => {
+    setCareer((current) => current ? { ...current, legacyEntries: entries } : current);
+  };
   return (
     <GameLayout>
       <div className={`se-profile${shownTheme ? ` se-profile--themed se-site-theme--${shownTheme}` : ''}`}>
@@ -654,7 +738,8 @@ export function ProfilePage() {
         >
           {player ? (
             <div
-              className={`se-profile-pagehead__banner${player.cosmetics.bannerUrl ? ' se-profile-pagehead__banner--uploaded' : ''}`}
+              className={`se-profile-pagehead__banner${player.cosmetics.bannerUrl ? ' se-profile-pagehead__banner--uploaded' : ''}${player.look?.crewBanner ? ' se-profile-pagehead__banner--crew' : ''}`}
+              data-crew-banner={player.look?.crewBanner ?? undefined}
               aria-hidden="true"
               style={player.cosmetics.bannerUrl ? { backgroundImage: `linear-gradient(90deg, rgba(5, 8, 12, 0.9), rgba(5, 8, 12, 0.58) 48%, rgba(5, 8, 12, 0.78)), url("${player.cosmetics.bannerUrl}")` } : undefined}
             />
@@ -662,7 +747,7 @@ export function ProfilePage() {
           <div className="se-profile-pagehead__main">
             {player ? (
               <span className={`se-profile-pagehead__avatar${avatarFrame ? ` se-profile-pagehead__avatar--framed se-profile-pagehead__avatar--${avatarFrame}` : ''}${avatarFrame && hasAvatarFrameArt(avatarFrame) ? ' se-profile-pagehead__avatar--art' : ''}`} aria-hidden="true">
-                <AvatarPortrait imageUrl={player.cosmetics.imageUrl} avatar={player.cosmetics.avatar} fallback={initials(player.displayName)} frameKey={avatarFrame} />
+                <AvatarPortrait imageUrl={player.cosmetics.imageUrl} avatar={player.cosmetics.avatar} fallback={initials(player.displayName)} frameKey={avatarFrame} live />
               </span>
             ) : null}
             <div>
@@ -673,12 +758,23 @@ export function ProfilePage() {
                     <span className={`se-profile-name__part se-profile-name__part--${part.kind}`} key={index}>
                       {player.isSupporter && index === parts.length - 1 ? <NameWithSupporterMark text={part.text} /> : part.text}
                     </span>
-                  ))}</span>{' '}</>
+                  ))}</span>{player.birthdayToday ? <BirthdayCake /> : null}{' '}</>
                   : account?.username ?? 'Profile'}
                 {player ? <span className="se-muted se-num">(#{player.publicPimpId})</span> : null}
               </h1>
               {signature ? <span className="se-profile-nameplate-rule" aria-hidden="true" /> : null}
               {player?.crewName ? <p className="se-profile-crew">Crew · <strong>{player.crewName}</strong></p> : null}
+              <StreetSignDisplay design={player?.streetSign} />
+              {player?.streetSign && !player.isYou ? (() => {
+                const query = new URLSearchParams({
+                  category: 'PLAYER_CONTENT',
+                  from: `/game/players/${player.publicPimpId}`,
+                  target: player.displayName,
+                  sign: `${player.streetSign.streetName} ${player.streetSign.streetType}${player.streetSign.tag ? ` · tag: ${player.streetSign.tag}` : ''}`,
+                });
+                return <Link className="se-btn se-btn--ghost se-btn--sm" to={`/report-bug?${query.toString()}`}>Report street sign</Link>;
+              })() : null}
+              {player?.careerIdentity ? <p className="se-profile-career" title="Cosmetic career identity; it does not change gameplay power.">Career · <strong>{player.careerIdentity.title}</strong></p> : null}
               {player?.factionAlignment?.length ? (
                 <p className="se-profile-alignment" aria-label="Faction alignment">
                   {player.factionAlignment.map((faction) => (
@@ -686,6 +782,11 @@ export function ProfilePage() {
                       {faction.name} · {faction.tierName}
                     </span>
                   ))}
+                </p>
+              ) : null}
+              {player?.streetSkillBadges?.length ? (
+                <p className="se-street-skill-badges" aria-label="Street skill points">
+                  {player.streetSkillBadges.map((badge) => <span className="se-street-skill-badge" key={badge.skill}>{badge.label} <strong>{badge.points}</strong></span>)}
                 </p>
               ) : null}
               <p className="se-eyebrow">
@@ -706,6 +807,10 @@ export function ProfilePage() {
         {error ? <Alert>{error}</Alert> : null}
 
         {isOwnProfileRoute ? (
+          <RivalryTimeline roundId={useSession.getState().round?.id ?? ''} />
+        ) : null}
+
+        {isOwnProfileRoute ? (
           <CareerGuidance title="Public record and appearance settings">
             <p>Your profile brings together current standing, achievements, earned titles, showcase awards, and finished-season history. Private cash, supplies, crew condition, and protected combat intel are not exposed here.</p>
             <p>Appearance stays separate from progression. Equip earned or supporter cosmetics in Account Settings without changing your level, achievements, or game power.</p>
@@ -716,7 +821,9 @@ export function ProfilePage() {
           <div className="se-profile-loading" role="status">Pulling the street record...</div>
         ) : null}
 
-        {!player && career ? <SeasonHistory career={career} /> : null}
+        {!player && career ? <SeasonHistory career={career} isOwner onLegacyEntriesChange={updateLegacyEntries} /> : null}
+        {isOwnProfileRoute ? <CareerStoryPanel story={careerStory} portfolio={careerStoryPortfolio} owner onChanged={() => void communityApi.careerStory().then((result) => setCareerStory(result.story))} /> : null}
+        {player && !isYou ? <CareerStoryPanel story={null} portfolio={careerStoryPortfolio} /> : null}
         {!player && sheetChoices.length ? <StatSheetPanel key="career" choices={sheetChoices} /> : null}
 
         {player ? (
@@ -782,6 +889,14 @@ export function ProfilePage() {
 
             {hasProfileLook(player.look) ? <ProfileLook look={player.look} isYou={isYou} /> : null}
 
+            {player.famousItem ? <Panel title="Famous item" className="se-profile-panel">
+              <div className="se-profile-famous-item">
+                <ItemTile item={player.famousItem.model as 'PISTOL' | 'SHOTGUN' | 'TEK9' | 'AK47' | 'SEDAN' | 'LOW_RIDER' | 'VAN'} size="md" label={false} cosmeticStyle={(player.famousItem.lookKey ?? 'classic') as ItemCosmeticStyleKey} />
+                <div><span className="se-eyebrow">{player.famousItem.roundName} · {player.famousItem.kind === 'GUN' ? 'Weapon' : 'Vehicle'}</span><h3>{player.famousItem.name || `Unmarked ${player.famousItem.model.replaceAll('_', ' ')}`}</h3><p>{player.famousItem.model.replaceAll('_', ' ')} · {player.famousItem.condition}% condition{player.famousItem.mods.length ? ` · ${player.famousItem.mods.map((mod) => `${mod.key} ${mod.tier}`).join(', ')}` : ''}</p></div>
+              </div>
+              {player.famousItem.history.length ? <details><summary>Item story · {player.famousItem.history.length} events</summary><ol>{[...player.famousItem.history].reverse().slice(0, 8).map((event, index) => <li key={`${event.at}-${index}`}>{event.summary}{event.city ? ` · ${event.city}` : ''}</li>)}</ol></details> : null}
+            </Panel> : null}
+
             {player.showcase.length ? (
               <AwardStrip title="Showcase" awards={player.showcase} empty="" className="se-profile-showcase" />
             ) : null}
@@ -794,7 +909,7 @@ export function ProfilePage() {
 
             <StatSheetPanel key={player.publicPimpId} choices={sheetChoices} />
 
-            {career ? <SeasonHistory career={career} /> : null}
+            {career ? <SeasonHistory career={career} isOwner={player.isYou} onLegacyEntriesChange={updateLegacyEntries} /> : null}
 
             <AchievementsPanel
               unlocked={unlocked}

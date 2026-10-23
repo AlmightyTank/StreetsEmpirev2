@@ -33,6 +33,7 @@
   letter-spacing: .1em;
   text-transform: uppercase;
 }
+.se-career-nav__item.is-active small { color: var(--se-text); }
 .se-career-nav__item strong { font-size: 12px; }
 .se-career-nav__item:focus-visible,
 .se-career-guidance summary:focus-visible {

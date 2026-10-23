@@ -1,0 +1,1 @@
+ALTER TABLE "RoundPlayer" ADD COLUMN "stashLayout" JSONB NOT NULL DEFAULT '[]';

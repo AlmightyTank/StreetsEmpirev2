@@ -1,12 +1,14 @@
-import type { Prisma, Round } from '@prisma/client';
+import type { Prisma, PrismaClient, Round } from '@prisma/client';
 import { activeRoundEventTime, eventCatalogForRuleset } from '@streets/rulesets';
 import type { CityConditionRules, Ruleset } from '@streets/rulesets';
 import type { CityConditionDto } from '@streets/shared';
 import type { Db } from '../utils/db.js';
+import { emitCityMemoryEvent } from './city-memory.service.js';
 
 const MAX_CONDITION_BONUS_PERCENT = 15;
 
 type EventRound = Pick<Round, 'id' | 'startsAt' | 'endsAt' | 'pausedAt' | 'pausedMinutesTotal'>;
+type CityConditionDb = Db | PrismaClient;
 type CityConditionAction = CityConditionRules['actions'][number];
 
 function inputJson(value: unknown): Prisma.InputJsonValue {
@@ -46,7 +48,7 @@ function definitionKey(condition: CityConditionRules): string {
   return `CITY:${condition.key}`;
 }
 
-async function ensureDefinition(db: Db, ruleset: Ruleset, condition: CityConditionRules): Promise<string> {
+async function ensureDefinition(db: CityConditionDb, ruleset: Ruleset, condition: CityConditionRules): Promise<string> {
   const catalogEntry = eventCatalogForRuleset(ruleset).find((entry) => entry.type === 'CITY_CONDITION' && entry.key === definitionKey(condition));
   if (!catalogEntry) throw new Error(`City condition ${condition.key} is missing from the event catalog.`);
   const row = await db.gameEventDefinition.upsert({
@@ -73,7 +75,7 @@ async function ensureDefinition(db: Db, ruleset: Ruleset, condition: CityConditi
 }
 
 async function recordLifecycle(
-  db: Db,
+  db: CityConditionDb,
   occurrenceId: string,
   action: 'ACTIVATED' | 'EXPIRED',
   happenedAt: Date,
@@ -90,7 +92,7 @@ async function recordLifecycle(
 }
 
 async function syncScheduledCondition(
-  db: Db,
+  db: CityConditionDb,
   round: EventRound,
   cityId: string,
   ruleset: Ruleset,
@@ -154,7 +156,7 @@ async function syncScheduledCondition(
   if (nextStatus === 'EXPIRED') await recordLifecycle(db, occurrence.id, 'EXPIRED', now);
 }
 
-async function syncFollowUpLifecycles(db: Db, round: EventRound, cityId: string, ruleset: Ruleset, now: Date): Promise<void> {
+async function syncFollowUpLifecycles(db: CityConditionDb, round: EventRound, cityId: string, ruleset: Ruleset, now: Date): Promise<void> {
   const rows = await db.gameEventOccurrence.findMany({
     where: { roundId: round.id, scopeKey: cityId, definition: { is: { type: 'CITY_CONDITION', rulesetId: ruleset.meta.id, rulesetVersion: ruleset.meta.version } } },
     select: { id: true, status: true, startsAt: true, endsAt: true, config: true },
@@ -175,14 +177,31 @@ async function syncFollowUpLifecycles(db: Db, round: EventRound, cityId: string,
   }
 }
 
-async function syncScheduledConditions(db: Db, round: EventRound, cityId: string, ruleset: Ruleset, now: Date): Promise<void> {
+async function syncScheduledConditions(db: CityConditionDb, round: EventRound, cityId: string, ruleset: Ruleset, now: Date): Promise<void> {
   if (ruleset.meta.eventSystem?.cityConditions !== 'FIRST_CLASS') return;
   const conditions = ruleset.cityConditions ?? [];
   for (const condition of conditions) {
     if (condition.schedule) await syncScheduledCondition(db, round, cityId, ruleset, condition, now);
-    else await ensureDefinition(db, ruleset, condition);
   }
   await syncFollowUpLifecycles(db, round, cityId, ruleset, now);
+}
+
+async function syncRoundConditions(
+  db: CityConditionDb,
+  round: EventRound,
+  cityIds: readonly string[],
+  ruleset: Ruleset,
+  now: Date,
+): Promise<void> {
+  if (ruleset.meta.eventSystem?.cityConditions !== 'FIRST_CLASS') return;
+  for (const condition of ruleset.cityConditions ?? []) {
+    // Definitions are shared by all occurrences in a ruleset version. Seed them
+    // even when a round has no players yet; occurrences remain city-scoped.
+    await ensureDefinition(db, ruleset, condition);
+  }
+  for (const cityId of cityIds) {
+    await syncScheduledConditions(db, round, cityId, ruleset, now);
+  }
 }
 
 function conditionDto(row: {
@@ -224,7 +243,6 @@ export const CityConditionService = {
       select: { cityId: true, round: { select: { id: true, startsAt: true, endsAt: true, pausedAt: true, pausedMinutesTotal: true } } },
     });
     if (!player) return [];
-    await syncScheduledConditions(db, player.round, player.cityId, ruleset, now);
     const rows = await db.gameEventOccurrence.findMany({
       where: {
         roundId: player.round.id,
@@ -244,7 +262,6 @@ export const CityConditionService = {
   ): Promise<CityConditionBonuses> {
     const none = { recruitPercent: 0, productPercent: 0, cashGainPercent: 0 };
     if (input.ruleset.meta.eventSystem?.cityConditions !== 'FIRST_CLASS' || !db.gameEventOccurrence?.findMany) return none;
-    await syncScheduledConditions(db, input.round, input.cityId, input.ruleset, input.now);
     const rows = await db.gameEventOccurrence.findMany({
       where: {
         roundId: input.round.id,
@@ -272,6 +289,17 @@ export const CityConditionService = {
       bonuses[key] = Math.max(0, Math.min(MAX_CONDITION_BONUS_PERCENT, bonuses[key]));
     }
     return bonuses;
+  },
+
+  /** Reconcile scheduled city conditions from the round/minute lifecycle worker. */
+  async sweep(
+    db: CityConditionDb,
+    round: EventRound,
+    cityIds: readonly string[],
+    ruleset: Ruleset,
+    now = new Date(),
+  ): Promise<void> {
+    await syncRoundConditions(db, round, cityIds, ruleset, now);
   },
 
   async activateFollowUpsForEvent(
@@ -317,6 +345,16 @@ export const CityConditionService = {
         select: { id: true, createdAt: true },
       });
       await recordLifecycle(db, created.id, 'ACTIVATED', input.now);
+      // Only event-settled follow-up city conditions seed a public opportunity.
+      // Scheduled/page-driven condition reads do not grant invitations.
+      if (input.ruleset.livingStories?.STORY_MIDNIGHT_SIGNAL?.enabled) {
+        await emitCityMemoryEvent(db, {
+          roundId: input.round.id, cityId: input.cityId, kind: 'city_condition_follow_up',
+          visibility: 'public', actorRoundPlayerIds: [],
+          summary: { occurrenceId: created.id, conditionKey: condition.key },
+          happenedAt: input.now, idempotencyKey: `city-condition-follow-up:${created.id}`,
+        });
+      }
     }
   },
 };

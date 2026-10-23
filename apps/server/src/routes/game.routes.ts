@@ -23,6 +23,9 @@ import {
   crewCornerJobSchema,
   crewRosterQuerySchema,
   crewTrainingSchema,
+  crewNicknameSchema,
+  crewMentorLinkSchema,
+  crewMentorEndSchema,
   crewAssignmentSchema,
   crewStaffingOrderSchema,
   dealerStaffAssignSchema,
@@ -31,6 +34,10 @@ import {
   hideoutUpgradeSchema,
   hideoutSpecializationSchema,
   hideoutWeaponPrioritySchema,
+  armoryBulkActionSchema,
+  armoryLookActionSchema,
+  armoryFeatureItemSchema,
+  armoryModActionSchema,
   favorActivateSchema,
   favorArmSchema,
   streetPassClaimSchema,
@@ -41,12 +48,19 @@ import { PayoutService } from '../services/payout.service.js';
 import { ProductionService } from '../services/production.service.js';
 import { HandcraftedQuestService } from '../services/handcrafted-quest.service.js';
 import { StreetPassService } from '../services/street-pass.service.js';
+import { RoundRollCallService } from '../services/round-roll-call.service.js';
 import { TimedFavorService } from '../services/timed-favor.service.js';
 import { SingleUseFavorService } from '../services/single-use-favor.service.js';
 import { ScoutService } from '../services/scout.service.js';
 import { toState } from '../services/action.service.js';
 import { StoreService } from '../services/store.service.js';
 import { HideoutService } from '../services/hideout.service.js';
+import { StashService } from '../services/stash.service.js';
+import { ScavengingService } from '../services/scavenging.service.js';
+import { GeneratorService, type GeneratorUpdate } from '../services/generator.service.js';
+import { WorkshopService } from '../services/workshop.service.js';
+import { HideoutCosmeticService } from '../services/hideout-cosmetic.service.js';
+import { ArmoryService } from '../services/armory.service.js';
 import { parseBody } from '../utils/validate.js';
 import { ActivityService } from '../services/activity.service.js';
 import { PlayerStateService } from '../services/player-state.service.js';
@@ -70,16 +84,22 @@ import { DealerStaffService } from '../services/dealer-staff.service.js';
 import { DealerCrewService } from '../services/dealer-crew.service.js';
 import { CrewAssignmentService } from '../services/crew-assignment.service.js';
 import { CrewRosterService } from '../services/crew-roster.service.js';
+import { CrewBondService } from '../services/crew-bonds.service.js';
+import { CrewLegendService } from '../services/crew-legends.service.js';
 import { CrewTrainingService } from '../services/crew-training.service.js';
 import { CrewStaffingOrderService } from '../services/crew-staffing-order.service.js';
 import { RandomEncounterChoiceService } from '../services/random-encounter-choice.service.js';
 import { RandomEncounterService } from '../services/random-encounter.service.js';
 import { EasterEggService } from '../services/easter-egg.service.js';
 import { RingService } from '../services/ring.service.js';
+import { CityHoldingsService } from '../services/city-holdings.service.js';
+import { PlayerSkillService } from '../services/player-skill.service.js';
 
 const RECENT_ACTIVITY_LIMIT = 10;
 
 const easterEggParams = z.object({ id: z.enum(CLIENT_EASTER_EGG_IDS) });
+const streetSkillParams = z.object({ skill: z.string().min(1) });
+const streetSkillChoiceBody = z.object({ threshold: z.number().int(), choice: z.string().min(1) });
 
 const gameRoutes: FastifyPluginAsync = async (fastify) => {
   /**
@@ -99,6 +119,13 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
 
     return { round, player };
   }
+
+  fastify.get('/holdings', { preHandler: fastify.requireAuth }, async (request) => {
+    const { round, player } = await requirePlayer(request.auth!.account.id);
+    const holding = await CityHoldingsService.read(fastify.prisma, loadRulesetForRound(round), round.id, player.id);
+    if (!holding) throw AppError.notFound('HOLDINGS_UNAVAILABLE', 'City holdings are unavailable in this round.');
+    return holding;
+  });
 
   /**
    * Section 45. The whole dashboard in one request.
@@ -167,10 +194,11 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
       markActive: !isBackground,
     });
 
-    const [playerCount, recentActivity, streetPass, law, pendingEncounters] = await Promise.all([
+    const [playerCount, recentActivity, streetPass, roundRollCall, law, pendingEncounters] = await Promise.all([
       RoundService.playerCount(fastify.prisma, round.id),
       ActivityService.recent(fastify.prisma, existing.id, RECENT_ACTIVITY_LIMIT),
       StreetPassService.summary(fastify.prisma, existing.id, settled.ruleset),
+      RoundRollCallService.summary(fastify.prisma, settled.round, existing.id),
       LawService.summary(fastify.prisma, existing.id, settled.ruleset),
       RandomEncounterService.pendingForPlayer(fastify.prisma, existing.id, new Date(), settled.ruleset),
     ]);
@@ -190,7 +218,43 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
       recentActivity,
     });
     const experience = await PlayerExperienceService.view(fastify.prisma, settled.player.accountId);
-    return { ...snapshot, player: { ...snapshot.player, streetPass, experience, ...(law ? { law } : {}) } };
+    return { ...snapshot, player: { ...snapshot.player, streetPass, roundRollCall, experience, ...(law ? { law } : {}) } };
+  });
+
+  /** 2.3.0-C. Server-authoritative street skill milestones and choices. */
+  fastify.get('/skills', { preHandler: fastify.requireAuth }, async (request) => {
+    const { round, player } = await requirePlayer(request.auth!.account.id);
+    const ruleset = loadRulesetForRound(round);
+    if (!ruleset.streetSkills) throw AppError.notFound('STREET_SKILLS_UNAVAILABLE', 'Street skills are unavailable in this round.');
+    return await PlayerSkillService.view(fastify.prisma, player.id, ruleset.streetSkills);
+  });
+
+  fastify.post('/skills/:skill/choice', { preHandler: fastify.requireAuth }, async (request) => {
+    const { round, player } = await requirePlayer(request.auth!.account.id);
+    const ruleset = loadRulesetForRound(round);
+    if (!ruleset.streetSkills) throw AppError.notFound('STREET_SKILLS_UNAVAILABLE', 'Street skills are unavailable in this round.');
+    const { skill } = parseBody(streetSkillParams, request.params);
+    const body = parseBody(streetSkillChoiceBody, request.body);
+    return fastify.prisma.$transaction((tx) => PlayerSkillService.choose(tx, {
+      roundPlayerId: player.id,
+      rules: ruleset.streetSkills!,
+      skill,
+      threshold: body.threshold,
+      choice: body.choice,
+    }));
+  });
+
+  fastify.post('/skills/:skill/respec', { preHandler: fastify.requireAuth }, async (request) => {
+    const { round, player } = await requirePlayer(request.auth!.account.id);
+    const ruleset = loadRulesetForRound(round);
+    if (!ruleset.streetSkills) throw AppError.notFound('STREET_SKILLS_UNAVAILABLE', 'Street skills are unavailable in this round.');
+    const { skill } = parseBody(streetSkillParams, request.params);
+    return fastify.prisma.$transaction((tx) => PlayerSkillService.respec(tx, {
+      roundPlayerId: player.id,
+      rules: ruleset.streetSkills!,
+      skill,
+      now: new Date(),
+    }));
   });
 
   /**
@@ -327,6 +391,32 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
     const now = new Date();
     const settled = await PlayerStateService.settle(fastify.prisma, player.id, { markActive: false, now });
     return CrewRosterService.view(fastify.prisma, player.id, settled.ruleset, query, now);
+  });
+
+  // 2.1.0-D. Owner-scoped, optional mentor relationships; neither endpoint
+  // grants game resources, XP or combat advantage.
+  fastify.post('/crew/mentors', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(crewMentorLinkSchema, request.body);
+    const { player } = await requirePlayer(request.auth!.account.id);
+    const now = new Date();
+    const settled = await PlayerStateService.settle(fastify.prisma, player.id, { markActive: false, now });
+    return CrewBondService.link(fastify.prisma, player.id, settled.ruleset, body, now);
+  });
+  fastify.post('/crew/mentors/end', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(crewMentorEndSchema, request.body);
+    const { player } = await requirePlayer(request.auth!.account.id);
+    const now = new Date();
+    const settled = await PlayerStateService.settle(fastify.prisma, player.id, { markActive: false, now });
+    await CrewBondService.end(fastify.prisma, player.id, body.bondId, settled.ruleset, now);
+    return { ok: true };
+  });
+
+  fastify.post('/crew/nickname', { preHandler: fastify.requireAuth }, async (request) => {
+    const input = parseBody(crewNicknameSchema, request.body);
+    const { player } = await requirePlayer(request.auth!.account.id);
+    const settled = await PlayerStateService.settle(fastify.prisma, player.id, { markActive: false });
+    await CrewLegendService.select(fastify.prisma, player.id, settled.ruleset, input);
+    return { ok: true };
   });
 
   fastify.post('/crew/train', { preHandler: fastify.requireAuth }, async (request) => {
@@ -483,6 +573,96 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
     );
   });
 
+  fastify.get('/hideout/stash', { preHandler: fastify.requireAuth }, async (request) => {
+    const { player } = await requirePlayer(request.auth!.account.id);
+    return StashService.page(fastify.prisma, player.id);
+  });
+
+  fastify.put('/hideout/stash/layout', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(z.object({ items: z.array(z.object({
+      key: z.enum(['CONDOM', 'MEDICINE', 'BEER', 'AMMO_BOX', 'PARTS_BOX', 'PISTOL', 'SHOTGUN', 'TEK9', 'AK47', 'LOW_RIDER', 'SEDAN', 'VAN', 'SCRAP_METAL', 'WIRING', 'TOOL_KIT', 'BOTTLES', 'LABELS', 'PACKAGING', 'LUMBER', 'FASTENERS', 'CLOTH', 'BASIC_MEDICINE', 'FUEL_CAN', 'RADIO', 'MOTOR_ASSEMBLY', 'REPAIR_SUPPLIES', 'SPECIALTY_CONTAINER', 'PRECISION_PARTS', 'ADVANCED_MEDICAL', 'HIGH_CAPACITY_FUEL_CELL', 'SPECIALIST_CIRCUITRY']),
+      x: z.number().int().min(0).max(9),
+      y: z.number().int().min(0).max(5),
+    }).strict()).max(12) }).strict(), request.body);
+    const { player } = await requirePlayer(request.auth!.account.id);
+    return StashService.saveLayout(fastify.prisma, player.id, body);
+  });
+
+  fastify.get('/hideout/scavenging', { preHandler: fastify.requireAuth }, async (request) => {
+    const { player } = await requirePlayer(request.auth!.account.id);
+    return ScavengingService.page(fastify.prisma, player.id);
+  });
+
+  fastify.post('/hideout/scavenging/:cacheId/open', { preHandler: fastify.requireAuth }, async (request) => {
+    const { cacheId } = parseBody(z.object({ cacheId: z.string().trim().min(1).max(64) }).strict(), request.params);
+    const { player } = await requirePlayer(request.auth!.account.id);
+    return ScavengingService.open(fastify.prisma, player.id, cacheId);
+  });
+
+  fastify.get('/hideout/generator', { preHandler: fastify.requireAuth }, async (request) => {
+    const { player } = await requirePlayer(request.auth!.account.id);
+    return GeneratorService.page(fastify.prisma, player.id);
+  });
+
+  fastify.post('/hideout/generator', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(z.object({
+      powered: z.boolean().optional(),
+      refuelCans: z.number().int().min(0).max(100).optional(),
+      upgrade: z.enum(['CAPACITY', 'EFFICIENCY']).optional(),
+    }).strict(), request.body) as GeneratorUpdate;
+    const { player } = await requirePlayer(request.auth!.account.id);
+    return GeneratorService.update(fastify.prisma, player.id, body);
+  });
+
+  fastify.get('/hideout/workshop', { preHandler: fastify.requireAuth }, async (request) => {
+    const { player } = await requirePlayer(request.auth!.account.id);
+    return WorkshopService.page(fastify.prisma, player.id);
+  });
+
+  fastify.post('/hideout/workshop/craft', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(z.object({ recipeKey: z.string().trim().min(1).max(64), actionId: z.string().trim().min(1).max(128).optional() }).strict(), request.body);
+    const { player } = await requirePlayer(request.auth!.account.id);
+    return WorkshopService.craft(fastify.prisma, player.id, body.recipeKey, body.actionId);
+  });
+
+  fastify.get('/armory', { preHandler: fastify.requireAuth }, async (request) => {
+    const { player } = await requirePlayer(request.auth!.account.id);
+    const settled = await PlayerStateService.settle(fastify.prisma, player.id, { markActive: true });
+    return ArmoryService.catalog(fastify.prisma, player.id, request.auth!.account.id, settled.ruleset);
+  });
+
+  fastify.post('/armory/look', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(armoryLookActionSchema, request.body);
+    const { player } = await requirePlayer(request.auth!.account.id);
+    return ArmoryService.setLook(fastify.prisma, player.id, request.auth!.account.id, body);
+  });
+
+  fastify.post('/armory/feature', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(armoryFeatureItemSchema, request.body);
+    const { player } = await requirePlayer(request.auth!.account.id);
+    return ArmoryService.feature(fastify.prisma, player.id, request.auth!.account.id, body);
+  });
+
+  fastify.post('/armory/actions', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(armoryBulkActionSchema, request.body);
+    const { player } = await requirePlayer(request.auth!.account.id);
+    return ArmoryService.update(fastify.prisma, player.id, body);
+  });
+
+  fastify.post('/armory/mod-actions', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(armoryModActionSchema, request.body);
+    const { player } = await requirePlayer(request.auth!.account.id);
+    return ArmoryService.customize(fastify.prisma, player.id, body);
+  });
+
+  fastify.get('/hideout/cosmetics', { preHandler: fastify.requireAuth }, async (request) =>
+    HideoutCosmeticService.catalog(fastify.prisma, request.auth!.account.id));
+
+  fastify.post('/hideout/cosmetics', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(z.object({ decorationKey: z.string().trim().min(1).max(120).nullable(), streetSignKey: z.string().trim().min(1).max(120).nullable() }).strict(), request.body);
+    return HideoutCosmeticService.update(fastify.prisma, request.auth!.account.id, body);
+  });
+
   fastify.post('/hideout/upgrade', { preHandler: fastify.requireAuth }, async (request) => {
     const body = parseBody(hideoutUpgradeSchema, request.body);
     const { player } = await requirePlayer(request.auth!.account.id);
@@ -504,6 +684,11 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/quests', { preHandler: fastify.requireAuth }, async (request) => {
     const { round, player } = await requirePlayer(request.auth!.account.id);
     return HandcraftedQuestService.page(fastify.prisma, player.id, loadRulesetForRound(round));
+  });
+
+  fastify.get('/quests/tracked', { preHandler: fastify.requireAuth }, async (request) => {
+    const { round, player } = await requirePlayer(request.auth!.account.id);
+    return HandcraftedQuestService.tracked(fastify.prisma, player.id, loadRulesetForRound(round));
   });
 
   fastify.put('/quests/auto-accept', { preHandler: fastify.requireAuth }, async (request) => {
@@ -537,7 +722,16 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
     const body = parseBody(questClaimSchema, request.body);
     const { round, player } = await requirePlayer(request.auth!.account.id);
     const key = String((request.params as { key: string }).key).trim().toUpperCase();
-    return HandcraftedQuestService.claim(fastify.prisma, player.id, loadRulesetForRound(round), key, body);
+    const ruleset = loadRulesetForRound(round);
+    const result = await HandcraftedQuestService.claim(fastify.prisma, player.id, ruleset, key, body);
+    // The claim already refreshed the jobs it can open. Attach that board so the
+    // client does not GET /quests, and still return the receipt if the read fails.
+    try {
+      const page = await HandcraftedQuestService.page(fastify.prisma, player.id, ruleset, { skipSync: true, skipRefresh: true });
+      return { ...result, page };
+    } catch {
+      return result;
+    }
   });
 
   /** Street Pass: the round's track and this player's Cred and claims. `pass` is null on rounds without one. */

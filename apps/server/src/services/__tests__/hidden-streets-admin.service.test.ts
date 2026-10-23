@@ -8,7 +8,7 @@ describe('HiddenStreetsAdminService', () => {
     expect(report.ruleset).toMatchObject({
       id: 'classic-og-v1.8-s',
       version: '1.8.0-S',
-      latest: true,
+      latest: false,
     });
     expect(report.totals.secretDefinitions).toBeGreaterThanOrEqual(27);
     expect(report.families.map((family) => family.family)).toEqual(expect.arrayContaining([

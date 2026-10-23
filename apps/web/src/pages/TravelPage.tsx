@@ -11,6 +11,7 @@ import { TripPanel } from '../components/TripPanel.js';
 import { BossPresencePanel } from '../components/BossPresencePanel.js';
 import { LaunchPanel, ReceiptPanel, RunPanel } from '../components/RunPanels.js';
 import { GaragePanel } from '../components/GaragePanel.js';
+import { LevelLockNotice } from '../components/LevelLockNotice.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
 import { EmpirePageHeader } from '../components/EmpireManagement.js';
@@ -128,9 +129,10 @@ export function TravelPage() {
   return (
     <GameLayout>
       <div className="se-travel">
-        <EmpirePageHeader eyebrow={`Road operations · home in ${home?.name ?? me.city.name}`} title="Travel" description="Choose a city on the map, then manage routes, convoys, garage loads, trips, and relocation without leaving the road board." />
+        <EmpirePageHeader eyebrow={`Road operations · home in ${home?.name ?? me.city.name}`} title="Travel" description="Routes, convoys, trips, and relocation." />
 
         {error ? <Alert>{error}</Alert> : null}
+        {data?.enabled ? <LevelLockNotice gates={['runs', 'bossRuns', 'travel']} /> : null}
         {!data && !error ? <div className="se-travel-loading" role="status">Unfolding the map...</div> : null}
 
         {data && !data.enabled ? (

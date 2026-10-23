@@ -137,7 +137,26 @@ import { classicOgV18P } from './classic-og-v1.8-p/index.js';
 import { classicOgV18Q } from './classic-og-v1.8-q/index.js';
 import { classicOgV18R } from './classic-og-v1.8-r/index.js';
 import { classicOgV18S } from './classic-og-v1.8-s/index.js';
+import { classicOgV19A } from './classic-og-v1.9-a/index.js';
+import { classicOgV19B } from './classic-og-v1.9-b/index.js';
+import { classicOgV19C } from './classic-og-v1.9-c/index.js';
+import { classicOgV19D } from './classic-og-v1.9-d/index.js';
+import { classicOgV20A } from './classic-og-v2.0-a/index.js';
+import { classicOgV21A } from './classic-og-v2.1-a/index.js';
+import { classicOgV21B } from './classic-og-v2.1-b/index.js';
+import { classicOgV21C } from './classic-og-v2.1-c/index.js';
+import { classicOgV22A } from './classic-og-v2.2-a/index.js';
+import { classicOgV23A } from './classic-og-v2.3-a/index.js';
+import { classicOgV24A } from './classic-og-v2.4-a/index.js';
+import { classicOgV24B } from './classic-og-v2.4-b/index.js';
+import { classicOgV24C } from './classic-og-v2.4-c/index.js';
+import { classicOgV24D } from './classic-og-v2.4-d/index.js';
+import { classicOgV24E } from './classic-og-v2.4-e/index.js';
+import { classicOgV24F } from './classic-og-v2.4-f/index.js';
+import { classicOgV25A } from './classic-og-v2.5-a/index.js';
 import type { Ruleset } from './types.js';
+
+export * from './street-skills.js';
 
 export { classicOgV01 };
 export { classicOgV02 };
@@ -278,9 +297,35 @@ export { classicOgV18P };
 export { classicOgV18Q };
 export { classicOgV18R };
 export { classicOgV18S };
+export { classicOgV19A };
+export { classicOgV19B };
+export { classicOgV19C };
+export { classicOgV19D };
+export { classicOgV20A };
+export { classicOgV21A };
+export { classicOgV21B };
+export { classicOgV21C };
+export { classicOgV22A };
+export { classicOgV23A };
+export { classicOgV24A };
+export { classicOgV24B };
+export { classicOgV24C };
+export { classicOgV24D };
+export { classicOgV24E };
+export { classicOgV24F };
+export { classicOgV25A };
+export { UNDERWORLD_OPERATIONS_V1 } from './underworld-operations.js';
+export type { UnderworldOperationTemplate, UnderworldOperationCatalog } from './underworld-operations.js';
+export * from './living-case-outcomes.js';
+export { cityHoldingsEnabled } from './classic-og-v1.9-a/index.js';
 export * from './classic-og-v0.1/index.js';
 export * from './types.js';
 export * from './event-system.js';
+export * from './living-stories.js';
+export * from './territory-perks.js';
+export * from './holiday-road.js';
+export * from './avatar-wearables.js';
+export * from './living-cases.js';
 export * from './combat-prototype.js';
 export * from './hideout-v2.js';
 export * from './quest-definitions.js';
@@ -289,7 +334,10 @@ export * from './quest-progress.js';
 export * from './quest-contacts.js';
 export * from './street-pass.js';
 export * from './supporter.js';
+export * from './drop.js';
+export * from './birthday.js';
 export * from './encounter-gangs.js';
+export * from './rivalries.js';
 
 /** Every ruleset the engine can load, keyed by its public id. */
 export const rulesets: Readonly<Record<string, Ruleset>> = {
@@ -432,6 +480,26 @@ export const rulesets: Readonly<Record<string, Ruleset>> = {
   [classicOgV18Q.meta.id]: classicOgV18Q,
   [classicOgV18R.meta.id]: classicOgV18R,
   [classicOgV18S.meta.id]: classicOgV18S,
+  [classicOgV19A.meta.id]: classicOgV19A,
+  [classicOgV19B.meta.id]: classicOgV19B,
+  [classicOgV19C.meta.id]: classicOgV19C,
+  [classicOgV19D.meta.id]: classicOgV19D,
+  [classicOgV20A.meta.id]: classicOgV20A,
+  [classicOgV21A.meta.id]: classicOgV21A,
+  [classicOgV21B.meta.id]: classicOgV21B,
+  [classicOgV21C.meta.id]: classicOgV21C,
+  [classicOgV22A.meta.id]: classicOgV22A,
+  [classicOgV23A.meta.id]: classicOgV23A,
+  [classicOgV24A.meta.id]: classicOgV24A,
+  [classicOgV24B.meta.id]: classicOgV24B,
+  [classicOgV24C.meta.id]: classicOgV24C,
+  [classicOgV24D.meta.id]: classicOgV24D,
+  [classicOgV24E.meta.id]: classicOgV24E,
+  [classicOgV24F.meta.id]: classicOgV24F,
+  [classicOgV25A.meta.id]: classicOgV25A,
 };
 
-export const DEFAULT_RULESET_ID = classicOgV01.meta.id;
+export { ROUND_ROLL_CALL_FINALE, ROUND_ROLL_CALL_FINALE_COSMETICS } from './round-roll-call-cosmetics.js';
+
+export const LATEST_RULESET = Object.values(rulesets).at(-1)!;
+export const DEFAULT_RULESET_ID = LATEST_RULESET.meta.id;

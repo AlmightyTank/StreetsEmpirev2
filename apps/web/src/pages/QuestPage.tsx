@@ -1,14 +1,16 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useLocation } from 'react-router-dom';
 import {
   formatCents,
   formatNumber,
+  type CareerIdentityDto,
   type FactionPerksDto,
   type PlayerQuestDto,
   type QuestPageDto,
 } from '@streets/shared';
 import { ApiError } from '../api/client.js';
 import { questsApi } from '../api/quests.js';
+import { communityApi } from '../api/community.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
 import { Panel, Row } from '../components/Panel.js';
@@ -20,8 +22,10 @@ import { hasItemArt } from '../items/itemArt.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { Portrait } from '../components/Portrait.js';
 import { useSession } from '../stores/session.js';
+import { useOnboarding } from '../stores/onboarding.js';
 import { formatClockTime, formatWhen, serverAdjustedNowMs, serverClockOffsetMs } from '../utils/time.js';
 import { confirmAction } from '../stores/confirm.js';
+import { publishQuestsChanged, trackedFromQuests } from '../quests/questSignals.js';
 import { buildQuestBoard, legacyQuestGroup, type QuestBoardGroupKey } from '../utils/questBoard.js';
 
 const BOARD_QUEST_TYPES = ['ALLIANCE', 'CITY_CONTRACT', 'EVENT', 'SEASON'] as const;
@@ -33,14 +37,13 @@ function isBoardQuest(quest: PlayerQuestDto): boolean {
 }
 
 function focusedQuestKey(search: string, hash: string): string | null {
-  const fromSearch = new URLSearchParams(search).get('focus');
-  if (fromSearch) return fromSearch;
-  if (!hash.startsWith('#quest-')) return null;
-  try {
-    return decodeURIComponent(hash.slice('#quest-'.length));
-  } catch {
-    return hash.slice('#quest-'.length);
+  // In-page links can change the hash while an older ?focus= remains in the URL.
+  // The clicked anchor is the current intent and must win.
+  if (hash.startsWith('#quest-')) {
+    try { return decodeURIComponent(hash.slice('#quest-'.length)); }
+    catch { return hash.slice('#quest-'.length); }
   }
+  return new URLSearchParams(search).get('focus');
 }
 
 function statusLabel(quest: PlayerQuestDto): string {
@@ -56,6 +59,7 @@ function statusLabel(quest: PlayerQuestDto): string {
 }
 
 const BOARD_TYPES: ReadonlySet<string> = new Set(['DAILY', 'WEEKLY', 'CITY_CONTRACT', 'SEASON', 'ALLIANCE']);
+type QuestBoardFilter = 'all' | 'ready' | 'active' | 'available' | 'contracts' | 'story';
 
 /** Who the work is for: the contact and their faction, or a board contract's sponsor (1.4.0-C). */
 function questByline(quest: PlayerQuestDto): string {
@@ -195,6 +199,11 @@ function QuestCard({
   const [showDetails, setShowDetails] = useState(featured || focused || (quest.status === 'READY_TO_TURN_IN' && quest.branchChoices.length > 0));
   const primaryObjective = quest.objectives.find((item) => !item.bonus && !item.completed)
     ?? quest.objectives.find((item) => !item.bonus);
+  const tourTarget = quest.status === 'AVAILABLE'
+    ? 'accept-quest'
+    : quest.status === 'READY_TO_TURN_IN' && !quest.branchChoices.length
+      ? 'complete-quest'
+      : undefined;
 
   useEffect(() => {
     if (focused) setShowDetails(true);
@@ -203,6 +212,7 @@ function QuestCard({
   return (
     <Panel
       id={`quest-${quest.key}`}
+      tourTarget={tourTarget}
       className={'se-quest-card'
         + (featured ? ' se-quest-card--featured' : '')
         + (quest.status === 'READY_TO_TURN_IN' ? ' se-quest-card--ready' : '')
@@ -318,6 +328,9 @@ function QuestCard({
           />
         ))}
       </div>
+      {quest.bonusRewardPercent ? (
+        <p className="se-hint">Each finished bonus adds {quest.bonusRewardPercent}% to cash, turns, goods, and contact reputation.</p>
+      ) : null}
 
       {quest.rewards.length || quest.factionStandings.length ? (
         <div className="se-quest-reward-block">
@@ -387,7 +400,6 @@ function QuestCard({
             className="se-btn se-btn--primary"
             disabledReason={busy}
             onClick={() => onAccept(quest.key)}
-            data-tour="accept-quest"
           >
             Accept job
           </Button>
@@ -438,6 +450,7 @@ export function QuestPage() {
   const location = useLocation();
   const me = useSession((state) => state.me);
   const refreshSnapshot = useSession((state) => state.refreshSnapshot);
+  const reloadOnboarding = useOnboarding((state) => state.load);
   const [page, setPage] = useState<QuestPageDto | null>(null);
   const [expandedGroups, setExpandedGroups] = useState<Partial<Record<QuestBoardGroupKey, boolean>>>({});
   const [showConnections, setShowConnections] = useState(false);
@@ -447,7 +460,10 @@ export function QuestPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [clockOffsetMs, setClockOffsetMs] = useState(0);
   const [nowMs, setNowMs] = useState(() => Date.now());
-  const lastScrolledTarget = useRef<string | null>(null);
+  const [career, setCareer] = useState<CareerIdentityDto | null>(null);
+  const [careerLens, setCareerLens] = useState(true);
+  const [boardFilter, setBoardFilter] = useState<QuestBoardFilter>('all');
+  const [boardSearch, setBoardSearch] = useState('');
 
   const applyPage = useCallback((
     next: QuestPageDto,
@@ -467,13 +483,16 @@ export function QuestPage() {
       const responseReceivedAtMs = Date.now();
       applyPage(next, requestStartedAtMs, responseReceivedAtMs);
       setError(null);
+      return next;
     } catch {
       setError('Could not load jobs right now. Try again.');
+      return null;
     }
   }, [applyPage]);
 
   useEffect(() => {
     void load();
+    void communityApi.careerIdentity().then((result) => setCareer(result.career)).catch(() => undefined);
   }, [load]);
 
   useEffect(() => {
@@ -510,7 +529,7 @@ export function QuestPage() {
       setShowConnections(true);
     }
     if (location.hash === '#quest-progression') setShowProgression(true);
-  }, [page, location.search, location.hash]);
+  }, [page, location.search, location.hash, location.key]);
 
   useEffect(() => {
     const serverNow = serverAdjustedNowMs(Date.now(), clockOffsetMs);
@@ -534,30 +553,40 @@ export function QuestPage() {
     return () => window.clearTimeout(timer);
   }, [page?.dailyContracts.resetAt, page?.weeklyContracts.resetAt, page?.cityContracts.resetAt, page?.quests, clockOffsetMs, load]);
 
-  useEffect(() => {
-    if (!page) return;
-    const focusKey = focusedQuestKey(location.search, location.hash);
-    const id = location.hash ? decodeURIComponent(location.hash.slice(1))
-      : focusKey ? 'quest-' + focusKey : null;
-    if (!id) {
-      lastScrolledTarget.current = null;
-      return;
-    }
-    if (lastScrolledTarget.current === id) return;
-    // Wait until a deep-linked accordion has opened. Only scroll once per target:
-    // refreshing quests or toggling another section must not yank the page away.
-    const frame = window.requestAnimationFrame(() => {
-      const target = document.getElementById(id);
-      if (!target || target.closest('details:not([open])')) return;
-      lastScrolledTarget.current = id;
-      target.scrollIntoView({ block: 'start' });
-      target.focus({ preventScroll: true });
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, [page, location.hash, location.search, expandedGroups, showConnections, showProgression]);
-
   const focusKey = focusedQuestKey(location.search, location.hash);
   const board = useMemo(() => buildQuestBoard(page?.quests ?? [], focusKey), [page, focusKey]);
+  const visibleGroups = useMemo(() => {
+    if (!career || !careerLens) return board.groups;
+    const categories = new Set(career.contractCategories.map((value) => value.toUpperCase()));
+    return board.groups.map((group) => ({
+      ...group,
+      quests: group.quests.filter((quest) => quest.key === focusKey || quest.status !== 'AVAILABLE'
+        || categories.has(quest.category.toUpperCase())
+        || categories.has(quest.type.toUpperCase())),
+    })).filter((group) => group.quests.length > 0);
+  }, [board.groups, career, careerLens, focusKey]);
+
+  const filteredGroups = useMemo(() => {
+    const query = boardSearch.trim().toLocaleLowerCase();
+    const matchesFilter = (group: QuestBoardGroupKey) => boardFilter === 'all'
+      || (boardFilter === 'contracts' && group === 'contracts')
+      || (boardFilter === 'story' && (group === 'story' || group === 'available'))
+      || group === boardFilter;
+    return visibleGroups.map((group) => ({
+      ...group,
+      quests: group.quests.filter((quest) => {
+        if (!matchesFilter(group.key) && quest.key !== focusKey) return false;
+        if (!query || quest.key === focusKey) return true;
+        const searchable = [
+          quest.title, quest.description, quest.category, quest.type,
+          quest.contactName, quest.factionName, quest.story?.chapter,
+          quest.story?.lesson, quest.story?.actionHint,
+          ...quest.objectives.map((objective) => objective.description),
+        ].filter(Boolean).join(' ').toLocaleLowerCase();
+        return searchable.includes(query);
+      }),
+    })).filter((group) => group.quests.length > 0);
+  }, [visibleGroups, boardFilter, boardSearch, focusKey]);
 
   const trackedToday = useMemo(
     () => page?.quests.filter((quest) => quest.isTracked && ['ACTIVE', 'READY_TO_TURN_IN'].includes(quest.status)) ?? [],
@@ -569,7 +598,7 @@ export function QuestPage() {
     [page, nowMs],
   );
 
-  async function mutate(key: string, action: () => Promise<QuestPageDto>, success?: string) {
+  async function mutate(key: string, action: () => Promise<QuestPageDto>, success?: string, refreshTour = false) {
     setBusy(key);
     setError(null);
     setNotice(null);
@@ -578,8 +607,13 @@ export function QuestPage() {
       const next = await action();
       const responseReceivedAtMs = Date.now();
       applyPage(next, requestStartedAtMs, responseReceivedAtMs);
-      window.dispatchEvent(new Event('streets:quests-changed'));
+      publishQuestsChanged({
+        scope: 'board',
+        quests: next.quests,
+        tracked: trackedFromQuests(next.quests),
+      });
       if (success) setNotice(success);
+      if (refreshTour && me?.id) await reloadOnboarding(me.id);
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : 'That job could not be updated.');
     } finally {
@@ -609,8 +643,10 @@ export function QuestPage() {
     setBusy(key);
     setError(null);
     setNotice(null);
+    const requestStartedAtMs = Date.now();
     try {
       const result = await questsApi.claim(key, crypto.randomUUID(), branchKey);
+      const responseReceivedAtMs = Date.now();
       const locked = result.result.standingChanges.flatMap((change) => change.locked ?? []);
       // Quest Recipe Unlocks D: say which recipe the job opened; Produce and Pip's counter reload on the event below.
       const opened = page?.recipeLadder?.find((rung) => rung.questKey === key);
@@ -621,8 +657,27 @@ export function QuestPage() {
         + (result.result.chosenBranch ? ' Choice locked: ' + (branchTitle ?? result.result.chosenBranch) + '.' : '')
         + (locked.length ? ' Inner Circle locked for the season: ' + locked.join(', ') + '.' : ''),
       );
-      window.dispatchEvent(new Event('streets:quests-changed'));
-      await Promise.all([load(), refreshSnapshot()]);
+      useSession.getState().applyActionSnapshot(result.after, result.rankChanges);
+      if (result.page) {
+        applyPage(result.page, requestStartedAtMs, responseReceivedAtMs);
+        publishQuestsChanged({
+          scope: 'action',
+          quests: result.page.quests,
+          tracked: trackedFromQuests(result.page.quests),
+        });
+      } else {
+        const next = await load();
+        if (next) {
+          publishQuestsChanged({
+            scope: 'action',
+            quests: next.quests,
+            tracked: trackedFromQuests(next.quests),
+          });
+        } else {
+          publishQuestsChanged({ scope: 'action' });
+        }
+      }
+      void refreshSnapshot({ background: true });
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : 'Payment could not be collected.');
     } finally {
@@ -637,8 +692,12 @@ export function QuestPage() {
     try {
       const result = await questsApi.activateFavor(key, crypto.randomUUID());
       setNotice(result.result.name + ' is active until ' + formatClockTime(result.result.expiresAt) + '.');
-      window.dispatchEvent(new Event('streets:quests-changed'));
-      await Promise.all([load(), refreshSnapshot()]);
+      useSession.getState().applyActionSnapshot(result.after, result.rankChanges);
+      const next = await load();
+      publishQuestsChanged(next
+        ? { scope: 'board', quests: next.quests, tracked: trackedFromQuests(next.quests) }
+        : { scope: 'board' });
+      void refreshSnapshot({ background: true });
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : 'That favor could not be activated.');
     } finally {
@@ -653,8 +712,12 @@ export function QuestPage() {
     try {
       const result = await questsApi.armFavor(key, crypto.randomUUID());
       setNotice(result.result.name + ' is armed for the next eligible action.');
-      window.dispatchEvent(new Event('streets:quests-changed'));
-      await Promise.all([load(), refreshSnapshot()]);
+      useSession.getState().applyActionSnapshot(result.after, result.rankChanges);
+      const next = await load();
+      publishQuestsChanged(next
+        ? { scope: 'board', quests: next.quests, tracked: trackedFromQuests(next.quests) }
+        : { scope: 'board' });
+      void refreshSnapshot({ background: true });
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : 'That favor could not be armed.');
     } finally {
@@ -669,8 +732,12 @@ export function QuestPage() {
     try {
       const result = await questsApi.disarmFavor(key, crypto.randomUUID());
       setNotice(result.result.name + ' returned to your favor inventory.');
-      window.dispatchEvent(new Event('streets:quests-changed'));
-      await Promise.all([load(), refreshSnapshot()]);
+      useSession.getState().applyActionSnapshot(result.after, result.rankChanges);
+      const next = await load();
+      publishQuestsChanged(next
+        ? { scope: 'board', quests: next.quests, tracked: trackedFromQuests(next.quests) }
+        : { scope: 'board' });
+      void refreshSnapshot({ background: true });
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : 'That favor could not be disarmed.');
     } finally {
@@ -687,7 +754,7 @@ export function QuestPage() {
       focused={focusKey === quest.key}
       busy={busy ? 'Another job update is still going through.' : null}
       nowMs={nowMs}
-      onAccept={(key) => void mutate(key, () => questsApi.accept(key, crypto.randomUUID()), 'Job accepted.')}
+       onAccept={(key) => void mutate(key, () => questsApi.accept(key, crypto.randomUUID()), 'Job accepted.', true)}
       onClaim={(key, branchKey, branchTitle) => void claim(key, branchKey, branchTitle)}
       onTrack={(key, tracked) => void mutate(key, () => questsApi.track(key, tracked))}
       onAbandon={(key) => void mutate(key, () => questsApi.abandon(key), 'Job abandoned.')}
@@ -740,6 +807,12 @@ export function QuestPage() {
 
         {error ? <Alert>{error}</Alert> : null}
         {notice ? <Alert tone="info">{notice}</Alert> : null}
+        {career ? (
+          <label className="se-checkrow se-checkrow--toggle se-career-lens">
+            <input type="checkbox" checked={careerLens} onChange={(event) => setCareerLens(event.target.checked)} />
+            <span><strong>{career.title} contract lens</strong><small>Highlights matching available work only. Turn it off to see every contract; rewards and access never change.</small></span>
+          </label>
+        ) : null}
 
         {page ? (
           <>
@@ -766,9 +839,42 @@ export function QuestPage() {
                   <span className="se-eyebrow">Other work</span>
                   <h2 id="se-quests-work-title">Your jobs &amp; contracts</h2>
                 </div>
-                <span className="se-quests-sectionhead__meta">{formatNumber(board.groups.reduce((sum, group) => sum + (group.key === 'history' ? 0 : group.quests.length), 0))} current</span>
+                <span className="se-quests-sectionhead__meta">{formatNumber(filteredGroups.reduce((sum, group) => sum + (group.key === 'history' ? 0 : group.quests.length), 0))} current</span>
               </div>
-              {board.groups.length ? board.groups.map((group) => {
+              <div className="se-quests-boardtools" role="search">
+                <label className="se-quests-boardtools__search">
+                  <span className="se-sr-only">Search jobs</span>
+                  <input
+                    className="se-input"
+                    type="search"
+                    placeholder="Search jobs, contacts, objectives..."
+                    value={boardSearch}
+                    onChange={(event) => setBoardSearch(event.target.value)}
+                  />
+                </label>
+                <div className="se-quests-boardtools__filters" role="group" aria-label="Filter jobs">
+                  {([
+                    ['all', 'All'], ['ready', 'Ready'], ['active', 'Active'],
+                    ['available', 'Available'], ['contracts', 'Contracts'], ['story', 'Story'],
+                  ] as const).map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      className={'se-quests-boardtools__filter' + (boardFilter === value ? ' se-quests-boardtools__filter--active' : '')}
+                      aria-pressed={boardFilter === value}
+                      onClick={() => setBoardFilter(value)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {boardSearch || boardFilter !== 'all' ? (
+                  <button type="button" className="se-btn se-btn--ghost se-btn--sm" onClick={() => { setBoardSearch(''); setBoardFilter('all'); }}>
+                    Clear filters
+                  </button>
+                ) : null}
+              </div>
+              {filteredGroups.length ? filteredGroups.map((group) => {
                 const open = expandedGroups[group.key] ?? group.defaultOpen;
                 return (
                   <section id={'quest-board-' + group.key} className="se-quests-group" key={group.key}>
@@ -795,7 +901,7 @@ export function QuestPage() {
                     </details>
                   </section>
                 );
-              }) : <div className="se-quests-empty"><strong>No other jobs right now.</strong><span>Complete a story step or check back for fresh contracts.</span></div>}
+              }) : <div className="se-quests-empty"><strong>No jobs match those filters.</strong><span>Try another search or clear the filters to see the full board.</span></div>}
             </section>
 
             <details className="se-quests-resources" open={showConnections}
@@ -849,7 +955,7 @@ export function QuestPage() {
                               <ul className="se-faction-jobs">
                                 {faction.jobs.map((job) => (
                                   <li key={job.key} className={job.status === 'LOCKED' ? 'is-locked' : job.status === 'COMPLETED' ? 'is-done' : 'is-open'}>
-                                    {job.status === 'LOCKED' ? job.title : <a href={`#quest-${job.key}`}>{job.title}</a>}
+                                    {job.status === 'LOCKED' ? job.title : <Link to={`#quest-${encodeURIComponent(job.key)}`}>{job.title}</Link>}
                                     <span>{job.status === 'COMPLETED' ? 'Done' : job.status === 'LOCKED' ? (job.tierName ? `Opens at ${job.tierName}` : 'Locked') : 'Open'}</span>
                                   </li>
                                 ))}
@@ -864,7 +970,7 @@ export function QuestPage() {
                               <small>
                                 {faction.innerCircle.introduction.status === 'LOCKED'
                                   ? 'Vic can introduce you once you are not already known here.'
-                                  : <>Vic can introduce you: <a href={`#quest-${faction.innerCircle.introduction.key}`}>{faction.innerCircle.introduction.title}</a></>}
+                                  : <>Vic can introduce you: <Link to={`#quest-${encodeURIComponent(faction.innerCircle.introduction.key)}`}>{faction.innerCircle.introduction.title}</Link></>}
                               </small>
                             ) : null}
                             {faction.perks ? <FactionPerks perks={faction.perks} /> : null}

@@ -31,29 +31,44 @@ import {
 } from './format.js';
 import { createGameApi, type City } from './game-api.js';
 import { Cooldowns } from './lookup.js';
-import { betaTesterRoles, managedRoles, parseForumGroupList } from './roles.js';
+import { betaTesterRoles, managedRoles, parseForumGroupList, staffRoles, withoutStaffForumGroups } from './roles.js';
+import { staffSyncMessages, type StaffSyncEvent } from './staff-sync.js';
 import { startPoller } from './schedule.js';
 import { RoleSync } from './sync.js';
 import { startBotPresence } from './presence.js';
+import { startStatsChannelRotator, startStatsChannelUpdater, type RotatingStats } from './channel-stats.js';
 import { memberStatus, timeoutMember } from './moderation.js';
 import { startOptionalPushServer } from './push-server.js';
 import { handleStaffButton, handleStaffModal, staffPostMessage } from './staff.js';
 import { OutageWatch, outageMessage, recoveredMessage, statusPostMessage } from './status.js';
+import { isPatchNotesPost, roleMention } from './role-pings.js';
 import { handleTicketButton, handleTicketForm, type SupportDeps } from './support.js';
+import { moderateMessage } from './content-moderation.js';
 
 const config = loadConfig();
 const api = createGameApi({ baseUrl: config.GAME_API_URL, token: config.DISCORD_BOT_API_TOKEN });
-const forumGroups = parseForumGroupList(config.DISCORD_FORUM_GROUPS);
 const betaTesterOnly = config.DISCORD_ROLE_SYNC_MODE === 'beta-tester-only';
-const managed = betaTesterOnly ? betaTesterRoles() : managedRoles(forumGroups);
+// Staff roles follow the game only in full sync mode: a beta bot sharing the server must not touch them.
+const staffMode = betaTesterOnly ? 'off' : config.DISCORD_STAFF_SYNC;
+const staff = staffMode === 'off' ? { roles: [], problems: [] } : staffRoles(config.DISCORD_STAFF_ROLE_IDS);
+for (const problem of staff.problems) console.warn(`DISCORD_STAFF_ROLE_IDS: ${problem}`);
+if (staffMode !== 'off' && !staff.roles.length) console.warn(`DISCORD_STAFF_SYNC=${staffMode} but DISCORD_STAFF_ROLE_IDS names no roles, so staff roles are not synced.`);
+const parsedForumGroups = parseForumGroupList(config.DISCORD_FORUM_GROUPS);
+const forumGroups = staff.roles.length ? withoutStaffForumGroups(parsedForumGroups) : parsedForumGroups;
+if (forumGroups.length < parsedForumGroups.length) {
+  console.log(`Not mirroring forum groups ${parsedForumGroups.filter((group) => !forumGroups.includes(group)).join(', ')}: staff roles sync instead.`);
+}
+const managed = betaTesterOnly ? betaTesterRoles() : [...managedRoles(forumGroups), ...staff.roles];
 
 // GuildMembers is a privileged intent: enable "Server Members Intent" in the developer portal.
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers],
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.MessageContent],
   allowedMentions: { parse: [] },
 });
 
 let sync: RoleSync | null = null;
+let staffSyncPoster: ((events: StaffSyncEvent[]) => Promise<void>) | null = null;
+let staffLinePoster: ((line: string) => Promise<void>) | null = null;
 let stopPushServer: (() => Promise<void>) | null = null;
 
 let cityCache: { cities: City[]; fetchedAt: number } | null = null;
@@ -71,6 +86,8 @@ const deps: CommandDeps = {
   api,
   origin: config.frontendOrigin,
   getSync: () => sync,
+  onStaffSync: (events) => void staffSyncPoster?.(events),
+  onStaffCommand: (line) => void staffLinePoster?.(line),
   getCities,
   managed,
   syncCooldowns: new Cooldowns(60_000),
@@ -82,6 +99,24 @@ client.rest.on(RESTEvents.RateLimited, (info) => {
 });
 
 /** A configured text channel the bot can post in, or why it can't. */
+/** Staff role changes and differences go to the staff channel, or the log when it is unset or broken. */
+async function postStaffSync(guild: Guild, events: StaffSyncEvent[], mode: typeof staffMode): Promise<void> {
+  const messages = staffSyncMessages(events, mode);
+  if (!messages.length) return;
+  const { channel, problem } = await checkPostChannel(guild, config.DISCORD_STAFF_CHANNEL_ID, 'DISCORD_STAFF_CHANNEL_ID');
+  for (const content of messages) {
+    if (channel) await channel.send({ content, allowedMentions: { parse: [] } }).catch((error: unknown) => console.warn('Could not post staff role sync:', error));
+    else console.log(`${content}\n(${problem})`);
+  }
+}
+
+/** One line in the staff channel, or the log when it is unset or broken. Never pings. */
+async function postStaffLine(guild: Guild, content: string): Promise<void> {
+  const { channel, problem } = await checkPostChannel(guild, config.DISCORD_STAFF_CHANNEL_ID, 'DISCORD_STAFF_CHANNEL_ID');
+  if (channel) await channel.send({ content, allowedMentions: { parse: [] } }).catch((error: unknown) => console.warn('Could not post to the staff channel:', error));
+  else console.log(`${content}\n(${problem})`);
+}
+
 async function checkPostChannel(
   guild: Guild,
   channelId: string,
@@ -105,6 +140,24 @@ async function checkPostChannel(
 }
 
 let readyGuild: Guild | null = null;
+
+/** Resolve exact subscriber roles once; explicit IDs override names if roles are renamed. */
+async function notificationRoleId(guild: Guild, configuredId: string, name: string): Promise<string> {
+  const roles = await guild.roles.fetch().catch((error: unknown) => {
+    console.warn(`Could not load Discord roles for ${name}:`, error);
+    return null;
+  });
+  const role = configuredId ? roles?.get(configuredId) : roles?.find((candidate) => candidate.name === name);
+  if (!role) {
+    console.warn(`No subscriber role for ${name}; role pings are off until the role exists (or the configured ID is fixed) and the bot restarts.`);
+    return '';
+  }
+  if (!role.mentionable) {
+    console.warn(`Role ${name} is not mentionable. Make it mentionable or allow the bot to Mention @everyone, @here, and All Roles for notifications to work.`);
+  }
+  console.log(`Discord ${name} announcements target role ${role.id}.`);
+  return role.id;
+}
 
 /** The staff channel, when it is set and the bot can post and edit there. */
 async function usableStaffChannel(): Promise<GuildTextBasedChannel | null> {
@@ -145,26 +198,56 @@ async function usableSupportChannel(): Promise<TextChannel | null> {
 
 const supportDeps: SupportDeps = { api, origin: config.frontendOrigin, supportChannel: usableSupportChannel, staffChannel: usableStaffChannel };
 
-async function postNews(channel: GuildTextBasedChannel): Promise<void> {
+async function postNews(channel: GuildTextBasedChannel, gameUpdatesRoleId: string, newsUpdatesRoleId: string): Promise<void> {
   // Claimed posts count as posted, which is why the channel is checked before any claim.
   for (const post of await api.claimNews()) {
     try {
       const payload = newsChannelSend(post);
+      const mention = roleMention(isPatchNotesPost(post.title) ? gameUpdatesRoleId : newsUpdatesRoleId);
+      const text = [mention.content, 'content' in payload ? payload.content : undefined].filter(Boolean).join('\n');
       const message = await channel.send({
-        ...payload,
-        allowedMentions: { parse: [] },
+        ...(text ? { content: text } : {}),
+        ...('embeds' in payload ? { embeds: payload.embeds } : {}),
+        allowedMentions: mention.allowedMentions,
         // Patch notes are plain text. Suppress link previews so a bullet's URL cannot come back as an embed.
         ...('content' in payload ? { flags: MessageFlags.SuppressEmbeds } : {}),
       });
       if (channel.type === ChannelType.GuildAnnouncement) {
         await message.crosspost().catch((error: unknown) => console.warn('Could not publish news to following servers:', error));
       }
+      // Delivery succeeded even if the acknowledgement fails; never mark the
+      // send as failed and accidentally offer a duplicate public announcement.
+      await api.newsPosted(post.id, message.id)
+        .catch((error: unknown) => console.warn(`Discord news "${post.title}" was posted but its message ID could not be recorded:`, error));
       console.log(`Posted news "${post.title}" to #${channel.name}.`);
     } catch (error) {
       console.error(`Could not post news "${post.title}":`, error);
       // The admin panel shows why, and an admin can resend it once that is fixed.
       await api.newsFailed(post.id, describeDiscordError(error, channel.name))
         .catch((reportError: unknown) => console.error(`Could not report the failed news post "${post.title}" to the game API:`, reportError));
+    }
+  }
+
+  // A text edit targets the tracked original. Do not send a second announcement or
+  // ping the subscriber role again; Discord edits should be quiet.
+  for (const post of await api.claimNewsEdits()) {
+    try {
+      const original = await channel.messages.fetch(post.messageId);
+      const payload = newsChannelSend(post);
+      const mention = roleMention(isPatchNotesPost(post.title) ? gameUpdatesRoleId : newsUpdatesRoleId);
+      const content = [mention.content, 'content' in payload ? payload.content : undefined].filter(Boolean).join('\n');
+      await original.edit({
+        content: content || null,
+        embeds: 'embeds' in payload ? payload.embeds : [],
+        allowedMentions: { parse: [] },
+        flags: 'content' in payload ? MessageFlags.SuppressEmbeds : [],
+      });
+      await api.newsEditPosted(post.id, post.queuedAt);
+      console.log(`Updated original Discord news "${post.title}" in #${channel.name}.`);
+    } catch (error) {
+      console.error(`Could not edit Discord news "${post.title}":`, error);
+      await api.newsEditFailed(post.id, describeDiscordError(error, channel.name), post.queuedAt)
+        .catch((reportError: unknown) => console.error(`Could not report the failed Discord edit for "${post.title}":`, reportError));
     }
   }
 }
@@ -176,8 +259,9 @@ async function postStaff(channel: GuildTextBasedChannel): Promise<void> {
     if (!message) continue;
     try {
       const existing = post.editMessageId ? await channel.messages.fetch(post.editMessageId).catch(() => null) : null;
+      if (post.editMessageId && !existing) throw new Error('Original staff message could not be found; refusing to create a duplicate.');
       const sent = existing ? await existing.edit(message) : await channel.send({ ...message, allowedMentions: { parse: [] } });
-      await api.staffPostPosted(post.id, sent.id);
+      await api.staffPostPosted(post.id, sent.id, post.patchNotes ? { state: post.patchNotes.state, updatedAt: post.patchNotes.updatedAt } : undefined);
     } catch (error) {
       console.error(`Could not post staff ${post.kind} ${post.id} to #${channel.name}:`, error);
       await api.staffPostFailed(post.id, describeDiscordError(error, channel.name))
@@ -189,7 +273,7 @@ async function postStaff(channel: GuildTextBasedChannel): Promise<void> {
 const outages = new OutageWatch(config.DISCORD_OUTAGE_MINUTES * 60_000);
 
 /** Status channel posts. A deploy's finish or failure edits its "updating" post. */
-async function postStatus(channel: GuildTextBasedChannel): Promise<void> {
+async function postStatus(channel: GuildTextBasedChannel, serverUpdatesRoleId: string): Promise<void> {
   for (const post of await api.claimStaffPosts('status')) {
     const message = statusPostMessage(post);
     if (!message) continue;
@@ -198,7 +282,7 @@ async function postStatus(channel: GuildTextBasedChannel): Promise<void> {
     else if (post.deploy) outages.deployEnded();
     try {
       const existing = post.editMessageId ? await channel.messages.fetch(post.editMessageId).catch(() => null) : null;
-      const sent = existing ? await existing.edit(message) : await channel.send({ ...message, allowedMentions: { parse: [] } });
+      const sent = existing ? await existing.edit(message) : await channel.send({ ...message, ...roleMention(serverUpdatesRoleId) });
       await api.staffPostPosted(post.id, sent.id);
     } catch (error) {
       console.error(`Could not post status ${post.kind} ${post.id} to #${channel.name}:`, error);
@@ -386,39 +470,82 @@ client.once(Events.ClientReady, async (ready) => {
 
     const guild = await ready.guilds.fetch(config.DISCORD_GUILD_ID);
     readyGuild = guild;
+    const gameUpdatesRoleId = await notificationRoleId(guild, config.DISCORD_GAME_UPDATES_ROLE_ID, 'Game Updates');
+    const newsUpdatesRoleId = await notificationRoleId(guild, config.DISCORD_NEWS_UPDATES_ROLE_ID, 'News Updates');
+    const serverUpdatesRoleId = await notificationRoleId(guild, config.DISCORD_SERVER_UPDATES_ROLE_ID, 'Server Updates');
     // Guild commands update immediately, unlike global ones.
     await guild.commands.set(commandData);
     void getCities();
 
-    const roleSync = new RoleSync(guild, managed, api, { allianceRoles: !betaTesterOnly });
+    const roleSync = new RoleSync(guild, managed, api, { allianceRoles: !betaTesterOnly, staff: staff.roles.length ? staffMode : 'off' });
     sync = roleSync;
+    staffSyncPoster = (events) => postStaffSync(guild, events, staffMode);
+    staffLinePoster = (line) => postStaffLine(guild, line);
     console.log(`StreetsEmpire bot ready as ${ready.user.tag} in ${guild.name} with ${commandData.length} commands; syncing ${betaTesterOnly ? 'beta tester role only' : 'roles'} every ${config.DISCORD_SYNC_MINUTES} min.`);
+    if (staff.roles.length) console.log(`Staff roles: ${staffMode} (${staff.roles.map((role) => role.name).join(', ')}).`);
 
-    // Rotating presence: "Playing StreetsEmpire" cards point at the game host
-    // (bot presences can't carry a clickable link/button), mixed with street
-    // flavor and a live player-count card from the round status.
+    // Rotating presence: one clickable Twitch card plus plain custom statuses
+    // for new features, cosmetics, the Supporter page, and anonymous live-game highlights.
     const playHost = new URL(config.frontendOrigin).host;
     const stopPresence = startBotPresence(ready, {
       playHost,
+      streamUrl: config.DISCORD_STREAM_URL,
+      betaMode: config.betaMode,
       minutes: config.DISCORD_PRESENCE_MINUTES,
       getRound: () => api.round(),
+      getHighlights: () => api.presenceHighlights(),
     });
-    if (stopPresence) console.log(`Rotating bot presence every ${config.DISCORD_PRESENCE_MINUTES} min (play at ${playHost}).`);
+    if (stopPresence) console.log(`Rotating ${config.betaMode ? 'beta' : 'production'} bot presence every ${config.DISCORD_PRESENCE_MINUTES} min.`);
     else console.log('Bot presence rotation is off (DISCORD_PRESENCE_MINUTES=0).');
+
+    const getLiveStats = async (): Promise<Omit<RotatingStats, 'peakPlayers'>> => {
+        const [readyResult, roundResult, bannerResult, dailyStatsResult] = await Promise.allSettled([api.ready(), api.round(), api.banner(), api.presenceStats()]);
+        const ready = readyResult.status === 'fulfilled' && readyResult.value.ok;
+        const round = roundResult.status === 'fulfilled' ? roundResult.value.round : null;
+        const banner = bannerResult.status === 'fulfilled' ? bannerResult.value : null;
+        const dailyStats = dailyStatsResult.status === 'fulfilled' ? dailyStatsResult.value : { tradedCents: 0, raidsToday: 0 };
+        return {
+          playerCount: round?.playerCount ?? null,
+          gameName: round?.name ?? null,
+          daysLeft: round && round.msRemaining >= 0 ? Math.floor(round.msRemaining / 86_400_000) : null,
+          tradedCents: dailyStats.tradedCents,
+          raidsToday: dailyStats.raidsToday,
+          serverStatus: !ready ? 'offline' : banner?.kind === 'maintenance' ? 'maintenance' : 'online',
+        };
+    };
+    const stopStatsChannel = startStatsChannelRotator(guild, {
+      channelId: config.DISCORD_STATS_CHANNEL_ID,
+      templates: config.DISCORD_STATS_TEMPLATES.split(',').map((template) => template.trim()),
+      minutes: config.DISCORD_STATS_MINUTES,
+      getStats: getLiveStats,
+    });
+    if (stopStatsChannel) console.log(`Updating the live stats channel every ${config.DISCORD_STATS_MINUTES} min.`);
+    else if (config.DISCORD_STATS_CHANNEL_ID) console.log('Live stats channel updates are off (DISCORD_STATS_MINUTES=0).');
+    const stopPermanentStatsChannels = startStatsChannelUpdater(guild, {
+      channels: [
+        { channelId: config.DISCORD_STATS_PLAYERS_CHANNEL_ID, template: '👥・{players}-players' },
+        { channelId: config.DISCORD_STATS_GAME_CHANNEL_ID, template: '🏁・{game}' },
+        { channelId: config.DISCORD_STATS_STATUS_CHANNEL_ID, template: '🟢・{status}' },
+      ],
+      minutes: config.DISCORD_STATS_MINUTES,
+      getStats: getLiveStats,
+    });
+    if (stopPermanentStatsChannels) console.log(`Updating permanent stats channels every ${config.DISCORD_STATS_MINUTES} min.`);
 
     // Commands are answered while these run.
     startPoller('Role sync', config.DISCORD_SYNC_MINUTES * 60_000, async () => {
       const summary = await roleSync.syncAll();
       if (summary) console.log(`Role sync: ${summary.members} members, ${summary.added} roles added, ${summary.removed} removed, ${summary.failed} failed.`);
+      if (summary) await postStaffSync(guild, summary.staff, staffMode);
     });
 
     // Checked on every run, so fixing the channel or its permissions needs no restart.
     // Each run also tells the game API, whose admin news panel shows why news is stuck.
     // Resolved before the alert poller starts, which posts round endings to it.
-    let newsChannel = (await checkPostChannel(guild, config.DISCORD_NEWS_CHANNEL_ID, 'DISCORD_NEWS_CHANNEL_ID')).channel;
+    let newsChannel = (await checkPostChannel(guild, config.DISCORD_NEWS_CHANNEL_ID, 'DISCORD_NEWS_CHANNEL_ID', [PermissionFlagsBits.ReadMessageHistory])).channel;
     let newsProblem: string | null | undefined;
     const runNews = serialTask('News auto-post', async () => {
-      const check = await checkPostChannel(guild, config.DISCORD_NEWS_CHANNEL_ID, 'DISCORD_NEWS_CHANNEL_ID');
+      const check = await checkPostChannel(guild, config.DISCORD_NEWS_CHANNEL_ID, 'DISCORD_NEWS_CHANNEL_ID', [PermissionFlagsBits.ReadMessageHistory]);
       if (check.problem !== newsProblem) {
         if (check.problem) console.warn(`News auto-post is off: ${check.problem}`);
         else console.log(`Posting new game news to #${check.channel!.name} (checking every ${config.DISCORD_NEWS_MINUTES} min).`);
@@ -427,7 +554,7 @@ client.once(Events.ClientReady, async (ready) => {
       newsChannel = check.channel;
       await api.reportNewsChannel({ channel: check.channel?.name ?? null, problem: check.problem })
         .catch((error: unknown) => console.warn('Could not report the news channel status to the game API:', error instanceof Error ? error.message : error));
-      if (newsChannel) await postNews(newsChannel);
+      if (newsChannel) await postNews(newsChannel, gameUpdatesRoleId, newsUpdatesRoleId);
     });
     startPoller('News auto-post', config.DISCORD_NEWS_MINUTES * 60_000, runNews);
 
@@ -459,9 +586,13 @@ client.once(Events.ClientReady, async (ready) => {
       if (claim.all) {
         const summary = await roleSync.syncAll();
         if (summary) console.log(`Admin resync: ${summary.members} members, ${summary.added} roles added, ${summary.removed} removed, ${summary.failed} failed.`);
+        if (summary) await postStaffSync(guild, summary.staff, staffMode);
       } else if (claim.discordIds.length) {
         const members = await guild.members.fetch({ user: claim.discordIds }).catch(() => null);
-        if (members?.size) await roleSync.syncMembers([...members.values()]);
+        if (members?.size) {
+          const results = await roleSync.syncMembers([...members.values()]);
+          await postStaffSync(guild, [...roleSync.takeStaffProblems(), ...results.flatMap((result) => result.staff)], staffMode);
+        }
         console.log(`Admin resync: ${members?.size ?? 0} of ${claim.discordIds.length} requested members synced.`);
       }
     });
@@ -494,7 +625,7 @@ client.once(Events.ClientReady, async (ready) => {
         else console.log(`Posting updates, maintenance and outages to #${check.channel!.name}.`);
         statusProblem = check.problem;
       }
-      if (check.channel) await postStatus(check.channel);
+      if (check.channel) await postStatus(check.channel, serverUpdatesRoleId);
     });
 
     // The bot's own call: a down game can't post. One "down" post per outage, edited when it's back.
@@ -507,7 +638,7 @@ client.once(Events.ClientReady, async (ready) => {
       if (!channel) return;
       // A failed send throws before `posted`, so the next probe offers the same news again.
       if (event.event === 'down') {
-        const sent = await channel.send({ ...outageMessage(event.since, Date.now()), allowedMentions: { parse: [] } });
+        const sent = await channel.send({ ...outageMessage(event.since, Date.now()), ...roleMention(serverUpdatesRoleId) });
         outagePost = { channelId: channel.id, messageId: sent.id };
         outages.posted(event);
         console.warn(`The game API has not answered since ${new Date(event.since).toISOString()}; posted an outage notice.`);
@@ -515,7 +646,7 @@ client.once(Events.ClientReady, async (ready) => {
         const posted = outagePost?.channelId === channel.id ? await channel.messages.fetch(outagePost.messageId).catch(() => null) : null;
         const message = recoveredMessage(event.since, event.downForMs);
         if (posted) await posted.edit(message);
-        else await channel.send({ ...message, allowedMentions: { parse: [] } });
+        else await channel.send({ ...message, ...roleMention(serverUpdatesRoleId) });
         outagePost = null;
         outages.posted(event);
         console.log(`The game API is answering again after ${Math.round(event.downForMs / 60_000)} min.`);
@@ -564,7 +695,29 @@ client.once(Events.ClientReady, async (ready) => {
 
 client.on(Events.GuildMemberAdd, (member) => {
   if (member.guild.id !== config.DISCORD_GUILD_ID || !sync) return;
-  sync.syncMembers([member]).catch((error: unknown) => console.error(`Role sync failed for new member ${member.id}:`, error));
+  sync.syncMembers([member])
+    .then((results) => staffSyncPoster?.(results.flatMap((result) => result.staff)))
+    .catch((error: unknown) => console.error(`Role sync failed for new member ${member.id}:`, error));
+});
+
+// OpenAI is a post-send safety net. Discord AutoMod should remain enabled for
+// pre-send keyword blocking; this catches contextual hate that AutoMod cannot.
+client.on(Events.MessageCreate, (message) => {
+  if (!config.OPENAI_MODERATION_API_KEY || message.guildId !== config.DISCORD_GUILD_ID || message.author.bot) return;
+  moderateMessage({
+    text: message.content,
+    apiKey: config.OPENAI_MODERATION_API_KEY,
+    timeoutMs: config.OPENAI_MODERATION_TIMEOUT_MS,
+  }).then(async (blocked) => {
+    if (!blocked) return;
+    await message.delete().catch((error: unknown) => {
+      console.warn(`Could not remove hateful message ${message.id}:`, error instanceof Error ? error.message : error);
+    });
+    console.warn(`Removed a hateful message from ${message.author.id} in channel ${message.channelId}.`);
+  }).catch((error: unknown) => {
+    // Fail open on provider/network errors; never punish a member without a result.
+    console.warn('OpenAI message moderation failed; leaving the message in place:', error instanceof Error ? error.message : error);
+  });
 });
 
 client.on(Events.InteractionCreate, (interaction) => {

@@ -12,6 +12,8 @@ const COLLECTION = 'supporter-midnight-chrome';
 const CARD = 'midnight-chrome-frame';
 const ACCENT = 'supporter-banner-accent';
 const ALL = Object.keys(SUPPORTER_COSMETICS);
+const WITHOUT_COLLECTION = ALL.filter((key) => key !== COLLECTION);
+const NEW_REWARDS = ALL.filter((key) => ![COLLECTION, CARD, ACCENT].includes(key));
 const actor = { id: 'admin-1', username: 'Boss' };
 
 type Unlock = { accountId: string; key: string; sourceQuestKey: string; awardedAt: Date };
@@ -42,6 +44,7 @@ function fakePrisma(accounts: Account[], unlocks: Unlock[], avatarFrames: Record
           && (!where.usernameNormalized || where.usernameNormalized.in.includes(row.usernameNormalized))),
     },
     supporterMembership: { findMany: async () => [] },
+    googlePlaySupporterSubscription: { findMany: async () => [] },
     supporterPayment: { findMany: async () => [] },
     accountProfile: {
       count: async () => 0,
@@ -70,10 +73,10 @@ describe('AdminSupporterService.list', () => {
 
     expect(result.rewards.map((reward) => reward.key)).toEqual(ALL);
     expect(result.supporters.map((row) => [row.username, row.rewardKeys, row.missingKeys, row.wearingCard])).toEqual([
-      ['Bob', [COLLECTION], [CARD, ACCENT], false],
-      ['Alice', ALL, [], true],
+      ['Bob', [COLLECTION], WITHOUT_COLLECTION, false],
+      ['Alice', [COLLECTION, CARD, ACCENT], NEW_REWARDS, true],
     ]);    expect(result.supporters[1]!.since).toBe('2026-10-01T12:00:00.000Z');
-    expect(result.missingCount).toBe(1);
+    expect(result.missingCount).toBe(2);
     expect(result.supporters.every((row) => row.membership === null)).toBe(true);
     expect(result).toMatchObject({ activeCount: 0, checkoutEnabled: false, payments: [] });
   });
@@ -113,8 +116,8 @@ describe('AdminSupporterService.grant', () => {
 
     expect(result.rows.map((row) => [row.input, row.status, row.rewardKeys])).toEqual([
       ['alice', 'new', ALL],
-      ['BOB', 'already', []],
-      ['carol', 'missing-rewards', [CARD, ACCENT]],
+      ['BOB', 'missing-rewards', NEW_REWARDS],
+      ['carol', 'missing-rewards', ALL.filter((key) => key !== COLLECTION)],
       ['ghost', 'not-found', []],
       ['boss', 'self', []],
       ['Alice', 'duplicate', []],
@@ -142,12 +145,13 @@ describe('AdminSupporterService.grant', () => {
 
     expect(grantSupporterRewards.mock.calls.map((call) => [call[2], call[3]])).toEqual([
       ['a', 'Ko-fi supporters, October'],
+      ['b', 'Ko-fi supporters, October'],
       ['c', 'Ko-fi supporters, October'],
     ]);
-    expect(result.granted).toBe(1);
+    expect(result.granted).toBe(2);
     expect(result.rows.map((row) => [row.input, row.rewardKeys, row.error])).toEqual([
       ['alice', ALL, null],
-      ['bob', [], null],
+      ['bob', ALL, null],
       ['carol', [], 'Carol already has every supporter reward.'],
     ]);
   });
@@ -162,8 +166,8 @@ describe('AdminSupporterService.backfill', () => {
 
     const preview = await AdminSupporterService.backfill(prisma, actor, { dryRun: true });
     expect(preview.rows.map((row) => [row.username, row.status, row.rewardKeys])).toEqual([
-      ['Bob', 'missing-rewards', [CARD, ACCENT]],
-      ['Alice', 'missing-rewards', [ACCENT]],
+      ['Bob', 'missing-rewards', ALL.filter((key) => key !== COLLECTION)],
+      ['Alice', 'missing-rewards', ALL.filter((key) => ![COLLECTION, CARD].includes(key))],
     ]);
     expect(grantSupporterRewards).not.toHaveBeenCalled();
 

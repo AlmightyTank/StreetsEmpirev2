@@ -17,6 +17,7 @@ import type {
 } from '@streets/shared';
 import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
+import { assertNoActivePoolGame } from './pool.service.js';
 import { bossPresence } from './boss-presence.service.js';
 import { CasinoStatusService, assertCasinoRoomAccess, casinoTableAvailability } from './casino-status.service.js';
 import { PlayerStateService } from './player-state.service.js';
@@ -267,16 +268,15 @@ export const RouletteService = {
       validateBets(table, input);
       const { city, session } = await requireTableSession(tx, player, ruleset, casino, table, now);
 
-      const [blackjack, dice, poker, pokerSeat] = await Promise.all([
+      const [blackjack, poker, pokerSeat] = await Promise.all([
         tx.casinoBlackjackHand.findFirst({ where: { roundPlayerId, status: 'ACTIVE' }, select: { id: true } }),
-        tx.casinoStreetDiceRound.findFirst({ where: { roundPlayerId, status: 'ACTIVE' }, select: { id: true } }),
         tx.casinoPokerHand.findFirst({ where: { roundPlayerId, status: 'ACTIVE' }, select: { id: true } }),
         tx.casinoPokerSeat.findFirst({ where: { roundPlayerId, status: { in: ['WAITING', 'PLAYING'] }, table: { status: { in: ['WAITING', 'PLAYING'] } } }, select: { id: true } }),
       ]);
       if (blackjack) throw AppError.conflict('BLACKJACK_HAND_ACTIVE', 'Finish the current blackjack hand before playing Roulette.');
-      if (dice) throw AppError.conflict('STREET_DICE_ACTIVE', 'Finish the current Street Dice point before playing Roulette.');
       if (poker) throw AppError.conflict('POKER_HAND_ACTIVE', 'Finish the current Poker hand before playing Roulette.');
       if (pokerSeat) throw AppError.conflict('POKER_TABLE_ACTIVE', 'Leave your multiplayer Poker table before playing Roulette.');
+      await assertNoActivePoolGame(tx, roundPlayerId, 'Roulette');
 
       const math = resolveRouletteSpin(
         table,

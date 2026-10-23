@@ -30,6 +30,7 @@ import {
 import { recordTerritoryControlChange, territoryControlForCity } from './turf-territory.service.js';
 import { endTurfHold } from './turf-history.service.js';
 import { LawService } from './law.service.js';
+import { applyTerritoryModifier, resolveTerritoryModifiers, territorySourcesForAction } from './territory-perks.service.js';
 
 const cityName = (ruleset: Ruleset, slug: string) => ruleset.cities?.[slug]?.name ?? slug;
 
@@ -385,12 +386,26 @@ export const RelocationService = {
         ]);
         if (turfBlock) throw AppError.conflict(turfBlock.code, turfBlock.reason);
         const garageFeeDiscountPercent = hideoutGarageRelocationDiscountPercent(base, player);
-        const check = checkMove(base, {
+        let check = checkMove(base, {
           from: player.city.slug, to: input.to, now, netWorthCents: player.netWorthCents, cashCents: current.cashCents,
           roundEndsAt: round.endsAt, movingUntil: player.movingUntil, lockedUntil: player.lockedUntil,
           feeDiscountPercent: garageFeeDiscountPercent,
           ...inputs,
         });
+        const feeAfterGarageDiscount = check.feeCents;
+        const territoryModifierReceipts = resolveTerritoryModifiers(await territorySourcesForAction({
+          tx, round, ruleset: base, allianceId: player.allianceId, cityId: player.cityId, citySlug: player.city.slug, district: 'CITY',
+        }), 'TRAVEL');
+        const travelReceipt = territoryModifierReceipts.find((receipt) => receipt.effectId.includes('travel'));
+        if (travelReceipt) {
+          const discountedFee = BigInt(applyTerritoryModifier(Number(check.feeCents), travelReceipt));
+          const affordable = discountedFee <= current.cashCents;
+          check = {
+            ...check,
+            feeCents: discountedFee,
+            ...(check.code === 'NOT_ENOUGH_CASH' && affordable ? { code: null, blockedReason: null } : {}),
+          };
+        }
         if (check.blockedReason) throw refusal(check);
         const to = await tx.city.findUnique({ where: { slug: input.to }, select: { isEnabled: true } });
         if (!to?.isEnabled) throw AppError.badRequest('UNKNOWN_CITY', 'That city is not on the map.', { to: 'Pick a city.' });
@@ -404,9 +419,10 @@ export const RelocationService = {
           to: input.to,
           toName: cityName(base, input.to),
           feeCents: Number(check.feeCents),
+          ...(territoryModifierReceipts.length ? { territoryModifierReceipts: territoryModifierReceipts.map((receipt) => ({ ...receipt, sources: receipt.sources.map((source) => ({ ...source })) })) } : {}),
           ...(garageFeeDiscountPercent > 0 ? {
             garageFeeDiscountPercent,
-            garageSavingsCents: Number(relocationFeeCents(player.netWorthCents, relocationRules(base)!) - check.feeCents),
+            garageSavingsCents: Number(relocationFeeCents(player.netWorthCents, relocationRules(base)!) - feeAfterGarageDiscount),
           } : {}),
           arrivesAt: check.arrivesAt.toISOString(),
           turfPlan: turfPlan(held, base, player.city.slug, input.to),

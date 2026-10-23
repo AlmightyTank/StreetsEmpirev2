@@ -57,7 +57,6 @@ export function AdminCasinoPage() {
             <div className="se-stats">
               <Stat label="Open bankrolls" value={formatNumber(data.operations.openSessions)} />
               <Stat label="Active Blackjack hands" value={formatNumber(data.operations.activeBlackjack)} />
-              <Stat label="Active Dice points" value={formatNumber(data.operations.activeDiceRounds)} />
               <Stat label="Active solo Poker" value={formatNumber(data.operations.activeSoloPoker)} />
               <Stat label="Active table hands" value={formatNumber(data.operations.activeTableHands)} />
               <Stat label="Stale over 1 hour" value={formatNumber(data.operations.staleGames)} />

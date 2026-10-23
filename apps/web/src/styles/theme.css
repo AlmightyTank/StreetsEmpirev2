@@ -3,18 +3,23 @@
  *
  * Dark street, early-2000s information density, modern typography.
  * Compact panels, hard edges, numbers that dominate. Decoration stays quiet.
+ *
+ * This :root block is the authoritative browser token layer. Theme classes may
+ * override color tokens on `.se-app`; components consume tokens rather than
+ * redefining them. `packages/shared/src/theme.ts` mirrors the cross-platform
+ * subset (`STREETSEMPIRE_COLORS/RADII/SHELL`).
  */
 
 :root {
-  --se-bg: #080a0d;
-  --se-panel: #111419;
-  --se-panel-hi: #171c23;
-  --se-line: #2a3039;
-  --se-line-soft: #20262e;
+  --se-bg: #07090c;
+  --se-panel: #12161c;
+  --se-panel-hi: #181d25;
+  --se-line: #303743;
+  --se-line-soft: #202630;
 
-  --se-text: #e8edf4;
-  --se-text-dim: #a7b0bc;
-  --se-muted: #7b8592;
+  --se-text: #e4e9f1;
+  --se-text-dim: #a9b3c0;
+  --se-muted: #8a96a5;
 
   /* Black, crimson and chrome: the StreetsEmpire house palette. */
   --se-accent: #ef4657;
@@ -22,16 +27,96 @@
   --se-accent-hover: #ff7784;
   --se-accent-rgb: 239, 70, 87;
   --se-accent-2: #d6dee8;
+  --se-on-accent: #090b0e;
 
   --se-good: #4ade80;
   --se-good-rgb: 74, 222, 128;
   --se-bad: #f33f63;
+  --se-bad-rgb: 243, 63, 99;
   --se-warn: #ff791a;
+  --se-warn-rgb: 255, 121, 26;
 
-  --se-mono: ui-monospace, "SFMono-Regular", "JetBrains Mono", "Cascadia Mono",
+  /* Semantic surfaces. Themes override the palette above, not these aliases. */
+  --se-surface-page: var(--se-bg);
+  --se-surface-panel: var(--se-panel);
+  --se-surface-raised: var(--se-panel-hi);
+  --se-border: var(--se-line);
+  --se-border-subtle: var(--se-line-soft);
+  --se-control-bg: #0d0f12;
+
+  /* Four-pixel spacing rhythm. Feature art may opt out; standard UI should not. */
+  --se-space-1: 4px;
+  --se-space-2: 8px;
+  --se-space-3: 12px;
+  --se-space-4: 16px;
+  --se-space-5: 20px;
+  --se-space-6: 24px;
+  --se-space-8: 32px;
+  --se-space-10: 40px;
+  --se-space-12: 48px;
+
+  /* Shared geometry. Keep the two legacy aliases until Slice C migration. */
+  --se-border-width: 1px;
+  --se-radius-sm: 4px;
+  --se-radius-md: 6px;
+  --se-radius-lg: 10px;
+  --se-radius-xl: 12px;
+  --se-radius: var(--se-radius-md);
+  --se-control-h-sm: 32px;
+  --se-control-h: 38px;
+  --se-control-h-lg: 44px;
+  --se-shadow: 0 18px 38px rgba(0, 0, 0, 0.36);
+  --se-shadow-soft: 0 10px 24px rgba(0, 0, 0, 0.24);
+  --se-shadow-overlay: 0 16px 64px rgba(0, 0, 0, 0.42);
+  --se-overlay-bg: rgba(0, 0, 0, 0.78);
+  --se-overlay-mix: #000;
+  --se-item-surface: #101318;
+  --se-item-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.6), inset 0 -12px 18px rgba(0, 0, 0, 0.35);
+  --se-focus: 0 0 0 2px rgba(var(--se-accent-rgb), 0.22);
+
+  /* Type scale used by shared chrome. Display art may use fluid sizes. */
+  --se-type-xs: 10px;
+  --se-type-sm: 12px;
+  --se-type-body: 14px;
+  --se-type-lg: 18px;
+  --se-type-title: 22px;
+
+  --se-motion-fast: 120ms;
+  --se-motion-standard: 150ms;
+  --se-motion-slow: 400ms;
+  --se-ease-standard: ease;
+
+  /* Shell dimensions and named elevation scale. */
+  --se-shell-sidebar-w: 232px;
+  --se-shell-topbar-h: 58px;
+  --se-shell-tabbar-h: 60px;
+  --se-shell-content-max: 1320px;
+  --se-content-gutter-phone: 10px;
+  --se-content-gutter-tablet: 16px;
+  --se-content-gutter-narrow-desktop: 20px;
+  --se-content-gutter-desktop: 28px;
+  --se-shell-content-bottom: 64px;
+  --se-safe-top: env(safe-area-inset-top, 0px);
+  --se-safe-right: env(safe-area-inset-right, 0px);
+  --se-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --se-safe-left: env(safe-area-inset-left, 0px);
+  --se-mobile-nav-offset: calc(var(--se-shell-tabbar-h) + var(--se-safe-bottom));
+  --se-mobile-sticky-offset: calc(var(--se-mobile-nav-offset) + var(--se-space-2));
+  --se-layer-dock: 30;
+  --se-layer-help: 40;
+  --se-layer-sidebar: 60;
+  --se-layer-topbar: 70;
+  --se-layer-dialog: 80;
+  --se-layer-menu: 90;
+  --se-layer-cinema: 220;
+  --se-layer-skip: 1000;
+
+  /* Bundled faces (fonts.css) first, then each platform's closest system font. */
+  --se-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", "Cascadia Mono",
     Menlo, Consolas, monospace;
-  --se-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+  --se-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
+  --se-display: "Barlow Condensed", Impact, "Arial Narrow", var(--se-sans);
 }
 
 * {
@@ -52,7 +137,7 @@ body {
   background-attachment: fixed;
   color: var(--se-text);
   font-family: var(--se-sans);
-  font-size: 14px;
+  font-size: var(--se-type-body);
   line-height: 1.45;
   -webkit-font-smoothing: antialiased;
 }
@@ -75,6 +160,7 @@ body {
 }
 
 .se-display {
+  font-family: var(--se-display);
   font-weight: 900;
   letter-spacing: 0;
   line-height: 0.95;
@@ -284,13 +370,13 @@ body {
 .se-btn--primary {
   background: var(--se-accent);
   border-color: var(--se-accent);
-  color: #0b0c0e;
+  color: var(--se-on-accent);
 }
 
 .se-btn--primary:hover:not(:disabled) {
   background: var(--se-accent-hover);
   border-color: var(--se-accent-hover);
-  color: #0b0c0e;
+  color: var(--se-on-accent);
 }
 
 /* A faded accent fill still read as a live button; an off primary drops the fill instead. */
@@ -394,7 +480,7 @@ body {
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--se-muted);
+  color: var(--se-text-dim);
   margin-bottom: 5px;
 }
 
@@ -461,148 +547,148 @@ body {
   background-attachment: fixed;
 }
 
-.se-site-accent--default {
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--default {
   --se-accent: #ef4657;
   --se-accent-dim: #b72e3d;
   --se-accent-hover: #ff7784;
   --se-accent-rgb: 239, 70, 87;
 }
 /* Retired in 1.8.0-L: the house accent is crimson now, so a saved "crimson" renders as the default. */
-.se-site-accent--crimson {
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--crimson {
   --se-accent: #ef4657;
   --se-accent-dim: #b72e3d;
   --se-accent-hover: #ff7784;
   --se-accent-rgb: 239, 70, 87;
 }
-.se-site-accent--gold {
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--gold {
   --se-accent: #f1b622;
   --se-accent-dim: #bf911d;
   --se-accent-hover: #fbd460;
   --se-accent-rgb: 241, 182, 34;
 }
-.se-site-accent--green {
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--green {
   --se-accent: #4ade80;
   --se-accent-dim: #2f9d5d;
   --se-accent-hover: #72e79d;
   --se-accent-rgb: 74, 222, 128;
 }
-.se-site-accent--blue {
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--blue {
   --se-accent: #6899f3;
   --se-accent-dim: #4c70b1;
   --se-accent-hover: #95b8f7;
   --se-accent-rgb: 104, 153, 243;
 }
-.se-site-accent--purple {
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--purple {
   --se-accent: #e576e1;
   --se-accent-dim: #a756a4;
   --se-accent-hover: #ed9fea;
   --se-accent-rgb: 229, 118, 225;
 }
-.se-site-accent--ghost-violet {
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--ghost-violet {
   --se-accent: #a78bfa;
   --se-accent-dim: #715cc0;
   --se-accent-hover: #c4b5fd;
   --se-accent-rgb: 167, 139, 250;
 }
-.se-site-accent--top-shelf-teal {
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--top-shelf-teal {
   --se-accent: #2dd4bf;
   --se-accent-dim: #1d9789;
   --se-accent-hover: #5eead4;
   --se-accent-rgb: 45, 212, 191;
 }
-.se-site-accent--enforcer-red {
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--enforcer-red {
   --se-accent: #f93a24;
   --se-accent-dim: #b62a1a;
   --se-accent-hover: #fb7566;
   --se-accent-rgb: 249, 58, 36;
 }
-.se-site-accent--open-road-blue {
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--open-road-blue {
   --se-accent: #38bdf8;
   --se-accent-dim: #2388b4;
   --se-accent-hover: #7dd3fc;
   --se-accent-rgb: 56, 189, 248;
 }
-.se-site-accent--clean-slate-ice {
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--clean-slate-ice {
   --se-accent: #a5f3fc;
   --se-accent-dim: #65bac4;
   --se-accent-hover: #cffafe;
   --se-accent-rgb: 165, 243, 252;
 }
-.se-site-accent--corner-amber {
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--corner-amber {
   --se-accent: #f58514;
   --se-accent-dim: #b3610f;
   --se-accent-hover: #f8aa5a;
   --se-accent-rgb: 245, 133, 20;
 }
-.se-site-accent--velvet-rose {
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--velvet-rose {
   --se-accent: #e0607e;
   --se-accent-dim: #a8435c;
   --se-accent-hover: #ec8ea4;
   --se-accent-rgb: 224, 96, 126;
 }
 /* 1.4.0-F faction accents, earned at Connected. */
-.se-site-accent--kings-gold {
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--kings-gold {
   --se-accent: #f2c14e;
   --se-accent-dim: #b38d32;
   --se-accent-hover: #f7d77f;
   --se-accent-rgb: 242, 193, 78;
 }
-.se-site-accent--outfit-oxblood {
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--outfit-oxblood {
   --se-accent: #c2410c;
   --se-accent-dim: #8a2e09;
   --se-accent-hover: #df6a3a;
   --se-accent-rgb: 194, 65, 12;
 }
-.se-site-accent--saints-chrome {
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--saints-chrome {
   --se-accent: #cbd5e1;
   --se-accent-dim: #94a3b8;
   --se-accent-hover: #e2e8f0;
   --se-accent-rgb: 203, 213, 225;
 }
-.se-site-accent--cartel-jade {
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--cartel-jade {
   --se-accent: #10b981;
   --se-accent-dim: #0b8460;
   --se-accent-hover: #4fd3a5;
   --se-accent-rgb: 16, 185, 129;
 }
-.se-site-accent--civic-seal {
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--civic-seal {
   --se-accent: #818cf8;
   --se-accent-dim: #5b63c4;
   --se-accent-hover: #a5adfb;
   --se-accent-rgb: 129, 140, 248;
 }
 /* 1.8.0-L quest accents. */
-.se-site-accent--original-neon {
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--original-neon {
   --se-accent: #b6ff3a;
   --se-accent-dim: #7fb028;
   --se-accent-hover: #c9ff63;
   --se-accent-rgb: 182, 255, 58;
 }
-.se-site-accent--neon-sign-pink {
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--neon-sign-pink {
   --se-accent: #ff2ec4;
   --se-accent-dim: #b8208d;
   --se-accent-hover: #ff70d8;
   --se-accent-rgb: 255, 46, 196;
 }
-.se-site-accent--gavel-bronze {
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--gavel-bronze {
   --se-accent: #cf9a5c;
   --se-accent-dim: #94693b;
   --se-accent-hover: #e0b886;
   --se-accent-rgb: 207, 154, 92;
 }
-.se-site-accent--clean-books-ivory {
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--clean-books-ivory {
   --se-accent: #efe6d2;
   --se-accent-dim: #b3a98f;
   --se-accent-hover: #faf5ea;
   --se-accent-rgb: 239, 230, 210;
 }
-.se-site-accent--sunset-coral {
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--sunset-coral {
   --se-accent: #ff8a70;
   --se-accent-dim: #c2634f;
   --se-accent-hover: #ffad9b;
   --se-accent-rgb: 255, 138, 112;
 }
-.se-site-accent--night-map-plum {
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--night-map-plum {
   --se-accent: #b45cff;
   --se-accent-dim: #8240bd;
   --se-accent-hover: #cb8dff;
@@ -690,7 +776,7 @@ body {
 .se-shell {
   max-width: 1120px;
   margin: 0 auto;
-  padding: 20px 16px 64px;
+  padding: 20px var(--se-content-gutter-tablet) var(--se-shell-content-bottom);
 }
 
 .se-authshell {
@@ -2058,7 +2144,7 @@ a:hover { color: var(--se-accent-hover); }
 .se-tag {
   display: inline-flex;
   align-items: center;
-  min-height: 20px;
+  min-height: 24px;
   padding: 2px 7px;
   border: 1px solid var(--se-line);
   border-radius: 999px;
@@ -2067,6 +2153,17 @@ a:hover { color: var(--se-accent-hover); }
   font-size: 10px;
   font-weight: 800;
   text-transform: uppercase;
+}
+
+/* Filter pills are buttons in several game pages. Give them the same forgiving
+   hit area as the rest of the mobile command surface without making passive
+   status tags consume extra space. */
+@media (pointer: coarse) {
+  button.se-tag {
+    min-height: 44px;
+    padding-inline: 12px;
+    cursor: pointer;
+  }
 }
 .se-tag--good {
   border-color: rgba(var(--se-good-rgb), 0.42);
@@ -3208,6 +3305,13 @@ a:hover { color: var(--se-accent-hover); }
   min-width: 0;
 }
 
+.se-auth-providers {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+  min-width: 0;
+}
+
 .se-account-column {
   display: grid;
   gap: 14px;
@@ -4267,9 +4371,19 @@ button.se-notification-empty:hover { color: var(--se-text); }
 }
 
 .se-tour__scrim {
-  position: absolute;
+  position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+}
+
+.se-tour__scrim--full {
+  background: color-mix(in srgb, var(--se-overlay-mix) 45%, transparent);
+}
+
+.se-tour__scrim-pane {
+  position: absolute;
+  display: block;
+  background: color-mix(in srgb, var(--se-overlay-mix) 45%, transparent);
 }
 
 .se-tour__spotlight {
@@ -4277,6 +4391,16 @@ button.se-notification-empty:hover { color: var(--se-text); }
   border: 2px solid var(--se-accent);
   border-radius: 8px;
   box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
+}
+
+/* When a page renders several copies of the guided action, only the first
+   highlighted copy may be used. The remaining copies stay visible but gray so
+   the tour cannot accidentally accept a second job. */
+.se-tour__page-target--blocked {
+  opacity: .45;
+  filter: grayscale(1);
+  pointer-events: none !important;
+  cursor: not-allowed;
 }
 
 .se-tour__card {
@@ -4293,9 +4417,16 @@ button.se-notification-empty:hover { color: var(--se-text); }
 
 .se-tour__card--fallback {
   position: fixed;
-  inset: auto 8px calc(8px + env(safe-area-inset-bottom, 0px)) 8px;
-  width: auto;
+  right: auto;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  left: 50%;
+  width: min(380px, calc(100vw - 24px));
+  padding: 14px;
+  transform: translateX(-50%);
 }
+
+.se-tour__card--fallback h2 { font-size: 18px; }
+.se-tour__card--fallback p { font-size: .88rem; line-height: 1.4; }
 
 .se-tour__card h2 {
   margin: 4px 0 8px;
@@ -4338,11 +4469,111 @@ button.se-notification-empty:hover { color: var(--se-text); }
   align-items: center;
 }
 
+.se-link-button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--se-accent);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.se-tour-tracker {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--se-line);
+  border-left: 3px solid var(--se-accent);
+  border-radius: 8px;
+  background: var(--se-panel);
+}
+
+.se-tour-tracker__progress {
+  min-width: 0;
+}
+
+.se-tour-tracker__progress strong,
+.se-tour-tracker__progress span {
+  display: block;
+}
+
+.se-tour-tracker__progress strong {
+  margin: 2px 0 3px;
+}
+
+.se-tour-tracker__progress span {
+  color: var(--se-muted);
+  font-size: 13px;
+}
+
+.se-tour-tracker__progress .se-tour-tracker__feedback {
+  margin-top: 6px;
+  color: var(--se-good, var(--se-accent));
+  font-weight: 700;
+}
+
+.se-tour-tracker__actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.se-tour-tracker--paused {
+  border-left-color: var(--se-muted);
+}
+
+.se-tour-offer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin: 0 0 18px;
+  padding: 16px 18px;
+  border: 1px solid var(--se-line);
+  border-radius: 14px;
+  background: linear-gradient(120deg, color-mix(in srgb, var(--se-accent) 12%, var(--se-panel)), var(--se-panel));
+}
+.se-tour-offer h2 { margin: 2px 0 4px; font-size: 1.05rem; }
+.se-tour-offer p { margin: 4px 0 0; color: var(--se-muted); font-size: .82rem; line-height: 1.45; }
+.se-tour-offer .se-tour__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.se-tour-offer--recap { align-items: center; }
+.se-tour-offer--recap .se-street-sign-display { margin: 10px 0 0; padding: 0; }
+@media (max-width: 640px) {
+  .se-tour-offer { align-items: stretch; flex-direction: column; gap: 12px; }
+  .se-tour-offer .se-tour__actions { justify-content: flex-start; }
+}
+
+@media (max-width: 640px) {
+  .se-tour-tracker {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .se-tour-tracker__actions {
+    width: 100%;
+  }
+
+  .se-tour-tracker__actions .se-btn {
+    flex: 1 1 auto;
+    min-height: 42px;
+  }
+}
+
 @media (max-width: 640px) {
   .se-tour__card--anchored {
     position: fixed;
-    inset: auto 8px calc(8px + env(safe-area-inset-bottom, 0px)) 8px;
+    right: 8px;
+    bottom: auto;
     width: auto;
+    max-height: calc(100dvh - 16px);
+    overflow: auto;
   }
 }
 .se-intro-backdrop {
@@ -4578,6 +4809,45 @@ button.se-notification-empty:hover { color: var(--se-text); }
 
 .se-getting-started__steps li.is-done .se-getting-started__check {
   border-color: var(--se-accent);
+}
+
+.se-origin-careers {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--se-line);
+  display: grid;
+  gap: .75rem;
+}
+
+.se-origin-careers > div:first-child { display: grid; gap: .2rem; }
+.se-origin-careers > div:first-child small { color: var(--se-muted); }
+.se-origin-careers__grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .55rem; }
+.se-origin-career {
+  min-height: 5.25rem;
+  padding: .75rem;
+  border: 1px solid var(--se-line);
+  border-radius: 4px;
+  background: var(--se-panel);
+  color: inherit;
+  text-align: left;
+  display: grid;
+  align-content: start;
+  gap: .25rem;
+  cursor: pointer;
+}
+.se-origin-career:hover, .se-origin-career:focus-visible { border-color: var(--se-accent); }
+.se-origin-career.is-selected { border-color: var(--se-accent); box-shadow: inset 0 0 0 1px var(--se-accent); }
+.se-origin-career small { color: var(--se-muted); }
+.se-origin-careers__error { color: var(--se-danger); margin: 0; }
+
+.se-career-lens { margin: 0 0 12px; }
+
+@media (max-width: 900px) {
+  .se-origin-careers__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 520px) {
+  .se-origin-careers__grid { grid-template-columns: 1fr; }
 }
 
 /* 1.0.0-E admin operations */

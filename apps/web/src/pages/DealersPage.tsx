@@ -41,7 +41,8 @@ function EstablishPanel({ data, onDone }: { data: DealerPageDto; onDone: () => v
   const rules = data.rules!;
   const [citySlug, setCitySlug] = useState(data.cities[0]?.citySlug ?? '');
   const city = data.cities.find((entry) => entry.citySlug === citySlug) ?? data.cities[0] ?? null;
-  const open = city?.districts.filter((district) => !district.taken) ?? [];
+  const districts = city?.districts ?? [];
+  const open = districts.filter((district) => !district.taken);
   const [districtKey, setDistrictKey] = useState('');
   const district = open.find((entry) => entry.key === districtKey) ?? open[0] ?? null;
   const [count, setCount] = useState<number | ''>(Math.min(2, rules.maxDealersPerCrew));
@@ -72,7 +73,7 @@ function EstablishPanel({ data, onDone }: { data: DealerPageDto; onDone: () => v
         <div className="se-field">
           <label htmlFor="crew-district">District</label>
           <select id="crew-district" className="se-input" value={district?.key ?? ''} onChange={(event) => setDistrictKey(event.target.value)}>
-            {open.map((entry) => <option key={entry.key} value={entry.key}>{entry.name} · {trafficWord(entry.traffic)} foot traffic</option>)}
+            {districts.map((entry) => <option key={entry.key} value={entry.key} disabled={entry.taken}>{entry.name} · {trafficWord(entry.traffic)} foot traffic{entry.taken ? ' · occupied' : ''}</option>)}
           </select>
         </div>
         <div className="se-field">
@@ -285,8 +286,8 @@ export function DealersPage() {
     <GameLayout>
       <div className="se-supply">
         <EmpirePageHeader eyebrow="Supply network" title="Dealer Crews" description={data?.rules?.selling
-            ? 'Post dealers in a district where you have a foothold, stock them from storage in that city, and set the price. Working crews sell every hour on their own; the takings land in your cash after the dealers\u2019 cut and wages.'
-            : 'Post dealers in a district where you have a foothold, stock them from storage in that city, and set the price. Sales and payouts open in the next update; until then crews hold stock and show what they would sell.'} />
+            ? 'Place dealers where you hold turf, stock them, and set a price. Sales pay out hourly.'
+            : 'Dealer sales unlock in a future update. For now, crews hold stock and preview prices.'} />
         {error ? <Alert>{error}</Alert> : null}
         {data && !data.enabled ? <Alert tone="info">Dealer crews are not available in this season.</Alert> : null}
         {data?.enabled && data.rules ? (

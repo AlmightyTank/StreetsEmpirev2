@@ -1,15 +1,15 @@
 # Command Center · Dashboard-C visual QA
 
-**Status:** Dashboard-A/B/C code is on PR #279. This document describes the verification gate, not proof that beta or live has received these changes.
+**Status:** Dashboard checks are part of the game-wide UI release gate. A successful workflow is automated evidence, not proof of human beta/live approval.
 
 ## Get actual screenshots before merging
 
-The [Dashboard Visual Audit workflow](../.github/workflows/dashboard-visual-audit.yml) starts an **isolated local test API and PostgreSQL database inside GitHub Actions**, registers a disposable test player and opens the actual Dashboard in Chromium.
+The [Game UI Visual Audit workflow](../.github/workflows/game-ui-visual-audit.yml) starts an **isolated local test API and PostgreSQL database inside GitHub Actions**, registers a deterministic test player and opens the actual Dashboard and representative game routes in Chromium.
 
-- Go to the latest **Dashboard Visual Audit** run in [PR #279](https://github.com/AlmightyTank/StreetsEmpirev2/pull/279/checks).
-- Open **Artifacts** and download `command-center-visual-audit`.
-- The zip contains `shots/game-phone-360.png`, `game-phone-390.png`, `game-tablet-768.png`, `game-desktop-1024-expanded.png`, `game-desktop-1440-rail.png`, `game-desktop-1920-expanded.png`, `report.md` and `report.json`.
-- These are actual screenshots from the code, rendered in Chromium with a **newly created example player**, not from the user's account and not from the previously approved concept art.
+- Open the latest **Game UI Visual Audit** check for the pull request.
+- Download both `game-ui-visual-audit-*` artifacts; routes are split into isolated shards.
+- Each artifact contains route/viewport images under `shots/` plus `report.md` and `report.json`.
+- These are actual screenshots from the code, rendered in Chromium with a deterministic test player, fixed clock, reduced motion and controlled presentation—not from a real player's account or concept art.
 - The automated gate checks the order and presence of story, alerts, stats, actions and crew/supply/turf summaries; six KPI/action tiles; two-column action deck on phones; 44px primary touch targets; layout overflow, keyboard focus, browser errors and accessibility issues.
 - A failing audit still uploads any screenshots and diagnostic report already produced so the issue can be corrected.
 
@@ -36,4 +36,4 @@ If local player registration is disabled, set `UI_AUDIT_PLAYER` to an existing *
 - [ ] Keyboard focus is visible, summary elements are operable, heading hierarchy is logical, card actions are reachable
 - [ ] Typecheck, unit tests, integration and production build pass on the final PR head
 
-**Release policy:** Keep PR #279 out of beta and live until the visual audit artifacts and UI checks have been reviewed. The visual audit uses a test database and does not deploy any game code.
+**Release policy:** Keep a visual change out of live until the visual-audit artifacts and UI checks have been reviewed. The audit uses an isolated test database and does not deploy game code. See [the 2.0 visual release gate](UI-VISUAL-QA-RELEASE-GATE.md).

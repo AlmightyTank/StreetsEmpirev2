@@ -20,7 +20,10 @@ import { LawOfficialService } from './services/law-official.service.js';
 import { PlayerStateService } from './services/player-state.service.js';
 import { refreshSportsbookCache } from './services/sportsbook-feed.service.js';
 import { SportsbookService } from './services/sportsbook.service.js';
+import { BirthdayService } from './services/birthday.service.js';
 import { SupporterDropService } from './services/supporter-drop.service.js';
+import { EventLifecycleService } from './services/event-lifecycle.service.js';
+import { DoubleXpWeekendService } from './services/double-xp-weekend.service.js';
 
 const app = await buildApp();
 
@@ -39,6 +42,15 @@ try {
   if (purgedSessions > 0) app.log.info(`purged ${purgedSessions} expired session(s)`);
   if (purgedActions > 0) app.log.info(`purged ${purgedActions} expired action(s)`);
 
+  // Recover durable event windows before accepting requests. This promotes events whose start
+  // passed during downtime and confirms already-active occurrences remain in progress.
+  const eventRecovery = await EventLifecycleService.sweep(app.prisma, new Date());
+  if (eventRecovery.activated || eventRecovery.expired || eventRecovery.resumed) {
+    app.log.info({ eventRecovery }, 'event lifecycle recovered');
+  }
+
+  await DoubleXpWeekendService.sweep(app.prisma, new Date());
+
   await app.listen({ host: env.HOST, port: env.PORT });
 } catch (error) {
   app.log.error(error);
@@ -51,22 +63,40 @@ const stopTurfWars = startPoller('Turf wars', 60_000, async () => {
 }, (message, error) => app.log.error(error, message));
 
 // 1.8.0-A/C: player requests read the shared pregame cache and never call a provider. Provider
-// snapshots are persisted in .runtime/sportsbook-odds.json with a hard 30-minute refresh window;
-// the database lease and interval keep concurrent instances from spending datapoints.
-const sportsbookKeys = { therundown: env.THERUNDOWN_API_KEY, theoddsapi: env.THE_ODDS_API_KEY };
-const stopSportsbook = Object.values(sportsbookKeys).some(Boolean)
-  ? startPoller('Sportsbook odds cache', env.SPORTSBOOK_POLL_MINUTES * 60_000, async () => {
-      const result = await refreshSportsbookCache(app.prisma, sportsbookKeys, new Date(), {
-        minIntervalMs: Math.max(0, env.SPORTSBOOK_POLL_MINUTES * 60_000 - 60_000),
-      });
-      if (result.errors.length || result.warnings.length) app.log.warn({ sportsbook: result }, 'Sportsbook feed run finished with issues');
-    }, (message, error) => app.log.error(error, message))
-  : () => {};
+// snapshots are persisted in .runtime/sportsbook-odds.json with a hard 30-minute normal
+// refresh window. A 15-minute scheduler tick can recover failed leagues from another provider;
+// the database lease and per-provider cooldowns bound provider usage.
+const stopSportsbook = startPoller('Sportsbook odds cache', 15 * 60_000, async () => {
+  const result = await refreshSportsbookCache(app.prisma, { internal: 'internal' }, new Date(), {
+    normalIntervalMs: env.SPORTSBOOK_POLL_MINUTES * 60_000,
+  });
+  if (result.errors.length || result.warnings.length) app.log.warn({ sportsbook: result }, 'Sportsbook feed run finished with issues');
+}, (message, error) => app.log.error(error, message));
 
 // Monthly supporter drops: once a month starts, everyone supporting gets its drop within the hour.
 const stopSupporterDrops = startPoller('Supporter drops', 60 * 60_000, async () => {
   const result = await SupporterDropService.sweep(app.prisma, new Date());
   if (result.granted) app.log.info({ supporterDrop: result }, 'Supporter drop given out');
+}, (message, error) => app.log.error(error, message));
+
+// Birthdays: the day-only frame and theme come off within the hour after the day ends.
+const stopBirthdays = startPoller('Birthday looks', 60 * 60_000, async () => {
+  const result = await BirthdayService.sweep(app.prisma, new Date());
+  if (result.cleared) app.log.info({ birthdayLooks: result }, 'Birthday looks taken off');
+}, (message, error) => app.log.error(error, message));
+
+// Scheduled events advance without waiting for a player to open the Events center. The first
+// reconciliation already ran before listen; this keeps later windows moving on their own.
+const stopEvents = startPoller('Event lifecycle', 60_000, async () => {
+  const result = await EventLifecycleService.sweep(app.prisma, new Date());
+  if (result.activated || result.expired) app.log.info({ eventLifecycle: result }, 'event lifecycle advanced');
+}, (message, error) => app.log.error(error, message));
+
+// Select and schedule one persisted Double XP Weekend for each month. Keeping next month
+// ready lets a first-weekend announcement go out on the preceding Monday.
+const stopDoubleXpWeekends = startPoller('Double XP weekends', 60 * 60_000, async () => {
+  const result = await DoubleXpWeekendService.sweep(app.prisma, new Date());
+  if (result.created) app.log.info({ doubleXpWeekends: result }, 'Double XP weekend schedule updated');
 }, (message, error) => app.log.error(error, message));
 
 // Alerts: collect what is due, then send push. The Discord bot also collects before it claims.
@@ -112,6 +142,9 @@ for (const signal of ['SIGINT', 'SIGTERM'] as const) {
     stopAlerts();
     stopSportsbook();
     stopSupporterDrops();
+    stopBirthdays();
+    stopEvents();
+    stopDoubleXpWeekends();
     stopTurfWars();
     await app.close();
     process.exit(0);

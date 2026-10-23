@@ -73,6 +73,9 @@ the bot after news is created; the bot also checks for newly published game
 news every `DISCORD_NEWS_MINUTES` (default 1) and posts each item to that
 channel once.
 - In an Announcement channel, it also publishes the post to following servers.
+- **Patch notes** (titles beginning `Patch notes`, including `Patch notes for 2.2.0`) ping **Game Updates**. **All other published news** pings **News Updates**. These are role-only pings, not `@everyone` or user mentions.
+- Create Discord roles named exactly **Game Updates** and **News Updates**. For custom names, set `DISCORD_GAME_UPDATES_ROLE_ID` and `DISCORD_NEWS_UPDATES_ROLE_ID` in the bot's root `.env` to their numerical role IDs. Role IDs take precedence over names; restart the bot after changing roles or IDs.
+- Give the bot permission to mention these roles (either make the roles mentionable or grant the bot **Mention @everyone, @here, and All Roles**). All automated pings are still restricted to the specific configured role.
 - News that already existed when auto-posting was added is never posted.
 - Patch notes post as a normal message titled `Patch notes for <version>`
   (MAJOR.MINOR.PATCH, from the app version). Other news still posts as an embed.
@@ -145,18 +148,24 @@ channel once.
   down. It stays quiet for up to 20 minutes after posting that an update started,
   since restarts are expected then. A bot restart mid-outage forgets its post, so
   it posts the recovery as a new message.
+- Every new status post (deploy started, planned maintenance or an outage) pings **Server Updates**; edits to the same post at deploy completion or outage recovery do not send a second ping. Create a role named exactly **Server Updates**, or set `DISCORD_SERVER_UPDATES_ROLE_ID` to the role ID. Apply the same mention permission described above.
 - Make it a read-only channel members can see. The bot needs **View Channel**,
   **Send Messages**, **Embed Links** and **Read Message History** there.
 
 **Presence.** The bot rotates its activity every `DISCORD_PRESENCE_MINUTES`
-(default 5; `0` turns it off). Every other card is **Playing StreetsEmpire**
-with `play at <your game host>` as its state — bot presences can't carry a
-clickable link or button, so the host text is the play link. The rest is street
-flavor mixed with live round data: `Watching 42 hustlers on the block`,
-`Competing turf wars`, `Watching the block / Wiping the block out`,
-`Listening /help`, and a final-day countdown when the round has 3 or fewer
-days left. A down game API falls back to the static list instead of clearing
-presence.
+(default 5; `0` turns it off). One **Streaming StreetsEmpire LIVE** card is
+clickable and opens `DISCORD_STREAM_URL` (Twitch or YouTube). The rest are
+plain custom statuses promoting new features, cosmetic drops, and the
+cosmetic-only Supporter page. The bot also reads anonymous current-round facts
+from the protected game API: recent jackpot size, aggregate open Sportsbook
+action, recent raid loot, and recent scouting results. No player identity or ID
+is returned. When no fact is available—or either API request fails—the bot uses
+the corresponding static prompt while retaining any round data that did load.
+On an `APP_ENV=beta` deployment, this production rotation is replaced entirely
+by beta-only custom statuses about testing features, finding bugs, feedback,
+upcoming cosmetics, plus the same live player-count and current-round cards used
+in production. The bot does not request production activity highlights in this
+mode.
 
 **Moderation from the game.** The admin account page's **Community** panel
 shows a linked player's Discord status (in the server, display name, any timeout)
@@ -198,7 +207,9 @@ You can reuse the application you already use for Discord login
 1. **Bot** tab: click **Reset Token** and copy it. This is `DISCORD_BOT_TOKEN`.
    Treat it like a password.
 2. On the same tab, under **Privileged Gateway Intents**, turn on **Server
-   Members Intent** and save. Role sync can't list members without it.
+   Members Intent** and **Message Content Intent**, then save. Role sync can't
+   list members without the first, and the optional message safety net needs the
+   second.
 3. Invite the bot with this URL, using your application ID. The permissions
    requested are **Manage Roles** and **Moderate Members** (for timeouts from the
    admin account page; leave it off and timeouts say what is missing):
@@ -242,6 +253,9 @@ DISCORD_BOT_PUSH_TIMEOUT_MS=2000
 DISCORD_BOT_TOKEN="<bot token>"
 DISCORD_CLIENT_ID="<application id>"
 DISCORD_GUILD_ID="<server id>"
+# Optional contextual hate-speech safety net; Discord AutoMod remains the pre-send filter.
+OPENAI_MODERATION_API_KEY="<OpenAI API key, or empty to disable>"
+OPENAI_MODERATION_TIMEOUT_MS=1500
 GAME_API_URL="http://127.0.0.1:3001"
 DISCORD_BOT_LISTEN_HOST="127.0.0.1"
 DISCORD_BOT_LISTEN_PORT=3002
@@ -258,6 +272,7 @@ DISCORD_STATUS_CHANNEL_ID="<public status channel id, or empty for no status pos
 DISCORD_OUTAGE_MINUTES=3
 DISCORD_ALERTS_MINUTES=1
 DISCORD_PRESENCE_MINUTES=5
+DISCORD_STREAM_URL="https://twitch.tv/amightytank"
 ```
 
 - `GAME_API_URL` is where the bot reaches the API, as an origin with no path.
@@ -267,6 +282,10 @@ DISCORD_PRESENCE_MINUTES=5
   listens on `DISCORD_BOT_LISTEN_HOST` and `DISCORD_BOT_LISTEN_PORT`; set the
   port to `0` to disable the listener and rely on polling only.
 - `FRONTEND_ORIGIN` is only used for links in replies.
+- `OPENAI_MODERATION_API_KEY` enables a post-send check using
+  `omni-moderation-latest`; hate and threatening-hate messages are deleted.
+  Provider failures fail open. For true pre-send blocking, configure keyword
+  rules under Discord **Server Settings → AutoMod** as well.
 - `DISCORD_FORUM_GROUPS` lists which forum groups get a "Forum <group>" role.
   Names match the forum's group names, ignoring case. Leave it empty for none.
   Forum roles need forum linking (`FORUM_LINK_SECRET`) turned on.

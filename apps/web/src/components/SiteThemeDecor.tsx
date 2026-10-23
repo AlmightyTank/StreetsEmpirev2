@@ -109,6 +109,33 @@ const themeScenes: Partial<Record<string, ComponentType>> = {
   'casino-floor': lazy(() => import('./theme-scenes/GildedHouseScene.js')),
   'federal-case': lazy(() => import('./theme-scenes/DeadOrAliveScene.js')),
   'midnight-market': lazy(() => import('./theme-scenes/LaurelAscendantScene.js')),
+  // Birthdays: worn on the day only.
+  'birthday-shell': lazy(() => import('./theme-scenes/BirthdayScene.js')),
+  // The Drop shells.
+  'kingpin-luxe-shell': lazy(() => import('./theme-scenes/KingpinLuxeScene.js')),
+  'neon-underworld-shell': lazy(() => import('./theme-scenes/NeonUnderworldScene.js')),
+  'winter-heist-shell': lazy(() => import('./theme-scenes/WinterHeistScene.js')),
+  'biscayne-sunset-shell': lazy(() => import('./theme-scenes/BiscayneSunsetScene.js')),
+  'velvet-speakeasy-shell': lazy(() => import('./theme-scenes/VelvetSpeakeasyScene.js')),
+  'platinum-funk-shell': lazy(() => import('./theme-scenes/PlatinumFunkScene.js')),
+  'redline-syndicate-shell': lazy(() => import('./theme-scenes/RedlineSyndicateScene.js')),
+  'wet-paint-shell': lazy(() => import('./theme-scenes/WetPaintScene.js')),
+  'hazard-cook-shell': lazy(() => import('./theme-scenes/HazardCookScene.js')),
+  'dockside-shell': lazy(() => import('./theme-scenes/DocksideScene.js')),
+  'crown-jewels-shell': lazy(() => import('./theme-scenes/CrownJewelsScene.js')),
+  'bayou-smoke-shell': lazy(() => import('./theme-scenes/BayouSmokeScene.js')),
+  'desert-mirage-shell': lazy(() => import('./theme-scenes/DesertMirageScene.js')),
+  'rewind-shell': lazy(() => import('./theme-scenes/RewindScene.js')),
+  'snake-eyes-shell': lazy(() => import('./theme-scenes/SnakeEyesScene.js')),
+  'quarter-mile-shell': lazy(() => import('./theme-scenes/QuarterMileScene.js')),
+  '88-club-shell': lazy(() => import('./theme-scenes/EightyEightClubScene.js')),
+  'swamp-kingdom-shell': lazy(() => import('./theme-scenes/SwampKingdomScene.js')),
+  'zombie-apocalypse-shell': lazy(() => import('./theme-scenes/ZombieApocalypseScene.js')),
+  'iron-front-shell': lazy(() => import('./theme-scenes/IronFrontScene.js')),
+  'graveyard-shift-shell': lazy(() => import('./theme-scenes/GraveyardShiftScene.js')),
+  'naughty-list-shell': lazy(() => import('./theme-scenes/NaughtyListScene.js')),
+  'heartbreaker-shell': lazy(() => import('./theme-scenes/HeartbreakerScene.js')),
+  'block-party-shell': lazy(() => import('./theme-scenes/BlockPartyScene.js')),
 };
 
 function ThemeSceneAtmosphere({ themeKey, Scene }: { themeKey: string; Scene: ComponentType }) {

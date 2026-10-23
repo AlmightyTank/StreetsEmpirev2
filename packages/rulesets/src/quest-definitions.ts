@@ -281,6 +281,26 @@ export function questDefinitionProblems(catalog: QuestDefinitionCatalog): string
           problems.push(`${catalogKey}: CONTACT_REP_AT_LEAST requires positive points`);
         }
       }
+      if (prerequisite.kind === 'TIME_SINCE_JOIN') {
+        const minutes = prerequisite.params?.minutes;
+        if (!Number.isSafeInteger(minutes) || (minutes as number) <= 0) {
+          problems.push(`${catalogKey}: TIME_SINCE_JOIN requires positive whole minutes`);
+        }
+      }
+      if (prerequisite.kind === 'ACTION_COUNT') {
+        const eventTypes = prerequisite.params?.eventTypes;
+        const count = prerequisite.params?.count;
+        const label = prerequisite.params?.label;
+        if (!nonEmptyStrings(eventTypes)) {
+          problems.push(`${catalogKey}: ACTION_COUNT requires a non-empty eventTypes string array`);
+        }
+        if (!Number.isSafeInteger(count) || (count as number) <= 0) {
+          problems.push(`${catalogKey}: ACTION_COUNT requires positive whole count`);
+        }
+        if (label !== undefined && (typeof label !== 'string' || !label.trim())) {
+          problems.push(`${catalogKey}: ACTION_COUNT label must be a non-empty string`);
+        }
+      }
       if (prerequisite.kind === 'FACTION_STANDING_AT_LEAST' || prerequisite.kind === 'FACTION_STANDING_BELOW') {
         const factionKey = prerequisite.params?.factionKey;
         const tier = prerequisite.params?.tier;
@@ -439,6 +459,40 @@ export function questDefinitionProblems(catalog: QuestDefinitionCatalog): string
       followUps.add(key);
     }
   }
+
+  // Follow-ups form a directed questline graph. A self-loop is reported above;
+  // this catches longer cycles that would otherwise make a questline loop forever.
+  const visiting = new Set<string>();
+  const visited = new Set<string>();
+  const reportedCycles = new Set<string>();
+  const path: string[] = [];
+
+  const visit = (key: string): void => {
+    if (visiting.has(key)) {
+      const cycleStart = path.indexOf(key);
+      const cycle = path.slice(cycleStart);
+      if (cycle.length > 1) {
+        const cycleKey = [...cycle].sort().join('|');
+        if (!reportedCycles.has(cycleKey)) {
+          reportedCycles.add(cycleKey);
+          problems.push(`${key}: follow-up cycle ${[...cycle, key].join(' -> ')}`);
+        }
+      }
+      return;
+    }
+    if (visited.has(key)) return;
+
+    visiting.add(key);
+    path.push(key);
+    for (const followUpKey of catalog[key]?.followUpKeys ?? []) {
+      if (followUpKey in catalog) visit(followUpKey);
+    }
+    path.pop();
+    visiting.delete(key);
+    visited.add(key);
+  };
+
+  for (const key of Object.keys(catalog)) visit(key);
 
   return problems;
 }

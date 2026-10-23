@@ -2,6 +2,8 @@ import { z } from 'zod';
 import { isValidTimeZone, NOTIFICATION_CATEGORIES } from '../notifications.js';
 import { collectionCovers, CUSTOMIZABLE_ITEM_KEYS, isFullCollectionStyle, isReleasedItemCosmeticStyle, styleFitsItem } from '../cosmetics.js';
 import { avatarPartsSchema } from '../avatar-builder.js';
+import { MINIMUM_AGE } from '../rules-agreement.js';
+import { streetSignInputSchema } from '../street-sign.js';
 
 export const USERNAME_MIN = 3;
 export const USERNAME_MAX = 20;
@@ -86,12 +88,45 @@ export const passwordSchema = z
   .min(PASSWORD_MIN, `Password must be at least ${PASSWORD_MIN} characters.`)
   .max(PASSWORD_MAX, `Password must be ${PASSWORD_MAX} characters or fewer.`);
 
+/** Latest birthday eligible for play, computed using the same UTC calendar as validation. */
+export function latestEligibleBirthDate(now = new Date()): string {
+  return `${now.getUTCFullYear() - MINIMUM_AGE}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-${String(now.getUTCDate()).padStart(2, '0')}`;
+}
+
+/** A private calendar date. Use UTC date-only comparisons to avoid timezone birthday shifts. */
+export const birthDateSchema = z.string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Enter your birthday as YYYY-MM-DD.')
+  .superRefine((value, context) => {
+    const birthDate = new Date(`${value}T00:00:00.000Z`);
+    if (Number.isNaN(birthDate.getTime()) || birthDate.toISOString().slice(0, 10) !== value) {
+      context.addIssue({ code: z.ZodIssueCode.custom, message: 'Enter a real calendar date.' });
+      return;
+    }
+    const today = new Date();
+    const years = today.getUTCFullYear() - birthDate.getUTCFullYear()
+      - (today.getUTCMonth() < birthDate.getUTCMonth()
+        || (today.getUTCMonth() === birthDate.getUTCMonth() && today.getUTCDate() < birthDate.getUTCDate()) ? 1 : 0);
+    if (years < MINIMUM_AGE) {
+      context.addIssue({ code: z.ZodIssueCode.custom, message: `You must be at least ${MINIMUM_AGE} to create an account.` });
+    } else if (years > 130) {
+      context.addIssue({ code: z.ZodIssueCode.custom, message: 'Check the year you entered.' });
+    }
+  });
+
+/** Old API clients can finish birthday collection immediately after signing in.
+ * The web registration form requires this field. */
+export const birthDateUpdateSchema = z.object({ birthDate: birthDateSchema }).strict();
+export type BirthDateUpdateInput = z.infer<typeof birthDateUpdateSchema>;
+
 export const registerSchema = z.object({
   username: usernameSchema,
   email: emailSchema,
   password: passwordSchema,
-  /** rc.5. "I am 13 or older" (the rules agreement asks every player again before play). */
-  ageConfirmed: z.boolean().optional(),
+  birthDate: birthDateSchema.optional(),
+  /** Required age declaration; the rules agreement asks every player again before play. */
+  ageConfirmed: z.boolean().refine((confirmed) => confirmed, {
+    message: `Confirm you are ${MINIMUM_AGE} or older.`,
+  }),
   /** rc.5. Cloudflare Turnstile token, when bot checks are switched on. */
   captchaToken: z.string().max(4096).optional(),
 });
@@ -160,6 +195,37 @@ export const profileAccentSchema = z.enum([
   'night-map-plum',
   // Supporter cosmetic-only banner/profile accent.
   'supporter-crimson',
+  // The Drop accents, bought with Crowns.
+  'luxe-lacquer',
+  'signal-red',
+  'underworld-violet',
+  'heist-frost',
+  'biscayne-flamingo',
+  'speakeasy-merlot',
+  'funk-tangerine',
+  'redline-red',
+  'wet-paint-mint',
+  'hazard-yellow',
+  'dockside-harbor',
+  'jewel-sapphire',
+  'bayou-firefly',
+  'mirage-turquoise',
+  'rewind-magenta',
+  'felt-green',
+  'nitrous-blue',
+  'flux-blue',
+  'swamp-moss',
+  'quarantine-orange',
+  'ghost-green',
+  'candy-red',
+  'heartbreak-rose',
+  'block-party-mango',
+  'money-green',
+  'blood-orange',
+  'steel-silver',
+  'cobalt-blue',
+  'bubblegum-pink',
+  'mustard-yellow',
 ]);
 export const CREW_NAME_MIN = 3;
 export const CREW_NAME_MAX = 32;
@@ -199,6 +265,7 @@ export const profileEffectSchema = z.enum([
   'snowstorm',
   'inferno',
   'midnight-chrome',
+  'obsidian-signal',
 ]);
 
 /** Signature Profile Card surface finish (supporter card only). */
@@ -234,9 +301,116 @@ export const itemCosmeticStyleSchema = z.enum([
   'urban-ghost',
   'cartel-gold',
   'midnight-chrome',
+  'obsidian-signal-crew',
   'eight-bit',
   'time-machine',
   'blue-sky',
+  'holiday-road',
+  'kingpin-luxe-sedan',
+  'kingpin-luxe-thug',
+  'kingpin-luxe-hoe',
+  'neon-underworld-low-rider',
+  'neon-underworld-thug',
+  'neon-underworld-hoe',
+  'neon-underworld-tek9',
+  'winter-heist-van',
+  'winter-heist-crew',
+  'winter-heist-shotgun',
+  'biscayne-sunset-sedan',
+  'biscayne-sunset-thug',
+  'biscayne-sunset-hoe',
+  'biscayne-sunset-pistol',
+  'velvet-speakeasy-sedan',
+  'velvet-speakeasy-thug',
+  'velvet-speakeasy-hoe',
+  'velvet-speakeasy-ak47',
+  'platinum-funk-low-rider',
+  'platinum-funk-thug',
+  'platinum-funk-hoe',
+  'redline-syndicate-sedan',
+  'redline-syndicate-thug',
+  'redline-syndicate-hoe',
+  'redline-syndicate-ak47',
+  'wet-paint-low-rider',
+  'wet-paint-thug',
+  'wet-paint-hoe',
+  'wet-paint-pistol',
+  'hazard-cook-van',
+  'hazard-cook-crew',
+  'hazard-cook-shotgun',
+  'dockside-van',
+  'dockside-thug',
+  'dockside-hoe',
+  'dockside-ak47',
+  'crown-jewels-sedan',
+  'crown-jewels-crew',
+  'crown-jewels-ak47',
+  'bayou-smoke-van',
+  'bayou-smoke-thug',
+  'bayou-smoke-hoe',
+  'bayou-smoke-shotgun',
+  'desert-mirage-low-rider',
+  'desert-mirage-thug',
+  'desert-mirage-hoe',
+  'desert-mirage-tek9',
+  'rewind-van',
+  'rewind-thug',
+  'rewind-hoe',
+  'rewind-tek9',
+  'snake-eyes-sedan',
+  'snake-eyes-thug',
+  'snake-eyes-hoe',
+  'snake-eyes-pistol',
+  'quarter-mile-sedan',
+  'quarter-mile-low-rider',
+  'quarter-mile-thug',
+  'quarter-mile-hoe',
+  'quarter-mile-tek9',
+  '88-club-van',
+  '88-club-thug',
+  '88-club-hoe',
+  '88-club-pistol',
+  'swamp-kingdom-van',
+  'swamp-kingdom-thug',
+  'swamp-kingdom-hoe',
+  'swamp-kingdom-shotgun',
+  'zombie-apocalypse-van',
+  'zombie-apocalypse-thug',
+  'zombie-apocalypse-hoe',
+  'zombie-apocalypse-shotgun',
+  'iron-front-sedan',
+  'iron-front-van',
+  'iron-front-ak47',
+  'iron-front-crew',
+  'graveyard-shift-sedan',
+  'graveyard-shift-thug',
+  'graveyard-shift-hoe',
+  'graveyard-shift-pistol',
+  'naughty-list-van',
+  'naughty-list-crew',
+  'naughty-list-tek9',
+  'heartbreaker-low-rider',
+  'heartbreaker-thug',
+  'heartbreaker-hoe',
+  'heartbreaker-tek9',
+  'block-party-van',
+  'block-party-thug',
+  'block-party-hoe',
+  'block-party-shotgun',
+  'taxi-hustle-sedan',
+  'two-tone-classic-sedan',
+  'lime-flake-low-rider',
+  'hot-flames-low-rider',
+  'pipe-dreams-van',
+  'flower-power-van',
+  'tiger-stripe-pistol',
+  'damascus-ak47',
+  'rust-bucket-shotgun',
+  'bubblegum-tek9',
+  'velour-tracksuit-thug',
+  'bowling-shirt-thug',
+  'leopard-coat-hoe',
+  'tie-dye-hoe',
 ]);
 
 export const crewCosmeticStyleSchema = itemCosmeticStyleSchema.refine(
@@ -294,11 +468,14 @@ export const updateAccountProfileSettingsSchema = z.object({
   titlePlacement: z.enum(['prefix', 'suffix']).default('prefix'),
   /** Omitted keeps the current crew name; null or blank clears it. */
   crewName: crewNameSchema.nullable().optional(),
+  /** Omitted keeps the saved sign for older clients; null clears it. */
+  streetSign: streetSignInputSchema.nullable().optional(),
   profileBio: profileBioSchema.nullable().optional(),
   profileImageUrl: profileImageUrlSchema.nullable().optional(),
   /** Omitted keeps the built avatar; null removes it. */
   profileAvatar: avatarPartsSchema.nullable().optional(),
   profileBannerUrl: profileImageUrlSchema.nullable().optional(),
+  activeCrewBannerKey: z.string().trim().min(1).max(80).nullable().optional(),
   profileEffect: profileEffectSchema.optional(),
   activeProfileFrameKey: z.string().trim().min(1).max(80).nullable(),
   activeAvatarFrameKey: z.string().trim().min(1).max(80).nullable().optional(),
@@ -309,12 +486,18 @@ export const updateAccountProfileSettingsSchema = z.object({
   crewCosmetics: crewCosmeticLoadoutSchema,
   showThemeOnProfile: z.boolean().default(true),
   showLookOnProfile: z.boolean().default(true),
+  forumCosmeticsVisible: z.boolean().optional(),
+  showCrewMoments: z.boolean().optional(),
+  showCrewCelebrations: z.boolean().optional(),
+  /** Birthdays: a cake on the name on the day. Omitted keeps the current choice. */
+  showBirthdayCake: z.boolean().optional(),
   featuredBadgeKeys: z.array(z.string().trim().min(1).max(80)).max(6),
   profileAccent: profileAccentSchema,
   uiDensity: uiDensitySchema,
   reducedMotion: z.boolean(),
   moneyFormat: moneyFormatSchema,
   defaultLanding: defaultLandingSchema,
+  showProfanity: z.boolean().default(false),
 });
 
 const notificationCategorySchema = z.enum(NOTIFICATION_CATEGORIES);

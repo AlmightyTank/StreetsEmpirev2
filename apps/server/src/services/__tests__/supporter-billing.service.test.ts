@@ -47,6 +47,10 @@ function fakeDb(accountIds: string[] = ['acc_1']) {
       },
       update: async ({ where, data }: Row) => Object.assign(state.memberships.find((row) => matches(row, where))!, data),
     },
+    googlePlaySupporterSubscription: {
+      findFirst: async () => null,
+      findMany: async () => [],
+    },
     supporterPayment: {
       upsert: async ({ where, create }: Row) => {
         const found = state.payments.find((row) => row.stripeInvoiceId === where.stripeInvoiceId);
@@ -99,6 +103,7 @@ function fakeApi(overrides: Partial<StripeApi> = {}): StripeApi {
     createPortalSession: vi.fn(async () => ({ url: 'https://billing.stripe.test/p_1' })),
     cancelSubscription: vi.fn(async () => undefined),
     retrieveCharge: vi.fn(async () => ({ id: 'ch_1', customer: 'cus_1' })),
+    retrieveCheckoutSession: vi.fn(async () => ({})),
     ...overrides,
   };
 }
@@ -133,6 +138,19 @@ describe('SupporterBillingService.handleEvent', () => {
     expect(await handle(db, pending)).toBe('applied');
     expect(db.state.memberships[0]?.status).toBe('incomplete');
     expect(db.state.unlocks).toEqual([]);
+  });
+
+  it('does not grant a trial checkout before its first paid invoice', async () => {
+    const db = fakeDb();
+    const trial = event('checkout.session.completed', {
+      mode: 'subscription', payment_status: 'no_payment_required', client_reference_id: 'acc_1',
+      customer: 'cus_trial', subscription: 'sub_trial',
+    });
+
+    expect(await handle(db, trial)).toBe('applied');
+    expect(db.state.memberships[0]).toMatchObject({ status: 'incomplete', stripeSubscriptionId: 'sub_trial' });
+    expect(db.state.unlocks).toEqual([]);
+    expect(db.state.payments).toEqual([]);
   });
 
   it('handles the first invoice arriving before the checkout event, in the newer payload shape', async () => {
@@ -322,7 +340,12 @@ describe('SupporterBillingService.startCheckout', () => {
       mode: 'subscription',
       client_reference_id: 'acc_1',
       metadata: { accountId: 'acc_1' },
-      subscription_data: { metadata: { accountId: 'acc_1' } },
+      payment_method_collection: 'always',
+        subscription_data: {
+          metadata: { accountId: 'acc_1' },
+          trial_period_days: 3,
+          trial_settings: { end_behavior: { missing_payment_method: 'cancel' } },
+        },
       customer_email: 'vito@example.test',
     }));
   });

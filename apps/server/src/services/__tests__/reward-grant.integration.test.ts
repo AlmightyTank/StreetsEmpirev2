@@ -28,7 +28,7 @@ describe.runIf(process.env.STREET_PASS_INTEGRATION === '1')('reward grants with 
     const { buildApp } = await import('../../app.js');
     app = await buildApp();
     const name = `pass_${randomUUID().slice(0, 6)}`;
-    const registered = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { username: name, email: `${name}@example.invalid`, password: randomUUID() } });
+    const registered = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { ageConfirmed: true, username: name, email: `${name}@example.invalid`, password: randomUUID() } });
     accountId = registered.json().account.id;
     const round = await app.prisma.round.create({ data: {
       name: 'Street Pass fixture', slug: `street-pass-${randomUUID()}`,
@@ -128,6 +128,7 @@ describe.runIf(process.env.STREET_PASS_INTEGRATION === '1')('reward grants with 
       ['street-pass-s1-phantom-convoy-theme', 'SITE_THEME', 'epic', 'street-pass-s1:10'],
       ['street-pass-s1-siren-breaker-frame', 'PROFILE_FRAME', 'epic', 'street-pass-s1:15'],
       ['street-pass-s1-siren-breaker-theme', 'SITE_THEME', 'epic', 'street-pass-s1:15'],
+      ['street-pass-s1-snapback', 'AVATAR_PART', 'uncommon', 'street-pass-s1:4'],
       ['street-pass-s1-snowstorm-frame', 'PROFILE_FRAME', 'legendary', 'street-pass-s1:15'],
       ['street-pass-s1-urban-ghost', 'ITEM_COLLECTION', 'rare', 'street-pass-s1:8'],
     ]);

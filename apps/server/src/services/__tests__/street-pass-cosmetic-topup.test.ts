@@ -38,7 +38,7 @@ function txFor(claimedTiers: number[], ownedKeys: string[], reachedTier: number)
 
 describe('Street Pass cosmetic top-up at round close', () => {
   it('awards a collection on a tier the player claimed before the collection existed', async () => {
-    const { tx, awarded } = txFor([8, 10], ['street-pass-s1-fresh-face'], 10);
+    const { tx, awarded } = txFor([4, 8, 10], ['street-pass-s1-snapback', 'street-pass-s1-fresh-face'], 10);
 
     const autoClaimed = await StreetPassService.grantUnclaimedCosmetics(tx, 'round-1', classicOgStreetPassA, new Date());
 
@@ -50,8 +50,8 @@ describe('Street Pass cosmetic top-up at round close', () => {
   });
 
   it('does not award a cosmetic the account already owns', async () => {
-    const { tx, awarded } = txFor([8, 10], [
-      'street-pass-s1-urban-ghost', 'street-pass-s1-fresh-face', 'street-pass-s1-chrome-serpent-theme',
+    const { tx, awarded } = txFor([4, 8, 10], [
+      'street-pass-s1-snapback', 'street-pass-s1-urban-ghost', 'street-pass-s1-fresh-face', 'street-pass-s1-chrome-serpent-theme',
       'street-pass-s1-chrome-serpent-frame', 'street-pass-s1-phantom-convoy-theme', 'street-pass-s1-phantom-convoy-frame',
     ], 10);
 
@@ -65,9 +65,10 @@ describe('Street Pass cosmetic top-up at round close', () => {
 
     const autoClaimed = await StreetPassService.grantUnclaimedCosmetics(tx, 'round-1', classicOgStreetPassA, new Date());
 
-    expect(autoClaimed).toBe(5);
-    expect(claims.map((claim) => claim.tier)).toEqual([8, 10, 12, 15, 18]);
+    expect(autoClaimed).toBe(6);
+    expect(claims.map((claim) => claim.tier)).toEqual([4, 8, 10, 12, 15, 18]);
     expect(awarded).toEqual([
+      'street-pass-s1-snapback',
       'street-pass-s1-urban-ghost', 'street-pass-s1-chrome-serpent-theme', 'street-pass-s1-chrome-serpent-frame',
       'street-pass-s1-fresh-face', 'street-pass-s1-phantom-convoy-theme', 'street-pass-s1-phantom-convoy-frame',
       'street-pass-s1-lantern-district-theme', 'street-pass-s1-lantern-district-frame',

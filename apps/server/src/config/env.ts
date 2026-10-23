@@ -44,12 +44,29 @@ const envSchema = z.object({
   BETA_INVITE_ONLY: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
   /** Staged release switch for public aftermath/archive endpoints; report capture and rewards are unaffected. */
   ROUND_AFTERMATH_PUBLIC_ENABLED: z.enum(['true', 'false']).default('true').transform((value) => value === 'true'),
+  /** Capacity admission is deliberately off until measured capacity and load tests exist. */
+  ADMISSION_CAPACITY_ENABLED: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
+  /** Supporter priority is independently gated so fairness can be tested first. */
+  ADMISSION_SUPPORTER_PRIORITY_ENABLED: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
   /** Non-production admin QA mode: expose seasonal event quests outside their real-world window. */
   SEASONAL_EVENT_ADMIN_TEST_MODE: z.enum(['true', 'false']).optional(),
 
   DISCORD_CLIENT_ID: z.string().default(''),
   DISCORD_CLIENT_SECRET: z.string().default(''),
   DISCORD_REDIRECT_URI: z.string().default(''),
+
+  APPLE_CLIENT_ID: z.string().default(''),
+  APPLE_TEAM_ID: z.string().default(''),
+  APPLE_KEY_ID: z.string().default(''),
+  /** Apple Sign in .p8 private key; accepts literal newlines or escaped \\n sequences. */
+  APPLE_PRIVATE_KEY: z.string().default(''),
+  APPLE_REDIRECT_URI: z.string().default(''),
+  GOOGLE_OAUTH_CLIENT_ID: z.string().default(''),
+  GOOGLE_OAUTH_CLIENT_SECRET: z.string().default(''),
+  GOOGLE_OAUTH_REDIRECT_URI: z.string().default(''),
+  FACEBOOK_APP_ID: z.string().default(''),
+  FACEBOOK_APP_SECRET: z.string().default(''),
+  FACEBOOK_REDIRECT_URI: z.string().default(''),
 
   FORUM_ORIGIN: z.string().url().default('https://forum.streetsempire.dev'),
   FORUM_LINK_SECRET: z.union([z.literal(''), z.string().min(64)]).default(''),
@@ -85,10 +102,33 @@ const envSchema = z.object({
   VAPID_SUBJECT: z.union([z.literal(''), z.string().regex(/^(mailto:|https:\/\/)/, 'VAPID_SUBJECT must start with mailto: or https://.')]).default(''),
 
   RESEND_API_KEY: z.string().default(''),
+  /** Self-hosted mail relay (Stalwart). Set all four to send game mail from the VPS itself; RESEND_API_KEY stays as fallback. */
+  SMTP_HOST: z.string().default(''),
+  SMTP_PORT: z.coerce.number().int().positive().default(587),
+  SMTP_USER: z.string().default(''),
+  SMTP_PASS: z.string().default(''),
   // Supporter payments through Stripe Checkout. All three, or supporting is turned off.
   STRIPE_SECRET_KEY: z.union([z.literal(''), z.string().regex(/^(sk|rk)_(test|live)_/, 'STRIPE_SECRET_KEY must be a Stripe secret or restricted key.')]).default(''),
   STRIPE_WEBHOOK_SECRET: z.union([z.literal(''), z.string().startsWith('whsec_', 'STRIPE_WEBHOOK_SECRET must start with whsec_.')]).default(''),
   STRIPE_SUPPORTER_PRICE_ID: z.union([z.literal(''), z.string().startsWith('price_', 'STRIPE_SUPPORTER_PRICE_ID must start with price_.')]).default(''),
+  /** The Drop (docs/THE-DROP.md). Unset: on everywhere except production. */
+  DROP_ENABLED: z.enum(['true', 'false']).optional(),
+  /** Real-money Crown packs, through Stripe Checkout and Google Play alike. Off unless set to true. */
+  DROP_CROWN_PACKS_ENABLED: z.enum(['true', 'false']).default('false'),
+  /** Base64-encoded Google service-account JSON with Android Publisher access. */
+  GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64: z.string().default(''),
+  GOOGLE_PLAY_PACKAGE_NAME: z.string().default('dev.streetsempire.app'),
+  GOOGLE_PLAY_SUPPORTER_PRODUCT_ID: z.string().default('supporter_monthly'),
+  /** Comma-separated Crown pack mapping, for example starter=crowns_starter,street=crowns_street. */
+  GOOGLE_PLAY_CROWN_PACK_PRODUCT_IDS: z.string().default(''),
+  /** Stable secret used to bind a Play purchase to one game account. Never rotate it. */
+  GOOGLE_PLAY_ACCOUNT_HASH_SECRET: z.union([z.literal(''), z.string().min(32)]).default(''),
+  /** Exact Pub/Sub push audience and OIDC service-account email. Both enable Play RTDN. */
+  GOOGLE_PLAY_RTDN_AUDIENCE: z.union([z.literal(''), z.string().url()]).default(''),
+  GOOGLE_PLAY_RTDN_SERVICE_ACCOUNT_EMAIL: z.union([z.literal(''), z.string().email()]).default(''),
+  /** OAuth web client used only by the server to exchange Play Games auth codes. */
+  GOOGLE_PLAY_GAMES_WEB_CLIENT_ID: z.string().default(''),
+  GOOGLE_PLAY_GAMES_WEB_CLIENT_SECRET: z.string().default(''),
   EMAIL_FROM: z.string().default(''),
   /** How long admin audit entries are kept. 0 keeps them forever. */
   ADMIN_AUDIT_RETENTION_DAYS: z.coerce.number().int().min(0).max(3650).default(365),
@@ -146,6 +186,10 @@ const envSchema = z.object({
   SPORTSGAMEODDS_API_KEY: z.string().default(''),
   /** Shared cached snapshot cadence; deliberately no faster than 15 minutes on free delayed data. */
   SPORTSBOOK_POLL_MINUTES: z.coerce.number().int().min(30).max(180).default(30),
+  /** Optional monitoring-only moderation provider. Deterministic local blocking is always enabled. */
+  PROFANITY_MODERATION_API_KEY: z.string().default(''),
+  PROFANITY_MODERATION_URL: z.string().url().default('https://api.openai.com/v1/moderations'),
+  PROFANITY_MODERATION_TIMEOUT_MS: z.coerce.number().int().min(250).max(10_000).default(2_000),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -164,6 +208,13 @@ const betaTesterForumGroups = parsed.data.BETA_TESTER_FORUM_GROUPS.split(',')
   .map((name) => name.trim())
   .filter(Boolean)
   .slice(0, 10);
+
+const googlePlayCrownPackProductIds = Object.fromEntries(
+  parsed.data.GOOGLE_PLAY_CROWN_PACK_PRODUCT_IDS.split(',')
+    .map((entry) => entry.trim().split('=').map((part) => part.trim()))
+    .filter((parts): parts is [string, string] => parts.length === 2 && Boolean(parts[0]) && Boolean(parts[1]))
+    .map(([packId, productId]) => [packId, productId]),
+);
 
 const forumUrl = new URL(parsed.data.FORUM_ORIGIN);
 if (forumUrl.username || forumUrl.password || forumUrl.pathname !== '/' || forumUrl.search || forumUrl.hash ||
@@ -210,6 +261,16 @@ export const env = {
     signupDailyLimitPerIp: parsed.data.SIGNUP_DAILY_LIMIT_PER_IP
       ?? (appEnvironment === 'production' || appEnvironment === 'beta' ? 5 : 0),
   },
+  drop: {
+    /** Off in production until DROP_ENABLED=true: no storefront, wallet or purchase routes answer. */
+    enabled: parsed.data.DROP_ENABLED ? parsed.data.DROP_ENABLED === 'true' : appEnvironment !== 'production',
+    /** The one real-money switch for Crown packs, on Stripe and Google Play alike. Always off in tests. */
+    crownPacksEnabled: parsed.data.NODE_ENV !== 'test' && parsed.data.DROP_CROWN_PACKS_ENABLED === 'true',
+    /** Stripe Crown packs: the switch above plus Stripe keys. */
+    crownPacksConfigured: parsed.data.NODE_ENV !== 'test'
+      && parsed.data.DROP_CROWN_PACKS_ENABLED === 'true'
+      && Boolean(parsed.data.STRIPE_SECRET_KEY && parsed.data.STRIPE_WEBHOOK_SECRET),
+  },
   trustProxy: parsed.data.TRUST_PROXY ? parsed.data.TRUST_PROXY === 'true' : parsed.data.NODE_ENV === 'production',
   logLevel: parsed.data.LOG_LEVEL ?? (parsed.data.NODE_ENV === 'production' ? 'info' : 'debug'),
   buildCommit: parsed.data.BUILD_COMMIT?.slice(0, 12) ?? null,
@@ -244,6 +305,11 @@ export const env = {
   },
   roundAftermath: {
     publicEnabled: parsed.data.ROUND_AFTERMATH_PUBLIC_ENABLED,
+  },
+  admission: {
+    enabled: parsed.data.ADMISSION_CAPACITY_ENABLED,
+    supporterPriority: parsed.data.ADMISSION_SUPPORTER_PRIORITY_ENABLED,
+    leaseMs: 90_000,
   },
   seasonalEvents: {
     adminTestMode: seasonalEventAdminTestMode,
@@ -299,6 +365,46 @@ export const env = {
     /** Off in tests so no test run ever calls Stripe. */
     enabled: parsed.data.NODE_ENV !== 'test'
       && Boolean(parsed.data.STRIPE_SECRET_KEY && parsed.data.STRIPE_WEBHOOK_SECRET && parsed.data.STRIPE_SUPPORTER_PRICE_ID),
+    /** The webhook runs whenever Stripe is reachable, for supporter and Crown pack events alike. */
+    webhookEnabled: parsed.data.NODE_ENV !== 'test'
+      && Boolean(parsed.data.STRIPE_SECRET_KEY && parsed.data.STRIPE_WEBHOOK_SECRET),
+  },
+  googlePlay: {
+    serviceAccountJsonBase64: parsed.data.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64,
+    packageName: parsed.data.GOOGLE_PLAY_PACKAGE_NAME,
+    supporterProductId: parsed.data.GOOGLE_PLAY_SUPPORTER_PRODUCT_ID,
+    crownPackProductIds: googlePlayCrownPackProductIds,
+    accountHashSecret: parsed.data.GOOGLE_PLAY_ACCOUNT_HASH_SECRET,
+    rtdn: {
+      audience: parsed.data.GOOGLE_PLAY_RTDN_AUDIENCE,
+      serviceAccountEmail: parsed.data.GOOGLE_PLAY_RTDN_SERVICE_ACCOUNT_EMAIL.toLowerCase(),
+      enabled: parsed.data.NODE_ENV !== 'test' && Boolean(
+        parsed.data.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64
+        && parsed.data.GOOGLE_PLAY_ACCOUNT_HASH_SECRET
+        && parsed.data.GOOGLE_PLAY_RTDN_AUDIENCE
+        && parsed.data.GOOGLE_PLAY_RTDN_SERVICE_ACCOUNT_EMAIL
+      ),
+    },
+    gamesAuth: {
+      clientId: parsed.data.GOOGLE_PLAY_GAMES_WEB_CLIENT_ID,
+      clientSecret: parsed.data.GOOGLE_PLAY_GAMES_WEB_CLIENT_SECRET,
+      enabled: parsed.data.NODE_ENV !== 'test' && Boolean(
+        parsed.data.GOOGLE_PLAY_GAMES_WEB_CLIENT_ID && parsed.data.GOOGLE_PLAY_GAMES_WEB_CLIENT_SECRET,
+      ),
+    },
+    enabled: parsed.data.NODE_ENV !== 'test' && Boolean(
+      parsed.data.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64 && parsed.data.GOOGLE_PLAY_ACCOUNT_HASH_SECRET
+    ),
+    /**
+     * Google Play Crown packs: the same DROP_CROWN_PACKS_ENABLED switch as Stripe,
+     * Play credentials, every pack's product ID, and authenticated RTDN, since
+     * refunds only reach the server as voided-purchase notifications.
+     */
+    crownPacksConfigured: parsed.data.NODE_ENV !== 'test' && parsed.data.DROP_CROWN_PACKS_ENABLED === 'true' && Boolean(
+      parsed.data.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64 && parsed.data.GOOGLE_PLAY_ACCOUNT_HASH_SECRET
+      && parsed.data.GOOGLE_PLAY_RTDN_AUDIENCE && parsed.data.GOOGLE_PLAY_RTDN_SERVICE_ACCOUNT_EMAIL
+      && ['starter', 'street', 'boss', 'kingpin', 'empire'].every((id) => Boolean(googlePlayCrownPackProductIds[id])),
+    ),
   },
   patchNotes: {
     apiToken: parsed.data.PATCH_NOTES_API_TOKEN,
@@ -320,12 +426,43 @@ export const env = {
     redirectUri: parsed.data.DISCORD_REDIRECT_URI,
     enabled: Boolean(parsed.data.DISCORD_CLIENT_ID && parsed.data.DISCORD_CLIENT_SECRET),
   },
+  apple: {
+    clientId: parsed.data.APPLE_CLIENT_ID,
+    teamId: parsed.data.APPLE_TEAM_ID,
+    keyId: parsed.data.APPLE_KEY_ID,
+    privateKey: parsed.data.APPLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+    redirectUri: parsed.data.APPLE_REDIRECT_URI,
+    enabled: parsed.data.NODE_ENV !== 'test' && Boolean(
+      parsed.data.APPLE_CLIENT_ID && parsed.data.APPLE_TEAM_ID && parsed.data.APPLE_KEY_ID
+      && parsed.data.APPLE_PRIVATE_KEY && parsed.data.APPLE_REDIRECT_URI,
+    ),
+  },
+  googleOAuth: {
+    clientId: parsed.data.GOOGLE_OAUTH_CLIENT_ID,
+    clientSecret: parsed.data.GOOGLE_OAUTH_CLIENT_SECRET,
+    redirectUri: parsed.data.GOOGLE_OAUTH_REDIRECT_URI,
+    enabled: parsed.data.NODE_ENV !== 'test' && Boolean(parsed.data.GOOGLE_OAUTH_CLIENT_ID && parsed.data.GOOGLE_OAUTH_CLIENT_SECRET),
+  },
+  facebook: {
+    appId: parsed.data.FACEBOOK_APP_ID,
+    appSecret: parsed.data.FACEBOOK_APP_SECRET,
+    redirectUri: parsed.data.FACEBOOK_REDIRECT_URI,
+    enabled: parsed.data.NODE_ENV !== 'test' && Boolean(parsed.data.FACEBOOK_APP_ID && parsed.data.FACEBOOK_APP_SECRET),
+  },
   email: {
     resendApiKey: parsed.data.RESEND_API_KEY,
     from: parsed.data.EMAIL_FROM,
+    smtp: {
+      host: parsed.data.SMTP_HOST,
+      port: parsed.data.SMTP_PORT,
+      user: parsed.data.SMTP_USER,
+      pass: parsed.data.SMTP_PASS,
+      /** Host, user and pass are set, so the self-hosted relay can be used. */
+      configured: Boolean(parsed.data.SMTP_HOST && parsed.data.SMTP_USER && parsed.data.SMTP_PASS),
+    },
     /** True when the credentials needed to send mail are present, even in tests where delivery stays disabled. */
-    configured: Boolean(parsed.data.RESEND_API_KEY && parsed.data.EMAIL_FROM),
-    enabled: parsed.data.NODE_ENV !== 'test' && Boolean(parsed.data.RESEND_API_KEY && parsed.data.EMAIL_FROM),
+    configured: Boolean(parsed.data.EMAIL_FROM && (parsed.data.RESEND_API_KEY || (parsed.data.SMTP_HOST && parsed.data.SMTP_USER && parsed.data.SMTP_PASS))),
+    enabled: parsed.data.NODE_ENV !== 'test' && Boolean(parsed.data.EMAIL_FROM && (parsed.data.RESEND_API_KEY || (parsed.data.SMTP_HOST && parsed.data.SMTP_USER && parsed.data.SMTP_PASS))),
     passwordResetTtlMinutes: parsed.data.PASSWORD_RESET_TTL_MINUTES,
     verificationTtlMinutes: parsed.data.EMAIL_VERIFICATION_TTL_MINUTES,
   },

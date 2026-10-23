@@ -1,4 +1,4 @@
-import type { Prisma, PrismaClient } from '@prisma/client';
+import type { ActivityType, Prisma, PrismaClient } from '@prisma/client';
 import { FACTION_TIERS, recipeLadder, contractStanding, factionTierName, factionTierRank, factionTierStartsAt, innerCircleLockedBy, innerCirclePreview, jobStanding as jobStandingFor, lawPriceCents } from '@streets/rules-engine';
 import {
   type ContactKey,
@@ -10,9 +10,9 @@ import {
   type QuestDefinition,
   type QuestObjectiveDefinition,
   type QuestProgressMap,
-  type QuestRewardDefinition,
   questRequiredDistricts,
   questRequiredRecipes,
+  type QuestRewardDefinition,
   type QuestType,
   type Ruleset,
 } from '@streets/rulesets';
@@ -28,16 +28,18 @@ import type {
   QuestObjectiveDto,
   QuestPageDto,
   QuestStoryDto,
+  TrackedQuestsDto,
 } from '@streets/shared';
 import { env } from '../config/env.js';
 import { AppError } from '../utils/errors.js';
 import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { ActionService, type PlayerState } from './action.service.js';
 import { QuestProgressService } from './quest-progress.service.js';
+import { createPlayerActivity } from './in-app-notification.service.js';
 import { FavorInventoryService } from './favor-inventory.service.js';
 import { TimedFavorService } from './timed-favor.service.js';
 import { SingleUseFavorService } from './single-use-favor.service.js';
-import { addContactRep, grantRewards, rewardDto } from './reward-grant.service.js';
+import { addContactRep, BONUS_OBJECTIVE_REWARD_PERCENT, bumpRewardsForCompletedBonuses, completedBonusObjectiveCount, grantRewards, rewardDto } from './reward-grant.service.js';
 import { FactionService } from './faction.service.js';
 import { EconomyLedgerService } from './economy-ledger.service.js';
 import { FactionPerkService } from './faction-perk.service.js';
@@ -75,7 +77,7 @@ import {
 } from './alliance-contract.service.js';
 import {
   assertCommunityEventClaim,
-  communityEventSnapshot,
+  communityEventSnapshots,
   isCommunityEventDefinition,
   recordCommunityEventClaim,
   refreshCommunityEventReadinessForPlayer,
@@ -163,7 +165,8 @@ function seasonalEventAvailable(definition: QuestDefinition, now: Date, adminTes
  * Admin test mode can put a future holiday job on the board early, and auto-accept
  * can start a city contract in the same refresh that discovered it. Neither is work
  * the player can open from that notification, so both stay off the list. A job that
- * still needs a locked recipe or district stays off too.
+ * still needs a locked recipe or district stays off too. Time and action gates are
+ * already reflected in the attempt status: a job that is still LOCKED is not announced.
  */
 export function announceableQuestKeys(
   candidates: readonly string[],
@@ -264,12 +267,20 @@ export function resolveQuestBranchForClaim(
   return selected;
 }
 
+function finishedBonusCount(row: QuestRow): number {
+  return completedBonusObjectiveCount(
+    objectives(row.questDefinition.bonusObjectives),
+    progress(row.bonusProgress),
+  );
+}
+
 function branchChoicesDto(row: QuestRow, ruleset: Ruleset): QuestBranchChoiceDto[] {
+  const finishedBonuses = finishedBonusCount(row);
   return branchesFor(row, ruleset).map((branch) => ({
     key: branch.key,
     title: branch.title,
     description: branch.description,
-    rewards: branch.rewards.map((reward) => rewardDto(reward, ruleset)),
+    rewards: bumpRewardsForCompletedBonuses(branch.rewards, finishedBonuses).map((reward) => rewardDto(reward, ruleset)),
     reputationDeltas: branch.reputationDeltas.map((delta) =>
       branchReputationDto(delta.contactKey, delta.amount, ruleset)
     ),
@@ -353,6 +364,33 @@ interface QuestContext {
   /** 1.5.0-E2. For a locked card's "Opens after" list. */
   completed?: ReadonlySet<string>;
   reps?: Readonly<Record<string, number>>;
+  joinedAt?: Date;
+  now?: Date;
+  actionCounts?: Readonly<Record<string, number>>;
+}
+
+interface QuestGateContext {
+  readonly joinedAt?: Date;
+  readonly now?: Date;
+  readonly actionCounts?: Readonly<Record<string, number>>;
+}
+
+function elapsedMinutes(context: QuestGateContext): number {
+  if (!context.joinedAt || !context.now) return -1;
+  return Math.max(0, Math.floor((context.now.getTime() - context.joinedAt.getTime()) / 60_000));
+}
+
+function actionCount(eventTypes: readonly string[], counts: Readonly<Record<string, number>> | undefined): number {
+  return eventTypes.reduce((total, type) => total + (counts?.[type] ?? 0), 0);
+}
+
+function durationLabel(minutes: number): string {
+  const days = Math.floor(minutes / 1_440);
+  const hours = Math.floor((minutes % 1_440) / 60);
+  const mins = minutes % 60;
+  return [days ? `${days}d` : '', hours ? `${hours}h` : '', mins || (!days && !hours) ? `${mins}m` : '']
+    .filter(Boolean)
+    .join(' ');
 }
 
 /**
@@ -373,6 +411,19 @@ function questRequirements(ruleset: Ruleset, definition: QuestDefinition | undef
       const have = context.reps?.[params.contactKey] ?? 0;
       if (have >= params.points) return [];
       return [{ label: `${params.points} rep with ${contactFor(ruleset, params.contactKey)?.shortName ?? params.contactKey} (you have ${have})` }];
+    }
+    if (prerequisite.kind === 'TIME_SINCE_JOIN' && typeof params.minutes === 'number') {
+      const elapsed = elapsedMinutes(context);
+      if (elapsed >= params.minutes) return [];
+      const remaining = elapsed < 0 ? params.minutes : Math.max(1, params.minutes - elapsed);
+      return [{ label: `Available in ${durationLabel(remaining)}` }];
+    }
+    if (prerequisite.kind === 'ACTION_COUNT' && Array.isArray(params.eventTypes) && typeof params.count === 'number') {
+      const eventTypes = params.eventTypes.filter((value): value is string => typeof value === 'string');
+      const have = actionCount(eventTypes, context.actionCounts);
+      if (have >= params.count) return [];
+      const label = typeof params.label === 'string' ? params.label : 'Complete more street actions';
+      return [{ label: `${label} (${have}/${params.count})` }];
     }
     if ((prerequisite.kind === 'FACTION_STANDING_AT_LEAST' || prerequisite.kind === 'FACTION_STANDING_BELOW') && typeof params.factionKey === 'string' && typeof params.tier === 'string') {
       const faction = ruleset.factions?.[params.factionKey as FactionKey]?.name ?? params.factionKey;
@@ -410,8 +461,15 @@ function questDto(row: QuestRow, ruleset: Ruleset, context: QuestContext, commun
     row.questDefinition.availability,
     row.rewardState,
   );
-  const resolvedRewards = cityContractRewards(row.rewardState)
-    ?? rewards(row.questDefinition.rewards);
+  const finishedBonuses = finishedBonusCount(row);
+  const resolvedRewards = bumpRewardsForCompletedBonuses(
+    cityContractRewards(row.rewardState) ?? rewards(row.questDefinition.rewards),
+    finishedBonuses,
+  );
+  const standingRewards = bumpRewardsForCompletedBonuses(
+    rewards(row.questDefinition.rewards),
+    finishedBonuses,
+  );
   const availability = availabilityJson(row.questDefinition.availability);
   const story = storyDto(row, ruleset);
   return {
@@ -433,7 +491,7 @@ function questDto(row: QuestRow, ruleset: Ruleset, context: QuestContext, commun
     })(),
     factionJob: ruleset.questDefinitions?.[row.questDefinition.key]?.category === 'FACTION',
     factionStandings: [
-      ...jobStanding(ruleset, row.questDefinition.key, rewards(row.questDefinition.rewards)),
+      ...jobStanding(ruleset, row.questDefinition.key, standingRewards),
       ...boardStanding(ruleset, ruleset.questDefinitions?.[row.questDefinition.key], row.rewardState),
       ...introductionStanding(ruleset, ruleset.questDefinitions?.[row.questDefinition.key], context.points),
     ].flatMap(([factionKey, amount]) => {
@@ -466,6 +524,9 @@ function questDto(row: QuestRow, ruleset: Ruleset, context: QuestContext, commun
     branchChoices: branchChoicesDto(row, ruleset),
     ...(story ? { story } : {}),
     objectives: objectiveDtos(row, communityEvent),
+    ...(objectives(row.questDefinition.bonusObjectives).length
+      ? { bonusRewardPercent: BONUS_OBJECTIVE_REWARD_PERCENT }
+      : {}),
     rewards: visibleRewards(resolvedRewards).map((reward) => rewardDto(reward, ruleset)),
     ...(availability.seasonalEvent ? {
       seasonalEvent: {
@@ -520,6 +581,7 @@ export function questPrerequisitesMet(
   reps: Readonly<Record<string, number>>,
   chosenBranches: Readonly<Record<string, string>>,
   factionTiers: Readonly<Partial<Record<string, FactionTier>>> = {},
+  gateContext: QuestGateContext = {},
 ): boolean {
   return definition.prerequisites.every((prerequisite) => {
     if (prerequisite.kind === 'QUEST_COMPLETED') {
@@ -530,6 +592,18 @@ export function questPrerequisitesMet(
       const key = prerequisite.params?.contactKey;
       const points = prerequisite.params?.points;
       return typeof key === 'string' && typeof points === 'number' && (reps[key] ?? 0) >= points;
+    }
+    if (prerequisite.kind === 'TIME_SINCE_JOIN') {
+      const minutes = prerequisite.params?.minutes;
+      return typeof minutes === 'number' && elapsedMinutes(gateContext) >= minutes;
+    }
+    if (prerequisite.kind === 'ACTION_COUNT') {
+      const eventTypes = prerequisite.params?.eventTypes;
+      const count = prerequisite.params?.count;
+      return Array.isArray(eventTypes)
+        && eventTypes.every((value): value is string => typeof value === 'string')
+        && typeof count === 'number'
+        && actionCount(eventTypes, gateContext.actionCounts) >= count;
     }
     if (prerequisite.kind === 'FACTION_STANDING_AT_LEAST') {
       const factionKey = prerequisite.params?.factionKey;
@@ -561,17 +635,58 @@ export function questPrerequisitesMet(
   });
 }
 
+async function questGateContext(db: Db, roundPlayerId: string, ruleset: Ruleset, now: Date): Promise<QuestGateContext> {
+  const eventTypes = [...new Set(definitions(ruleset).flatMap((definition) => definition.prerequisites.flatMap((prerequisite) => {
+    if (prerequisite.kind !== 'ACTION_COUNT' || !Array.isArray(prerequisite.params?.eventTypes)) return [];
+    return prerequisite.params.eventTypes.filter((value): value is string => typeof value === 'string');
+  })))] as ActivityType[];
+  const [player, grouped] = await Promise.all([
+    db.roundPlayer.findUnique({ where: { id: roundPlayerId }, select: { createdAt: true } }),
+    db.playerActivity.groupBy({
+      by: ['type'],
+      where: { roundPlayerId, type: { in: eventTypes } },
+      _count: { _all: true },
+    }),
+  ]);
+  return {
+    joinedAt: player?.createdAt,
+    now,
+    actionCounts: Object.fromEntries(grouped.map((row) => [row.type, row._count._all])),
+  };
+}
+
+const syncedQuestCatalogs = new Set<string>();
+
+function questCatalogKey(ruleset: { meta: { id: string; version: string | number } }): string {
+  return `${ruleset.meta.id}@${ruleset.meta.version}`;
+}
+
+/** Drop the in-process catalog stamp after an admin edit so the next read syncs again. */
+export function invalidateQuestDefinitionSync(ruleset: { meta: { id: string; version: string | number } }): void {
+  syncedQuestCatalogs.delete(questCatalogKey(ruleset));
+}
+
 export async function syncDefinitions(db: Db | PrismaClient, ruleset: Ruleset): Promise<void> {
-  for (const definition of definitions(ruleset)) {
-    await db.questDefinition.upsert({
-      where: {
-        rulesetId_rulesetVersion_key: {
-          rulesetId: ruleset.meta.id,
-          rulesetVersion: ruleset.meta.version,
-          key: definition.key,
-        },
-      },
-      create: {
+  const all = definitions(ruleset);
+  if (!all.length) return;
+  const catalogKey = questCatalogKey(ruleset);
+  if (syncedQuestCatalogs.has(catalogKey)) return;
+  // Bulk-diff instead of one upsert per definition: steady state is a single
+  // SELECT and zero writes, no matter how large the quest catalog gets.
+  const existing = await db.questDefinition.findMany({
+    where: {
+      rulesetId: ruleset.meta.id,
+      rulesetVersion: ruleset.meta.version,
+      key: { in: all.map((definition) => definition.key) },
+    },
+  });
+  const byKey = new Map(existing.map((row) => [row.key, row]));
+  const toCreate: Prisma.QuestDefinitionCreateManyInput[] = [];
+  const toUpdate: typeof all = [];
+  for (const definition of all) {
+    const row = byKey.get(definition.key);
+    if (!row) {
+      toCreate.push({
         key: definition.key,
         rulesetId: ruleset.meta.id,
         rulesetVersion: ruleset.meta.version,
@@ -589,8 +704,41 @@ export async function syncDefinitions(db: Db | PrismaClient, ruleset: Ruleset): 
         availability: inputJson(definition.availability),
         repeatability: definition.repeatability,
         expiresAfterMinutes: definition.expiresAfterMinutes,
+      });
+      continue;
+    }
+    const same =
+      row.title === definition.title
+      && row.description === definition.description
+      && (row.contactKey ?? null) === (definition.contactKey ?? null)
+      && row.type === definition.type
+      && row.category === definition.category
+      && row.difficulty === definition.difficulty
+      && row.repeatability === definition.repeatability
+      && (row.expiresAfterMinutes ?? null) === (definition.expiresAfterMinutes ?? null)
+      && JSON.stringify(row.prerequisites) === JSON.stringify(definition.prerequisites)
+      && JSON.stringify(row.objectives) === JSON.stringify(definition.objectives)
+      && JSON.stringify(row.bonusObjectives) === JSON.stringify(definition.bonusObjectives)
+      && JSON.stringify(row.rewards) === JSON.stringify(definition.rewards)
+      && JSON.stringify(row.followUpKeys) === JSON.stringify(definition.followUpKeys)
+      && JSON.stringify(row.availability) === JSON.stringify(definition.availability);
+    if (!same) toUpdate.push(definition);
+  }
+  // skipDuplicates covers two requests racing the first sync of a new ruleset.
+  if (toCreate.length) await db.questDefinition.createMany({ data: toCreate, skipDuplicates: true });
+  // Steady state: empty. Only a ruleset content change lands here, and only
+  // for the definitions that actually changed. (Never touches isEnabled, so
+  // an admin-disabled quest stays disabled, as before.)
+  for (const definition of toUpdate) {
+    await db.questDefinition.update({
+      where: {
+        rulesetId_rulesetVersion_key: {
+          rulesetId: ruleset.meta.id,
+          rulesetVersion: ruleset.meta.version,
+          key: definition.key,
+        },
       },
-      update: {
+      data: {
         title: definition.title,
         description: definition.description,
         contactKey: definition.contactKey,
@@ -608,9 +756,52 @@ export async function syncDefinitions(db: Db | PrismaClient, ruleset: Ruleset): 
       },
     });
   }
+  syncedQuestCatalogs.add(catalogKey);
 }
 
-async function refreshAvailability(db: Db, roundPlayerId: string, ruleset: Ruleset, now = new Date()): Promise<string[]> {
+/** Rotating boards create their own attempts. The static walk must leave them alone. */
+function isRotatingBoardDefinition(definition: QuestDefinition): boolean {
+  return (definition.type === 'DAILY' && definition.repeatability === 'DAILY')
+    || (definition.type === 'WEEKLY' && definition.repeatability === 'WEEKLY')
+    || definition.type === 'SECRET'
+    || isDynamicCityContractDefinition(definition)
+    || isAllianceContractDefinition(definition)
+    || isCommunityEventDefinition(definition)
+    || isSeasonContractDefinition(definition);
+}
+
+/**
+ * Quests a claim can newly open: its follow-ups, anything that requires this
+ * job, and jobs gated on the standing or reputation the claim just paid.
+ * The rest of the catalog waits for the next full board read.
+ */
+function claimRefreshKeys(ruleset: Ruleset, questKey: string): Set<string> {
+  const keys = new Set<string>(ruleset.questDefinitions?.[questKey]?.followUpKeys ?? []);
+  for (const definition of definitions(ruleset)) {
+    if (isRotatingBoardDefinition(definition) || keys.has(definition.key)) continue;
+    const opens = definition.prerequisites.some((prerequisite) => {
+      if (prerequisite.kind === 'QUEST_COMPLETED' && prerequisite.params?.questKey === questKey) return true;
+      return prerequisite.kind === 'FACTION_STANDING_AT_LEAST'
+        || prerequisite.kind === 'FACTION_STANDING_BELOW'
+        || prerequisite.kind === 'CONTACT_REP_AT_LEAST';
+    });
+    if (opens) keys.add(definition.key);
+  }
+  return keys;
+}
+
+type AvailabilityScope =
+  | { kind: 'full' }
+  | { kind: 'active-edit' }
+  | { kind: 'claim'; questKey: string };
+
+async function refreshAvailability(
+  db: Db,
+  roundPlayerId: string,
+  ruleset: Ruleset,
+  now = new Date(),
+  scope: AvailabilityScope = { kind: 'full' },
+): Promise<string[]> {
   await db.playerQuest.updateMany({
     where: {
       roundPlayerId,
@@ -620,14 +811,28 @@ async function refreshAvailability(db: Db, roundPlayerId: string, ruleset: Rules
     data: { status: 'EXPIRED', isTracked: false },
   });
 
+  const onlyKeys = scope.kind === 'claim' ? claimRefreshKeys(ruleset, scope.questKey) : null;
+  const newlyAvailable: string[] = [];
+  if (onlyKeys && onlyKeys.size === 0) {
+    if (scope.kind === 'full') await syncRotatingBoards(db, roundPlayerId, ruleset, now, newlyAvailable, []);
+    return announceRefreshedQuestKeys(db, roundPlayerId, ruleset, newlyAvailable, now);
+  }
+
   const questDefinitions = await db.questDefinition.findMany({
-    where: { rulesetId: ruleset.meta.id, rulesetVersion: ruleset.meta.version, isEnabled: true },
+    where: {
+      rulesetId: ruleset.meta.id,
+      rulesetVersion: ruleset.meta.version,
+      isEnabled: true,
+      ...(onlyKeys ? { key: { in: [...onlyKeys] } } : {}),
+    },
   });
-  const existing = await db.playerQuest.findMany({
-    where: { roundPlayerId, questDefinitionId: { in: questDefinitions.map((definition) => definition.id) } },
-    include: { questDefinition: true },
-    orderBy: { attempt: 'desc' },
-  });
+  const existing = questDefinitions.length
+    ? await db.playerQuest.findMany({
+      where: { roundPlayerId, questDefinitionId: { in: questDefinitions.map((definition) => definition.id) } },
+      include: { questDefinition: true },
+      orderBy: { attempt: 'desc' },
+    })
+    : [];
   const completedRows = existing.filter((row) => row.status === 'COMPLETED');
   const completed = new Set(completedRows.map((row) => row.questDefinition.key));
   const chosenBranches = Object.fromEntries(
@@ -637,54 +842,50 @@ async function refreshAvailability(db: Db, roundPlayerId: string, ruleset: Rules
   );
   const reps = await contactPoints(db, roundPlayerId, ruleset);
   const tiers = await FactionService.tiers(db, roundPlayerId, ruleset);
+  const gateContext = await questGateContext(db, roundPlayerId, ruleset, now);
   const adminTestMode = await seasonalEventAdminTestModeForPlayer(db, roundPlayerId);
-  const newlyAvailable: string[] = [];
+  const toCreate: Prisma.PlayerQuestCreateManyInput[] = [];
+  const lockIds: string[] = [];
+  const unlockIds: string[] = [];
 
   for (const definitionRow of questDefinitions) {
     const definition = (ruleset.questDefinitions ?? {})[definitionRow.key];
-    if (!definition) continue;
-    // Rotating definitions are materialized by their board services so each
-    // reset can create a new PlayerQuest.attempt without disturbing ONCE jobs.
-    if (
-      (definition.type === 'DAILY' && definition.repeatability === 'DAILY')
-      || (definition.type === 'WEEKLY' && definition.repeatability === 'WEEKLY')
-      || definition.type === 'SECRET'
-      || isDynamicCityContractDefinition(definition)
-      || isAllianceContractDefinition(definition)
-      || isCommunityEventDefinition(definition)
-      || isSeasonContractDefinition(definition)
-    ) continue;
+    if (!definition || isRotatingBoardDefinition(definition)) continue;
     const current = existing.find((row) => row.questDefinitionId === definitionRow.id);
     const seasonalAvailable = seasonalEventAvailable(definition, now, adminTestMode);
-    const available = seasonalAvailable && questPrerequisitesMet(definition, completed, reps, chosenBranches, tiers);
+    const available = seasonalAvailable && questPrerequisitesMet(definition, completed, reps, chosenBranches, tiers, gateContext);
     if (!current) {
-      await db.playerQuest.create({
-        data: {
-          roundPlayerId,
-          questDefinitionId: definitionRow.id,
-          status: available ? 'AVAILABLE' : 'LOCKED',
-        },
+      toCreate.push({
+        roundPlayerId,
+        questDefinitionId: definitionRow.id,
+        status: available ? 'AVAILABLE' : 'LOCKED',
       });
       if (available) newlyAvailable.push(definition.key);
-    } else if (current.status === 'AVAILABLE' && !seasonalAvailable) {
-      await db.playerQuest.update({ where: { id: current.id }, data: { status: 'LOCKED', isTracked: false } });
+    } else if (current.status === 'AVAILABLE' && !available) {
+      lockIds.push(current.id);
     } else if (current.status === 'LOCKED' && available) {
-      await db.playerQuest.update({ where: { id: current.id }, data: { status: 'AVAILABLE' } });
+      unlockIds.push(current.id);
       newlyAvailable.push(definition.key);
     }
   }
 
-  await syncDailyContractAttempts(db, roundPlayerId, ruleset, now);
-  await syncWeeklyContractAttempts(db, roundPlayerId, ruleset, now);
-  newlyAvailable.push(...await syncCityContractAttempts(db, roundPlayerId, ruleset, now));
-  newlyAvailable.push(...await syncSeasonContractAttempts(db, roundPlayerId, ruleset));
-  newlyAvailable.push(...await syncAllianceContractAttempts(db, roundPlayerId, ruleset, now));
-  await syncCommunityEventAttempts(db, roundPlayerId, ruleset, now);
-  await syncSeasonalEventAttempts(db, roundPlayerId, ruleset, now);
-  await refreshCommunityEventReadinessForPlayer(db, roundPlayerId, ruleset, now);
-  newlyAvailable.push(...await syncSecretQuestAttempts(db, roundPlayerId, ruleset));
-  await autoAcceptBoardWork(db, roundPlayerId, ruleset, now);
-  await syncDerivedTurfProgress(db, roundPlayerId, ruleset, questDefinitions, now);
+  if (toCreate.length) await db.playerQuest.createMany({ data: toCreate });
+  if (lockIds.length) {
+    await db.playerQuest.updateMany({
+      where: { id: { in: lockIds } },
+      data: { status: 'LOCKED', isTracked: false },
+    });
+  }
+  if (unlockIds.length) {
+    await db.playerQuest.updateMany({
+      where: { id: { in: unlockIds } },
+      data: { status: 'AVAILABLE' },
+    });
+  }
+
+  // Accept, abandon, and track do not roll the boards. Claim only opens the
+  // jobs this payment can unlock. A page view still syncs every board.
+  if (scope.kind === 'full') await syncRotatingBoards(db, roundPlayerId, ruleset, now, newlyAvailable, questDefinitions);
   return announceRefreshedQuestKeys(db, roundPlayerId, ruleset, newlyAvailable, now);
 }
 
@@ -737,6 +938,27 @@ async function announceRefreshedQuestKeys(
   });
 }
 
+async function syncRotatingBoards(
+  db: Db,
+  roundPlayerId: string,
+  ruleset: Ruleset,
+  now: Date,
+  newlyAvailable: string[],
+  questDefinitions: ReadonlyArray<{ id: string; key: string }>,
+): Promise<void> {
+  await syncDailyContractAttempts(db, roundPlayerId, ruleset, now);
+  await syncWeeklyContractAttempts(db, roundPlayerId, ruleset, now);
+  newlyAvailable.push(...await syncCityContractAttempts(db, roundPlayerId, ruleset, now));
+  newlyAvailable.push(...await syncSeasonContractAttempts(db, roundPlayerId, ruleset));
+  newlyAvailable.push(...await syncAllianceContractAttempts(db, roundPlayerId, ruleset, now));
+  await syncCommunityEventAttempts(db, roundPlayerId, ruleset, now);
+  await syncSeasonalEventAttempts(db, roundPlayerId, ruleset, now);
+  await refreshCommunityEventReadinessForPlayer(db, roundPlayerId, ruleset, now);
+  newlyAvailable.push(...await syncSecretQuestAttempts(db, roundPlayerId, ruleset));
+  await autoAcceptBoardWork(db, roundPlayerId, ruleset, now);
+  await syncDerivedTurfProgress(db, roundPlayerId, ruleset, questDefinitions, now);
+}
+
 /** Move an AVAILABLE job to ACTIVE, the same way whether the player clicked Accept or auto-accept did. */
 async function startQuest(db: Db, roundPlayerId: string, row: QuestRow, ruleset: Ruleset, acceptedAt: Date, track: boolean): Promise<void> {
   const preserveOffer = preservesGeneratedOffer(row, ruleset);
@@ -772,6 +994,11 @@ async function startQuest(db: Db, roundPlayerId: string, row: QuestRow, ruleset:
     type: 'QUEST_ACCEPTED',
     payload: { questKey: row.questDefinition.key },
     at: acceptedAt,
+  });
+  // Acceptance is also onboarding ledger progress. Keep this separate from
+  // QuestProgressService so recording it cannot recursively advance quests.
+  await createPlayerActivity(db, roundPlayerId, 'QUEST_ACCEPTED', {
+    questKey: row.questDefinition.key,
   });
 }
 
@@ -837,12 +1064,32 @@ export const HandcraftedQuestService = {
     await syncDefinitions(prisma, ruleset);
   },
 
-  async page(prisma: PrismaClient, roundPlayerId: string, ruleset: Ruleset): Promise<QuestPageDto> {
-    await syncDefinitions(prisma, ruleset);
+  /** Tracked active jobs for the nav bar. No catalog sync, no board refresh, no faction or favor reads. */
+  async tracked(prisma: PrismaClient, roundPlayerId: string, ruleset: Ruleset): Promise<TrackedQuestsDto> {
+    const rows = await prisma.playerQuest.findMany({
+      where: {
+        roundPlayerId,
+        isTracked: true,
+        status: { in: ['ACTIVE', 'READY_TO_TURN_IN'] },
+        questDefinition: { rulesetId: ruleset.meta.id, rulesetVersion: ruleset.meta.version, isEnabled: true },
+      },
+      include: { questDefinition: true },
+      orderBy: [{ createdAt: 'asc' }],
+    });
+    const context: QuestContext = { points: {}, netWorthCents: 0n, completed: new Set(), reps: {} };
+    return { quests: rows.map((row) => questDto(row, ruleset, context)) };
+  },
+
+  async page(prisma: PrismaClient, roundPlayerId: string, ruleset: Ruleset, opts: { skipSync?: boolean; skipRefresh?: boolean } = {}): Promise<QuestPageDto> {
+    if (!opts.skipSync) await syncDefinitions(prisma, ruleset);
     return prisma.$transaction(async (tx) => {
       await lockRoundPlayer(tx, roundPlayerId);
       const now = new Date();
-      await refreshAvailability(tx, roundPlayerId, ruleset, now);
+      // Mutation endpoints (accept/abandon/track) already synced definitions
+      // and refreshed availability inside their write transaction milliseconds
+      // earlier, so they pass skipSync + skipRefresh and go straight to the
+      // read. A standalone page view still does both.
+      if (!opts.skipRefresh) await refreshAvailability(tx, roundPlayerId, ruleset, now);
       const dailyEnabled = definitions(ruleset).some(
         (definition) => definition.type === 'DAILY' && definition.repeatability === 'DAILY',
       );
@@ -854,27 +1101,60 @@ export const HandcraftedQuestService = {
       const cityEnabled = definitions(ruleset).some(isDynamicCityContractDefinition);
       const cityWindow = cityEnabled ? cityContractWindow(now) : null;
       const seasonEnabled = definitions(ruleset).some(isSeasonContractDefinition);
-      const seasonEndsAt = seasonEnabled
-        ? (await tx.roundPlayer.findUnique({
-            where: { id: roundPlayerId },
-            select: { round: { select: { endsAt: true } } },
-          }))?.round.endsAt ?? null
-        : null;
-      const rows = await tx.playerQuest.findMany({
-        where: {
-          roundPlayerId,
-          questDefinition: { rulesetId: ruleset.meta.id, rulesetVersion: ruleset.meta.version, isEnabled: true },
-        },
-        include: { questDefinition: true },
-        orderBy: [{ createdAt: 'asc' }],
-      });
-      const communitySnapshots = new Map<string, CommunityEventSnapshot>();
-      for (const row of rows) {
-        if (!isCommunityEventDefinition(ruleset.questDefinitions?.[row.questDefinition.key])) continue;
-        const snapshot = await communityEventSnapshot(tx, row);
-        if (snapshot) communitySnapshots.set(row.id, snapshot);
-      }
-      const reps = await contactPoints(tx, roundPlayerId, ruleset);
+      const [
+        seasonRow,
+        rows,
+        reps,
+        standings,
+        points,
+        worth,
+        gate,
+        perks,
+        unlockRows,
+        favorEntries,
+        activeFavors,
+        armedFavors,
+        owner,
+        cityConditions,
+      ] = await Promise.all([
+        seasonEnabled
+          ? tx.roundPlayer.findUnique({
+              where: { id: roundPlayerId },
+              select: { round: { select: { endsAt: true } } },
+            })
+          : Promise.resolve(null),
+        tx.playerQuest.findMany({
+          where: {
+            roundPlayerId,
+            questDefinition: { rulesetId: ruleset.meta.id, rulesetVersion: ruleset.meta.version, isEnabled: true },
+          },
+          include: { questDefinition: true },
+          orderBy: [{ createdAt: 'asc' }],
+        }),
+        contactPoints(tx, roundPlayerId, ruleset),
+        FactionService.standings(tx, roundPlayerId, ruleset),
+        FactionService.points(tx, roundPlayerId),
+        tx.roundPlayer.findUniqueOrThrow({ where: { id: roundPlayerId }, select: { netWorthCents: true } }),
+        questGateContext(tx, roundPlayerId, ruleset, now),
+        FactionPerkService.perks(tx, roundPlayerId, ruleset),
+        tx.playerUnlock.findMany({
+          where: { roundPlayerId },
+          orderBy: { awardedAt: 'asc' },
+        }),
+        FavorInventoryService.list(tx, roundPlayerId, ruleset),
+        TimedFavorService.listActive(tx, roundPlayerId, ruleset, now),
+        SingleUseFavorService.listArmed(tx, roundPlayerId, ruleset),
+        tx.roundPlayer.findUnique({
+          where: { id: roundPlayerId },
+          select: { account: { select: { profile: { select: { autoAcceptBoardWork: true } } } } },
+        }),
+        CityConditionService.page(tx, roundPlayerId, ruleset, now),
+      ]);
+      const seasonEndsAt = seasonRow?.round.endsAt ?? null;
+      const communitySnapshots = await communityEventSnapshots(
+        tx,
+        rows.filter((row) => isCommunityEventDefinition(ruleset.questDefinitions?.[row.questDefinition.key])),
+      );
       const contacts = Object.values(ruleset.contacts ?? {}).map((contact): QuestContactDto => {
         const points = reps[contact.key] ?? 0;
         const tier = contactTier(points);
@@ -889,16 +1169,15 @@ export const HandcraftedQuestService = {
           independent: independent ?? null,
         };
       });
-      const standings = await FactionService.standings(tx, roundPlayerId, ruleset);
       // 1.4.0-E: standing and net worth, for each card's Inner Circle preview and fee.
       const questContext: QuestContext = {
-        points: await FactionService.points(tx, roundPlayerId),
-        netWorthCents: (await tx.roundPlayer.findUniqueOrThrow({ where: { id: roundPlayerId }, select: { netWorthCents: true } })).netWorthCents,
+        points,
+        netWorthCents: worth.netWorthCents,
         completed: new Set(rows.filter((row) => row.status === 'COMPLETED').map((row) => row.questDefinition.key)),
         reps,
+        ...gate,
       };
       // 1.4.0-D: what standing opens with each faction, and what it says right now.
-      const perks = await FactionPerkService.perks(tx, roundPlayerId, ruleset);
       const factions = ruleset.factions ? Object.values(ruleset.factions).flatMap((faction) => faction ? [{
         key: faction.key,
         name: faction.name,
@@ -936,10 +1215,6 @@ export const HandcraftedQuestService = {
           };
         })() : {}),
       }] : []) : null;
-      const unlockRows = await tx.playerUnlock.findMany({
-        where: { roundPlayerId },
-        orderBy: { awardedAt: 'asc' },
-      });
       const permanentUnlocks = unlockRows.flatMap((row) => {
         const definition = ruleset.permanentUnlocks?.[row.key];
         if (!definition) return [];
@@ -952,7 +1227,7 @@ export const HandcraftedQuestService = {
           awardedAt: row.awardedAt.toISOString(),
         }];
       });
-      const favors = (await FavorInventoryService.list(tx, roundPlayerId, ruleset)).map((entry) => ({
+      const favors = favorEntries.map((entry) => ({
         key: entry.key,
         name: entry.definition.name,
         description: entry.definition.description,
@@ -968,13 +1243,6 @@ export const HandcraftedQuestService = {
         totalGranted: entry.totalGranted,
         lastSourceQuestKey: entry.lastSourceQuestKey,
       }));
-      const activeFavors = await TimedFavorService.listActive(tx, roundPlayerId, ruleset, now);
-      const armedFavors = await SingleUseFavorService.listArmed(tx, roundPlayerId, ruleset);
-      const owner = await tx.roundPlayer.findUnique({
-        where: { id: roundPlayerId },
-        select: { account: { select: { profile: { select: { autoAcceptBoardWork: true } } } } },
-      });
-      const cityConditions = await CityConditionService.page(tx, roundPlayerId, ruleset, now);
       return {
         // Sample immediately before the response object is built so browser clock
         // skew cannot decide when an active favor expires.
@@ -1048,9 +1316,27 @@ export const HandcraftedQuestService = {
       } else {
         await lockRoundPlayer(tx, roundPlayerId);
       }
-      await refreshAvailability(tx, roundPlayerId, ruleset);
+      await refreshAvailability(tx, roundPlayerId, ruleset, new Date(), { kind: 'active-edit' });
       const row = await loadQuest(tx, roundPlayerId, ruleset, key);
       if (row.status === 'ACTIVE' || row.status === 'READY_TO_TURN_IN') return;
+      if (isSeasonContractDefinition((ruleset.questDefinitions ?? {})[row.questDefinition.key])) {
+        const other = await tx.playerQuest.findFirst({
+          where: {
+            roundPlayerId,
+            id: { not: row.id },
+            status: { in: ['ACTIVE', 'READY_TO_TURN_IN', 'COMPLETED'] },
+            questDefinition: {
+              type: 'SEASON',
+              rulesetId: ruleset.meta.id,
+              rulesetVersion: ruleset.meta.version,
+            },
+          },
+          select: { id: true },
+        });
+        if (other) {
+          throw AppError.conflict('SEASON_CONTRACT_TAKEN', 'Only one season contract can be going this round.');
+        }
+      }
       if (row.status !== 'AVAILABLE') throw AppError.conflict('QUEST_NOT_AVAILABLE', 'That job is not available yet.');
       const tracked = await tx.playerQuest.count({
         where: { roundPlayerId, isTracked: true, questDefinition: { type: { not: 'EVENT' } } },
@@ -1070,7 +1356,9 @@ export const HandcraftedQuestService = {
       }
       await startQuest(tx, roundPlayerId, row, ruleset, acceptedAt, tracked < TRACKED_LIMIT);
     });
-    return this.page(prisma, roundPlayerId, ruleset);
+    // Availability was refreshed inside the write transaction above, so skip
+    // the second sync + refresh and go straight to the read.
+    return this.page(prisma, roundPlayerId, ruleset, { skipSync: true, skipRefresh: true });
   },
 
   /** Account-wide, so the choice carries into the next season. Turning it on starts waiting board work right away. */
@@ -1089,7 +1377,7 @@ export const HandcraftedQuestService = {
     await syncDefinitions(prisma, ruleset);
     await prisma.$transaction(async (tx) => {
       await lockRoundPlayer(tx, roundPlayerId);
-      await refreshAvailability(tx, roundPlayerId, ruleset);
+      await refreshAvailability(tx, roundPlayerId, ruleset, new Date(), { kind: 'active-edit' });
       const row = await loadQuest(tx, roundPlayerId, ruleset, key);
       if (!['ACTIVE', 'READY_TO_TURN_IN'].includes(row.status)) throw AppError.conflict('QUEST_NOT_ACTIVE', 'That job is not active.');
       if (isAllianceContractDefinition(ruleset.questDefinitions?.[row.questDefinition.key])) {
@@ -1121,14 +1409,16 @@ export const HandcraftedQuestService = {
         },
       });
     });
-    return this.page(prisma, roundPlayerId, ruleset);
+    // Availability was refreshed inside the write transaction above, so skip
+    // the second sync + refresh and go straight to the read.
+    return this.page(prisma, roundPlayerId, ruleset, { skipSync: true, skipRefresh: true });
   },
 
   async track(prisma: PrismaClient, roundPlayerId: string, ruleset: Ruleset, key: string, tracked: boolean): Promise<QuestPageDto> {
     await syncDefinitions(prisma, ruleset);
     await prisma.$transaction(async (tx) => {
       await lockRoundPlayer(tx, roundPlayerId);
-      await refreshAvailability(tx, roundPlayerId, ruleset);
+      await refreshAvailability(tx, roundPlayerId, ruleset, new Date(), { kind: 'active-edit' });
       const row = await loadQuest(tx, roundPlayerId, ruleset, key);
       if (!['ACTIVE', 'READY_TO_TURN_IN'].includes(row.status)) throw AppError.conflict('QUEST_NOT_ACTIVE', 'Only active jobs can be tracked.');
       if (tracked && !row.isTracked && row.questDefinition.type !== 'EVENT') {
@@ -1139,7 +1429,9 @@ export const HandcraftedQuestService = {
       }
       await tx.playerQuest.update({ where: { id: row.id }, data: { isTracked: tracked } });
     });
-    return this.page(prisma, roundPlayerId, ruleset);
+    // Availability was refreshed inside the write transaction above, so skip
+    // the second sync + refresh and go straight to the read.
+    return this.page(prisma, roundPlayerId, ruleset, { skipSync: true, skipRefresh: true });
   },
 
   async claim(
@@ -1154,7 +1446,7 @@ export const HandcraftedQuestService = {
       action: 'QUEST_CLAIM',
       actionId: input.actionId,
       idempotencyScope: `QUEST_CLAIM:${key}`,
-      execute: async ({ tx, current, now, player, round }) => {
+      execute: async ({ tx, current, now, player, round, skills }) => {
         const communityEvent = isCommunityEventDefinition(ruleset.questDefinitions?.[key]);
         const seasonalEvent = usesFirstClassSeasonalEvents(ruleset) && isSeasonalEventDefinition(ruleset.questDefinitions?.[key]);
         if (communityEvent) {
@@ -1210,17 +1502,25 @@ export const HandcraftedQuestService = {
         }
         next.cashCents -= feeCents;
 
-        const questRewards = [
+        const listedRewards = [
           ...(cityContractRewards(row.rewardState) ?? rewards(row.questDefinition.rewards)),
           ...(selectedBranch?.rewards ?? []),
         ];
+        const questRewards = bumpRewardsForCompletedBonuses(listedRewards, finishedBonusCount(row));
+        const cashBeforeRewards = next.cashCents;
         await grantRewards({ tx, roundPlayerId, accountId: player.accountId, ruleset, now, sourceKey: key }, next, questRewards);
+        // Plugged In: the Job's cash comes in a little larger.
+        const rewardCash = next.cashCents - cashBeforeRewards;
+        const jobCashPercent = rewardCash > 0n ? skills.percent('JOB_CASH') : 0;
+        if (jobCashPercent) next.cashCents += rewardCash * BigInt(Math.round(jobCashPercent * 100)) / 10_000n;
         // 1.4.0-B: a one-time Job also pays standing to the factions it helps, and no others.
         const standingChanges: QuestClaimResult['standingChanges'] = [];
         // 1.4.0-C: a board contract pays its sponsor instead.
         for (const [factionKey, amount] of [...jobStanding(ruleset, key, questRewards, selectedBranch), ...boardStanding(ruleset, rulesetDefinition, row.rewardState), ...introduction]) {
           const source = rulesetDefinition.introduces ? 'INTRODUCTION' : contractBoard(rulesetDefinition) ? 'CONTRACT' : 'JOB';
-          const change = await FactionService.grant(tx, roundPlayerId, ruleset, factionKey, amount, source, `job:${row.id}:${factionKey}`, now);
+          // Regular: standing a Job pays grows a little faster.
+          const earned = amount > 0 ? Math.ceil(skills.scale('STANDING_GAIN', amount)) : amount;
+          const change = await FactionService.grant(tx, roundPlayerId, ruleset, factionKey, earned, source, `job:${row.id}:${factionKey}`, now);
           if (change) {
             const paid = change.after - change.before;
             const rivalName = (rival: FactionKey) => ruleset.factions?.[rival]?.name ?? rival;
@@ -1268,7 +1568,7 @@ export const HandcraftedQuestService = {
             });
           }
         }
-        const newlyAvailable = await refreshAvailability(tx, roundPlayerId, ruleset, now);
+        const newlyAvailable = await refreshAvailability(tx, roundPlayerId, ruleset, now, { kind: 'claim', questKey: key });
         const dtoRewards = visibleRewards(questRewards).map((reward) => rewardDto(reward, ruleset));
 
         return {

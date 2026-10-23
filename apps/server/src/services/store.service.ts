@@ -7,7 +7,6 @@ import {
   maxStoreBuy,
   productEconomy,
   restockIntervalFor,
-  stockOnHand,
   StoreTradeError,
   restockSpeedup,
   tierFor,
@@ -56,6 +55,10 @@ import { tradeProductLine } from './product-market.service.js';
 import { PermanentUnlockService } from './permanent-unlock.service.js';
 import type { Db } from '../utils/db.js';
 import { CityConditionService } from './city-condition.service.js';
+import { applyTerritoryModifier, resolveTerritoryModifiers, territorySourcesForAction } from './territory-perks.service.js';
+import { consumeTerritoryAccessGrant } from './territory-access.service.js';
+import { NO_SKILL_EFFECTS, type SkillEffects } from './player-skill.service.js';
+import { IndividualItemsService } from './individual-items.service.js';
 
 const MAX_CITY_CONDITION_CASH_CENTS = BigInt(Number.MAX_SAFE_INTEGER);
 
@@ -80,11 +83,29 @@ function citySaleBonus<T extends { unitCents: number; totalCents: bigint; cashCh
   };
 }
 
+function territorySaleBonus<T extends { unitCents: number; totalCents: bigint; cashChangeCents: bigint }>(trade: T, quantity: number, receipts: ReturnType<typeof resolveTerritoryModifiers>): T {
+  const receipt = receipts.find((row) => row.effectId.includes('store'));
+  if (!receipt || trade.cashChangeCents <= 0n) return trade;
+  const adjustedTotal = applyTerritoryModifier(Number(trade.totalCents), receipt);
+  return { ...trade, totalCents: BigInt(adjustedTotal), cashChangeCents: BigInt(adjustedTotal), unitCents: Math.floor(adjustedTotal / Math.max(1, quantity)) };
+}
+
 type CatalogPlayer = RoundPlayer & { city: { slug: string } };
 
 function discountedBuyCents(buyCents: number, sellCents: number | null, discountPercent: number): number {
   const discounted = Math.floor(buyCents * (100 - Math.min(90, Math.max(0, discountPercent))) / 100);
   return sellCents === null ? Math.max(1, discounted) : Math.max(sellCents + 1, discounted);
+}
+
+/**
+ * Street skills on a store sale: Hustle's sale-price passive, and Untaxed, which
+ * halves what a sell-back loses against the buy price.
+ */
+export function skillSellCents(sellCents: number | null, buyCents: number, skills: SkillEffects): number | null {
+  if (sellCents === null || !skills.active) return sellCents;
+  let price = Math.floor(skills.scale('STORE_SELL_PRICE', sellCents));
+  if (skills.has('UNTAXED')) price = Math.max(price, sellCents + Math.floor((buyCents - sellCents) / 2));
+  return Math.min(buyCents - 1, Math.max(sellCents, price));
 }
 
 export function boostedSellCents(sellCents: number | null, buyCents: number, bonusPercent: number): number | null {
@@ -460,6 +481,7 @@ function quoteForLine(
   input: StoreCheckoutLineInput,
   effects: RacketEffects = {},
   nudges: StoreNudges = {},
+  skills: SkillEffects = NO_SKILL_EFFECTS,
 ): {
   buyUnitCents?: number;
   sellUnitCents?: number | null;
@@ -480,7 +502,9 @@ function quoteForLine(
   const relationship = relationshipPriceAdjustments(standings[trader]?.points ?? 0, ruleset, foundStore.key);
   // 1.1.0-C: a racket shades a store's price a little, on top of standing.
   const racket = racketStorePrice(ruleset, effects, foundStore.key, input.item);
-  const sellUnitCents = boostedSellCents(storeItem.sellCents, storeItem.buyCents, relationship.sellBonusPercent + racket.sellBonusPercent);
+  const boostedSell = boostedSellCents(storeItem.sellCents, storeItem.buyCents, relationship.sellBonusPercent + racket.sellBonusPercent);
+  // Skills only pay on a sale; the buy-side floor keeps reading the unskilled price.
+  const sellUnitCents = input.direction === 'sell' ? skillSellCents(boostedSell, storeItem.buyCents, skills) : boostedSell;
   const favorApplies = Boolean(
     discount
     && input.direction === 'buy'
@@ -538,11 +562,10 @@ export const StoreService = {
     const stores = Object.entries(ruleset.stores).map(([key, store]) => {
         const news: string[] = [];
         const items = Object.entries(store.items).map(([itemKey, item]) => {
-          const onHand = stockOnHand(player, item);
           const settled = item.restock ? stock.byField[item.restock.stockField] ?? null : null;
           const shipment = settled ? shipmentDto({ settlement: settled, trader: key, keeper: store.keeper, itemName: item.name }) : null;
           if (shipment) incomingShipments += 1;
-          const specialOrder = settled && item.restock && !ordered.has(`${key}:${itemKey}`) && (!item.unlockKey || hasWeaponAccess(player, item.unlockKey))
+          const specialOrder = (item.unitsPerOrder ?? 1) === 1 && settled && item.restock && !ordered.has(`${key}:${itemKey}`) && (!item.unlockKey || hasWeaponAccess(player, item.unlockKey))
             ? specialOrderQuote({
                 ruleset,
                 points: standings[key as TraderKey]?.points ?? 0,
@@ -587,13 +610,13 @@ export const StoreService = {
             ...(relationship.buyDiscountPercent > 0 ? { relationshipBuyDiscountPercent: relationship.buyDiscountPercent } : {}),
             ...(relationship.sellBonusPercent > 0 ? { relationshipSellBonusPercent: relationship.sellBonusPercent } : {}),
             ...(nudge ? { factionDiscount: factionDiscountDto(ruleset, nudge) } : {}),
-            owned: player[item.field],
+            owned: player[item.field] ?? 0,
             unlock: item.unlockKey
               ? weaponUnlockProgress(player, standings, item.unlockKey, ruleset)
               : null,
             questLock: questLockFor(ruleset, player, item, lockedVehicles),
             maxBuy: (item.unlockKey && !hasWeaponAccess(player, item.unlockKey)) || (item.vehicleClass && lockedVehicles.has(item.vehicleClass))
-              ? 0 : maxStoreBuy(player.cashCents, player[item.field], quotedItem, onHand),
+              ? 0 : maxStoreBuy(player.cashCents, player[item.field] ?? 0, quotedItem, shelfStock),
             market: storeMarketContext({
               buyCents: quotedBuyCents,
               baseBuyCents: item.buyCents,
@@ -606,6 +629,7 @@ export const StoreService = {
               ? {
                   stock: settled.stock,
                   cap: settled.cap,
+                  ...(item.inventoryUnitLabel ? { unitLabel: item.inventoryUnitLabel } : {}),
                   intervalMinutes: settled.intervalMinutes,
                   perInterval: settled.perInterval,
                   nextAt: settled.nextAt ? settled.nextAt.toISOString() : null,
@@ -651,7 +675,7 @@ export const StoreService = {
     return ActionService.run<StoreTradeResult>(prisma, roundPlayerId, {
       action: input.direction === 'buy' ? 'STORE_BUY' : 'STORE_SELL',
       actionId: input.actionId,
-      execute: async ({ tx, current, player, round, ruleset, standings, now }) => {
+      execute: async ({ tx, current, player, round, ruleset, standings, now, skills }) => {
         const foundStore = findStore(ruleset, input.store);
         const normalizedItem = input.item.trim().toUpperCase();
         const normalizedInput = { ...input, store: foundStore?.key ?? input.store.trim().toUpperCase(), item: normalizedItem };
@@ -667,7 +691,15 @@ export const StoreService = {
         const storeItem = foundStore && Object.hasOwn(foundStore.store.items, normalizedItem)
           ? foundStore.store.items[normalizedItem]
           : undefined;
-        const quote = quoteForLine(ruleset, standings, discount, foundStore, normalizedInput, readRacketEffects(player.racketEffects), await storeNudges(tx, roundPlayerId, ruleset));
+        const accessKey = input.direction === 'sell' && player.city.slug === 'new-york-city'
+          ? 'wall-street-fixer'
+          : input.direction === 'buy' && player.city.slug === 'chicago' && ['PISTOL', 'SHOTGUN', 'TEK9', 'AK47'].includes(normalizedItem)
+            ? 'arms-dealer'
+            : input.direction === 'buy' && player.city.slug === 'detroit' && storeItem?.vehicleClass
+              ? 'motor-city-garage'
+              : null;
+        if (accessKey) await consumeTerritoryAccessGrant({ tx, roundId: round.id, territoryPerksEnabled: round.territoryPerksEnabled, territoryPerksCatalogVersion: round.territoryPerksCatalogVersion, roundPlayerId, cityId: player.cityId, citySlug: player.city.slug, allianceId: player.allianceId, ruleset, accessKey, grantId: input.territoryAccessGrantId, actionId: input.actionId, now });
+        const quote = quoteForLine(ruleset, standings, discount, foundStore, normalizedInput, readRacketEffects(player.racketEffects), await storeNudges(tx, roundPlayerId, ruleset), skills);
         // 1.5.0-E2: a Sedan or Van waits for its job from Wheels.
         if (storeItem?.vehicleClass && normalizedInput.direction === 'buy') {
           await PermanentUnlockService.assertCanBuyVehicle(tx, roundPlayerId, ruleset, storeItem.vehicleClass);
@@ -690,13 +722,21 @@ export const StoreService = {
           }
           throw error;
         }
+        const territoryModifierReceipts = resolveTerritoryModifiers(await territorySourcesForAction({
+          tx, round, ruleset, allianceId: player.allianceId, cityId: player.cityId, citySlug: player.city.slug, district: 'CITY',
+        }), input.direction === 'sell' ? 'STORE_SELL' : 'STORE_BUY');
         if (input.direction === 'sell') {
           const condition = await CityConditionService.bonuses(tx, {
             round, cityId: player.cityId, ruleset, action: 'STORE_SELL', district: 'CITY', now,
           });
           trade = citySaleBonus(trade, condition.cashGainPercent, current.cashCents, input.quantity);
+          trade = territorySaleBonus(trade, input.quantity, territoryModifierReceipts);
         }
         const { stockField, stockTaken, ...priced } = trade;
+
+        if (ruleset.individualItems?.enabled) {
+          await IndividualItemsService.trade(tx, roundPlayerId, trade.field, input.direction, Math.abs(trade.quantityChange), ruleset.individualItems);
+        }
 
         // Being a regular. Paid once a day per trader however much you buy,
         // so standing tracks showing up rather than spending.
@@ -721,9 +761,9 @@ export const StoreService = {
           next: {
             ...current,
             cashCents: current.cashCents + trade.cashChangeCents,
-            [trade.field]: current[trade.field] + trade.quantityChange,
+            [trade.field]: (current[trade.field] ?? 0) + trade.quantityChange,
             // Taking one off the shelf is what starts the wait for the next.
-            ...(stockField ? { [stockField]: current[stockField] - stockTaken } : {}),
+            ...(stockField ? { [stockField]: (current[stockField] ?? 0) - stockTaken } : {}),
           },
           result,
           ledger: [{
@@ -768,7 +808,7 @@ export const StoreService = {
           ? foundStore.store.items[itemKey]
           : undefined;
         if (!item) throw AppError.badRequest('UNKNOWN_ITEM', 'That item is not sold at this store.', { item: 'Pick an item.' });
-        if (!item.restock) throw AppError.badRequest('SPECIAL_ORDER_UNAVAILABLE', 'That item does not need special sourcing.', { item: 'Pick a scarce item.' });
+        if (!item.restock || (item.unitsPerOrder ?? 1) !== 1) throw AppError.badRequest('SPECIAL_ORDER_UNAVAILABLE', 'That item does not need special sourcing.', { item: 'Pick a scarce item.' });
         if (item.unlockKey && !hasWeaponAccess(current, item.unlockKey)) {
           throw AppError.conflict('WEAPON_LOCKED', `Complete Tommy’s favor to unlock ${item.name} purchases.`);
         }
@@ -849,7 +889,7 @@ export const StoreService = {
     return ActionService.run<StoreCheckoutResult>(prisma, roundPlayerId, {
       action: 'STORE_CHECKOUT',
       actionId: input.actionId,
-      execute: async ({ tx, current, player, round, ruleset, standings, now }) => {
+      execute: async ({ tx, current, player, round, ruleset, standings, now, skills }) => {
         const armed = await SingleUseFavorService.matching(tx, roundPlayerId, ruleset, 'STORE_BUY_DISCOUNT');
         const discount: StoreDiscount | null = armed?.effect.kind === 'STORE_BUY_DISCOUNT'
           ? { id: armed.id, key: armed.key, effect: armed.effect }
@@ -867,26 +907,41 @@ export const StoreService = {
               round, cityId: player.cityId, ruleset, action: 'STORE_SELL', district: 'CITY', now,
             })).cashGainPercent
           : 0;
+        const territoryModifierReceipts = input.lines.some((line) => line.direction === 'sell')
+          ? resolveTerritoryModifiers(await territorySourcesForAction({ tx, round, ruleset, allianceId: player.allianceId, cityId: player.cityId, citySlug: player.city.slug, district: 'CITY' }), 'STORE_SELL')
+          : [];
+        const requiredAccessKeys = new Set(input.lines.map((line) => {
+          const normalized = normalizeStoreLine(ruleset, line).normalized;
+          const item = findStore(ruleset, normalized.store)?.store.items[normalized.item];
+          if (normalized.direction === 'sell' && player.city.slug === 'new-york-city') return 'wall-street-fixer';
+          if (normalized.direction === 'buy' && player.city.slug === 'chicago' && ['PISTOL', 'SHOTGUN', 'TEK9', 'AK47'].includes(normalized.item)) return 'arms-dealer';
+          if (normalized.direction === 'buy' && player.city.slug === 'detroit' && item?.vehicleClass) return 'motor-city-garage';
+          return null;
+        }).filter((key): key is 'arms-dealer' | 'motor-city-garage' | 'wall-street-fixer' => key !== null));
+        if (requiredAccessKeys.size > 1) throw AppError.conflict('MULTIPLE_TERRITORY_ACCESS_POINTS', 'Use one territory access point per checkout.');
+        const requiredAccessKey = [...requiredAccessKeys][0];
+        if (requiredAccessKey) await consumeTerritoryAccessGrant({ tx, roundId: round.id, territoryPerksEnabled: round.territoryPerksEnabled, territoryPerksCatalogVersion: round.territoryPerksCatalogVersion, roundPlayerId, cityId: player.cityId, citySlug: player.city.slug, allianceId: player.allianceId, ruleset, accessKey: requiredAccessKey, grantId: input.territoryAccessGrantId, actionId: input.actionId, now });
 
         for (const [index, line] of input.lines.entries()) {
           const { foundStore, normalized } = normalizeStoreLine(ruleset, line);
           // Pip's other products ride in the same basket, priced and stocked exactly as at his counter.
           if (normalized.store === 'PIP' && normalized.item !== 'CRACK' && productEconomy(ruleset, normalized.item)?.pip) {
             const product = await tradeProductLine(
-              { tx, roundPlayerId, player, round, ruleset, standings, now, cashCents: next.cashCents, sourceKey: `checkout:${input.actionId ?? now.toISOString()}:${index}`, creditPip: !creditedTraders.has('PIP') },
+              { tx, roundPlayerId, player, round, ruleset, standings, now, cashCents: next.cashCents, sourceKey: `checkout:${input.actionId ?? now.toISOString()}:${index}`, creditPip: !creditedTraders.has('PIP'), skills },
               { product: normalized.item, direction: normalized.direction, quantity: normalized.quantity },
             ).catch((error: unknown) => {
               if (error instanceof AppError) throw new AppError(error.statusCode, error.code, `Line ${index + 1}: ${error.message}`, error.fields);
               throw error;
             });
             creditedTraders.add('PIP');
-            const productTrade = product.result.direction === 'sell'
+            let productTrade = product.result.direction === 'sell'
               ? citySaleBonus({
                   unitCents: product.result.unitCents,
                   totalCents: BigInt(product.result.totalCents),
                   cashChangeCents: BigInt(product.result.cashChangeCents),
                 }, cityCashGainPercent, next.cashCents, product.result.quantity)
               : null;
+            if (productTrade) productTrade = territorySaleBonus(productTrade, product.result.quantity, territoryModifierReceipts);
             const productCashChangeCents = productTrade?.cashChangeCents ?? product.cashChangeCents;
             const productTotalCents = productTrade?.totalCents ?? BigInt(product.result.totalCents);
             const productUnitCents = productTrade?.unitCents ?? product.result.unitCents;
@@ -903,6 +958,7 @@ export const StoreService = {
               totalCents: Number(productTotalCents),
               cashChangeCents: Number(productCashChangeCents),
               quantityChange: product.result.direction === 'buy' ? product.result.quantity : -product.result.quantity,
+              ...(product.result.direction === 'sell' && territoryModifierReceipts.length ? { territoryModifierReceipts: territoryModifierReceipts.map((receipt) => ({ ...receipt, sources: receipt.sources.map((source) => ({ ...source })) })) } : {}),
               ...(product.result.factionDiscount ? { factionDiscount: product.result.factionDiscount } : {}),
             });
             ledger.push({ ...product.ledger, amountCents: productCashChangeCents });
@@ -917,7 +973,7 @@ export const StoreService = {
               throw error;
             });
           }
-          const quote = quoteForLine(ruleset, standings, discount, foundStore, normalized, readRacketEffects(player.racketEffects), nudges);
+          const quote = quoteForLine(ruleset, standings, discount, foundStore, normalized, readRacketEffects(player.racketEffects), nudges, skills);
           let trade;
           try {
             trade = calculateStoreTrade(
@@ -936,8 +992,12 @@ export const StoreService = {
           }
           if (normalized.direction === 'sell') {
             trade = citySaleBonus(trade, cityCashGainPercent, next.cashCents, normalized.quantity);
+            trade = territorySaleBonus(trade, normalized.quantity, territoryModifierReceipts);
           }
           const { stockField, stockTaken, ...priced } = trade;
+          if (ruleset.individualItems?.enabled) {
+            await IndividualItemsService.trade(tx, roundPlayerId, trade.field, normalized.direction, Math.abs(trade.quantityChange), ruleset.individualItems);
+          }
           const trader = normalized.store as TraderKey;
           const credit = creditedTraders.has(trader)
             ? { credited: false as const, gained: 0, points: 0, creditedOn: null }
@@ -955,6 +1015,7 @@ export const StoreService = {
             totalCents: Number(trade.totalCents),
             cashChangeCents: Number(trade.cashChangeCents),
             reputationGained: credit.gained,
+            ...(territoryModifierReceipts.length ? { territoryModifierReceipts: territoryModifierReceipts.map((receipt) => ({ ...receipt, sources: receipt.sources.map((source) => ({ ...source })) })) } : {}),
             ...(quote.favorApplies && discount && storeItem ? {
               favorKey: discount.key,
               favorDiscountPercent: discount.effect.discountPercent,
@@ -975,8 +1036,8 @@ export const StoreService = {
           }
 
           next.cashCents += trade.cashChangeCents;
-          next[trade.field] += trade.quantityChange;
-          if (stockField) next[stockField] -= stockTaken;
+          next[trade.field] = (next[trade.field] ?? 0) + trade.quantityChange;
+          if (stockField) next[stockField] = (next[stockField] ?? 0) - stockTaken;
         }
 
         if (discount && discountApplied) await SingleUseFavorService.consume(tx, discount.id);

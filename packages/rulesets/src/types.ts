@@ -1,3 +1,9 @@
+import type { LivingStoryCatalog } from './living-stories.js';
+import type { UnderworldOperationCatalog } from './underworld-operations.js';
+import type { RivalryRules } from './rivalries.js';
+import type { StreetSkillsRules } from './street-skills.js';
+import type { HideoutV2Rules } from './hideout-v2.js';
+
 /**
  * The ruleset contract.
  *
@@ -23,6 +29,9 @@ export type ResourceField =
   /** 1.5.0-E2. Sedans and Vans sold over Charlie's counter. */
   | 'sedans'
   | 'vans';
+
+/** Store-only player balances added by versioned inventory catalogs. */
+export type StoreResourceField = ResourceField | 'ammo' | 'vehicleParts';
 
 export type DistrictKey =
   | 'CASINO'
@@ -163,6 +172,10 @@ export type QuestPrerequisiteKind =
   | 'QUEST_COMPLETED'
   | 'CONTACT_REP_AT_LEAST'
   | 'BRANCH_CHOSEN'
+  /** params: { minutes } — elapsed wall-clock time since this player joined the round. */
+  | 'TIME_SINCE_JOIN'
+  /** params: { eventTypes, count, label? } — recorded player actions before this job is offered. */
+  | 'ACTION_COUNT'
   /** 1.4.0-B. params: { factionKey, tier } — the player's standing with the faction is at that tier or above. */
   | 'FACTION_STANDING_AT_LEAST'
   /** 1.4.0-E. params: { factionKey, tier } — the player's standing with the faction is below that tier. */
@@ -231,6 +244,8 @@ export interface QuestObjectiveAdvance {
 
 export type QuestRewardKind =
   | 'CASH'
+  /** Account-wide Crowns, typically used by Street Pass rewards. */
+  | 'CROWNS'
   | 'TURNS'
   | 'ITEM'
   | 'CONTACT_REP'
@@ -294,7 +309,9 @@ export type ContactKey =
   /** 1.2.0-F. The casino host. */
   | 'ACE'
   /** 1.3.0-F. The retired records sergeant who gives law Jobs. */
-  | 'LEDGER';
+  | 'LEDGER'
+  /** 2.4.0-A. An independent law-focused records contact. */
+  | 'COMMISSIONER';
 
 export interface ContactDefinition {
   readonly key: ContactKey;
@@ -394,7 +411,7 @@ export type PermanentUnlockCatalog = Readonly<Record<string, PermanentUnlockDefi
  * `ITEM_COLLECTION` unlocks one authored art collection (its `styleKey` is the
  * collection key, e.g. 'cartel-gold') for every customizable item and crew type.
  */
-export type QuestCosmeticKind = 'TITLE_BADGE' | 'PROFILE_FRAME' | 'ACCENT' | 'SITE_THEME' | 'HIDEOUT_DECOR' | 'ITEM_COLLECTION';
+export type QuestCosmeticKind = 'TITLE_BADGE' | 'PROFILE_FRAME' | 'ACCENT' | 'SITE_THEME' | 'HIDEOUT_DECOR' | 'STREET_SIGN' | 'STREET_SIGN_FONT_PACK' | 'STREET_SIGN_BACKDROP' | 'ITEM_COLLECTION' | 'CREW_BANNER' | 'AVATAR_PART';
 export type QuestCosmeticRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
 
 export interface QuestCosmeticDefinition {
@@ -802,6 +819,8 @@ export interface VehicleClassDefinition {
   readonly crewSeats?: number | null;
   readonly purchasePriceCents?: number | null;
   readonly routeProfile?: 'NORMAL' | 'LOW_PROFILE' | 'HIGH_VISIBILITY';
+  /** 2.4.0-E. Cash charged for each vehicle at run launch. */
+  readonly runFeeCents?: number;
 }
 
 export type VehicleClassId = VehicleClassDefinition['id'];
@@ -941,6 +960,10 @@ export interface RandomEncounterEntryRules {
   readonly lowRiders?: RandomEncounterNumberEffectRules;
   readonly choices?: readonly RandomEncounterChoiceRules[];
   readonly districts?: readonly DistrictKey[];
+  /** 2.4.0-F. Uses the existing encounter pipeline, gated by a versioned territory owner. */
+  readonly territory?: { readonly scope: 'DISTRICT' | 'CITY' | 'REGION'; readonly key: string; readonly minimumTier?: number };
+  /** Optional UTC-only draw window; entries without one remain year-round. */
+  readonly availableUtc?: { readonly startsAt: string; readonly endsAt: string };
 }
 
 /**
@@ -1201,7 +1224,9 @@ export type StockField =
   | 'medicineStock'
   | 'beerStock'
   | 'crackStock'
-  | 'thugStock';
+  | 'thugStock'
+  | 'ammoStock'
+  | 'vehiclePartsStock';
 export type StockAtField =
   | 'pistolStockAt'
   | 'shotgunStockAt'
@@ -1212,7 +1237,74 @@ export type StockAtField =
   | 'medicineStockAt'
   | 'beerStockAt'
   | 'crackStockAt'
-  | 'thugStockAt';
+  | 'thugStockAt'
+  | 'ammoStockAt'
+  | 'vehiclePartsStockAt';
+
+/** 2.4.0-B. Versioned catalog data for the ammo and vehicle-parts foundation. */
+export interface AmmoPartsRules {
+  readonly enabled: boolean;
+  /** 2.4.0-D. Ammo is consumed by the standard raid engine when true. */
+  readonly combatEnabled?: boolean;
+  /** 2.4.0-F. Emit a one-time activity when a player crosses below one typical squad's ammo. */
+  readonly lowAmmoNotificationsEnabled?: boolean;
+  /** 2.4.0-F. Enables territory cache rewards and in-kind access tolls for new rounds. */
+  readonly territoryYieldsEnabled?: boolean;
+  readonly catalogVersion: string;
+  readonly ammo: {
+    readonly costPerRoundCents: number;
+    readonly roundsPerFight: Readonly<Record<WeaponKey, number>>;
+    readonly defenderFloor: number;
+    readonly lootShareBps: number;
+    readonly sellbackBps: number;
+    readonly storeStockCap: number;
+    readonly restockIntervalMinutes?: number;
+    readonly packs: readonly { readonly key: string; readonly rounds: number; readonly priceCents: number }[];
+  };
+  readonly vehicleParts: {
+    readonly enabled?: boolean;
+    readonly storeStockCap: number;
+    readonly restockIntervalMinutes?: number;
+    readonly cashOnlyMultiplierBps?: number;
+    readonly cashOnlyServiceTurnsPerVehicle?: number;
+    readonly scrapYieldParts?: Readonly<Record<'SEDAN' | 'LOW_RIDER' | 'VAN', number>>;
+    readonly packs: readonly { readonly key: string; readonly parts: number; readonly priceCents: number }[];
+    readonly repairs: Readonly<Record<'SEDAN' | 'LOW_RIDER' | 'VAN', {
+      readonly damagedParts: number;
+      readonly damagedCashCents: number;
+      readonly disabledParts: number;
+      readonly disabledCashCents: number;
+    }>>;
+  };
+}
+
+export interface IndividualItemModRule {
+  readonly key: string;
+  readonly slot: string;
+  readonly tiers: readonly { readonly tier: 1 | 2 | 3; readonly effectPercent: number }[];
+}
+export interface IndividualItemModCost { readonly parts: number; readonly cashCents: number }
+
+/** 2.5.0-A. Per-round individual guns and vehicles, independent of legacy count fields. */
+export interface IndividualItemsRules {
+  readonly enabled: boolean;
+  readonly catalogVersion: string;
+  readonly maxGuns: number;
+  readonly maxVehicles: number;
+  readonly guns: Readonly<Record<WeaponKey, {
+    readonly size: 'SMALL' | 'MEDIUM' | 'LARGE';
+    readonly slots: number;
+    readonly wearPerFight: number;
+    readonly mods: readonly IndividualItemModRule[];
+  }>>;
+  readonly vehicles: Readonly<Record<'SEDAN' | 'LOW_RIDER' | 'VAN', {
+    readonly size: 'SMALL' | 'MEDIUM' | 'LARGE';
+    readonly slots: number;
+    readonly wearPerRun: number;
+    readonly mods: readonly IndividualItemModRule[];
+  }>>;
+  readonly modCosts: Readonly<Record<'SMALL' | 'MEDIUM' | 'LARGE', Readonly<Record<1 | 2 | 3, IndividualItemModCost>>>>;
+}
 
 /**
  * How many of something a shopkeeper can actually get hold of, and how often.
@@ -1260,7 +1352,11 @@ export interface StoreItem {
    */
   readonly vehicleClass?: 'SEDAN' | 'VAN';
   readonly name: string;
-  readonly field: ResourceField;
+  readonly field: StoreResourceField;
+  /** Units in the player's balance represented by one quantity at the counter. */
+  readonly unitsPerOrder?: number;
+  /** Label for the underlying inventory and shelf units when packs are sold. */
+  readonly inventoryUnitLabel?: string;
   readonly buyCents: number;
   /** Null means the store does not buy this back. */
   readonly sellCents: number | null;
@@ -2618,7 +2714,7 @@ export interface CasinoVenueRules {
 export type CasinoStatusTierKey = 'WALK_IN' | 'REGULAR' | 'PREFERRED' | 'HIGH_ROLLER' | 'WHALE';
 
 /** 1.2.0-E. The game a venue is known for. Presentation only. */
-export type CasinoSignatureGame = 'SLOTS' | 'BLACKJACK' | 'ROULETTE' | 'STREET_DICE' | 'POKER';
+export type CasinoSignatureGame = 'SLOTS' | 'BLACKJACK' | 'ROULETTE' | 'SCRATCH_CARDS' | 'HORSE_RACING' | 'POKER' | 'POOL';
 
 /** 1.2.0-E. Which part of a venue a table sits in. Absent means the main floor. */
 export type CasinoRoom = 'FLOOR' | 'VIP';
@@ -2667,9 +2763,9 @@ export interface CasinoStatusRules {
     readonly blackjackHitsSoft17: number;
     readonly rouletteAmerican: number;
     readonly rouletteEuropean: number;
-    readonly streetDiceLine: number;
-    /** True odds carry no house edge, so they rate at zero. */
-    readonly streetDiceOdds: number;
+    readonly scratchCards: number;
+    readonly horseRacing: number;
+    readonly pool?: number;
   };
   readonly comps: {
     /** Comps can pay for hotel extensions on a Boss Trip to a casino city. */
@@ -2785,18 +2881,67 @@ export interface CasinoRouletteTableRules {
   readonly maxTotalBetCents: number;
 }
 
-/** 1.2.0-D. Street Dice uses a pass-line point cycle with optional true-odds backing. */
-export interface CasinoStreetDiceTableRules {
+/** One pool shot's odds in basis points. Whatever is neither pot nor scratch is a miss. */
+export interface CasinoPoolShotRules {
+  readonly potBps: number;
+  readonly scratchBps: number;
+}
+
+/** A house hustler. Each table seats one; better hustlers pay more when beaten. */
+export interface CasinoPoolHustlerRules {
+  readonly name: string;
+  readonly blurb: string;
+  /** Chance to pot an object ball on each shot of a visit. */
+  readonly potBps: number;
+  /** Chance to pot the 8 once the hustler's group is cleared. */
+  readonly eightBps: number;
+  readonly scratchBps: number;
+}
+
+/** Shot-by-shot eight-ball against a house hustler. */
+export interface CasinoPoolTableRules {
   readonly key: string;
   readonly name: string;
   readonly blurb: string;
   readonly venueKinds: readonly CasinoVenueKind[];
-  /** 1.2.0-E. VIP tables need VIP room access at the venue. Absent means the floor. */
   readonly room?: CasinoRoom;
   readonly minBetCents: number;
   readonly maxBetCents: number;
   readonly betStepCents: number;
-  readonly maxOddsMultiple: 1 | 2 | 3 | 5;
+  readonly hustler: CasinoPoolHustlerRules;
+  /** Total return on a win, including stake, in bps of everything staked on the rack. */
+  readonly winReturnBps: number;
+  /** Total return when the player breaks and runs out before the hustler ever shoots. */
+  readonly breakAndRunReturnBps: number;
+  /** Total return when the 8 drops on the player's break. */
+  readonly goldenBreakReturnBps: number;
+}
+
+export interface CasinoPoolRules {
+  readonly break: {
+    /** The 8 drops on the break: an instant win. */
+    readonly goldenBps: number;
+    readonly scratchBps: number;
+    /** Nothing drops and the hustler comes to the table. */
+    readonly dryBps: number;
+    /** Two balls drop. Anything not listed drops exactly one. */
+    readonly twoBallBps: number;
+  };
+  /** One object ball, or the 8 once the group is cleared. */
+  readonly steady: CasinoPoolShotRules;
+  /** Two object balls at once. Needs at least two of the player's balls left. */
+  readonly power: CasinoPoolShotRules;
+  readonly safety: {
+    /** Chance the safety fouls and hands the hustler ball in hand. */
+    readonly foulBps: number;
+    /** The hustler's first shot after a good safety keeps this share of their pot chance. */
+    readonly hustlerPotScaleBps: number;
+    /** Extra scratch chance on the hustler's first shot after a good safety. */
+    readonly hustlerFoulBps: number;
+  };
+  /** Added to the first shot of a visit taken with ball in hand, for either side. */
+  readonly ballInHandBonusBps: number;
+  readonly tables: readonly CasinoPoolTableRules[];
 }
 
 /** 1.2.0-E. Solo Texas Hold’em buy-in and blind structure. */
@@ -3006,7 +3151,7 @@ export interface LawEvidenceRules {
  * 1.2.0-A. Casino foundation: venues, cashier limits and session bankrolls.
  * 1.2.0-B adds server-authoritative Slots.
  * 1.2.0-C optionally adds reconnect-safe Blackjack.
- * 1.2.0-D adds Roulette and persistent Street Dice.
+ * 1.2.0-D adds Roulette, Scratch Cards and Horse Racing.
  * 1.2.0-E adds rated play, status tiers, comps and VIP rooms.
  */
 export interface CasinoRules {
@@ -3030,10 +3175,25 @@ export interface CasinoRules {
   readonly roulette?: {
     readonly tables: readonly CasinoRouletteTableRules[];
   };
-  readonly streetDice?: {
-    readonly tables: readonly CasinoStreetDiceTableRules[];
+  readonly scratchCards?: {
+    readonly denominationsCents: readonly number[];
+    readonly payoutTiers: readonly { readonly multiplier: number; readonly weight: number }[];
+  };
+  readonly horseRacing?: {
+    readonly minBetCents: number;
+    readonly maxBetCents: number;
+    readonly betStepCents: number;
+    readonly horses: readonly {
+      readonly key: string;
+      readonly name: string;
+      readonly color: string;
+      /** Total return, including stake, in basis points. */
+      readonly returnBps: number;
+    }[];
   };
   readonly poker?: CasinoPokerRules;
+  /** Shot-by-shot eight-ball against house hustlers. */
+  readonly pool?: CasinoPoolRules;
   readonly status?: CasinoStatusRules;
   /** 1.8.0-E. Pregame sportsbook. Absent: the round takes no sportsbook tickets. */
   readonly sportsbook?: CasinoSportsbookRules;
@@ -3074,8 +3234,32 @@ export interface Ruleset {
     };
   };
   readonly meta: RulesetMeta;
+  /** 2.4.0-B. Absent on rounds pinned before the ammo and parts catalog. */
+  readonly ammoParts?: AmmoPartsRules;
+  /** 2.5.0-A. Absent on count-based rounds pinned before individual armories. */
+  readonly individualItems?: IndividualItemsRules;
+  /** 2.4.0-A. Per-round catalog opt-in; the round feature flag must also be enabled. */
+  readonly territoryPerks?: { readonly catalogVersion: string; readonly enabled: boolean; readonly dailyYieldCapCentsPerMember: number };
+  /** 3.0-A. Presence gates read-only city holdings; identity multipliers do not alter settlement. */
+  readonly cityHoldings?: {
+    readonly modifiers: {
+      readonly dealerSalesPace: number;
+      readonly demand: number;
+      readonly upkeep: number;
+    };
+  };
   /** 1.8.5-F. Bounded citywide modifiers and optional event follow-ups. */
   readonly cityConditions?: readonly CityConditionRules[];
+  /** 2.0.0-A. Opt-in story invitations; absent on existing pinned rounds. No active writer until later slices. */
+  readonly livingStories?: LivingStoryCatalog;
+  /** 2.4.0-A. Career storylines are opt-in and never inferred for old rounds. */
+  readonly careerStorylines?: { readonly enabled: boolean; readonly catalogVersion: string };
+  /** 2.5.0. Optional, round-pinned rivalry/vendetta capability. */
+  readonly rivalries?: RivalryRules;
+  /** 2.2.0. Cooperative operation templates. Absent on rounds pinned before this catalog. */
+  readonly underworldOperations?: UnderworldOperationCatalog;
+  /** 2.3.0-A/B. Boss skills and bounded passives; absent on older rounds. */
+  readonly streetSkills?: StreetSkillsRules;
   readonly round: RoundRules;
   readonly turns: TurnRules;
   readonly economy: EconomyRules;
@@ -3140,6 +3324,11 @@ export interface Ruleset {
   readonly communityPrivacy?: CommunityPrivacyRules;
   /** Optional seasonal money sink. Mechanical levels reset with each round. */
   readonly hideout?: HideoutRules;
+  /**
+   * 0.7 Hideout v2 extension. Lives on the ruleset from 2.4.0-A on, so a ruleset built by
+   * spreading its parent inherits it; earlier rulesets resolve it through hideoutV2For's ID table.
+   */
+  readonly hideoutV2?: HideoutV2Rules;
   /** 0.3.0-C. Absent where alliances have not shipped. */
   readonly alliances?: AllianceRules;
   /** 0.4.0-A. Absent on rounds where Product is still only crack. */
@@ -3285,6 +3474,8 @@ export interface LoanOfferRules {
  */
 export interface CrewRosterRules {
   readonly enabled: boolean;
+  /** 2.1.0-B. Explicit opt-in, absent on old pinned rulesets. */
+  readonly loyalty?: { readonly enabled: boolean };
   /** 1.7.0-C career milestones. Effects apply only to the job named by the specialty. */
   readonly experiencePerCompletedJob?: number;
   readonly specialtyUnlockExperience?: number;

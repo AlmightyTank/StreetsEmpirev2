@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { formatNumber } from '@streets/shared';
 import { storeBulkHelpers } from '@streets/rulesets';
 import { QuantitySteps } from './QuantitySteps.js';
@@ -22,17 +23,19 @@ export function TurnSpend({
   /** Why turns cannot be spent right now, shown when the helpers are hovered. */
   disabledReason?: string | null;
 }) {
+  const inputId = useId();
   const tooMany = typeof value === 'number' && value > available;
 
   return (
     <div className="se-spend">
-      <label className="se-label" htmlFor="turns-to-spend">
+      <label className="se-label" htmlFor={inputId}>
         Turns to spend
       </label>
 
       <div className="se-spend__row">
         <input
-          id="turns-to-spend"
+          id={inputId}
+          aria-label="Turns to spend"
           className={`se-input se-spend__input${tooMany ? ' se-input--error' : ''}`}
           type="number"
           inputMode="numeric"

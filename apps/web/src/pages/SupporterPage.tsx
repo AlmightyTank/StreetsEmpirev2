@@ -27,13 +27,14 @@ const BENEFITS = [
   'A supporter badge for every month you support, plus tenure badges for cumulative paid months.',
   'Supporter voting and previews for upcoming supporter-funded drops when a vote is active.',
   'Expanded cosmetic convenience limits: 4 profile presets, 4 loadout slots, 5 notification rules and longer activity history.',
+  'My Empire Insights: private visual summaries and CSV export of your own recorded round history.',
   'Optional public thank-you listing and optional release-note credit — both off unless you choose them.',
 ] as const;
 
 /** Dedicated supporter page: explains the cosmetic-only value, then hosts Stripe/supporter account controls. */
 export function SupporterPage() {
   // Same access model as account settings: playable accounts keep the game shell; blocked/pre-join accounts get the plain shell.
-  const canPlay = useSession((s) => Boolean(s.me && !s.account?.verificationRequired && !s.account?.rulesAcceptanceRequired));
+  const canPlay = useSession((s) => Boolean(s.me && !s.account?.verificationRequired && !s.account?.rulesAcceptanceRequired && !s.account?.birthDateRequired));
   const Frame = canPlay ? GameLayout : Shell;
 
   return (
@@ -41,15 +42,17 @@ export function SupporterPage() {
       <div className="se-supporter-page">
         <section className="se-supporter-hero" aria-labelledby="supporter-title">
           <div className="se-supporter-hero__copy">
-            <span className="se-eyebrow">Support the project · Cosmetic only</span>
+             <span className="se-eyebrow">Support the project · Fair-play first</span>
             <h1 id="supporter-title">Keep StreetsEmpire running without buying power.</h1>
             <p>
               Supporting funds hosting and development while keeping seasons fair. No cash, turns, weapons,
-              product, combat strength or hidden intelligence is ever sold here.
+              product, combat strength or hidden intelligence is ever sold here. Supporters also get a private,
+              read-only view of their own recorded round history.
             </p>
             <div className="se-supporter-hero__actions">
               <a className="se-btn se-btn--primary" href="#supporting">Manage or start support</a>
               <Link className="se-btn se-btn--ghost" to="/game/profile">Preview your profile</Link>
+              <Link className="se-btn se-btn--ghost" to="/game/insights">My Empire Insights</Link>
             </div>
           </div>
           <div className="se-supporter-hero__card" aria-hidden="true">
@@ -81,7 +84,7 @@ export function SupporterPage() {
           </Panel>
           <Panel title="Fair-play promise">
             <p>
-              Supporter rewards are visual, profile and account-comfort perks only. They do not change action outcomes,
+              Supporter rewards are visual, profile, account-comfort and personal-history convenience perks only. They do not change action outcomes,
               season ranking strength, combat math, casino odds, scouting, supplies or economy output.
             </p>
             <p className="se-hint">If you stop supporting, permanent rewards you already earned stay on your account.</p>

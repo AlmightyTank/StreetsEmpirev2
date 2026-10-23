@@ -99,6 +99,13 @@ describe('Street Pass season 1', () => {
     expect(sum('FAVOR_ITEM')).toBe(6);
   });
 
+  it('includes three free 100-Crown rewards', () => {
+    const crownRewards = STREET_PASS_S1.tiers.flatMap((tier) => tier.rewards
+      .filter((reward) => reward.kind === 'CROWNS')
+      .map((reward) => [tier.tier, reward.amount]));
+    expect(crownRewards).toEqual([[1, 100], [10, 100], [20, 100]]);
+  });
+
   it('gives guns as items and never buying access', () => {
     const kinds = STREET_PASS_S1.tiers.flatMap((tier) => tier.rewards.map((reward) => reward.kind));
     expect(kinds).not.toContain('WEAPON_ACCESS');
@@ -204,6 +211,7 @@ describe('streetPassProblems', () => {
 
   it('refuses season 1 on a round without its cosmetics', () => {
     expect(streetPassProblems(STREET_PASS_S1, classicOgV08H)).toEqual([
+      'street-pass-s1 tier 4: COSMETIC_UNLOCK street-pass-s1-snapback is not a cosmetic in this round',
       'street-pass-s1 tier 8: COSMETIC_UNLOCK street-pass-s1-urban-ghost is not a cosmetic in this round',
       'street-pass-s1 tier 8: COSMETIC_UNLOCK street-pass-s1-chrome-serpent-theme is not a cosmetic in this round',
       'street-pass-s1 tier 8: COSMETIC_UNLOCK street-pass-s1-chrome-serpent-frame is not a cosmetic in this round',

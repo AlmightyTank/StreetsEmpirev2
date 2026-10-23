@@ -30,6 +30,8 @@ run('Travel balance gates', npm, ['run', 'qa:travel', '--', '--quiet']);
 // Trips: flying, riding along, being hunted, bodyguards and the airport; travel stays a choice, not a requirement.
 run('Trips balance gates', npm, ['run', 'qa:trips', '--', '--quiet']);
 run('Street Pass balance', npm, ['run', 'qa:street-pass', '--', '--quiet']);
+// Account levels: lifetime XP pace, level Crowns and the trust gates for new accounts.
+run('Account XP pacing', npm, ['run', 'qa:account-xp', '--', '--quiet']);
 // 0.6.0: all 40 turf blocks and player-vs-player push balance must still pass on the release ruleset.
 run('Turf balance gates', npm, ['run', 'qa:turf', '--', '--quiet']);
 // 1.1.0-F: businesses, rackets, block wars and the full-round release profile.
@@ -49,12 +51,17 @@ run('Law balance bands', npm, ['run', 'qa:law', '--', '--quiet']);
 run('Faction balance and audit gates', npm, ['run', 'qa:factions', '--', '--quiet']);
 // 1.5.0-E: every vehicle class a reasonable pick somewhere, none a must-have, and the garage a cost, not a tax.
 run('Vehicle balance gates', npm, ['run', 'qa:vehicles', '--', '--quiet']);
+// 2.4.0-G: ammo/parts version pins, inventory conservation, free defender floor and deterministic combat under load.
+run('Ammo and parts release hardening', npm, ['run', 'qa:ammo-release', '--', '25000']);
+run('Ammo season balance projection', npm, ['run', 'qa:ammo-season', '--', '--samples', '10000', '--quiet']);
 // 1.8.6-I: assignment totals and the diminishing returns on corner staffing stay bounded.
 run('Crew staffing balance gates', npm, ['run', 'qa:crew-staffing']);
 // 1.6.5-G: affordability, debt/fee ceilings, capped collections, recovery, and pinned history.
 run('Loan Shark balance gates', npm, ['run', 'qa:loans', '--', '--quiet']);
 // 1.8.0-D/E: sportsbook limits keep any betting style's best rounds well short of a leaderboard jump.
 run('Sportsbook limit gates', npm, ['run', 'qa:sportsbook']);
+// 2.2.0-G: operation catalog budgets, required canonical actions, failure non-farming, and splits.
+run('Underworld operation simulation', npm, ['run', 'qa:operations', '--', '--samples=10000']);
 
 if (withDb) {
   // One file at a time: suites share the .env database, and any real current-round lookup
@@ -95,6 +102,10 @@ if (withDb) {
     LOAN_INTEGRATION: '1',
     // 1.7.0-A: crew roster migration, retries, dealer careers and members in step with counts.
     CREW_INTEGRATION: '1',
+    // 2.2.0: durable two-player operation receipt and source reconciliation.
+    UNDERWORLD_INTEGRATION: '1',
+    // Avatar cosmetics Slice C: laurel, diamonds and city skylines at round close.
+    AVATAR_INTEGRATION: '1',
   });
   // 1.0.0-H: the Discord bot API, verified forum links and phone alerts only exist with their
   // secrets set, so they run on their own with throwaway ones generated here.

@@ -182,7 +182,13 @@ function badgeCategoryForKey(key: string): string {
   return 'legacy';
 }
 
-/** Original StreetsEmpire artwork: a distinct illustrated prop for each known award key. */
+/** Rarities with a diamond holder in public/assets/profile-badges/holders/. */
+export const BADGE_HOLDER_RARITIES: ReadonlySet<string> = new Set(['common', 'uncommon', 'rare', 'epic', 'legendary']);
+
+/**
+ * Original StreetsEmpire artwork: a distinct illustrated prop for each known
+ * award key, set in the diamond holder for its rarity.
+ */
 export function ProfileBadgeArt({ badgeKey, category, rarity = 'common', size = 52, locked = false }: {
   badgeKey: string;
   category?: string;
@@ -192,15 +198,18 @@ export function ProfileBadgeArt({ badgeKey, category, rarity = 'common', size = 
 }) {
   const family = category ?? badgeCategoryForKey(badgeKey);
   const artKey = BADGE_ART_KEYS.has(badgeKey) ? badgeKey : (fallbackKeyByCategory[family] ?? 'hall-of-fame');
+  const tier = BADGE_HOLDER_RARITIES.has(rarity) ? rarity : 'common';
   const style = { width: size, height: size, opacity: locked ? 0.35 : 1 };
-  const artPath = `/assets/profile-badges/items/${artKey}.svg`;
 
   return (
-    <img
+    <span
       className={`se-badge-art se-badge-art--${rarity}${locked ? ' is-locked' : ''}`}
-      src={artPath}
       style={style}
-      alt={`${family} ${rarity} badge`}
-    />
+      role="img"
+      aria-label={`${family} ${rarity} badge`}
+    >
+      <img className="se-badge-art__holder" src={`/assets/profile-badges/holders/${tier}.svg`} alt="" />
+      <img className="se-badge-art__item" src={`/assets/profile-badges/items/${artKey}.svg`} alt="" />
+    </span>
   );
 }

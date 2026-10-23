@@ -1,0 +1,111 @@
+[
+  {
+    "url": "/game/hideout",
+    "finalPath": "/game/hideout",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 19,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, auditzmduc6\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "button.se-btn.se-btn--primary \"Got it\" 64x36",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "a \"Overview\" 181x35",
+        "a \"Upgrades 4\" 181x35",
+        "a \"Security\" 181x34",
+        "a \"Operations\" 181x34",
+        "button.se-btn.se-btn \"Upgrade Safe Room\" 338x40",
+        "button.se-btn.se-btn \"Upgrade to level 1\" 342x40",
+        "button.se-btn.se-btn \"Upgrade to level 1\" 342x40",
+        "button.se-btn.se-btn \"Upgrade to level 1\" 342x40",
+        "button.se-btn.se-btn \"Upgrade to level 1\" 342x40",
+        "button.se-btn.se-btn \"Need $25,000\" 342x40",
+        "button.se-btn.se-btn \"Power First\" 129x40",
+        "button.se-btn.se-btn \"Conserve Premium\" 344x40"
+      ],
+      "total": 27
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/hideout",
+    "finalPath": "/game/hideout",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 19,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, auditzmduc6\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "button.se-btn.se-btn--primary \"Got it\" 64x36",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "a \"Overview\" 87x35",
+        "a \"Upgrades 4\" 115x35",
+        "a \"Security\" 81x35",
+        "a \"Operations\" 101x35",
+        "button.se-btn.se-btn \"Upgrade Safe Room\" 704x40",
+        "button.se-btn.se-btn \"Upgrade to level 1\" 330x40",
+        "button.se-btn.se-btn \"Upgrade to level 1\" 330x40",
+        "button.se-btn.se-btn \"Upgrade to level 1\" 330x40",
+        "button.se-btn.se-btn \"Upgrade to level 1\" 330x40",
+        "button.se-btn.se-btn \"Need $25,000\" 330x40"
+      ],
+      "total": 28
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/hideout",
+    "finalPath": "/game/hideout",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  }
+]

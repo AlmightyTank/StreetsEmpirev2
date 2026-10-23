@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 /** rc.2. Bug reports players send from the game, and account closure. */
 
-export const BUG_REPORT_CATEGORIES = ['GAMEPLAY', 'DISPLAY', 'ACCOUNT', 'PERFORMANCE', 'OTHER'] as const;
+export const BUG_REPORT_CATEGORIES = ['GAMEPLAY', 'DISPLAY', 'ACCOUNT', 'PERFORMANCE', 'PLAYER_CONTENT', 'OTHER'] as const;
 export type BugReportCategory = (typeof BUG_REPORT_CATEGORIES)[number];
 
 export const BUG_REPORT_CATEGORY_LABELS: Record<BugReportCategory, string> = {
@@ -10,6 +10,7 @@ export const BUG_REPORT_CATEGORY_LABELS: Record<BugReportCategory, string> = {
   DISPLAY: 'Something looks wrong or is hard to use',
   ACCOUNT: 'Signing in, email or account settings',
   PERFORMANCE: 'Slow, stuck or errors',
+  PLAYER_CONTENT: 'Report a player’s profile content',
   OTHER: 'Something else',
 };
 

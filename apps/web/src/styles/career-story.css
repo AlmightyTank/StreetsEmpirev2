@@ -1,0 +1,24 @@
+.se-career-story__chapters { display: grid; gap: 8px; }
+.se-career-story__chapter { display: flex; gap: 10px; align-items: flex-start; padding: 10px; border: 1px solid var(--se-line); border-radius: 9px; }
+.se-career-story__chapter.is-complete { border-color: rgba(74, 222, 128, .4); }
+.se-career-story__chapter div { display: grid; gap: 3px; }
+.se-career-story__chapter span:last-child, .se-career-story__archive-row span, .se-career-story__branches span { color: var(--se-muted); font-size: 13px; }
+.se-career-story__order { color: var(--se-accent); font-weight: 700; }
+.se-career-story__choice, .se-career-story__archive { margin-top: 14px; }
+.se-career-story__choice h3, .se-career-story__archive h3 { margin: 0 0 8px; font-size: 14px; }
+.se-career-story__branches { display: flex; flex-wrap: wrap; gap: 8px; }
+.se-career-story__branches button { display: grid; gap: 3px; text-align: left; }
+.se-career-story__archive-row { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-top: 1px solid var(--se-line); }
+.se-career-story-aftermath__list { display: grid; gap: 10px; }
+.se-career-story-aftermath__list article { display: grid; gap: 3px; padding: 10px; border: 1px solid var(--se-line); border-radius: 9px; }
+.se-career-story-aftermath__list span { color: var(--se-muted); font-size: 13px; }
+.se-career-story-aftermath__list p { margin: 2px 0 0; }
+.se-career-story__branches button:focus-visible { outline: 3px solid var(--se-accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+  .se-career-story *, .se-career-story *::before, .se-career-story *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; scroll-behavior: auto !important; }
+}
+@media (max-width: 520px) {
+  .se-career-story__archive-row { display: grid; gap: 3px; }
+  .se-career-story__branches { display: grid; }
+  .se-career-story__branches button { width: 100%; min-height: 48px; }
+}

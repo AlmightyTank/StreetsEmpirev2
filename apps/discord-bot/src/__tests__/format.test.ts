@@ -460,10 +460,10 @@ describe('help and sync text', () => {
   });
 
   it('summarizes role changes', () => {
-    expect(syncMemberText({ added: ['Player'], removed: ['Top 10'], failed: false })).toBe('Added: Player\nRemoved: Top 10');
-    expect(syncMemberText({ added: [], removed: [], failed: false })).toBe('Your roles are already up to date.');
-    expect(syncAllText({ members: 12, added: 3, removed: 1, failed: 0 })).toBe('Synced 12 members: 3 roles added, 1 removed.');
-    expect(syncAllText({ members: 12, added: 3, removed: 1, failed: 2 })).toBe('Synced 12 members: 3 roles added, 1 removed. 2 members could not be updated; check the bot log.');
+    expect(syncMemberText({ added: ['Player'], removed: ['Top 10'], failed: false, staff: [] })).toBe('Added: Player\nRemoved: Top 10');
+    expect(syncMemberText({ added: [], removed: [], failed: false, staff: [] })).toBe('Your roles are already up to date.');
+    expect(syncAllText({ members: 12, added: 3, removed: 1, failed: 0, staff: [] })).toBe('Synced 12 members: 3 roles added, 1 removed.');
+    expect(syncAllText({ members: 12, added: 3, removed: 1, failed: 2, staff: [] })).toBe('Synced 12 members: 3 roles added, 1 removed. 2 members could not be updated; check the bot log.');
   });
 });
 

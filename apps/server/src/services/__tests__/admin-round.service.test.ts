@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Prisma } from '@prisma/client';
 import { classicOgStreetPassA, type Ruleset } from '@streets/rulesets';
-import { availableRoundActions, rulesetChangeWarnings, slugifyRoundName, startDecision, streetPassTiersProblem } from '../admin-round.service.js';
+import { availableRoundActions, gameNumber, nextGameNumber, numberedRoundName, renamedRoundName, roundLabel, rulesetChangeWarnings, slugifyRoundName, startDecision, streetPassTiersProblem } from '../admin-round.service.js';
 
 const round = (id: string, startsAt: string) => ({ id, name: `Round ${id}`, startsAt: new Date(startsAt) });
 
@@ -46,6 +46,30 @@ describe('slugifyRoundName', () => {
   it('makes url-safe slugs from round names', () => {
     expect(slugifyRoundName('Game #010 - Admin Tools')).toBe('game-010-admin-tools');
     expect(slugifyRoundName('  ***  ')).toBe('');
+  });
+});
+
+describe('automatic game round names', () => {
+  it('generates a three-digit Game number and a player-facing title', () => {
+    expect(numberedRoundName('City Takeover', 33)).toBe('Game#033 - City Takeover');
+    expect(numberedRoundName('City Takeover', 1000)).toBe('Game#1000 - City Takeover');
+    expect(roundLabel('Game#033 - City Takeover')).toBe('City Takeover');
+    expect(roundLabel('Game #011 - Alliances')).toBe('Alliances');
+  });
+
+  it('continues after legacy numbered rounds or the number of existing rounds', () => {
+    expect(nextGameNumber([])).toBe(1);
+    expect(nextGameNumber(['Game #011 - Alliances', 'Game#032 - Previous', 'Old test season'])).toBe(33);
+    expect(nextGameNumber(Array.from({ length: 32 }, (_, index) => `Old round ${index}`))).toBe(33);
+    expect(gameNumber('Game #011 - Alliances')).toBe(11);
+    expect(gameNumber('Round 5')).toBeNull();
+  });
+
+  it('keeps the allocated number on rename and avoids double prefixes', () => {
+    expect(renamedRoundName('Game#033 - Old', 'New Name')).toBe('Game#033 - New Name');
+    expect(renamedRoundName('Game #033 - Old', 'Game#100 - New Name')).toBe('Game#033 - New Name');
+    expect(renamedRoundName('Legacy', 'New Name')).toBe('New Name');
+    expect(renamedRoundName('Legacy', 'Game #099 - Renamed')).toBe('Game #099 - Renamed');
   });
 });
 

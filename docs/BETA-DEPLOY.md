@@ -179,11 +179,49 @@ and results-only in the current provider chain: it helps check final scores for
 started games with open tickets, but it does not provide betting odds or create
 board listings by itself.
 
-The odds refresh is limited to one provider poll per 30 minutes from the latest
-cache file update. Scheduled and admin-triggered pulls share this cooldown; an
-admin pull within the window reports the next eligible refresh time without
-refreshing odds from the provider. The PostgreSQL sportsbook tables remain the
-transactional board and ticket store.
+Normal odds refreshes retain the 30-minute (or configured longer) file-backed
+cache cooldown. A lightweight scheduler also checks **every 15 minutes** for
+leagues whose active provider failed. After 15 minutes, it can request **only an
+alternate provider** that has not been polled for that league in the preceding
+30 minutes, subject to provider quota floors, open circuits, league pins and
+the existing failover-per-run limits. This does not restart the normal cache
+clock or repeatedly poll already healthy leagues.
+
+Scheduled and admin-triggered pulls use the same server-side cooldown and
+database lease, so reloading a player page never makes external requests.
+Successful recovery updates the database odds and automatically reopens eligible
+pregame lines; invalid or stale lines remain unbettable. Admin > Casino Operations
+shows each league's active provider and when recovery is next eligible.
+The PostgreSQL sportsbook tables remain the transactional board and ticket store.
+
+## Browser-install labels (PWA)
+
+The same Vite web build is used by the live and beta game, so the HTML selects
+the install manifest by the **exact browser hostname**, without consulting
+`/api/meta` or needing special Nginx rewrites:
+
+- `https://play.streetsempire.dev`: `/manifest.webmanifest` — app name
+  **StreetsEmpire**.
+- `https://beta.streetsempire.dev`: `/manifest-beta.json` — app name
+  **StreetsEmpire Beta**; its shorter launcher label is **Streets Beta** so
+  the Beta distinction stays visible on small home screens.
+
+The beta JSON is served as `application/json` by normal Nginx MIME handling.
+The same selection sets the iPhone/iPad `apple-mobile-web-app-title`. Both
+installs use `/game` on **their own origin**: neither app redirects into
+the other server. No native Android/desktop wrapper settings are affected.
+
+After deploying, verify both files and their content types:
+
+```bash
+curl -fsSI https://beta.streetsempire.dev/manifest-beta.json
+curl -fsS https://beta.streetsempire.dev/manifest-beta.json
+curl -fsS https://play.streetsempire.dev/manifest.webmanifest
+```
+
+Existing home-screen installs may keep their old names. If a browser does not
+refresh the installed shortcut label, remove that shortcut/app and install it
+again from the appropriate hostname.
 
 ## 3. Create the beta PostgreSQL database
 

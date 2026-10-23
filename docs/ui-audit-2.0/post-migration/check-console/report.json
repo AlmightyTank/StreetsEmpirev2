@@ -1,0 +1,107 @@
+[
+  {
+    "url": "/game/console",
+    "finalPath": "/game/console",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 16,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, auditnplsb2\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "button.se-console-tab.se-console-tab--active \"Messages0\" 183x42",
+        "button.se-console-tab \"Dispatches\" 183x42",
+        "button.se-console-tab \"Alliance Wire\" 183x42",
+        "a.se-console-tab.se-console-tab--link \"Find Players↗\" 183x42",
+        "summary.se-console-tab \"More sections\" 183x42",
+        "button \"Muted & blocked 0\" 208x34",
+        "button \"Inbox\" 182x34",
+        "button \"Archive 0\" 182x34",
+        "button.se-btn.se-btn--primary \"New message\" 370x40",
+        "button.se-btn.se-btn--primary \"Compose\" 104x40"
+      ],
+      "total": 29
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/console",
+    "finalPath": "/game/console",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 18,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, auditnplsb2\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "button.se-console-tab.se-console-tab--active \"Messages0\" 143x42",
+        "button.se-console-tab \"Dispatches\" 143x42",
+        "button.se-console-tab \"Alliance Wire\" 143x42",
+        "a.se-console-tab.se-console-tab--link \"Find Players↗\" 143x42",
+        "summary.se-console-tab \"More sections\" 143x42",
+        "button \"Muted & blocked 0\" 208x34",
+        "button \"Inbox\" 47x34",
+        "button \"Archive 0\" 67x34",
+        "button.se-btn.se-btn--primary \"New message\" 137x40",
+        "button.se-btn.se-btn--primary \"Compose\" 104x40"
+      ],
+      "total": 30
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/console",
+    "finalPath": "/game/console",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  }
+]

@@ -1,5 +1,6 @@
 import type { City, Prisma, PrismaClient, Round, RoundPlayer } from '@prisma/client';
-import { decayHeat, loadRulesetForRound, rulesetForCity, type Ruleset, type Standings } from '@streets/rules-engine';
+import { loadRulesetForRound, rulesetForCity, type Ruleset, type Standings } from '@streets/rules-engine';
+import { coolHeat, PlayerSkillService } from './player-skill.service.js';
 import { AppError } from '../utils/errors.js';
 import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { ActivityService } from './activity.service.js';
@@ -23,7 +24,7 @@ import { DealerSalesSettleService } from './dealer-sales-settle.service.js';
 import { SupplyLaneSettleService } from './supply-lane-settle.service.js';
 import { LoanSettleService } from './loan-settle.service.js';
 import { TurfWarSettlementService } from './turf-war-settle.service.js';
-import { pokerCommittedCents } from './casino-poker-committed.js';
+import { pokerCommittedCents, poolCommittedCents } from './casino-poker-committed.js';
 import { LawWarrantService } from './law-warrant.service.js';
 
 /** 0.3.0-C: the alliance tag rides along so every screen can show it before the name. */
@@ -179,7 +180,9 @@ export const PlayerStateService = {
     const recovery = await CombatRecoveryService.settle(tx, roundPlayerId, now);
     // 1. Turns, and the shop shelves on the same clock. Heat cools on it too.
     const turns = TurnService.settle(rest, now, ruleset);
-    const heat = ruleset.heat ? decayHeat(rest.heat, turns.intervalsProcessed, ruleset.heat) : rest.heat;
+    const heat = ruleset.heat
+      ? coolHeat(rest.heat, turns.intervalsProcessed, ruleset.heat, await PlayerSkillService.effects(tx, roundPlayerId, ruleset.streetSkills))
+      : rest.heat;
     const recovered = { ...rest, woundedThugs: recovery.woundedThugs, heat };
     const standings = await ReputationService.load(tx, roundPlayerId, ruleset);
     const stock = StockService.settle(recovered, now, ruleset, standings);
@@ -196,26 +199,22 @@ export const PlayerStateService = {
     // 3. Net worth. Old pinned rulesets do not pay the cost of casino reads.
     let casinoNetWorthCents = 0n;
     if (ruleset.casino?.enabled) {
-      const [casinoWalletValue, casinoSessionValue, blackjackCommittedValue, streetDiceCommittedValue, pokerCommittedValue] = await Promise.all([
+      const [casinoWalletValue, casinoSessionValue, blackjackCommittedValue, pokerCommittedValue, poolCommittedValue] = await Promise.all([
         tx.casinoWallet.aggregate({ where: { roundPlayerId }, _sum: { chipsCents: true } }),
         tx.casinoSession.aggregate({ where: { roundPlayerId, status: 'OPEN' }, _sum: { bankrollCents: true } }),
         tx.casinoBlackjackHand.aggregate({
           where: { roundPlayerId, status: 'ACTIVE' },
           _sum: { committedWagerCents: true },
         }),
-        tx.casinoStreetDiceRound.aggregate({
-          where: { roundPlayerId, status: 'ACTIVE' },
-          _sum: { lineWagerCents: true, oddsWagerCents: true },
-        }),
         pokerCommittedCents(tx, roundPlayerId),
+        poolCommittedCents(tx, roundPlayerId),
       ]);
       casinoNetWorthCents =
         (casinoWalletValue._sum.chipsCents ?? 0n)
         + (casinoSessionValue._sum.bankrollCents ?? 0n)
         + (blackjackCommittedValue._sum.committedWagerCents ?? 0n)
-        + (streetDiceCommittedValue._sum.lineWagerCents ?? 0n)
-        + (streetDiceCommittedValue._sum.oddsWagerCents ?? 0n)
-        + pokerCommittedValue;
+        + pokerCommittedValue
+        + poolCommittedValue;
     }
     const netWorthCents = NetWorthService.calculate({ ...recovered, products, casinoNetWorthCents }, ruleset);
 

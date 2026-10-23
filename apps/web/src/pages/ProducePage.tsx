@@ -21,6 +21,7 @@ import { GameLayout } from '../layouts/GameLayout.js';
 import { produceReceiptLines } from '../receipts/actionReceipts.js';
 import { useSession } from '../stores/session.js';
 import { ItemTile } from '../components/ItemTile.js';
+import { LockedChoiceOverlay } from '../components/LockedChoiceOverlay.js';
 import { hasItemArt } from '../items/itemArt.js';
 
 type Profile = { key: ProductTypeDto; name: string; role: string; identity: string | null };
@@ -124,9 +125,7 @@ export function ProducePage() {
           <div className="se-produce-hero__copy">
             <span className="se-eyebrow">Production floor · {me.city.name}</span>
             <h1>Produce product</h1>
-            <p>
-              Put fit thugs on the batch, set the shift length, and check the crew and supply plan before you spend the turns.
-            </p>
+
           </div>
         </header>
 
@@ -193,7 +192,7 @@ export function ProducePage() {
                 </div>
                 <ul className="se-produce-locked__list">
                   {lockedRecipes.map((locked) => (
-                    <li key={locked.product.key} className="se-choice se-choice--locked">
+                    <li key={locked.product.key} className="se-choice se-choice--locked se-choice--gated" aria-label={`${locked.product.name} recipe locked`}>
                       <span className="se-choice__body">
                         {hasItemArt(locked.product.key) ? (
                           <ItemTile item={locked.product.key} size="sm" label={false} className="se-choice__art" />
@@ -202,12 +201,12 @@ export function ProducePage() {
                         <span className="se-choice__name">{locked.product.name}</span>
                         <span className="se-choice__identity">{recipeIdentity(locked.recipe)}</span>
                         <span className="se-choice__meta">{recipeNumbers(locked.recipe)}</span>
-                        <span className="se-choice__unlock">
-                          {locked.quest
-                            ? <>Finish <QuestLink quest={locked.quest} /> to unlock.</>
-                            : <>{locked.unlockDescription} <Link className="se-golink" to="/game/quests">See jobs</Link></>}
-                        </span>
                       </span>
+                      <LockedChoiceOverlay requirement={`Unlock ${locked.product.name} through a quest.`}>
+                        {locked.quest
+                          ? <>Finish <QuestLink quest={locked.quest} /> to unlock.</>
+                          : <>{locked.unlockDescription} <Link className="se-golink" to="/game/quests">See jobs</Link></>}
+                      </LockedChoiceOverlay>
                     </li>
                   ))}
                 </ul>

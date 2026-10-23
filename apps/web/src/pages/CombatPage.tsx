@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { isString, rememberedKey, useRememberedState } from '../utils/remembered.js';
-import { Link, Navigate } from 'react-router-dom';
+import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { formatCents, formatNumber, type BattleReportDto, type CombatPageDto, type CombatRingDto, type CombatSpecialRaidDto, type CombatTargetDto, type CustomizableItemKey, type ItemCosmeticStyleKey, type SpecialRaidKindDto } from '@streets/shared';
+import { previewCombatAmmo } from '@streets/rules-engine';
+import { rulesets } from '@streets/rulesets';
 import { combatApi } from '../api/combat.js';
 import { ringApi } from '../api/ring.js';
 import { ApiError } from '../api/client.js';
@@ -115,15 +117,16 @@ function BattleInventoryRows({ report }: { report: BattleReportDto }) {
   if (report.inventoryChanges?.length) {
     return <>
       {report.inventoryChanges.map((row) => {
+        const amount = (value: number) => `${formatNumber(value)}${row.unitLabel ? ` ${row.unitLabel}` : ''}`;
         const parts = [
-          row.gained > 0 ? `+${formatNumber(row.gained)} gained` : null,
-          row.lost > 0 ? `−${formatNumber(row.lost)} lost` : null,
-          row.used > 0 ? `−${formatNumber(row.used)} used` : null,
+          row.gained > 0 ? `+${amount(row.gained)} gained` : null,
+          row.lost > 0 ? `−${amount(row.lost)} lost` : null,
+          row.used > 0 ? `−${amount(row.used)} used` : null,
         ].filter(Boolean).join(' · ');
         return <Row
           key={row.product}
           label={art(row.product, row.name, sideStyle(report, 'you', row.product))}
-          value={`${signedUnits(row.change)} / ${formatNumber(row.after)} left${parts ? ` · ${parts}` : ''}`}
+          value={`${signedUnits(row.change)}${row.unitLabel ? ` ${row.unitLabel}` : ''} / ${amount(row.after)} left${parts ? ` · ${parts}` : ''}`}
           strong={row.change !== 0}
         />;
       })}
@@ -379,6 +382,14 @@ function RaidFormReport({ report, onClose }: { report: BattleReportDto; onClose?
     <div className="se-rows">
       <Row label="Crew — yours / theirs" value={`${report.yourSquad} / ${report.opponentSquad}`} />
       <Row label="Fighting strength — yours / theirs" value={`${report.yourStrength.toFixed(1)} / ${report.opponentStrength.toFixed(1)}`} />
+      {report.ammoCombat ? (
+        <Row
+          label="Ammo in this raid"
+          value={`${formatNumber(report.ammoCombat.spentRounds)} rounds spent${report.ammoCombat.freeDefenderRounds > 0 ? ` · ${formatNumber(report.ammoCombat.freeDefenderRounds)} defender-floor rounds` : ''}${report.ammoCombat.gainedRounds > 0 ? ` · ${formatNumber(report.ammoCombat.gainedRounds)} looted` : ''}${report.ammoCombat.lostRounds > 0 ? ` · ${formatNumber(report.ammoCombat.lostRounds)} lost to the attackers` : ''}`}
+        />
+      ) : null}
+      {report.itemCombat?.fired.length ? <Row label="Guns used" value={report.itemCombat.fired.map((gun) => `${gun.name ? `“${gun.name}” ` : ''}${gun.model}${gun.jammed ? ' jammed' : ` · ${formatNumber(gun.rounds)} rounds`}`).join('; ')} /> : null}
+      {report.itemCombat?.looted.length ? <Row label={attacking ? 'Gun taken' : 'Gun lost'} value={report.itemCombat.looted.map((gun) => `${gun.name ? `“${gun.name}” ` : ''}${gun.model}${gun.mods.length ? ` · ${gun.mods.map((mod) => `${mod.key.toLowerCase().replaceAll('_', ' ')} ${mod.tier}`).join(' / ')}` : ''} · condition ${gun.condition}${gun.recovered ? ' · recovered by its owner' : ` · hot until ${date(gun.hotUntil!)}`}`).join('; ')} /> : null}
       {report.yourSupply ? <Row label="Fight supply plan" value={`${supplySummary(report.yourSupply)} · ${supplyEffects(report.yourSupply)}`} /> : null}
       <BattleInventoryRows report={report} />
       {report.raidProtection && report.kind === 'DRUG_HOES' ? (
@@ -447,6 +458,7 @@ function BattleReport({ report, onClose }: { report: BattleReportDto; onClose?: 
 }
 
 function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) {
+  const [searchParams] = useSearchParams();
   const me = useSession((s) => s.me)!;
   const [page, setPage] = useState<CombatPageDto | null>(null);
   const [after, setAfter] = useState(0);
@@ -456,11 +468,12 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
   const [latest, setLatest] = useState<BattleReportDto | null>(null);
   const [closingReportId, setClosingReportId] = useState<string | null>(null);
   const [pending, setPending] = useState<PendingRaid | null>(() => loadPendingRaid(browserSessionStorage(), playerId));
-  const [targetId, setTargetId] = useState('');
+  const [targetId, setTargetId] = useState(() => searchParams.get('target') ?? '');
   // The kind of hit and the squad size come back; the target is picked fresh each time.
   const [mode, setMode] = useRememberedState<Mode>(rememberedKey('combat.mode', playerId), 'RAID',
     { accept: (value): value is Mode => value === 'RAID' || value === 'DRIVE_BY' || value === 'DRUG_HOES' || value === 'STEAL_RIDE' || value === 'LURE_CREW' });
   const [squad, setSquad] = useRememberedState<string>(rememberedKey('combat.squad', playerId), '1', { accept: isString });
+  const [ammoCapText, setAmmoCapText] = useState('');
   const [raidTeam, setRaidTeam] = useRememberedState<string[]>(rememberedKey('combat.raidTeam', playerId), [],
     { accept: (value): value is string[] => Array.isArray(value) && value.length <= 5 && value.every((entry) => typeof entry === 'string') });
   const [busy, setBusy] = useState(false);
@@ -543,6 +556,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
   }, [page, mode, driving, doingSpecialRaid, setMode]);
   /** Drive-bys have their own clock. The other forms share the raid clock. */
   const targetBlock = useCallback((target: CombatTargetDto) => {
+    if (target.tutorial && mode !== 'RAID') return 'Use a standard raid against the training target.';
     if (driving) return target.driveByBlockedReason ?? null;
     if (mode === 'DRUG_HOES' || mode === 'STEAL_RIDE' || mode === 'LURE_CREW') return target.specialRaidBlockedReasons?.[mode] ?? null;
     return target.blockedReason;
@@ -551,7 +565,9 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
   useEffect(() => {
     if (!page?.targets.length) return;
     if (targetId && page.targets.some((target) => String(target.publicPimpId) === targetId)) return;
-    setTargetId(String(page.targets.find((target) => !targetBlock(target))?.publicPimpId ?? page.targets[0]!.publicPimpId));
+    setTargetId(String(page.targets.find((target) => target.tutorial)?.publicPimpId
+      ?? page.targets.find((target) => !targetBlock(target))?.publicPimpId
+      ?? page.targets[0]!.publicPimpId));
   }, [page, targetId, targetBlock]);
 
   const setSaved = (value: PendingRaid | null) => {
@@ -559,6 +575,9 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
     savePendingRaid(browserSessionStorage(), playerId, value);
   };
   const selected = page?.targets.find((target) => String(target.publicPimpId) === targetId);
+  useEffect(() => {
+    if (selected?.tutorial && mode !== 'RAID') setMode('RAID');
+  }, [selected?.tutorial, mode, setMode]);
   const selectedBlock = selected ? targetBlock(selected) : null;
   const rules = page?.rules;
   const recovery = page?.recovery;
@@ -567,6 +586,21 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
   const modeCooldown = driving ? driveBy!.cooldownUntil : doingSpecialRaid ? specialRaid.cooldownUntil : page?.cooldownUntil ?? null;
   const turnCost = driving ? driveBy!.rules.turnCost : doingSpecialRaid ? specialRaid.turnCost : rules?.turnCost ?? 0;
   const squadNumber = Number(squad);
+  const ammunition = !driving && !doingSpecialRaid ? rules?.ammo : undefined;
+  const roundRules = page?.rulesetId ? rulesets[page.rulesetId] : undefined;
+  const ammoRules = roundRules?.ammoParts?.combatEnabled ? roundRules.ammoParts.ammo : undefined;
+  const ammoCapRounds = ammoCapText === '' ? undefined : Number(ammoCapText);
+  const ammoCapInvalid = Boolean(ammunition && ammoCapText !== ''
+    && (!Number.isSafeInteger(ammoCapRounds) || ammoCapRounds! < 0 || ammoCapRounds! > ammunition.availableRounds));
+  const ammoPreview = ammunition && ammoRules && roundRules?.combat
+    && Number.isSafeInteger(squadNumber) && squadNumber >= 1 && squadNumber <= maxSquad && !ammoCapInvalid
+    ? previewCombatAmmo({
+        thugs: recovery?.fitThugs ?? me.resources.fitThugs,
+        thugHappiness: me.happiness.thug,
+        weapons: { PISTOL: me.resources.pistols, SHOTGUN: me.resources.shotguns, TEK9: me.resources.tek9s, AK47: me.resources.ak47s },
+        weaponPriority: ammunition.weaponPriority,
+      }, squadNumber, roundRules.combat, ammunition.availableRounds, ammoRules.roundsPerFight, ammoCapRounds)
+    : null;
   // Why the crew is not going out, in the order a player would hit the problems.
   const attackBlock = busy
     ? 'Your last hit is still going through.'
@@ -586,6 +620,8 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
                   ? 'Say how many to send - at least one.'
                   : squadNumber > maxSquad
                     ? `You can send at most ${formatNumber(maxSquad)}.`
+                    : ammoCapInvalid
+                      ? `Set an ammo cap from 0 to ${formatNumber(ammunition?.availableRounds ?? 0)} rounds.`
                     : raidTeam.length > squadNumber
                       ? 'Choose no more crew specialists than the raid squad.'
                     : null;
@@ -602,7 +638,10 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
   async function submit(event?: FormEvent) {
     event?.preventDefault();
     if (inFlight.current || (!pending && disabled)) return;
-    const request: PendingRaid = pending ?? { input: { roundId, targetPublicPimpId: selected!.publicPimpId, attackingThugs: squadNumber, ...(!driving && !doingSpecialRaid && raidTeam.length ? { crewMemberIds: raidTeam } : {}), actionId: newActionId() }, targetName: selected!.displayName, kind: driving ? 'DRIVE_BY' : doingSpecialRaid ? specialRaid.kind : 'RAID' };
+    const request: PendingRaid = pending ?? { input: { roundId, targetPublicPimpId: selected!.publicPimpId, attackingThugs: squadNumber,
+      ...(!driving && !doingSpecialRaid && raidTeam.length ? { crewMemberIds: raidTeam } : {}),
+      ...(ammunition && ammoCapRounds !== undefined ? { attackerAmmoCapRounds: ammoCapRounds } : {}),
+      actionId: newActionId() }, targetName: selected!.displayName, kind: driving ? 'DRIVE_BY' : doingSpecialRaid ? specialRaid.kind : 'RAID' };
     inFlight.current = true;
     setBusy(true);
     setError(null);
@@ -870,7 +909,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
                 </span>
               </div>
 
-              {(driveBy || specialRaids.length) ? (
+              {!selected?.tutorial && (driveBy || specialRaids.length) ? (
                 <div className="se-seg se-raids-modes" role="group" aria-label="Kind of hit">
                   {([
                     { kind: 'RAID' as const, label: 'Raid' },
@@ -922,7 +961,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
                         <option value="">Choose a mark</option>
                         {page.targets.map((target) => (
                           <option key={target.publicPimpId} value={target.publicPimpId}>
-                            {target.alliance ? `[${target.alliance.tag}] ` : ''}{target.displayName} (#{target.publicPimpId}) · {target.strength}{target.hasRing ? ' · has the Ring' : ''}{target.intel ? ' · scouted' : ''}{target.revengeAvailable ? ' · payback' : ''}{targetBlock(target) ? ` · ${targetBlock(target)}` : ''}
+                            {target.alliance ? `[${target.alliance.tag}] ` : ''}{target.displayName} (#{target.publicPimpId}){target.tutorial ? ' · Training target' : ''} · {target.strength}{target.hasRing ? ' · has the Ring' : ''}{target.intel ? ' · scouted' : ''}{target.revengeAvailable ? ' · payback' : ''}{targetBlock(target) ? ` · ${targetBlock(target)}` : ''}
                           </option>
                         ))}
                       </select>
@@ -961,11 +1000,11 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
               </div>
             </div>
 
-            <aside className="se-raids-plan__intel">
+            <aside id="intel" className="se-raids-plan__intel">
               <div className="se-raids-sectionhead">
                 <div>
                   <span className="se-eyebrow">Target intel</span>
-                  <h2>{selected?.displayName ?? 'No mark selected'}</h2>
+                  <h2>{selected?.displayName ?? 'No mark selected'}{selected?.tutorial ? ' · Training target' : ''}</h2>
                 </div>
                 {selected ? <span className={`se-raids-target-strength se-raids-target-strength--${selected.strength.toLowerCase()}`}>{selected.strength}</span> : null}
               </div>
@@ -973,6 +1012,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
               {selected ? (
                 <>
                   <TargetCard target={selected} selectedBlock={selectedBlock} driving={driving} />
+                   {selected.tutorial ? <p className="se-hint">This practice crew is here for Take a Shot. You always win this practice raid, and the dummy disappears after one attack.</p> : null}
 
                   {rules?.reconTurnCost !== undefined ? (
                     <div className="se-raids-recon">
@@ -1050,6 +1090,36 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
                 emptyReason="Nobody fit to send."
               />
             </div>
+            {ammunition ? (
+              <div className="se-dock__amount se-raids-ammo-cap">
+                <label htmlFor="raid-ammo-cap">Ammo cap · rounds</label>
+                <input
+                  id="raid-ammo-cap"
+                  className="se-input"
+                  type="number"
+                  inputMode="numeric"
+                  min="0"
+                  max={ammunition.availableRounds}
+                  step="1"
+                  value={ammoCapText}
+                  disabled={busy || !!pending}
+                  aria-describedby="raid-ammo-cap-hint"
+                  onChange={(event) => setAmmoCapText(event.target.value)}
+                />
+                <span id="raid-ammo-cap-hint" className="se-hint">
+                  Blank uses only the rounds this squad needs. Set a cap to save ammo.
+                </span>
+              </div>
+            ) : null}
+            {ammoPreview ? (
+              <div className="se-raids-ammo-preview" aria-live="polite">
+                {Math.min(ammunition!.availableRounds, ammoCapRounds ?? ammunition!.availableRounds) < ammoPreview.roundsRequired ? (
+                  <p className="se-hint se-warn">
+                    This squad needs {formatNumber(ammoPreview.roundsRequired)} rounds to fire every assigned gun. Some thugs will fight unarmed at the current stock or cap.
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
             {!driving && !doingSpecialRaid ? <CrewTeamPicker role="THUG" specialty="ENFORCER" selectedIds={raidTeam} onChange={setRaidTeam} disabled={busy || !!pending || raidTeam.length > squadNumber} refreshKey={latest} /> : null}
             <Button type="submit" className="se-btn se-btn--primary" disabledReason={attackBlock}>
               {busy

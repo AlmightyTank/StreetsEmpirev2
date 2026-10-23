@@ -1,6 +1,6 @@
 import { Prisma, type AccountProfile, type PrismaClient } from '@prisma/client';
-import { classicOgStreetPassA, classicOgV07AA } from '@streets/rulesets';
-import { DEFAULT_AVATAR_PARTS, type UpdateAccountProfileSettingsInput } from '@streets/shared';
+import { classicOgStreetPassA, classicOgV07AA, DROP_COLLECTIONS, DROP_ITEMS } from '@streets/rulesets';
+import { AVATAR_UNLOCKS, DEFAULT_AVATAR_PARTS, STREET_SIGN_BACKDROPS, type UpdateAccountProfileSettingsInput } from '@streets/shared';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AccountProfileService, PROFILE_EFFECTS } from '../account-profile.service.js';
 import { RoundService } from '../round.service.js';
@@ -78,6 +78,7 @@ const updateInput: UpdateAccountProfileSettingsInput = {
   reducedMotion: false,
   moneyFormat: 'full',
   defaultLanding: 'game',
+  showProfanity: false,
 };
 
 describe('AccountProfileService admin site theme QA', () => {
@@ -143,6 +144,149 @@ describe('AccountProfileService admin site theme QA', () => {
     const response = await AccountProfileService.update(prismaFor(true), 'account-1', updateInput);
 
     expect(response.settings.activeSiteThemeKey).toBe('neon-vice');
+  });
+
+  it('saves a street sign design and keeps it when older settings omit the field', async () => {
+    const prisma = prismaFor(false);
+    const streetSign = {
+      version: 3 as const,
+      backdrop: 'plain' as const,
+      shape: 'wide' as const,
+      streetName: 'Cedar Avenue',
+      streetType: 'AVE' as const,
+      font: 'stencil' as const,
+      tag: 'NIGHT SHIFT',
+      tagFont: 'handstyle' as const,
+      tagScale: 'medium' as const,
+      tagPlacement: 'lower-right' as const,
+      trim: 'double' as const,
+      shadow: 'soft' as const,
+      treatment: 'reflective' as const,
+      backgroundColor: '#172c47',
+      textColor: '#ffffff',
+      tagColor: '#ffd34e',
+    };
+    const saved = await AccountProfileService.update(prisma, 'account-1', { ...updateInput, crewName: 'Cedar Avenue', activeSiteThemeKey: null, streetSign });
+
+    expect(saved.settings.streetSign).toEqual(streetSign);
+    expect((await AccountProfileService.settings(prisma, 'account-1')).settings.streetSign).toEqual(streetSign);
+    const kept = await AccountProfileService.update(prisma, 'account-1', { ...updateInput, activeSiteThemeKey: null });
+    expect(kept.settings.streetSign).toEqual(streetSign);
+    vi.mocked(RoundService.getCurrent).mockResolvedValue({ ...currentRound(), id: 'round-2' } as never);
+    expect((await AccountProfileService.settings(prisma, 'account-1')).settings.streetSign).toEqual(streetSign);
+  });
+
+  it('requires the earned font or graffiti pack before saving its styles', async () => {
+    const streetSign = {
+      version: 3 as const, backdrop: 'plain' as const, shape: 'classic' as const, streetName: 'Cedar', streetType: 'ST' as const,
+      font: 'sign-painter' as const, tag: 'NIGHT SHIFT', tagFont: 'graffiti-script' as const,
+      tagScale: 'medium' as const, tagPlacement: 'lower-right' as const, trim: 'double' as const,
+      shadow: 'soft' as const, treatment: 'reflective' as const, backgroundColor: '#00691d',
+      textColor: '#ffffff', tagColor: '#ffd34e',
+    };
+    await expect(AccountProfileService.update(prismaFor(false), 'account-1', {
+      ...updateInput, crewName: 'Cedar', activeSiteThemeKey: null, streetSign,
+    })).rejects.toMatchObject({ code: 'COSMETIC_NOT_EARNED' });
+
+    const ownsPacks = prismaFor(false, [
+      { key: 'street-sign-font-sign-painter', kind: 'STREET_SIGN_FONT_PACK', title: 'Sign Painter Pack', description: '', styleKey: null, awardedAt: new Date(0) },
+      { key: 'street-sign-graffiti-pack', kind: 'STREET_SIGN_FONT_PACK', title: 'Graffiti Pack', description: '', styleKey: null, awardedAt: new Date(0) },
+    ]);
+    const saved = await AccountProfileService.update(ownsPacks, 'account-1', { ...updateInput, crewName: 'Cedar', activeSiteThemeKey: null, streetSign });
+    expect(saved.settings.streetSign?.font).toBe('sign-painter');
+    expect(saved.options.streetSignFontPacks).toEqual(['street-sign-font-sign-painter', 'street-sign-graffiti-pack']);
+    await expect(AccountProfileService.update(ownsPacks, 'account-1', {
+      ...updateInput, activeSiteThemeKey: null, streetSign: { ...streetSign, font: 'graffiti-script' },
+    })).rejects.toMatchObject({ code: 'COSMETIC_NOT_EARNED' });
+  });
+
+  it('pairs every Drop shell theme with exactly one street sign backdrop', () => {
+    const shellStyleKeys = Object.values(DROP_ITEMS)
+      .filter((item) => item.kind === 'SITE_THEME' && item.category === 'SHELLS')
+      .map((item) => item.styleKey);
+    const collectionBackdrops = STREET_SIGN_BACKDROPS.filter((backdrop) => backdrop.themeKey !== null);
+    expect(collectionBackdrops.map((backdrop) => backdrop.themeKey).sort()).toEqual([...shellStyleKeys].sort());
+    for (const backdrop of collectionBackdrops) {
+      expect(DROP_COLLECTIONS[backdrop.key as keyof typeof DROP_COLLECTIONS]?.name, backdrop.key).toBe(backdrop.collection);
+      expect(backdrop.dropKey, backdrop.key).toBeNull();
+    }
+  });
+
+  it('sells every backdrop without a shell theme as a Drop item of the same style key', () => {
+    const soldItems = Object.values(DROP_ITEMS).filter((item) => item.kind === 'STREET_SIGN_BACKDROP');
+    const soldBackdrops = STREET_SIGN_BACKDROPS.filter((backdrop) => backdrop.themeKey === null);
+    expect(soldBackdrops.length).toBeGreaterThan(0);
+    expect(soldItems.map((item) => item.key).sort()).toEqual(soldBackdrops.map((backdrop) => backdrop.dropKey).sort());
+    for (const backdrop of soldBackdrops) {
+      const item = DROP_ITEMS[backdrop.dropKey!];
+      expect(item?.styleKey, backdrop.key).toBe(backdrop.key);
+      expect(item?.preview).toEqual({ type: 'SIGN' });
+    }
+  });
+
+  it('lets a backdrop bought on The Drop be saved and lists it as owned', async () => {
+    const streetSign = {
+      version: 3 as const, backdrop: 'skyline-chicago' as const, shape: 'wide' as const, streetName: 'Cedar', streetType: 'ST' as const,
+      font: 'road-condensed' as const, tag: '', tagFont: 'handstyle' as const,
+      tagScale: 'medium' as const, tagPlacement: 'lower-right' as const, trim: 'double' as const,
+      shadow: 'soft' as const, treatment: 'reflective' as const, backgroundColor: '#23324f',
+      textColor: '#ffffff', tagColor: '#7fd3ff',
+    };
+    await expect(AccountProfileService.update(prismaFor(false), 'account-1', {
+      ...updateInput, crewName: 'Cedar', activeSiteThemeKey: null, streetSign,
+    })).rejects.toMatchObject({ code: 'COSMETIC_NOT_EARNED' });
+
+    const bought = prismaFor(false, [{
+      key: 'drop-street-singles-sign-skyline-chicago', kind: 'STREET_SIGN_BACKDROP', title: 'Chicago Skyline Sign',
+      description: '', styleKey: 'skyline-chicago', awardedAt: new Date(0),
+    }, themeUnlock('rewind-shell')]);
+    const saved = await AccountProfileService.update(bought, 'account-1', { ...updateInput, crewName: 'Cedar', activeSiteThemeKey: null, streetSign });
+    expect(saved.settings.streetSign?.backdrop).toBe('skyline-chicago');
+    expect(saved.options.streetSignBackdrops).toEqual(['rewind', 'skyline-chicago']);
+  });
+
+  it('requires the matching shell theme before saving a collection backdrop', async () => {
+    const streetSign = {
+      version: 3 as const, backdrop: 'wet-paint' as const, shape: 'classic' as const, streetName: 'Cedar', streetType: 'ST' as const,
+      font: 'road-condensed' as const, tag: '', tagFont: 'handstyle' as const,
+      tagScale: 'medium' as const, tagPlacement: 'lower-right' as const, trim: 'double' as const,
+      shadow: 'soft' as const, treatment: 'reflective' as const, backgroundColor: '#0d5f47',
+      textColor: '#ffffff', tagColor: '#ffe14d',
+    };
+    await expect(AccountProfileService.update(prismaFor(false, [themeUnlock('rewind-shell')]), 'account-1', {
+      ...updateInput, crewName: 'Cedar', activeSiteThemeKey: null, streetSign,
+    })).rejects.toMatchObject({ code: 'COSMETIC_NOT_EARNED' });
+
+    const saved = await AccountProfileService.update(prismaFor(false, [themeUnlock('wet-paint-shell')]), 'account-1', {
+      ...updateInput, crewName: 'Cedar', activeSiteThemeKey: null, streetSign,
+    });
+    expect(saved.settings.streetSign?.backdrop).toBe('wet-paint');
+  });
+
+  it('rejects a severe slur in street sign text', async () => {
+    await expect(AccountProfileService.update(prismaFor(false), 'account-1', {
+      ...updateInput,
+      activeSiteThemeKey: null,
+      crewName: `Bad n${'ig' + 'ger'} street`,
+      streetSign: {
+        version: 3,
+        backdrop: 'plain',
+        shape: 'classic',
+        streetName: `Bad n${'ig' + 'ger'} street`,
+        streetType: 'ST',
+        font: 'road-condensed',
+        tag: '',
+        tagFont: 'handstyle',
+        tagScale: 'medium',
+        tagPlacement: 'lower-right',
+        trim: 'double',
+        shadow: 'soft',
+        treatment: 'reflective',
+        backgroundColor: '#00691d',
+        textColor: '#ffffff',
+        tagColor: '#ffd34e',
+      },
+    })).rejects.toMatchObject({ code: 'MESSAGE_CONTENT_BLOCKED' });
   });
 
   it('lets an earned dragon shell theme and popup animation be equipped independently', async () => {
@@ -254,6 +398,97 @@ describe('AccountProfileService Street Pass collection unlocks', () => {
       ['urban-ghost', false],
       ['cartel-gold', true],
       ['midnight-chrome', true],
+      ['obsidian-signal-crew', true],
+      ['kingpin-luxe-sedan', true],
+      ['kingpin-luxe-thug', true],
+      ['kingpin-luxe-hoe', true],
+      ['neon-underworld-low-rider', true],
+      ['neon-underworld-thug', true],
+      ['neon-underworld-hoe', true],
+      ['neon-underworld-tek9', true],
+      ['winter-heist-van', true],
+      ['winter-heist-crew', true],
+      ['winter-heist-shotgun', true],
+      ['biscayne-sunset-sedan', true],
+      ['biscayne-sunset-thug', true],
+      ['biscayne-sunset-hoe', true],
+      ['biscayne-sunset-pistol', true],
+      ['velvet-speakeasy-sedan', true],
+      ['velvet-speakeasy-thug', true],
+      ['velvet-speakeasy-hoe', true],
+      ['velvet-speakeasy-ak47', true],
+      ['platinum-funk-low-rider', true],
+      ['platinum-funk-thug', true],
+      ['platinum-funk-hoe', true],
+      ['redline-syndicate-sedan', true],
+      ['redline-syndicate-thug', true],
+      ['redline-syndicate-hoe', true],
+      ['redline-syndicate-ak47', true],
+      ['wet-paint-low-rider', true],
+      ['wet-paint-thug', true],
+      ['wet-paint-hoe', true],
+      ['wet-paint-pistol', true],
+      ['hazard-cook-van', true],
+      ['hazard-cook-crew', true],
+      ['hazard-cook-shotgun', true],
+      ['dockside-van', true],
+      ['dockside-thug', true],
+      ['dockside-hoe', true],
+      ['dockside-ak47', true],
+      ['crown-jewels-sedan', true],
+      ['crown-jewels-crew', true],
+      ['crown-jewels-ak47', true],
+      ['bayou-smoke-van', true],
+      ['bayou-smoke-thug', true],
+      ['bayou-smoke-hoe', true],
+      ['bayou-smoke-shotgun', true],
+      ['desert-mirage-low-rider', true],
+      ['desert-mirage-thug', true],
+      ['desert-mirage-hoe', true],
+      ['desert-mirage-tek9', true],
+      ['rewind-van', true],
+      ['rewind-thug', true],
+      ['rewind-hoe', true],
+      ['rewind-tek9', true],
+      ['snake-eyes-sedan', true],
+      ['snake-eyes-thug', true],
+      ['snake-eyes-hoe', true],
+      ['snake-eyes-pistol', true],
+      ['quarter-mile-sedan', true],
+      ['quarter-mile-low-rider', true],
+      ['quarter-mile-thug', true],
+      ['quarter-mile-hoe', true],
+      ['quarter-mile-tek9', true],
+      ['88-club-van', true],
+      ['88-club-thug', true],
+      ['88-club-hoe', true],
+      ['88-club-pistol', true],
+      ['swamp-kingdom-van', true],
+      ['swamp-kingdom-thug', true],
+      ['swamp-kingdom-hoe', true],
+      ['swamp-kingdom-shotgun', true],
+      ['zombie-apocalypse-van', true],
+      ['zombie-apocalypse-thug', true],
+      ['zombie-apocalypse-hoe', true],
+      ['zombie-apocalypse-shotgun', true],
+      ['iron-front-sedan', true],
+      ['iron-front-van', true],
+      ['iron-front-ak47', true],
+      ['iron-front-crew', true],
+      ['taxi-hustle-sedan', true],
+      ['two-tone-classic-sedan', true],
+      ['lime-flake-low-rider', true],
+      ['hot-flames-low-rider', true],
+      ['pipe-dreams-van', true],
+      ['flower-power-van', true],
+      ['tiger-stripe-pistol', true],
+      ['damascus-ak47', true],
+      ['rust-bucket-shotgun', true],
+      ['bubblegum-tek9', true],
+      ['velour-tracksuit-thug', true],
+      ['bowling-shirt-thug', true],
+      ['leopard-coat-hoe', true],
+      ['tie-dye-hoe', true],
     ]);
     expect(response.options.crewStyles?.find((option) => option.key === 'cartel-gold')).toMatchObject({
       locked: true,
@@ -276,6 +511,97 @@ describe('AccountProfileService Street Pass collection unlocks', () => {
       'midnight-ops': 'Street Pass · Season 1, tier 18',
       'cartel-gold': 'Street Pass · Season 1, tier 28',
       'midnight-chrome': 'Supporter reward.',
+      'obsidian-signal-crew': 'Sold in The Drop for Crowns.',
+      'kingpin-luxe-sedan': 'Sold in The Drop for Crowns.',
+      'kingpin-luxe-thug': 'Sold in The Drop for Crowns.',
+      'kingpin-luxe-hoe': 'Sold in The Drop for Crowns.',
+      'neon-underworld-low-rider': 'Sold in The Drop for Crowns.',
+      'neon-underworld-thug': 'Sold in The Drop for Crowns.',
+      'neon-underworld-hoe': 'Sold in The Drop for Crowns.',
+      'neon-underworld-tek9': 'Sold in The Drop for Crowns.',
+      'winter-heist-van': 'Sold in The Drop for Crowns.',
+      'winter-heist-crew': 'Sold in The Drop for Crowns.',
+      'winter-heist-shotgun': 'Sold in The Drop for Crowns.',
+      'biscayne-sunset-sedan': 'Sold in The Drop for Crowns.',
+      'biscayne-sunset-thug': 'Sold in The Drop for Crowns.',
+      'biscayne-sunset-hoe': 'Sold in The Drop for Crowns.',
+      'biscayne-sunset-pistol': 'Sold in The Drop for Crowns.',
+      'velvet-speakeasy-sedan': 'Sold in The Drop for Crowns.',
+      'velvet-speakeasy-thug': 'Sold in The Drop for Crowns.',
+      'velvet-speakeasy-hoe': 'Sold in The Drop for Crowns.',
+      'velvet-speakeasy-ak47': 'Sold in The Drop for Crowns.',
+      'platinum-funk-low-rider': 'Sold in The Drop for Crowns.',
+      'platinum-funk-thug': 'Sold in The Drop for Crowns.',
+      'platinum-funk-hoe': 'Sold in The Drop for Crowns.',
+      'redline-syndicate-sedan': 'Sold in The Drop for Crowns.',
+      'redline-syndicate-thug': 'Sold in The Drop for Crowns.',
+      'redline-syndicate-hoe': 'Sold in The Drop for Crowns.',
+      'redline-syndicate-ak47': 'Sold in The Drop for Crowns.',
+      'wet-paint-low-rider': 'Sold in The Drop for Crowns.',
+      'wet-paint-thug': 'Sold in The Drop for Crowns.',
+      'wet-paint-hoe': 'Sold in The Drop for Crowns.',
+      'wet-paint-pistol': 'Sold in The Drop for Crowns.',
+      'hazard-cook-van': 'Sold in The Drop for Crowns.',
+      'hazard-cook-crew': 'Sold in The Drop for Crowns.',
+      'hazard-cook-shotgun': 'Sold in The Drop for Crowns.',
+      'dockside-van': 'Sold in The Drop for Crowns.',
+      'dockside-thug': 'Sold in The Drop for Crowns.',
+      'dockside-hoe': 'Sold in The Drop for Crowns.',
+      'dockside-ak47': 'Sold in The Drop for Crowns.',
+      'crown-jewels-sedan': 'Sold in The Drop for Crowns.',
+      'crown-jewels-crew': 'Sold in The Drop for Crowns.',
+      'crown-jewels-ak47': 'Sold in The Drop for Crowns.',
+      'bayou-smoke-van': 'Sold in The Drop for Crowns.',
+      'bayou-smoke-thug': 'Sold in The Drop for Crowns.',
+      'bayou-smoke-hoe': 'Sold in The Drop for Crowns.',
+      'bayou-smoke-shotgun': 'Sold in The Drop for Crowns.',
+      'desert-mirage-low-rider': 'Sold in The Drop for Crowns.',
+      'desert-mirage-thug': 'Sold in The Drop for Crowns.',
+      'desert-mirage-hoe': 'Sold in The Drop for Crowns.',
+      'desert-mirage-tek9': 'Sold in The Drop for Crowns.',
+      'rewind-van': 'Sold in The Drop for Crowns.',
+      'rewind-thug': 'Sold in The Drop for Crowns.',
+      'rewind-hoe': 'Sold in The Drop for Crowns.',
+      'rewind-tek9': 'Sold in The Drop for Crowns.',
+      'snake-eyes-sedan': 'Sold in The Drop for Crowns.',
+      'snake-eyes-thug': 'Sold in The Drop for Crowns.',
+      'snake-eyes-hoe': 'Sold in The Drop for Crowns.',
+      'snake-eyes-pistol': 'Sold in The Drop for Crowns.',
+      'quarter-mile-sedan': 'Sold in The Drop for Crowns.',
+      'quarter-mile-low-rider': 'Sold in The Drop for Crowns.',
+      'quarter-mile-thug': 'Sold in The Drop for Crowns.',
+      'quarter-mile-hoe': 'Sold in The Drop for Crowns.',
+      'quarter-mile-tek9': 'Sold in The Drop for Crowns.',
+      '88-club-van': 'Sold in The Drop for Crowns.',
+      '88-club-thug': 'Sold in The Drop for Crowns.',
+      '88-club-hoe': 'Sold in The Drop for Crowns.',
+      '88-club-pistol': 'Sold in The Drop for Crowns.',
+      'swamp-kingdom-van': 'Sold in The Drop for Crowns.',
+      'swamp-kingdom-thug': 'Sold in The Drop for Crowns.',
+      'swamp-kingdom-hoe': 'Sold in The Drop for Crowns.',
+      'swamp-kingdom-shotgun': 'Sold in The Drop for Crowns.',
+      'zombie-apocalypse-van': 'Sold in The Drop for Crowns.',
+      'zombie-apocalypse-thug': 'Sold in The Drop for Crowns.',
+      'zombie-apocalypse-hoe': 'Sold in The Drop for Crowns.',
+      'zombie-apocalypse-shotgun': 'Sold in The Drop for Crowns.',
+      'iron-front-sedan': 'Sold in The Drop for Crowns.',
+      'iron-front-van': 'Sold in The Drop for Crowns.',
+      'iron-front-ak47': 'Sold in The Drop for Crowns.',
+      'iron-front-crew': 'Sold in The Drop for Crowns.',
+      'taxi-hustle-sedan': 'Sold in The Drop for Crowns.',
+      'two-tone-classic-sedan': 'Sold in The Drop for Crowns.',
+      'lime-flake-low-rider': 'Sold in The Drop for Crowns.',
+      'hot-flames-low-rider': 'Sold in The Drop for Crowns.',
+      'pipe-dreams-van': 'Sold in The Drop for Crowns.',
+      'flower-power-van': 'Sold in The Drop for Crowns.',
+      'tiger-stripe-pistol': 'Sold in The Drop for Crowns.',
+      'damascus-ak47': 'Sold in The Drop for Crowns.',
+      'rust-bucket-shotgun': 'Sold in The Drop for Crowns.',
+      'bubblegum-tek9': 'Sold in The Drop for Crowns.',
+      'velour-tracksuit-thug': 'Sold in The Drop for Crowns.',
+      'bowling-shirt-thug': 'Sold in The Drop for Crowns.',
+      'leopard-coat-hoe': 'Sold in The Drop for Crowns.',
+      'tie-dye-hoe': 'Sold in The Drop for Crowns.',
     });
   });
 
@@ -357,6 +683,24 @@ describe('AccountProfileService profile showcase toggles', () => {
 
     const cleared = await AccountProfileService.update(prisma, 'account-1', { ...input, profileAvatar: null });
     expect(cleared.settings.profileAvatar).toBeNull();
+  });
+
+  it('refuses a locked avatar piece until the account owns it, then saves it', async () => {
+    const input = { ...updateInput, activeSiteThemeKey: null };
+    const avatar = { ...DEFAULT_AVATAR_PARTS.boy, headwear: 'snapback' as const };
+
+    await expect(AccountProfileService.update(prismaFor(false), 'account-1', { ...input, profileAvatar: avatar }))
+      .rejects.toMatchObject({ code: 'COSMETIC_NOT_EARNED', fields: { profileAvatar: 'One or more avatar pieces are not unlocked.' } });
+
+    const owner = prismaFor(false, [{ key: AVATAR_UNLOCKS.snapback, kind: 'AVATAR_PART', title: 'Snapback', description: '', styleKey: 'headwear:snapback', awardedAt: new Date(0) }]);
+    const saved = await AccountProfileService.update(owner, 'account-1', { ...input, profileAvatar: avatar });
+    expect(saved.settings.profileAvatar).toEqual(avatar);
+    expect(saved.options.avatarUnlocks).toEqual([AVATAR_UNLOCKS.snapback]);
+  });
+
+  it('opens every avatar piece to admins in seasonal QA mode', async () => {
+    const response = await AccountProfileService.settings(prismaFor(true), 'account-1');
+    expect(response.options.avatarUnlocks).toEqual(expect.arrayContaining(Object.values(AVATAR_UNLOCKS)));
   });
 });
 

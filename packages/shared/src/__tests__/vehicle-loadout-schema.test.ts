@@ -20,9 +20,10 @@ describe('1.5.0-B vehicle request schemas', () => {
 });
 
 describe('1.5.0-C garage service schema', () => {
-  it('accepts a repair or a recovery for any class and refuses anything else', () => {
+  it('accepts repair, recovery and scrap while validating service quantities', () => {
     expect(vehicleServiceSchema.parse({ classId: 'LOW_RIDER', kind: 'RECOVER', quantity: 1, actionId })).toMatchObject({ classId: 'LOW_RIDER', kind: 'RECOVER' });
-    expect(() => vehicleServiceSchema.parse({ classId: 'VAN', kind: 'SCRAP', quantity: 1, actionId })).toThrow();
+    expect(vehicleServiceSchema.parse({ classId: 'VAN', kind: 'SCRAP', quantity: 1, actionId })).toMatchObject({ classId: 'VAN', kind: 'SCRAP' });
+    expect(() => vehicleServiceSchema.parse({ classId: 'VAN', kind: 'INVALID', quantity: 1, actionId })).toThrow();
     expect(() => vehicleServiceSchema.parse({ classId: 'VAN', kind: 'REPAIR', quantity: 0, actionId })).toThrow();
   });
 });

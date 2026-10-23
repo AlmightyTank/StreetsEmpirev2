@@ -12,8 +12,10 @@ const SIGNATURE_LABEL: Record<CasinoSignatureGameDto, string> = {
   SLOTS: 'Slots',
   BLACKJACK: 'Blackjack',
   ROULETTE: 'Roulette',
-  STREET_DICE: 'Street Dice',
+  SCRATCH_CARDS: 'Scratch Cards',
+  HORSE_RACING: 'Horse Racing',
   POKER: 'Poker',
+  POOL: 'Pool',
 };
 
 function percent(bps: number): string {

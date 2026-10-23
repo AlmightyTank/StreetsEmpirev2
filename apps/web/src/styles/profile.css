@@ -3,6 +3,27 @@
   gap: 16px;
 }
 
+.se-street-skill-badges, .se-member-skills { display: flex; flex-wrap: wrap; gap: 5px; margin: 8px 0 0; }
+.se-street-skill-badge { padding: 3px 8px; border: 1px solid var(--se-line); border-radius: 999px; color: var(--se-text-dim); font-size: 11px; }
+.se-street-skill-badge strong { color: var(--se-accent); }
+
+.se-rivalry-timeline__list { display: grid; gap: 10px; }
+.se-rivalry-timeline__item { border: 1px solid var(--se-line-soft, var(--se-line)); border-radius: 8px; padding: 10px 12px; }
+.se-rivalry-timeline__head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
+.se-rivalry-timeline__score { margin: 4px 0; color: var(--se-accent); font-weight: 700; }
+.se-rivalry-timeline__item ul { margin: 6px 0 0; padding-left: 18px; color: var(--se-text-dim); font-size: 13px; }
+.se-rivalry-timeline__dismiss { min-height: 36px; margin-bottom: 8px; padding: 6px 10px; border: 1px solid var(--se-line-soft, var(--se-line)); border-radius: 6px; background: transparent; color: var(--se-text-dim); cursor: pointer; }
+.se-rivalry-timeline__dismiss:focus-visible { outline: 2px solid var(--se-accent); outline-offset: 2px; }
+
+@media (max-width: 640px) {
+  .se-rivalry-timeline__item { padding: 9px; overflow-wrap: anywhere; }
+  .se-rivalry-timeline__item ul { padding-left: 16px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .se-rivalry-timeline *, .se-rivalry-timeline *::before, .se-rivalry-timeline *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: 0.01ms !important; }
+}
+
 /* Slice E: a visitor sees the owner's site theme on this page only. The theme
    class on this element rescopes the theme tokens and panel styles; Shell drops
    the viewer's own theme from the app root meanwhile. */
@@ -196,6 +217,17 @@
   background-position: center;
   background-size: cover;
   filter: saturate(1.08);
+}
+
+.se-profile-pagehead__banner[data-crew-banner="midnight-chrome-crew-banner"] {
+  background:
+    linear-gradient(90deg, rgba(8, 10, 14, .94), rgba(28, 32, 40, .68) 48%, rgba(8, 10, 14, .88)),
+    linear-gradient(135deg, #252a33, #8e96a3 48%, #151820 49%, #4b5361);
+}
+.se-profile-pagehead__banner[data-crew-banner="midnight-chrome-crew-banner-night"] {
+  background:
+    linear-gradient(90deg, rgba(3, 5, 10, .96), rgba(16, 27, 43, .68) 48%, rgba(3, 5, 10, .92)),
+    linear-gradient(160deg, #101522, #506782 52%, #080c14 53%, #2b3548);
 }
 
 .se-profile-pagehead__banner::after {
@@ -654,6 +686,77 @@
   padding-bottom: 8px;
 }
 
+.se-legacy {
+  display: grid;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--se-line);
+}
+
+.se-legacy__head {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.se-legacy__head h3 {
+  margin: 2px 0 0;
+  font-size: 15px;
+}
+
+.se-legacy-featured {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--se-accent) 55%, var(--se-line));
+  background: color-mix(in srgb, var(--se-accent) 8%, transparent);
+}
+
+.se-legacy-featured > span:not(.se-legacy-card__kind) {
+  color: var(--se-text-dim);
+  font-size: 9px;
+}
+
+.se-legacy-featured .se-btn {
+  margin-left: auto;
+}
+
+.se-legacy-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 8px;
+}
+
+.se-legacy-card {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-height: 112px;
+  padding: 11px;
+  border: 1px solid var(--se-line);
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.se-legacy-card.is-featured {
+  border-color: var(--se-accent);
+}
+
+.se-legacy-card__kind {
+  color: var(--se-accent);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.se-legacy-card .se-btn {
+  align-self: end;
+  justify-self: start;
+  margin-top: 3px;
+}
+
 .se-profile-achievements > .se-panel__body {
   padding: 12px;
 }
@@ -991,13 +1094,17 @@
 }
 
 
-/* Illustrated achievement badges and the full profile collection. */
+/* Illustrated achievement badges, each prop set in its rarity's diamond holder. */
 .se-badge-art {
+  position: relative;
   display: block;
   flex: 0 0 auto;
-  object-fit: contain;
   filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .48));
 }
+
+.se-badge-art > img { position: absolute; display: block; object-fit: contain; pointer-events: none; }
+.se-badge-art__holder { inset: 0; width: 100%; height: 100%; }
+.se-badge-art__item { inset: 14%; width: 72%; height: 72%; }
 
 .se-badge-art--rare { filter: drop-shadow(0 0 3px rgba(90, 188, 255, .58)); }
 .se-badge-art--epic { filter: drop-shadow(0 0 4px rgba(184, 125, 255, .72)); }
@@ -1253,6 +1360,7 @@
 
 .se-avatar-builder__stage {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 14px;
 }
@@ -1372,4 +1480,143 @@
   height: 30px;
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 999px;
+}
+
+/* Locked wearables: tried on in the preview, never saved until owned. */
+.se-avatar-builder__option {
+  position: relative;
+}
+
+.se-avatar-builder__option.is-locked .se-built-avatar {
+  opacity: 0.55;
+  filter: grayscale(0.6);
+}
+
+.se-avatar-builder__lock {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--se-panel) 85%, transparent);
+  color: var(--se-muted);
+  font-size: 8px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.se-avatar-builder__locked {
+  flex-basis: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--se-muted);
+  font-size: 12px;
+}
+
+.se-avatar-builder__locked strong {
+  color: var(--se-text);
+}
+
+.se-avatar-builder__note {
+  margin: 6px 0 0;
+}
+.se-profile-career {
+  display: inline-flex;
+  gap: .35rem;
+  margin: .3rem 0 0;
+  padding: .2rem .55rem;
+  border: 1px solid var(--se-line);
+  border-radius: 999px;
+  color: var(--se-muted);
+  font-size: .82rem;
+}
+
+/* Discovery cards have no badge art, so drop the reserved art gutter. */
+.se-profile-achievements .se-ach.se-ach--discovery { padding-left: 9px; }
+.se-ach--tier-obvious { border-left-color: var(--se-line); }
+.se-ach--tier-obvious .se-ach__rarity { color: var(--se-muted); }
+.se-ach--tier-hidden { border-left-color: #6899f3; }
+.se-ach--tier-hidden .se-ach__rarity { color: #6899f3; }
+.se-ach--tier-legendary { border-left-color: #f1b622; }
+.se-ach--tier-legendary .se-ach__rarity { color: #f1b622; }
+.se-ach--discovery .se-ach__top { flex-wrap: wrap; gap: 2px 8px; }
+.se-ach--discovery .se-ach__cat,
+.se-ach--discovery .se-ach__rarity { white-space: nowrap; }
+.se-discovery-clues { list-style: none; display: grid; gap: 6px; margin: 0; padding: 0; }
+.se-discovery-clue { display: grid; gap: 3px; }
+.se-discovery-clue__label { color: var(--se-text); font-size: 10px; line-height: 1.35; }
+.se-discovery-families { list-style: none; display: grid; gap: 4px; margin: 0; padding: 0; font-size: 11px; color: var(--se-muted); }
+.se-ach--discovery > .se-btn { margin-top: auto; align-self: flex-start; }
+.se-profile-achievements .se-ach.se-ach--trophy { min-height: 0; }
+
+/* Avatar auras: they move only on a live portrait (one large avatar, never a list) and stop under reduced motion. */
+.se-built-avatar--live .se-avatar-aura--neon {
+  animation: se-avatar-aura-pulse 4.5s ease-in-out infinite alternate;
+}
+
+.se-built-avatar--live .se-avatar-aura__fall {
+  animation: se-avatar-aura-fall 14s linear infinite;
+}
+
+@keyframes se-avatar-aura-pulse {
+  from { opacity: 0.55; }
+  to { opacity: 1; }
+}
+
+@keyframes se-avatar-aura-fall {
+  from { transform: translateY(0); }
+  to { transform: translateY(128px); }
+}
+
+.se-reduced-motion .se-built-avatar--live .se-avatar-aura--neon,
+.se-reduced-motion .se-built-avatar--live .se-avatar-aura__fall {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .se-built-avatar--live .se-avatar-aura--neon,
+  .se-built-avatar--live .se-avatar-aura__fall {
+    animation: none;
+  }
+}
+.se-profile-pagehead__main .se-street-sign-display {
+  margin: 14px 0 10px;
+  padding: 0;
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none;
+  overflow: visible;
+}
+
+/* Public profiles keep the sign face readable even when the saved design was
+   created with the optional no-shadow treatment. */
+.se-profile-pagehead__main .se-street-sign-display .se-street-sign-preview__face {
+  background-color: var(--se-profile-sign-background, #17642e);
+  box-shadow: inset 0 0 0 2px #ffffff4a, 0 12px 24px #0008 !important;
+}
+
+/* Hover profile cards use the compact renderer; remove its shared stage
+   gradient so only the actual sign face is visible. */
+.se-profile-hover-card .se-street-sign-display {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.se-profile-hover-card .se-street-sign-display .se-street-sign-preview__tag {
+  max-width: calc(100% - 44px);
+  overflow: visible;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  white-space: normal;
+  font-size: .68rem;
+  line-height: .95;
+  text-align: center;
 }

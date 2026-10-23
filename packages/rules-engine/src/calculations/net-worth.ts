@@ -20,6 +20,13 @@ export function calculateNetWorthCents(
   // applied as a ratio rather than a float multiply.
   const cash = (BigInt(player.cashCents) * BigInt(v.cashWeightPercent)) / 100n;
   const casinoCash = (BigInt(player.casinoNetWorthCents ?? 0) * BigInt(v.cashWeightPercent)) / 100n;
+  const ammoPacks = ruleset.stores.TOMMY.items;
+  const ammoSellbackCentsPerRound = ruleset.ammoParts?.enabled
+    ? Math.min(...Object.values(ammoPacks)
+      .filter((item) => item.field === 'ammo' && item.sellCents !== null)
+      .map((item) => Math.floor(item.sellCents! / (item.unitsPerOrder ?? 1))))
+    : 0;
+  const ammo = BigInt(player.ammo ?? 0) * BigInt(Number.isFinite(ammoSellbackCentsPerRound) ? ammoSellbackCentsPerRound : 0);
 
   const assets = (
     cash +
@@ -48,6 +55,7 @@ export function calculateNetWorthCents(
     BigInt(player.outpostNetWorthCents ?? 0) +
     // 1.2.0-A: casino chips/bankroll are cash-equivalents, so cage transfers cannot mint ranking value.
     casinoCash
+    + ammo
   );
   // 1.6.5-A: what is owed comes back off, so borrowing never buys rank. Never below zero.
   const debt = weightedDebtCents(player.loanDebtCents ?? 0, v.cashWeightPercent);

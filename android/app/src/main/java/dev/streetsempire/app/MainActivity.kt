@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.view.View
+import android.webkit.JavascriptInterface
 import android.webkit.CookieManager
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
@@ -15,22 +16,27 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-import com.google.android.material.button.MaterialButtonToggleGroup
+import com.google.android.gms.games.PlayGames
+import com.google.android.gms.games.PlayGamesSdk
+import org.json.JSONObject
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var webView: WebView
     private lateinit var swipeRefresh: SwipeRefreshLayout
+    private lateinit var landingView: View
     private lateinit var offlineView: View
-    private lateinit var envToggle: MaterialButtonToggleGroup
+    private lateinit var billing: PlayBillingManager
+    private lateinit var gamesSignIn: com.google.android.gms.games.GamesSignInClient
 
     private var filePathCallback: ValueCallback<Array<Uri>>? = null
 
     private val prefs by lazy { getSharedPreferences(PREFS, MODE_PRIVATE) }
-    private var environment: String = "live"
 
     private val filePicker = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -51,28 +57,51 @@ class MainActivity : AppCompatActivity() {
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        PlayGamesSdk.initialize(this)
+        gamesSignIn = PlayGames.getGamesSignInClient(this)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         setContentView(R.layout.activity_main)
 
-        environment = GameConfig.normalizeEnvironment(
-            prefs.getString(KEY_ENV, null)
-        )
+        val appRoot = findViewById<View>(R.id.app_root)
+        val statusBarSpacer = findViewById<View>(R.id.system_status_bar)
+        val minimumStatusBarHeight = (32 * resources.displayMetrics.density).toInt()
+        ViewCompat.setOnApplyWindowInsetsListener(appRoot) { view, insets ->
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            statusBarSpacer.layoutParams = statusBarSpacer.layoutParams.apply {
+                height = maxOf(systemBars.top, minimumStatusBarHeight)
+            }
+            // The web tab bar already applies CSS safe-area padding. Adding the
+            // Android bottom inset here creates a second empty bar below it.
+            view.setPadding(systemBars.left, 0, systemBars.right, 0)
+            insets
+        }
+        ViewCompat.requestApplyInsets(appRoot)
+        val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+        insetsController.isAppearanceLightStatusBars = false
+        insetsController.isAppearanceLightNavigationBars = false
 
         webView = findViewById(R.id.web_view)
         swipeRefresh = findViewById(R.id.swipe_refresh)
+        landingView = findViewById(R.id.landing_view)
         offlineView = findViewById(R.id.offline_view)
-        envToggle = findViewById(R.id.env_toggle)
-        findViewById<View>(R.id.btn_reload).setOnClickListener { webView.reload() }
+        // User-agent detection can be changed or omitted by WebView providers.
+        // Expose a tiny explicit marker so the website reliably selects Play
+        // Billing instead of Stripe inside the Android shell.
+        webView.addJavascriptInterface(AndroidShellBridge(), "StreetsEmpireAndroid")
         findViewById<View>(R.id.btn_retry).setOnClickListener {
             offlineView.visibility = View.GONE
             webView.loadUrl(currentUrl())
         }
-
-        envToggle.check(if (environment == "beta") R.id.btn_beta else R.id.btn_live)
-        envToggle.addOnButtonCheckedListener { _, checkedId, isChecked ->
-            if (!isChecked) return@addOnButtonCheckedListener
-            val next = if (checkedId == R.id.btn_beta) "beta" else "live"
-            if (next != environment) requestEnvironmentSwitch(next)
+        findViewById<View>(R.id.btn_enter_city).setOnClickListener {
+            openGame()
         }
+
+        billing = PlayBillingManager(
+            this,
+            onPurchase = { token -> dispatchBillingEvent("streets:play-purchase", token) },
+            onCrownPurchase = { productId, token -> dispatchBillingEvent("streets:play-crown-purchase", "$productId|$token") },
+            onError = { message -> dispatchBillingEvent("streets:play-billing-error", message) },
+        )
 
         CookieManager.getInstance().setAcceptCookie(true)
         CookieManager.getInstance().setAcceptThirdPartyCookies(webView, false)
@@ -80,7 +109,6 @@ class MainActivity : AppCompatActivity() {
         webView.settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
-            databaseEnabled = true
             mediaPlaybackRequiresUserGesture = false
             loadWithOverviewMode = true
             useWideViewPort = true
@@ -97,7 +125,15 @@ class MainActivity : AppCompatActivity() {
 
         webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+                if (GameConfig.isBillingUrl(request.url)) {
+                    handleBillingUrl(request.url)
+                    return true
+                }
                 val url = request.url.toString()
+                if (GameConfig.isDiscordAppUrl(url)) {
+                    openDiscordApp(url)
+                    return true
+                }
                 return if (GameConfig.isInAppUrl(url)) {
                     false // stay in the app
                 } else {
@@ -110,8 +146,8 @@ class MainActivity : AppCompatActivity() {
                 super.onPageFinished(view, url)
                 swipeRefresh.isRefreshing = false
                 offlineView.visibility = View.GONE
-                GameConfig.sanitizeGameUrl(url, environment)?.let { safe ->
-                    prefs.edit().putString(keyFor(environment), safe).apply()
+                GameConfig.sanitizeGameUrl(url)?.let { safe ->
+                    prefs.edit().putString(KEY_LIVE_URL, safe).apply()
                 }
             }
 
@@ -154,8 +190,11 @@ class MainActivity : AppCompatActivity() {
         })
 
         if (savedInstanceState == null) {
-            webView.loadUrl(currentUrl())
+            landingView.visibility = View.VISIBLE
+            swipeRefresh.visibility = View.GONE
         } else {
+            landingView.visibility = View.GONE
+            swipeRefresh.visibility = View.VISIBLE
             webView.restoreState(savedInstanceState)
         }
     }
@@ -166,43 +205,42 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun currentUrl(): String {
-        val saved = prefs.getString(keyFor(environment), null)
-        return GameConfig.sanitizeGameUrl(saved, environment)
-            ?: GameConfig.entryFor(environment)
+        val saved = prefs.getString(KEY_LIVE_URL, null)
+        val safe = GameConfig.sanitizeGameUrl(saved) ?: GameConfig.LIVE_ENTRY
+        return Uri.parse(safe).buildUpon()
+            .appendQueryParameter("se_android", "1")
+            .build()
+            .toString()
     }
 
-    private fun keyFor(env: String) = if (env == "beta") KEY_BETA_URL else KEY_LIVE_URL
+    private fun openGame() {
+        landingView.visibility = View.GONE
+        swipeRefresh.visibility = View.VISIBLE
+        webView.loadUrl(currentUrl())
+    }
 
-    private fun requestEnvironmentSwitch(next: String) {
-        if (next == "beta") {
-            AlertDialog.Builder(this)
-                .setTitle(getString(R.string.beta_dialog_title))
-                .setMessage(getString(R.string.beta_dialog_message))
-                .setPositiveButton(getString(R.string.beta_dialog_open)) { _, _ ->
-                    switchEnvironment(next)
-                }
-                .setNegativeButton(android.R.string.cancel) { _, _ ->
-                    envToggle.check(
-                        if (environment == "beta") R.id.btn_beta else R.id.btn_live
-                    )
-                }
-                .setCancelable(true)
-                .setOnCancelListener {
-                    envToggle.check(
-                        if (environment == "beta") R.id.btn_beta else R.id.btn_live
-                    )
-                }
-                .show()
-        } else {
-            switchEnvironment(next)
+    private fun handleBillingUrl(uri: Uri) {
+        when (uri.path?.trim('/')) {
+            "supporter" -> billing.startPurchase(uri.getQueryParameter("account") ?: "")
+            "crown-pack" -> billing.startCrownPurchase(uri.getQueryParameter("product") ?: "", uri.getQueryParameter("account") ?: "")
+            "restore" -> billing.restorePurchases()
+            "restore-crowns" -> billing.restoreCrownPurchases()
+            "manage" -> openExternal(
+                "https://play.google.com/store/account/subscriptions" +
+                    "?sku=${GameConfig.SUPPORTER_PRODUCT_ID}&package=$packageName"
+            )
         }
     }
 
-    private fun switchEnvironment(next: String) {
-        environment = GameConfig.normalizeEnvironment(next)
-        prefs.edit().putString(KEY_ENV, environment).apply()
-        offlineView.visibility = View.GONE
-        webView.loadUrl(currentUrl())
+    private fun dispatchBillingEvent(name: String, value: String) {
+        val event = JSONObject.quote(name)
+        val detail = JSONObject.quote(value)
+        runOnUiThread {
+            webView.evaluateJavascript(
+                "window.dispatchEvent(new CustomEvent($event,{detail:$detail}));",
+                null,
+            )
+        }
     }
 
     private fun openExternal(url: String) {
@@ -213,10 +251,89 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun dispatchPlayGamesEvent(name: String, value: String) {
+        val event = JSONObject.quote(name)
+        val detail = JSONObject.quote(value)
+        runOnUiThread {
+            webView.evaluateJavascript(
+                "window.dispatchEvent(new CustomEvent($event,{detail:$detail}));",
+                null,
+            )
+        }
+    }
+
+    private fun signInWithPlayGames(link: Boolean = false) {
+        if (GameConfig.PLAY_GAMES_WEB_CLIENT_ID.isBlank()) {
+            dispatchPlayGamesEvent("streets:play-games-error", "Google Play Games sign-in is not configured.")
+            return
+        }
+
+        fun requestCode() {
+            gamesSignIn.requestServerSideAccess(GameConfig.PLAY_GAMES_WEB_CLIENT_ID, false)
+                .addOnSuccessListener { code ->
+                    dispatchPlayGamesEvent(if (link) "streets:play-games-link-auth" else "streets:play-games-auth", code)
+                }
+                .addOnFailureListener { dispatchPlayGamesEvent("streets:play-games-error", "Google Play Games sign-in could not be completed.") }
+        }
+
+        gamesSignIn.isAuthenticated()
+            .addOnSuccessListener { result ->
+                if (result.isAuthenticated) {
+                    requestCode()
+                } else {
+                    gamesSignIn.signIn()
+                        .addOnSuccessListener { requestCode() }
+                        .addOnFailureListener { dispatchPlayGamesEvent("streets:play-games-error", "Google Play Games sign-in was canceled.") }
+                }
+            }
+            .addOnFailureListener { dispatchPlayGamesEvent("streets:play-games-error", "Google Play Games sign-in could not be started.") }
+    }
+
+    /**
+     * Discord's mobile site can emit discord:// and intent:// links for the
+     * "open in Discord" step. Keep the OAuth authorize page in this WebView so
+     * its state/session cookies remain available to the callback, but hand off
+     * only the app-switch URL to the installed Discord app.
+     */
+    private fun openDiscordApp(url: String) {
+        try {
+            val intent = if (url.startsWith("intent:", ignoreCase = true)) {
+                Intent.parseUri(url, Intent.URI_INTENT_SCHEME)
+            } else {
+                Intent(Intent.ACTION_VIEW, Uri.parse(url))
+            }
+            intent.action = Intent.ACTION_VIEW
+            intent.setPackage("com.discord")
+            startActivity(intent)
+        } catch (_: Exception) {
+            // Discord may not be installed, or the intent may not be supported
+            // by this Discord build. Let Android choose another compatible app.
+            openExternal(url)
+        }
+    }
+
+    private inner class AndroidShellBridge {
+        @JavascriptInterface
+        fun isNative(): Boolean = true
+
+        @JavascriptInterface
+        fun signInWithPlayGames() {
+            (this@MainActivity).runOnUiThread { this@MainActivity.signInWithPlayGames() }
+        }
+
+        @JavascriptInterface
+        fun linkPlayGames() {
+            (this@MainActivity).runOnUiThread { this@MainActivity.signInWithPlayGames(link = true) }
+        }
+    }
+
+    override fun onDestroy() {
+        billing.close()
+        super.onDestroy()
+    }
+
     companion object {
         private const val PREFS = "streetsempire"
-        private const val KEY_ENV = "environment"
         private const val KEY_LIVE_URL = "last_live_url"
-        private const val KEY_BETA_URL = "last_beta_url"
     }
 }

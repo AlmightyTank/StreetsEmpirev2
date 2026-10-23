@@ -1,5 +1,6 @@
 import type { City, Prisma, PrismaClient } from '@prisma/client';
 import { RelocationService } from './relocation.service.js';
+import { birthdayLookOptions, showsBirthdayCake } from './birthday.service.js';
 import { factionTier, factionTierName, factionTierRank, loadRulesetForRound, type Ruleset } from '@streets/rules-engine';
 import type { FactionKey } from '@streets/rulesets';
 import { rulesets, SUPPORTER_COSMETICS } from '@streets/rulesets';
@@ -21,11 +22,13 @@ import type {
   RankingEntryDto,
   RankingsDto,
 } from '@streets/shared';
-import { playerExperienceDto, readAvatarParts, SIGNATURE_CARD_FRAME_KEY } from '@streets/shared';
+import { playerExperienceDto, readAvatarParts, streetSignForCrewName, SIGNATURE_CARD_FRAME_KEY } from '@streets/shared';
 import { env } from '../config/env.js';
 import { toCityDto, toSeasonHideoutDto } from '../game/dto.js';
 import { AppError } from '../utils/errors.js';
 import { allianceTagDto } from './alliance.service.js';
+import { PlayerExperienceService } from './player-experience.service.js';
+import { PlayerSkillService } from './player-skill.service.js';
 import { SupporterService } from './supporter.service.js';
 import { ForumGroupsService } from './forum-groups.service.js';
 import { forumProfileUrl } from './forum-link.service.js';
@@ -35,8 +38,15 @@ import { isBuiltInProfileTitle, profileTitleForAward, profileTitleForKey } from 
 import { TurfHistoryService } from './turf-history.service.js';
 import { QuestCosmeticService, withThemeCompanionFrames } from './quest-cosmetic.service.js';
 import { profileShowcase, profileThemeTags, themeTagFields } from './profile-showcase.service.js';
+import { readFeaturedItem } from './individual-item-history.js';
 import { seasonFeatAwards, type FeatSeason } from './season-feats.js';
 import { emptySeasonTotals, SeasonStatsService, toStatSheet, type SeasonTotals } from './season-stats.service.js';
+import { EmpireLegacyService } from './empire-legacy.service.js';
+import { PlayerCareerService } from './player-career.service.js';
+
+export function publicStreetSign(profile: { streetSign: unknown; crewName?: string | null; showLookOnProfile?: boolean | null } | null | undefined) {
+  return profile?.showLookOnProfile === false ? null : streetSignForCrewName(profile?.streetSign, profile?.crewName);
+}
 
 interface RankingRow {
   id: string;
@@ -70,6 +80,8 @@ interface PublicContext {
   isSupporter: boolean;
   /** UTC month (YYYY-MM) of the account's earliest supporter reward. */
   supporterSince: string | null;
+  /** Lifetime account level, for the chip beside the name. */
+  accountLevel: number;
   raidAttacks: number;
   raidAttackWins: number;
   raidDefenses: number;
@@ -354,10 +366,12 @@ export async function loadCareerForAccount(
       podium: row.nationalRank! <= 3,
       supportedSeason: supported(row.round.id),
     }));
+  const legacyEntries = await EmpireLegacyService.list(prisma, accountId);
 
   return {
     legacy,
     hallOfFame,
+    legacyEntries,
     seasons: players.map((player) => ({
       round: {
         id: player.round.id,
@@ -393,6 +407,7 @@ const emptyContext = (): PublicContext => ({
   legacy: emptyLegacy(),
   isSupporter: false,
   supporterSince: null,
+  accountLevel: 1,
   raidAttacks: 0,
   raidAttackWins: 0,
   raidDefenses: 0,
@@ -636,6 +651,35 @@ function profileAccent(value: string | null | undefined): ProfileAccent {
     'sunset-coral',
     'night-map-plum',
     'supporter-crimson',
+    'luxe-lacquer',
+    'underworld-violet',
+    'heist-frost',
+    'biscayne-flamingo',
+    'speakeasy-merlot',
+    'funk-tangerine',
+    'redline-red',
+    'wet-paint-mint',
+    'hazard-yellow',
+    'dockside-harbor',
+    'jewel-sapphire',
+    'bayou-firefly',
+    'mirage-turquoise',
+    'rewind-magenta',
+    'felt-green',
+    'nitrous-blue',
+    'flux-blue',
+    'swamp-moss',
+    'quarantine-orange',
+    'ghost-green',
+    'candy-red',
+    'heartbreak-rose',
+    'block-party-mango',
+    'money-green',
+    'blood-orange',
+    'steel-silver',
+    'cobalt-blue',
+    'bubblegum-pink',
+    'mustard-yellow',
   ].includes(value ?? '')
     ? value as ProfileAccent
     : 'default';
@@ -664,7 +708,7 @@ export async function loadPublicContexts(
   for (const id of ids) contexts.set(id, emptyContext());
   if (!ids.length) return contexts;
 
-  const [pastRows, battles, reconActivities, completedJobs, legacyFavorRows, supporterFlags] = await Promise.all([
+  const [pastRows, battles, reconActivities, completedJobs, legacyFavorRows, supporterFlags, levels] = await Promise.all([
     prisma.roundPlayer.findMany({
       where: { accountId: { in: accountIds }, roundId: { not: currentRoundId }, round: { status: { in: ['ENDED', 'ARCHIVED'] } } },
       select: { accountId: true, localRank: true, nationalRank: true, netWorthCents: true },
@@ -689,6 +733,7 @@ export async function loadPublicContexts(
       orderBy: { questDoneAt: 'asc' },
     }),
     SupporterService.flags(prisma, accountIds),
+    PlayerExperienceService.levels(prisma, accountIds),
   ]);
 
   const legacyByAccount = new Map<string, PublicLegacyDto>();
@@ -702,6 +747,7 @@ export async function loadPublicContexts(
     const flag = supporterFlags.get(accountId);
     contexts.get(id)!.isSupporter = flag?.isSupporter ?? false;
     contexts.get(id)!.supporterSince = flag?.supporterSince ?? null;
+    contexts.get(id)!.accountLevel = levels.get(accountId) ?? 1;
   }
 
   for (const battle of battles) {
@@ -846,6 +892,7 @@ export function rankRows(
       isYou,
       isSupporter: context.isSupporter,
       supporterSince: context.supporterSince,
+      accountLevel: context.accountLevel,
       intelRequired: false,
       alliance: allianceTagDto(row.alliance),
     };
@@ -1133,12 +1180,16 @@ export const CommunityService = {
         if (!earnedFramesWithCatalog.some((known) => known.key === option.key)) earnedFramesWithCatalog.push(option);
       }
     }
+    // On the player's birthday the day-only frame is theirs to wear, as in their settings.
+    const birthdayLook = await birthdayLookOptions(prisma, player.accountId, now);
+    earnedFramesWithCatalog.push(...birthdayLook.frames);
     const frameOptions = withThemeCompanionFrames(earnedFramesWithCatalog, themeOptionsWithCatalog);
     const career = await loadCareerForAccount(prisma, player.accountId, {
       currentRoundId: roundId,
       limit: 10,
       totals: history.totals,
     });
+    const careerIdentity = await PlayerCareerService.get(prisma, player.accountId, now);
     const context = contexts.get(player.id) ?? emptyContext();
     const seasonTotals = currentTotals.get(player.id) ?? emptySeasonTotals();
     const awards = [
@@ -1168,6 +1219,9 @@ export const CommunityService = {
       'snowstorm', 'inferno', 'chrome-serpent', 'phantom-convoy', 'lantern-district', 'siren-breaker',
       'block-sovereign', 'gilded-house', 'dead-or-alive', 'laurel-ascendant', 'midnight-chrome',
     ]);
+    const streetSkillBadges = ruleset.streetSkills
+      ? (await PlayerSkillService.publicBadges(prisma, [player.id])).get(player.id)
+      : undefined;
 
     return {
       forumProfileUrl: forumLink ? forumProfileUrl(forumLink) : null,
@@ -1191,11 +1245,13 @@ export const CommunityService = {
         surface: avatarFrame === SIGNATURE_CARD_FRAME_KEY ? profileSurfaceKey(profileSettings?.profileSurface) : null,
       },
       look: showcase.look,
+      famousItem: profileSettings?.showLookOnProfile === false ? null : readFeaturedItem(profileSettings?.famousItem),
       experience: playerExperienceDto(player.account.experiencePoints),
       publicPimpId: player.publicPimpId,
       displayName: player.displayName,
       crewName: profileSettings?.crewName ?? null,
       profileBio: profileSettings?.profileBio ?? null,
+      streetSign: publicStreetSign(profileSettings),
       seasonName: player.round.name,
       alliance: allianceTagDto(player.alliance),
       city: toCityDto(player.city),
@@ -1210,6 +1266,7 @@ export const CommunityService = {
       },
       legacy: context.legacy,
       career,
+      careerIdentity,
       awards,
       discoveries,
       showcase: featuredBadgeKeys
@@ -1234,6 +1291,8 @@ export const CommunityService = {
       isYou,
       isSupporter: context.isSupporter,
       supporterSince: context.supporterSince,
+      ...(streetSkillBadges?.length ? { streetSkillBadges } : {}),
+      birthdayToday: await showsBirthdayCake(prisma, player.accountId, profileSettings?.showBirthdayCake, now),
       ...(ruleset.factionPublic ? { factionAlignment: await factionAlignment(prisma, player.id, ruleset) } : {}),
     };
   },

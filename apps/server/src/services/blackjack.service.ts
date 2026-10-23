@@ -25,6 +25,7 @@ import type {
 } from '@streets/shared';
 import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
+import { assertNoActivePoolGame } from './pool.service.js';
 import { bossPresence } from './boss-presence.service.js';
 import { CasinoStatusService, assertCasinoRoomAccess, casinoTableAvailability } from './casino-status.service.js';
 import { PlayerStateService } from './player-state.service.js';
@@ -733,21 +734,17 @@ export const BlackjackService = {
       const table = tableFor(ruleset, input.tableKey);
       assertWager(table, input.wagerCents);
 
-      const [active, activeDice, activePoker, pokerSeat] = await Promise.all([
+      const [active, activePoker, pokerSeat] = await Promise.all([
         tx.casinoBlackjackHand.findFirst({
           where: { roundPlayerId, status: 'ACTIVE' },
-        }),
-        tx.casinoStreetDiceRound.findFirst({
-          where: { roundPlayerId, status: 'ACTIVE' },
-          select: { id: true },
         }),
         tx.casinoPokerHand.findFirst({ where: { roundPlayerId, status: 'ACTIVE' }, select: { id: true } }),
         tx.casinoPokerSeat.findFirst({ where: { roundPlayerId, status: { in: ['WAITING', 'PLAYING'] }, table: { status: { in: ['WAITING', 'PLAYING'] } } }, select: { id: true } }),
       ]);
       if (active) throw AppError.conflict('BLACKJACK_HAND_ACTIVE', 'Finish the current blackjack hand before dealing another.');
-      if (activeDice) throw AppError.conflict('STREET_DICE_ACTIVE', 'Finish the current Street Dice point before dealing blackjack.');
       if (activePoker) throw AppError.conflict('POKER_HAND_ACTIVE', 'Finish the current Poker hand before dealing blackjack.');
       if (pokerSeat) throw AppError.conflict('POKER_TABLE_ACTIVE', 'Leave your multiplayer Poker table before dealing blackjack.');
+      await assertNoActivePoolGame(tx, roundPlayerId, 'Blackjack');
 
       const { city, session } = await requireTableSession(tx, player, ruleset, casino, table, now);
       const wager = BigInt(input.wagerCents);

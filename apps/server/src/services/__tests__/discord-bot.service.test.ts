@@ -57,6 +57,14 @@ describe('roleKeysFor', () => {
     expect(roleKeysFor({ inRound: true, nationalRank: 11, legacy: legacy(), forumGroups: [] })).not.toContain('top-10');
   });
 
+  it('adds the staff role key for staff, and none for players', () => {
+    expect(roleKeysFor({ inRound: false, nationalRank: null, legacy: legacy(), forumGroups: [], staffRole: 'JR_MOD' }))
+      .toEqual(['linked', 'staff:jr-mod']);
+    expect(roleKeysFor({ inRound: false, nationalRank: null, legacy: legacy(), forumGroups: [], staffRole: 'FOUNDER' }))
+      .toEqual(['linked', 'staff:founder']);
+    expect(roleKeysFor({ inRound: false, nationalRank: null, legacy: legacy(), forumGroups: [], staffRole: null })).toEqual(['linked']);
+  });
+
   it('adds beta tester when enabled for Discord-linked beta accounts', () => {
     expect(roleKeysFor({ inRound: false, nationalRank: null, legacy: legacy(), forumGroups: [], betaTester: true }))
       .toEqual(['linked', 'beta-tester']);

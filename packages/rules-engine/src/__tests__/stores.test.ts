@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV01, type Ruleset } from '@streets/rulesets';
+import { classicOgV01, classicOgV24C, classicOgV24E, type Ruleset } from '@streets/rulesets';
 import { fullShelves } from '../calculations/restock.js';
 import { calculateStoreTrade, MAX_INVENTORY, maxStoreBuy, type StoreTradeInput } from '../calculations/stores.js';
 import { calculateNetWorthCents } from '../calculations/net-worth.js';
@@ -13,6 +13,45 @@ const player = { ...classicOgV01.round.startingPlayer, cashCents: 10_000_000n,
 const order: StoreTradeInput = { store: 'CORNER', item: 'CONDOM', direction: 'buy', quantity: 100 };
 
 describe('store transactions', () => {
+  it('buys and sells ammo in complete packs while shelf stock and inventory use rounds', () => {
+    const stocked = { ...player, ...fullShelves(classicOgV24C), ammo: 0 };
+    const box = classicOgV24C.stores.TOMMY.items.AMMO_BOX!;
+    const buy = calculateStoreTrade(stocked, {
+      store: 'TOMMY', item: 'AMMO_BOX', direction: 'buy', quantity: 2,
+    }, classicOgV24C);
+    expect(buy.quantityChange).toBe(200);
+    expect(buy.stockTaken).toBe(200);
+    expect(buy.totalCents).toBe(8_000n);
+    expect(maxStoreBuy(stocked.cashCents, 0, box, 99)).toBe(0);
+    expect(() => calculateStoreTrade({ ...stocked, ammoStock: 99 }, {
+      store: 'TOMMY', item: 'AMMO_BOX', direction: 'buy', quantity: 1,
+    }, classicOgV24C)).toThrow('only has enough stock for 0');
+
+    const sell = calculateStoreTrade({ ...stocked, ammo: 200 }, {
+      store: 'TOMMY', item: 'AMMO_BOX', direction: 'sell', quantity: 2,
+    }, classicOgV24C);
+    expect(sell.quantityChange).toBe(-200);
+    expect(sell.cashChangeCents).toBe(2_000n);
+    expect(sell.stockTaken).toBe(0);
+    expect(() => calculateStoreTrade({ ...stocked, ammo: 199 }, {
+      store: 'TOMMY', item: 'AMMO_BOX', direction: 'sell', quantity: 2,
+    }, classicOgV24C)).toThrow('sell at most 1');
+  });
+
+  it('buys Charlie parts in complete packs against the shared daily shelf', () => {
+    const stocked = { ...player, ...fullShelves(classicOgV24E), vehicleParts: 0 };
+    const pallet = calculateStoreTrade(stocked, {
+      store: 'CHARLIE', item: 'PARTS_PALLET', direction: 'buy', quantity: 1,
+    }, classicOgV24E);
+    expect(pallet.field).toBe('vehicleParts');
+    expect(pallet.quantityChange).toBe(1_000);
+    expect(pallet.stockTaken).toBe(1_000);
+    expect(pallet.totalCents).toBe(700_000n);
+    expect(() => calculateStoreTrade({ ...stocked, vehiclePartsStock: 999 }, {
+      store: 'CHARLIE', item: 'PARTS_PALLET', direction: 'buy', quantity: 1,
+    }, classicOgV24E)).toThrow('only has enough stock for 0');
+  });
+
   it.each(Object.entries(classicOgV01.stores).flatMap(([store, definition]) =>
     Object.entries(definition.items).map(([item, data]) => ({ store, item, ...data }))))
     ('buys $item from $store at the ruleset price', ({ store, item, field, buyCents }) => {

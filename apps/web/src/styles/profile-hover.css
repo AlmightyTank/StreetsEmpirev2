@@ -87,6 +87,16 @@
   background-size: cover;
   background-position: center;
 }
+.se-profile-hover-card__banner[data-crew-banner="midnight-chrome-crew-banner"] {
+  background:
+    linear-gradient(90deg, rgba(8, 10, 14, .82), rgba(28, 32, 40, .52)),
+    linear-gradient(135deg, #252a33, #8e96a3 48%, #151820 49%, #4b5361);
+}
+.se-profile-hover-card__banner[data-crew-banner="midnight-chrome-crew-banner-night"] {
+  background:
+    linear-gradient(90deg, rgba(3, 5, 10, .84), rgba(16, 27, 43, .54)),
+    linear-gradient(160deg, #101522, #506782 52%, #080c14 53%, #2b3548);
+}
 .se-profile-hover-card__banner::before,
 .se-profile-hover-card__banner::after {
   content: "";

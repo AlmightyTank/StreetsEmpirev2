@@ -5,7 +5,7 @@ import { bugReplyBody } from '../game-alerts.service.js';
 
 const now = new Date('2026-10-10T15:00:00.000Z');
 
-type Post = { id: string; kind: string; targetId: string; createdAt: Date; claimedAt: Date | null; messageId: string | null; error: string | null };
+type Post = { id: string; kind: string; targetId: string; createdAt: Date; claimedAt: Date | null; messageId: string | null; error: string | null; syncedNewsAt?: Date | null; syncedState?: string | null };
 
 const report = {
   id: 'bug1', accountId: 'acct1', username: 'Big_Daddy', category: 'GAMEPLAY', summary: 'Raid button does nothing', details: 'Clicked it twice.',
@@ -14,10 +14,13 @@ const report = {
   source: 'GAME', playerReply: null as string | null, reporterNotifiedAt: null as Date | null,
 };
 
-function fakePrisma(posts: Post[], reports: Array<typeof report>, news: Array<{ id: string; title: string; body: string; publishedAt: Date }> = []) {
+function fakePrisma(posts: Post[], reports: Array<typeof report>, news: Array<{ id: string; title: string; body: string; publishedAt: Date; updatedAt: Date }> = []) {
   const db = {
     discordStaffPost: {
-      findMany: async () => posts.filter((post) => !post.claimedAt).sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()),
+      findMany: async ({ where }: { where?: { kind?: string; messageId?: unknown; createdAt?: { gte: Date } } } = {}) =>
+        where?.kind === 'PATCH_NOTES_HELD'
+          ? posts.filter((post) => post.kind === 'PATCH_NOTES_HELD' && post.messageId)
+          : posts.filter((post) => !post.claimedAt).sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()),
       updateMany: async ({ where, data }: { where: { id: { in: string[] } | string; claimedAt?: null }; data: Partial<Post> }) => {
         const ids = typeof where.id === 'string' ? [where.id] : where.id.in;
         for (const post of posts) if (ids.includes(post.id) && (where.claimedAt !== null || !post.claimedAt)) Object.assign(post, data);
@@ -27,7 +30,10 @@ function fakePrisma(posts: Post[], reports: Array<typeof report>, news: Array<{ 
         posts.find((post) => post.kind === where.kind && post.targetId === where.targetId && post.messageId) ?? null,
     },
     bugReport: { findUnique: async ({ where }: { where: { id: string } }) => reports.find((row) => row.id === where.id) ?? null },
-    gameNews: { findUnique: async ({ where }: { where: { id: string } }) => news.find((row) => row.id === where.id) ?? null },
+    gameNews: {
+      findUnique: async ({ where }: { where: { id: string } }) => news.find((row) => row.id === where.id) ?? null,
+      findMany: async ({ where }: { where: { id: { in: string[] } } }) => news.filter((row) => where.id.in.includes(row.id)),
+    },
     $transaction: async <T>(work: (tx: unknown) => Promise<T>) => work(db),
   };
   return db as unknown as PrismaClient;
@@ -67,14 +73,62 @@ describe('DiscordStaffService.claim', () => {
       post('notes-public', 'PATCH_NOTES_HELD', 'news-published'),
     ];
     const prisma = fakePrisma(posts, [report], [
-      { id: 'news1', title: 'Patch notes: October 10, 2026', body: '- Fixed raids', publishedAt: new Date('2026-10-10T17:00:00.000Z') },
+      { id: 'news1', title: 'Patch notes: October 10, 2026', body: '- Fixed raids', publishedAt: new Date('2026-10-10T17:00:00.000Z'), updatedAt: now },
       // Published while the staff channel was down: nothing left to review.
-      { id: 'news-published', title: 'Patch notes: October 9, 2026', body: '- Older', publishedAt: new Date('2026-10-10T14:00:00.000Z') },
+      { id: 'news-published', title: 'Patch notes: October 9, 2026', body: '- Older', publishedAt: new Date('2026-10-10T14:00:00.000Z'), updatedAt: now },
     ]);
     expect(await DiscordStaffService.claim(prisma, now)).toMatchObject([
       { id: 'notes', kind: 'PATCH_NOTES_HELD', patchNotes: { title: 'Patch notes: October 10, 2026', publishedAt: '2026-10-10T17:00:00.000Z' } },
     ]);
     expect(posts.every((row) => row.claimedAt)).toBe(true);
+  });
+
+  it('refreshes original staff post when held text is edited or review completes automatically', async () => {
+    const createdAt = new Date(now.getTime() - 3_600_000);
+    const original = {
+      ...post('staff1', 'PATCH_NOTES_HELD', 'news1', 3_600_000, '1234567890123456789'),
+      claimedAt: createdAt, syncedState: 'HELD', syncedNewsAt: createdAt,
+    };
+    const news = [{
+      id: 'news1', title: 'Patch notes for 2.1.4', body: '- Updated notes',
+      publishedAt: new Date(now.getTime() + 3_600_000), updatedAt: now,
+    }];
+    const prisma = fakePrisma([original], [], news);
+    const [updated] = await DiscordStaffService.claim(prisma, now);
+    expect(updated).toMatchObject({
+      id: 'staff1', editMessageId: '1234567890123456789',
+      patchNotes: { state: 'HELD', body: '- Updated notes' },
+    });
+    await DiscordStaffService.posted(prisma, 'staff1', '1234567890123456789', { state: 'HELD', updatedAt: now.toISOString() });
+    expect(await DiscordStaffService.claim(prisma, now)).toEqual([]);
+
+    const afterDeadline = new Date(news[0]!.publishedAt.getTime() + 10);
+    const [completed] = await DiscordStaffService.claim(prisma, afterDeadline);
+    expect(completed).toMatchObject({ editMessageId: '1234567890123456789', patchNotes: { state: 'PUBLISHED' } });
+    await DiscordStaffService.posted(prisma, 'staff1', '1234567890123456789', { state: 'PUBLISHED', updatedAt: now.toISOString() });
+    expect(await DiscordStaffService.claim(prisma, afterDeadline)).toEqual([]);
+
+    news.length = 0;
+    const [deleted] = await DiscordStaffService.claim(prisma, afterDeadline);
+    expect(deleted).toMatchObject({ editMessageId: '1234567890123456789', patchNotes: { state: 'DELETED' } });
+  });
+
+  it('updates already-posted reviews even beyond the seven-day maximum hold', async () => {
+    const old = {
+      ...post('week-old', 'PATCH_NOTES_HELD', 'news-old', STAFF_POST_MAX_AGE_MS + 60_000, '1234567890123456789'),
+      claimedAt: new Date(now.getTime() - STAFF_POST_MAX_AGE_MS - 60_000),
+      syncedState: 'HELD',
+    };
+    const prisma = fakePrisma([old], [], [{
+      id: 'news-old', title: 'Patch notes for 2.2.4', body: '- Updated fixes',
+      publishedAt: new Date(now.getTime() - 1000),
+      updatedAt: now,
+    }]);
+    const [completion] = await DiscordStaffService.claim(prisma, now);
+    expect(completion).toMatchObject({
+      editMessageId: '1234567890123456789',
+      patchNotes: { state: 'PUBLISHED', title: 'Patch notes for 2.2.4' },
+    });
   });
 
   it('queues nothing while the bot API is off', async () => {

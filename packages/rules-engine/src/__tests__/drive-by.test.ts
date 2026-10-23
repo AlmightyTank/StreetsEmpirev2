@@ -71,6 +71,19 @@ describe('drive-bys', () => {
       expect(result.effectiveStrength.defender).toBeCloseTo(result.defender.strength * rules.defenseMultiplier);
     });
 
+    it('uses ammo for shooters and applies the defender floor without ammo loot', () => {
+      const result = simulateDriveBy(input({
+        defender: crew(10),
+        ammo: {
+          attackerRounds: 72, defenderRounds: 120,
+          roundsPerFight: { PISTOL: 12, SHOTGUN: 30, TEK9: 90, AK47: 180 },
+          defenderFloor: 10, lootShareBps: 1_500,
+        },
+      }), model, rules, flatRng);
+      expect(result.ammunition).toMatchObject({ attackerRoundsSpent: 72, defenderRoundsSpent: 0, defenderFreeRounds: 60,
+        ammoLootRounds: 0, attackerRoundsAfter: 0, defenderRoundsAfter: 120 });
+    });
+
     it('lets one full car beat a matched starter crew most of the time', () => {
       // Six pistols against Razor Ray's ten, five of whom are out front.
       const rng = combatSimulationRng(20260911);

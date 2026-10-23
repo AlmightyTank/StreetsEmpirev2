@@ -14,6 +14,7 @@ const PORTRAITS: Readonly<Record<string, { file: string; name: string }>> = {
   LEDGER: { file: 'ledger.svg', name: 'Ledger' },
   CORNER: { file: 'corner.svg', name: 'The Corner clerk' },
   CHARLIE: { file: 'charlie.svg', name: 'Charlie' },
+  COMMISSIONER: { file: 'commissioner.svg', name: 'The Commissioner' },
   CIVIC_HANDSHAKE: { file: 'civic-handshake.svg', name: 'A Civic Handshake official' },
 };
 

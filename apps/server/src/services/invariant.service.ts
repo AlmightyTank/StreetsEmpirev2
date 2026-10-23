@@ -24,6 +24,8 @@ export interface InvariantPlayerState {
   shotguns: number;
   tek9s: number;
   ak47s: number;
+  ammo?: number;
+  vehicleParts?: number;
   lowRiders: number;
   sedans?: number;
   vans?: number;
@@ -56,6 +58,8 @@ export interface InvariantPlayerState {
   beerStock: number;
   crackStock: number;
   thugStock: number;
+  ammoStock?: number;
+  vehiclePartsStock?: number;
 }
 
 const WHOLE_NON_NEGATIVE: readonly (keyof InvariantPlayerState)[] = [
@@ -74,6 +78,8 @@ const WHOLE_NON_NEGATIVE: readonly (keyof InvariantPlayerState)[] = [
   'shotguns',
   'tek9s',
   'ak47s',
+  'ammo',
+  'vehicleParts',
   'lowRiders',
   'sedans',
   'vans',
@@ -106,10 +112,13 @@ const WHOLE_NON_NEGATIVE: readonly (keyof InvariantPlayerState)[] = [
   'beerStock',
   'crackStock',
   'thugStock',
+  'ammoStock',
+  'vehiclePartsStock',
 ];
 
 const OPTIONAL_COUNTS: ReadonlySet<keyof InvariantPlayerState> = new Set([
   'sedans', 'vans', 'damagedLowRiders', 'damagedSedans', 'damagedVans', 'disabledLowRiders', 'disabledSedans', 'disabledVans', 'dealerThugs',
+  'ammo', 'vehicleParts', 'ammoStock', 'vehiclePartsStock',
 ]);
 
 function invalid(message: string): never {
@@ -185,7 +194,7 @@ export function assertPlayerState(
 
   // A shelf above its cap is how an unlimited-stock exploit would look.
   for (const [field, { rule }] of restockedItems(ruleset)) {
-    if (state[field] > rule.cap) {
+    if ((state[field] ?? 0) > rule.cap) {
       invalid(`${phase}.${field} is above the ruleset cap`);
     }
   }

@@ -9,6 +9,7 @@ import {
 import type { BattleLookDto, CrewCosmeticLoadout, CrewCosmeticStyleKey, ItemCosmeticLoadout, ProfileLookDto } from '@streets/shared';
 import type { Db } from '../utils/db.js';
 import { QuestCosmeticService } from './quest-cosmetic.service.js';
+import { supporterTrialActive, TRIAL_SUPPORTER_COSMETICS } from './supporter-trial.service.js';
 
 /**
  * Cosmetic loadouts as an account can actually wear them (Slice D), and what a
@@ -58,7 +59,7 @@ export async function profileShowcase(
 ): Promise<{ siteTheme: string | null; siteThemeLabel: string | null; look: ProfileLookDto | null }> {
   const showTheme = profile?.showThemeOnProfile ?? true;
   const showLook = profile?.showLookOnProfile ?? true;
-  const [themes, collections] = await Promise.all([
+  const [themes, collections, bannerUnlocks, trialActive] = await Promise.all([
     showTheme && profile?.activeSiteThemeKey ? QuestCosmeticService.optionsForAccount(db, accountId, 'SITE_THEME') : [],
     showLook
       ? db.accountCosmeticUnlock.findMany({
@@ -66,20 +67,39 @@ export async function profileShowcase(
         orderBy: [{ awardedAt: 'asc' }, { key: 'asc' }],
       })
       : [],
+    showLook && profile?.activeCrewBannerKey
+      ? db.accountCosmeticUnlock.findMany({
+        where: { accountId, kind: 'CREW_BANNER', key: profile.activeCrewBannerKey },
+        select: { key: true },
+      })
+      : [],
+    supporterTrialActive(db as PrismaClient, accountId),
   ]);
   const theme = themes.find((option) => option.key === profile?.activeSiteThemeKey) ?? null;
   const siteTheme = theme?.key ?? null;
   const siteThemeLabel = theme?.label ?? null;
   if (!showLook) return { siteTheme, siteThemeLabel, look: null };
   const owned = new Set(collections.map((row) => row.styleKey ?? row.key));
+  if (trialActive) {
+    for (const cosmetic of TRIAL_SUPPORTER_COSMETICS) {
+      if (cosmetic.kind === 'ITEM_COLLECTION' && cosmetic.styleKey) owned.add(cosmetic.styleKey);
+    }
+  }
+  const visibleCollections = trialActive
+    ? [...collections, ...TRIAL_SUPPORTER_COSMETICS.filter((cosmetic) => cosmetic.kind === 'ITEM_COLLECTION').map((cosmetic) => ({ key: cosmetic.key, title: cosmetic.name, rarity: cosmetic.rarity }))]
+    : collections;
+  const look: ProfileLookDto = {
+    items: itemCosmeticLoadout(profile?.itemCosmetics, owned),
+    crew: crewCosmeticLoadout(profile?.crewCosmetics, owned),
+    collections: visibleCollections.map((row) => ({ key: row.key, title: row.title, rarity: row.rarity })),
+  };
+  if (profile?.activeCrewBannerKey && bannerUnlocks.some((unlock) => unlock.key === profile.activeCrewBannerKey)) {
+    look.crewBanner = profile.activeCrewBannerKey;
+  }
   return {
     siteTheme,
     siteThemeLabel,
-    look: {
-      items: itemCosmeticLoadout(profile?.itemCosmetics, owned),
-      crew: crewCosmeticLoadout(profile?.crewCosmetics, owned),
-      collections: collections.map((row) => ({ key: row.key, title: row.title, rarity: row.rarity })),
-    },
+    look,
   };
 }
 
@@ -147,9 +167,15 @@ export async function battleLooks(
       select: { accountId: true, key: true, styleKey: true },
     }),
   ]);
+  const trialAccounts = new Set((await Promise.all(ids.map(async (id) => (await supporterTrialActive(db as PrismaClient, id)) ? id : null))).filter((id): id is string => id !== null));
   const looks = (accountId: string) => {
     const profile = profiles.find((row) => row.accountId === accountId);
     const owned = new Set(collections.filter((row) => row.accountId === accountId).map((row) => row.styleKey ?? row.key));
+    if (trialAccounts.has(accountId)) {
+      for (const cosmetic of TRIAL_SUPPORTER_COSMETICS) {
+        if (cosmetic.kind === 'ITEM_COLLECTION' && cosmetic.styleKey) owned.add(cosmetic.styleKey);
+      }
+    }
     const full: BattleLookDto = {
       items: itemCosmeticLoadout(profile?.itemCosmetics, owned),
       crew: crewCosmeticLoadout(profile?.crewCosmetics, owned),

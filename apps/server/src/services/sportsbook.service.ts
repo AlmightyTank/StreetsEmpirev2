@@ -27,9 +27,15 @@ export const SPORTSBOOK_LEAGUES = [
   { key: 'NBA', name: 'NBA' },
   { key: 'MLB', name: 'MLB' },
   { key: 'NHL', name: 'NHL' },
+  { key: 'SOFTBALL', name: 'College Softball' },
+  { key: 'MMA', name: 'MMA' },
 ] as const;
 
 const ODDS_MAX_AGE_MS = SPORTSBOOK_ODDS_MAX_AGE_MINUTES * 60_000;
+// Keep the player-facing slate close to what a person would actually scan at
+// once. The feed can contain a full multi-day schedule, but the board should
+// not turn into a schedule dump.
+const PLAYER_BOARD_EVENT_LIMIT = 6;
 
 export type JsonRecord = Record<string, unknown>;
 
@@ -313,6 +319,20 @@ export function settleSportsbookEvent(
   return prisma.$transaction((tx) => settleSportsbookEventTx(tx, eventId, status, homeScore, awayScore, now, via, provider));
 }
 
+/** Safely retires every still-open event without deleting bets or financial history. */
+export async function resetOpenSportsbookEvents(prisma: PrismaClient, now = new Date()): Promise<{ events: number; tickets: number; creditedCents: bigint }> {
+  const events = await prisma.sportsbookEvent.findMany({ where: { settledAt: null }, select: { id: true } });
+  let tickets = 0;
+  let creditedCents = 0n;
+  for (const event of events) {
+    const settlement = await settleSportsbookEvent(prisma, event.id, 'VOID', null, null, now, 'ADMIN_VOID', 'internal');
+    if (!settlement) continue;
+    tickets += settlement.tickets;
+    creditedCents += settlement.creditedCents;
+  }
+  return { events: events.length, tickets, creditedCents };
+}
+
 export const SportsbookService = {
   async notifyStartedGames(prisma: PrismaClient, now = new Date()): Promise<number> {
     const tickets = await prisma.sportsbookBet.findMany({
@@ -354,12 +374,15 @@ export const SportsbookService = {
     options: { configured: boolean; pollMinutes: number },
     now = new Date(),
   ): Promise<SportsbookBoardDto> {
+    const boardHorizon = new Date(now.getTime() + 3 * 86_400_000);
     const [events, providerStates, leagueProviderStates] = await Promise.all([
       prisma.sportsbookEvent.findMany({
         // 1.8.0-C: a pulled line stays listed (closed, with a reason) until it returns or starts.
-        where: { startsAt: { gt: now }, status: { in: ['PRE', 'PULLED'] } },
-        // Today and tomorrow across four leagues; large enough that a league filter never hides games.
-        orderBy: [{ startsAt: 'asc' }, { sport: 'asc' }], take: 300,
+        where: { startsAt: { gt: now, lt: boardHorizon }, status: { in: ['PRE', 'PULLED'] } },
+        // Show only the next few games across all leagues. This also keeps the
+        // league filter counts meaningful instead of displaying a multi-day
+        // schedule dump (the feed itself still stores every event).
+        orderBy: [{ startsAt: 'asc' }, { sport: 'asc' }], take: PLAYER_BOARD_EVENT_LIMIT,
       }),
       prisma.sportsbookProviderState.findMany(),
       prisma.sportsbookLeagueProviderState.findMany(),

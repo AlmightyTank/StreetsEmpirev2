@@ -57,10 +57,7 @@ export function CasePanel() {
           ? `${summary.cityName}: police attention is ${wantedStageName(summary.stage).toLowerCase()}.`
           : 'Police attention is low across your cities.'}
       </p>
-      <p className="se-hint">
-        Risky activity can draw police attention. Keep a low profile, get legal help, or pay an informant for details.
-        Only you can see this Case, and it lasts for the round.
-      </p>
+      <p className="se-hint">Private to you. Your Case lasts for the round.</p>
 
       {error ? <Alert>{error}</Alert> : null}
 

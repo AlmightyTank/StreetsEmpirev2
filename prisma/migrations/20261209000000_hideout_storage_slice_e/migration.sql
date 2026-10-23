@@ -1,0 +1,1 @@
+ALTER TABLE "RoundPlayer" ADD COLUMN "hideoutStorageLevel" INTEGER NOT NULL DEFAULT 0;

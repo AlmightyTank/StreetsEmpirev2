@@ -11,6 +11,8 @@ import {
   RoundAftermathRewardService,
 } from './round-aftermath-reward.service.js';
 import { EncounterGangService } from './encounter-gang.service.js';
+import { buildRoundStartingResources } from './round-player-seed.js';
+import { IndividualItemsService } from './individual-items.service.js';
 
 export type RoundPlayerWithCity = Awaited<
   ReturnType<typeof RoundPlayerService.find>
@@ -82,21 +84,7 @@ export const RoundPlayerService = {
       });
       const publicPimpId = counter.nextPublicPimpId - 1;
 
-      const seed = {
-        whores: start.whores,
-        thugs: start.thugs,
-        condoms: start.condoms,
-        medicine: start.medicine,
-        crack: start.crack,
-        beer: start.beer,
-        pistols: start.pistols,
-        shotguns: start.shotguns,
-        tek9s: start.tek9s,
-        ak47s: start.ak47s,
-        lowRiders: start.lowRiders,
-        payoutPercent: start.payoutPercent,
-        cashCents: BigInt(start.cashCents) + reward.amountCents,
-      };
+      const seed = buildRoundStartingResources(start, reward.amountCents);
 
       const happiness = HappinessService.recalculate(seed, ruleset);
       const netWorthCents = NetWorthService.calculate(seed, ruleset);
@@ -145,6 +133,10 @@ export const RoundPlayerService = {
           dailyStartingNationalRank: ranks.nationalRank,
         },
       });
+
+      if (ruleset.individualItems?.enabled) {
+        await IndividualItemsService.seed(tx, player.id, start, ruleset.individualItems);
+      }
 
       if (reward.amountCents > 0n && !existingRewardClaim) {
         if (!reward.sourceRoundId) {

@@ -1,20 +1,6 @@
 /* 0.1.0-G: quality-of-life and consistency pass. */
 
-:root {
-  --se-bg: #07090c;
-  --se-panel: #12161c;
-  --se-panel-hi: #181d25;
-  --se-line: #303743;
-  --se-line-soft: #202630;
-  --se-text: #e4e9f1;
-  --se-text-dim: #a9b3c0;
-  --se-muted: #8a96a5; /* 1.0.0-G: 4.5:1 on every panel tint (was #768291) */
-  --se-radius-sm: 4px;
-  --se-radius: 6px;
-  --se-shadow: 0 18px 38px rgba(0, 0, 0, 0.36);
-  --se-shadow-soft: 0 10px 24px rgba(0, 0, 0, 0.24);
-  --se-focus: 0 0 0 2px rgba(var(--se-accent-rgb), 0.22);
-}
+/* Foundation tokens live in theme.css. This file only composes those tokens. */
 
 body {
   background-color: var(--se-bg);
@@ -39,9 +25,9 @@ body {
 }
 
 .se-topbar {
-  height: 54px;
+  height: var(--se-shell-topbar-h);
   background:
-    linear-gradient(180deg, rgba(15, 18, 23, 0.96), rgba(9, 11, 14, 0.92));
+    linear-gradient(180deg, color-mix(in srgb, var(--se-panel-hi) 96%, transparent), color-mix(in srgb, var(--se-bg) 92%, transparent));
   border-bottom-color: rgba(var(--se-accent-rgb), 0.18);
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03), 0 16px 32px rgba(0, 0, 0, 0.34);
 }
@@ -87,7 +73,7 @@ body {
 
 .se-panel,
 .se-stats {
-  border-color: rgba(255, 255, 255, 0.08);
+  border-color: var(--se-line);
   border-radius: var(--se-radius);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.01)),
@@ -120,11 +106,11 @@ body {
   padding: 10px 12px;
   border-bottom: 1px solid rgba(var(--se-accent-rgb), 0.38);
   background:
-    linear-gradient(180deg, rgba(30, 36, 46, 0.86), rgba(17, 21, 28, 0.9));
+    linear-gradient(180deg, color-mix(in srgb, var(--se-panel-hi) 86%, transparent), color-mix(in srgb, var(--se-panel) 90%, transparent));
 }
 
 .se-panel__title {
-  color: #c5cedb;
+  color: var(--se-text-dim);
 }
 
 .se-panel__body {
@@ -137,7 +123,7 @@ body {
 
 .se-row {
   min-height: 40px;
-  border-bottom-color: rgba(255, 255, 255, 0.055);
+  border-bottom-color: var(--se-line-soft);
 }
 
 .se-row__label {
@@ -154,11 +140,11 @@ body {
   padding: 13px 14px;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.032), rgba(255, 255, 255, 0.006)),
-    rgba(13, 16, 21, 0.82);
+    var(--se-panel);
 }
 
 .se-stat__label {
-  color: #8e9aab;
+  color: var(--se-muted);
 }
 
 .se-stat__value {
@@ -215,13 +201,13 @@ body {
 .se-btn--primary {
   border-color: rgba(var(--se-accent-rgb), 0.76);
   background: linear-gradient(180deg, var(--se-accent-hover), var(--se-accent));
-  color: #090b0e;
+  color: var(--se-on-accent);
   box-shadow: 0 0 22px rgba(var(--se-accent-rgb), 0.17);
 }
 
 .se-btn--primary:hover:not(:disabled) {
   background: linear-gradient(180deg, color-mix(in srgb, var(--se-accent-hover) 75%, #fff), var(--se-accent-hover));
-  color: #050607;
+  color: var(--se-on-accent);
 }
 
 .se-btn--ghost {
@@ -233,7 +219,7 @@ select.se-input,
 textarea.se-input {
   border-color: rgba(255, 255, 255, 0.11);
   border-radius: var(--se-radius-sm);
-  background: rgba(5, 7, 10, 0.72);
+  background: color-mix(in srgb, var(--se-bg) 72%, transparent);
   color: var(--se-text);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
 }
@@ -266,6 +252,13 @@ textarea.se-input {
     linear-gradient(180deg, rgba(255, 255, 255, 0.032), rgba(255, 255, 255, 0.008)),
     rgba(7, 9, 12, 0.68);
 }
+
+/* Keep theme.css's left stripe on achievement cards (accent / rarity / locked). */
+.se-ach { border-left-color: var(--se-accent-dim); }
+.se-ach--locked,
+.se-ach--locked.se-ach--rare,
+.se-ach--locked.se-ach--epic,
+.se-ach--locked.se-ach--legendary { border-left-color: var(--se-line); }
 
 .se-choice {
   transition: border-color 0.16s ease, background-color 0.16s ease, box-shadow 0.16s ease;

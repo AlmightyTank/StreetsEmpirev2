@@ -19,6 +19,7 @@ import { encounterActivityPayload, RandomEncounterService } from './random-encou
 import { PermanentUnlockService } from './permanent-unlock.service.js';
 import { CityConditionService } from './city-condition.service.js';
 import { EasterEggService } from './easter-egg.service.js';
+import { resolveTerritoryModifiers, territorySourcesForAction } from './territory-perks.service.js';
 
 export interface ProduceInput {
   turns: number;
@@ -113,6 +114,26 @@ export const ProductionService = {
             ...recipe,
             perThugPerTurn: recipe.perThugPerTurn * (100 + cityConditionBonuses.productPercent) / 100,
           };
+        }
+        const territoryModifierReceipts = resolveTerritoryModifiers(await territorySourcesForAction({
+          tx,
+          round,
+          ruleset,
+          allianceId: player.allianceId,
+          cityId: player.cityId,
+          citySlug: player.city.slug,
+          district: ruleset.scouting.produceDistrict,
+        }), 'PRODUCE');
+        const territoryReceiptDto = territoryModifierReceipts.map((receipt) => ({
+          effectId: receipt.effectId,
+          action: receipt.action,
+          valueBasisPoints: receipt.valueBasisPoints,
+          multiplierBasisPoints: receipt.multiplierBasisPoints,
+          capBasisPoints: receipt.capBasisPoints,
+          sources: receipt.sources.map((source) => ({ ...source })),
+        }));
+        for (const receipt of territoryModifierReceipts) {
+          recipe = { ...recipe, perThugPerTurn: recipe.perThugPerTurn * receipt.multiplierBasisPoints / 10_000 };
         }
         const productType = ruleset.productEconomy ? recipe.product : requested;
         const productName = ruleset.productEconomy ? recipe.name : LEGACY_PRODUCT_NAMES[requested] ?? 'Product';
@@ -253,6 +274,7 @@ export const ProductionService = {
           hideoutBonusProduct,
           ...(favorBonuses.productionOutputPercent > 0 ? { favorProductionPercent: favorBonuses.productionOutputPercent } : {}),
           ...(cityConditionBonuses.productPercent > 0 ? { cityConditionBonusPercent: cityConditionBonuses.productPercent } : {}),
+          ...(territoryReceiptDto.length ? { territoryModifierReceipts: territoryReceiptDto } : {}),
           crackProduced,
           hideoutBonusCrack,
           ingredientCents: Number(outcome.ingredientCents),
@@ -327,6 +349,7 @@ export const ProductionService = {
                 hideoutIngredientSavingsCents: ingredientSavingsCents,
                 ingredientCentsPerUnit: recipe.ingredientCentsPerUnit,
               } : {}),
+              ...(territoryReceiptDto.length ? { territoryModifierReceipts: territoryReceiptDto } : {}),
               cashCents: Number(pimpTakeCents),
               hideoutBonusCents: Number(hideoutBonusCents),
               ...(lieutenantCutCents > 0n ? { lieutenantCutCents: Number(lieutenantCutCents) } : {}),

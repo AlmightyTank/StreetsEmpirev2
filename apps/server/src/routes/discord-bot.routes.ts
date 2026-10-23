@@ -6,7 +6,9 @@ import { botTokenMatches, DiscordBotService } from '../services/discord-bot.serv
 import { claimResyncRequests } from '../services/discord-resync.service.js';
 import { AdminModerationService } from '../services/admin-moderation.service.js';
 import { DiscordStaffService, staffMessageReport } from '../services/discord-staff.service.js';
+import { DiscordPresenceService } from '../services/discord-presence.service.js';
 import { SupportTicketService } from '../services/support-ticket.service.js';
+import { StaffService } from '../services/staff.service.js';
 import { BugReportService } from '../services/support.service.js';
 import { AppError } from '../utils/errors.js';
 import { parseBody } from '../utils/validate.js';
@@ -23,6 +25,13 @@ const allianceQuery = z.union([
   z.object({ tag: z.string().trim().regex(/^[A-Za-z0-9]{2,5}$/) }).strict(),
 ]);
 const memberQuery = z.object({ discordId: snowflake }).strict();
+// Founder is never offered; setStaffRole refuses it anyway.
+const staffRoleFromDiscordSchema = z.object({
+  discordId: snowflake,
+  targetDiscordId: snowflake,
+  role: z.enum(['ADMIN', 'MOD', 'JR_MOD', 'HELPER']).nullable(),
+  reason: z.string().trim().min(5).max(500),
+}).strict();
 const leaderboardQuery = z.object({ stat: z.enum(['raids', 'defenses', 'drive-bys', 'recon', 'rides', 'lures']) }).strict();
 const alertSchema = z.object({ discordId: snowflake, type: z.enum(['attacks', 'round', 'rank', 'turns', 'turf', 'alliance']), enabled: z.boolean() }).strict();
 const newsSchema = z.object({
@@ -63,7 +72,12 @@ const openTicketSchema = z.object({
 const attachTicketSchema = z.object({ threadId: snowflake, staffMessageId: snowflake.nullable() }).strict();
 const closeTicketSchema = z.object({ discordId: snowflake, name: z.string().trim().min(1).max(100) }).strict();
 const staffPostedSchema = z.object({ messageId: snowflake }).strict();
+const staffReviewPostedSchema = staffPostedSchema.extend({
+  sync: z.object({ state: z.enum(['HELD', 'PUBLISHED', 'DELETED']), updatedAt: z.string().datetime().nullable() }).optional(),
+}).strict();
 const newsFailedSchema = z.object({ error: z.string().trim().min(1).max(500) }).strict();
+const newsEditAckSchema = z.object({ queuedAt: z.string().datetime() }).strict();
+const newsEditFailedSchema = newsFailedSchema.extend({ queuedAt: z.string().datetime() }).strict();
 const alertsClaimSchema = z.object({ feed: z.boolean().optional() }).strict();
 const newsStatusSchema = z.object({
   channel: z.string().trim().min(1).max(100).nullable(),
@@ -115,6 +129,10 @@ const discordBotRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.get('/cities', async () => ({ cities: await DiscordBotService.cities(fastify.prisma) }));
 
+  /** Anonymous live-game copy for the bot's public status. Never returns player data. */
+  fastify.get('/presence', async () => DiscordPresenceService.highlights(fastify.prisma));
+  fastify.get('/presence/stats', async () => DiscordPresenceService.dailyStats(fastify.prisma));
+
   fastify.get('/city-rankings', async (request) => {
     const { city } = parseBody(z.object({ city: citySlug }).strict(), request.query);
     return DiscordBotService.cityRankings(fastify.prisma, city);
@@ -163,6 +181,12 @@ const discordBotRoutes: FastifyPluginAsync = async (fastify) => {
     return { admin: await SupportTicketService.isStaff(fastify.prisma, discordId) };
   });
 
+  /** /staff set and /staff remove: the game checks the caller's rank, exactly as in the panel. */
+  fastify.post('/staff-roles', async (request) => StaffService.setFromDiscord(fastify.prisma, parseBody(staffRoleFromDiscordSchema, request.body)));
+
+  /** /staff list: Helpers and up. */
+  fastify.get('/staff-roles', async (request) => StaffService.listForDiscord(fastify.prisma, parseBody(memberQuery, request.query).discordId));
+
   /** /support: their open ticket, or a new one with staff-only context for the staff channel. */
   fastify.post('/support-tickets', async (request) => SupportTicketService.open(fastify.prisma, parseBody(openTicketSchema, request.body)));
 
@@ -190,13 +214,39 @@ const discordBotRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.post('/staff-posts/:postId/posted', async (request) => {
     const { postId } = parseBody(staffPostParams, request.params);
-    await DiscordStaffService.posted(fastify.prisma, postId, parseBody(staffPostedSchema, request.body).messageId);
+    const { messageId, sync } = parseBody(staffReviewPostedSchema, request.body);
+    await DiscordStaffService.posted(fastify.prisma, postId, messageId, sync);
     return { ok: true };
   });
 
   fastify.post('/staff-posts/:postId/failed', async (request) => {
     const { postId } = parseBody(staffPostParams, request.params);
     await DiscordStaffService.failed(fastify.prisma, postId, parseBody(newsFailedSchema, request.body ?? {}).error);
+    return { ok: true };
+  });
+
+  fastify.post('/news/:newsId/posted', async (request) => {
+    const { newsId } = parseBody(newsParams, request.params);
+    const { messageId } = parseBody(staffPostedSchema, request.body);
+    await DiscordBotService.newsPosted(fastify.prisma, newsId, messageId);
+    return { ok: true };
+  });
+
+  fastify.post('/news/edits/claim', async () => ({
+    edits: await DiscordBotService.claimNewsEdits(fastify.prisma),
+  }));
+
+  fastify.post('/news/:newsId/edits/posted', async (request) => {
+    const { newsId } = parseBody(newsParams, request.params);
+    const { queuedAt } = parseBody(newsEditAckSchema, request.body);
+    await DiscordBotService.newsEditPosted(fastify.prisma, newsId, queuedAt);
+    return { ok: true };
+  });
+
+  fastify.post('/news/:newsId/edits/failed', async (request) => {
+    const { newsId } = parseBody(newsParams, request.params);
+    const { error, queuedAt } = parseBody(newsEditFailedSchema, request.body ?? {});
+    await DiscordBotService.newsEditFailed(fastify.prisma, newsId, error, queuedAt);
     return { ok: true };
   });
 

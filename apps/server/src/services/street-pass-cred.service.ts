@@ -7,9 +7,12 @@ import {
   type StreetPassRules,
 } from '@streets/rulesets';
 import type { StreetPassProgress } from '@prisma/client';
+import { questExperience, turnExperienceFor } from '@streets/shared';
 import type { Db } from '../utils/db.js';
 import { dailyContractWindow } from './daily-contract.service.js';
 import { PlayerExperienceService } from './player-experience.service.js';
+import { CrownEarnService } from './crown-earn.service.js';
+import { DoubleXpWeekendService } from './double-xp-weekend.service.js';
 
 /**
  * Street Pass step 2: earning Street Cred. Every credit runs inside the
@@ -42,7 +45,7 @@ export function credSourceForQuest(type: QuestType): QuestCredSource {
  * The player's progress row, created on first use with the late-join bonus
  * fixed from when they joined relative to the round's start.
  */
-async function progressFor(tx: Db, roundPlayerId: string, rules: StreetPassRules): Promise<StreetPassProgress> {
+export async function progressFor(tx: Db, roundPlayerId: string, rules: StreetPassRules): Promise<StreetPassProgress> {
   const existing = await tx.streetPassProgress.findUnique({ where: { roundPlayerId } });
   if (existing) return existing;
   const player = await tx.roundPlayer.findUniqueOrThrow({
@@ -61,11 +64,7 @@ async function progressFor(tx: Db, roundPlayerId: string, rules: StreetPassRules
 export const StreetPassCredService = {
   /** Cred and permanent XP for a finished job or contract. */
   async creditQuest(tx: Db, roundPlayerId: string, ruleset: Ruleset, questType: QuestType, sourceKey: string, now = new Date()): Promise<number> {
-    const questXp = questType === 'DAILY' ? 75
-      : questType === 'SEASON' ? 300
-      : questType === 'WEEKLY' ? 200
-        : questType === 'CITY_CONTRACT' || questType === 'EVENT' || questType === 'ALLIANCE' ? 150
-          : 100;
+    const questXp = questExperience(questType);
     await PlayerExperienceService.award(tx, {
       roundPlayerId,
       sourceKey,
@@ -73,13 +72,16 @@ export const StreetPassCredService = {
       amount: questXp,
       awardedAt: now,
     });
+    // The Drop: daily, weekly and event contracts also pay Crowns, once per window.
+    await CrownEarnService.onQuestClaimed(tx, roundPlayerId, questType, sourceKey, now);
 
     const rules = ruleset.streetPass;
     if (!rules) return 0;
     const base = rules.sources[credSourceForQuest(questType)];
     if (base <= 0) return 0;
     const progress = await progressFor(tx, roundPlayerId, rules);
-    const earned = streetPassCredWithBonus(base, progress.lateJoinBonusPercent);
+    const earned = streetPassCredWithBonus(base, progress.lateJoinBonusPercent)
+      * (await DoubleXpWeekendService.isActive(tx, now) ? 2 : 1);
     await tx.streetPassProgress.update({ where: { id: progress.id }, data: { cred: { increment: earned } } });
     return earned;
   },
@@ -91,11 +93,22 @@ export const StreetPassCredService = {
    */
   async creditTurns(tx: Db, roundPlayerId: string, ruleset: Ruleset, turnsSpent: number, now: Date, sourceKey: string): Promise<number> {
     if (turnsSpent > 0) {
+      // Full XP for the first turns of each daily window, half after that.
+      const { account } = await tx.roundPlayer.findUniqueOrThrow({
+        where: { id: roundPlayerId },
+        select: { account: { select: { id: true, turnXpWindowStartsAt: true, turnXpTurnsInWindow: true } } },
+      });
+      const xpWindow = dailyContractWindow(now, ruleset);
+      const before = account.turnXpWindowStartsAt?.getTime() === xpWindow.startsAt.getTime() ? account.turnXpTurnsInWindow : 0;
+      await tx.account.update({
+        where: { id: account.id },
+        data: { turnXpWindowStartsAt: xpWindow.startsAt, turnXpTurnsInWindow: before + turnsSpent },
+      });
       await PlayerExperienceService.award(tx, {
-        roundPlayerId,
+        accountId: account.id,
         sourceKey,
         source: 'TURN_SPEND',
-        amount: turnsSpent,
+        amount: turnExperienceFor(before, turnsSpent),
         awardedAt: now,
       });
     }
@@ -107,7 +120,8 @@ export const StreetPassCredService = {
     const countedToday = sameWindow ? progress.turnCredInWindow : 0;
     const base = Math.max(0, Math.min(turnsSpent * rules.sources.perTurnSpent, rules.sources.dailyTurnCap - countedToday));
     if (base === 0 && sameWindow) return 0;
-    const earned = streetPassCredWithBonus(base, progress.lateJoinBonusPercent);
+    const earned = streetPassCredWithBonus(base, progress.lateJoinBonusPercent)
+      * (await DoubleXpWeekendService.isActive(tx, now) ? 2 : 1);
     await tx.streetPassProgress.update({
       where: { id: progress.id },
       data: {

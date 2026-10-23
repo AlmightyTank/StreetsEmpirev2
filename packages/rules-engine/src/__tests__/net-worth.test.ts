@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV01, type Ruleset } from '@streets/rulesets';
+import { classicOgV01, classicOgV24C, type Ruleset } from '@streets/rulesets';
 import { calculateNetWorthCents } from '../calculations/net-worth.js';
 
 const empty = {
@@ -70,6 +70,11 @@ describe('calculateNetWorthCents', () => {
         BigInt(1 * rules.economy.netWorth.perAk47Cents),
     );
     expect(worth).toBeGreaterThan(0n);
+  });
+
+  it('values ammo at a conservative sell-back rate only in the enabled ruleset', () => {
+    expect(calculateNetWorthCents({ ...empty, ammo: 1_000 }, classicOgV24C)).toBe(6_000n);
+    expect(calculateNetWorthCents({ ...empty, ammo: 1_000 }, classicOgV01)).toBe(0n);
   });
 
   /**

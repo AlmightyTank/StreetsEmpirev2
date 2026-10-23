@@ -97,22 +97,44 @@ a.se-statusbar__item:focus-visible { outline: 2px solid var(--se-accent); outlin
 .se-sheet { display: none; }
 
 @media (max-width: 899px) {
+  /* Prevent the browser from turning a downward drag into a reload while
+     the mobile game is mounted. Internal page/sheet scrolling remains native. */
+  html.se-mobile-game,
+  body.se-mobile-game {
+    overscroll-behavior-y: none;
+  }
+
+  /* The fast :has() path is optional. Keep it in its own rule so legacy
+     Chromium does not discard the compatible class-based selectors. */
+  @supports selector(:has(*)) {
+    html:has(.se-app--tabbar),
+    body:has(.se-app--tabbar) {
+      overscroll-behavior-y: none;
+    }
+  }
+
   /* Room under the footer so the last line never hides behind the bar. */
-  .se-app--tabbar { padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px)); }
+  .se-app--tabbar { padding-bottom: var(--se-mobile-nav-offset); }
 
   .se-tabbar {
     position: fixed;
     z-index: 40;
     left: 0;
     right: 0;
+    width: 100%;
+    max-width: 100vw;
     bottom: 0;
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
-    padding: 0 4px env(safe-area-inset-bottom, 0px);
+    padding: 0 calc(var(--se-space-1) + var(--se-safe-right)) var(--se-safe-bottom) calc(var(--se-space-1) + var(--se-safe-left));
     background: rgba(12, 14, 17, 0.97);
     border-top: 1px solid rgba(var(--se-accent-rgb), 0.16);
     box-shadow: 0 -12px 28px rgba(0, 0, 0, 0.4);
     backdrop-filter: blur(8px);
+    /* The bottom bar owns the upward reveal gesture, preventing document pan.
+       Native vertical scrolling remains available everywhere in game content. */
+    touch-action: none;
+    overflow: clip;
   }
 
   .se-tabbar__tab {
@@ -122,7 +144,7 @@ a.se-statusbar__item:focus-visible { outline: 2px solid var(--se-accent); outlin
     justify-content: center;
     gap: 3px;
     min-width: 0;
-    height: 60px;
+    height: var(--se-shell-tabbar-h);
     padding: 0 2px;
     border: 0;
     background: none;
@@ -163,12 +185,13 @@ a.se-statusbar__item:focus-visible { outline: 2px solid var(--se-accent); outlin
   }
 
   /* The More sheet slides up over the page. */
-  .se-sheet { display: block; position: fixed; inset: 0; z-index: 90; }
+  .se-sheet { display: block; position: fixed; inset: 0; z-index: var(--se-layer-menu); }
   .se-sheet__backdrop {
     position: absolute;
     inset: 0;
     background: rgba(0, 0, 0, 0.55);
     animation: se-sheet-fade 160ms ease-out;
+    touch-action: none;
   }
   .se-sheet__panel {
     position: absolute;
@@ -178,27 +201,59 @@ a.se-statusbar__item:focus-visible { outline: 2px solid var(--se-accent); outlin
     display: flex;
     flex-direction: column;
     max-height: min(82vh, 640px);
-    padding: 6px 14px calc(14px + env(safe-area-inset-bottom, 0px));
+    padding: 6px calc(14px + var(--se-safe-right)) calc(14px + var(--se-safe-bottom)) calc(14px + var(--se-safe-left));
     background: var(--se-panel);
     border-top: 1px solid rgba(var(--se-accent-rgb), 0.2);
     border-radius: 14px 14px 0 0;
     box-shadow: 0 -18px 40px rgba(0, 0, 0, 0.5);
+    max-height: min(82dvh, 640px);
     animation: se-sheet-up 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
   }
+  /* A top-of-page pull reveals All pages from above; tapping More keeps the
+     existing bottom sheet. The directory and all editing controls are shared. */
+  .se-sheet--from-top .se-sheet__panel {
+    top: 0;
+    bottom: auto;
+    max-height: min(82vh, 640px);
+    max-height: min(82dvh, 640px);
+    padding: calc(12px + var(--se-safe-top)) calc(14px + var(--se-safe-right)) 14px calc(14px + var(--se-safe-left));
+    border-top: 0;
+    border-bottom: 1px solid rgba(var(--se-accent-rgb), 0.2);
+    border-radius: 0 0 14px 14px;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
+    animation: se-sheet-down 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  /* Only the static header owns dismissal; game and menu content scroll naturally. */
+  .se-sheet__drag-area { flex: none; min-width: 0; touch-action: none; }
   .se-sheet__grip {
-    flex: none;
-    align-self: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 34px;
+    margin: -3px 0 0;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    cursor: grab;
+    touch-action: none;
+  }
+  .se-sheet__grip::before {
+    content: '';
+    display: block;
     width: 36px;
     height: 4px;
-    margin: 2px 0 8px;
+    margin: auto;
     border-radius: 999px;
     background: var(--se-line);
   }
+  .se-sheet__grip:focus-visible { outline: 2px solid var(--se-accent); outline-offset: -3px; }
   .se-sheet__head { display: flex; flex: none; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
   .se-sheet__title { margin: 0; font-size: 16px; font-weight: 700; color: #fff; }
   .se-sheet__actions { display: flex; align-items: center; gap: 6px; }
   .se-sheet__close { min-width: 44px; font-size: 15px; }
-  .se-sheet__body { overflow-y: auto; overscroll-behavior: contain; margin: 0 -14px; padding: 0 14px 4px; }
+  .se-sheet__body { min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y; margin: 0 -14px; padding: 0 14px 4px; }
   .se-sheet__section + .se-sheet__section { margin-top: 12px; }
   .se-sheet__heading {
     margin: 0 0 6px;
@@ -290,4 +345,14 @@ a.se-statusbar__item:focus-visible { outline: 2px solid var(--se-accent); outlin
 .se-reduced-motion .se-sheet__panel { animation: none; }
 
 @keyframes se-sheet-up { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes se-sheet-down { from { transform: translateY(-100%); } to { transform: none; } }
 @keyframes se-sheet-fade { from { opacity: 0; } to { opacity: 1; } }
+
+/* Same-page anchors must clear the sticky HUD on phones. The router also
+   measures its real height for data-loaded deep links and notification clicks. */
+.se-app #main-content [id] { scroll-margin-top: 16px; }
+@media (max-width: 899px) {
+  .se-app--tabbar #main-content [id] {
+    scroll-margin-top: calc(var(--se-shell-topbar-h) + 56px);
+  }
+}

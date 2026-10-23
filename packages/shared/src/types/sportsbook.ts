@@ -1,4 +1,4 @@
-export type SportsbookLeagueKey = 'NFL' | 'NBA' | 'MLB' | 'NHL';
+export type SportsbookLeagueKey = 'NFL' | 'NBA' | 'MLB' | 'NHL' | 'SOFTBALL' | 'MMA';
 export type SportsbookSelection = 'HOME' | 'AWAY';
 export type SportsbookBetStatus = 'OPEN' | 'WON' | 'LOST' | 'PUSH' | 'VOID';
 /** PULLED (1.8.0-C): the provider dropped or postponed the line; it reopens if the game returns. */
@@ -182,6 +182,8 @@ export interface AdminSportsbookDto {
   leagues: Array<SportsbookLeagueFeedStatus & {
     key: SportsbookLeagueKey; name: string; upcoming: number; pulled: number;
     activeProvider: string; activeProviderName: string; pinnedProvider: string | null; chain: string[];
+    /** Next eligible alternate attempt after a failed league poll; null when no recovery is pending. */
+    nextRecoveryAt: string | null;
   }>;
   exposure: { openTickets: number; openStakeCents: number; openPayoutCents: number };
   settledLast24h: { events: number; tickets: number };

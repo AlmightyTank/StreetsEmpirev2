@@ -16,6 +16,7 @@ import {
   ensureSportsbookEventSource,
   parseLeagueStatus,
   refreshSportsbookCache,
+  sportsbookNextRecoveryAt,
   type FeedDeps,
 } from './sportsbook-feed.service.js';
 import { ProviderError } from './sportsbook/sportsbook-provider.js';
@@ -296,8 +297,14 @@ export const AdminSportsbookService = {
         const activeProvider = leagueProvider?.activeOddsProvider ?? DEFAULT_SPORTSBOOK_PROVIDER_ID;
         const activeState = states.get(activeProvider);
         const leagues = parseLeagueStatus(activeState?.leagueStatus);
+        const alternateStatuses = SPORTSBOOK_ODDS_CHAINS[key]
+          .filter((id) => id !== activeProvider && Boolean(keys[id]))
+          .map((id) => parseLeagueStatus(states.get(id)?.leagueStatus)[key]);
+        const nextRecovery = leagueProvider?.pinnedOddsProvider ? null
+          : sportsbookNextRecoveryAt(leagues[key], alternateStatuses);
         return {
           key, name, activeProvider, activeProviderName: sportsbookProviderName(activeProvider),
+          nextRecoveryAt: isoOrNull(nextRecovery),
           pinnedProvider: leagueProvider?.pinnedOddsProvider ?? null,
           chain: [...SPORTSBOOK_ODDS_CHAINS[key]],
           lastAttemptAt: leagues[key]?.lastAttemptAt ?? null,
@@ -445,6 +452,24 @@ export const AdminSportsbookService = {
     }
     await AdminAuditService.record(prisma, actor, {
       action: 'sportsbook.manual-pull', targetType: 'sportsbook-provider', targetId: SPORTSBOOK_PROVIDER_ID,
+      after: result,
+    });
+    return { message, report: await this.report(prisma, config, now) };
+  },
+
+  /** Rebuilds the fictional today-plus-two-day slate immediately, without touching settled games. */
+  async refreshSlate(
+    prisma: PrismaClient,
+    config: FeedConfig,
+    actor: AuditActor,
+    now = new Date(),
+  ): Promise<AdminSportsbookActionDto> {
+    const result = await refreshSportsbookCache(prisma, { internal: 'internal' }, now, { minIntervalMs: 0, normalIntervalMs: 0 });
+    const message = result.skipped === 'BUSY'
+      ? 'A sportsbook slate refresh is already running.'
+      : `Sportsbook slate refreshed: ${result.snapshots} snapshot(s), ${result.failedSnapshots} failed.`;
+    await AdminAuditService.record(prisma, actor, {
+      action: 'sportsbook.refresh-slate', targetType: 'sportsbook-provider', targetId: SPORTSBOOK_PROVIDER_ID,
       after: result,
     });
     return { message, report: await this.report(prisma, config, now) };

@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BELL_CATEGORY_BY_ACTIVITY, EXPERIENCE_LEVEL_REWARDS, formatCents, type ActivityDto, type RoundDto, type RoundPlayerDto } from '@streets/shared';
+import { BELL_CATEGORY_BY_ACTIVITY, formatCents, formatNumber, levelRewardsAt, type ActivityDto, type RoundDto, type RoundPlayerDto } from '@streets/shared';
 import { describeActivity } from './ActivityFeed.js';
 import { notificationsApi } from '../api/notifications.js';
 import { useSession } from '../stores/session.js';
 import { formatClockTime } from '../utils/time.js';
+import { isCinematicEncounterActivity } from './encounterAlertPolicy.js';
 
 type ToastTone = 'info' | 'good' | 'warn' | 'bad';
 
@@ -41,14 +42,12 @@ let manualToastId = 0;
 
 /** Build the celebration for newly earned lifetime XP levels. */
 export function levelUpToastFor(previousLevel: number, level: number): Omit<GameEventToast, 'id'> {
-  const titles = EXPERIENCE_LEVEL_REWARDS
-    .filter((reward) => reward.level > previousLevel && reward.level <= level)
-    .map((reward) => reward.title);
-  const rewardText = titles.length === 1
-    ? `New title unlocked: ${titles[0]}. Equip it from Account settings.`
-    : titles.length > 1
-      ? `New titles unlocked: ${titles.join(', ')}. Equip them from Account settings.`
-      : 'Your account progress continues across seasons.';
+  const rewards: string[] = [];
+  for (let at = previousLevel + 1; at <= level; at += 1) rewards.push(...levelRewardsAt(at).map((reward) => reward.label));
+  const titles = rewards.filter((label) => label.startsWith('Title: '));
+  const rewardText = rewards.length
+    ? `${rewards.slice(0, 4).join(' · ')}${rewards.length > 4 ? ` · and ${rewards.length - 4} more` : ''}.${titles.length ? ' Equip titles from Account settings.' : ''}`
+    : 'Your account progress continues across seasons.';
   return {
     title: `Level ${level} reached`,
     detail: `${rewardText} Open XP Progress to see your career track.`,
@@ -257,6 +256,13 @@ export function gameEventToastFor(activity: ActivityDto, crackWord: string): Omi
   const detail = [described.text, described.detail].filter(Boolean).join(' ');
 
   switch (activity.type) {
+    case 'AMMO_LOW':
+      return {
+        title: 'Ammunition running low',
+        detail: `You have ${formatNumber(num(p.ammoRemaining))} rounds left. Restock before the next fight.`,
+        tone: 'warn',
+        href: '/game/store',
+      };
     case 'QUEST_OBJECTIVE_COMPLETE':
       return {
         title: p.bonus ? `Bonus done: ${str(p.title, 'quest')}` : `Objective done: ${str(p.title, 'quest')}`,
@@ -654,6 +660,8 @@ export function GameEventToasts() {
 
     const muted = new Set<string>(bellMuted);
     const next = fresh.flatMap((entry) => {
+      // The cinematic alert layer exclusively renders major combat activities.
+      if (isCinematicEncounterActivity(entry.type)) return [];
       // 0.9.0-G: a category muted in the bell does not pop a toast either.
       const category = BELL_CATEGORY_BY_ACTIVITY[entry.type];
       if (category && muted.has(category)) return [];

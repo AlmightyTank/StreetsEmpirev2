@@ -5,4 +5,9 @@
     <color name="se_text">#F2F5F9</color>
     <color name="se_text_muted">#9AA7B8</color>
     <color name="se_accent">#E8B33C</color>
+    <color name="se_accent_dim">#332A15</color>
+    <color name="se_accent_pressed">#C99624</color>
+    <color name="se_surface_border">#2A3545</color>
+    <color name="se_launcher_background">#080C11</color>
+    <color name="se_system_bar">#000000</color>
 </resources>

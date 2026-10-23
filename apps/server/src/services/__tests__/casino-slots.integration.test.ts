@@ -66,7 +66,7 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.2.0-B slots with Postgre
     const registered = await app.inject({
       method: 'POST',
       url: '/api/auth/register',
-      payload: { username: name, email: name + '@example.invalid', password: randomUUID() },
+      payload: { ageConfirmed: true, username: name, email: name + '@example.invalid', password: randomUUID() },
     });
     accountId = registered.json().account.id;
   });
@@ -167,6 +167,8 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.2.0-B slots with Postgre
     const contribution = progressive.eligibleBetPerLineCents * activePaylineKeys.length * progressive.contributionBps / 10_000;
     expect(result.spin.jackpotAwardCents).toBe(progressive.seedCents + contribution);
     expect(result.spin.winTier).toBe('JACKPOT');
+    // A jackpot earns the gold dice for the built avatar.
+    expect(await app.prisma.accountCosmeticUnlock.count({ where: { accountId, key: 'avatar-dice' } })).toBe(1);
     const jackpot = await app.prisma.casinoJackpot.findUniqueOrThrow({
       where: { roundId_machineKey: { roundId: round.id, machineKey: empireGold.key } },
     });

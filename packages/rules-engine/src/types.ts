@@ -27,6 +27,8 @@ export interface NetWorthInput {
   shotguns: number;
   tek9s: number;
   ak47s: number;
+  /** 2.4.0-C. Ammo is valued conservatively at the lowest pack sell-back rate. */
+  ammo?: number;
   /** 0.4.0-D. Non-crack product stock, valued where products have an economy. */
   products?: Readonly<Record<string, number>>;
   /** 0.5.0-B. What is out on a run, already valued. It has left every column above. */

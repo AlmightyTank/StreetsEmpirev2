@@ -25,7 +25,7 @@ describe.runIf(process.env.NOTIFICATION_INTEGRATION === '1')('alert settings and
     app = await (await import('../../app.js')).buildApp();
     for (let i = 0; i < 2; i++) {
       const username = `push_${randomUUID().slice(0, 8)}`;
-      const response = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { username, email: `${username}@example.invalid`, password: randomUUID() } });
+      const response = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { ageConfirmed: true, username, email: `${username}@example.invalid`, password: randomUUID() } });
       expect(response.statusCode, response.body).toBe(201);
       accounts.push({ id: response.json().account.id, cookie: response.cookies.map((c) => `${c.name}=${c.value}`).join('; ') });
     }

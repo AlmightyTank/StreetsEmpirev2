@@ -1,4 +1,6 @@
 import type { PrismaClient, SupportTicket } from '@prisma/client';
+import { staffCan } from '@streets/shared';
+import { staffRoleOf } from '../auth/play-access.js';
 import { AppError } from '../utils/errors.js';
 import { commsMuted } from './communication-guard.js';
 import { RoundService } from './round.service.js';
@@ -149,9 +151,9 @@ export const SupportTicketService = {
     return toDto(row);
   },
 
-  /** Staff, for the bot: a linked, active game admin. */
+  /** Staff, for the bot: a linked, active account whose staff role handles tickets. */
   async isStaff(prisma: PrismaClient, discordId: string): Promise<boolean> {
-    const account = await prisma.account.findFirst({ where: { discordId, isActive: true }, select: { isAdmin: true } });
-    return Boolean(account?.isAdmin);
+    const account = await prisma.account.findFirst({ where: { discordId, isActive: true }, select: { isAdmin: true, staffRole: true } });
+    return Boolean(account && staffCan(staffRoleOf(account), 'support.tickets'));
   },
 };

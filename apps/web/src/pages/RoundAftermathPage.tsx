@@ -9,12 +9,16 @@ import type {
   RoundAftermathLeaderboardDto,
   RoundAftermathOverviewDto,
   RoundAftermathPersonalDto,
+  CrewLegendArchiveDto,
   RoundAftermathRecordsDto,
+  CareerStoryBiographyDto,
 } from '@streets/shared';
 import { formatNumber } from '@streets/shared';
+import type { ItemCosmeticStyleKey } from '@streets/shared';
 import { ApiError } from '../api/client.js';
 import { roundsApi } from '../api/rounds.js';
 import { Alert } from '../components/Alert.js';
+import { ItemTile } from '../components/ItemTile.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { formatDate } from '../utils/time.js';
 import { roundAftermathPublicEnabled } from '../config/features.js';
@@ -207,6 +211,8 @@ export function RoundAftermathPage() {
   const [cityDetail, setCityDetail] = useState<RoundAftermathCityDetailDto | null>(null);
   const [alliances, setAlliances] = useState<RoundAftermathAlliancesDto | null>(null);
   const [personal, setPersonal] = useState<RoundAftermathPersonalDto | null>(null);
+  const [crewLegends, setCrewLegends] = useState<CrewLegendArchiveDto[]>([]);
+  const [careerBiography, setCareerBiography] = useState<CareerStoryBiographyDto[]>([]);
   const [records, setRecords] = useState<RoundAftermathRecordsDto | null>(null);
   const [tab, setTab] = useState<TabKey>(() => isTabKey(searchParams.get('view')) ? searchParams.get('view') as TabKey : 'summary');
   const [recordsCategory, setRecordsCategory] = useState<RoundAftermathCategoryKey>(() =>
@@ -317,8 +323,13 @@ export function RoundAftermathPage() {
   useEffect(() => {
     let current = true;
     setPersonal(null);
+    setCrewLegends([]);
+    setCareerBiography([]);
     setPersonalError(null);
     if (tab !== 'me' || !overview) return () => { current = false; };
+    void roundsApi.aftermathCrewLegends(roundId)
+      .then((records) => { if (current) setCrewLegends(records); })
+      .catch(() => { if (current) setCrewLegends([]); });
     void roundsApi.aftermathMine(roundId)
       .then((result) => { if (current) setPersonal(result); })
       .catch((caught: unknown) => {
@@ -329,6 +340,9 @@ export function RoundAftermathPage() {
           setPersonalError(caught instanceof ApiError ? caught.message : 'Could not load your personal report.');
         }
       });
+    void roundsApi.aftermathCareerStories(roundId)
+      .then((result) => { if (current) setCareerBiography(result.biography); })
+      .catch(() => { if (current) setCareerBiography([]); });
     return () => { current = false; };
   }, [roundId, overview, tab]);
 
@@ -560,6 +574,31 @@ export function RoundAftermathPage() {
               ))}
             </div>
           </section>
+          {crewLegends.length ? <section className="se-aftermath-board" aria-label="Crew legends memorial">
+            <header className="se-aftermath-sectionhead">
+              <div><span className="se-eyebrow">Permanent cosmetic collection</span><h3>Crew Legends</h3></div>
+              <p>Preserved from the final round roster. Artwork and biographies only; never a live crew or stat bonus.</p>
+            </header>
+            <div className="se-crew-legend__archive">
+              {crewLegends.map((legend) => <article key={legend.id} className="se-crew-legend__memento">
+                <img src={legend.artworkUrl} alt="" loading="lazy" width={96} height={110} />
+                <div><strong>{legend.memberName} · {legend.nickname}</strong>
+                  <p>{legend.proof} · {legend.trait} · {legend.loyaltyPoints} loyalty, {legend.experiencePoints} XP at cutoff.</p>
+                  <small>{legend.finalStatus === 'RELEASED' ? 'Released at cutoff' : 'Round-only member'} · {formatDate(legend.archivedAt)}</small>
+                </div>
+              </article>)}
+            </div>
+          </section> : null}
+          {careerBiography.length ? <section className="se-aftermath-board se-career-story-aftermath" aria-labelledby="se-career-story-aftermath-title">
+            <header className="se-aftermath-sectionhead">
+              <div><span className="se-eyebrow">Career archive · persisted facts</span><h3 id="se-career-story-aftermath-title">Career storylines</h3></div>
+            </header>
+            <div className="se-career-story-aftermath__list">{careerBiography.map((biography) => <article key={`${biography.career}-${biography.title}`}>
+              <strong>{biography.title}</strong>
+              <span>{biography.status === 'COMPLETE' ? 'Finale earned' : biography.status === 'PARTIAL' ? 'Partial record' : 'Archived record'} · {biography.completedChapters} verified chapters</span>
+              <p>{biography.recognition ?? 'No unearned finale is shown.'}</p>
+            </article>)}</div>
+          </section> : null}
           <section className="se-aftermath-board" aria-label="Milestones and personal bests">
             <div className="se-aftermath-personal-panels">
               <div>
@@ -801,6 +840,26 @@ export function RoundAftermathPage() {
                     </header>
                     <AwardHighlights categories={categories.categories} />
                   </section>
+
+                  {global.famousItems?.length ? <section className="se-aftermath-board" aria-labelledby="se-aftermath-famous-items-title">
+                    <header className="se-aftermath-sectionhead"><div><span className="se-eyebrow">Named equipment</span><h2 id="se-aftermath-famous-items-title">Famous items</h2></div><p>Named guns and vehicles with the deepest histories at the round cutoff.</p></header>
+                    <div className="se-aftermath-famous-items">{global.famousItems.map((item) => <article className="se-aftermath-famous-item" key={item.id}>
+                      <ItemTile item={item.model as 'PISTOL' | 'SHOTGUN' | 'TEK9' | 'AK47' | 'SEDAN' | 'LOW_RIDER' | 'VAN'} size="sm" label={false} cosmeticStyle={(item.lookKey ?? 'classic') as ItemCosmeticStyleKey} />
+                      <div><strong>{item.name || `Unmarked ${item.model.replaceAll('_', ' ')}`}</strong><span>{item.playerName} · #{formatNumber(item.publicPimpId)} · {item.cityName}</span><small>{item.kind === 'GUN' ? 'Weapon' : 'Vehicle'} · {item.condition}% condition · {item.mods.length ? item.mods.map((mod) => `${mod.key} ${mod.tier}`).join(' · ') : 'Stock setup'}</small></div>
+                    </article>)}</div>
+                  </section> : null}
+
+                  {global.territoryAwards ? (
+                    <section className="se-aftermath-board" aria-label="Territory Hall of Fame">
+                      <header className="se-aftermath-sectionhead">
+                        <div><span className="se-eyebrow">Territory Hall of Fame</span><h2>Round territory honors</h2></div>
+                        <p>Permanent profile awards were granted to active alliance members who contributed to turf actions this round.</p>
+                      </header>
+                      {global.territoryAwards.nationalKingpinAllianceId ? <p>National Kingpin: alliance {global.territoryAwards.nationalKingpinAllianceId}</p> : null}
+                      {global.territoryAwards.regions.map((award) => <p key={award.regionKey}>{award.regionKey.replaceAll('_', ' ')} · tier {award.highestTier} · alliance {award.allianceId}</p>)}
+                      {!global.territoryAwards.awards.length ? <p>No territory milestones were awarded this round.</p> : null}
+                    </section>
+                  ) : null}
                 </>
               ) : isSummary ? (
                 <div className="se-aftermath-empty">Global totals will appear here when a finalized report is available.</div>

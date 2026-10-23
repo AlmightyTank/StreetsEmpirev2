@@ -50,7 +50,7 @@ function FlagRow({ flag, onReviewed }: { flag: AdminExploitFlagDto; onReviewed: 
       </div>
       <p>{flag.message}</p>
       <p className="se-hint">
-        {flag.account ? <Link to={`/game/admin/accounts/${flag.account.id}`}>{flag.account.username}</Link> : 'Signed out'}
+        {flag.account ? <Link className="se-text-action" to={`/game/admin/accounts/${flag.account.id}`}>{flag.account.username}</Link> : 'Signed out'}
         {flag.route ? ` · ${flag.route}` : ''}
         {flag.review ? ` · ${flag.review.resolution} by ${flag.review.byUsername ?? 'an admin'}${flag.review.note ? `: ${flag.review.note}` : ''}` : ''}
       </p>
@@ -129,7 +129,7 @@ export function AdminCombatPage() {
                 ) : battles.battles.map((row) => (
                   <tr key={row.id}>
                     <td className="se-td--title">
-                      <Link to={`/game/admin/players/${row.attacker.id}`}>{row.attacker.displayName}</Link> → <Link to={`/game/admin/players/${row.defender.id}`}>{row.defender.displayName}</Link>
+                      <Link className="se-text-action" to={`/game/admin/players/${row.attacker.id}`}>{row.attacker.displayName}</Link> → <Link className="se-text-action" to={`/game/admin/players/${row.defender.id}`}>{row.defender.displayName}</Link>
                       {row.voided ? <span className="se-tag" title={row.voided.reason ?? undefined}> Voided by {row.voided.byUsername ?? 'an admin'}</span> : null}
                     </td>
                     <td data-label="Kind">{row.kind.replace('_', ' ').toLowerCase()}</td>

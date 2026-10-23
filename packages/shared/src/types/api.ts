@@ -1,7 +1,9 @@
+import type { StaffCapability, StaffRole } from '../staff.js';
 import type { HeatDto, TripHeatDto, TurfSummaryDto, TurfTripDto, WorkSupplyPlanDto } from './playing-together.js';
 import type { LawSummaryDto } from './law.js';
 import type { CrewCosmeticLoadout, ItemCosmeticLoadout } from '../cosmetics.js';
 import type { AvatarParts } from '../avatar-builder.js';
+import type { StreetSignDesign } from '../street-sign.js';
 /**
  * The contract between apps/server and apps/web.
  *
@@ -18,6 +20,7 @@ export type RoundStatus =
 
 export type ActivityType =
   | 'RAID_ATTACK'
+  | 'AMMO_LOW'
   | 'RAID_DEFENSE'
   | 'DRIVE_BY_ATTACK'
   | 'DRIVE_BY_DEFENSE'
@@ -150,16 +153,31 @@ export interface AccountDto {
   emailVerifiedAt: string | null;
   discordLinked: boolean;
   discordUsername: string | null;
+  /** True when an Apple Sign in identity is connected. */
+  appleLinked: boolean;
+  /** True when a Google OAuth identity is connected. */
+  googleLinked: boolean;
+  /** True when a Facebook identity is connected. */
+  facebookLinked: boolean;
+  /** True when a Google Play Games identity is linked. */
+  playGamesLinked: boolean;
+  /** True for Founder and Admin. */
   isAdmin: boolean;
+  /** Null for players. */
+  staffRole: StaffRole | null;
+  /** What this account's staff role may do in the admin panel. Empty for players. */
+  staffCapabilities: StaffCapability[];
   createdAt: string;
   lastLoginAt: string | null;
-  /** True until this account may play: verify the email, or sign in with Discord. */
+  /** True until this account may play: verify email or link a verified Discord/Apple identity. */
   verificationRequired: boolean;
   /** True until the player accepts the current game rules (RULES_VERSION). */
   rulesAcceptanceRequired: boolean;
+  /** Private birth date has not been collected. Exact birthday is never sent in session DTOs. */
+  birthDateRequired: boolean;
   /**
-   * rc.2. An admin signed in with a password while admin tools require a Discord
-   * sign-in: the admin pages are closed until they sign in with Discord.
+   * rc.2. A staff member signed in with a password while admin tools require a second
+   * factor: the admin pages are closed until they prove one.
    */
   adminSignInRequired: boolean;
   /** rc.3. Sign-in asks for an authenticator code. */
@@ -213,7 +231,37 @@ export type ProfileAccent =
   | 'clean-books-ivory'
   | 'sunset-coral'
   | 'night-map-plum'
-  | 'supporter-crimson';
+  | 'supporter-crimson'
+  | 'luxe-lacquer'
+  | 'signal-red'
+  | 'underworld-violet'
+  | 'heist-frost'
+  | 'biscayne-flamingo'
+  | 'speakeasy-merlot'
+  | 'funk-tangerine'
+  | 'redline-red'
+  | 'wet-paint-mint'
+  | 'hazard-yellow'
+  | 'dockside-harbor'
+  | 'jewel-sapphire'
+  | 'bayou-firefly'
+  | 'mirage-turquoise'
+  | 'rewind-magenta'
+  | 'felt-green'
+  | 'nitrous-blue'
+  | 'flux-blue'
+  | 'swamp-moss'
+  | 'quarantine-orange'
+  | 'ghost-green'
+  | 'candy-red'
+  | 'heartbreak-rose'
+  | 'block-party-mango'
+  | 'money-green'
+  | 'blood-orange'
+  | 'steel-silver'
+  | 'cobalt-blue'
+  | 'bubblegum-pink'
+  | 'mustard-yellow';
 export type UiDensity = 'comfortable' | 'compact';
 export type MoneyFormat = 'full' | 'compact';
 export type DefaultLanding = 'game' | 'profile' | 'rankings' | 'news';
@@ -259,6 +307,8 @@ export interface AccountProfileSettingsDto {
   titlePlacement: ProfileTitlePlacement;
   /** 0.9.0-F. Optional public crew name. */
   crewName: string | null;
+  /** Slice A. Saved cosmetic street sign; omitted by older clients. */
+  streetSign?: StreetSignDesign | null;
   /** Plain-text public profile description. */
   profileBio: string | null;
   /** Direct HTTPS image URL used for the profile avatar. */
@@ -267,6 +317,8 @@ export interface AccountProfileSettingsDto {
   profileAvatar?: AvatarParts | null;
   /** Direct HTTPS image URL used for the public profile banner/background. */
   profileBannerUrl: string | null;
+  /** Slice C. Selected owned crew banner; optional for older clients. */
+  activeCrewBannerKey?: string | null;
   profileEffect: ProfileEffect;
   activeProfileFrameKey: string | null;
   /** Independently equipped avatar frame. Optional for older clients. */
@@ -282,12 +334,22 @@ export interface AccountProfileSettingsDto {
   showThemeOnProfile?: boolean;
   /** Slice E. Visitors see this player's item and crew look on their profile. Optional for older clients. */
   showLookOnProfile?: boolean;
+  /** Slice E. Opt-in decorative cosmetics on the linked forum account. */
+  forumCosmeticsVisible?: boolean;
+  /** Account-private optional crew personality cards, off by default. */
+  showCrewMoments?: boolean;
+  /** Optional player-only milestone celebrations; default false. */
+  showCrewCelebrations?: boolean;
+  /** Birthdays: a cake on the name on the day. Opt-in, off by default. */
+  showBirthdayCake?: boolean;
   featuredBadgeKeys: string[];
   profileAccent: ProfileAccent;
   uiDensity: UiDensity;
   reducedMotion: boolean;
   moneyFormat: MoneyFormat;
   defaultLanding: DefaultLanding;
+  /** Show ordinary profanity in game communication instead of masking it. */
+  showProfanity: boolean;
 }
 
 export interface AccountProfileSettingsResponseDto {
@@ -312,10 +374,92 @@ export interface AccountProfileSettingsResponseDto {
     /** Universal item/crew skins, locked ones included. Optional so older fixture payloads stay valid. */
     itemStyles?: CollectionOptionDto[];
     crewStyles?: CollectionOptionDto[];
+    /** Slice C. Owned crew banners, with locked previews included. */
+    crewBanners?: CollectionOptionDto[];
+    /** Unlock keys of the avatar wearables this account may wear. Optional for older servers. */
+    avatarUnlocks?: string[];
+    /** Permanent sign font packs earned through account progression. */
+    streetSignFontPacks?: string[];
+    /** Street sign backdrop keys this account owns (shell themes plus Drop purchases). */
+    streetSignBackdrops?: string[];
     densities: CosmeticOptionDto[];
     moneyFormats: CosmeticOptionDto[];
     defaultLandings: CosmeticOptionDto[];
   };
+}
+
+export interface HideoutCosmeticsDto {
+  activeDecorationKey: string | null;
+  activeStreetSignKey: string | null;
+  decorations: CosmeticOptionDto[];
+  streetSigns: CosmeticOptionDto[];
+  /** The custom sign configured in Account Settings. */
+  streetSign?: StreetSignDesign | null;
+}
+
+/** Stacks arranged in the player's personal Hideout stash grid. */
+export type StashItemKeyDto = 'CONDOM' | 'MEDICINE' | 'BEER' | 'AMMO_BOX' | 'PARTS_BOX'
+  | 'PISTOL' | 'SHOTGUN' | 'TEK9' | 'AK47' | 'LOW_RIDER' | 'SEDAN' | 'VAN'
+  | 'SCRAP_METAL' | 'WIRING' | 'TOOL_KIT' | 'BOTTLES' | 'LABELS' | 'PACKAGING' | 'LUMBER' | 'FASTENERS' | 'CLOTH'
+  | 'BASIC_MEDICINE' | 'FUEL_CAN' | 'RADIO' | 'MOTOR_ASSEMBLY' | 'REPAIR_SUPPLIES' | 'SPECIALTY_CONTAINER' | 'PRECISION_PARTS' | 'ADVANCED_MEDICAL' | 'HIGH_CAPACITY_FUEL_CELL' | 'SPECIALIST_CIRCUITRY';
+export interface StashItemDto {
+  key: StashItemKeyDto;
+  quantity: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+export interface StashDto {
+  columns: number;
+  rows: number;
+  usedCells: number;
+  totalCells: number;
+  items: StashItemDto[];
+}
+export interface UpdateStashLayoutInput {
+  items: Array<Pick<StashItemDto, 'key' | 'x' | 'y'>>;
+}
+
+export type ScavengeRarityDto = 'COMMON' | 'UNCOMMON' | 'RARE' | 'EPIC' | 'LEGENDARY';
+export interface ScavengeComponentDto {
+  key: string;
+  name: string;
+  quantity: number;
+  rarity: ScavengeRarityDto;
+  purpose: string;
+}
+export interface CacheOddsDto {
+  COMMON: number;
+  UNCOMMON: number;
+  RARE: number;
+  EPIC: number;
+  LEGENDARY: number;
+}
+export interface ScavengeCacheDto {
+  id: string;
+  quality: 'STREET_STASH' | 'SUPPLY_CACHE' | 'SECURED_CACHE' | 'BLACK_MARKET_CACHE';
+  label: string;
+  districtKey: string;
+  districtName: string;
+  createdAt: string;
+  opened: boolean;
+  odds: CacheOddsDto;
+  eligiblePool: Array<{ key: string; name: string; rarity: ScavengeRarityDto; purpose: string }>;
+  rewards?: ScavengeComponentDto[];
+}
+export interface ScavengePageDto {
+  components: ScavengeComponentDto[];
+  caches: ScavengeCacheDto[];
+}
+export interface OpenScavengeCacheResult {
+  cache: ScavengeCacheDto;
+  rewards: ScavengeComponentDto[];
+}
+
+export interface UpdateHideoutCosmeticsInput {
+  decorationKey: string | null;
+  streetSignKey: string | null;
 }
 
 /**
@@ -386,6 +530,10 @@ export interface ResourcesDto {
   shotguns: number;
   tek9s: number;
   ak47s: number;
+
+  /** 2.4.0-C. Only present for rounds with the ammo and parts catalog enabled. */
+  ammo?: number;
+  vehicleParts?: number;
 
   lowRiders: number;
   /** 1.5.0-B/E2. Ready class vehicles; Charlie sells them from 1.5.0-E2. */
@@ -463,7 +611,7 @@ export interface SupplyLedgerDto {
 export interface SupplyHistoryItemDto {
   at: string;
   /** LANE: 1.6.0-H, a lane shipment landing, searched or not. */
-  kind: 'ORDERED' | 'PICKED_UP' | 'STORED' | 'ASSIGNED_TO_DEALER' | 'SOLD' | 'RETURNED' | 'LANE' | 'CORRECTED';
+  kind: 'ORDERED' | 'PICKED_UP' | 'STORED' | 'ASSIGNED_TO_DEALER' | 'SOLD' | 'RETURNED' | 'LANE' | 'CORRECTED' | 'OPERATION_RECOVERY';
   productName: string;
   units: number;
   text: string;
@@ -833,6 +981,39 @@ export interface CrewMemberHistoryDto {
   at: string;
 }
 
+/** 2.1.0-B. One server-settled loyalty receipt. */
+export interface CrewLoyaltyHistoryDto {
+  source: 'JOB_COMPLETED' | 'DEFENSE_HELD' | 'TRAVEL_COMPLETED' | 'DEALER_SHIFT';
+  points: number;
+  label: string;
+  at: string;
+}
+export interface CrewLoyaltyDto {
+  enabled: boolean;
+  points: number;
+  tier: string;
+  nextMilestone: number | null;
+  history: CrewLoyaltyHistoryDto[];
+}
+
+/** 2.1.0-C. Private narrative projections from verified events. */
+export interface CrewMomentDto {
+  source: 'JOB_COMPLETED' | 'DEFENSE_HELD' | 'TRAVEL_COMPLETED' | 'DEALER_SHIFT' | 'RECOVERY_INCIDENT';
+  title: string;
+  description: string;
+  trait: string;
+  at: string;
+}
+
+/** Verified, predefined earned nicknames; never unmoderated free text. */
+export interface CrewEarnedNicknameDto { key: string; label: string; proof: string; }
+export interface CrewLegendArchiveDto {
+  id: string; roundId: string; roundName: string; memberName: string;
+  role: 'THUG' | 'WORKER'; serial: number; nickname: string; proof: string; trait: string;
+  loyaltyPoints: number; experiencePoints: number; finalStatus: CrewMemberStatusDto;
+  joinedAt: string; archivedAt: string; artworkUrl: string;
+}
+
 /** 1.7.0-A. One thug or worker with a stable identity. */
 export interface CrewMemberDto {
   id: string;
@@ -852,15 +1033,42 @@ export interface CrewMemberDto {
   traits: string[];
   unavailableReason: string | null;
   history: CrewMemberHistoryDto[];
+  /** Narrative progression; cannot modify stats or resources. */
+  loyalty: CrewLoyaltyDto;
+  /** Optional narrative-only moments, empty until the account opts in. */
+  moments: CrewMomentDto[];
+  /** Latest actual positive loyalty receipt, even when narrative moments are disabled. */
+  lastMajorMoment?: CrewLoyaltyHistoryDto | null;
+  legend?: { nickname: CrewEarnedNicknameDto | null; options: CrewEarnedNicknameDto[]; moderated: boolean };
   /** The 1.6 dealer career this member carries, if any. */
   dealerStaffId: string | null;
   joinedAt: string;
   statusSince: string;
 }
 
+/** 2.1.0-D. Story-only bonds; no persistent stat or power increase. */
+export interface CrewMentorBondDto {
+  id: string;
+  mentorId: string;
+  apprenticeId: string;
+  mentorName: string;
+  apprenticeName: string;
+  lessons: number;
+  maxLessons: number;
+  milestone: string;
+  startedAt: string;
+  endedAt: string | null;
+  memories: Array<{ source: string; label: string; at: string }>;
+}
+
 /** 1.7.0-A. The crew as individual members, alongside the counts they follow. */
 export interface CrewRosterDto {
   enabled: boolean;
+  /** 2.1.0-D. Optional round-only mentor links, even when stories are muted. */
+  bondsEnabled?: boolean;
+  bonds?: CrewMentorBondDto[];
+  /** Every member on this page who has ever had a mentor this round. */
+  mentoredMemberIds?: string[];
   /** Selected operation teams are introduced in 1.7.0-E. */
   supportsSelectedTeams: boolean;
   /** When the roster was first built from this player's counts; null before then. */
@@ -964,6 +1172,8 @@ export interface RoundPlayerDto {
   pendingEncounters: RandomEncounterDto[];
   /** Street Pass summary for the nav badge. Absent or null on rounds without a pass. */
   streetPass?: { tier: number; tierCount: number; claimable: number } | null;
+  /** Round Roll Call rewards ready to collect, for the nav badge. Absent or null on rounds without a track. */
+  roundRollCall?: { claimable: number } | null;
   /** 1.3.0-A. The worst Case the player has anywhere. Absent or null on rounds without the law. */
   law?: LawSummaryDto | null;
   /** Lifetime account XP; does not reset between rounds. */
@@ -984,6 +1194,43 @@ export interface PlayerExperienceDto {
   xpForLevel: number;
   xpToNextLevel: number;
   progressPercent: number;
+  /** Finished at least one season: every level unlock is open. Optional for older servers. */
+  veteran?: boolean;
+}
+
+export interface MentoringPersonDto {
+  displayName: string;
+  /** Set only when they are in the current round, so the name can link to their profile. */
+  publicPimpId: number | null;
+  level: number;
+}
+
+/** GET /api/game/mentoring */
+export interface MentoringDto {
+  mentor: MentoringPersonDto | null;
+  mentees: (MentoringPersonDto & { milestonesReached: number })[];
+  /** True while the viewer is new enough to name a mentor and has none. */
+  canChooseMentor: boolean;
+  /** True when the viewer is senior enough to mentor and has room. */
+  canMentor: boolean;
+}
+
+/** Endgame: account XP earned in one calendar year (UTC), ranked. */
+export interface XpLeaderboardEntryDto {
+  rank: number;
+  displayName: string;
+  /** Set only when the player is in the current round, so the name can link to their profile. */
+  publicPimpId: number | null;
+  xp: number;
+  level: number;
+  isYou: boolean;
+}
+
+export interface XpLeaderboardDto {
+  year: number;
+  entries: XpLeaderboardEntryDto[];
+  /** The viewer's own standing this year, or null when they have earned no XP in it. */
+  me: { rank: number; xp: number } | null;
 }
 
 export interface PlayerExperienceEventDto {
@@ -1035,7 +1282,7 @@ export interface SeasonHideoutDto {
   }>;
 }
 
-export type HideoutRoomKeyDto = 'SAFE_ROOM' | 'LOOKOUTS' | 'WORKSHOP' | 'BACK_OFFICE' | 'GARAGE';
+export type HideoutRoomKeyDto = 'SAFE_ROOM' | 'LOOKOUTS' | 'WORKSHOP' | 'BACK_OFFICE' | 'GARAGE' | 'STORAGE';
 
 export interface HideoutRoomDto {
   key: HideoutRoomKeyDto;
@@ -1054,6 +1301,86 @@ export interface HideoutDto {
   totalLevel: number;
   totalMaxLevel: number;
   rooms: HideoutRoomDto[];
+}
+
+export type ArmoryGunModel = 'PISTOL' | 'SHOTGUN' | 'TEK9' | 'AK47';
+export type GarageVehicleModel = 'SEDAN' | 'LOW_RIDER' | 'VAN';
+export interface IndividualItemHistoryEntryDto { at: string; type: string; summary: string; city?: string; otherPlayer?: string }
+export interface FeaturedItemDto {
+  id: string; kind: 'GUN' | 'VEHICLE'; model: string; name: string | null; lookKey: string | null;
+  condition: number; mods: Array<{ key: string; tier: number }>; stats: Record<string, number>;
+  history: IndividualItemHistoryEntryDto[]; roundName: string;
+}
+export interface IndividualArmoryItemDto {
+  id: string;
+  model: ArmoryGunModel;
+  name: string | null;
+  condition: number;
+  mods: Array<{ key: string; tier: number }>;
+  lookKey: string | null;
+  origin: Record<string, unknown>;
+  stats: Record<string, number>;
+  history: IndividualItemHistoryEntryDto[];
+  status: 'READY' | 'BROKEN' | 'LOCKED' | 'DAMAGED' | 'DISABLED' | 'ON_RUN';
+  quantity: number;
+  favorite: boolean;
+  reserve: boolean;
+}
+export interface IndividualVehicleItemDto extends Omit<IndividualArmoryItemDto, 'model' | 'favorite' | 'reserve'> {
+  model: GarageVehicleModel;
+  plate: string | null;
+}
+export interface IndividualArmorySummaryDto {
+  gunCount: number;
+  vehicleCount: number;
+  gunsByModel: Record<ArmoryGunModel, number>;
+  vehiclesByModel: Record<GarageVehicleModel, number>;
+  conditionBands: { guns: number[]; vehicles: number[] };
+}
+export interface ArmoryModCatalogItemDto {
+  size: 'SMALL' | 'MEDIUM' | 'LARGE';
+  slots: number;
+  mods: Array<{ key: string; slot: string; tiers: Array<{ tier: 1 | 2 | 3; effectPercent: number }> }>;
+}
+export interface ArmorySavedBuildDto {
+  id: string;
+  name: string;
+  kind: 'GUN' | 'VEHICLE';
+  model: ArmoryGunModel | GarageVehicleModel;
+  mods: Array<{ key: string; tier: number }>;
+}
+export interface IndividualInventoryDto {
+  enabled: boolean;
+  maxGuns: number;
+  maxVehicles: number;
+  summary: IndividualArmorySummaryDto;
+  resources: { cashCents: number; vehicleParts: number };
+  modCatalog: {
+    guns: Record<ArmoryGunModel, ArmoryModCatalogItemDto>;
+    vehicles: Record<GarageVehicleModel, ArmoryModCatalogItemDto>;
+    costs: Record<'SMALL' | 'MEDIUM' | 'LARGE', Record<1 | 2 | 3, { parts: number; cashCents: number }>>;
+  };
+  builds: ArmorySavedBuildDto[];
+  looks: Array<{ key: string; title: string; rarity: string }>;
+  featuredItem: FeaturedItemDto | null;
+  guns: IndividualArmoryItemDto[];
+  vehicles: IndividualVehicleItemDto[];
+}
+export interface ArmoryLookActionResult { updated: number; lookKey: string | null }
+export interface ArmoryFeatureItemResult { featuredItem: FeaturedItemDto | null }
+export interface ArmoryBulkActionResult {
+  action: 'FAVORITE' | 'RESERVE' | 'CLEAR_FLAGS' | 'RENAME';
+  updated: number;
+  names: string[];
+}
+export interface ArmoryModActionResult {
+  action: 'INSTALL_MOD' | 'REMOVE_MOD' | 'SAVE_BUILD' | 'APPLY_BUILD' | 'DELETE_BUILD';
+  updated: number;
+  affectedItems: number;
+  partsSpent: number;
+  partsRefunded: number;
+  cashSpentCents: number;
+  build: ArmorySavedBuildDto | null;
 }
 
 export interface RoundOverLegacyDto {
@@ -1127,6 +1454,15 @@ export interface GameActionResult<T> {
   /** Standing crew orders filled after this action. */
   staffingOrders?: CrewStaffingOrderFillDto[];
   rankChanges?: RankChanges;
+  /** Slice B: named, cap-aware passive sources applied during settlement. */
+  modifiers?: Array<{
+    effectId: string;
+    sourceId: string;
+    label: string;
+    requestedPercent: number;
+    appliedPercent: number;
+    capped: boolean;
+  }>;
 }
 
 // --- actions ----------------------------------------------------------------
@@ -1159,6 +1495,8 @@ export interface DistrictDto {
   /** Fit thugs without weapons; E/F rounds do not count them as street cover. */
   unarmedThugs: number;
   requiresArmedThugs: boolean;
+  /** Scouting clue: likely supply families, not exact rewards or rates. */
+  supplyClue?: { theme: string; common: string[]; scarce: string[] };
   /** Quest gate for Scout and Turf access. The district remains visible while locked. */
   districtAccess?: { unlocked: boolean; unlockName: string; unlockDescription: string; unlockQuest: QuestLinkDto | null };
 }
@@ -1228,6 +1566,11 @@ export interface RandomEncounterChoiceResult {
   text: string;
   cashCents: number;
   effects: RandomEncounterDto['effects'];
+  ammoSpentRounds?: number;
+  individualGuns?: Array<{ id: string; model: string; name: string | null; rounds: number; jammed: boolean; conditionBefore: number; conditionAfter: number }>;
+  /** 2.5.0-E. Vehicles taken by or recovered from a street gang. */
+  individualVehiclesStolen?: Array<{ model: string; name: string | null; plate: string | null; condition: number; mods: unknown }>;
+  individualVehiclesRecovered?: Array<{ id: string; model: string; name: string | null; plate: string | null; condition: number; mods: unknown }>;
   /** The choice found an Easter egg. isNew is false when the title was already held. */
   easterEgg?: { title: string; description: string; isNew: boolean };
 }
@@ -1256,12 +1599,16 @@ export interface ScoutResult {
   favorIncomePercent?: number;
   favorRecruitmentPercent?: number;
   cityConditionBonusPercent?: number;
+  territoryModifierReceipts?: TerritoryModifierReceiptDto[];
   payoutPercent: number;
 
   /** Crack-only compatibility field. On product rounds, this is the Crack slice of productsFound. */
   crackFound: number;
   /** 0.4.0+ product rounds: everything picked up on the street during the trip. */
   productsFound?: FoundProductDto[];
+  /** Slice B. Components and caches found on this scouting trip. */
+  componentsFound?: ScavengeComponentDto[];
+  cacheFound?: ScavengeCacheDto;
 
   condomsUsed: number;
   crackUsed: number;
@@ -1313,6 +1660,15 @@ export interface ProduceCrackResult {
   hideoutBonusProduct?: number;
   favorProductionPercent?: number;
   cityConditionBonusPercent?: number;
+  /** 2.4.0-B. Server-authoritative territory modifiers applied to this batch. */
+  territoryModifierReceipts?: Array<{
+    effectId: string;
+    action: string;
+    valueBasisPoints: number;
+    multiplierBasisPoints: number;
+    capBasisPoints: number;
+    sources: Array<{ id: string; label: string; valueBasisPoints: number }>;
+  }>;
   crackProduced: number;
   hideoutBonusCrack?: number;
   ingredientCents: number;
@@ -1362,6 +1718,89 @@ export interface ProduceCrackResult {
   turnsRemaining: number;
 }
 
+/** 2.4.0-E. Read-only, server-derived Alliance > Empire view. */
+export interface TerritoryEmpireDto {
+  enabled: boolean;
+  catalogVersion: string | null;
+  disabledReason?: string;
+  allianceId: string | null;
+  canSelectRegionalPower: boolean;
+  selectedRegionKey: string | null;
+  regionalPowerChangeAvailableAt: string | null;
+  cities: Array<{
+    slug: string;
+    name: string;
+    controlledDistricts: number;
+    eligibleDistricts: number;
+    ownerAllianceId: string | null;
+    ownerName: string | null;
+    ownerTag: string | null;
+    requirementPercent: number;
+    accessKey: string | null;
+    accessTollCents: number;
+    accessDailyTollCapCents: number;
+    accessTollAmmo?: number;
+    accessDailyTollCapAmmo?: number;
+    accessTollVehicleParts?: number;
+    accessDailyTollCapVehicleParts?: number;
+    perkKey: string | null;
+    cache: { goods: Record<string, number>; cashCents: number; tollCents: number } | null;
+    districts: Array<{
+      key: string;
+      ownerAllianceId: string | null;
+      accessKey: string | null;
+      accessTollCents: number;
+      accessDailyTollCapCents: number;
+      accessTollAmmo?: number;
+      accessDailyTollCapAmmo?: number;
+      accessTollVehicleParts?: number;
+      accessDailyTollCapVehicleParts?: number;
+      cache: { goods: Record<string, number>; cashCents: number; tollCents: number } | null;
+    }>;
+  }>;
+  regions: Array<{
+    key: string;
+    citySlugs: string[];
+    controlledCities: number;
+    currentTier: number;
+    nextThreshold: number | null;
+    tierThresholds: number[];
+    perkKey: string;
+    selected: boolean;
+  }>;
+}
+
+export interface TerritoryYieldCollection {
+  scope: 'city' | 'district';
+  citySlug: string;
+  district: string | null;
+  goods: Record<string, number>;
+  cashCents: number;
+  tollCents: number;
+  valueCents: number;
+  turnsUsed: number;
+}
+
+export interface TerritoryAccessUseResult {
+  accessKey: string;
+  locationKey: string;
+  allowed: true;
+  chargedCents: number;
+  chargedAmmo?: number;
+  chargedVehicleParts?: number;
+  ownerAllianceId: string;
+  grantId: string;
+}
+
+export interface TerritoryModifierReceiptDto {
+  effectId: string;
+  action: string;
+  valueBasisPoints: number;
+  multiplierBasisPoints: number;
+  capBasisPoints: number;
+  sources: Array<{ id: string; label: string; valueBasisPoints: number }>;
+}
+
 export interface PayoutResult {
   before: number;
   after: number;
@@ -1390,6 +1829,10 @@ export interface StoreItemDto {
   key: string;
   name: string;
   field: Exclude<keyof ResourcesDto, 'cashCents' | 'fitThugs' | 'woundedThugs'>;
+  /** Units added to inventory by one quantity at the counter. */
+  unitsPerOrder?: number;
+  /** Unit name for the stored balance and shelf count, such as rounds or parts. */
+  inventoryUnitLabel?: string;
   buyCents: number;
   /** Present when an armed single-use favor lowered the current buy quote. */
   baseBuyCents?: number;
@@ -1476,6 +1919,7 @@ export interface StoreSpecialOrderDto {
 export interface StoreRestockDto {
   stock: number;
   cap: number;
+  unitLabel?: string;
   intervalMinutes: number;
   /** How many arrive per delivery. */
   perInterval: number;
@@ -1677,6 +2121,11 @@ export interface PlayerQuestDto {
   branchChoices: QuestBranchChoiceDto[];
   story?: QuestStoryDto;
   objectives: QuestObjectiveDto[];
+  /**
+   * Set when the job has bonus objectives. Each finished one adds this percent
+   * to cash, turns, goods, and contact reputation.
+   */
+  bonusRewardPercent?: number;
   rewards: QuestRewardDto[];
   seasonalEvent?: {
     eventKey: string;
@@ -1871,6 +2320,16 @@ export interface StreetPassClaimResult {
   rewards: QuestRewardDto[];
 }
 
+/** Tracked active jobs only. Skips the full quest board. */
+export interface TrackedQuestsDto {
+  quests: PlayerQuestDto[];
+}
+
+/** Claim receipt plus the board, so the desk does not fetch quests again. `page` is absent when that read fails. */
+export interface QuestClaimResponse extends GameActionResult<QuestClaimResult> {
+  page?: QuestPageDto;
+}
+
 export interface QuestClaimResult {
   questKey: string;
   title: string;
@@ -1981,6 +2440,7 @@ export interface StoreTradeResult {
   unitCents: number;
   totalCents: number;
   cashChangeCents: number;
+  territoryModifierReceipts?: TerritoryModifierReceiptDto[];
   quantityChange: number;
   favorKey?: string;
   favorDiscountPercent?: number;
@@ -2091,11 +2551,12 @@ export interface ProductsDto {
   products: ProductStockDto[];
 }
 
-/** A supporter's Stripe subscription, as the account page and the admin roster show it. */
+/** A supporter's current subscription, whether billed by Stripe or Google Play. */
 export interface SupporterMembershipDto {
-  /** Stripe's subscription status, for example active, past_due or canceled. */
+  provider: 'stripe' | 'google_play';
+  /** Provider subscription status, normalized where practical. */
   status: string;
-  /** Supporting right now: active or trialing. */
+  /** Has access to supporter features now; trial users do not receive permanent rewards. */
   active: boolean;
   /** The last payment failed and Stripe is retrying it. */
   paymentFailing: boolean;
@@ -2110,6 +2571,8 @@ export interface SupporterMembershipDto {
 export interface SupporterStatusDto {
   /** Stripe checkout is set up on this server. */
   checkoutEnabled: boolean;
+  /** Present when Google Play billing is configured. Used only by the Android shell. */
+  playBilling: { enabled: boolean; obfuscatedAccountId: string | null };
   hasRewards: boolean;
   /** When the account first got supporter rewards. */
   since: string | null;
@@ -2129,6 +2592,61 @@ export interface SupporterStatusDto {
   } | null;
   /** Monthly drops and tenure badges the account holds, newest first. */
   dropsHeld: { month: string; name: string }[];
+}
+
+export type SupporterBenefitState = 'AVAILABLE_NOW' | 'ACTIVE_PAID' | 'EARNED_PERMANENTLY' | 'COMING_LATER' | 'NOT_AVAILABLE';
+export interface SupporterBenefitsDto {
+  activePaid: boolean;
+  earnedPermanently: boolean;
+  queue: { eligible: boolean; state: SupporterBenefitState; capacityGateEnabled: boolean; priorityEnabled: boolean };
+  monthlyDrop: { name: string; held: boolean; state: SupporterBenefitState } | null;
+  cosmetics: { key: string; name: string; kind: string; owned: boolean; state: SupporterBenefitState }[];
+  forum: { linked: boolean; visible: boolean; syncMode: 'pull-through'; state: SupporterBenefitState };
+}
+export interface AdminSupporterBenefitsDiagnosticsDto {
+  linkedForumAccounts: number;
+  optedInForumAccounts: number;
+  activePaidAccounts: number;
+  permanentlyRewardedAccounts: number;
+  permanentlyOwnedCosmetics: number;
+  queue: { capacityGateEnabled: boolean; priorityEnabled: boolean };
+  forum: { mode: 'pull-through'; writesToFlarum: false };
+}
+
+/** The account-scoped capacity waiting-room state. Position is intentionally approximate between polls. */
+export type AdmissionStatusDto =
+  | { state: 'disabled' }
+  | { state: 'not-queued' }
+  | { state: 'queued'; position: number; lane: 'SUPPORTER' | 'STANDARD'; enqueuedAt: string }
+  | { state: 'admitted'; expiresAt: string };
+
+export type InsightMetricStatus = 'AVAILABLE' | 'NOT_RECORDED';
+export interface InsightMetricDto {
+  value: number | null;
+  status: InsightMetricStatus;
+}
+export interface EmpireInsightsRoundDto {
+  id: string;
+  name: string;
+  status: RoundStatus;
+  startsAt: string;
+  endsAt: string;
+  metrics: {
+    street: { turnsWorked: InsightMetricDto; streetEarningsCents: InsightMetricDto; recruitsFound: InsightMetricDto; peakCrew: InsightMetricDto };
+    combat: { raidsWon: InsightMetricDto; raidsLost: InsightMetricDto; defensesHeld: InsightMetricDto; defensesLost: InsightMetricDto; driveBysLanded: InsightMetricDto; thugsDefeated: InsightMetricDto; cashStolenCents: InsightMetricDto; biggestRaidCents: InsightMetricDto };
+    turf: { blocksCaptured: InsightMetricDto; blocksLost: InsightMetricDto; blockHours: InsightMetricDto; citiesControlled: InsightMetricDto };
+    travel: { runsCompleted: InsightMetricDto; driveHours: InsightMetricDto; cargoMoved: InsightMetricDto; convoyAttacksWon: InsightMetricDto };
+    economy: { productProduced: InsightMetricDto; productSold: InsightMetricDto; largestTransactionCents: InsightMetricDto; traderReputation: InsightMetricDto };
+    business: { businessBuilds: InsightMetricDto; businessIncomeCents: InsightMetricDto; racketsStarted: InsightMetricDto; launderedHeat: InsightMetricDto; businessesTorched: InsightMetricDto; blockWarsDeclared: InsightMetricDto; blockWarAttackWins: InsightMetricDto; blockWarDefenseWins: InsightMetricDto; blockWarTakes: InsightMetricDto; blockWarSacks: InsightMetricDto };
+    casino: { casinoRatedWagers: InsightMetricDto; casinoTheoCents: InsightMetricDto; casinoCitiesPlayed: InsightMetricDto; casinoVipWagers: InsightMetricDto; casinoCompsCents: InsightMetricDto; casinoJackpots: InsightMetricDto; casinoBiggestWinCents: InsightMetricDto };
+    law: { lawSeason: InsightMetricDto; lawPeakStage: InsightMetricDto; lawWarrantsServed: InsightMetricDto };
+    factions: { factionsConnected: InsightMetricDto; factionsInnerCircle: InsightMetricDto };
+  };
+}
+export interface EmpireInsightsDto {
+  supporter: true;
+  generatedAt: string;
+  rounds: EmpireInsightsRoundDto[];
 }
 
 export interface SupporterPollOptionDto {

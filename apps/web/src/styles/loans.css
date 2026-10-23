@@ -1,4 +1,13 @@
 /* 1.6.5-B: the Loan Shark. Layout rides on the supply page's grid and cards. */
+.se-loans .se-supply__grid,
+.se-dealers .se-supply__grid {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
 .se-loans__review-anchor {
   min-width: 0;
   scroll-margin-top: 96px;

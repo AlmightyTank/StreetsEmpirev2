@@ -15,6 +15,7 @@ const API_BASE = 'https://site.api.espn.com/apis/site/v2/sports';
 
 const LEAGUES: Record<SportsbookLeagueKey, string> = {
   NFL: 'football/nfl', NBA: 'basketball/nba', MLB: 'baseball/mlb', NHL: 'hockey/nhl',
+  SOFTBALL: 'baseball/college-softball', MMA: 'mma/ufc',
 };
 
 type JsonRecord = Record<string, unknown>;

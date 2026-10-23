@@ -4,6 +4,7 @@ import { formatCents, formatCentsExact, formatNumber } from '@streets/shared';
 import { api } from '../api/client.js';
 import { useCountdown } from '../hooks/useCountdown.js';
 import { useGameAction } from '../hooks/useGameAction.js';
+import { basketOverStockReason, quantityInBasket, type StoreBasketLine } from '../utils/storeBasket.js';
 import { formatDuration } from '../utils/time.js';
 import { Alert } from './Alert.js';
 import { Button } from './Button.js';
@@ -93,12 +94,15 @@ export interface ProductBasketLine {
   itemName: string;
   unitCents: number;
   stockLabel: string;
+  /** Shelf units available for this buy. Null when selling. */
+  stockLimit: number | null;
 }
 
-export function ProductCounter({ product, cashCents, bulkHelpers, blocked, onDone, storeName, onAddToBasket }: {
+export function ProductCounter({ product, cashCents, bulkHelpers, blocked, basket, onDone, storeName, onAddToBasket }: {
   product: ProductStockDto; cashCents: number; bulkHelpers: number[];
   /** Why the whole counter is off, or null when it is open. */
   blocked: string | null;
+  basket: readonly StoreBasketLine[];
   onDone: () => void;
   storeName: string;
   /** Puts this order in the store basket, to check out with everything else. */
@@ -114,6 +118,8 @@ export function ProductCounter({ product, cashCents, bulkHelpers, blocked, onDon
   const max = buying
     ? purchaseLocked ? 0 : Math.min(pip.maxBuy, Math.floor(cashCents / Math.max(1, pip.buyCents)))
     : product.quantity;
+  const inBasket = quantityInBasket(basket, `PIP:${product.key}:${direction}`);
+  const stockLimit = buying ? pip.stock : null;
   const valid = typeof quantity === 'number' && Number.isSafeInteger(quantity) && quantity >= 1 && quantity <= max;
   const emptyReason = buying
     ? pip.stock === 0 ? `Pip is out of ${product.name} until the next delivery.` : `You cannot afford a single ${product.name} at ${price(pip.buyCents)}.`
@@ -128,6 +134,9 @@ export function ProductCounter({ product, cashCents, bulkHelpers, blocked, onDon
           : !valid
             ? `Enter a whole number from 1 to ${formatNumber(max)}.`
             : null);
+  const basketBlock = basketOverStockReason({
+    quantity, inBasket, stock: stockLimit, itemName: product.name, keeper: 'Pip',
+  });
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -137,7 +146,7 @@ export function ProductCounter({ product, cashCents, bulkHelpers, blocked, onDon
   }
 
   function addToBasket() {
-    if (block || purchaseLocked || typeof quantity !== 'number') return;
+    if (block || purchaseLocked || basketBlock || typeof quantity !== 'number') return;
     onAddToBasket({
       key: `PIP:${product.key}:${direction}`,
       store: 'PIP',
@@ -148,6 +157,7 @@ export function ProductCounter({ product, cashCents, bulkHelpers, blocked, onDon
       itemName: product.name,
       unitCents: unit,
       stockLabel: `${formatNumber(pip.stock)} / ${formatNumber(pip.cap)} in stock`,
+      stockLimit,
     });
   }
 
@@ -196,12 +206,13 @@ export function ProductCounter({ product, cashCents, bulkHelpers, blocked, onDon
         </div>
         <p className="se-hint">
           {purchaseLocked ? 'Purchases are locked until the required job is complete.' : `${buying ? 'Can buy' : 'Can sell'} ${formatNumber(max)}.`}
+          {stockLimit !== null && inBasket > 0 ? ` Basket has ${formatNumber(inBasket)}.` : ''}
         </p>
         <div className="se-store-actions">
           <Button className="se-btn se-btn--primary se-btn--block" disabledReason={block}>
             {buying ? 'Buy' : 'Sell'}{valid && typeof quantity === 'number' ? ` · ${price(quantity * unit)}` : ''}
           </Button>
-          <Button type="button" className="se-btn se-btn--block" disabledReason={block} onClick={addToBasket}>
+          <Button type="button" className="se-btn se-btn--block" disabledReason={block ?? basketBlock} onClick={addToBasket}>
             Add to basket
           </Button>
         </div>

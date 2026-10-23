@@ -7,13 +7,16 @@ import { ApiError } from '../api/client.js';
 import { ActionDock, deltaChip } from '../components/ActionDock.js';
 import { Alert } from '../components/Alert.js';
 import { BlackjackPanel } from '../components/BlackjackPanel.js';
+import { PoolPanel } from '../components/PoolPanel.js';
 import { RoulettePanel } from '../components/RoulettePanel.js';
-import { StreetDicePanel } from '../components/StreetDicePanel.js';
+import { ScratchCardsPanel } from '../components/ScratchCardsPanel.js';
+import { HorseRacingPanel } from '../components/HorseRacingPanel.js';
 import { PokerPanel } from '../components/PokerPanel.js';
 import { CasinoStatusPanel } from '../components/CasinoStatusPanel.js';
 import { CasinoBankrollSummary, CasinoBetControl, CasinoGameSelector } from '../components/CasinoExperience.js';
 import { SportsbookPanel } from '../components/SportsbookPanel.js';
 import { Button } from '../components/Button.js';
+import { LevelLockNotice } from '../components/LevelLockNotice.js';
 import { Panel, Row } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import {
@@ -24,7 +27,10 @@ import {
 import { useSession } from '../stores/session.js';
 import { newActionId } from '../utils/actionId.js';
 import { formatWhen } from '../utils/time.js';
+import { preserveScrollDuring, restoreScrollPosition } from '../utils/scrollPosition.js';
 import '../styles/casino.css';
+import '../styles/sportsbook.css';
+import '../styles/sportsbook-vision.css';
 import '../styles/casino-experience.css';
 
 function dollarsToCents(value: string): number | null {
@@ -51,7 +57,7 @@ function wait(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
-type CasinoGameKey = 'slots' | 'blackjack' | 'roulette' | 'street-dice' | 'poker' | 'sportsbook';
+type CasinoGameKey = 'slots' | 'blackjack' | 'pool' | 'roulette' | 'scratch-cards' | 'horse-racing' | 'poker' | 'sportsbook';
 
 const CASINO_GAMES: readonly {
   key: CasinoGameKey;
@@ -81,6 +87,15 @@ const CASINO_GAMES: readonly {
     description: 'Casino blackjack with table limits, splits and doubles.',
   },
   {
+    key: 'pool',
+    label: 'Pool',
+    icon: '🎱',
+    status: 'LIVE',
+    live: true,
+    title: 'Pool',
+    description: 'Eight-ball against house hustlers. Call every shot, press when they get ahead.',
+  },
+  {
     key: 'roulette',
     label: 'Roulette',
     icon: '◉',
@@ -90,13 +105,22 @@ const CASINO_GAMES: readonly {
     description: 'American and European roulette with straight-up, inside-combination and outside bets.',
   },
   {
-    key: 'street-dice',
-    label: 'Street Dice',
-    icon: '⚄',
+    key: 'scratch-cards',
+    label: 'Scratch Cards',
+    icon: '✦',
     status: 'LIVE',
     live: true,
-    title: 'Street Dice',
-    description: 'Pass-line street craps with persistent points and true-odds backing.',
+    title: 'Scratch Cards',
+    description: 'Pick a ticket, reveal nine symbols and match the posted winners.',
+  },
+  {
+    key: 'horse-racing',
+    label: 'Horse Racing',
+    icon: '🏇',
+    status: 'LIVE',
+    live: true,
+    title: 'Horse Racing',
+    description: 'Back one of six runners at fixed odds and watch them race to the wire.',
   },
   {
     key: 'poker',
@@ -367,8 +391,13 @@ export function CasinoPage() {
       if (!bought) return;
       buyAction.current = newActionId();
     }
-    const opened = await run('open', () => casinoApi.openSession({ amountCents, actionId: openAction.current }), formatCents(amountCents) + ' is on the floor. Pick a game.');
-    if (opened) openAction.current = newActionId();
+    const accessStorageKey = me?.city.slug === 'las-vegas' ? 'se-territory-grant-private-card-room' : null;
+    const territoryAccessGrantId = accessStorageKey ? sessionStorage.getItem(accessStorageKey) ?? undefined : undefined;
+    const opened = await run('open', () => casinoApi.openSession({ amountCents, actionId: openAction.current, ...(territoryAccessGrantId ? { territoryAccessGrantId } : {}) }), formatCents(amountCents) + ' is on the floor. Pick a game.');
+    if (opened) {
+      if (territoryAccessGrantId && accessStorageKey) sessionStorage.removeItem(accessStorageKey);
+      openAction.current = newActionId();
+    }
   }
 
   async function spinSlots(event: FormEvent) {
@@ -390,6 +419,7 @@ export function CasinoPage() {
       return;
     }
 
+    const scrollTop = window.scrollY;
     setBusy('spin');
     setError(null);
     setNotice(null);
@@ -413,11 +443,13 @@ export function CasinoPage() {
       if (reducedMotion) {
         setRevealedReels(machine.reels);
       } else {
-        const reelDelay = machine.reels === 3 ? 250 : machine.reels === 4 ? 225 : 205;
+        // Let every reel reach full speed before the staggered mechanical stops begin.
+        await wait(460);
+        const reelDelay = machine.reels === 3 ? 310 : machine.reels === 4 ? 285 : 260;
         for (let reel = 0; reel < machine.reels; reel++) {
           if (result.spin.nearMiss?.reel === reel) {
             playCasinoSound('ANTICIPATION', soundEnabled);
-            await wait(520);
+            await wait(680);
           }
           await wait(reelDelay);
           setRevealedReels(reel + 1);
@@ -447,19 +479,21 @@ export function CasinoPage() {
         if (reducedMotion) {
           setDisplayedWinCents(result.spin.payoutCents);
           setDisplayedCreditsCents(result.spin.bankrollAfterCents);
-        } else {
-          const duration = result.spin.winTier === 'JACKPOT' ? 1_600 : result.spin.winTier === 'MEGA' ? 1_250 : 850;
-          const steps = 28;
-          for (let step = 1; step <= steps; step++) {
-            await wait(duration / steps);
-            const progress = step / steps;
-            setDisplayedWinCents(Math.round(result.spin.payoutCents * progress));
-            setDisplayedCreditsCents(Math.round(creditsBeforePayout + result.spin.payoutCents * progress));
+          } else {
+            const duration = result.spin.winTier === 'JACKPOT' ? 1_600 : result.spin.winTier === 'MEGA' ? 1_250 : 850;
+            const steps = 28;
+            for (let step = 1; step <= steps; step++) {
+              await wait(duration / steps);
+              const progress = step / steps;
+              setDisplayedWinCents(Math.round(result.spin.payoutCents * progress));
+              setDisplayedCreditsCents(Math.round(creditsBeforePayout + result.spin.payoutCents * progress));
+              if (step % 2 === 0) playCasinoSound('PAYOUT_TICK', soundEnabled, step);
+            }
           }
+        } else {
+          setDisplayedCreditsCents(result.spin.bankrollAfterCents);
+          playCasinoSound(result.spin.nearMiss ? 'NEAR_MISS' : 'LOSS', soundEnabled);
         }
-      } else {
-        setDisplayedCreditsCents(result.spin.bankrollAfterCents);
-      }
 
       spinAction.current = newActionId();
       await refreshSnapshot({ background: false });
@@ -468,6 +502,7 @@ export function CasinoPage() {
       setRevealedReels(99);
     } finally {
       setBusy(null);
+      restoreScrollPosition(scrollTop);
     }
   }
 
@@ -491,6 +526,7 @@ export function CasinoPage() {
   return (
     <GameLayout>
       <div className={'se-casino' + (activeGame ? ' se-casino--table' : ' se-casino--lobby')}>
+        <LevelLockNotice gates={[activeGame === 'sportsbook' ? 'sportsbook' : 'casino']} />
         {activeInfo ? (
           <header className="se-casino-tablehead">
             <Link className="se-casino-tablehead__back" to="/game/casino">&larr; Lobby</Link>
@@ -529,7 +565,6 @@ export function CasinoPage() {
             <CasinoBankrollSummary
               metrics={[
                 { label: 'Cash here', value: formatCents(data.cashCents) },
-                { label: 'Chips at the cage', value: venue ? formatCents(venue.walletChipsCents) : '—' },
                 { label: 'On the floor', value: floorCents !== null ? formatCents(floorCents) : 'No session', active: Boolean(session) },
               ]}
               actions={
@@ -671,7 +706,9 @@ export function CasinoPage() {
                           {entry.display.tone === 'positive' ? '+' : entry.display.tone === 'negative' ? '−' : ''}
                           {formatCents(entry.display.amountCents)}
                         </strong>
-                        {entry.kind === 'SLOT_SPIN' || entry.kind === 'BLACKJACK' || entry.kind === 'ROULETTE' || entry.kind === 'STREET_DICE' || entry.kind === 'SPORTSBOOK_BET' || (entry.kind === 'SPORTSBOOK_SETTLEMENT' && entry.sessionChipDeltaCents !== 0) ? (
+                        {entry.kind === 'SLOT_SPIN' || entry.kind === 'BLACKJACK' || entry.kind === 'POOL' || entry.kind === 'ROULETTE' || entry.kind === 'SCRATCH_CARD' || entry.kind === 'HORSE_RACE' || entry.kind === 'SPORTSBOOK_BET' || (entry.kind === 'SPORTSBOOK_SETTLEMENT' && entry.sessionChipDeltaCents !== 0) ? (
+                          <span>Floor {formatCents(entry.sessionChipsAfterCents)}</span>
+                        ) : entry.kind === 'BUY_CHIPS' && entry.sessionChipDeltaCents !== 0 ? (
                           <span>Floor {formatCents(entry.sessionChipsAfterCents)}</span>
                         ) : entry.kind === 'BUY_CHIPS' || entry.kind === 'REDEEM_CHIPS' ? (
                           <span>Wallet {formatCents(entry.walletChipsAfterCents)}</span>
@@ -842,7 +879,12 @@ export function CasinoPage() {
                         ) : null}
 
                         <div
-                          className={'se-slots__cabinet is-' + cabinetTone + (outcomeVisible && result ? ' is-' + result.winTier.toLowerCase() : '')}
+                          className={
+                            'se-slots__cabinet is-' + cabinetTone
+                            + (busy === 'spin' ? ' is-spinning' : '')
+                            + (busy === 'spin' && result?.nearMiss && revealedReels === result.nearMiss.reel ? ' is-anticipating' : '')
+                            + (outcomeVisible && result ? ' is-' + result.winTier.toLowerCase() : '')
+                          }
                           style={{ '--se-slot-reels': machine.reels } as CSSProperties}
                         >
                           <div className="se-slots__cabinet-marquee">
@@ -881,6 +923,7 @@ export function CasinoPage() {
                             {baseGrid.flatMap((row, rowIndex) =>
                               row.map((cell, reelIndex) => {
                                 const reelSpinning = busy === 'spin' && reelIndex >= revealedReels;
+                                const reelSettling = busy === 'spin' && reelIndex === revealedReels - 1;
                                 const winning = outcomeVisible && winningPositions.has(reelIndex + ':' + rowIndex);
                                 const anticipating = reelSpinning && result?.nearMiss?.reel === reelIndex;
                                 const strip = machine.reelStrips[reelIndex] ?? [];
@@ -893,16 +936,26 @@ export function CasinoPage() {
                                     className={
                                       'se-slots__reel'
                                       + (reelSpinning ? ' is-spinning-cell' : '')
+                                      + (reelSettling ? ' is-settling' : '')
                                       + (winning ? ' is-winning' : '')
                                       + (anticipating ? ' is-anticipating' : '')
                                     }
+                                    style={{ '--se-reel-index': reelIndex, '--se-row-index': rowIndex } as CSSProperties}
                                     aria-label={reelSpinning ? 'reel spinning' : cell.label + (winning ? ', winning symbol' : '')}
                                   >
                                     {reelSpinning ? (
                                       <div className="se-slots__strip-track" aria-hidden="true">
-                                        {preview.map((symbol, index) => <span key={index}>{symbol.glyph}</span>)}
+                                        {preview.map((symbol, index) => (
+                                          <span className={Array.from(symbol.glyph).length > 1 ? 'is-word-symbol' : undefined} key={index}>
+                                            {symbol.glyph}
+                                          </span>
+                                        ))}
                                       </div>
-                                    ) : <span>{cell.glyph}</span>}
+                                    ) : (
+                                      <span className={Array.from(cell.glyph).length > 1 ? 'is-word-symbol' : undefined}>
+                                        {cell.glyph}
+                                      </span>
+                                    )}
                                   </div>
                                 );
                               }),
@@ -921,8 +974,17 @@ export function CasinoPage() {
                               </div>
                             ) : null}
                           </div>
-                          <div className="se-slots__cabinet-footer">
-                            <span>CHERRY</span><span>BAR</span><strong>7</strong><span>BAR</span><span>CHERRY</span>
+                          <div className={'se-slots__cabinet-footer' + (busy === 'spin' ? ' is-live' : '')}>
+                            <span className="se-slots__status-lamp" aria-hidden="true" />
+                            <span>
+                              {busy === 'spin'
+                                ? result?.nearMiss && revealedReels === result.nearMiss.reel
+                                  ? 'ONE REEL TO GO…'
+                                  : 'REELS IN MOTION'
+                                : outcomeVisible && result?.payoutCents
+                                  ? 'WIN ' + formatCents(displayedWinCents || result.payoutCents)
+                                  : 'CHERRY · BAR · 7 · BAR · CHERRY'}
+                            </span>
                           </div>
                         </div>
 
@@ -1157,8 +1219,22 @@ export function CasinoPage() {
             <BlackjackPanel
               casinoPage={data}
               onPageChange={(next) => {
-                setData(next);
-                setDisplayedCreditsCents(next.openSession?.bankrollCents ?? null);
+                preserveScrollDuring(() => {
+                  setData(next);
+                  setDisplayedCreditsCents(next.openSession?.bankrollCents ?? null);
+                });
+              }}
+            />
+                ) : null}
+
+                {activeGame === 'pool' ? (
+            <PoolPanel
+              casinoPage={data}
+              onPageChange={(next) => {
+                preserveScrollDuring(() => {
+                  setData(next);
+                  setDisplayedCreditsCents(next.openSession?.bankrollCents ?? null);
+                });
               }}
             />
                 ) : null}
@@ -1167,18 +1243,34 @@ export function CasinoPage() {
             <RoulettePanel
               casinoPage={data}
               onPageChange={(next) => {
-                setData(next);
-                setDisplayedCreditsCents(next.openSession?.bankrollCents ?? null);
+                preserveScrollDuring(() => {
+                  setData(next);
+                  setDisplayedCreditsCents(next.openSession?.bankrollCents ?? null);
+                });
               }}
             />
                 ) : null}
 
-                {activeGame === 'street-dice' ? (
-            <StreetDicePanel
+                {activeGame === 'scratch-cards' ? (
+            <ScratchCardsPanel
               casinoPage={data}
               onPageChange={(next) => {
-                setData(next);
-                setDisplayedCreditsCents(next.openSession?.bankrollCents ?? null);
+                preserveScrollDuring(() => {
+                  setData(next);
+                  setDisplayedCreditsCents(next.openSession?.bankrollCents ?? null);
+                });
+              }}
+            />
+                ) : null}
+
+                {activeGame === 'horse-racing' ? (
+            <HorseRacingPanel
+              casinoPage={data}
+              onPageChange={(next) => {
+                preserveScrollDuring(() => {
+                  setData(next);
+                  setDisplayedCreditsCents(next.openSession?.bankrollCents ?? null);
+                });
               }}
             />
                 ) : null}
@@ -1187,8 +1279,10 @@ export function CasinoPage() {
             <PokerPanel
               casinoPage={data}
               onPageChange={(next) => {
-                setData(next);
-                setDisplayedCreditsCents(next.openSession?.bankrollCents ?? null);
+                preserveScrollDuring(() => {
+                  setData(next);
+                  setDisplayedCreditsCents(next.openSession?.bankrollCents ?? null);
+                });
               }}
             />
                 ) : null}
@@ -1198,14 +1292,16 @@ export function CasinoPage() {
                     bankrollCents={data.openSession?.bankrollCents ?? null}
                     onPlaced={async () => {
                       const next = await casinoApi.page();
-                      setData(next);
-                      setDisplayedCreditsCents(next.openSession?.bankrollCents ?? null);
+                      preserveScrollDuring(() => {
+                        setData(next);
+                        setDisplayedCreditsCents(next.openSession?.bankrollCents ?? null);
+                      });
                       await refreshSnapshot({ background: false });
                     }}
                   />
                 ) : null}
 
-                {activeGame !== 'slots' && activeGame !== 'blackjack' && activeGame !== 'roulette' && activeGame !== 'street-dice' && activeGame !== 'poker' && activeGame !== 'sportsbook' ? (() => {
+                {activeGame !== 'slots' && activeGame !== 'blackjack' && activeGame !== 'pool' && activeGame !== 'roulette' && activeGame !== 'scratch-cards' && activeGame !== 'horse-racing' && activeGame !== 'poker' && activeGame !== 'sportsbook' ? (() => {
                   const game = CASINO_GAMES.find((candidate) => candidate.key === activeGame)!;
                   return (
                     <CasinoGamePlaceholder

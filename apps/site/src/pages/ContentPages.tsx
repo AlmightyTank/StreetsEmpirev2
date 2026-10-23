@@ -10,7 +10,7 @@ export const guideTopics = [
   { slug: 'businesses', title: 'Businesses & Rackets', blurb: 'Build fronts on the blocks you hold, staff them, run a racket and protect the register.' },
   { slug: 'law', title: 'The Law & Your Case', blurb: 'Heat, the private Case each city keeps on you, warrants, lawyers and corruption.' },
   { slug: 'factions', title: 'Factions & Contracts', blurb: 'Five underworld factions, the contracts they sponsor and what their standing unlocks.' },
-  { slug: 'casino', title: 'The Casino', blurb: 'Slots, blackjack, roulette, street dice and poker tables, with chips you earned in the game.' },
+  { slug: 'casino', title: 'The Casino', blurb: 'Slots, blackjack, roulette, scratch cards, horse racing and poker tables, with chips you earned in the game.' },
   { slug: 'alliances', title: 'Alliances', blurb: 'Create a crew, invite players, cooperate and compete on alliance standings.' },
   { slug: 'hideout', title: 'Hideouts', blurb: 'Seasonal rooms, including the Garage, and the utility they add to your operation.' },
   { slug: 'street-pass', title: 'Street Pass', blurb: 'A free 30-tier reward track you fill by playing, with in-round boosts and permanent cosmetics.' },
@@ -106,7 +106,7 @@ export const guideCopy: Record<string, { title: string; intro: string; sections:
     intro: 'Every city has a casino venue, from underground rooms to the full casino floor in Las Vegas. You earn money in the game and choose how much of it to risk.',
     sections: [
       { title: 'Chips stay in town', body: 'You exchange cash for chips at a city’s cage, and you have to be in that city to play. Away from home you can only buy chips with the cash you carried. Chips count toward net worth, so moving money through the cage never changes your rank.' },
-      { title: 'The games', body: 'Three slot cabinets (Empire Gold carries the Vegas progressive), blackjack, roulette, street dice and Texas Hold’em tables. Which games a venue offers depends on the kind of room it is.' },
+      { title: 'The games', body: 'Three slot cabinets (Empire Gold carries the Vegas progressive), blackjack, roulette, scratch cards, horse racing and Texas Hold’em tables. Which games a venue offers depends on the kind of room it is.' },
       { title: 'Poker tournaments', body: 'Poker tables feed a weekly tournament board that ranks players by return on their buy-ins, not by how much they bet, plus season records for the biggest single-table runs.' },
       { title: 'No real money', body: 'The casino uses game money only. Nothing is for sale that changes the odds, and gambling is never meant to be the main way to earn in a season.' },
     ],
@@ -197,7 +197,7 @@ export function RoadmapPage() {
     ['0.9.0', 'Community', 'Live', 'Public profiles, the Pimp Console, notifications and community-facing systems.'],
     ['1.0.0', 'Launch & Hardening', 'Live', 'Stability, onboarding, balance validation, account security and launch readiness.'],
     ['1.1.0', 'Businesses, Fronts & Rackets', 'Live', 'Business lots on every block, rackets, block wars, and outposts that collection runs empty.'],
-    ['1.2.0', 'Casino & Gambling', 'Live', 'A casino in every city: slots, blackjack, roulette, street dice, poker tables and weekly tournaments.'],
+    ['1.2.0', 'Casino & Gambling', 'Live', 'A casino in every city: slots, blackjack, roulette, scratch cards, horse racing, poker tables and weekly tournaments.'],
     ['1.3.0', 'Law, Wanted Level & Corruption', 'Live', 'A private Case in every city, warrants and raids, lawyers, officials on the payroll and the Feds.'],
     ['1.4.0', 'Factions & Contracts', 'Live', 'Five underworld factions, sponsored contract boards, standing perks, rivalries and the Inner Circle.'],
     ['1.5.0', 'Vehicles & Garage 2.0', 'Live', 'Sedans and Vans alongside the Low-Rider, mixed run loadouts, garage repair and recovery, and San Francisco.'],
@@ -228,7 +228,7 @@ export function SupportPage() {
   const benefits = ['The Midnight Chrome collection for the Thug, Hoe, Sedan, Van and Low-Rider', 'The Signature Profile Card and supporter mark', 'A supporter badge for every month you support', 'A place on the public thank-you list, if you want one', 'Everything kept for good, even after you stop'];
   return <div className="site-page"><PublicPageHero eyebrow="Support the project" title="Help keep StreetsEmpire running"><p>Supporting funds hosting and development without buying competitive power.</p></PublicPageHero>
     <section className="site-section site-section--tight"><div className="container public-two-column"><section className="site-panel"><span className="site-card__eyebrow">Policy</span><h2>No pay-to-win.</h2><p className="content-lead">Supporting never sells stronger weapons, extra cash, turns, extra combat strength, hidden intelligence or other advantages that change who wins a season. The Street Pass stays free, and the casino never takes real money.</p></section>
-    <section className="site-panel"><span className="site-card__eyebrow">What supporters get</span><h2>Cosmetic and community thanks</h2><ul className="site-feature-list">{benefits.map(x=><li key={x}>{x}</li>)}</ul><p className="content-lead">Support from the dedicated supporter page in the game: <a href="https://play.streetsempire.dev/game/supporter">Supporter rewards</a>. Payment is handled by Stripe, and you can cancel any time. <Link to="/supporters">See the supporters</Link>.</p></section></div></section></div>;
+    <section className="site-panel"><span className="site-card__eyebrow">What supporters get</span><h2>Cosmetic and community thanks</h2><ul className="site-feature-list">{benefits.map(x=><li key={x}>{x}</li>)}</ul><p className="content-lead">Support from the dedicated supporter page in the game: <a href="https://play.streetsempire.dev/game/supporter">Supporter rewards</a>. Payment is handled by Stripe on the website or Google Play in the Android app, and you can cancel any time. <Link to="/supporters">See the supporters</Link>.</p></section></div></section></div>;
 }
 
 export function AboutPage() {

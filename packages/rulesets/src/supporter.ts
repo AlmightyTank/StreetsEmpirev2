@@ -34,6 +34,46 @@ export const SUPPORTER_COSMETICS = {
     rarity: 'epic',
     styleKey: 'supporter-crimson',
   },
+  'midnight-chrome-crew-banner': {
+    key: 'midnight-chrome-crew-banner',
+    name: 'Midnight Chrome Crew Banner',
+    description: 'A compact graphite-and-chrome crew header with a crimson edge. Cosmetic only.',
+    kind: 'CREW_BANNER',
+    rarity: 'legendary',
+    styleKey: 'midnight-chrome-crew-banner',
+  },
+  'midnight-chrome-crew-banner-night': {
+    key: 'midnight-chrome-crew-banner-night',
+    name: 'Midnight Chrome Crew Banner · Night Drive',
+    description: 'A darker portrait treatment with a chrome horizon and crimson edge. Cosmetic only.',
+    kind: 'CREW_BANNER',
+    rarity: 'legendary',
+    styleKey: 'midnight-chrome-crew-banner-night',
+  },
+  'neon-afterhours': {
+    key: 'neon-afterhours',
+    name: 'Neon Afterhours',
+    description: 'A magenta-and-cyan after-dark shell with crisp panel glow. Cosmetic only.',
+    kind: 'SITE_THEME',
+    rarity: 'legendary',
+    styleKey: 'neon-afterhours',
+  },
+  'blacktop-royalty': {
+    key: 'blacktop-royalty',
+    name: 'Blacktop Royalty',
+    description: 'A tailored blacktop shell with warm gold trim and quiet road texture. Cosmetic only.',
+    kind: 'SITE_THEME',
+    rarity: 'legendary',
+    styleKey: 'blacktop-royalty',
+  },
+  'crimson-circuit': {
+    key: 'crimson-circuit',
+    name: 'Crimson Circuit',
+    description: 'A dark racing-grid shell with crimson signal lines and cool steel contrast. Cosmetic only.',
+    kind: 'SITE_THEME',
+    rarity: 'legendary',
+    styleKey: 'crimson-circuit',
+  },
 } as const satisfies QuestCosmeticCatalog;
 
 export type SupporterCosmeticKey = keyof typeof SUPPORTER_COSMETICS;

@@ -119,16 +119,17 @@ describe('release bumps', () => {
   });
 
   it('plans the next release from pulls merged after the current version', () => {
+    // The deploy workflow advances APP_VERSION automatically. This integration
+    // test must stay valid after every release, not only on version 2.1.0.
+    const currentVersion = readAppVersion(fs.readFileSync(path.resolve(process.cwd(), 'packages/shared/src/platform.ts'), 'utf8'));
     const head = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
     const parent = execFileSync('git', ['rev-parse', 'HEAD~1'], { encoding: 'utf8' }).trim();
-    const current = readAppVersion(fs.readFileSync(path.resolve(process.cwd(), 'packages/shared/src/platform.ts'), 'utf8'));
-    const [major, minor] = current.split('.').map(Number);
     expect(planRelease({ to: head, from: head, pullsFor: () => [] })).toBeNull();
     expect(planRelease({
       to: head,
       from: parent,
       pullsFor: () => [{ title: 'feat: automatic releases', body: '## Version\nminor' }],
-    })).toEqual({ level: 'minor', previous: current, version: `${major}.${minor + 1}.0` });
+    })).toEqual({ level: 'minor', previous: currentVersion, version: bumpVersion(currentVersion, 'minor') });
     expect(planRelease({
       to: head,
       from: parent,

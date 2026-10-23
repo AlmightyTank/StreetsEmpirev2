@@ -2,8 +2,8 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { isString, isTurns, rememberedKey, useRememberedState } from '../utils/remembered.js';
 import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import type { DistrictDto, RandomEncounterChoiceResult, ScoutResult } from '@streets/shared';
-import { STATUE_ENCOUNTER_KEY, formatNumber } from '@streets/shared';
-import { EncounterEggNote, StatueWatch } from '../components/EasterEggs.js';
+import { formatNumber } from '@streets/shared';
+import { EncounterEggNote } from '../components/EasterEggs.js';
 import { actionsApi } from '../api/actions.js';
 import { ActionDock, resultChips } from '../components/ActionDock.js';
 import { ActionReadiness, OperationDetails } from '../components/ActionReadiness.js';
@@ -22,6 +22,7 @@ import { useGameAction } from '../hooks/useGameAction.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { scoutReceiptLines } from '../receipts/actionReceipts.js';
 import { useSession } from '../stores/session.js';
+import { isScoutDistrictUnlocked, resolveScoutDistrict } from '../utils/scoutDistrictSelection.js';
 
 function ScoutMetric({
   label,
@@ -76,10 +77,7 @@ export function ScoutPage() {
       .districts()
       .then((response) => {
         setDistricts(response.districts);
-        setDistrict((current) => {
-          if (response.districts.some((row) => row.key === requestedDistrict)) return requestedDistrict;
-          return current && response.districts.some((row) => row.key === current) ? current : response.districts[0]?.key || '';
-        });
+        setDistrict((current) => resolveScoutDistrict(response.districts, requestedDistrict, current));
       })
       .catch(() => setLoadError('Could not load the districts. Try again in a moment.'));
   }, [crewSize, requestedDistrict]);
@@ -87,7 +85,7 @@ export function ScoutPage() {
   if (!me) return <Navigate to="/join" replace />;
 
   const available = me.turns.turns;
-  const selectedDistrict = districts.find((row) => row.key === district);
+  const selectedDistrict = districts.find((row) => row.key === district && isScoutDistrictUnlocked(row));
   const exposurePercent = selectedDistrict ? Math.round(selectedDistrict.exposedFraction * 100) : 0;
   const coveredPercent = 100 - exposurePercent;
   const districtTone = coverageTone(selectedDistrict);
@@ -107,24 +105,23 @@ export function ScoutPage() {
       detail: `${100 - exposure}% crew covered`,
     };
   });
-  const supplyJobs = district
-    ? [{ job: district, label: selectedDistrict?.name ?? 'This district' }]
+  const supplyJobs = selectedDistrict
+    ? [{ job: selectedDistrict.key, label: selectedDistrict.name }]
     : [];
 
   const canScout =
     !action.busy &&
-    district !== '' &&
-    selectedDistrict?.districtAccess?.unlocked !== false &&
+    Boolean(selectedDistrict) &&
     typeof turns === 'number' &&
     turns >= 1 &&
     turns <= available;
 
   const scoutBlock = action.busy
     ? 'Your crew is still out on the last job.'
-    : district === ''
-      ? 'Pick a district to work first.'
-      : selectedDistrict?.districtAccess?.unlocked === false
-        ? `Complete ${selectedDistrict.districtAccess.unlockQuest?.title ?? 'the required quest'} to unlock this district.`
+    : !selectedDistrict
+      ? districts.length && districts.every((row) => !isScoutDistrictUnlocked(row))
+        ? 'There are no unlocked districts available yet.'
+        : 'Pick an unlocked district to work first.'
       : typeof turns !== 'number' || turns < 1
         ? 'Say how many turns to spend - at least one.'
         : turns > available
@@ -132,15 +129,30 @@ export function ScoutPage() {
           : null;
 
   const receiptLines = action.result ? scoutReceiptLines(action.result, me) : null;
-  const pendingEncounter = action.result?.result.encounter?.status === 'PENDING' && action.result.result.encounter.id && action.result.result.encounter.choices?.length
-    ? action.result.result.encounter
-    : null;
+  const receiptEncounter = action.result?.result.encounter;
+  // The cinematic popup can resolve this same choice from any page.
+  // Hide the stale inline panel after the authoritative session has settled it.
+  const pendingEncounter = receiptEncounter?.status === 'PENDING' && receiptEncounter.id
+    && receiptEncounter.choices?.length && me.pendingEncounters.some((item) => item.id === receiptEncounter.id)
+    ? receiptEncounter : null;
+
+  function chooseDistrict(key: string) {
+    if (action.busy || !isScoutDistrictUnlocked(districts.find((row) => row.key === key))) return;
+    setDistrict(key);
+  }
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     if (!canScout || typeof turns !== 'number') return;
 
-    await action.run((actionId) => actionsApi.scout({ district, turns, ...(scoutTeam.length ? { crewMemberIds: scoutTeam } : {}), actionId }));
+    const accessKey = me?.city.slug === 'miami-beach' ? 'port-dock' : null;
+    const grantStorageKey = accessKey ? `se-territory-grant-${accessKey}` : null;
+    const territoryAccessGrantId = grantStorageKey ? sessionStorage.getItem(grantStorageKey) ?? undefined : undefined;
+    await action.run(async (actionId) => {
+      const result = await actionsApi.scout({ district, turns, ...(scoutTeam.length ? { crewMemberIds: scoutTeam } : {}), ...(territoryAccessGrantId ? { territoryAccessGrantId } : {}), actionId });
+      if (territoryAccessGrantId && grantStorageKey) sessionStorage.removeItem(grantStorageKey);
+      return result;
+    });
   }
 
   async function resolveEncounter(choice: string) {
@@ -155,9 +167,7 @@ export function ScoutPage() {
           <div className="se-scout-hero__copy">
             <span className="se-eyebrow">Scout operation · {me.city.name}</span>
             <h1>Street Intel</h1>
-            <p>
-              Read the block before you send the crew. Check their cover, plan the trip, then bring back whatever the street reveals.
-            </p>
+
           </div>
         </header>
 
@@ -194,9 +204,10 @@ export function ScoutPage() {
             <DistrictPicker
               districts={districts}
               value={district}
-              onChange={setDistrict}
+              onChange={chooseDistrict}
               disabled={action.busy}
             />
+            <CrewTeamPicker role="WORKER" specialty="SCOUT" selectedIds={scoutTeam} onChange={setScoutTeam} disabled={action.busy} refreshKey={action.result} />
           </section>
 
           <aside className="se-scout-plan__intel">
@@ -215,14 +226,6 @@ export function ScoutPage() {
             <p className="se-scout-intel__blurb">
               {selectedDistrict?.blurb ?? 'Choose a district to see the protection situation for your current crew.'}
             </p>
-            {selectedDistrict?.districtAccess?.unlocked === false ? (
-              <Alert>
-                <strong>{selectedDistrict.districtAccess.unlockName} required.</strong>{' '}
-                {selectedDistrict.districtAccess.unlockDescription}{' '}
-                {selectedDistrict.districtAccess.unlockQuest ? <Link to={'/game/quests?focus=' + encodeURIComponent(selectedDistrict.districtAccess.unlockQuest.key)}>View “{selectedDistrict.districtAccess.unlockQuest.title}”</Link> : null}
-              </Alert>
-            ) : null}
-
             {selectedDistrict ? (
               <>
                 <div className="se-scout-intel__coverage">
@@ -302,14 +305,12 @@ export function ScoutPage() {
                 {pendingEncounter ? (
                   <Panel title={pendingEncounter.title} className="se-scout-panel">
                     <p className="se-scout-copy">{pendingEncounter.text}</p>
-                    {pendingEncounter.key === STATUE_ENCOUNTER_KEY && !encounterAction.result ? (
-                      <StatueWatch active={!encounterAction.busy} onReached={() => void resolveEncounter('run')} />
-                    ) : null}
                     {encounterAction.error ? <Alert>{encounterAction.error}</Alert> : null}
                     {encounterAction.result ? (
                       <div className="se-scout-intel__note se-scout-intel__note--good">
                         <strong>{encounterAction.result.result.choiceLabel}</strong>
                         <span>{encounterAction.result.result.text}</span>
+                        {encounterAction.result.result.ammoSpentRounds ? <span>{formatNumber(encounterAction.result.result.ammoSpentRounds)} ammo rounds spent.</span> : null}
                         <EncounterEggNote egg={encounterAction.result.result.easterEgg} />
                       </div>
                     ) : (
@@ -352,7 +353,6 @@ export function ScoutPage() {
             disabled={action.busy}
             disabledReason={action.busy ? 'Your crew is still out on the last job.' : null}
           />
-          <CrewTeamPicker role="WORKER" specialty="SCOUT" selectedIds={scoutTeam} onChange={setScoutTeam} disabled={action.busy} refreshKey={action.result} />
           <Button className="se-btn se-btn--primary" disabledReason={scoutBlock} data-tour="scout">
             {action.busy ? 'Working the block...' : action.result ? 'Send again' : 'Send crew scouting'}
           </Button>
@@ -369,8 +369,9 @@ export function ScoutPage() {
               cityName={me.city.name}
               districts={mapDistricts}
               selectedDistrict={district}
-              onSelect={setDistrict}
+              onSelect={chooseDistrict}
               disabled={action.busy}
+              disableLocked
             />
             <aside className="se-citymap-brief" aria-label="Scout map coverage summary">
               <div className="se-citymap-brief__control">

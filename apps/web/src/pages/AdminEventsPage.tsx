@@ -4,6 +4,8 @@ import { adminApi } from '../api/admin.js';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
+import { AdminEncounterTester } from '../components/AdminEncounterTester.js';
+import { AdminLivingStoriesPanel } from '../components/AdminLivingStoriesPanel.js';
 import { Field } from '../components/Field.js';
 import { Panel, Row } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
@@ -146,6 +148,7 @@ export function AdminEventsPage() {
       </div>
       {error ? <Alert>{error}</Alert> : null}
       {notice ? <Alert tone="success">{notice}</Alert> : null}
+      <AdminEncounterTester />
 
       {report ? <>
         <Panel title="Release checks" aside={`Checked ${new Date(report.generatedAt).toLocaleString()}`} className="se-mb">
@@ -173,6 +176,8 @@ export function AdminEventsPage() {
             <tbody>{report.rulesets.map((item) => <tr key={item.id}><td className="se-td--title">{item.name}</td><td data-label="Version">{item.version}</td><td data-label="First-class owners">{item.firstClassTypes.join(', ')}</td><td data-label="Catalog entries">{item.catalogEntries}</td></tr>)}</tbody>
           </table></div>
         </Panel>
+
+        <AdminLivingStoriesPanel />
 
         <Panel title="QA preview and balance simulation" className="se-mb">
           <div className="se-field"><label className="se-label" htmlFor="admin-event-ruleset">Pinned ruleset</label>

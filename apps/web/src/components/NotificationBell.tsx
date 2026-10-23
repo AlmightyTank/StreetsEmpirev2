@@ -6,6 +6,7 @@ import { notificationsApi } from '../api/notifications.js';
 import { useSession } from '../stores/session.js';
 import { gameEventToastFor } from './GameEventToasts.js';
 import { formatWhen } from '../utils/time.js';
+import { lockPageScroll } from '../utils/pageScrollLock.js';
 
 const EMPTY_FEED: InAppNotificationFeedDto = { notifications: [], unreadCount: 0 };
 
@@ -116,16 +117,7 @@ export function NotificationBell() {
 
   useEffect(() => {
     if (!open || !mobileSheet) return;
-    const rootElement = document.documentElement;
-    const body = document.body;
-    const rootBefore = rootElement.style.overflow;
-    const bodyBefore = body.style.overflow;
-    rootElement.style.overflow = 'hidden';
-    body.style.overflow = 'hidden';
-    return () => {
-      rootElement.style.overflow = rootBefore;
-      body.style.overflow = bodyBefore;
-    };
+    return lockPageScroll();
   }, [mobileSheet, open]);
 
   const rendered = useMemo(() => feed.notifications.flatMap((notification) => {

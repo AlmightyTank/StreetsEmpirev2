@@ -13,6 +13,11 @@ import { Alert } from './Alert.js';
 import { Button } from './Button.js';
 import { Panel } from './Panel.js';
 import { newActionId } from '../utils/actionId.js';
+import {
+  casinoSoundEnabled,
+  playCasinoSound,
+  setCasinoSoundEnabled,
+} from '../lib/casinoAudio.js';
 
 type Props = {
   casinoPage: CasinoPageDto;
@@ -29,7 +34,6 @@ const RED = new Set([1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36]);
 const EUROPEAN_WHEEL = ['0', '32', '15', '19', '4', '21', '2', '25', '17', '34', '6', '27', '13', '36', '11', '30', '8', '23', '10', '5', '24', '16', '33', '1', '20', '14', '31', '9', '22', '18', '29', '7', '28', '12', '35', '3', '26'];
 const AMERICAN_WHEEL = ['0', '28', '9', '26', '30', '11', '7', '20', '32', '17', '5', '22', '34', '15', '3', '24', '36', '13', '1', '00', '27', '10', '25', '29', '12', '8', '19', '31', '18', '6', '21', '33', '16', '4', '23', '35', '14', '2'];
 const DEFAULT_BALL_ANGLE = -90;
-const SPIN_ANIMATION_MS = 4200;
 
 function pocketTone(pocket: string): 'red' | 'black' | 'green' {
   if (pocket === '0' || pocket === '00') return 'green';
@@ -40,6 +44,22 @@ function ballAngleForPocket(wheelPockets: string[], pocket?: string | null): num
   const index = pocket ? wheelPockets.indexOf(pocket) : -1;
   if (index < 0) return DEFAULT_BALL_ANGLE;
   return index * (360 / wheelPockets.length) + DEFAULT_BALL_ANGLE;
+}
+
+function wheelSectorGradient(wheelPockets: string[]): string {
+  const step = 360 / wheelPockets.length;
+  const divider = Math.min(0.55, step * 0.08);
+  const stops = wheelPockets.flatMap((pocket, index) => {
+    const start = index * step;
+    const end = start + step;
+    const color = pocketTone(pocket) === 'green' ? '#286b36' : pocketTone(pocket) === 'red' ? '#a93429' : '#20272c';
+    return [
+      `rgba(245, 239, 216, .82) ${start.toFixed(4)}deg ${(start + divider).toFixed(4)}deg`,
+      `${color} ${(start + divider).toFixed(4)}deg ${(end - divider).toFixed(4)}deg`,
+      `rgba(245, 239, 216, .82) ${(end - divider).toFixed(4)}deg ${end.toFixed(4)}deg`,
+    ];
+  });
+  return `conic-gradient(from ${(-step / 2).toFixed(4)}deg, ${stops.join(', ')})`;
 }
 
 function wait(ms: number): Promise<void> {
@@ -107,6 +127,8 @@ export function RoulettePanel({ casinoPage, onPageChange }: Props) {
   const [wheelSpin, setWheelSpin] = useState<CasinoRouletteSpinDto | null>(null);
   const [busy, setBusy] = useState(false);
   const [spinning, setSpinning] = useState(false);
+  const [spinPhase, setSpinPhase] = useState<'idle' | 'spinning' | 'settling'>('idle');
+  const [soundEnabled, setSoundEnabledState] = useState(() => casinoSoundEnabled());
   const [spinStartAngle, setSpinStartAngle] = useState(DEFAULT_BALL_ANGLE);
   const [spinEndAngle, setSpinEndAngle] = useState(DEFAULT_BALL_ANGLE + 2520);
   const [error, setError] = useState<string | null>(null);
@@ -148,6 +170,7 @@ export function RoulettePanel({ casinoPage, onPageChange }: Props) {
     '--se-ball-angle': `${ballAngle}deg`,
     '--se-ball-start-angle': `${spinStartAngle}deg`,
     '--se-ball-end-angle': `${spinEndAngle}deg`,
+    '--se-wheel-sectors': wheelSectorGradient(wheelPockets),
   } as CSSProperties;
 
   useEffect(() => {
@@ -174,6 +197,7 @@ export function RoulettePanel({ casinoPage, onPageChange }: Props) {
       next[index] = { ...existing, amountCents: nextAmount };
       return next;
     });
+    playCasinoSound('CHIP_PLACE', soundEnabled, bets.length);
     setLastSpin(null);
     setWheelSpin(null);
     actionId.current = newActionId();
@@ -192,6 +216,7 @@ export function RoulettePanel({ casinoPage, onPageChange }: Props) {
     if (!table || !bets.length) return;
     setBusy(true);
     setError(null);
+    playCasinoSound('ROULETTE_SPIN', soundEnabled);
     try {
       const startAngle = ballAngleForPocket(wheelPockets, lastSpin?.pocket);
       const result = await casinoApi.rouletteSpin({
@@ -204,16 +229,32 @@ export function RoulettePanel({ casinoPage, onPageChange }: Props) {
       setSpinEndAngle(landingAngle + 2520);
       setWheelSpin(result.spin);
       setSpinning(true);
-      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) await wait(SPIN_ANIMATION_MS);
+      setSpinPhase('spinning');
+      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        for (let tick = 0; tick < 18; tick++) {
+          await wait(120 + tick * 5);
+          playCasinoSound('ROULETTE_TICK', soundEnabled, tick);
+        }
+        setSpinPhase('settling');
+        playCasinoSound('BALL_DROP', soundEnabled);
+        for (const [tick, delay] of [180, 240, 320, 535].entries()) {
+          await wait(delay);
+          playCasinoSound('ROULETTE_TICK', soundEnabled, tick + 18);
+        }
+      } else {
+        playCasinoSound('BALL_DROP', soundEnabled);
+      }
       onPageChange(result.page);
       setState(result.roulette);
       setLastSpin(result.spin);
       setWheelSpin(null);
+      playCasinoSound(result.spin.netCents > 0 ? 'SMALL_WIN' : result.spin.netCents === 0 ? 'TABLE_PUSH' : 'LOSS', soundEnabled);
       actionId.current = newActionId();
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'The roulette dealer could not complete that spin.');
     } finally {
       setSpinning(false);
+      setSpinPhase('idle');
       setBusy(false);
     }
   }
@@ -276,9 +317,32 @@ export function RoulettePanel({ casinoPage, onPageChange }: Props) {
             ))}
           </div>
 
+          <div className="se-roulette__sound-row">
+            <button
+              type="button"
+              className="se-btn se-btn--ghost"
+              aria-pressed={soundEnabled}
+              onClick={() => {
+                const next = !soundEnabled;
+                setSoundEnabledState(next);
+                setCasinoSoundEnabled(next);
+                if (next) playCasinoSound('CHIP_PLACE', true);
+              }}
+            >
+              {soundEnabled ? 'Sound on' : 'Muted'}
+            </button>
+          </div>
+
           {table ? (
             <>
               <div className="se-roulette__stage">
+                <div className="se-roulette__readout">
+                  <span><small>Bankroll</small><strong>{formatCents(bankrollCents)}</strong></span>
+                  <span><small>On table</small><strong>{formatCents(totalBetCents)}</strong></span>
+                  <span><small>Positions</small><strong>{bets.length}</strong></span>
+                  <span><small>Table max</small><strong>{formatCents(table.maxTotalBetCents)}</strong></span>
+                </div>
+
                 <div
                   className={'se-roulette__wheel' + (spinning ? ' is-spinning' : '')}
                   style={wheelStyle}
@@ -292,7 +356,7 @@ export function RoulettePanel({ casinoPage, onPageChange }: Props) {
                     {wheelPockets.map((pocket, index) => (
                       <span
                         key={pocket}
-                        className={'se-roulette__pocket is-' + pocketTone(pocket)}
+                        className={'se-roulette__pocket is-' + pocketTone(pocket) + (!spinning && lastSpin?.pocket === pocket ? ' is-winning' : '')}
                         style={{
                           transform: `translate(-50%, -50%) rotate(${index * (360 / wheelPockets.length)}deg) translateY(calc(var(--se-wheel-pocket-radius) * -1))`,
                         }}
@@ -311,13 +375,11 @@ export function RoulettePanel({ casinoPage, onPageChange }: Props) {
                     <span className="se-roulette__spoke" />
                     <span className="se-roulette__spoke" />
                   </div>
-                </div>
-
-                <div className="se-roulette__readout">
-                  <span><small>Bankroll</small><strong>{formatCents(bankrollCents)}</strong></span>
-                  <span><small>On table</small><strong>{formatCents(totalBetCents)}</strong></span>
-                  <span><small>Positions</small><strong>{bets.length}</strong></span>
-                  <span><small>Table max</small><strong>{formatCents(table.maxTotalBetCents)}</strong></span>
+                  <div className={'se-roulette__wheel-status' + (!spinning && lastSpin ? ' is-result is-' + lastSpin.color.toLowerCase() : '')} aria-hidden="true">
+                    {spinning
+                      ? spinPhase === 'settling' ? 'NO MORE BETS' : 'SPINNING'
+                      : lastSpin ? lastSpin.pocket : 'PLACE BETS'}
+                  </div>
                 </div>
 
                 {state.history.length ? (

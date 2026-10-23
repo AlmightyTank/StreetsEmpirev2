@@ -11,8 +11,11 @@ import { Field } from '../components/Field.js';
 import { Panel } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { adminWhen } from '../utils/admin.js';
+import { useStaff } from '../utils/staff.js';
 
 export function AdminAccountsPage() {
+  // Beta approvals and the player inspector are admin tools; email is admin-only too.
+  const isAdmin = useStaff().can('admin');
   const [searchParams] = useSearchParams();
   const accountMessage = searchParams.get('accountMessage');
   const [query, setQuery] = useState('');
@@ -51,8 +54,8 @@ export function AdminAccountsPage() {
 
   useEffect(() => {
     void search('', 'all');
-    void loadPending();
-  }, [search, loadPending]);
+    if (isAdmin) void loadPending();
+  }, [search, loadPending, isAdmin]);
 
   async function approvePending(account: AdminAccountSummaryDto) {
     setPendingBusyId(account.id);
@@ -101,7 +104,7 @@ export function AdminAccountsPage() {
       {error ? <Alert>{error}</Alert> : null}
       {notice ? <p className="se-admin-notice" role="status">{notice}</p> : null}
 
-      <Panel
+      {isAdmin ? <Panel
         title="Pending Beta Approvals"
         aside={pendingApprovals ? `${formatNumber(pendingApprovals.length)} waiting` : undefined}
         flush
@@ -153,13 +156,13 @@ export function AdminAccountsPage() {
             </table>
           </div>
         )}
-      </Panel>
+      </Panel> : null}
 
       <Panel title="Search" className="se-mb">
         <form className="se-admin-filters" onSubmit={submit} noValidate>
           <Field
             id="admin-account-query"
-            label="Name, email, Discord or #pimp id"
+            label={isAdmin ? 'Name, email, Discord or #pimp id' : 'Name, Discord or #pimp id'}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             maxLength={80}
@@ -177,7 +180,7 @@ export function AdminAccountsPage() {
               <option value="inactive">Deactivated</option>
               <option value="suspended">Suspended</option>
               <option value="beta-pending">Pending beta approval</option>
-              <option value="admin">Admins</option>
+              <option value="admin">Staff</option>
             </select>
           </div>
           <div className="se-field">
@@ -186,7 +189,7 @@ export function AdminAccountsPage() {
         </form>
       </Panel>
 
-      <Panel title="Find a player" className="se-mb">
+      {isAdmin ? <Panel title="Find a player" className="se-mb">
         <p className="se-hint">
           A dispute usually names a pimp, not an account. Search a pimp name or public id to open the inspector.
         </p>
@@ -249,7 +252,7 @@ export function AdminAccountsPage() {
             {players.truncated ? <p className="se-hint se-admin-pad">More players matched than are shown. Narrow the name or use the public id.</p> : null}
           </div>
         )}
-      </Panel>
+      </Panel> : null}
 
       <Panel title="Accounts" aside={accounts ? `${formatNumber(accounts.length)} shown` : undefined} flush>
         {!accounts ? (
@@ -276,7 +279,7 @@ export function AdminAccountsPage() {
                     <td className="se-td--title">
                       <Link to={`/game/admin/accounts/${account.id}`}><strong>{account.username}</strong></Link>
                       <br />
-                      <span className="se-muted">{account.email}</span>
+                      {account.email ? <span className="se-muted">{account.email}</span> : null}
                     </td>
                     <td data-label="Status"><AccountTags account={account} /></td>
                     <td data-label="Discord">{account.discordUsername ?? <span className="se-muted">-</span>}</td>

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { PlayerQuestDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
-import { questsApi } from '../api/quests.js';
+import { loadTrackedQuests, onQuestsChanged } from '../quests/questSignals.js';
 import { buildQuestBoard } from '../utils/questBoard.js';
 import { NavIcon } from './NavIcon.js';
 
@@ -25,17 +25,25 @@ export function DashboardStorySpotlight() {
     let sequence = 0;
     const refresh = () => {
       const call = ++sequence;
-      void questsApi.page().then((page) => {
+      void loadTrackedQuests().then((tracked) => {
         if (!active || call !== sequence) return;
-        setQuests(page.quests);
+        setQuests(tracked);
         setFailed(false);
       }).catch(() => {
         if (active && call === sequence) setFailed(true);
       });
     };
     refresh();
-    window.addEventListener('streets:quests-changed', refresh);
-    cleanups.push(() => window.removeEventListener('streets:quests-changed', refresh));
+    cleanups.push(onQuestsChanged((detail) => {
+      if (detail.quests) {
+        if (!active) return;
+        setQuests(detail.quests);
+        setFailed(false);
+        return;
+      }
+      if (detail.scope === 'board') return;
+      refresh();
+    }));
     return () => { active = false; for (const cleanup of cleanups) cleanup(); };
   }, []);
 

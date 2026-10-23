@@ -9,9 +9,14 @@ import {
   RulesetVersionMismatchError,
   isKnownRulesetId,
   listRulesets,
+  DEFAULT_RULESET_ID,
 } from '../loader.js';
 
 describe('ruleset loader', () => {
+  it('defaults new seeds to the latest registered ruleset', () => {
+    expect(DEFAULT_RULESET_ID).toBe(Object.values(rulesets).at(-1)?.meta.id);
+  });
+
   it('loads the classic ruleset by id', () => {
     expect(loadRuleset('classic-og-v0.1')).toBe(classicOgV01);
   });

@@ -43,6 +43,7 @@ export const turnsToSpendSchema = z
 export const scoutSchema = z.object({
   district: z.string().trim().min(1, 'Pick a district to scout.'),
   turns: turnsToSpendSchema,
+  territoryAccessGrantId: z.string().min(1).max(64).optional(),
   crewMemberIds: z.array(z.string().trim().min(1).max(64)).max(5).refine((ids) => new Set(ids).size === ids.length, 'Choose each crew member once.').optional(),
   actionId: actionIdSchema,
 }).strict();
@@ -174,7 +175,7 @@ export type ProduceCrackInput = z.infer<typeof produceCrackSchema>;
 export type PayoutInput = z.infer<typeof payoutSchema>;
 
 export const hideoutUpgradeSchema = z.object({
-  room: z.enum(['SAFE_ROOM', 'LOOKOUTS', 'WORKSHOP', 'BACK_OFFICE', 'GARAGE']),
+  room: z.enum(['SAFE_ROOM', 'LOOKOUTS', 'WORKSHOP', 'BACK_OFFICE', 'GARAGE', 'STORAGE']),
   actionId: actionIdSchema,
 });
 export type HideoutUpgradeInput = z.infer<typeof hideoutUpgradeSchema>;
@@ -192,12 +193,63 @@ export const hideoutSpecializationSchema = z.object({
 }).strict();
 export type HideoutSpecializationInput = z.infer<typeof hideoutSpecializationSchema>;
 
+export const armoryBulkActionSchema = z.object({
+  actionId: actionIdSchema,
+  items: z.array(z.object({ kind: z.enum(['GUN', 'VEHICLE']), id: z.string().trim().min(1).max(64) }).strict()).min(1).max(100),
+  action: z.enum(['FAVORITE', 'RESERVE', 'CLEAR_FLAGS', 'RENAME']),
+  name: z.string().trim().min(1).max(40).optional(),
+}).strict().superRefine((value, context) => {
+  if (value.action === 'RENAME' && !value.name) context.addIssue({ code: z.ZodIssueCode.custom, path: ['name'], message: 'Enter a name.' });
+  if (value.action !== 'RENAME' && value.items.some((item) => item.kind === 'VEHICLE')) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ['items'], message: 'Favourite and reserve actions apply to guns.' });
+  }
+});
+export type ArmoryBulkActionInput = z.infer<typeof armoryBulkActionSchema>;
+
+const armoryItemSelectionSchema = z.object({
+  kind: z.enum(['GUN', 'VEHICLE']),
+  id: z.string().trim().min(1).max(64),
+}).strict();
+export const armoryModActionSchema = z.object({
+  actionId: actionIdSchema,
+  action: z.enum(['INSTALL_MOD', 'REMOVE_MOD', 'SAVE_BUILD', 'APPLY_BUILD', 'DELETE_BUILD']),
+  scope: z.enum(['ONE', 'STACK']).default('ONE'),
+  items: z.array(armoryItemSelectionSchema).max(2_100).optional(),
+  modKey: z.string().trim().toUpperCase().regex(/^[A-Z][A-Z0-9_]{1,31}$/).optional(),
+  tier: z.number().int().min(1).max(3).optional(),
+  buildId: z.string().trim().min(1).max(64).optional(),
+  name: z.string().trim().min(1).max(40).optional(),
+}).strict().superRefine((value, context) => {
+  const needsItems = ['INSTALL_MOD', 'REMOVE_MOD', 'APPLY_BUILD', 'SAVE_BUILD'].includes(value.action);
+  if (needsItems && !value.items?.length) context.addIssue({ code: z.ZodIssueCode.custom, path: ['items'], message: 'Select equipment first.' });
+  if ((value.action === 'INSTALL_MOD' || value.action === 'REMOVE_MOD') && !value.modKey) context.addIssue({ code: z.ZodIssueCode.custom, path: ['modKey'], message: 'Choose a modification.' });
+  if (value.action === 'INSTALL_MOD' && !value.tier) context.addIssue({ code: z.ZodIssueCode.custom, path: ['tier'], message: 'Choose a tier.' });
+  if ((value.action === 'APPLY_BUILD' || value.action === 'DELETE_BUILD') && !value.buildId) context.addIssue({ code: z.ZodIssueCode.custom, path: ['buildId'], message: 'Choose a saved build.' });
+  if (value.action === 'SAVE_BUILD' && !value.name) context.addIssue({ code: z.ZodIssueCode.custom, path: ['name'], message: 'Name this build.' });
+  if (value.action === 'SAVE_BUILD' && (value.items?.length ?? 0) !== 1) context.addIssue({ code: z.ZodIssueCode.custom, path: ['items'], message: 'Select one item to save its setup.' });
+});
+export type ArmoryModActionInput = z.input<typeof armoryModActionSchema>;
+
+export const armoryLookActionSchema = z.object({
+  actionId: actionIdSchema,
+  items: z.array(armoryItemSelectionSchema).min(1).max(100),
+  lookKey: z.string().trim().min(1).max(80).nullable(),
+}).strict();
+export type ArmoryLookActionInput = z.infer<typeof armoryLookActionSchema>;
+
+export const armoryFeatureItemSchema = z.object({
+  actionId: actionIdSchema,
+  item: armoryItemSelectionSchema.nullable(),
+}).strict();
+export type ArmoryFeatureItemInput = z.infer<typeof armoryFeatureItemSchema>;
+
 export const storeTradeSchema = z.object({
   store: z.string().trim().min(1, 'Pick a store.').max(64),
   item: z.string().trim().min(1, 'Pick an item.').max(64),
   direction: z.enum(['buy', 'sell']),
   quantity: z.number({ invalid_type_error: 'Enter a quantity.' })
     .int('Quantity must be a whole number.').positive('Enter at least one.').max(MAX_ORDER_QUANTITY, 'That order is too large.'),
+  territoryAccessGrantId: z.string().min(1).max(64).optional(),
   actionId: actionIdSchema,
 });
 
@@ -209,6 +261,7 @@ export const storeCheckoutSchema = z.object({
   lines: z.array(storeCheckoutLineSchema)
     .min(1, 'Add something to the basket.')
     .max(20, 'Check out up to 20 lines at a time.'),
+  territoryAccessGrantId: z.string().min(1).max(64).optional(),
   actionId: actionIdSchema,
 });
 
@@ -401,6 +454,24 @@ export const crewStaffingOrderSchema = z.object({
 
 export type CrewStaffingOrderInput = z.infer<typeof crewStaffingOrderSchema>;
 
+/** Optional round-only mentorship links. No action turns or spend. */
+export const crewMentorLinkSchema = z.object({
+  mentorId: z.string().trim().min(1).max(64),
+  apprenticeId: z.string().trim().min(1).max(64),
+}).strict();
+export type CrewMentorLinkInput = z.infer<typeof crewMentorLinkSchema>;
+
+export const crewMentorEndSchema = z.object({
+  bondId: z.string().trim().min(1).max(64),
+}).strict();
+export type CrewMentorEndInput = z.infer<typeof crewMentorEndSchema>;
+
+export const crewNicknameSchema = z.object({
+  memberId: z.string().trim().min(1).max(64),
+  nicknameKey: z.enum(['CORNER_KEEPER','ROAD_VETERAN','SHIFT_ANCHOR','STREET_REGULAR','TRUSTED_HAND']).nullable(),
+}).strict();
+export type CrewNicknameInput = z.infer<typeof crewNicknameSchema>;
+
 /** 1.7.0-D. Train an available member who already earned the selected specialty. */
 export const crewTrainingSchema = z.object({
   memberId: z.string().trim().min(1).max(64),
@@ -490,16 +561,18 @@ export const raidSchema = z.object({
   roundId: z.string().min(1).max(64),
   targetPublicPimpId: z.number().int().positive().max(2_147_483_647),
   attackingThugs: z.number().int().positive().safe(),
+  /** 2.4.0-D. Optional per-raid ammunition spend ceiling, in rounds. */
+  attackerAmmoCapRounds: z.number().int().min(0).max(2_147_483_647).optional(),
   crewMemberIds: z.array(z.string().trim().min(1).max(64)).max(5).refine((ids) => new Set(ids).size === ids.length, 'Choose each crew member once.').optional(),
   actionId: actionIdSchema,
 }).strict();
 export type RaidInputDto = z.infer<typeof raidSchema>;
 
 /** Same intent as a raid: a target, how many go, and a retry-safe id. */
-export const driveBySchema = raidSchema.omit({ crewMemberIds: true });
+export const driveBySchema = raidSchema.omit({ crewMemberIds: true, attackerAmmoCapRounds: true });
 export type DriveByInputDto = z.infer<typeof driveBySchema>;
 
-export const specialRaidSchema = raidSchema.omit({ crewMemberIds: true }).extend({
+export const specialRaidSchema = raidSchema.omit({ crewMemberIds: true, attackerAmmoCapRounds: true }).extend({
   kind: z.enum(['DRUG_HOES', 'STEAL_RIDE', 'LURE_CREW']),
 }).strict();
 export type SpecialRaidInputDto = z.infer<typeof specialRaidSchema>;

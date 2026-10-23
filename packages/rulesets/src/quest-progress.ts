@@ -84,6 +84,13 @@ function amountFor(objective: QuestObjectiveDefinition, event: QuestProgressEven
 
     case 'RECRUIT_CREW': {
       const crew = stringParam(objective.params, 'crew') ?? 'ANY';
+      if (event.type === 'STORE_BUY') {
+        const itemKey = stringParam(objective.params, 'itemKey');
+        const payload = object(event.payload);
+        if (!payload || payload.direction !== 'buy' || (itemKey && payload.itemKey !== itemKey)) return 0;
+        const quantity = positiveNumber(valueAt(payload, 'quantity'));
+        return crew === 'WHORES' ? 0 : quantity;
+      }
       const whores = positiveNumber(valueAt(event.payload, 'whores'));
       const thugs = positiveNumber(valueAt(event.payload, 'thugs'));
       if (crew === 'WHORES') return whores;

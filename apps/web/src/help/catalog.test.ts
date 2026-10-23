@@ -57,6 +57,8 @@ describe('1.0.0-B help catalog', () => {
 
   it('anchors every tour tooltip to a real action in its page', () => {
     const sources: Record<string, string> = {
+      '/account': readFileSync(new URL('../pages/AccountSettingsPage.tsx', import.meta.url), 'utf8')
+        + readFileSync(new URL('../components/StreetSignBuilder.tsx', import.meta.url), 'utf8'),
       '/game/quests': readFileSync(new URL('../pages/QuestPage.tsx', import.meta.url), 'utf8'),
       '/game/scout': readFileSync(new URL('../pages/ScoutPage.tsx', import.meta.url), 'utf8'),
       '/game/stores': readFileSync(new URL('../pages/StorePage.tsx', import.meta.url), 'utf8'),
@@ -66,7 +68,14 @@ describe('1.0.0-B help catalog', () => {
     };
     for (const key of TOUR_STEP_KEYS) {
       const copy = TOUR_STEPS[key];
-      expect(sources[copy.to], `${key} anchor in ${copy.to}`).toContain(`data-tour="${copy.target}"`);
+      const path = copy.to.split(/[?#]/)[0] ?? copy.to;
+      // Each store lives at /game/stores/:slug on the same page.
+      const route = path.startsWith('/game/stores/') ? '/game/stores' : path;
+      const source = sources[route] ?? '';
+      // Panels take the anchor as a `tourTarget` prop, so it can appear as a string literal.
+      const anchored = source.includes(`data-tour="${copy.target}"`)
+        || (source.includes('tourTarget') && source.includes(`'${copy.target}'`));
+      expect(anchored, `${key} anchor in ${copy.to}`).toBe(true);
     }
   });
 });

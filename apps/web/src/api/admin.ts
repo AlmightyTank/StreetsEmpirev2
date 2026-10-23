@@ -11,12 +11,18 @@ import type {
   AdminCrewCorrectionResult,
   AdminCrewPlayerDto,
   AdminCrewRosterDto,
+  AdminCrewReleaseHealthDto,
+  AdminCrewProvenanceDto,
+  AdminCrewLoyaltyRepairResultDto,
+  AdminCrewRosterRepairResultDto,
   AdminLoanCorrectionInput,
   AdminLoanCorrectionResult,
   AdminLoanPlayerDto,
   AdminLoansDto,
   AdminBugReportQueueDto,
   AdminBugReportStatus,
+  AdminStaffDto,
+  StaffRole,
   BugReportResolution,
   MonitoringSnapshotDto,
   AdminExploitFlagDto,
@@ -24,6 +30,7 @@ import type {
   AdminFactionAdjustmentInput,
   AdminVehicleAdjustmentInput,
   AdminVehicleRoundDto,
+  AdminArmoryPlayerDto,
   AdminFactionRoundDto,
   AdminCasinoDto,
   AdminLawDto,
@@ -115,11 +122,23 @@ export const adminApi = {
   updateRound: (roundId: string, input: AdminUpdateRoundInput) => api.post<AdminRoundResultDto>(roundPath(roundId, 'update'), input),
   roundHealth: (roundId: string) => api.get<AdminRoundHealthDto>(roundPath(roundId, 'health')),
   crewRoster: (roundId: string) => api.get<AdminCrewRosterDto>(roundPath(roundId, 'crew')),
+  crewReleaseHealth: (roundId: string) =>
+    api.get<AdminCrewReleaseHealthDto>(roundPath(roundId, 'crew/release-health')),
+  crewReceiptProvenance: (roundPlayerId: string, memberId: string) =>
+    api.get<AdminCrewProvenanceDto>(`/admin/players/${enc(roundPlayerId)}/crew/${enc(memberId)}/provenance`),
+  reconcileCrewLoyalty: (roundPlayerId: string, memberId: string, reason: string, expectedPoints: number) =>
+    api.post<AdminCrewLoyaltyRepairResultDto>(`/admin/players/${enc(roundPlayerId)}/crew/${enc(memberId)}/loyalty/reconcile`, { reason, expectedPoints }),
+  repairCrewRoster: (roundPlayerId: string, reason: string) =>
+    api.post<AdminCrewRosterRepairResultDto>(`/admin/players/${enc(roundPlayerId)}/crew/reconcile`, { reason }),
   updateStreetPass: (roundId: string, input: AdminStreetPassUpdateInput) => api.post<AdminRoundHealthDto>(roundPath(roundId, 'street-pass'), input),
   rulesetChange: (roundId: string, rulesetId?: string) =>
     api.get<AdminRulesetChangeDto>(`${roundPath(roundId, 'ruleset-change')}${queryString({ rulesetId })}`),
   changeRuleset: (roundId: string, input: AdminChangeRulesetInput) => api.post<AdminRoundResultDto>(roundPath(roundId, 'ruleset'), input),
   closeExpiredRounds: () => api.post<AdminCloseExpiredResultDto>('/admin/rounds/close-expired'),
+  territoryEncounterTester: () => api.get<{ enabled: true; accounts: Array<{ id: string; username: string; territoryTestAccount: boolean }>; pools: Record<string, Array<{ key: string; title: string; territory?: unknown }>> }>('/admin/territory-encounter-tester'),
+  setTerritoryTestAccount: (accountId: string, enabled: boolean, reason: string) => api.post('/admin/territory-encounter-tester/accounts/' + enc(accountId), { enabled, reason }),
+  territoryTestReward: (roundPlayerId: string, key: string, grant: boolean, reason: string) => api.post('/admin/territory-encounter-tester/rewards', { roundPlayerId, key, grant, reason }),
+  simulateTerritoryEncounter: (input: { roundPlayerId: string; trigger: string; district?: string; seed: string }) => api.post<unknown>('/admin/territory-encounter-tester/simulate', input),
 
   questContent: (roundId: string) =>
     api.get<AdminQuestContentDto>(`/admin/quest-content${queryString({ roundId })}`),
@@ -203,13 +222,16 @@ export const adminApi = {
   renameAccount: (accountId: string, username: string, reason: string) =>
     api.post<AdminAccountDetailDto>(accountPath(accountId, 'rename'), { username, reason }),
   resetProfile: (accountId: string, reason: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, 'reset-profile'), { reason }),
-  setAdmin: (accountId: string, isAdmin: boolean, reason: string) =>
-    api.post<AdminAccountDetailDto>(accountPath(accountId, 'admin'), { isAdmin, reason }),
+  /** Give, change or take away (null) a staff role. */
+  setStaffRole: (accountId: string, role: StaffRole | null, reason: string) =>
+    api.post<AdminAccountDetailDto>(accountPath(accountId, 'staff-role'), { role, reason }),
+  staff: () => api.get<AdminStaffDto>('/admin/staff'),
   setBetaApproved: (accountId: string, approved: boolean, reason: string) =>
     api.post<AdminAccountDetailDto>(accountPath(accountId, 'beta-access'), { approved, reason }),
   grantSupporter: (accountId: string, reason: string) => api.post<AdminAccountDetailDto>(accountPath(accountId, 'supporter'), { reason }),
   /** Supporters tab: the roster, a bulk grant by username and a backfill of rewards added later. dryRun previews. */
   supporters: () => api.get<AdminSupportersDto>('/admin/supporters'),
+  supporterBenefits: () => api.get<import('@streets/shared').AdminSupporterBenefitsDiagnosticsDto>('/admin/supporters/benefits'),
   stageSupporterPoll: (input: SupporterPollStageInput) => api.post<SupporterPollDto>('/admin/supporters/polls', input),
   grantSupporters: (usernames: string[], reason: string, dryRun: boolean) =>
     api.post<AdminSupporterGrantResultDto>('/admin/supporters/grant', dryRun ? { usernames, dryRun } : { usernames, reason, dryRun }),
@@ -295,6 +317,7 @@ export const adminApi = {
     api.post<AdminPlayerDto>(`/admin/players/${enc(roundPlayerId)}/factions/adjust`, input),
   /** 1.5.0-E. Vehicle health for a round, and audited fleet corrections. */
   vehicles: (roundId: string) => api.get<AdminVehicleRoundDto>(roundPath(roundId, 'vehicles')),
+  armory: (roundPlayerId: string) => api.get<AdminArmoryPlayerDto>(`/admin/players/${enc(roundPlayerId)}/armory`),
   adjustPlayerVehicles: (roundPlayerId: string, input: AdminVehicleAdjustmentInput) =>
     api.post<AdminPlayerDto>(`/admin/players/${enc(roundPlayerId)}/vehicles/adjust`, input),
   // 1.3.0-G: law health, one player's Case, and an audited correction.

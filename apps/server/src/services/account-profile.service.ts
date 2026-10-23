@@ -1,20 +1,29 @@
 import { Prisma, type AccountProfile, type PrismaClient } from '@prisma/client';
 import { loadRulesetForRound } from '@streets/rules-engine';
 import {
+  AVATAR_LOCKED_OPTIONS,
   DEFAULT_CREW_COSMETICS,
+  lockedAvatarParts,
   RELEASED_CREW_COSMETIC_STYLES,
   RELEASED_ITEM_COSMETIC_STYLES,
   collectionOptions,
   isOwnedCollection,
   isReleasedItemCosmeticStyle,
   readAvatarParts,
+  streetSignForCrewName,
   SIGNATURE_CARD_FRAME_KEY,
   SUPPORTER_UNLOCK_HINT,
+  DROP_UNLOCK_HINT,
+  STREET_SIGN_FONT_PACKS,
+  streetSignBackdropFor,
+  STREET_SIGN_BACKDROPS,
+  experienceLevelFor,
 } from '@streets/shared';
 import type {
   AccountProfileSettingsDto,
   AccountProfileSettingsResponseDto,
   BadgeCosmeticOptionDto,
+  CollectionOptionDto,
   CosmeticOptionDto,
   DefaultLanding,
   ItemCosmeticStyleKey,
@@ -26,17 +35,21 @@ import type {
   UiDensity,
   UpdateAccountProfileSettingsInput,
 } from '@streets/shared';
-import { rulesets, SUPPORTER_COSMETICS, type QuestCosmeticDefinition, type Ruleset } from '@streets/rulesets';
+import { rulesets, SUPPORTER_COSMETICS, ROUND_ROLL_CALL_FINALE_COSMETICS, DROP_ITEMS, type QuestCosmeticDefinition, type Ruleset } from '@streets/rulesets';
 import { env } from '../config/env.js';
 import { AppError } from '../utils/errors.js';
 import { CommunityService, permanentAwardsForAccount } from './community.service.js';
 import { RoundPlayerService } from './round-player.service.js';
 import { RoundService } from './round.service.js';
 import { QuestCosmeticService, withThemeCompanionFrames } from './quest-cosmetic.service.js';
+import { AvatarWearableService } from './avatar-wearable.service.js';
 import { isPermanentAward } from './profile-badges.js';
 import { profileTitleForAward } from './profile-titles.js';
 import { crewCosmeticLoadout, itemCosmeticLoadout } from './profile-showcase.service.js';
 import { SupporterService } from './supporter.service.js';
+import { supporterTrialActive, TRIAL_SUPPORTER_COSMETICS } from './supporter-trial.service.js';
+import { birthdayLookOptions } from './birthday.service.js';
+import { assertCommunicationContent } from './content-moderation.service.js';
 
 export const PROFILE_BADGE_FEATURE_LIMIT = 6;
 export const FREE_PROFILE_PRESET_SLOTS = 1;
@@ -60,6 +73,10 @@ function collectionUnlockHints(ruleset: Ruleset | null): Partial<Record<ItemCosm
   const hints: Partial<Record<ItemCosmeticStyleKey, string>> = {};
   for (const cosmetic of Object.values(SUPPORTER_COSMETICS)) {
     if (cosmetic.kind === 'ITEM_COLLECTION' && isReleasedItemCosmeticStyle(cosmetic.styleKey)) hints[cosmetic.styleKey] = SUPPORTER_UNLOCK_HINT;
+  }
+  hints['obsidian-signal-crew'] = 'Finish the Round Roll Call attendance track to earn the permanent pair.';
+  for (const item of Object.values(DROP_ITEMS)) {
+    if (item.kind === 'ITEM_COLLECTION' && item.styleKey && isReleasedItemCosmeticStyle(item.styleKey)) hints[item.styleKey] = DROP_UNLOCK_HINT;
   }
   const pass = ruleset?.streetPass;
   if (!ruleset || !pass) return hints;
@@ -203,7 +220,7 @@ function catalogCosmeticOptionsForRuleset(ruleset: Ruleset, kind: 'PROFILE_FRAME
 function catalogCosmeticOptions(kind: 'PROFILE_FRAME' | 'SITE_THEME'): CosmeticOptionDto[] {
   const options: CosmeticOptionDto[] = [];
   const known = new Set<string>();
-  for (const cosmetic of Object.values(SUPPORTER_COSMETICS)) {
+  for (const cosmetic of [...Object.values(SUPPORTER_COSMETICS), ...Object.values(ROUND_ROLL_CALL_FINALE_COSMETICS)]) {
     if (cosmetic.kind !== kind) continue;
     const option = optionFromCosmetic(cosmetic);
     if (!known.has(option.key)) {
@@ -230,6 +247,8 @@ function toSettingsDto(
   frameOptions: CosmeticOptionDto[],
   themeOptions: CosmeticOptionDto[],
   ownedCollections: ReadonlySet<string>,
+  bannerOptions: CollectionOptionDto[],
+  avatarUnlocks: ReadonlySet<string>,
 ): AccountProfileSettingsDto {
   const activeTitleKey = profile?.activeTitleKey && earnedTitleKeys.has(profile.activeTitleKey)
     ? profile.activeTitleKey
@@ -270,10 +289,14 @@ function toSettingsDto(
     activeTitleKey,
     titlePlacement: profile?.titlePlacement === 'suffix' ? 'suffix' : 'prefix',
     crewName: profile?.crewName ?? null,
+    streetSign: streetSignForCrewName(profile?.streetSign, profile?.crewName),
     profileBio: profile?.profileBio ?? null,
     profileImageUrl: profile?.profileImageUrl ?? null,
-    profileAvatar: readAvatarParts(profile?.profileAvatar),
+    profileAvatar: readAvatarParts(profile?.profileAvatar, avatarUnlocks),
     profileBannerUrl: profile?.profileBannerUrl ?? null,
+    activeCrewBannerKey: profile?.activeCrewBannerKey && bannerOptions.some((option) => option.key === profile.activeCrewBannerKey && !option.locked)
+      ? profile.activeCrewBannerKey
+      : null,
     profileEffect,
     activeProfileFrameKey,
     activeAvatarFrameKey,
@@ -283,12 +306,17 @@ function toSettingsDto(
     crewCosmetics: crewCosmeticLoadout(profile?.crewCosmetics, ownedCollections),
     showThemeOnProfile: profile?.showThemeOnProfile ?? true,
     showLookOnProfile: profile?.showLookOnProfile ?? true,
+    forumCosmeticsVisible: profile?.forumCosmeticsVisible ?? false,
+    showCrewMoments: profile?.showCrewMoments ?? false,
+    showCrewCelebrations: profile?.showCrewCelebrations ?? false,
+    showBirthdayCake: profile?.showBirthdayCake ?? false,
     featuredBadgeKeys,
     profileAccent,
     uiDensity,
     reducedMotion: profile?.reducedMotion ?? false,
     moneyFormat,
     defaultLanding,
+    showProfanity: profile?.showProfanity ?? false,
   };
 }
 
@@ -320,13 +348,44 @@ async function appearanceOptions(prisma: PrismaClient, accountId: string): Promi
   themes: CosmeticOptionDto[];
   /** Item art collection keys this account has earned (Classic is implicit). */
   collections: Set<string>;
+  crewBanners: CollectionOptionDto[];
+  /** Unlock keys of the avatar wearables this account may wear. */
+  avatarUnlocks: Set<string>;
+  streetSignFontPackKeys: Set<string>;
+  /** Street sign backdrop keys: those of owned shell themes plus backdrops bought on The Drop. */
+  streetSignBackdropKeys: Set<string>;
 }> {
-  const [questAccents, frames, themes, collectionUnlocks, account] = await Promise.all([
+  const account = await prisma.account.findUnique({ where: { id: accountId }, select: { isAdmin: true, experiencePoints: true } });
+  const earnedFontPacks = STREET_SIGN_FONT_PACKS.filter((pack) => pack.level <= experienceLevelFor(account?.experiencePoints ?? 0));
+  if (earnedFontPacks.length) {
+    await prisma.accountCosmeticUnlock.createMany({
+      data: earnedFontPacks.map((pack) => ({
+        accountId,
+        key: pack.key,
+        kind: 'STREET_SIGN_FONT_PACK',
+        title: pack.label,
+        description: pack.description,
+        rarity: pack.level >= 20 ? 'rare' : 'uncommon',
+        styleKey: null,
+        sourceQuestKey: 'PLAYER_EXPERIENCE_SIGN_FONT_PACK',
+        sourceRulesetId: 'account-progression',
+        sourceRulesetVersion: '1',
+        awardedAt: new Date(),
+      })),
+      skipDuplicates: true,
+    });
+  }
+  const [questAccents, frames, themes, bannerUnlocks, collectionUnlocks, trialActive, birthday, avatarUnlocks, streetSignFontUnlocks, streetSignBackdropUnlocks] = await Promise.all([
     QuestCosmeticService.optionsForAccount(prisma, accountId, 'ACCENT'),
     QuestCosmeticService.optionsForAccount(prisma, accountId, 'PROFILE_FRAME'),
     QuestCosmeticService.optionsForAccount(prisma, accountId, 'SITE_THEME'),
+    QuestCosmeticService.optionsForAccount(prisma, accountId, 'CREW_BANNER'),
     QuestCosmeticService.optionsForAccount(prisma, accountId, 'ITEM_COLLECTION'),
-    prisma.account.findUnique({ where: { id: accountId }, select: { isAdmin: true } }),
+    supporterTrialActive(prisma, accountId),
+    birthdayLookOptions(prisma, accountId, new Date()),
+    AvatarWearableService.ownedKeys(prisma, accountId),
+    QuestCosmeticService.optionsForAccount(prisma, accountId, 'STREET_SIGN_FONT_PACK'),
+    QuestCosmeticService.optionsForAccount(prisma, accountId, 'STREET_SIGN_BACKDROP'),
   ]);
   const accents = [...PROFILE_ACCENTS];
   const known = new Set(accents.map((option) => option.key));
@@ -336,11 +395,34 @@ async function appearanceOptions(prisma: PrismaClient, accountId: string): Promi
       known.add(option.key);
     }
   }
-  const themeOptions = [...themes];
-  const frameOptions = [...frames];
+  // The birthday frame and theme are offered on the day only (birthday.service).
+  const themeOptions = [...themes, ...birthday.themes];
+  const frameOptions = [...frames, ...birthday.frames];
   const knownThemes = new Set(themeOptions.map((option) => option.key));
   const knownFrames = new Set(frameOptions.map((option) => option.key));
   const collections = new Set(collectionUnlocks.map((option) => option.key));
+  const bannerCatalog = Object.values(SUPPORTER_COSMETICS).filter((cosmetic) => cosmetic.kind === 'CREW_BANNER').map(optionFromCosmetic);
+  const ownedBanners = new Set(bannerUnlocks.map((option) => option.key));
+  const crewBanners: CollectionOptionDto[] = bannerCatalog.map((option) => ({
+    ...option,
+    locked: !ownedBanners.has(option.key),
+    unlockHint: ownedBanners.has(option.key) ? null : 'Active paid supporter reward',
+    description: ownedBanners.has(option.key) ? option.description : `${option.description} Unlock through paid supporter rewards.`,
+  }));
+  if (trialActive) {
+    for (const cosmetic of TRIAL_SUPPORTER_COSMETICS) {
+      const option = optionFromCosmetic(cosmetic);
+      if (cosmetic.kind === 'ACCENT' && !known.has(option.key)) {
+        accents.push(option);
+        known.add(option.key);
+      } else if (cosmetic.kind === 'PROFILE_FRAME' && !knownFrames.has(option.key)) {
+        frameOptions.push(option);
+        knownFrames.add(option.key);
+      } else if (cosmetic.kind === 'ITEM_COLLECTION' && cosmetic.styleKey) {
+        collections.add(cosmetic.styleKey);
+      }
+    }
+  }
   const unlockCatalogCosmetics = env.appEnvironment === 'development' || (account?.isAdmin && env.seasonalEvents.adminTestMode);
   if (unlockCatalogCosmetics) {
     for (const option of catalogCosmeticOptions('PROFILE_FRAME')) {
@@ -355,11 +437,17 @@ async function appearanceOptions(prisma: PrismaClient, accountId: string): Promi
         knownThemes.add(option.key);
       }
     }
+    for (const key of AVATAR_LOCKED_OPTIONS.keys()) avatarUnlocks.add(key);
+    for (const backdrop of STREET_SIGN_BACKDROPS) streetSignBackdropUnlocks.push({ key: backdrop.key, label: backdrop.label, description: '' });
+  }
+  const streetSignBackdropKeys = new Set(streetSignBackdropUnlocks.map((option) => option.key));
+  for (const backdrop of STREET_SIGN_BACKDROPS) {
+    if (backdrop.themeKey && knownThemes.has(backdrop.themeKey)) streetSignBackdropKeys.add(backdrop.key);
   }
   if (account?.isAdmin && env.seasonalEvents.adminTestMode) {
     for (const style of RELEASED_ITEM_COSMETIC_STYLES) collections.add(style.key);
   }
-  return { accents, frames: withThemeCompanionFrames(frameOptions, themeOptions), themes: themeOptions, collections };
+  return { accents, frames: withThemeCompanionFrames(frameOptions, themeOptions), themes: themeOptions, collections, crewBanners, avatarUnlocks, streetSignFontPackKeys: new Set(streetSignFontUnlocks.map((option) => option.key)), streetSignBackdropKeys };
 }
 
 export const AccountProfileService = {
@@ -378,7 +466,7 @@ export const AccountProfileService = {
     const earnedTitleKeys = new Set([...earnedBadgeKeys, ...honorificTitleKeys]);
 
     return {
-      settings: toSettingsDto(profile, earnedBadgeKeys, earnedTitleKeys, appearance.accents, appearance.frames, appearance.themes, appearance.collections),
+      settings: toSettingsDto(profile, earnedBadgeKeys, earnedTitleKeys, appearance.accents, appearance.frames, appearance.themes, appearance.collections, appearance.crewBanners, appearance.avatarUnlocks),
       convenience: convenienceLimits(supporterSince !== null),
       options: {
         titles: titleOptions,
@@ -390,6 +478,10 @@ export const AccountProfileService = {
         surfaces: appearance.frames.some((frame) => frame.key === SIGNATURE_CARD_FRAME_KEY) ? PROFILE_SURFACES : [],
         itemStyles: collectionOptions(RELEASED_ITEM_COSMETIC_STYLES, appearance.collections, hints),
         crewStyles: collectionOptions(RELEASED_CREW_COSMETIC_STYLES, appearance.collections, hints),
+         crewBanners: appearance.crewBanners,
+        avatarUnlocks: [...appearance.avatarUnlocks].sort(),
+        streetSignFontPacks: [...appearance.streetSignFontPackKeys].sort(),
+        streetSignBackdrops: [...appearance.streetSignBackdropKeys].sort(),
         densities: UI_DENSITIES,
         moneyFormats: MONEY_FORMATS,
         defaultLandings: DEFAULT_LANDINGS,
@@ -402,9 +494,10 @@ export const AccountProfileService = {
     accountId: string,
     input: UpdateAccountProfileSettingsInput,
   ): Promise<AccountProfileSettingsResponseDto> {
-    const [awards, appearance] = await Promise.all([
+    const [awards, appearance, savedProfile] = await Promise.all([
       earnedAwards(prisma, accountId),
       appearanceOptions(prisma, accountId),
+      prisma.accountProfile.findUnique({ where: { accountId }, select: { crewName: true } }),
     ]);
     const earnedBadgeKeys = new Set(awards.map((award) => award.key));
     const earnedTitleKeys = new Set([...earnedBadgeKeys, ...honorificTitleKeys]);
@@ -447,6 +540,10 @@ export const AccountProfileService = {
         activeSiteThemeKey: 'That site theme is not unlocked.',
       });
     }
+    const activeCrewBannerKey = input.activeCrewBannerKey ?? null;
+    if (activeCrewBannerKey && !appearance.crewBanners.some((option) => option.key === activeCrewBannerKey && !option.locked)) {
+      throw AppError.badRequest('COSMETIC_NOT_EARNED', 'Pick a crew banner you have already unlocked.', { activeCrewBannerKey: 'That crew banner is not unlocked.' });
+    }
     const accentKeys = new Set(appearance.accents.map((option) => option.key));
     if (!accentKeys.has(input.profileAccent)) {
       throw AppError.badRequest('COSMETIC_NOT_EARNED', 'Pick an accent you have already unlocked.', {
@@ -463,6 +560,11 @@ export const AccountProfileService = {
         crewCosmetics: 'That outfit collection is not unlocked.',
       });
     }
+    if (input.profileAvatar && lockedAvatarParts(input.profileAvatar, appearance.avatarUnlocks).length) {
+      throw AppError.badRequest('COSMETIC_NOT_EARNED', 'Your avatar is wearing a piece you have not unlocked yet.', {
+        profileAvatar: 'One or more avatar pieces are not unlocked.',
+      });
+    }
     const featuredBadgeKeys = uniqueKeys(input.featuredBadgeKeys)
       .filter((key) => earnedBadgeKeys.has(key))
       .slice(0, PROFILE_BADGE_FEATURE_LIMIT);
@@ -473,6 +575,44 @@ export const AccountProfileService = {
     }
 
     const crewName = input.crewName === undefined ? undefined : input.crewName;
+    const effectiveCrewName = crewName === undefined ? savedProfile?.crewName ?? null : crewName;
+    const streetSign = input.streetSign === undefined
+      ? undefined
+      : input.streetSign === null
+        ? null
+        : effectiveCrewName
+          ? { ...input.streetSign, streetName: effectiveCrewName }
+          : input.streetSign;
+    if (streetSign) {
+      assertCommunicationContent('Street sign', `${streetSign.streetName} ${streetSign.tag}`);
+    }
+    if (streetSign && !effectiveCrewName) {
+      throw AppError.badRequest('CREW_NAME_REQUIRED', 'Set a crew name before saving a street sign.', {
+        streetSign: 'Street sign lettering is linked to your crew name.',
+      });
+    }
+    if (streetSign) {
+      const requestedFonts = [
+        { font: streetSign.font, slot: 'streetText' as const },
+        { font: streetSign.tagFont, slot: 'graffiti' as const },
+      ];
+      for (const { font, slot } of requestedFonts) {
+        const pack = STREET_SIGN_FONT_PACKS.find((candidate) => (candidate.fonts as readonly string[]).includes(font));
+        if (pack && (!pack[slot] || !appearance.streetSignFontPackKeys.has(pack.key))) {
+          throw AppError.badRequest('COSMETIC_NOT_EARNED', 'Earn that street sign font pack before using it.', {
+            streetSign: `${pack.label} unlocks at account level ${pack.level}.`,
+          });
+        }
+      }
+      const backdrop = streetSignBackdropFor(streetSign.backdrop);
+      if (backdrop && !appearance.streetSignBackdropKeys.has(backdrop.key)) {
+        throw AppError.badRequest('COSMETIC_NOT_EARNED', 'Own that street sign backdrop before using it.', {
+          streetSign: backdrop.themeKey
+            ? `${backdrop.label} comes with the ${backdrop.collection} shell theme.`
+            : `${backdrop.label} is sold on The Drop.`,
+        });
+      }
+    }
     const profileBio = input.profileBio === undefined ? undefined : input.profileBio;
     const profileImageUrl = input.profileImageUrl === undefined ? undefined : input.profileImageUrl;
     const profileAvatar = input.profileAvatar === undefined
@@ -489,10 +629,12 @@ export const AccountProfileService = {
         activeTitleKey,
         titlePlacement: input.titlePlacement,
         crewName: crewName ?? null,
+        ...(streetSign !== undefined ? { streetSign: streetSign ?? Prisma.DbNull } : {}),
         profileBio: profileBio ?? null,
         profileImageUrl: profileImageUrl ?? null,
         ...(profileAvatar !== undefined ? { profileAvatar } : {}),
         profileBannerUrl: profileBannerUrl ?? null,
+        activeCrewBannerKey,
         profileEffect: profileEffect ?? 'none',
         profileSurface: surface ?? null,
         activeProfileFrameKey,
@@ -502,21 +644,28 @@ export const AccountProfileService = {
         crewCosmetics: { ...(input.crewCosmetics ?? DEFAULT_CREW_COSMETICS) },
         showThemeOnProfile: input.showThemeOnProfile ?? true,
         showLookOnProfile: input.showLookOnProfile ?? true,
+        forumCosmeticsVisible: input.forumCosmeticsVisible ?? false,
+        showCrewMoments: input.showCrewMoments ?? false,
+        showCrewCelebrations: input.showCrewCelebrations ?? false,
+        showBirthdayCake: input.showBirthdayCake ?? false,
         featuredBadgeKeys,
         profileAccent: input.profileAccent,
         uiDensity: input.uiDensity,
         reducedMotion: input.reducedMotion,
         moneyFormat: input.moneyFormat,
         defaultLanding: input.defaultLanding,
+        showProfanity: input.showProfanity,
       },
       update: {
         activeTitleKey,
         titlePlacement: input.titlePlacement,
         ...(crewName !== undefined ? { crewName } : {}),
+        ...(streetSign !== undefined ? { streetSign: streetSign ?? Prisma.DbNull } : {}),
         ...(profileBio !== undefined ? { profileBio } : {}),
         ...(profileImageUrl !== undefined ? { profileImageUrl } : {}),
         ...(profileAvatar !== undefined ? { profileAvatar } : {}),
         ...(profileBannerUrl !== undefined ? { profileBannerUrl } : {}),
+        activeCrewBannerKey,
         ...(profileEffect !== undefined ? { profileEffect } : {}),
         ...(surface !== undefined ? { profileSurface: surface } : {}),
         activeProfileFrameKey,
@@ -526,12 +675,17 @@ export const AccountProfileService = {
         crewCosmetics: { ...(input.crewCosmetics ?? DEFAULT_CREW_COSMETICS) },
         showThemeOnProfile: input.showThemeOnProfile ?? true,
         showLookOnProfile: input.showLookOnProfile ?? true,
+        forumCosmeticsVisible: input.forumCosmeticsVisible ?? false,
+        showCrewMoments: input.showCrewMoments,
+        showCrewCelebrations: input.showCrewCelebrations,
+        showBirthdayCake: input.showBirthdayCake,
         featuredBadgeKeys,
         profileAccent: input.profileAccent,
         uiDensity: input.uiDensity,
         reducedMotion: input.reducedMotion,
         moneyFormat: input.moneyFormat,
         defaultLanding: input.defaultLanding,
+        showProfanity: input.showProfanity,
       },
     });
 
@@ -550,7 +704,7 @@ export const AccountProfileService = {
     const unlocked = awards.filter((award) => award.unlocked);
     const earnedBadgeKeys = new Set(unlocked.map((award) => award.key));
     const earnedTitleKeys = new Set([...earnedBadgeKeys, ...honorificTitleKeys]);
-    const settings = toSettingsDto(profile, earnedBadgeKeys, earnedTitleKeys, appearance.accents, appearance.frames, appearance.themes, appearance.collections);
+    const settings = toSettingsDto(profile, earnedBadgeKeys, earnedTitleKeys, appearance.accents, appearance.frames, appearance.themes, appearance.collections, appearance.crewBanners, appearance.avatarUnlocks);
     const titleAward = unlocked.find((award) => award.key === settings.activeTitleKey);
     const title = settings.activeTitleKey && honorificTitleKeys.includes(settings.activeTitleKey)
       ? profileTitleForAward({ key: settings.activeTitleKey, title: settings.activeTitleKey })

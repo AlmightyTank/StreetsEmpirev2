@@ -51,6 +51,17 @@ describe('quest progress reducer', () => {
     expect(advanceQuestObjective(objective({ kind: 'RECRUIT_CREW', target: 10, params: { eventTypes: ['SCOUT'], crew: 'THUGS' } }), event).amount).toBe(3);
   });
 
+  it('counts a positive thug hire but not unrelated or sell transactions', () => {
+    const def = objective({
+      kind: 'RECRUIT_CREW',
+      target: 1,
+      params: { eventTypes: ['STORE_BUY'], crew: 'THUGS', itemKey: 'THUG' },
+    });
+    expect(advanceQuestObjective(def, { type: 'STORE_BUY', payload: { itemKey: 'BEER', direction: 'buy', quantity: 1 } }).amount).toBe(0);
+    expect(advanceQuestObjective(def, { type: 'STORE_BUY', payload: { itemKey: 'THUG', direction: 'sell', quantity: 1 } }).amount).toBe(0);
+    expect(advanceQuestObjective(def, { type: 'STORE_BUY', payload: { itemKey: 'THUG', direction: 'buy', quantity: 1 } }).amount).toBe(1);
+  });
+
   it('supports exact payload filters and dotted field sums', () => {
     const def = objective({
       kind: 'EVENT_SUM',

@@ -10,11 +10,19 @@ import {
   classicOgV07G,
   classicOgV07H,
   classicOgV07I,
+  classicOgV21B,
+  classicOgV21C,
   hideoutV2For,
   hideoutV2Problems,
 } from '../index.js';
 
 describe('classic-og-v0.7-a hideout foundation', () => {
+  it('preserves the full Hideout v2 extension for new loyalty-enabled rounds', () => {
+    expect(hideoutV2For(classicOgV21C)).toEqual(hideoutV2For(classicOgV21B));
+    expect(hideoutV2For(classicOgV21C)).not.toBeNull();
+    expect(hideoutV2Problems(classicOgV21C)).toEqual([]);
+  });
+
   it('keeps the 0.6 hideout balance and adds extension metadata only to 0.7', () => {
     expect(classicOgV07A.hideout).toEqual(classicOgV06F.hideout);
     expect(hideoutV2For(classicOgV06F)).toBeNull();
@@ -147,5 +155,13 @@ describe('every ruleset from 0.7-A on keeps the Hideout v2 extension', () => {
     for (const id of ids.slice(from)) expect(hideoutV2Problems(rulesets[id]!), id).toEqual([]);
     // The newest ruleset, which new seasons use, in particular.
     expect(hideoutV2For(rulesets[ids.at(-1)!]!)).not.toBeNull();
+  });
+
+  it('passes the extension on to a ruleset built from the newest one, with no ID registration', async () => {
+    const { rulesets } = await import('../index.js');
+    const newest = Object.values(rulesets).at(-1)!;
+    const next = { ...newest, meta: { ...newest.meta, id: 'classic-og-unregistered-next' } };
+    expect(hideoutV2For(next)).toBe(hideoutV2For(newest));
+    expect(hideoutV2For(next)).not.toBeNull();
   });
 });

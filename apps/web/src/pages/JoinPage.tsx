@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { classicOgV01, rulesets } from '@streets/rulesets';
 import { formatCents, formatNumber } from '@streets/shared';
 import { ApiError } from '../api/client.js';
@@ -64,8 +64,7 @@ export function JoinPage() {
       <p className="se-eyebrow">Enter the round</p>
       <h1 className="se-display se-hero se-hero--sm">{round.name}</h1>
       <p className="se-lede">
-        You start in New York City with cash, turns, guns and a crew ready to fight.
-        Build income first, scout before risky hits, then climb the public board before the round clock runs out.
+        Build your crew, grow your income, and climb the rankings before the round ends.
       </p>
 
       {message ? <Alert>{message}</Alert> : null}
@@ -116,7 +115,6 @@ export function JoinPage() {
             <li>Produce product when your shelves get thin or you want stash for drug and lure runs.</li>
             <li>Scout a rival on the raid page before you risk a serious hit.</li>
           </ol>
-          <p className="se-hint">Rankings show public money and legacy. Recon is where you learn private raid info like wounds, weapons, product and exposed cash.</p>
         </Panel>
 
         <aside>
@@ -125,7 +123,6 @@ export function JoinPage() {
               <Row label="Status" value={round.status} />
               <Row label="Time remaining" value={formatDuration(round.msRemaining)} strong />
               <Row label="Players" value={round.playerCount} />
-              <Row label="Window" value={`${formatDuration(round.msRemaining)} to build, raid and rank`} />
               <Row
                 label="Turns"
                 value={`+${ruleset.turns.amountPerInterval} every ${ruleset.turns.intervalMinutes} min`}
@@ -153,12 +150,9 @@ export function JoinPage() {
               </p>
             ) : (
               <p className="se-hint">
-                One player per account per round. You keep your account, legacy badges and cosmetics when the round ends.
+                One player per account per round. Your badges and cosmetics stay with your account.
               </p>
             )}
-            <p className="se-hint">
-              Want the latest patch notes first? Read the <Link to="/game/news">development wire</Link> after you join.
-            </p>
           </div>
         </aside>
       </div>

@@ -31,23 +31,72 @@ function formatDate(value: string | null): string {
 
 export function ConnectedAccountsPanel({ account, onConnectionsChanged }: ConnectedAccountsPanelProps) {
   const [forum, setForum] = useState<ForumLinkStatusDto | null>(null);
+  const [forumCosmeticsVisible, setForumCosmeticsVisible] = useState(false);
   const [push, setPush] = useState<NotificationSettingsDto | null>(null);
   const [support] = useState<PushSupport>(() => pushSupport());
   const [thisHash, setThisHash] = useState<string | null>(null);
-  const [busy, setBusy] = useState<string | null>(null);
+  const [busy, setBusy] = useState<'forum-cosmetics' | 'discord' | 'forum' | 'device-enable' | string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [confirmDiscord, setConfirmDiscord] = useState(false);
   const [confirmForum, setConfirmForum] = useState(false);
   const [discordPassword, setDiscordPassword] = useState('');
   const [discordPasswordError, setDiscordPasswordError] = useState<string | null>(null);
+  const [appleEnabled, setAppleEnabled] = useState(false);
+  const [googleEnabled, setGoogleEnabled] = useState(false);
+  const [facebookEnabled, setFacebookEnabled] = useState(false);
+  const [confirmApple, setConfirmApple] = useState(false);
+  const [applePassword, setApplePassword] = useState('');
+  const [applePasswordError, setApplePasswordError] = useState<string | null>(null);
+  const [nativePlayGames, setNativePlayGames] = useState(false);
   const working = 'Finishing the last thing you asked for.';
+
+  useEffect(() => {
+    const bridge = (window as Window & { StreetsEmpireAndroid?: { isNative?: () => boolean; linkPlayGames?: () => void } }).StreetsEmpireAndroid;
+    setNativePlayGames(Boolean(bridge?.isNative && bridge.linkPlayGames));
+    const onAuth = (event: Event) => {
+      const code = (event as CustomEvent<string>).detail;
+      if (!code) return;
+      setBusy('play-games');
+      setError(null);
+      void authApi.playGames(code, true)
+        .then(() => window.location.assign('/account?accountMessage=Google%20Play%20Games%20linked.'))
+        .catch((caught) => setError(caught instanceof ApiError ? caught.message : 'Could not link Google Play Games.'))
+        .finally(() => setBusy(null));
+    };
+    const onError = (event: Event) => {
+      setError((event as CustomEvent<string>).detail || 'Could not link Google Play Games.');
+      setBusy(null);
+    };
+    window.addEventListener('streets:play-games-link-auth', onAuth);
+    window.addEventListener('streets:play-games-error', onError);
+    return () => {
+      window.removeEventListener('streets:play-games-link-auth', onAuth);
+      window.removeEventListener('streets:play-games-error', onError);
+    };
+  }, []);
 
   async function loadForum() {
     try {
-      setForum(await forumApi.status());
+      const [status, settings] = await Promise.all([forumApi.status(), authApi.profileSettings()]);
+      setForum(status);
+      setForumCosmeticsVisible(settings.settings.forumCosmeticsVisible ?? false);
     } catch {
       setError('Could not load the forum connection. Try again.');
+    }
+  }
+
+  async function changeForumCosmetics(visible: boolean) {
+    setBusy('forum-cosmetics');
+    setError(null);
+    try {
+      const result = await forumApi.setCosmeticsVisibility(visible);
+      setForumCosmeticsVisible(result.visible);
+      setNotice(visible ? 'Forum cosmetics enabled.' : 'Forum cosmetics hidden.');
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'Could not update forum cosmetics. Try again.');
+    } finally {
+      setBusy(null);
     }
   }
 
@@ -70,6 +119,7 @@ export function ConnectedAccountsPanel({ account, onConnectionsChanged }: Connec
   useEffect(() => {
     void loadForum();
     void loadPush();
+    void authApi.providers().then((providers) => { setAppleEnabled(providers.apple); setGoogleEnabled(providers.google); setFacebookEnabled(providers.facebook); }).catch(() => undefined);
   }, []);
 
   async function unlinkDiscord() {
@@ -92,6 +142,54 @@ export function ConnectedAccountsPanel({ account, onConnectionsChanged }: Connec
     } finally {
       setBusy(null);
     }
+  }
+
+  async function unlinkApple() {
+    setBusy('apple');
+    setError(null);
+    setNotice(null);
+    setApplePasswordError(null);
+    try {
+      const response = await authApi.unlinkApple({ currentPassword: applePassword });
+      setConfirmApple(false);
+      setApplePassword('');
+      window.location.assign(`/account?accountMessage=${encodeURIComponent(response.message)}`);
+    } catch (caught) {
+      if (caught instanceof ApiError) {
+        setError(caught.message);
+        setApplePasswordError(caught.fields?.currentPassword ?? null);
+      } else {
+        setError('Could not unlink Apple. Try again.');
+      }
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function unlinkGoogle() {
+    const currentPassword = window.prompt('Enter your StreetsEmpire password to unlink Google:');
+    if (!currentPassword) return;
+    setBusy('google'); setError(null); setNotice(null);
+    try {
+      const response = await authApi.unlinkGoogle({ currentPassword });
+      setNotice(response.message);
+      window.location.assign(`/account?accountMessage=${encodeURIComponent(response.message)}`);
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'Could not unlink Google. Try again.');
+    } finally { setBusy(null); }
+  }
+
+  async function unlinkFacebook() {
+    const currentPassword = window.prompt('Enter your StreetsEmpire password to unlink Facebook:');
+    if (!currentPassword) return;
+    setBusy('facebook'); setError(null); setNotice(null);
+    try {
+      const response = await authApi.unlinkFacebook({ currentPassword });
+      setNotice(response.message);
+      window.location.assign(`/account?accountMessage=${encodeURIComponent(response.message)}`);
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'Could not unlink Facebook. Try again.');
+    } finally { setBusy(null); }
   }
 
   async function changeForum(unlink: boolean) {
@@ -246,6 +344,78 @@ export function ConnectedAccountsPanel({ account, onConnectionsChanged }: Connec
           )}
         </section>
 
+        {appleEnabled || account.appleLinked ? (
+          <section className="se-connection">
+            <div className="se-connection__head">
+              <div>
+                <span className="se-connection__eyebrow">Sign-in account</span>
+                <h3>Apple</h3>
+              </div>
+              <span className={`se-tag ${account.appleLinked ? 'se-tag--good' : ''}`}>
+                {account.appleLinked ? 'Connected' : 'Not connected'}
+              </span>
+            </div>
+            <p>{account.appleLinked ? 'Your Apple ID can sign in to this StreetsEmpire account.' : 'Connect Apple to use Apple ID to sign in.'}</p>
+            {account.appleLinked ? (
+              <>
+                <Button type="button" className="se-btn se-btn--ghost" onClick={() => { setApplePasswordError(null); setConfirmApple(true); }} disabledReason={off}>Unlink Apple</Button>
+                {confirmApple ? (
+                  <div className="se-connection__confirm">
+                    <p>Enter your StreetsEmpire password to disconnect Apple. If you use Apple as your only sign-in, set a password through account recovery first.</p>
+                    <Field label="Current password" name="appleCurrentPassword" type="password" value={applePassword} onChange={(event) => setApplePassword(event.target.value)} autoComplete="current-password" required error={applePasswordError ?? undefined} />
+                    <div className="se-actions-row">
+                      <Button type="button" className="se-btn se-btn--ghost" onClick={unlinkApple} disabledReason={off ?? (applePassword ? null : 'Enter your current password first.')}>{busy === 'apple' ? 'Unlinking...' : 'Yes, unlink Apple'}</Button>
+                      <Button type="button" className="se-btn se-btn--ghost" onClick={() => { setConfirmApple(false); setApplePassword(''); setApplePasswordError(null); }} disabledReason={off}>Cancel</Button>
+                    </div>
+                  </div>
+                ) : null}
+              </>
+            ) : (
+              <a className="se-btn se-auth-apple" href="/api/auth/apple?link=1">Link Apple</a>
+            )}
+          </section>
+        ) : null}
+
+        {googleEnabled || account.googleLinked ? (
+          <section className="se-connection">
+            <div className="se-connection__head"><div><span className="se-connection__eyebrow">Sign-in account</span><h3>Google</h3></div><span className={`se-tag ${account.googleLinked ? 'se-tag--good' : ''}`}>{account.googleLinked ? 'Connected' : 'Not connected'}</span></div>
+            <p>{account.googleLinked ? 'Your Google account can sign in to this StreetsEmpire account.' : 'Connect Google to use it to sign in.'}</p>
+            {account.googleLinked ? <Button type="button" className="se-btn se-btn--ghost" onClick={unlinkGoogle} disabledReason={off}>{busy === 'google' ? 'Unlinking...' : 'Unlink Google'}</Button> : <a className="se-btn se-auth-google" href="/api/auth/google?link=1">Link Google</a>}
+          </section>
+        ) : null}
+
+        {facebookEnabled || account.facebookLinked ? (
+          <section className="se-connection">
+            <div className="se-connection__head"><div><span className="se-connection__eyebrow">Sign-in account</span><h3>Facebook</h3></div><span className={`se-tag ${account.facebookLinked ? 'se-tag--good' : ''}`}>{account.facebookLinked ? 'Connected' : 'Not connected'}</span></div>
+            <p>{account.facebookLinked ? 'Your Facebook account can sign in to this StreetsEmpire account.' : 'Connect Facebook to use it to sign in.'}</p>
+            {account.facebookLinked ? <Button type="button" className="se-btn se-btn--ghost" onClick={unlinkFacebook} disabledReason={off}>{busy === 'facebook' ? 'Unlinking...' : 'Unlink Facebook'}</Button> : <a className="se-btn se-auth-facebook" href="/api/auth/facebook?link=1">Link Facebook</a>}
+          </section>
+        ) : null}
+
+        <section className="se-connection">
+          <div className="se-connection__head">
+            <div>
+              <span className="se-connection__eyebrow">Account</span>
+              <h3>Google Play Games</h3>
+            </div>
+            <span className={`se-tag ${account.playGamesLinked ? 'se-tag--good' : ''}`}>
+              {account.playGamesLinked ? 'Connected' : 'Not connected'}
+            </span>
+          </div>
+          <p>{account.playGamesLinked ? 'This Google Play Games identity can sign you in on Android.' : 'Link the Google Play Games identity on this Android device for a faster sign-in.'}</p>
+          {!account.playGamesLinked && nativePlayGames ? (
+            <Button
+              type="button"
+              className="se-btn se-btn--primary"
+              onClick={() => (window as Window & { StreetsEmpireAndroid?: { linkPlayGames?: () => void } }).StreetsEmpireAndroid?.linkPlayGames?.()}
+              disabledReason={off}
+            >
+              {busy === 'play-games' ? 'Linking...' : 'Link Google Play Games'}
+            </Button>
+          ) : null}
+          {!nativePlayGames && !account.playGamesLinked ? <p className="se-muted">Open Account settings in the Android app to link Play Games.</p> : null}
+        </section>
+
         <section className="se-connection">
           <div className="se-connection__head">
             <div>
@@ -264,6 +434,10 @@ export function ConnectedAccountsPanel({ account, onConnectionsChanged }: Connec
           ) : forum.link ? (
             <>
               <p>Connected as <strong>{forum.link.username}</strong>. Your game and forum profiles link to each other across every round.</p>
+              <label className="se-checkrow">
+                <input type="checkbox" checked={forumCosmeticsVisible} onChange={(event) => void changeForumCosmetics(event.target.checked)} disabled={busy !== null} />
+                <span><strong>Show supporter cosmetics on the forum</strong><small>Optional decorative badge, nameplate and frame. No billing details are shared.</small></span>
+              </label>
               <div className="se-actions-row">
                 <a className="se-btn se-btn--primary" href={forum.link.profileUrl}>Forum profile</a>
                 <Button type="button" className="se-btn se-btn--ghost" onClick={() => setConfirmForum(true)} disabledReason={off}>
@@ -363,13 +537,13 @@ export function ConnectedAccountsPanel({ account, onConnectionsChanged }: Connec
         <section className="se-connection se-connection--future">
           <div className="se-connection__head">
             <div>
-              <span className="se-connection__eyebrow">Future providers</span>
-              <h3>More connections</h3>
+              <span className="se-connection__eyebrow">Sign-in access</span>
+              <h3>Keep a backup method</h3>
             </div>
-            <span className="se-tag">Ready to extend</span>
+            <span className="se-tag">Account safety</span>
           </div>
           <p className="se-muted">
-            Future providers such as Google, Steam or other community services can use this same connect / disconnect pattern without adding another settings page.
+            You can sign in with your email and password, Discord, Google, Facebook, Apple, or Google Play Games in the Android app. Link a second method above so you can still get in if you lose access to one provider.
           </p>
         </section>
       </div>

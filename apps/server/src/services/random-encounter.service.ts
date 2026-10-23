@@ -2,9 +2,12 @@ import type { Prisma, PrismaClient, RandomEncounter } from '@prisma/client';
 import type { DistrictKey, RandomEncounterEntryRules, RandomEncounterTrigger, RandomEncounterTriggerRules, Ruleset } from '@streets/rulesets';
 import type { RandomEncounterDto } from '@streets/shared';
 import { eventCatalogForRuleset } from '@streets/rulesets';
+import { territoryCatalogForRuleset } from '@streets/rulesets';
 import type { Db } from '../utils/db.js';
 import type { PlayerState } from './action.service.js';
 import { EncounterGangService } from './encounter-gang.service.js';
+import { territoryFeatureEnabled, territoryPerkCityControlFromRows } from './territory-perks.service.js';
+import { NO_SKILL_EFFECTS, PlayerSkillService, type SkillEffects } from './player-skill.service.js';
 
 type EncounterEffectSource = Pick<RandomEncounterEntryRules, 'cash' | 'heat' | 'supplies' | 'turns' | 'thugs' | 'woundedThugs' | 'whores' | 'lowRiders'>;
 type EncounterEffects = RandomEncounterDto['effects'];
@@ -73,6 +76,14 @@ export function triggerChance(trigger: Pick<RandomEncounterTriggerRules, 'chance
   const chance = Math.min(1, Math.max(0, trigger.chance));
   if (trigger.chanceBasis !== 'TURN') return chance;
   return 1 - (1 - chance) ** Math.max(1, Math.floor(turns));
+}
+
+/** Inclusive start, exclusive end; evaluated against the action's server UTC time. */
+export function encounterIsInSeason(entry: Pick<RandomEncounterEntryRules, 'availableUtc'>, now: Date): boolean {
+  if (!entry.availableUtc) return true;
+  const start = Date.parse(entry.availableUtc.startsAt);
+  const end = Date.parse(entry.availableUtc.endsAt);
+  return Number.isFinite(start) && Number.isFinite(end) && now.getTime() >= start && now.getTime() < end;
 }
 
 function randomInt(min: number, max: number, rng: () => number): number {
@@ -184,7 +195,55 @@ export function applyRandomEncounterEffects(next: PlayerState, effects: Encounte
   };
 }
 
-function rollEffects(source: EncounterEffectSource, next: PlayerState, rng: () => number): EncounterEffects {
+/** Effects where a positive number hurts the player. */
+const HARMFUL_WHEN_POSITIVE = new Set<keyof EncounterEffects>(['heat', 'woundedThugs']);
+
+/**
+ * Luck on what an encounter pays: windfalls grow (good encounters grow more with
+ * Serendipity), and Fortune's Favor shrinks what an encounter takes.
+ */
+export function luckyEffects(effects: EncounterEffects, tone: RandomEncounterEntryRules['tone'], skills: SkillEffects): EncounterEffects {
+  if (!skills.active) return effects;
+  const shaped: EncounterEffects = {};
+  for (const [key, value] of Object.entries(effects) as Array<[keyof EncounterEffects, number | undefined]>) {
+    if (!value) continue;
+    const helps = HARMFUL_WHEN_POSITIVE.has(key) ? value < 0 : value > 0;
+    const pct = helps
+      ? skills.percent('ENCOUNTER_GAINS') + (tone === 'good' ? skills.percent('GOOD_ENCOUNTER_GAINS') : 0)
+      : skills.percent('ENCOUNTER_LOSSES');
+    shaped[key] = pct ? Math.round(value * (100 + pct) / 100) : value;
+  }
+  return shaped;
+}
+
+/**
+ * Luck on which encounter comes up: Lucky Break, Rare Find and Rabbit's Foot
+ * reweight the draw, Wheelman keeps street gangs off your ride, and Second
+ * Chance may redraw a bad one once.
+ */
+function luckyPick(entries: readonly RandomEncounterEntryRules[], rng: () => number, skills: SkillEffects, rules: Ruleset['streetSkills']): RandomEncounterEntryRules | null {
+  if (!skills.active) return pickWeighted(entries, rng);
+  const allowed = skills.has('WHEELMAN') ? entries.filter((entry) => !entry.key.endsWith(':steal_ride')) : entries;
+  const average = allowed.reduce((sum, entry) => sum + Math.max(0, entry.weight), 0) / Math.max(1, allowed.length);
+  const weighted = allowed.map((entry) => {
+    let pct = 0;
+    if (entry.tone === 'good') pct += skills.percent('GOOD_ENCOUNTER_WEIGHT');
+    if (entry.tone === 'bad') pct += skills.percent('BAD_ENCOUNTER_WEIGHT');
+    if (entry.weight > 0 && entry.weight < average / 2) pct += skills.percent('RARE_ENCOUNTER_WEIGHT');
+    return { entry, weight: Math.max(0, entry.weight) * (100 + pct) / 100 };
+  });
+  const draw = () => pickWeighted(weighted.map(({ entry, weight }) => ({ ...entry, weight })), rng);
+  let picked = draw();
+  if (picked?.tone === 'bad' && skills.has('SECOND_CHANCE') && rng() * 100 < (rules?.secondChancePercent ?? 0)) picked = draw();
+  return picked ? allowed.find((entry) => entry.key === picked!.key) ?? picked : null;
+}
+
+/** A player's Luck for one encounter roll. */
+async function encounterLuck(input: { tx: Db; roundPlayerId: string; ruleset: Ruleset }): Promise<SkillEffects> {
+  return PlayerSkillService.effects(input.tx, input.roundPlayerId, input.ruleset.streetSkills);
+}
+
+function rollEffects(source: EncounterEffectSource, next: PlayerState, rng: () => number, shape: (effects: EncounterEffects) => EncounterEffects = (effects) => effects): EncounterEffects {
   const effects: EncounterEffects = {
     ...(source.cash ? { cashCents: randomInt(source.cash.minCents, source.cash.maxCents, rng) } : {}),
     ...(source.heat ? { heat: randomInt(source.heat.min, source.heat.max, rng) } : {}),
@@ -197,10 +256,11 @@ function rollEffects(source: EncounterEffectSource, next: PlayerState, rng: () =
     const rule = source[key];
     if (rule) effects[key] = randomInt(rule.min, rule.max, rng);
   }
-  return capRandomEncounterEffects(effects, next);
+  return capRandomEncounterEffects(shape(effects), next);
 }
 
-function settle(entry: RandomEncounterEntryRules, next: PlayerState, rng: () => number): EncounterSettlement {
+function settle(entry: RandomEncounterEntryRules, next: PlayerState, rng: () => number, skills: SkillEffects = NO_SKILL_EFFECTS): EncounterSettlement {
+  const shape = (effects: EncounterEffects) => luckyEffects(effects, entry.tone, skills);
   if (entry.choices?.length) {
     return {
       next,
@@ -215,13 +275,13 @@ function settle(entry: RandomEncounterEntryRules, next: PlayerState, rng: () => 
           key: choice.key,
           label: choice.label,
           text: choice.text,
-          effects: rollEffects(choice, next, rng),
+          effects: rollEffects(choice, next, rng, shape),
         })),
       },
     };
   }
 
-  const effects = rollEffects(entry, next, rng);
+  const effects = rollEffects(entry, next, rng, shape);
   return {
     next: applyRandomEncounterEffects(next, effects),
     encounter: {
@@ -469,16 +529,99 @@ async function rollFirstClassEncounter(input: ActionEncounterInput & { district?
   const recentKeys = await recentFirstClassEncounterKeys(input, triggerKey, trigger.perKeyCooldownMinutes ?? 0);
   const rng = input.rng ?? Math.random;
   if (rng() >= triggerChance(trigger, input.turns)) return { next: input.next };
-  const eligible = trigger.entries.filter((entry) =>
-    (!entry.districts || !input.district || entry.districts.includes(input.district))
-    && !recentKeys.has(encounterDefinitionKey(triggerKey, entry.key)),
-  );
+  const eligible: RandomEncounterEntryRules[] = [];
+  for (const entry of trigger.entries) {
+    if (!encounterIsInSeason(entry, input.now)
+      || (entry.districts && input.district && !entry.districts.includes(input.district))
+      || recentKeys.has(encounterDefinitionKey(triggerKey, entry.key))) continue;
+    if (entry.territory && !await territoryEncounterEligible(input, entry, input.district)) continue;
+    eligible.push(entry);
+  }
   const gang = await EncounterGangService.candidate({ tx: input.tx, roundPlayerId: input.roundPlayerId, ruleset: input.ruleset, trigger: triggerKey, district: input.district, state: input.next, now: input.now, rng });
   if (gang && !recentKeys.has(encounterDefinitionKey(triggerKey, gang.key))) eligible.push(gang);
-  const picked = pickWeighted(eligible, rng);
+  const luck = await encounterLuck(input);
+  const picked = luckyPick(eligible, rng, luck, input.ruleset.streetSkills);
   return picked
-    ? persistFirstClassEncounter(input, input.ruleset, triggerKey, picked, settle(picked, input.next, rng))
+    ? persistFirstClassEncounter(input, input.ruleset, triggerKey, picked, settle(picked, input.next, rng, luck))
     : { next: input.next };
+}
+
+async function territoryEncounterEligible(
+  input: ActionEncounterInput,
+  entry: RandomEncounterEntryRules,
+  district?: DistrictKey,
+): Promise<boolean> {
+  if (!entry.territory) return true;
+  const player = await input.tx.roundPlayer.findUnique({
+    where: { id: input.roundPlayerId },
+    select: { allianceId: true, cityId: true, city: { select: { slug: true } }, round: { select: { id: true, territoryPerksEnabled: true, territoryPerksCatalogVersion: true } } },
+  });
+  if (!player?.allianceId || !territoryFeatureEnabled(player.round, input.ruleset)) return false;
+  const catalog = territoryCatalogForRuleset(input.ruleset);
+  if (!catalog) return false;
+  if (entry.territory.scope === 'DISTRICT') {
+    if (district !== entry.territory.key || !catalog.districts[district]?.access) return false;
+    const turf = await input.tx.turf.findUnique({
+      where: { roundId_cityId_district: { roundId: player.round.id, cityId: player.cityId, district } },
+      select: { holder: { select: { allianceId: true } } },
+    });
+    return turf?.holder?.allianceId === player.allianceId;
+  }
+  if (entry.territory.scope === 'CITY') {
+    if (player.city.slug !== entry.territory.key || !catalog.cities[entry.territory.key]) return false;
+    const rows = await input.tx.turf.findMany({
+      where: { roundId: player.round.id, cityId: player.cityId },
+      select: { holder: { select: { allianceId: true, alliance: { select: { name: true, tag: true } } } } },
+    });
+    return territoryPerkCityControlFromRows(input.ruleset, rows)?.allianceId === player.allianceId;
+  }
+  const region = catalog.regions[entry.territory.key];
+  if (!region || !region.citySlugs.includes(player.city.slug)) return false;
+  const cities = await input.tx.city.findMany({
+    where: { slug: { in: [...region.citySlugs] } },
+    select: { turf: { where: { roundId: player.round.id }, select: { holder: { select: { allianceId: true, alliance: { select: { name: true, tag: true } } } } } } },
+  });
+  const ownedCities = cities.filter((city) => territoryPerkCityControlFromRows(input.ruleset, city.turf)?.allianceId === player.allianceId).length;
+  const tier = Math.max(1, Math.trunc(entry.territory.minimumTier ?? 1));
+  const requiredCities = region.tiers[Math.min(region.tiers.length, tier) - 1];
+  return requiredCities !== undefined && ownedCities >= requiredCities;
+}
+
+/** Beta admin preview: exact territory eligibility and deterministic, non-persisting result. */
+export async function simulateTerritoryEncounter(input: {
+  tx: Db;
+  roundPlayerId: string;
+  ruleset: Ruleset;
+  trigger: RandomEncounterTrigger;
+  district?: DistrictKey;
+  now: Date;
+  seed: string;
+}): Promise<{ eligiblePool: Array<{ key: string; title: string }>; triggerHit: boolean; encounter: RandomEncounterDto | null }> {
+  const trigger = input.ruleset.randomEncounters?.triggers[input.trigger];
+  if (!trigger?.enabled) return { eligiblePool: [], triggerHit: false, encounter: null };
+  let seed = 2166136261;
+  for (const char of input.seed) seed = Math.imul(seed ^ char.charCodeAt(0), 16777619) >>> 0;
+  const rng = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 0x1_0000_0000);
+  const eligible: RandomEncounterEntryRules[] = [];
+  for (const entry of trigger.entries) {
+    if (!entry.territory || !encounterIsInSeason(entry, input.now) || (entry.districts && input.district && !entry.districts.includes(input.district))) continue;
+    const eligibilityInput = { ...input, turns: Math.max(1, trigger.minTurns ?? 1), next: {} as PlayerState } as ActionEncounterInput & { district?: DistrictKey };
+    if (await territoryEncounterEligible(eligibilityInput, entry, input.district)) eligible.push(entry);
+  }
+  const pool = eligible.map(({ key, title }) => ({ key, title }));
+  if (rng() >= triggerChance(trigger, Math.max(1, trigger.minTurns ?? 1))) return { eligiblePool: pool, triggerHit: false, encounter: null };
+  const selected = pickWeighted(eligible, rng);
+  if (!selected) return { eligiblePool: pool, triggerHit: true, encounter: null };
+  const state = {
+    cashCents: 100_000n, turns: 100, payoutPercent: 50, whores: 10, thugs: 10, woundedThugs: 0,
+    condoms: 10, medicine: 10, crack: 10, beer: 10, pistols: 0, shotguns: 0, tek9s: 0, ak47s: 0,
+    lowRiders: 0, sedans: 0, vans: 0, damagedLowRiders: 0, damagedSedans: 0, damagedVans: 0,
+    disabledLowRiders: 0, disabledSedans: 0, disabledVans: 0, shotgunUnlocked: false, tek9Unlocked: false,
+    ak47Unlocked: false, heat: 0, awayNetWorthCents: 0n, postedNetWorthCents: 0n, busyThugs: 0,
+    postedThugs: 0, businessThugs: 0, dealerThugs: 0, businessWhores: 0,
+  } as PlayerState;
+  const settlement = settle(selected, state, rng);
+  return { eligiblePool: pool, triggerHit: true, encounter: settlement.encounter ?? null };
 }
 
 async function rollActionTrigger(input: ActionEncounterInput, triggerKey: RandomEncounterTrigger): Promise<EncounterSettlement> {
@@ -497,11 +640,12 @@ async function rollActionTrigger(input: ActionEncounterInput, triggerKey: Random
     : new Set<string>();
   if (rng() >= triggerChance(trigger, input.turns)) return { next: input.next };
 
-  const eligible = trigger.entries.filter((entry) => !recentKeys.has(entry.key));
+  const eligible = trigger.entries.filter((entry) => encounterIsInSeason(entry, input.now) && !recentKeys.has(entry.key));
   const gang = await EncounterGangService.candidate({ tx: input.tx, roundPlayerId: input.roundPlayerId, ruleset: input.ruleset, trigger: triggerKey, state: input.next, now: input.now, rng });
   if (gang && !recentKeys.has(gang.key)) eligible.push(gang);
-  const picked = pickWeighted(eligible, rng);
-  return picked ? persistEncounter(input, triggerKey, settle(picked, input.next, rng)) : { next: input.next };
+  const luck = await encounterLuck(input);
+  const picked = luckyPick(eligible, rng, luck, input.ruleset.streetSkills);
+  return picked ? persistEncounter(input, triggerKey, settle(picked, input.next, rng, luck)) : { next: input.next };
 }
 
 export const RandomEncounterService = {
@@ -580,13 +724,15 @@ export const RandomEncounterService = {
     if (rng() >= triggerChance(trigger, input.turns)) return { next: input.next };
 
     const eligible = trigger.entries.filter((entry) =>
+      encounterIsInSeason(entry, input.now) &&
       (!entry.districts || entry.districts.includes(input.district)) &&
       !recentKeys.has(entry.key),
     );
     const gang = await EncounterGangService.candidate({ tx: input.tx, roundPlayerId: input.roundPlayerId, ruleset: input.ruleset, trigger: 'SCOUT', district: input.district, state: input.next, now: input.now, rng });
     if (gang && !recentKeys.has(gang.key)) eligible.push(gang);
-    const picked = pickWeighted(eligible, rng);
-    return picked ? persistEncounter(input, 'SCOUT', settle(picked, input.next, rng)) : { next: input.next };
+    const luck = await encounterLuck(input);
+    const picked = luckyPick(eligible, rng, luck, input.ruleset.streetSkills);
+    return picked ? persistEncounter(input, 'SCOUT', settle(picked, input.next, rng, luck)) : { next: input.next };
   },
 
   async produce(input: ProduceEncounterInput): Promise<EncounterSettlement> {
@@ -607,11 +753,12 @@ export const RandomEncounterService = {
 
     if (rng() >= triggerChance(trigger, input.turns)) return { next: input.next };
 
-    const eligible = trigger.entries.filter((entry) => !recentKeys.has(entry.key));
+    const eligible = trigger.entries.filter((entry) => encounterIsInSeason(entry, input.now) && !recentKeys.has(entry.key));
     const gang = await EncounterGangService.candidate({ tx: input.tx, roundPlayerId: input.roundPlayerId, ruleset: input.ruleset, trigger: 'PRODUCE', state: input.next, now: input.now, rng });
     if (gang && !recentKeys.has(gang.key)) eligible.push(gang);
-    const picked = pickWeighted(eligible, rng);
-    return picked ? persistEncounter(input, 'PRODUCE', settle(picked, input.next, rng)) : { next: input.next };
+    const luck = await encounterLuck(input);
+    const picked = luckyPick(eligible, rng, luck, input.ruleset.streetSkills);
+    return picked ? persistEncounter(input, 'PRODUCE', settle(picked, input.next, rng, luck)) : { next: input.next };
   },
 
   async action(input: ActionEncounterInput, trigger: Extract<RandomEncounterTrigger, 'STORE' | 'TURF' | 'COMBAT'>): Promise<EncounterSettlement> {
@@ -637,10 +784,11 @@ export const RandomEncounterService = {
 
     if (rng() >= triggerChance(trigger, input.turns)) return { next: input.next };
 
-    const eligible = trigger.entries.filter((entry) => !recentKeys.has(entry.key));
+    const eligible = trigger.entries.filter((entry) => encounterIsInSeason(entry, input.now) && !recentKeys.has(entry.key));
     const gang = await EncounterGangService.candidate({ tx: input.tx, roundPlayerId: input.roundPlayerId, ruleset: input.ruleset, trigger: 'TRAVEL', state: input.next, now: input.now, rng });
     if (gang && !recentKeys.has(gang.key)) eligible.push(gang);
-    const picked = pickWeighted(eligible, rng);
-    return picked ? persistEncounter(input, 'TRAVEL', settle(picked, input.next, rng)) : { next: input.next };
+    const luck = await encounterLuck(input);
+    const picked = luckyPick(eligible, rng, luck, input.ruleset.streetSkills);
+    return picked ? persistEncounter(input, 'TRAVEL', settle(picked, input.next, rng, luck)) : { next: input.next };
   },
 };

@@ -1,0 +1,143 @@
+[
+  {
+    "url": "/game",
+    "finalPath": "/game",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 24,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit2cil8e\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "button.se-btn.se-btn--ghost \"Hide\" 54x36",
+        "a \"Meet your first contact\" 180x40",
+        "a \"Open your first front\" 272x40",
+        "a \"Make a street decision\" 288x40",
+        "a \"Choose what they call you\" 280x40",
+        "button.se-btn.se-btn--primary \"Start the tour\" 121x36",
+        "button.se-btn.se-btn--ghost \"Skip\" 51x36",
+        "a \"Details →\" 48x32",
+        "a \"Produce →\" 54x32",
+        "a \"Restock →\" 52x32",
+        "a \"View turf →\" 59x32",
+        "a.se-btn.se-btn--ghost \"See Ledger’s jobs\" 168x40",
+        "button.se-btn.se-btn \"Retain 7 days · $25,000\" 166x36",
+        "button.se-btn.se-btn \"Hire · $20,000 a week\" 159x36",
+        "button.se-btn.se-btn \"The federal sweep · $25,000\" 197x36",
+        "button.se-btn.se-btn \"Payout is 50%\" 324x40",
+        "a.se-btn.se-btn--primary \"Upgrade hideout\" 169x40",
+        "a.se-btn.se-btn--ghost \"Full activity log\" 135x36"
+      ],
+      "total": 65
+    },
+    "dashboard": {
+      "issues": [],
+      "statCards": 6,
+      "actionCards": 6,
+      "hero": true,
+      "story": true,
+      "theme": "phone-390"
+    },
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game",
+    "finalPath": "/game",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 27,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit2cil8e\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "button.se-pageguide__toggle \"? How this page works\" 132x40",
+        "button.se-btn.se-btn--ghost \"Hide\" 54x36",
+        "a \"Meet your first contact\" 180x40",
+        "a \"Open your first front\" 181x40",
+        "a \"Make a street decision\" 181x40",
+        "a \"Choose what they call you\" 181x40",
+        "button.se-btn.se-btn--primary \"Start the tour\" 121x36",
+        "button.se-btn.se-btn--ghost \"Skip\" 51x36",
+        "a.se-btn.se-btn--primary \"Start mission\" 149x42",
+        "a.se-dashboard-story__all \"All quests →\" 63x24",
+        "a \"Details →\" 48x32",
+        "a \"Produce →\" 54x32",
+        "a \"Restock →\" 52x32",
+        "a \"View turf →\" 59x32",
+        "a.se-btn.se-btn--ghost \"See Ledger’s jobs\" 168x40",
+        "button.se-btn.se-btn \"Retain 7 days · $25,000\" 166x36",
+        "button.se-btn.se-btn \"The federal sweep · $25,000\" 197x36",
+        "button.se-btn.se-btn \"Payout is 50%\" 684x40"
+      ],
+      "total": 66
+    },
+    "dashboard": {
+      "issues": [],
+      "statCards": 6,
+      "actionCards": 6,
+      "hero": true,
+      "story": true,
+      "theme": "tablet-768"
+    },
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game",
+    "finalPath": "/game",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": {
+      "issues": [],
+      "statCards": 6,
+      "actionCards": 6,
+      "hero": true,
+      "story": true,
+      "theme": "desktop-1440-rail"
+    },
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  }
+]

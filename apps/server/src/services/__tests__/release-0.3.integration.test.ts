@@ -41,7 +41,7 @@ describe.runIf(process.env.RELEASE_INTEGRATION === '1')('0.3.0-E alliance season
     // Five players join through the real join route; the fifth is an admin.
     for (let i = 0; i < 5; i++) {
       const name = `rel3_${randomUUID().slice(0, 8)}`;
-      const registered = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { username: name, email: `${name}@example.invalid`, password: randomUUID() } });
+      const registered = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { ageConfirmed: true, birthDate: '1990-01-01', username: name, email: `${name}@example.invalid`, password: randomUUID() } });
       expect(registered.statusCode).toBe(201);
       accounts.push(registered.json().account.id);
       cookies.push(registered.cookies.map((cookie) => `${cookie.name}=${cookie.value}`).join('; '));
@@ -51,6 +51,8 @@ describe.runIf(process.env.RELEASE_INTEGRATION === '1')('0.3.0-E alliance season
       pimps.push(joined.json().me.publicPimpId);
     }
     await app.prisma.account.update({ where: { id: accounts[4]! }, data: { isAdmin: true } });
+    // Seasoned accounts: founding an alliance waits for a few account levels.
+    await app.prisma.account.updateMany({ where: { id: { in: accounts.slice(0, 4) } }, data: { experiencePoints: 5_000 } });
     adminCookie = cookies[4]!;
 
     // Raid-ready crews past newcomer protection.

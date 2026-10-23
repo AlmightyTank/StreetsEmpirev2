@@ -1,9 +1,11 @@
 import type { Prisma } from '@prisma/client';
 import {
   clampVehicleDamage,
+  hashParts,
   markRunVehicles,
   noVehicleDamage,
   racketStorePrice,
+  seededRng,
   readRacketEffects,
   vehicleServiceDiscount,
   type Ruleset,
@@ -13,6 +15,8 @@ import {
 import type { VehicleClassId } from '@streets/rulesets';
 import type { Db } from '../utils/db.js';
 import { FactionService } from './faction.service.js';
+import { PlayerSkillService } from './player-skill.service.js';
+import { armorAdjustedDamage, readRunVehicles } from './individual-vehicles.service.js';
 
 export type VehicleLoadout = { LOW_RIDER: number; SEDAN: number; VAN: number };
 const emptyLoadout = (): VehicleLoadout => ({ LOW_RIDER: 0, SEDAN: 0, VAN: 0 });
@@ -82,12 +86,29 @@ export const VEHICLE_FIELDS = {
  * 1.5.0-C. Road trouble puts some of a run's vehicles out of action. They keep driving
  * with the run and come home to the garage. Returns the run as it now stands.
  */
+/**
+ * Wheels: each vehicle about to be marked has the passive's chance to come through
+ * clean. The roll is seeded by the run and the damage already on it, so settling the
+ * same trouble again marks the same cars.
+ */
+async function skilledDamageCount(tx: Db, ruleset: Ruleset, runId: string, state: 'damaged' | 'disabled', count: number, before: object): Promise<number> {
+  const owner = await tx.run.findUnique({ where: { id: runId }, select: { roundPlayerId: true } });
+  const pct = owner ? (await PlayerSkillService.effects(tx, owner.roundPlayerId, ruleset.streetSkills)).percent('VEHICLE_DAMAGE') : 0;
+  if (pct >= 0) return count;
+  const rng = seededRng(hashParts(runId, 'skill-vehicle-damage', state, JSON.stringify(before)));
+  let marked = 0;
+  for (let index = 0; index < count; index++) if (rng() * 100 >= -pct) marked++;
+  return marked;
+}
+
 export async function damageRunVehicles<T extends { id: string; lowRiders: number; vehicleLoadout: Prisma.JsonValue; vehicleDamage: Prisma.JsonValue }>(
   tx: Db, ruleset: Ruleset, run: T, state: 'damaged' | 'disabled', count: number,
 ): Promise<T> {
   if (!ruleset.vehicleCatalog?.service || count <= 0) return run;
   const loadout = readVehicleLoadout(run.vehicleLoadout, run.lowRiders);
-  const damage = markRunVehicles(ruleset, loadout, readVehicleDamage(run.vehicleDamage, loadout), state, count);
+  const before = readVehicleDamage(run.vehicleDamage, loadout);
+  let damage = markRunVehicles(ruleset, loadout, before, state, await skilledDamageCount(tx, ruleset, run.id, state, count, before));
+  if ('individualVehicles' in run) damage = armorAdjustedDamage(run.id, readRunVehicles((run as T & { individualVehicles?: Prisma.JsonValue }).individualVehicles), before, damage, state);
   await tx.run.update({ where: { id: run.id }, data: { vehicleDamage: vehicleDamageJson(damage) } });
   return { ...run, vehicleDamage: vehicleDamageJson(damage) as Prisma.JsonValue };
 }

@@ -93,7 +93,8 @@ export const SupporterService = {
    * Gives the account every tenure badge its cumulative paid months earned and
    * it does not hold yet. Counts distinct UTC months with a paid invoice above
    * 0, so free trials, coupons and refunded/disputed payments never move the
-   * count, and cancelled months never reset it. Returns the keys it added.
+   * count, and cancelled months never reset it. Provider payments are treated
+   * alike. Returns the keys it added.
    */
   async grantTenure(db: Db, accountId: string, at = new Date()): Promise<string[]> {
     const payments = await db.supporterPayment.findMany({

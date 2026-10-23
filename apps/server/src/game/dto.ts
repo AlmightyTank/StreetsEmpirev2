@@ -20,10 +20,11 @@ import type {
   SeasonHideoutDto,
 } from '@streets/shared';
 import { explainThugHappiness, explainWhoreHappiness, totalWeapons } from '@streets/rules-engine';
+import { staffCapabilities } from '@streets/shared';
 import { fitThugs } from '../services/action.service.js';
 import type { TurnSettlement } from '../services/turn.service.js';
 import { toHeatDto } from '../services/heat.service.js';
-import { adminNeedsSecondFactor, canPlay, needsRulesAcceptance, type SessionStrength } from '../auth/play-access.js';
+import { adminNeedsSecondFactor, canPlay, needsRulesAcceptance, staffRoleOf, type SessionStrength } from '../auth/play-access.js';
 
 /**
  * Money leaves the server as integer cents in a *Cents field and is never
@@ -43,11 +44,18 @@ export function toAccountDto(account: Account, session?: SessionStrength | null)
     emailVerifiedAt: account.emailVerifiedAt?.toISOString() ?? null,
     discordLinked: Boolean(account.discordId),
     discordUsername: account.discordUsername,
+    appleLinked: Boolean(account.appleId),
+    googleLinked: Boolean(account.googleId),
+    facebookLinked: Boolean(account.facebookId),
+    playGamesLinked: Boolean(account.playGamesId),
     isAdmin: account.isAdmin,
+    staffRole: staffRoleOf(account),
+    staffCapabilities: staffCapabilities(staffRoleOf(account)),
     createdAt: account.createdAt.toISOString(),
     lastLoginAt: account.lastLoginAt?.toISOString() ?? null,
     verificationRequired: !canPlay(account),
     rulesAcceptanceRequired: needsRulesAcceptance(account),
+    birthDateRequired: !account.birthDate,
     adminSignInRequired: adminNeedsSecondFactor(account, session),
     twoFactorEnabled: Boolean(account.twoFactorEnabledAt),
   };
@@ -198,6 +206,7 @@ export function toRoundPlayerDto(
       shotguns: player.shotguns,
       tek9s: player.tek9s,
       ak47s: player.ak47s,
+      ...(ruleset.ammoParts?.enabled ? { ammo: player.ammo, vehicleParts: player.vehicleParts } : {}),
       lowRiders: player.lowRiders,
       sedans: player.sedans,
       vans: player.vans,

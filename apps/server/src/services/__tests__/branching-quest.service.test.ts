@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { classicOgV07Q } from '@streets/rulesets';
+import type { QuestDefinition } from '@streets/rulesets';
 import { questPrerequisitesMet, resolveQuestBranchForClaim } from '../handcrafted-quest.service.js';
 
 describe('branching Job prerequisites', () => {
@@ -50,5 +51,32 @@ describe('branching Job prerequisites', () => {
   it('keeps both follow-ups locked before a branch is committed', () => {
     expect(questPrerequisitesMet(pipFollowUp, completed, {}, {})).toBe(false);
     expect(questPrerequisitesMet(tommyFollowUp, completed, {}, {})).toBe(false);
+  });
+
+  it('supports elapsed-time and recorded-action gates', () => {
+    const gated = {
+      ...pipFollowUp,
+      prerequisites: [
+        { kind: 'TIME_SINCE_JOIN', params: { minutes: 60 } },
+        { kind: 'ACTION_COUNT', params: { eventTypes: ['SCOUT', 'STORE_BUY'], count: 3 } },
+      ],
+    } as QuestDefinition;
+    const joinedAt = new Date('2026-01-01T00:00:00.000Z');
+
+    expect(questPrerequisitesMet(gated, new Set(), {}, {}, {}, {
+      joinedAt,
+      now: new Date('2026-01-01T00:59:59.000Z'),
+      actionCounts: { SCOUT: 2, STORE_BUY: 1 },
+    })).toBe(false);
+    expect(questPrerequisitesMet(gated, new Set(), {}, {}, {}, {
+      joinedAt,
+      now: new Date('2026-01-01T01:00:00.000Z'),
+      actionCounts: { SCOUT: 2 },
+    })).toBe(false);
+    expect(questPrerequisitesMet(gated, new Set(), {}, {}, {}, {
+      joinedAt,
+      now: new Date('2026-01-01T01:00:00.000Z'),
+      actionCounts: { SCOUT: 2, STORE_BUY: 1 },
+    })).toBe(true);
   });
 });

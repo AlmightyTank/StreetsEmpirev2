@@ -35,7 +35,8 @@ function account(overrides: Record<string, unknown> = {}) {
 
 function fakePrisma(row: ReturnType<typeof account> | null = account()) {
   return {
-    account: { findUnique: async () => row },
+    // The acting admin, or the account being moderated.
+    account: { findUnique: async ({ where }: { where: { id: string } }) => (where.id === actor.id ? { isAdmin: true, staffRole: 'ADMIN', isActive: true } : row) },
     supportTicket: {
       findMany: async () => [{ id: 't1', subject: 'Cannot sign in', createdAt: now, closedAt: null, closedByName: null, threadId: '222222222222222222' }],
     },

@@ -22,6 +22,10 @@ export interface AllianceMemberDto {
   isLeader: boolean;
   isYou: boolean;
   joinedAt: string;
+  /** Lifetime account level. Optional for older servers. */
+  accountLevel?: number;
+  /** Street Skills Slice D. Points-only current-round identity badges. */
+  streetSkillBadges?: import('./street-skills.js').StreetSkillBadgeDto[];
 }
 
 export type AllianceEventType = 'FOUNDED' | 'INVITED' | 'JOINED' | 'LEFT' | 'KICKED' | 'LEADER' | 'RENAMED' | 'DISBANDED';
@@ -56,6 +60,8 @@ export interface AllianceDetailDto extends AllianceTagDto {
   /** 0.9.0-E leader-managed alliance profile. */
   description: string;
   recruitmentStatus: AllianceRecruitmentStatusDto;
+  /** Crew rep: the members' account levels added up, and their average. Optional for older servers. */
+  crewRep?: { combinedLevel: number; averageLevel: number };
 }
 
 export interface AllianceIncomingInviteDto extends AllianceTagDto {
@@ -88,6 +94,8 @@ export interface AllianceRankingEntryDto extends AllianceTagDto {
   combinedNetWorthCents: number;
   memberCount: number;
   isYours: boolean;
+  /** Average account level of active members, for finding a crew near your own. Optional for older servers. */
+  averageLevel?: number;
 }
 
 export interface AllianceRankingsDto {

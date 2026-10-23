@@ -49,7 +49,7 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.2.0-A casino foundation 
     const registered = await app.inject({
       method: 'POST',
       url: '/api/auth/register',
-      payload: { username: accountName, email: accountName + '@example.invalid', password: randomUUID() },
+      payload: { ageConfirmed: true, username: accountName, email: accountName + '@example.invalid', password: randomUUID() },
     });
     accountId = registered.json().account.id;
   });
@@ -156,11 +156,15 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.2.0-A casino foundation 
     expect(opened.openSession?.bankrollCents).toBe(150_000);
     expect(opened.currentVenue?.walletChipsCents).toBe(50_000);
 
+    const toppedUp = await CasinoService.buyChips(app.prisma, player.id, { amountCents: 25_000, actionId: randomUUID() });
+    expect(toppedUp.openSession?.bankrollCents).toBe(175_000);
+    expect(toppedUp.currentVenue?.walletChipsCents).toBe(50_000);
+
     const closeAction = randomUUID();
     const closed = await CasinoService.closeSession(app.prisma, player.id, opened.openSession!.id, closeAction);
     const replay = await CasinoService.closeSession(app.prisma, player.id, opened.openSession!.id, closeAction);
     expect(closed.openSession).toBeNull();
-    expect(closed.currentVenue?.walletChipsCents).toBe(200_000);
-    expect(replay.currentVenue?.walletChipsCents).toBe(200_000);
+    expect(closed.currentVenue?.walletChipsCents).toBe(225_000);
+    expect(replay.currentVenue?.walletChipsCents).toBe(225_000);
   });
 });

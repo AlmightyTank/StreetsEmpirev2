@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
-import type { GameActionResult } from '@streets/shared';
+import type { GameActionResult, RandomEncounterDto } from '@streets/shared';
 import { ApiError } from '../api/client.js';
+import { publishQuestsChanged } from '../quests/questSignals.js';
 import { useSession } from '../stores/session.js';
 import { newActionId } from '../utils/actionId.js';
 
@@ -56,23 +57,27 @@ export function useGameAction<T>(): GameAction<T> {
         const outcome = await call(currentActionId);
         actionId.current = null;
 
-        // Refresh before publishing the receipt. Result rows use the session's
-        // multi-product balances for "remaining", so rendering first can show
-        // the pre-action stock until this request finishes.
-        try {
-          await useSession.getState().refreshSnapshot();
-        } catch (refreshError) {
+        // The receipt can render from this snapshot. /me settles again in the
+        // background and fills in activity, law, and the rest of the products.
+        useSession.getState().applyActionSnapshot(outcome.after, outcome.rankChanges);
+        void useSession.getState().refreshSnapshot({ background: true }).catch((refreshError: unknown) => {
           setError(
             refreshError instanceof Error
               ? `${refreshError.message} The action itself was confirmed.`
               : 'The action completed, but the dashboard could not refresh.',
           );
-        }
+        });
 
-        // Any confirmed gameplay action can advance a quest objective. The
-        // tracked-jobs bar owns its own quest request, so tell it to refresh
-        // instead of making every action page know which objectives changed.
-        window.dispatchEvent(new Event('streets:quests-changed'));
+        // The tracked bar reads the cheap endpoint unless a caller already has the board.
+        publishQuestsChanged({ scope: 'action' });
+
+        // Use the same cinematic layer for every action's server-selected encounter.
+        // Both the top-level and legacy nested receipt shapes are supported.
+        const nested = outcome.result as { encounter?: RandomEncounterDto } | null;
+        const encounter = outcome.encounter ?? nested?.encounter;
+        if (encounter && typeof encounter.key === 'string') {
+          window.dispatchEvent(new CustomEvent('streets:random-encounter', { detail: encounter }));
+        }
 
         // Even when the follow-up refresh fails, the confirmed action receipt
         // is still useful and must remain visible.

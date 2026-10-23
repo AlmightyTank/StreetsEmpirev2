@@ -7,13 +7,15 @@ import {
   buildBlackjackShoe,
   comparePokerHands,
   evaluatePokerHand,
+  horseRaceOrder,
+  horseReturnCents,
+  poolBreak,
+  poolPlayerShot,
+  poolReturnBps,
   resolveRouletteSpin,
   roulettePockets,
-  rollStreetDice,
   seededRng,
-  streetDiceComeOut,
-  streetDiceLineReturnCents,
-  streetDicePointResult,
+  scratchPrizeMultiplier,
 } from '@streets/rules-engine';
 
 const samples = Number(process.env.CASINO_SIM_SAMPLES ?? 100_000);
@@ -39,33 +41,30 @@ for (const table of rouletteVariants) {
 }
 
 {
+  const rules = classicOgV12E2.casino.scratchCards;
   const rng = seededRng(80_021);
+  let returned = 0;
+  for (let i = 0; i < samples; i++) returned += scratchPrizeMultiplier(rules, rng);
+  const observed = returned / samples;
+  const totalWeight = rules.payoutTiers.reduce((sum, tier) => sum + tier.weight, 0);
+  const expected = rules.payoutTiers.reduce((sum, tier) => sum + tier.multiplier * tier.weight, 0) / totalWeight;
+  console.log(`Scratch Cards: RTP ${(observed * 100).toFixed(2)}% (theoretical ${(expected * 100).toFixed(2)}%)`);
+  assertBand('Scratch Cards', observed, expected, 0.02);
+}
+
+{
+  const rules = classicOgV12E2.casino.horseRacing;
+  const rng = seededRng(80_022);
   const wager = 100n;
-  let returned = 0n;
-  let wins = 0;
-  for (let i = 0; i < samples; i++) {
-    let [a, b] = rollStreetDice(rng);
-    let total = a + b;
-    const first = streetDiceComeOut(total);
-    let won = first === 'WIN';
-    if (first === 'POINT') {
-      const point = total;
-      for (;;) {
-        [a, b] = rollStreetDice(rng);
-        const result = streetDicePointResult(a + b, point);
-        if (result === 'WIN' || result === 'LOSE') {
-          won = result === 'WIN';
-          break;
-        }
-      }
-    }
-    if (won) wins++;
-    returned += streetDiceLineReturnCents(wager, won);
+  for (const horse of rules.horses) {
+    let returned = 0n;
+    for (let i = 0; i < samples; i++) returned += horseReturnCents(wager, horse.returnBps, horseRaceOrder(rules, rng)[0] === horse.key);
+    const observed = Number(returned) / (samples * Number(wager));
+    const inverseTotal = rules.horses.reduce((sum, runner) => sum + 1 / runner.returnBps, 0);
+    const expected = 1 / inverseTotal / 10_000;
+    console.log(`Horse Racing ${horse.name}: RTP ${(observed * 100).toFixed(2)}% (theoretical ${(expected * 100).toFixed(2)}%)`);
+    assertBand(`Horse Racing ${horse.name}`, observed, expected, 0.025);
   }
-  const observed = Number(returned) / (samples * Number(wager));
-  const expected = 244 / 495 * 2;
-  console.log(`Street Dice pass line: RTP ${(observed * 100).toFixed(2)}% (theoretical ${(expected * 100).toFixed(2)}%, ${(wins / samples * 100).toFixed(2)}% winning decisions)`);
-  assertBand('Street Dice pass line', observed, expected, 0.02);
 }
 
 const blackjackVariants = [...new Map(classicOgV12E2.casino.blackjack.tables.map((row) => [
@@ -117,6 +116,31 @@ for (const table of blackjackVariants) {
   const observed = wins / (wins + losses);
   console.log(`Texas Hold’em random-vs-random equity: ${(observed * 100).toFixed(2)}% wins excluding ${ties.toLocaleString('en-US')} ties`);
   assertBand('Texas Hold’em equity', observed, 0.5, 0.012);
+}
+
+{
+  // Near-optimal play (the value-iteration policy): Safety once the hustler is on
+  // the 8, Power with ball in hand while behind, Steady otherwise. Must stay a loss.
+  for (const table of classicOgV12E2.casino.pool.tables) {
+    const rules = classicOgV12E2.casino.pool;
+    const rng = seededRng(91_000 + table.minBetCents);
+    let returnedBps = 0;
+    for (let rack = 0; rack < samples; rack++) {
+      const state = poolBreak(rules, table, rng);
+      while (state.status === 'ACTIVE') {
+        const shot = state.hustlerBalls.length === 0 && state.playerBalls.length >= 1 && !state.ballInHand
+          ? 'SAFETY'
+          : state.ballInHand && state.playerBalls.length >= 2 && state.playerBalls.length > state.hustlerBalls.length
+            ? 'POWER'
+            : 'STEADY';
+        poolPlayerShot(rules, table, state, shot, rng);
+      }
+      returnedBps += poolReturnBps(table, state);
+    }
+    const observed = returnedBps / samples / 10_000;
+    console.log(`Pool ${table.key} vs ${table.hustler.name}: RTP ${(observed * 100).toFixed(2)}% with near-optimal shots`);
+    if (observed < 0.85 || observed > 0.975) failures.push(`Pool ${table.key}: RTP band failed at ${(observed * 100).toFixed(2)}%`);
+  }
 }
 
 if (failures.length) {

@@ -9,6 +9,7 @@ import {
 import { AppError } from '../utils/errors.js';
 import { allianceTagDto } from './alliance.service.js';
 import { profileThemeTags, themeTagFields } from './profile-showcase.service.js';
+import { PlayerExperienceService } from './player-experience.service.js';
 import { SupporterService } from './supporter.service.js';
 
 const ONLINE_MS = 5 * 60 * 1000;
@@ -322,10 +323,11 @@ export const PlayerDirectoryService = {
       });
     }
 
-    const [rankByWorth, themeTags, supporterFlags] = await Promise.all([
+    const [rankByWorth, themeTags, supporterFlags, levels] = await Promise.all([
       ranksForRows(prisma, owner.roundId, rows),
       profileThemeTags(prisma, rows.map((row) => row.accountId)),
       SupporterService.flags(prisma, rows.map((row) => row.accountId)),
+      PlayerExperienceService.levels(prisma, rows.map((row) => row.accountId)),
     ]);
     const contactIds = new Set(contacts.map((row) => row.targetId));
 
@@ -367,6 +369,7 @@ export const PlayerDirectoryService = {
         isContact: contactIds.has(row.id),
         isSupporter: supporterFlags.get(row.accountId)?.isSupporter ?? false,
         supporterSince: supporterFlags.get(row.accountId)?.supporterSince ?? null,
+        accountLevel: levels.get(row.accountId) ?? 1,
         ...themeTagFields(themeTags.get(row.accountId)),
       })),
     };

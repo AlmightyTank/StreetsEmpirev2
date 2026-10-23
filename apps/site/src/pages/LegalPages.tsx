@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { MINIMUM_AGE } from '@streets/shared';
 import { PublicPageHero } from '../components/PublicPageBits.js';
 
 /**
@@ -6,7 +7,7 @@ import { PublicPageHero } from '../components/PublicPageBits.js';
  * when that changes, change these. The operator should read both before launch (they
  * are plain-language pages, not legal advice), and update LEGAL_UPDATED when they do.
  */
-export const LEGAL_UPDATED = '27 September 2026';
+export const LEGAL_UPDATED = '19 October 2026';
 const CONTACT = <a href="https://forum.streetsempire.dev">the StreetsEmpire forum</a>;
 
 function LegalPage({ eyebrow, title, intro, sections }: { eyebrow: string; title: string; intro: string; sections: Array<{ heading: string; body: React.ReactNode }> }) {
@@ -42,6 +43,8 @@ export function PrivacyPage() {
           body: (
             <>
               <p>Your <strong>username</strong> (public), your <strong>email address</strong> (private: sign-in, password recovery and verification only) and your <strong>password</strong>, which is stored only as a one-way hash and never readable, even by staff.</p>
+              <p>We also store your date of birth privately to enforce the {MINIMUM_AGE}+ age requirement. It is not shown on public player profiles, leaderboards, or account session responses. You can contact staff to correct it, and it is included in your own account data export.</p>
+              <p>We also use the day and month of your birth date for <strong>birthday rewards</strong>: during your birthday week the game offers you a gift of Crowns and a title, a discount in The Drop, and a frame and theme to wear on the day. This happens automatically and stays private to you. Other players see nothing unless you turn on &ldquo;Show a birthday cake on my name&rdquo; in account settings; then they see a cake by your name on your birthday only, never your date of birth, age or birth year. You can turn the cake off at any time.</p>
               <p>Each signed-in session keeps the <strong>IP address and browser</strong> it signed in from and when it was last used, so you can see and end your sessions and so staff can spot account sharing and abuse. With "Keep me signed in" a session lasts while you keep visiting, ends after 30 days away, and always ends 90 days after you signed in; without it, it ends when you close the browser or after 12 hours idle. If you use two-step sign-in and choose "Trust this browser", that browser keeps a cookie for 30 days so it can skip the code (you can forget it in account settings). The account also keeps the IP address it was created from, so one network cannot flood the game with new accounts.</p>
             </>
           ),
@@ -64,14 +67,14 @@ export function PrivacyPage() {
               <li><strong>Two-step sign-in</strong>: if you turn it on, your authenticator app's secret key (stored encrypted) and your recovery codes (stored only as one-way hashes).</li>
               <li><strong>Bug reports</strong>: what you write, the page you were on, your browser and the game version. Staff read them to fix the game.</li>
               <li><strong>Phone and browser alerts</strong>: if you turn them on, your browser's push address for this site, which your browser maker's push service delivers through.</li>
-              <li><strong>Supporting</strong>: if you support, whether your subscription is active, when it renews or ends, and each payment's amount, date and Stripe invoice number. Your card details go to Stripe and never reach us. If you choose to be on the public thank-you list, your name and the month you started supporting are shown there.</li>
+              <li><strong>Supporting</strong>: if you support, the billing provider, whether your subscription is active, when it renews or ends, and each payment&apos;s amount, date and provider transaction number. Your payment details go to Stripe or Google Play and never reach us. If you choose to be on the public thank-you list, your name and the month you started supporting are shown there.</li>
             </ul>
           ),
         },
         {
           heading: 'Who else handles it',
           body: (
-            <p>Emails (verification, password recovery, and security notices such as a changed password or a sign-in from a new browser) are sent through an email delivery service. The "are you human" check at sign-in, sign-up and password recovery is Cloudflare Turnstile, which looks at your browser to tell people from bots. Push alerts go through your browser maker's push service. Supporter payments are handled by Stripe, which keeps the payment details and its own records under its privacy policy. Discord and the forum see what you do there. There are no advertising or analytics trackers, and nothing is sold.</p>
+            <p>Emails (verification, password recovery, and security notices such as a changed password or a sign-in from a new browser) are sent through an email delivery service. The "are you human" check at sign-in, sign-up and password recovery is Cloudflare Turnstile, which looks at your browser to tell people from bots. Push alerts go through your browser maker&apos;s push service. Supporter payments are handled by Stripe on the website or Google Play in the Android app; they keep payment details and their own records under their privacy policies. Discord and the forum see what you do there. There are no advertising or analytics trackers, and nothing is sold.</p>
           ),
         },
         {
@@ -100,7 +103,7 @@ export function PrivacyPage() {
         {
           heading: 'Children',
           body: (
-            <p>StreetsEmpire is for players aged 13 and over. We do not knowingly keep data about anyone younger; if we learn an account belongs to someone under 13, we delete it. A parent or guardian who thinks that has happened can tell staff on {CONTACT}.</p>
+            <p>StreetsEmpire is for players aged {MINIMUM_AGE} and over. We do not knowingly keep data about anyone younger; if we learn an account belongs to someone under {MINIMUM_AGE}, we delete it. A parent or guardian who thinks that has happened can tell staff on {CONTACT}.</p>
           ),
         },
       ]}
@@ -117,7 +120,7 @@ export function TermsPage() {
       sections={[
         {
           heading: 'Age',
-          body: <p>You must be 13 or older to play. StreetsEmpire is a crime strategy game about drugs, raids and turf. If you are under the age of majority where you live, make sure a parent or guardian is fine with you playing. Accounts of players under 13 are deleted.</p>,
+          body: <p>You must be {MINIMUM_AGE} or older to play. StreetsEmpire is a crime strategy game about drugs, raids and turf. If you are under the age of majority where you live, make sure a parent or guardian is fine with you playing. Accounts of players under {MINIMUM_AGE} are deleted.</p>,
         },
         {
           heading: 'One player, one account',

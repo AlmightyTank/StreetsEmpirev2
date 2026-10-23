@@ -16,7 +16,7 @@ describe.runIf(process.env.ADMIN_INTEGRATION === '1')('Admin API with PostgreSQL
 
   async function register(label: string): Promise<Who> {
     const username = `${label}_${randomUUID().slice(0, 8)}`;
-    const response = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { username, email: `${username}@example.invalid`, password: randomUUID() } });
+    const response = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { ageConfirmed: true, username, email: `${username}@example.invalid`, password: randomUUID() } });
     expect(response.statusCode, response.body).toBe(201);
     const id = response.json().account.id as string;
     accountIds.push(id);
@@ -82,6 +82,33 @@ describe.runIf(process.env.ADMIN_INTEGRATION === '1')('Admin API with PostgreSQL
     expect((await app.prisma.round.findUniqueOrThrow({ where: { id: round.id } })).status).toBe('SCHEDULED');
     expect(await app.prisma.round.count({ where: { name } })).toBe(0);
     expect(await app.prisma.adminAuditLog.count({ where: { OR: [{ targetId: round.id }, { actorAccountId: player.id }] } })).toBe(0);
+  });
+
+  it('assigns unique sequential Game numbers and preserves the number on rename', async () => {
+    const label = `New City ${randomUUID().slice(0, 6)}`;
+    const params = { rulesetId: classicOgV01.meta.id, startsAt: '2099-03-01T00:00:00.000Z' };
+    const responses = await Promise.all([
+      post('/api/admin/rounds', { ...params, name: label }),
+      post('/api/admin/rounds', { ...params, name: `Second ${label}` }),
+    ]);
+    for (const response of responses) {
+      expect(response.statusCode, response.body).toBe(201);
+      roundIds.push(response.json().round.id as string);
+    }
+    const names = responses.map((response) => response.json().round.name as string);
+    const numbers = names.map((name) => Number(/^Game#(\d+) - /.exec(name)?.[1]));
+    expect(numbers.every(Number.isSafeInteger)).toBe(true);
+    expect(Math.abs(numbers[0]! - numbers[1]!)).toBe(1);
+    expect(names[0]).toContain(` - ${label}`);
+    expect(names[1]).toContain(` - Second ${label}`);
+    expect(responses[0]!.json().round.slug).toMatch(/^game-\d+-new-city-/);
+
+    const renamed = await post(`/api/admin/rounds/${roundIds.at(-2)}/update`, {
+      name: 'Renamed City',
+      reason: 'Confirm automatic number preservation',
+    });
+    expect(renamed.statusCode, renamed.body).toBe(200);
+    expect(renamed.json().round.name).toBe(`Game#${String(numbers[0]).padStart(3, '0')} - Renamed City`);
   });
 
   it('schedules, opens, ends early and archives a round with an audit record for each step', async () => {

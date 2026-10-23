@@ -4,9 +4,11 @@ import { onboardingApi } from '../api/onboarding.js';
 
 interface OnboardingStore {
   state: OnboardingStateDto | null;
+  /** Player whose first request settled, including the non-blocking failure path. */
+  loadedFor: string | null;
   /** The intro is open, because it was due or the player asked to replay it. */
   introOpen: boolean;
-  load: () => Promise<void>;
+  load: (playerId?: string) => Promise<void>;
   act: (input: OnboardingActionInput) => Promise<void>;
   openIntro: () => void;
   closeIntro: () => void;
@@ -18,14 +20,20 @@ interface OnboardingStore {
  */
 export const useOnboarding = create<OnboardingStore>((set) => ({
   state: null,
+  loadedFor: null,
   introOpen: false,
 
-  async load() {
+  async load(playerId) {
     try {
       const state = await onboardingApi.state();
-      set((current) => ({ state, introOpen: current.introOpen || state.intro.due }));
+      set((current) => ({
+        state,
+        loadedFor: playerId ?? current.loadedFor,
+        introOpen: current.introOpen || state.intro.due,
+      }));
     } catch {
       // Older server or signed out: no onboarding, the game still works.
+      set((current) => ({ loadedFor: playerId ?? current.loadedFor }));
     }
   },
 

@@ -166,12 +166,13 @@ describe('levelUpToastFor', () => {
     });
   });
 
-  it('celebrates regular level gains without promising a title reward', () => {
-    expect(levelUpToastFor(1, 2)).toMatchObject({
-      title: 'Level 2 reached',
-      detail: expect.not.stringContaining('New title unlocked'),
-      tone: 'good',
-      href: '/game/xp-progress',
-    });
+  it('lists every reward the new level gives', () => {
+    expect(levelUpToastFor(1, 2).detail).toContain('Title: Corner Rookie');
+    expect(levelUpToastFor(2, 3).detail).toContain('Unlocks: Play the casino');
+    expect(levelUpToastFor(9, 10).detail).toContain('20 Crowns');
+  });
+
+  it('summarises a jump across many levels', () => {
+    expect(levelUpToastFor(1, 20).detail).toMatch(/and \d+ more/);
   });
 });

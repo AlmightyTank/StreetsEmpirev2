@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <filter id="s" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="2.5" flood-color="#000" flood-opacity=".6"/></filter>
+    <linearGradient id="rib" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#4a525a"/><stop offset=".35" stop-color="#d4dbe2"/><stop offset=".6" stop-color="#9aa3ac"/><stop offset="1" stop-color="#4a525a"/></linearGradient>
+    <pattern id="cl" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(18)"><rect width="10" height="10" fill="url(#rib)"/></pattern>
+    <pattern id="cr" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(-22)"><rect width="10" height="10" fill="url(#rib)"/></pattern>
+    <linearGradient id="pp" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a3e44"/><stop offset=".3" stop-color="#b8c0c8"/><stop offset=".6" stop-color="#6a7078"/><stop offset="1" stop-color="#25282d"/></linearGradient>
+    <radialGradient id="rs"><stop offset="0" stop-color="#c0622a"/><stop offset=".6" stop-color="#8a3c14" stop-opacity=".8"/><stop offset="1" stop-color="#8a3c14" stop-opacity="0"/></radialGradient>
+  </defs>
+  <g filter="url(#s)" stroke="#16191d" stroke-width="1.6" stroke-linejoin="round">
+    <path d="M14 82 L26 30 L42 34 L46 28 L66 36 L58 92 Z" fill="url(#cl)"/>
+    <path d="M66 36 L84 22 L90 30 L112 24 L110 74 L96 80 L58 92 Z" fill="url(#cr)"/>
+  </g>
+  <path d="M66 36 L84 22 L90 30 L112 24 L110 74 L96 80 L58 92 Z" fill="#0b0d10" opacity=".22"/>
+  <path d="M66 36 L58 92" stroke="#f2f6fa" stroke-opacity=".6" stroke-width="1.6" stroke-linecap="round"/>
+  <ellipse cx="34" cy="70" rx="10" ry="7" fill="url(#rs)"/>
+  <ellipse cx="96" cy="44" rx="9" ry="6" fill="url(#rs)"/>
+  <ellipse cx="50" cy="42" rx="6" ry="4" fill="url(#rs)"/>
+  <g transform="translate(66 96) rotate(-14)">
+    <g filter="url(#s)" stroke="#121417" stroke-width="1.6" stroke-linejoin="round">
+      <path d="M-48 -10 H40 V10 H-48 Z" fill="url(#pp)"/>
+      <path d="M-38 -13 H-29 V13 H-38 Z" fill="url(#pp)"/>
+      <ellipse cx="40" cy="0" rx="5" ry="10" fill="#7a828a"/>
+      <ellipse cx="40" cy="0" rx="2.8" ry="6" fill="#101215"/>
+    </g>
+    <ellipse cx="4" cy="2" rx="10" ry="6" fill="url(#rs)"/>
+    <path d="M-46 -5 H38" stroke="#f2f6fa" stroke-opacity=".6" stroke-width="1.6" stroke-linecap="round"/>
+  </g>
+</svg>

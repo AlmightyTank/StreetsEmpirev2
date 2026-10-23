@@ -58,8 +58,8 @@ body,
 
 @media (max-width: 380px) {
   .se-shell {
-    padding-right: 8px;
-    padding-left: 8px;
+    padding-right: var(--se-content-gutter-phone);
+    padding-left: var(--se-content-gutter-phone);
   }
 
   .se-stat__value {

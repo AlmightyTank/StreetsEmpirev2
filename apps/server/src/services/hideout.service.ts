@@ -26,9 +26,11 @@ import type {
   HideoutV2Dto,
   HideoutWorkshopDto,
 } from '@streets/shared';
-import { ActionService, fitThugs, type PlayerState } from './action.service.js';
+import { ActionService, assertTurns, fitThugs, type PlayerState } from './action.service.js';
 import { AppError } from '../utils/errors.js';
 import { EconomyLedgerService } from './economy-ledger.service.js';
+import { generatorDto } from './generator.service.js';
+import { stashDimensions } from './stash.service.js';
 
 type HideoutField =
   | 'hideoutSafeRoomLevel'
@@ -36,6 +38,23 @@ type HideoutField =
   | 'hideoutWorkshopLevel'
   | 'hideoutBackOfficeLevel'
   | 'hideoutGarageLevel';
+type ModuleKey = HideoutRoomKey | 'STORAGE';
+
+type ModuleComponentCost = { key: string; quantity: number };
+const MODULE_COMPONENTS: Record<ModuleKey, (level: number) => ModuleComponentCost[]> = {
+  SAFE_ROOM: (level) => [{ key: 'SCRAP_METAL', quantity: level * 2 }, { key: 'CLOTH', quantity: level }],
+  LOOKOUTS: (level) => [{ key: 'WIRING', quantity: level * 2 }, { key: 'RADIO', quantity: Math.max(0, level - 1) }],
+  WORKSHOP: (level) => [{ key: 'SCRAP_METAL', quantity: level * 2 }, { key: 'TOOL_KIT', quantity: level }, ...(level >= 3 ? [{ key: 'PRECISION_PARTS', quantity: 1 }] : [])],
+  BACK_OFFICE: (level) => [{ key: 'WIRING', quantity: level * 2 }, { key: 'RADIO', quantity: level }, ...(level >= 3 ? [{ key: 'SPECIALIST_CIRCUITRY', quantity: 1 }] : [])],
+  GARAGE: (level) => [{ key: 'SCRAP_METAL', quantity: level * 3 }, { key: 'MOTOR_ASSEMBLY', quantity: Math.max(0, level - 1) }, ...(level >= 3 ? [{ key: 'PRECISION_PARTS', quantity: 1 }] : [])],
+  STORAGE: (level) => [{ key: 'LUMBER', quantity: level * 3 }, { key: 'FASTENERS', quantity: level * 2 }, ...(level >= 3 ? [{ key: 'SPECIALTY_CONTAINER', quantity: 1 }] : [])],
+};
+const STORAGE_COSTS = [60_000, 125_000, 250_000];
+const STORAGE_TURNS = [2, 3, 4];
+const MODULE_TURNS: Record<HideoutRoomKey, (level: number) => number> = {
+  SAFE_ROOM: (level) => level + 1, LOOKOUTS: (level) => level + 1, WORKSHOP: (level) => level + 1,
+  BACK_OFFICE: (level) => level + 1, GARAGE: (level) => level + 1,
+};
 
 const ROOM_FIELDS: Record<HideoutRoomKey, HideoutField> = {
   SAFE_ROOM: 'hideoutSafeRoomLevel',
@@ -186,6 +205,29 @@ function assetProtectionDto(
 
 function levelOf(player: Pick<PlayerState, HideoutField>, room: HideoutRoomKey): number {
   return player[ROOM_FIELDS[room]];
+}
+
+function componentBalances(value: unknown): Record<string, number> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return Object.fromEntries(Object.entries(value).filter(([, quantity]) => typeof quantity === 'number' && quantity > 0)) as Record<string, number>;
+}
+
+function moduleComponents(room: ModuleKey, nextLevel: number, player: PlayerState): Array<{ key: string; quantity: number; current: number; met: boolean }> {
+  // Preserve cash-only previews for legacy in-memory/fixture players that do
+  // not yet carry the Slice E component ledger. Migrated rows receive `{}` and
+  // therefore participate in the new component gates.
+  if (player.scavengedComponents === undefined) return [];
+  const balances = componentBalances(player.scavengedComponents);
+  return MODULE_COMPONENTS[room](nextLevel).map(({ key, quantity }) => ({ key, quantity, current: balances[key] ?? 0, met: (balances[key] ?? 0) >= quantity }));
+}
+
+function moduleTurns(room: ModuleKey, nextLevel: number): number {
+  return room === 'STORAGE' ? STORAGE_TURNS[nextLevel - 1] ?? nextLevel + 1 : MODULE_TURNS[room](nextLevel);
+}
+
+function moduleCash(room: ModuleKey, nextLevel: number, rule?: { costsCents: number[] }): number | null {
+  if (room === 'STORAGE') return STORAGE_COSTS[nextLevel - 1] ?? null;
+  return rule?.costsCents[nextLevel - 1] ?? null;
 }
 
 function dollars(cents: number): string {
@@ -359,9 +401,14 @@ function garageDto(ruleset: Ruleset, player: PlayerState): HideoutGarageDto | un
   };
 }
 
-function effect(room: HideoutRoomKey, level: number, ruleset: Ruleset): string {
+function effect(room: ModuleKey, level: number, ruleset: Ruleset): string {
   const hideout = ruleset.hideout;
   if (!hideout || level <= 0) return 'No active bonus yet.';
+
+  if (room === 'STORAGE') {
+    const dimensions = stashDimensions(level);
+    return `${dimensions.columns}×${dimensions.rows} stash grid (${dimensions.columns * dimensions.rows} cells).`;
+  }
 
   const buffs = hideout.buffs;
   if (room === 'SAFE_ROOM') {
@@ -446,6 +493,8 @@ function roomLockReason(
   nextCostCents: number,
   player: PlayerState,
   requirements: readonly HideoutRequirementDto[],
+  turns = 0,
+  components: readonly { key: string; quantity: number; current: number; met: boolean }[] = [],
 ): string | null {
   const missing: string[] = [];
   if (player.cashCents < BigInt(nextCostCents)) {
@@ -456,6 +505,8 @@ function roomLockReason(
       missing.push(`${requirement.label} ${requirement.current}/${requirement.required}`);
     }
   }
+  if (turns > player.turns) missing.push(`${turns} turns required (${player.turns} available)`);
+  for (const component of components) if (!component.met) missing.push(`${component.key} ${component.current}/${component.quantity}`);
   return missing.length ? `Need ${missing.join('; ')}.` : null;
 }
 
@@ -485,6 +536,8 @@ function toRoomDto(room: HideoutRoomKey, ruleset: Ruleset, player: PlayerState, 
   const maxed = level >= rule.maxLevel;
   const nextCostCents = maxed ? null : rule.costsCents[level] ?? null;
   const nextRequirements = maxed ? [] : requirementsFor(room, level + 1, ruleset, player, progress);
+  const nextCostTurns = maxed ? null : moduleTurns(room, level + 1);
+  const nextCostComponents = maxed ? [] : moduleComponents(room, level + 1, player);
 
   if (!maxed && (nextCostCents === null || !Number.isSafeInteger(nextCostCents) || nextCostCents <= 0)) {
     throw new RangeError(`Hideout room ${room} level ${level + 1} is missing a valid price.`);
@@ -492,7 +545,7 @@ function toRoomDto(room: HideoutRoomKey, ruleset: Ruleset, player: PlayerState, 
 
   const lockReason = maxed
     ? `${rule.name} is fully upgraded for this season.`
-    : roomLockReason(nextCostCents!, player, nextRequirements);
+    : roomLockReason(nextCostCents!, player, nextRequirements, nextCostTurns ?? 0, nextCostComponents);
 
   return {
     key: room,
@@ -506,7 +559,25 @@ function toRoomDto(room: HideoutRoomKey, ruleset: Ruleset, player: PlayerState, 
     canUpgrade: !maxed && lockReason === null,
     lockReason,
     nextRequirements,
+    nextCostTurns,
+    nextCostComponents,
     specialization: specializationFor(room, ruleset, player),
+  };
+}
+
+function storageRoomDto(player: PlayerState, ruleset: Ruleset): HideoutRoomV2Dto {
+  const level = player.hideoutStorageLevel ?? 0;
+  const maxLevel = STORAGE_COSTS.length;
+  const maxed = level >= maxLevel;
+  const nextLevel = level + 1;
+  const nextCostCents = maxed ? null : moduleCash('STORAGE', nextLevel)!;
+  const nextCostTurns = maxed ? null : moduleTurns('STORAGE', nextLevel);
+  const nextCostComponents = maxed ? [] : moduleComponents('STORAGE', nextLevel, player);
+  const lockReason = maxed ? 'Storage is fully upgraded for this season.' : roomLockReason(nextCostCents!, player, [], nextCostTurns!, nextCostComponents);
+  return {
+    key: 'STORAGE', name: 'Storage', blurb: 'Expand the hideout stash without forcing overflow onto the street.', level, maxLevel,
+    nextCostCents, currentEffect: effect('STORAGE', level, ruleset), nextEffect: maxed ? null : effect('STORAGE', nextLevel, ruleset),
+    canUpgrade: !maxed && lockReason === null, lockReason, nextRequirements: [], nextCostTurns, nextCostComponents, specialization: null,
   };
 }
 
@@ -526,11 +597,13 @@ export function hideoutCatalog(
       totalLevel: 0,
       totalMaxLevel: 0,
       rooms: [],
+      generator: generatorDto({ generatorPowered: player.generatorPowered ?? false, generatorFuel: player.generatorFuel ?? 0, generatorCapacityLevel: player.generatorCapacityLevel ?? 0, generatorEfficiencyLevel: player.generatorEfficiencyLevel ?? 0, scavengedComponents: {} }),
     };
   }
 
   const rooms = ROOM_ORDER.filter((room) => Boolean(ruleset.hideout!.rooms[room]))
     .map((room) => toRoomDto(room, ruleset, player, progress));
+  rooms.push(storageRoomDto(player, ruleset));
   return {
     enabled: true,
     seasonScoped: true,
@@ -541,6 +614,7 @@ export function hideoutCatalog(
     ...(assetProtectionDto(ruleset, player, products) ? { assetProtection: assetProtectionDto(ruleset, player, products) } : {}),
     ...(workshopDto(ruleset, player) ? { workshop: workshopDto(ruleset, player) } : {}),
     ...(garageDto(ruleset, player) ? { garage: garageDto(ruleset, player) } : {}),
+    generator: generatorDto({ generatorPowered: player.generatorPowered ?? false, generatorFuel: player.generatorFuel ?? 0, generatorCapacityLevel: player.generatorCapacityLevel ?? 0, generatorEfficiencyLevel: player.generatorEfficiencyLevel ?? 0, scavengedComponents: {} }),
   };
 }
 
@@ -868,11 +942,12 @@ export const HideoutService = {
           throw AppError.conflict('HIDEOUT_DISABLED', 'Hideouts are not available in this round.');
         }
 
-        const room = input.room as HideoutRoomKey;
-        const rule = hideout.rooms[room];
-        const field = ROOM_FIELDS[room];
+        const room = input.room as ModuleKey;
+        const isStorage = room === 'STORAGE';
+        const rule = isStorage ? { name: 'Storage', maxLevel: STORAGE_COSTS.length, costsCents: STORAGE_COSTS } : hideout.rooms[room as HideoutRoomKey];
         if (!rule) throw AppError.badRequest('HIDEOUT_ROOM_DISABLED', 'That room is not available in this round.');
-        const levelBefore = current[field];
+        const field: HideoutField | 'hideoutStorageLevel' = isStorage ? 'hideoutStorageLevel' : ROOM_FIELDS[room as HideoutRoomKey];
+        const levelBefore = isStorage ? (current.hideoutStorageLevel ?? 0) : current[ROOM_FIELDS[room as HideoutRoomKey]];
         if (levelBefore >= rule.maxLevel) {
           throw AppError.badRequest('HIDEOUT_MAXED', `${rule.name} is already fully upgraded.`);
         }
@@ -893,7 +968,7 @@ export const HideoutService = {
           }),
         ]);
         const lowRidersOwned = current.lowRiders + current.damagedLowRiders + current.disabledLowRiders + (awayCars._sum.lowRiders ?? 0);
-        const requirements = requirementsFor(room, levelAfter, ruleset, current, { turfBlocksHeld, lowRidersOwned });
+        const requirements = isStorage ? [] : requirementsFor(room as HideoutRoomKey, levelAfter, ruleset, current, { turfBlocksHeld, lowRidersOwned });
         const unmet = requirements.filter((requirement) => !requirement.met);
         if (unmet.length) {
           throw AppError.badRequest(
@@ -905,11 +980,23 @@ export const HideoutService = {
           throw AppError.badRequest('NOT_ENOUGH_CASH', `You need ${dollars(costCents)} for the next ${rule.name} upgrade.`);
         }
 
+        assertTurns(current.turns, moduleTurns(room, levelAfter));
+        const balances = componentBalances(player.scavengedComponents);
+        const componentCosts = MODULE_COMPONENTS[room](levelAfter);
+        for (const component of componentCosts) {
+          if ((balances[component.key] ?? 0) < component.quantity) {
+            throw AppError.badRequest('MISSING_HIDEOUT_COMPONENTS', `You need more ${component.key.toLowerCase().replaceAll('_', ' ')} for this upgrade.`);
+          }
+        }
+        for (const component of componentCosts) balances[component.key] = (balances[component.key] ?? 0) - component.quantity;
+        await tx.roundPlayer.update({ where: { id: roundPlayerId }, data: { scavengedComponents: balances as import('@prisma/client').Prisma.InputJsonValue } });
+
         return {
           next: {
             ...current,
             cashCents: current.cashCents - BigInt(costCents),
             [field]: levelAfter,
+            turns: current.turns - moduleTurns(room, levelAfter),
           },
           result: {
             room,

@@ -109,6 +109,31 @@ function progress(value: Prisma.JsonValue): QuestProgressMap {
   return result;
 }
 
+function eventTypesOf(objective: QuestObjectiveDefinition): string[] | null {
+  const raw = objective.params?.eventTypes;
+  if (!Array.isArray(raw)) return null;
+  const types = raw.filter((value): value is string => typeof value === 'string' && value.length > 0);
+  return types.length ? types : null;
+}
+
+/** False when this objective cannot move for the event, so the row does not need a lock. */
+function objectiveCouldMatch(objective: QuestObjectiveDefinition, eventType: string): boolean {
+  if (objective.kind === 'TURF_HOLD_HOURS') return false;
+  const types = eventTypesOf(objective);
+  return !types || types.includes(eventType);
+}
+
+function questCouldMatch(
+  definition: { type: string; objectives: Prisma.JsonValue; bonusObjectives: Prisma.JsonValue },
+  rewardState: Prisma.JsonValue,
+  eventType: string,
+): boolean {
+  if (definition.type === 'ALLIANCE') return true;
+  const required = cityContractObjectives(rewardState) ?? objectives(definition.objectives);
+  const bonus = objectives(definition.bonusObjectives);
+  return [...required, ...bonus].some((objective) => objectiveCouldMatch(objective, eventType));
+}
+
 function newlyCompletedObjectives(
   definitions: QuestObjectiveDefinition[],
   before: QuestProgressMap,
@@ -243,29 +268,62 @@ export const QuestProgressService = {
     const communityRuleset = await syncCommunityEventAttemptsForPlayer(db, roundPlayerId, at);
     if (communityRuleset) await syncSeasonalEventAttempts(db, roundPlayerId, communityRuleset, at);
 
+    const progressSelect = {
+      id: true,
+      expiresAt: true,
+      rewardState: true,
+      questDefinition: {
+        select: {
+          key: true,
+          type: true,
+          isEnabled: true,
+          objectives: true,
+          bonusObjectives: true,
+        },
+      },
+    } as const;
     const directCandidates = await db.playerQuest.findMany({
       where: {
         roundPlayerId,
         status: { in: [...ACTIVE_STATUSES] },
         questDefinition: { type: { not: 'ALLIANCE' }, isEnabled: true },
       },
-      select: { id: true, questDefinition: { select: { key: true } } },
+      select: progressSelect,
       orderBy: { id: 'asc' },
     });
     const allianceCandidateIds = await allianceContractProgressCandidateIds(db, roundPlayerId);
-    const candidateIds = [...new Set([
-      ...directCandidates
-        .filter((candidate) => !(
-          communityRuleset?.meta.eventSystem?.communityEvents === 'FIRST_CLASS'
-          && isCommunityEventDefinition(communityRuleset.questDefinitions?.[candidate.questDefinition.key])
-        ) && !(
-          communityRuleset?.meta.eventSystem?.seasonalEvents === 'FIRST_CLASS'
-          && communityRuleset.questDefinitions?.[candidate.questDefinition.key]?.availability.seasonalEvent
-        ))
-        .map((candidate) => candidate.id),
-      ...allianceCandidateIds,
-    ])].sort();
-    const candidates = candidateIds.map((id) => ({ id }));
+    const directIds = new Set(directCandidates.map((candidate) => candidate.id));
+    const missingAllianceIds = allianceCandidateIds.filter((id) => !directIds.has(id));
+    const allianceCandidates = missingAllianceIds.length
+      ? await db.playerQuest.findMany({
+        where: { id: { in: missingAllianceIds }, status: { in: [...ACTIVE_STATUSES] } },
+        select: progressSelect,
+      })
+      : [];
+    const loaded = [
+      ...directCandidates.filter((candidate) => !(
+        communityRuleset?.meta.eventSystem?.communityEvents === 'FIRST_CLASS'
+        && isCommunityEventDefinition(communityRuleset.questDefinitions?.[candidate.questDefinition.key])
+      ) && !(
+        communityRuleset?.meta.eventSystem?.seasonalEvents === 'FIRST_CLASS'
+        && communityRuleset.questDefinitions?.[candidate.questDefinition.key]?.availability.seasonalEvent
+      )),
+      ...allianceCandidates,
+    ].filter((candidate) => candidate.questDefinition.isEnabled !== false);
+    const expiredIds = loaded
+      .filter((candidate) => candidate.expiresAt && candidate.expiresAt.getTime() <= at.getTime())
+      .map((candidate) => candidate.id);
+    if (expiredIds.length) {
+      const expired = await db.playerQuest.updateMany({
+        where: { id: { in: expiredIds }, status: { in: [...ACTIVE_STATUSES] } },
+        data: { status: 'EXPIRED' },
+      });
+      result.expired += expired.count;
+    }
+    const expired = new Set(expiredIds);
+    const candidates = loaded
+      .filter((candidate) => !expired.has(candidate.id) && questCouldMatch(candidate.questDefinition, candidate.rewardState, signal.type))
+      .sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0);
     const state = await playerState(db, roundPlayerId);
     const event: QuestProgressEvent = {
       type: signal.type,

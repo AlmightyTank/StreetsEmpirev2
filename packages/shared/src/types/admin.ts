@@ -1,3 +1,4 @@
+import type { StaffRole } from '../staff.js';
 import type { ActivityDto, RoundDto, RoundStatus, SupporterMembershipDto } from './api.js';
 import type { BattleReportDto } from './combat.js';
 import type { LawPageDto, WantedStageDto } from './law.js';
@@ -15,6 +16,10 @@ export interface AdminRulesetOptionDto {
   id: string;
   version: string;
   name: string;
+  /** Explicit rollout marker for features that are enabled only by a versioned ruleset. */
+  streetSkills: boolean;
+  /** Choosing this version when scheduling a round opts that new round into individual equipment. */
+  individualItems: boolean;
 }
 
 export interface AdminRoundsDto {
@@ -133,6 +138,52 @@ export interface AdminCrewRosterDto {
   topVeterans: Array<{ roundPlayerId: string; displayName: string; memberId: string; role: 'THUG' | 'WORKER'; serial: number; experiencePoints: number; specialty: string; specialtyExperiencePoints: number }>;
 }
 
+/** 2.1.0-G. Staff-only immutable evidence and migration integrity. */
+export interface AdminCrewReleaseHealthDto {
+  roundId: string;
+  status: RoundStatus;
+  loyaltyEnabled: boolean;
+  members: number;
+  receipts: number;
+  positiveReceipts: number;
+  cappedReceipts: number;
+  bonds: number;
+  bondMemories: number;
+  archivedLegends: number;
+  pendingLegacy: number;
+  receiptMismatchSample: Array<{ id: string; roundPlayerId: string; stored: number; earned: number }>;
+  cutoffs: { loyalty: number; perDay: number; perWeek: number; bondMemories: number };
+  archivalPolicy: string;
+}
+export interface AdminCrewProvenanceDto {
+  roundId: string;
+  roundStatus: RoundStatus;
+  loyaltyEnabled: boolean;
+  member: {
+    id: string; serial: number; role: 'THUG' | 'WORKER'; status: string;
+    nicknameKey: string | null; nicknameSuppressed: boolean; loyaltyPoints: number;
+  };
+  earnedFromReceipts: number;
+  storedPointsMatch: boolean;
+  totalReceipts: number;
+  sampledReceipts: number;
+  hasMore: boolean;
+  sampleAnomalies: string[];
+  relatedBonds: number;
+  recent: Array<{ id: string; source: string; sourceKey: string; points: number; summary: string; at: string }>;
+}
+export interface AdminCrewLoyaltyRepairResultDto {
+  memberId: string;
+  before: number;
+  verified: number;
+  nicknameReset: boolean;
+  auditId: string;
+}
+export interface AdminCrewRosterRepairResultDto {
+  outcome: { migrated: boolean; created: number; moved: number; released: number } | null;
+  auditId: string;
+}
+
 export interface AdminCrewCorrectionInput {
   experiencePoints: number;
   specialty: 'GENERALIST' | 'ENFORCER' | 'WHEELMAN' | 'SCOUT' | 'DEALER' | 'SERVICE';
@@ -230,8 +281,7 @@ export type AdminAccountAction =
   | 'revoke-sessions'
   | 'rename'
   | 'reset-profile'
-  | 'grant-admin'
-  | 'revoke-admin'
+  | 'staff-role'
   | 'approve-beta'
   | 'revoke-beta'
   | 'grant-supporter'
@@ -255,12 +305,14 @@ export interface AdminSuspensionDto {
 export interface AdminAccountSummaryDto {
   id: string;
   username: string;
-  email: string;
+  /** Null unless the viewer may see private account data (Admin and up). */
+  email: string | null;
   emailVerified: boolean;
   /** rc.3. Signs in with an authenticator code. */
   twoFactorEnabled: boolean;
   isActive: boolean;
   isAdmin: boolean;
+  staffRole: StaffRole | null;
   betaApproved: boolean;
   suspension: AdminSuspensionDto | null;
   /** 1.0.0-E. Set while the account is banned. */
@@ -430,6 +482,11 @@ export interface AdminAccountRoundDto {
 
 export interface AdminAccountDetailDto {
   account: AdminAccountSummaryDto;
+  /**
+   * True when the viewer is below Admin: email, sessions and audit before/after
+   * snapshots are left out, and notes are left out below JR Mod.
+   */
+  privateDataHidden: boolean;
   profile: {
     activeTitleKey: string | null;
     titlePlacement: 'prefix' | 'suffix';
@@ -677,6 +734,16 @@ export interface AdminVehicleAdjustmentInput {
   reason: string;
 }
 
+/** Read-only staff view of a player's bounded individual equipment inventory and event trail. */
+export interface AdminArmoryPlayerDto {
+  round: { id: string; name: string; rulesetId: string; rulesetVersion: string };
+  player: { roundPlayerId: string; displayName: string; publicPimpId: number };
+  summary: { guns: number; vehicles: number };
+  truncated: boolean;
+  items: Array<{ kind: 'GUN' | 'VEHICLE'; id: string; model: string; name: string | null; quantity: number; condition: number; status: string; mods: unknown; lookKey: string | null; origin: unknown; stats: unknown; history: Array<{ at: string; type: string; summary: string; city?: string; otherPlayer?: string }>; updatedAt: string }>;
+  audit: Array<{ itemId: string; kind: 'GUN' | 'VEHICLE'; model: string; name: string | null; at: string; type: string; summary: string; city?: string; otherPlayer?: string }>;
+}
+
 /** Read-only player state as stored. Turns are as of the last settlement, not regenerated. */
 export interface AdminPlayerDto {
   roundPlayerId: string;
@@ -753,6 +820,28 @@ export interface AdminPlayerDto {
   injuries: Array<{ id: string; thugs: number; recoverAt: string; battleId: string | null }>;
   intel: { observing: number; observedBy: number };
   activity: ActivityDto[];
+  /** Street Skills Slice E. Read-only audit data; null on legacy rounds. */
+  streetSkills: AdminPlayerStreetSkillsDto | null;
+}
+
+export interface AdminPlayerStreetSkillsDto {
+  totalPoints: number;
+  totalPointCap: number;
+  skillPointCap: number;
+  dailyFullXp: number;
+  dailyHalfXp: number;
+  skills: Array<{
+    skill: string;
+    xp: number;
+    points: number;
+    xpToday: number;
+    taperBand: 'FULL' | 'HALF' | 'QUARTER';
+    choices: Record<string, string>;
+    respecs: number;
+    respecReadyAt: string | null;
+    xpWindowStartsAt: string | null;
+    awards: Array<{ sourceKey: string; amount: number; awardedAt: string }>;
+  }>;
 }
 
 export interface AdminPlayerBattlesDto {
@@ -808,6 +897,10 @@ export interface AdminNewsPostDto {
   roundName: string | null;
   authorName: string | null;
   discordPostedAt: string | null;
+  /** The tracked original public Discord message, if this bot created it. */
+  discordMessageId: string | null;
+  discordEditQueuedAt: string | null;
+  discordEditError: string | null;
   /** Why Discord refused the post, as the bot reported it. Resend clears it. */
   discordError: string | null;
   /** Why the post is not on Discord yet, in words for the admin; null once it is. */
@@ -820,6 +913,8 @@ export interface AdminNewsPostDto {
   /** 1.0.0-E. Sent to every player's bell and alert channels once published. */
   broadcast: boolean;
   broadcastAt: string | null;
+  /** 2.0.0. Streets Daily auto-draft held for review (far-future publishedAt). */
+  autoGenerated: boolean;
 }
 
 export interface AdminNewsDto {
@@ -1271,7 +1366,7 @@ export interface AdminCasinoDto {
   windowHours: number;
   rating: { players: number; ratedWagers: number; wageredCents: number; theoCents: number; compsSpentCents: number; vipWagers: number; jackpots: number };
   ledger: Array<{ kind: string; entries: number; cashDeltaCents: number; walletChipDeltaCents: number; sessionChipDeltaCents: number }>;
-  operations: { openSessions: number; duplicateOpenSessions: Array<{ playerId: string; displayName: string; count: number }>; activeBlackjack: number; activeDiceRounds: number; activeSoloPoker: number; activeTableHands: number; gamesOnClosedSessions: number; staleGames: number };
+  operations: { openSessions: number; duplicateOpenSessions: Array<{ playerId: string; displayName: string; count: number }>; activeBlackjack: number; activeSoloPoker: number; activeTableHands: number; gamesOnClosedSessions: number; staleGames: number };
   rapidPlayThreshold: number;
   rapidPlay: Array<{ playerId: string; displayName: string; entries: number; lastAt: string }>;
   openCasinoFlags: Array<{ id: string; kind: string; severity: string; playerId: string | null; message: string; occurrences: number; lastAt: string }>;
@@ -1558,11 +1653,11 @@ export interface AdminSupporterDto {
   tenureKeys: string[];
   /** Wearing the Signature Profile Card as its avatar frame. */
   wearingCard: boolean;
-  /** The Stripe subscription, if the account ever started one. */
+  /** The current Stripe or Google Play subscription, if the account ever started one. */
   membership: SupporterMembershipDto | null;
 }
 
-/** One paid supporter invoice from Stripe. */
+/** One paid supporter renewal from Stripe or Google Play. */
 export interface AdminSupporterPaymentDto {
   id: string;
   accountId: string | null;
@@ -1572,7 +1667,8 @@ export interface AdminSupporterPaymentDto {
   /** paid, refunded or disputed. Rewards are kept either way. */
   status: string;
   paidAt: string;
-  stripeInvoiceId: string;
+  provider: 'stripe' | 'google_play';
+  providerPaymentId: string;
 }
 
 export interface AdminSupportersDto {
@@ -1582,10 +1678,12 @@ export interface AdminSupportersDto {
   supporters: AdminSupporterDto[];
   /** Supporters missing at least one reward. */
   missingCount: number;
-  /** Subscriptions supporting right now (active or trialing). */
+  /** Subscriptions supporting right now across every billing provider. */
   activeCount: number;
   /** Stripe checkout is set up on this server. */
   checkoutEnabled: boolean;
+  /** Google Play billing is set up on this server. */
+  playBillingEnabled: boolean;
   /** The newest supporter payments. */
   payments: AdminSupporterPaymentDto[];
   /** Every monthly drop in the catalogue, oldest first. */
@@ -1630,4 +1728,38 @@ export interface AdminSupporterGrantResultDto {
   rows: AdminSupporterGrantRowDto[];
   /** Accounts given at least one reward. Always 0 for a preview. */
   granted: number;
+}
+
+/** One staff member on Admin → Staff. */
+export interface AdminStaffMemberDto {
+  accountId: string;
+  username: string;
+  staffRole: StaffRole;
+  /** Discord and forum links: stage B/D sync roles to them, so a missing one is a warning. */
+  discordUsername: string | null;
+  forumUsername: string | null;
+  twoFactorEnabled: boolean;
+  isActive: boolean;
+  lastLoginAt: string | null;
+  /** When they were given their current role, if it was recorded. */
+  since: string | null;
+}
+
+export interface AdminStaffRoleChangeDto {
+  id: string;
+  accountId: string | null;
+  username: string;
+  actorUsername: string;
+  fromRole: StaffRole | null;
+  toRole: StaffRole | null;
+  reason: string;
+  source: 'GAME' | 'DISCORD' | 'CONSOLE';
+  createdAt: string;
+}
+
+export interface AdminStaffDto {
+  members: AdminStaffMemberDto[];
+  history: AdminStaffRoleChangeDto[];
+  /** The roles the viewer may give. Empty when they cannot change roles. */
+  assignable: StaffRole[];
 }

@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import type { PrismaClient } from '@prisma/client';
 import { rulesets } from '@streets/rulesets';
-import { APP_VERSION, type AppEnvironment, type PlatformMetaDto } from '@streets/shared';
+import { APP_VERSION, MINIMUM_AGE, RULES_AGREEMENT, RULES_VERSION, type AppEnvironment, type PlatformMetaDto } from '@streets/shared';
 import { env } from '../config/env.js';
 import { RoundService } from './round.service.js';
 
@@ -88,6 +88,11 @@ export const PlatformService = {
         ? { name: round.name, slug: round.slug, status: round.status, endsAt: round.endsAt.toISOString() }
         : null,
       turnstileSiteKey: env.turnstile.enabled ? env.turnstile.siteKey : null,
+      rulesAgreement: {
+        version: RULES_VERSION,
+        minimumAge: MINIMUM_AGE,
+        rules: RULES_AGREEMENT,
+      },
     };
   },
 };

@@ -1,0 +1,4 @@
+ALTER TABLE "RoundPlayer" ADD COLUMN "generatorPowered" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "RoundPlayer" ADD COLUMN "generatorFuel" INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "RoundPlayer" ADD COLUMN "generatorCapacityLevel" INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "RoundPlayer" ADD COLUMN "generatorEfficiencyLevel" INTEGER NOT NULL DEFAULT 0;

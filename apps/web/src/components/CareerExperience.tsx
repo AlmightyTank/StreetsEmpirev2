@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 
-export type CareerDestinationKey = 'xp' | 'pass' | 'collection' | 'events' | 'profile';
+export type CareerDestinationKey = 'xp' | 'pass' | 'roll-call' | 'events' | 'profile';
 
 const CAREER_DESTINATIONS: Array<{
   key: CareerDestinationKey;
@@ -11,7 +11,7 @@ const CAREER_DESTINATIONS: Array<{
 }> = [
   { key: 'xp', label: 'XP Progress', eyebrow: 'Permanent level', href: '/game/xp-progress' },
   { key: 'pass', label: 'Street Pass', eyebrow: 'Round rewards', href: '/game/street-pass' },
-  { key: 'collection', label: 'Collection', eyebrow: 'Earnable looks', href: '/game/collection' },
+  { key: 'roll-call', label: 'Roll Call', eyebrow: 'Daily stamps', href: '/game/roll-call' },
   { key: 'events', label: 'Events', eyebrow: 'Timed objectives', href: '/game/events' },
   { key: 'profile', label: 'Profile', eyebrow: 'Public record', href: '/game/profile' },
 ];
@@ -44,13 +44,19 @@ export type CareerMetric = {
   tone?: 'accent' | 'good' | 'warn' | 'muted';
 };
 
-export function CareerMetricStrip({ items, label = 'Career summary', className }: {
+export function CareerMetricStrip({ items, label = 'Career summary', className, scrollable = false }: {
   items: CareerMetric[];
   label?: string;
   className?: string;
+  scrollable?: boolean;
 }) {
   return (
-    <div className={`se-career-metrics${className ? ` ${className}` : ''}`} aria-label={label}>
+    <div
+      className={`se-career-metrics${className ? ` ${className}` : ''}`}
+      role={scrollable ? 'region' : undefined}
+      aria-label={label}
+      tabIndex={scrollable ? 0 : undefined}
+    >
       {items.map((item) => (
         <div className={`se-career-metric${item.tone ? ` se-career-metric--${item.tone}` : ''}`} key={item.label}>
           <span className="se-career-metric__label">{item.label}</span>

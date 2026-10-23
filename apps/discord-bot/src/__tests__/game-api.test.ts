@@ -33,6 +33,16 @@ describe('createGameApi', () => {
     expect(api.calls[0]!.url).toBe('http://game/api/internal/discord/profile?name=Big+Daddy%26x%3D1');
   });
 
+  it('reads anonymous presence highlights from the protected endpoint', async () => {
+    const request = fakeFetch(200, { highlights: [
+      { kind: 'jackpot', message: '🎰 A $125K jackpot just hit' },
+    ] });
+    const result = await createGameApi({ baseUrl: 'http://game', token, fetch: request.fetchImpl }).presenceHighlights();
+    expect(result.highlights[0]).toEqual({ kind: 'jackpot', message: '🎰 A $125K jackpot just hit' });
+    expect(request.calls[0]!.url).toBe('http://game/api/internal/discord/presence');
+    expect((request.calls[0]!.init.headers as Record<string, string>).authorization).toBe(`Bearer ${token}`);
+  });
+
   it('turns unexpected responses into errors instead of trusting them', async () => {
     const bad = fakeFetch(200, { members: 'nope' });
     await expect(createGameApi({ baseUrl: 'http://game', token, fetch: bad.fetchImpl }).roles(['123456789012345678']))

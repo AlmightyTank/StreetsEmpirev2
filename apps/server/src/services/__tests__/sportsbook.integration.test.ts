@@ -86,7 +86,7 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
     accountName = 'book_' + randomUUID().slice(0, 6);
     const registered = await app.inject({
       method: 'POST', url: '/api/auth/register',
-      payload: { username: accountName, email: accountName + '@example.invalid', password: randomUUID() },
+      payload: { ageConfirmed: true, username: accountName, email: accountName + '@example.invalid', password: randomUUID() },
     });
     accountId = registered.json().account.id;
   });
@@ -358,7 +358,7 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
       const rundown = url.pathname.match(/\/api\/v2\/sports\/(\d+)\/events\/([\d-]+)$/);
       if (rundown) {
         const league = LEAGUE_BY_SPORT_ID[rundown[1]!]!;
-        if (!primaryHealthy && (league === 'NFL' || league === 'NBA')) return reply(503, {});
+        if (!primaryHealthy && (league === 'NFL' || league === 'NBA' || league === 'MLB')) return reply(503, {});
         if (primaryHealthy && league === 'NFL') {
           return reply(200, { events: [{
             event_id: legacyId, event_date: kickoff.toISOString(), status: 'STATUS_SCHEDULED',
@@ -394,6 +394,12 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
           bookmakers: [{ key: 'book', markets: [{ key: 'h2h', outcomes: [
             { name: 'Boston Celtics', price: 120 }, { name: 'Chicago Bulls', price: -140 },
           ] }] }],
+        }] : odds[1] === 'baseball_mlb' && date === today ? [{
+          id: providerPrefix + 'odds-mlb', commence_time: at(260).toISOString(),
+          home_team: 'New York Yankees', away_team: 'Boston Red Sox',
+          bookmakers: [{ key: 'book', markets: [{ key: 'h2h', outcomes: [
+            { name: 'Boston Red Sox', price: 125 }, { name: 'New York Yankees', price: -145 },
+          ] }] }],
         }] : [];
         return new Response(JSON.stringify(games), { status: 200, headers: { 'x-requests-last': '1', 'x-requests-used': '1000', 'x-requests-remaining': '19000' } });
       }
@@ -421,6 +427,19 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.8.0-B/C/D sportsbook boa
     const fallbackBoard = await SportsbookService.board(app.prisma, { configured: true, pollMinutes: 30 }, feedNow);
     expect(fallbackBoard.feed.fallbacks).toContainEqual({ league: 'NFL', provider: 'theoddsapi', providerName: 'The Odds API' });
     expect(fallbackBoard.leagues.find((row) => row.key === 'NFL')).toMatchObject({ activeProvider: 'theoddsapi', isFallback: true });
+
+    // The first run exhausted its two fallbacks on NFL/NBA. MLB receives a recovery
+    // opportunity at 15 minutes without polling TheRundown again or resetting the cache clock.
+    calls.length = 0;
+    const early = await refreshSportsbookCache(app.prisma, keys, at(14), deps);
+    expect(early.skipped).toBe('CACHE_FRESH');
+    expect(calls).toHaveLength(0);
+    const recovered = await refreshSportsbookCache(app.prisma, keys, at(15), deps);
+    expect(recovered.failovers).toBe(1);
+    expect(calls.some((path) => path.includes('/baseball_mlb/odds'))).toBe(true);
+    expect(calls.some((path) => path.includes('/sports/3/events/'))).toBe(false);
+    expect((await app.prisma.sportsbookLeagueProviderState.findUniqueOrThrow({ where: { league: 'MLB' } })).activeOddsProvider).toBe('theoddsapi');
+    expect(JSON.parse(await readFile(cacheFilePath, 'utf8')).updatedAt).toBe(feedNow.toISOString());
 
     calls.length = 0;
     const sticky = await refreshSportsbookCache(app.prisma, keys, at(31), deps);

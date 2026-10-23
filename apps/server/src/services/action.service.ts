@@ -6,14 +6,14 @@ import type {
   Round,
   RoundPlayer,
 } from '@prisma/client';
-import { decayHeat, loadRulesetForRound, rulesetForCity, totalWeapons, type Ruleset, type Standings } from '@streets/rules-engine';
+import { loadRulesetForRound, rulesetForCity, totalWeapons, type Ruleset, type Standings } from '@streets/rules-engine';
 import type {
   GameActionResult,
   PlayerSnapshot,
   RankChanges,
   ResourceChange,
 } from '@streets/shared';
-import type { QuestDataValue } from '@streets/rulesets';
+import { streetSkillPaysAtLaunch, streetSkillSourceForAction, type QuestDataValue } from '@streets/rulesets';
 import { AppError } from '../utils/errors.js';
 import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { annotateLogContext } from '../utils/request-context.js';
@@ -42,13 +42,32 @@ import { TurfWarSettlementService } from './turf-war-settle.service.js';
 import { QuestProgressService } from './quest-progress.service.js';
 import { EconomyLedgerService, type EconomyLedgerWrite } from './economy-ledger.service.js';
 import { StreetPassCredService } from './street-pass-cred.service.js';
+import { consumeGeneratorFuel } from './generator.service.js';
 import { LawService, type CaseEvidence } from './law.service.js';
 import { LawWarrantService } from './law-warrant.service.js';
 import { CrewRosterService } from './crew-roster.service.js';
 import { CrewStaffingOrderService } from './crew-staffing-order.service.js';
 import { fitThugs } from './crew-availability.js';
+import { coolHeat, PlayerSkillService, type SkillEffects, type SkillXpAward } from './player-skill.service.js';
 
 export { fitThugs, workingWhores } from './crew-availability.js';
+
+function typicalSquadAmmo(state: PlayerState, ruleset: Ruleset): number {
+  const rounds = ruleset.ammoParts?.ammo.roundsPerFight;
+  if (!rounds) return 0;
+  const armed = [
+    [state.ak47s, rounds.AK47], [state.tek9s, rounds.TEK9],
+    [state.shotguns, rounds.SHOTGUN], [state.pistols, rounds.PISTOL],
+  ] as const;
+  let remaining = Math.min(fitThugs(state), ruleset.combat?.squadCap ?? Number.MAX_SAFE_INTEGER);
+  let total = 0;
+  for (const [count, cost] of armed) {
+    const assigned = Math.min(remaining, count);
+    total += assigned * cost;
+    remaining -= assigned;
+  }
+  return total;
+}
 
 async function casinoCashEquivalentCents(tx: Db, roundPlayerId: string, ruleset: Ruleset): Promise<bigint> {
   if (!ruleset.casino?.enabled) return 0n;
@@ -82,6 +101,11 @@ export interface PlayerState {
   shotguns: number;
   tek9s: number;
   ak47s: number;
+  /** 2.4.0-C. Versioned stores add these only to rulesets that enable the catalog. */
+  ammo?: number;
+  vehicleParts?: number;
+  ammoStock?: number;
+  vehiclePartsStock?: number;
 
   lowRiders: number;
   sedans: number;
@@ -139,6 +163,7 @@ export interface PlayerState {
   hideoutWorkshopLevel: number;
   hideoutBackOfficeLevel: number;
   hideoutGarageLevel: number;
+  hideoutStorageLevel?: number;
   hideoutWeaponPriority: string;
   hideoutSafeRoomSpecialization: string | null;
   hideoutLookoutsSpecialization: string | null;
@@ -160,6 +185,13 @@ export interface PlayerState {
   beerStock: number;
   crackStock: number;
   thugStock: number;
+
+  /** 2.3.0. Hideout generator state; fuel is charged per spent game turn. */
+  generatorPowered?: boolean;
+  generatorFuel?: number;
+  generatorCapacityLevel?: number;
+  generatorEfficiencyLevel?: number;
+  scavengedComponents?: Prisma.InputJsonValue;
 }
 
 export interface ActionContext {
@@ -180,6 +212,8 @@ export interface ActionContext {
   recovery: RecoverySettlement;
   /** 1.6.5-B. Net worth as it stands before the action, freshly calculated. */
   netWorthCents: bigint;
+  /** Street skill passives and perks. Ask for an effect where it applies; it lands on the receipt. */
+  skills: SkillEffects;
 }
 
 export interface ActionOutcome<T> {
@@ -202,6 +236,8 @@ export interface ActionOutcome<T> {
    * the action id, so a replay never adds evidence twice.
    */
   caseEvidence?: Array<Omit<CaseEvidence, 'sourceKey'>>;
+  /** Slice A: XP is written only after the action has settled successfully. */
+  skillXp?: readonly SkillXpAward[];
 }
 
 function encounterTriggerForAction(action: string): 'STORE' | 'TURF' | null {
@@ -261,6 +297,8 @@ export function toState(player: RoundPlayer): PlayerState {
     shotguns: player.shotguns,
     tek9s: player.tek9s,
     ak47s: player.ak47s,
+    ammo: player.ammo,
+    vehicleParts: player.vehicleParts,
     lowRiders: player.lowRiders,
     sedans: player.sedans,
     vans: player.vans,
@@ -296,6 +334,7 @@ export function toState(player: RoundPlayer): PlayerState {
     hideoutWorkshopLevel: player.hideoutWorkshopLevel,
     hideoutBackOfficeLevel: player.hideoutBackOfficeLevel,
     hideoutGarageLevel: player.hideoutGarageLevel,
+    hideoutStorageLevel: player.hideoutStorageLevel,
     hideoutWeaponPriority: player.hideoutWeaponPriority,
     hideoutSafeRoomSpecialization: player.hideoutSafeRoomSpecialization,
     hideoutLookoutsSpecialization: player.hideoutLookoutsSpecialization,
@@ -311,6 +350,11 @@ export function toState(player: RoundPlayer): PlayerState {
     beerStock: player.beerStock,
     crackStock: player.crackStock,
     thugStock: player.thugStock,
+    generatorPowered: player.generatorPowered,
+    generatorFuel: player.generatorFuel,
+    generatorCapacityLevel: player.generatorCapacityLevel,
+    generatorEfficiencyLevel: player.generatorEfficiencyLevel,
+    scavengedComponents: player.scavengedComponents as Prisma.InputJsonValue,
   };
 }
 
@@ -374,7 +418,7 @@ function diff(before: PlayerSnapshot, after: PlayerSnapshot): ResourceChange[] {
   for (const key of Object.keys(before.resources) as (keyof typeof before.resources)[]) {
     if (key === 'cashCents') continue; // already reported above
     if (key === 'product') continue; // alias for crack during the product migration
-    push(key, before.resources[key], after.resources[key]);
+    push(key, before.resources[key] ?? 0, after.resources[key] ?? 0);
   }
 
   return changes;
@@ -481,6 +525,7 @@ export const ActionService = {
       // Turns first: an action always spends from a settled balance. The shop
       // shelves settle in the same breath, for the same reason.
       const turns = TurnService.settle(player, now, ruleset);
+      const skills = await PlayerSkillService.effects(tx, roundPlayerId, ruleset.streetSkills);
       const standings = await ReputationService.load(tx, roundPlayerId, ruleset);
       // Standing shortens a shop's wait, so it has to be read before the
       // shelves settle - never the cap, only the interval.
@@ -490,7 +535,7 @@ export const ActionService = {
         woundedThugs: recovery.woundedThugs,
         turns: turns.turns,
         // 0.4.0-C: Heat cools on the same clock turns regenerate on.
-        heat: ruleset.heat ? decayHeat(player.heat, turns.intervalsProcessed, ruleset.heat) : player.heat,
+        heat: ruleset.heat ? coolHeat(player.heat, turns.intervalsProcessed, ruleset.heat, skills) : player.heat,
         ...stock.counts,
       };
       assertPlayerState(current, ruleset, 'before');
@@ -520,22 +565,28 @@ export const ActionService = {
         standings,
         recovery,
         netWorthCents: beforeNetWorth,
+        skills,
       });
+      // Fixer: whatever Heat the action added comes in smaller.
+      const executed = consumeGeneratorFuel(
+        withSkillHeat(current, outcome.next, skills),
+        Math.max(0, current.turns - outcome.next.turns),
+      );
 
       const trigger = encounterTriggerForAction(options.action);
       const actionEncounter = trigger ? await RandomEncounterService.action({
         tx,
         roundPlayerId,
-        next: outcome.next,
+        next: executed,
         ruleset,
-        turns: Math.max(0, current.turns - outcome.next.turns),
+        turns: Math.max(0, current.turns - executed.turns),
         now,
       }, trigger) : undefined;
       const staffing = await CrewStaffingOrderService.apply(tx, {
         roundPlayerId,
         ruleset,
         now,
-        state: actionEncounter?.next ?? outcome.next,
+        state: actionEncounter?.next ?? executed,
         player,
       });
       const next = staffing.next;
@@ -549,7 +600,7 @@ export const ActionService = {
       }
 
       if (outcome.reputation?.length) {
-        await ReputationService.write(tx, roundPlayerId, outcome.reputation);
+        await ReputationService.write(tx, roundPlayerId, withSkillStanding(outcome.reputation, standings, skills));
       }
       if (outcome.caseEvidence?.length && ruleset.law) {
         const key = options.actionId
@@ -632,6 +683,16 @@ export const ActionService = {
             : outcome.activity.payload,
         );
       }
+      const ammoThreshold = ruleset.ammoParts?.lowAmmoNotificationsEnabled ? typicalSquadAmmo(current, ruleset) : 0;
+      const activityHasAmmoReceipt = outcome.activity?.payload && typeof outcome.activity.payload === 'object'
+        && !Array.isArray(outcome.activity.payload) && 'ammoCombat' in outcome.activity.payload;
+      if (!activityHasAmmoReceipt && ammoThreshold > 0 && (current.ammo ?? 0) > ammoThreshold && (next.ammo ?? 0) <= ammoThreshold) {
+        await ActivityService.log(tx, roundPlayerId, 'AMMO_LOW', {
+          ammoRemaining: next.ammo ?? 0,
+          ammoThreshold,
+          message: 'Your ammunition is running low. Restock before the next fight.',
+        });
+      }
       if (outcome.questProgress) {
         await QuestProgressService.emit(tx, roundPlayerId, {
           sourceKey: options.actionId
@@ -662,6 +723,25 @@ export const ActionService = {
           at: now,
         });
       }
+      // A squad sent into a fight that resolves later is paid when it resolves, win or lose.
+      const inferredSkill = ruleset.streetSkills && !outcome.skillXp?.length && streetSkillPaysAtLaunch(ruleset.streetSkills, options.action)
+        ? streetSkillSourceForAction(ruleset.streetSkills, options.action)
+        : null;
+      const skillXp = outcome.skillXp?.length
+        ? outcome.skillXp
+        : inferredSkill
+          ? [{ skill: inferredSkill.skill, amount: inferredSkill.baseXp }]
+          : [];
+      if (skillXp.length && ruleset.streetSkills) {
+        await PlayerSkillService.awardMany(tx, {
+          roundPlayerId,
+          player,
+          rules: ruleset.streetSkills,
+          awards: skillXp,
+          sourceKey: options.actionId ? `action:${options.action}:${options.actionId}` : `action:${options.action}:${roundPlayerId}:${now.toISOString()}`,
+          now,
+        });
+      }
 
       const before = toSnapshot(current, beforeHappiness, beforeNetWorth);
       const after = toSnapshot(next, afterHappiness, afterNetWorth);
@@ -680,6 +760,7 @@ export const ActionService = {
         after,
         changes: diff(before, after),
         result: outcome.result,
+        ...(skills.receipts().length ? { modifiers: skills.receipts() } : {}),
         ...(actionEncounter?.encounter ? { encounter: actionEncounter.encounter } : {}),
         ...(staffing.fills.length ? { staffingOrders: staffing.fills } : {}),
         rankChanges,
@@ -700,6 +781,25 @@ export const ActionService = {
     });
   },
 };
+
+/** An action's next state with any Heat it added reduced by the Fixer's heat-gain passive. */
+export function withSkillHeat<S extends { heat: number }>(before: S, next: S, skills: SkillEffects): S {
+  const added = next.heat - before.heat;
+  if (added <= 0) return next;
+  const pct = skills.percent('HEAT_GAIN');
+  if (!pct) return next;
+  return { ...next, heat: before.heat + Math.round(added * (100 + pct) / 100) };
+}
+
+/** Standing an action raised, raised a little further by the Regular perk. */
+function withSkillStanding(changes: NonNullable<ActionOutcome<unknown>['reputation']>, standings: Standings, skills: SkillEffects): NonNullable<ActionOutcome<unknown>['reputation']> {
+  return changes.map((change) => {
+    const gained = change.points - (standings[change.trader]?.points ?? 0);
+    if (gained <= 0) return change;
+    const pct = skills.percent('STANDING_GAIN');
+    return pct ? { ...change, points: change.points + Math.ceil(gained * pct / 100) } : change;
+  });
+}
 
 function assertRoundPlayable(round: Round, now: Date): void {
   if (round.status !== 'ACTIVE' || round.endsAt.getTime() <= now.getTime()) {

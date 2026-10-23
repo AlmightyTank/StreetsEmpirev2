@@ -21,6 +21,7 @@ function fakeDb(memberships: Row[], unlocks: Row[] = [], profiles: Row[] = [], a
     supporterMembership: {
       findMany: async ({ where }: Row) => memberships.filter((row) => where.status.in.includes(row.status)),
     },
+    googlePlaySupporterSubscription: { findMany: async () => [] },
     supporterPayment: {
       findMany: async ({ where }: Row) => payments.filter((row) => matches(row, where)),
     },

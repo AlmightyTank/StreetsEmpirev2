@@ -1,6 +1,6 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { RelocationService } from './relocation.service.js';
-import type { Prisma, PrismaClient, Round } from '@prisma/client';
+import type { Prisma, PrismaClient, Round, StaffRole } from '@prisma/client';
 import { loadRulesetForRound } from '@streets/rules-engine';
 import type { DistrictKey } from '@streets/rulesets';
 import type {
@@ -34,7 +34,10 @@ import type {
   PublicLegacyDto,
 } from '@streets/shared';
 import { z } from 'zod';
+import { staffRoleKey } from '@streets/shared';
+import { staffRoleOf } from '../auth/play-access.js';
 import { env } from '../config/env.js';
+import { ActiveSupporterService } from './active-supporter.service.js';
 import { toRoundPlayerDto } from '../game/dto.js';
 import { AppError } from '../utils/errors.js';
 import { CommunityService, legacyAchievements, loadLegacyByAccount, loadPublicContexts } from './community.service.js';
@@ -71,8 +74,11 @@ export function roleKeysFor(input: {
   betaTester?: boolean;
   /** 0.3.0-C. The tag of the live alliance they are in this round. */
   allianceTag?: string | null;
+  /** Staff roles: the bot only acts on these when DISCORD_STAFF_SYNC is on. */
+  staffRole?: StaffRole | null;
 }): string[] {
   const keys = ['linked'];
+  if (input.staffRole) keys.push(staffRoleKey(input.staffRole));
   if (input.supporter) keys.push('supporter');
   if (input.betaTester) keys.push('beta-tester');
   if (input.inRound) keys.push('player');
@@ -628,12 +634,19 @@ export const DiscordBotService = {
   async rolesFor(prisma: PrismaClient, discordIds: string[]): Promise<Record<string, string[]>> {
     const accounts = await prisma.account.findMany({
       where: { discordId: { in: discordIds }, isActive: true },
-      select: { id: true, discordId: true, supporterMembership: { select: { status: true } }, forumLink: { select: { forumOrigin: true, forumUserId: true } } },
+      select: {
+        id: true,
+        discordId: true,
+        isAdmin: true,
+        staffRole: true,
+        supporterMembership: { select: { status: true } },
+        forumLink: { select: { forumOrigin: true, forumUserId: true } },
+      },
     });
     if (!accounts.length) return {};
 
     const round = await RoundService.getCurrent(prisma);
-    const [standings, legacyByAccount, forumGroups] = await Promise.all([
+    const [standings, legacyByAccount, forumGroups, activeSupporters] = await Promise.all([
       round
         ? prisma.roundPlayer.findMany({
           where: { roundId: round.id, account: { isActive: true } },
@@ -647,6 +660,7 @@ export const DiscordBotService = {
         env.forum.enabled && account.forumLink?.forumOrigin === env.forum.origin
           ? ForumGroupsService.groupsFor(account.forumLink.forumUserId)
           : Promise.resolve([] as ForumGroupBadgeDto[])),
+      ActiveSupporterService.accountIds(prisma, accounts.map((account) => account.id)),
     ]);
 
     const ranks = competitionRanks(standings);
@@ -662,10 +676,11 @@ export const DiscordBotService = {
         nationalRank: ranked ? rankByAccount.get(account.id) ?? null : null,
         legacy: legacyByAccount.get(account.id) ?? emptyLegacy(),
         forumGroups: forumGroups[index]!,
-        supporter: account.supporterMembership?.status === 'active' || account.supporterMembership?.status === 'trialing',
+        supporter: activeSupporters.has(account.id),
         betaTester: env.betaTester.discordLinked,
         // Alliance roles only mean something while the round can still change.
         allianceTag: round && (round.status === 'ACTIVE' || round.status === 'REGISTRATION') ? allianceByAccount.get(account.id) ?? null : null,
+        staffRole: staffRoleOf(account),
       }),
     ]));
   },
@@ -1155,6 +1170,76 @@ export const DiscordBotService = {
         authorName: row.createdBy?.username ?? null,
         url: gameUrl('/game/news'),
       }));
+    });
+  },
+
+  /** Save the original message ID. If edited while the first send was in flight,
+   * reconcile the latest server copy by queueing an idempotent edit. */
+  async newsPosted(prisma: PrismaClient, newsId: string, messageId: string): Promise<void> {
+    await prisma.$transaction(async (tx) => {
+      const row = await tx.gameNews.findUnique({ where: { id: newsId } });
+      if (!row?.discordPostedAt) return;
+      await tx.gameNews.update({
+        where: { id: newsId },
+        data: {
+          discordMessageId: messageId, discordError: null,
+          ...(row.updatedAt > row.discordPostedAt && !row.discordEditQueuedAt
+            ? { discordEditQueuedAt: new Date() } : {}),
+        },
+      });
+    });
+  },
+
+  /** Lease edits instead of discarding them on claim. A dead bot can retry after two
+   * minutes; a success receipt clears ONLY that exact revision. */
+  async claimNewsEdits(prisma: PrismaClient, limit = 10): Promise<Array<DiscordNewsPostDto & { messageId: string; queuedAt: string }>> {
+    const now = new Date();
+    const staleLease = new Date(now.getTime() - 2 * 60_000);
+    const freeLease = { OR: [{ discordEditClaimedAt: null }, { discordEditClaimedAt: { lt: staleLease } }] };
+    return prisma.$transaction(async (tx) => {
+      const rows = await tx.gameNews.findMany({
+        where: {
+          discordMessageId: { not: null }, discordEditQueuedAt: { not: null },
+          discordEditError: null, publishedAt: { lte: now },
+          ...freeLease,
+        },
+        include: { createdBy: { select: { username: true } } },
+        orderBy: { discordEditQueuedAt: 'asc' },
+        take: limit,
+      });
+      const claimed: Array<DiscordNewsPostDto & { messageId: string; queuedAt: string }> = [];
+      for (const row of rows) {
+        if (!row.discordEditQueuedAt || !row.discordMessageId) continue;
+        const locked = await tx.gameNews.updateMany({
+          where: { id: row.id, discordEditQueuedAt: row.discordEditQueuedAt, ...freeLease },
+          data: { discordEditClaimedAt: now },
+        });
+        if (!locked.count) continue;
+        claimed.push({
+          id: row.id, title: row.title, body: row.body, isPinned: row.isPinned,
+          publishedAt: row.publishedAt.toISOString(), authorName: row.createdBy?.username ?? null,
+          url: gameUrl('/game/news'), messageId: row.discordMessageId,
+          queuedAt: row.discordEditQueuedAt.toISOString(),
+        });
+      }
+      return claimed;
+    });
+  },
+
+  /** Only acknowledge the revision actually edited; later admin edits stay queued. */
+  async newsEditPosted(prisma: PrismaClient, newsId: string, queuedAt: string): Promise<void> {
+    await prisma.gameNews.updateMany({
+      where: { id: newsId, discordMessageId: { not: null }, discordEditQueuedAt: new Date(queuedAt) },
+      data: { discordEditQueuedAt: null, discordEditClaimedAt: null, discordEditError: null },
+    });
+  },
+
+  /** Failed edits stay attached to the tracked message until staff retries them.
+   * An old attempt must never obscure a newer queued edit. */
+  async newsEditFailed(prisma: PrismaClient, newsId: string, error: string, queuedAt: string): Promise<void> {
+    await prisma.gameNews.updateMany({
+      where: { id: newsId, discordMessageId: { not: null }, discordEditQueuedAt: new Date(queuedAt) },
+      data: { discordEditError: error.slice(0, 500), discordEditClaimedAt: null },
     });
   },
 

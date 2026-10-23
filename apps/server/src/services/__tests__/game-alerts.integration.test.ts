@@ -28,7 +28,7 @@ describe.runIf(process.env.GAME_ALERTS_INTEGRATION === '1')('0.9.0-G notificatio
     const response = await app.inject({
       method: 'POST',
       url: '/api/auth/register',
-      payload: { username, email: `${username}@example.invalid`, password: randomUUID() },
+      payload: { ageConfirmed: true, username, email: `${username}@example.invalid`, password: randomUUID() },
     });
     expect(response.statusCode, response.body).toBeLessThan(300);
     const accountId = response.json().account.id as string;

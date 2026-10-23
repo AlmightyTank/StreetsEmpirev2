@@ -7,7 +7,7 @@ const handleEvent = vi.fn(async () => 'granted');
 
 vi.mock('../../config/env.js', async (original) => {
   const actual = await original<typeof import('../../config/env.js')>();
-  return { env: { ...actual.env, stripe: { secretKey: 'sk_test_x', webhookSecret: SECRET, supporterPriceId: 'price_x', enabled: true } } };
+  return { env: { ...actual.env, stripe: { secretKey: 'sk_test_x', webhookSecret: SECRET, supporterPriceId: 'price_x', enabled: true, webhookEnabled: true } } };
 });
 vi.mock('../supporter-billing.service.js', () => ({ SupporterBillingService: { handleEvent } }));
 

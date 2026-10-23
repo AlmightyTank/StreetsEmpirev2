@@ -90,6 +90,15 @@ describe('quest definition foundation', () => {
     ]);
   });
 
+  it('rejects multi-quest follow-up cycles', () => {
+    const first = { ...firstNightOut, followUpKeys: ['FRESH_FACES'] };
+    const second = { ...freshFaces, followUpKeys: ['FIRST_NIGHT_OUT'] };
+
+    expect(questDefinitionProblems({ FIRST_NIGHT_OUT: first, FRESH_FACES: second })).toEqual([
+      'FIRST_NIGHT_OUT: follow-up cycle FIRST_NIGHT_OUT -> FRESH_FACES -> FIRST_NIGHT_OUT',
+    ]);
+  });
+
   it('rejects blank prerequisite and reward kinds', () => {
     const broken = {
       ...freshFaces,
@@ -100,6 +109,23 @@ describe('quest definition foundation', () => {
     expect(questDefinitionProblems({ FRESH_FACES: broken })).toEqual([
       'FRESH_FACES: prerequisite kind is required',
       'FRESH_FACES: reward kind is required',
+    ]);
+  });
+
+  it('validates time and action availability gates', () => {
+    const broken = {
+      ...freshFaces,
+      prerequisites: [
+        { kind: 'TIME_SINCE_JOIN', params: { minutes: 0 } },
+        { kind: 'ACTION_COUNT', params: { eventTypes: [], count: 0, label: '' } },
+      ],
+    } as unknown as QuestDefinition;
+
+    expect(questDefinitionProblems({ FRESH_FACES: broken })).toEqual([
+      'FRESH_FACES: TIME_SINCE_JOIN requires positive whole minutes',
+      'FRESH_FACES: ACTION_COUNT requires a non-empty eventTypes string array',
+      'FRESH_FACES: ACTION_COUNT requires positive whole count',
+      'FRESH_FACES: ACTION_COUNT label must be a non-empty string',
     ]);
   });
 

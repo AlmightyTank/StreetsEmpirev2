@@ -13,6 +13,7 @@ import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
 import { AdminSurveyResultsPanel } from '../components/AdminSurveyResultsPanel.js';
 import { Button } from '../components/Button.js';
+import { GameDialog } from '../components/GameUI.js';
 import { Panel } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { confirmAction } from '../stores/confirm.js';
@@ -333,14 +334,6 @@ export function AdminSurveysPage() {
       setError('Write a close reason of at least 5 characters.');
       return;
     }
-    const ok = await confirmAction({
-      title: 'Close this survey?',
-      body: 'Players will no longer be able to submit it. Completed responses stay in history.',
-      confirmLabel: 'Close survey',
-      tone: 'danger',
-    });
-    if (!ok) return;
-
     setBusy(true);
     setError(null);
     try {
@@ -709,8 +702,13 @@ export function AdminSurveysPage() {
               </div>
 
               {closing && (editor.status === 'SCHEDULED' || editor.status === 'LIVE') ? (
-                <Panel title="Close survey" className="se-mt">
-                  <p>Closing stops new submissions immediately. Existing responses and reward history are preserved.</p>
+                <GameDialog
+                  open
+                  dismissible={!busy}
+                  title="Close survey"
+                  description="Closing stops new submissions immediately. Existing responses and reward history are preserved."
+                  onClose={() => { if (!busy) { setClosing(false); setCloseReason(''); } }}
+                >
                   <div className="se-field">
                     <label className="se-label" htmlFor="survey-close-reason">Audit reason</label>
                     <textarea
@@ -733,7 +731,7 @@ export function AdminSurveysPage() {
                       Cancel
                     </Button>
                   </div>
-                </Panel>
+                </GameDialog>
               ) : null}
             </form>
           )}

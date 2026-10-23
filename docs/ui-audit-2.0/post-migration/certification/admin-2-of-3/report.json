@@ -1,0 +1,785 @@
+[
+  {
+    "url": "/game/admin/rounds",
+    "finalPath": "/game/admin/rounds",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 9,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40",
+        "a.se-btn.se-btn--ghost \"Monitoring\" 129x40",
+        "a.se-btn.se-btn--ghost \"News and Banners\" 182x40",
+        "a.se-btn.se-btn--ghost \"Surveys\" 98x40",
+        "button.se-btn.se-btn \"Pause\" 62x36",
+        "button.se-btn.se-btn \"End early\" 88x36",
+        "button.se-btn.se-btn \"Archive\" 76x36",
+        "button.se-btn.se-btn \"Archive\" 76x36",
+        "button.se-btn.se-btn \"Schedule round\" 344x40"
+      ],
+      "total": 32
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin/rounds",
+    "finalPath": "/game/admin/rounds",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 9,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40",
+        "a.se-btn.se-btn--ghost \"Monitoring\" 129x40",
+        "a.se-btn.se-btn--ghost \"News and Banners\" 182x40",
+        "a.se-btn.se-btn--ghost \"Surveys\" 98x40",
+        "button.se-btn.se-btn \"Pause\" 62x36",
+        "button.se-btn.se-btn \"End early\" 88x36",
+        "button.se-btn.se-btn \"Archive\" 76x36",
+        "button.se-btn.se-btn \"Archive\" 76x36",
+        "button.se-btn.se-btn \"Schedule round\" 335x40"
+      ],
+      "total": 33
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin/rounds",
+    "finalPath": "/game/admin/rounds",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/admin/accounts",
+    "finalPath": "/game/admin/accounts",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 99,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40",
+        "button.se-btn.se-btn \"Approve\" 156x36",
+        "a.se-btn.se-btn--sm \"Review\" 156x36",
+        "button.se-btn.se-btn \"Approve\" 156x36",
+        "a.se-btn.se-btn--sm \"Review\" 156x36",
+        "button.se-btn.se-btn \"Approve\" 156x36",
+        "a.se-btn.se-btn--sm \"Review\" 156x36",
+        "button.se-btn.se-btn \"Approve\" 156x36",
+        "a.se-btn.se-btn--sm \"Review\" 156x36",
+        "button.se-btn.se-btn \"Approve\" 156x36",
+        "a.se-btn.se-btn--sm \"Review\" 156x36",
+        "button.se-btn.se-btn \"Approve\" 156x36",
+        "a.se-btn.se-btn--sm \"Review\" 156x36",
+        "button.se-btn.se-btn \"Approve\" 156x36",
+        "a.se-btn.se-btn--sm \"Review\" 156x36",
+        "button.se-btn.se-btn \"Approve\" 156x36",
+        "a.se-btn.se-btn--sm \"Review\" 156x36",
+        "button.se-btn.se-btn \"Approve\" 156x36",
+        "a.se-btn.se-btn--sm \"Review\" 156x36",
+        "button.se-btn.se-btn \"Approve\" 156x36",
+        "a.se-btn.se-btn--sm \"Review\" 156x36",
+        "button.se-btn.se-btn \"Approve\" 156x36",
+        "a.se-btn.se-btn--sm \"Review\" 156x36",
+        "button.se-btn.se-btn \"Approve\" 156x36",
+        "a.se-btn.se-btn--sm \"Review\" 156x36"
+      ],
+      "total": 207
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin/accounts",
+    "finalPath": "/game/admin/accounts",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 99,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40",
+        "button.se-btn.se-btn \"Approve\" 78x36",
+        "a.se-btn.se-btn--sm \"Review\" 69x36",
+        "button.se-btn.se-btn \"Approve\" 78x36",
+        "a.se-btn.se-btn--sm \"Review\" 69x36",
+        "button.se-btn.se-btn \"Approve\" 78x36",
+        "a.se-btn.se-btn--sm \"Review\" 69x36",
+        "button.se-btn.se-btn \"Approve\" 78x36",
+        "a.se-btn.se-btn--sm \"Review\" 69x36",
+        "button.se-btn.se-btn \"Approve\" 78x36",
+        "a.se-btn.se-btn--sm \"Review\" 69x36",
+        "button.se-btn.se-btn \"Approve\" 78x36",
+        "a.se-btn.se-btn--sm \"Review\" 69x36",
+        "button.se-btn.se-btn \"Approve\" 78x36",
+        "a.se-btn.se-btn--sm \"Review\" 69x36",
+        "button.se-btn.se-btn \"Approve\" 78x36",
+        "a.se-btn.se-btn--sm \"Review\" 69x36",
+        "button.se-btn.se-btn \"Approve\" 78x36",
+        "a.se-btn.se-btn--sm \"Review\" 69x36",
+        "button.se-btn.se-btn \"Approve\" 78x36",
+        "a.se-btn.se-btn--sm \"Review\" 69x36",
+        "button.se-btn.se-btn \"Approve\" 78x36",
+        "a.se-btn.se-btn--sm \"Review\" 69x36",
+        "button.se-btn.se-btn \"Approve\" 78x36",
+        "a.se-btn.se-btn--sm \"Review\" 69x36"
+      ],
+      "total": 208
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin/accounts",
+    "finalPath": "/game/admin/accounts",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/admin/surveys",
+    "finalPath": "/game/admin/surveys",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 6,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40",
+        "button.se-btn.se-btn \"New survey\" 126x40",
+        "button.se-survey-tab.se-survey-tab--active \"Draft 0\" 102x40",
+        "button.se-survey-tab \"Scheduled 0\" 133x40",
+        "button.se-survey-tab \"Live 0\" 94x40",
+        "button.se-survey-tab \"Closed 0\" 110x40"
+      ],
+      "total": 21
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin/surveys",
+    "finalPath": "/game/admin/surveys",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 6,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40",
+        "button.se-btn.se-btn \"New survey\" 126x40",
+        "button.se-survey-tab.se-survey-tab--active \"Draft 0\" 102x40",
+        "button.se-survey-tab \"Scheduled 0\" 133x40",
+        "button.se-survey-tab \"Live 0\" 94x40",
+        "button.se-survey-tab \"Closed 0\" 110x40"
+      ],
+      "total": 21
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin/surveys",
+    "finalPath": "/game/admin/surveys",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/admin/signals",
+    "finalPath": "/game/admin/signals",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 1,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40"
+      ],
+      "total": 16
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin/signals",
+    "finalPath": "/game/admin/signals",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 1,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40"
+      ],
+      "total": 16
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin/signals",
+    "finalPath": "/game/admin/signals",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/admin/reports",
+    "finalPath": "/game/admin/reports",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 3,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40",
+        "button.se-seg__btn.se-seg__btn--on \"Open (0)\" 90x40",
+        "button.se-seg__btn \"Resolved (0)\" 114x40"
+      ],
+      "total": 15
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin/reports",
+    "finalPath": "/game/admin/reports",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 3,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40",
+        "button.se-seg__btn.se-seg__btn--on \"Open (0)\" 90x40",
+        "button.se-seg__btn \"Resolved (0)\" 114x40"
+      ],
+      "total": 15
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin/reports",
+    "finalPath": "/game/admin/reports",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/admin/economy",
+    "finalPath": "/game/admin/economy",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 11,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40",
+        "button.se-tip \"About this: Players whose net cash in th\" 24x24",
+        "a.se-standalone-link \"Review exploit flags\" 104x38",
+        "button.se-btn.se-btn--sm \"New York City\" 116x36",
+        "button.se-btn.se-btn--sm \"Detroit\" 75x36",
+        "button.se-btn.se-btn--sm \"Miami Beach\" 105x36",
+        "button.se-btn.se-btn--sm \"Seattle\" 73x36",
+        "button.se-btn.se-btn--sm \"San Francisco\" 118x36",
+        "button.se-btn.se-btn--sm \"Las Vegas\" 87x36",
+        "button.se-btn.se-btn--sm \"Los Angeles\" 101x36",
+        "button.se-btn.se-btn--sm \"Atlanta\" 78x36"
+      ],
+      "total": 29
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin/economy",
+    "finalPath": "/game/admin/economy",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 11,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40",
+        "button.se-tip \"About this: Players whose net cash in th\" 24x24",
+        "a.se-standalone-link \"Review exploit flags\" 95x36",
+        "button.se-btn.se-btn--sm \"New York City\" 116x36",
+        "button.se-btn.se-btn--sm \"Detroit\" 75x36",
+        "button.se-btn.se-btn--sm \"Miami Beach\" 105x36",
+        "button.se-btn.se-btn--sm \"Seattle\" 73x36",
+        "button.se-btn.se-btn--sm \"San Francisco\" 118x36",
+        "button.se-btn.se-btn--sm \"Las Vegas\" 87x36",
+        "button.se-btn.se-btn--sm \"Los Angeles\" 101x36",
+        "button.se-btn.se-btn--sm \"Atlanta\" 78x36"
+      ],
+      "total": 29
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin/economy",
+    "finalPath": "/game/admin/economy",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/admin/casino",
+    "finalPath": "/game/admin/casino",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 8,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40",
+        "button.se-linkbtn \"Refresh\" 35x32",
+        "button.se-btn.se-btn \"Clear pin\" 85x36",
+        "button.se-btn.se-btn \"Clear pin\" 85x36",
+        "button.se-btn.se-btn \"Clear pin\" 85x36",
+        "button.se-btn.se-btn \"Clear pin\" 85x36",
+        "button.se-btn.se-btn \"Pull odds now\" 122x36",
+        "select#sportsbook-check-provider.se-input.se-input--sm 38x44"
+      ],
+      "total": 25
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin/casino",
+    "finalPath": "/game/admin/casino",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 8,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40",
+        "button.se-linkbtn \"Refresh\" 35x32",
+        "button.se-btn.se-btn \"Clear pin\" 85x36",
+        "button.se-btn.se-btn \"Clear pin\" 85x36",
+        "button.se-btn.se-btn \"Clear pin\" 85x36",
+        "button.se-btn.se-btn \"Clear pin\" 85x36",
+        "button.se-btn.se-btn \"Pull odds now\" 122x36",
+        "select#sportsbook-check-provider.se-input.se-input--sm 38x44"
+      ],
+      "total": 24
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin/casino",
+    "finalPath": "/game/admin/casino",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/admin/law",
+    "finalPath": "/game/admin/law",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 2,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40",
+        "a.se-admin-law__link \"AMightyTank\" 80x28"
+      ],
+      "total": 15
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin/law",
+    "finalPath": "/game/admin/law",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 2,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40",
+        "a.se-admin-law__link \"AMightyTank\" 80x28"
+      ],
+      "total": 15
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin/law",
+    "finalPath": "/game/admin/law",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  },
+  {
+    "url": "/game/admin/rounds/cmv7gmn4a000gtkdkxtrfqxan",
+    "finalPath": "/game/admin/rounds/cmv7gmn4a000gtkdkxtrfqxan",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 7,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40",
+        "button.se-tip \"About this: Joined, but nothing in their\" 24x24",
+        "a.se-text-action \"Test\" 24x44",
+        "button.se-btn.se-btn \"Save changes\" 344x40",
+        "button.se-btn.se-btn \"Change ruleset\" 344x40",
+        "button.se-tip \"About this: Special-order receipts whose\" 24x24",
+        "button.se-tip \"About this: Battles from before 0.3.0-E \" 24x24"
+      ],
+      "total": 35
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin/rounds/cmv7gmn4a000gtkdkxtrfqxan",
+    "finalPath": "/game/admin/rounds/cmv7gmn4a000gtkdkxtrfqxan",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 7,
+      "smallList": [
+        "button.se-account__button \"Account menu, uiAuditAdminOct16\" 40x40",
+        "button.se-tip \"About this: Joined, but nothing in their\" 24x24",
+        "a.se-text-action \"Test\" 24x44",
+        "button.se-btn.se-btn \"Save changes\" 335x40",
+        "button.se-btn.se-btn \"Change ruleset\" 710x40",
+        "button.se-tip \"About this: Special-order receipts whose\" 24x24",
+        "button.se-tip \"About this: Battles from before 0.3.0-E \" 24x24"
+      ],
+      "total": 36
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/admin/rounds/cmv7gmn4a000gtkdkxtrfqxan",
+    "finalPath": "/game/admin/rounds/cmv7gmn4a000gtkdkxtrfqxan",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": []
+  }
+]

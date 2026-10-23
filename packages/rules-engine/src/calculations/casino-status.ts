@@ -89,9 +89,8 @@ export function rouletteRatingEdgeBps(status: CasinoStatusRules, table: CasinoRo
   return table.wheel === 'AMERICAN' ? status.ratingEdgeBps.rouletteAmerican : status.ratingEdgeBps.rouletteEuropean;
 }
 
-export function streetDiceRatingEdgeBps(status: CasinoStatusRules, bet: 'LINE' | 'ODDS'): number {
-  return bet === 'LINE' ? status.ratingEdgeBps.streetDiceLine : status.ratingEdgeBps.streetDiceOdds;
-}
+export function scratchCardRatingEdgeBps(status: CasinoStatusRules): number { return status.ratingEdgeBps.scratchCards; }
+export function horseRacingRatingEdgeBps(status: CasinoStatusRules): number { return status.ratingEdgeBps.horseRacing; }
 
 // --- Rating a wager ----------------------------------------------------------------
 

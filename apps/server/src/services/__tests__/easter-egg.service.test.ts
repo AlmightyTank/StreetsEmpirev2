@@ -2,6 +2,10 @@ import { describe, expect, it, vi } from 'vitest';
 import type { PrismaClient } from '@prisma/client';
 import type { Db } from '../../utils/db.js';
 import { EasterEggService } from '../easter-egg.service.js';
+// Account XP has its own tests; here it only needs to accept the award.
+vi.mock('../player-experience.service.js', () => ({
+  PlayerExperienceService: { award: vi.fn(async () => ({ awardedXp: 0, totalXp: 0, level: 1, unlocked: [] })) },
+}));
 
 function fakeDb(alreadyHeld: boolean, lastActiveAt = new Date('2026-10-21T12:00:00Z')) {
   const createMany = vi.fn(async () => ({ count: alreadyHeld ? 0 : 1 }));

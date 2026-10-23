@@ -47,7 +47,7 @@
   background: var(--se-panel-hi);
 }
 .se-action-readiness__item > span {
-  color: var(--se-muted);
+  color: color-mix(in srgb, var(--se-text-dim) 78%, var(--se-text));
   font-size: 10px;
   font-weight: 700;
   letter-spacing: .02em;
@@ -59,17 +59,75 @@
   overflow-wrap: anywhere;
 }
 .se-action-readiness__item > small {
-  color: var(--se-muted);
+  color: color-mix(in srgb, var(--se-text-dim) 78%, var(--se-text));
   font-size: 10px;
 }
 .se-action-readiness__item--good > strong { color: var(--se-good); }
 .se-action-readiness__item--warn > strong { color: var(--se-warn); }
-.se-action-readiness__item--bad > strong { color: var(--se-bad); }
+/* Blend with readable body ink, so danger labels clear WCAG AA across
+   alternate and premium theme surfaces without replacing the user's accent. */
+.se-action-readiness__item--bad > strong {
+  color: color-mix(in srgb, var(--se-bad) 80%, var(--se-text));
+}
 .se-action-readiness__notice {
   margin: 0;
   color: var(--se-warn);
   font-size: 12px;
   line-height: 1.35;
+}
+
+/* One action language across scouting, production, raids, and operations. */
+.se-actions,
+.se-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.se-actions > .se-btn,
+.se-actions-row > .se-btn {
+  min-height: 40px;
+}
+
+.se-actions > .se-btn:first-child,
+.se-actions-row > .se-btn:first-child {
+  border-color: color-mix(in srgb, var(--se-experience-accent, var(--se-accent)) 48%, var(--se-line));
+}
+
+.se-dock {
+  border-color: color-mix(in srgb, var(--se-experience-accent, var(--se-accent)) 38%, var(--se-line));
+  box-shadow:
+    0 -10px 28px color-mix(in srgb, var(--se-bg) 70%, transparent),
+    0 0 24px color-mix(in srgb, var(--se-experience-accent, var(--se-accent)) 8%, transparent);
+  scroll-margin-bottom: calc(var(--se-mobile-sticky-offset, 0px) + 12px);
+}
+
+.se-dock__controls {
+  border-top: 2px solid color-mix(in srgb, var(--se-experience-accent, var(--se-accent)) 22%, transparent);
+}
+
+.se-dock__result {
+  background: color-mix(in srgb, var(--se-experience-accent, var(--se-accent)) 5%, transparent);
+}
+
+.se-result {
+  border-color: color-mix(in srgb, var(--se-experience-accent, var(--se-accent)) 28%, var(--se-line));
+}
+
+.se-operation__actions,
+.se-operation__role-actions,
+.se-operation__launch {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.se-operation__actions .se-btn,
+.se-operation__role-actions .se-btn,
+.se-operation__launch .se-btn {
+  min-height: 38px;
 }
 .se-operation-details {
   min-width: 0;
@@ -130,6 +188,122 @@
   .se-action-readiness__items { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .se-operation-details__body { padding: 8px; }
   .se-dock__amount > .se-btn { min-height: 38px; }
+
+  .se-actions > .se-btn,
+  .se-actions-row > .se-btn,
+  .se-operation__actions .se-btn,
+  .se-operation__role-actions .se-btn,
+  .se-operation__launch .se-btn {
+    flex: 1 1 150px;
+  }
+}
+
+/* Combat's sticky crew-order dock should stay a compact decision surface;
+   the full roster remains available through its own scroll area. */
+.se-route--combat .se-dock__controls {
+  gap: 6px 8px;
+  padding: 6px 8px;
+}
+
+.se-route--combat .se-dock__controls > .se-crew-team {
+  max-height: 82px;
+  overflow: auto;
+  padding: 4px 6px;
+}
+
+.se-route--combat .se-crew-team__members {
+  max-height: 64px;
+  gap: 3px;
+}
+
+.se-route--combat .se-dock__controls .se-label {
+  font-size: 8px;
+}
+
+.se-route--combat .se-dock__controls .se-input {
+  min-height: 34px;
+  padding-block: 5px;
+}
+
+.se-route--combat .se-dock__controls .se-hint {
+  margin-block: 2px;
+  font-size: 9px;
+  line-height: 1.25;
+}
+
+.se-route--combat .se-crew-team__bar {
+  margin-bottom: 3px;
+  font-size: 10px;
+}
+
+.se-route--combat .se-crew-team__member {
+  gap: 5px;
+  padding: 4px 6px;
+}
+
+.se-route--combat .se-crew-team__member small {
+  font-size: 9px;
+}
+
+.se-route--combat .se-dock__controls > .se-btn,
+.se-route--combat .se-dock__controls > .se-why > .se-btn {
+  min-width: 140px;
+  min-height: 36px;
+}
+
+/* Give the raid dock an intentional decision flow instead of letting its
+   controls wrap into an unpredictable row. */
+.se-route--combat .se-dock__controls {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(132px, auto) minmax(190px, .85fr) auto;
+  align-items: center;
+}
+
+.se-route--combat .se-dock__controls > :first-child {
+  display: grid;
+  flex: none;
+  min-width: 0;
+}
+
+.se-route--combat .se-dock__controls > .se-dock__amount {
+  min-width: 0;
+}
+
+.se-route--combat .se-dock__controls > .se-crew-team {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  width: 100%;
+}
+
+.se-route--combat .se-dock__controls > .se-btn,
+.se-route--combat .se-dock__controls > .se-why > .se-btn {
+  justify-self: end;
+}
+
+@media (max-width: 700px) {
+  .se-route--combat .se-dock__controls {
+    grid-template-columns: minmax(0, 1fr) minmax(108px, .7fr);
+  }
+
+  .se-route--combat .se-dock__controls > :first-child,
+  .se-route--combat .se-dock__controls > .se-crew-team,
+  .se-route--combat .se-dock__controls > .se-btn,
+  .se-route--combat .se-dock__controls > .se-why {
+    grid-column: 1 / -1;
+  }
+
+  .se-route--combat .se-dock__controls > :first-child { grid-row: auto; }
+  .se-route--combat .se-dock__controls > .se-crew-team { grid-row: auto; }
+
+  .se-route--combat .se-dock__controls > .se-btn,
+  .se-route--combat .se-dock__controls > .se-why > .se-btn {
+    width: 100%;
+    justify-self: stretch;
+  }
+}
+
+.se-route--combat .se-crew-team__conflicts {
+  margin-top: 6px;
 }
 @media (max-width: 390px) {
   .se-action-readiness__items { gap: 5px; }

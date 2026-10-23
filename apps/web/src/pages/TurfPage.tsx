@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useSearchParams } from 'react-router-dom';
-import type { CitiesDto, CityCharacterDto, RankingsDto, TravelDto, TurfBlockDto } from '@streets/shared';
+import type { CitiesDto, CityCharacterDto, CrewMemberDto, RankingsDto, TravelDto, TurfBlockDto } from '@streets/shared';
 import { formatCentsExact, formatNumber } from '@streets/shared';
 import { communityApi } from '../api/community.js';
+import { crewApi } from '../api/crew.js';
 import { api, ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
 import { AllianceTag } from '../components/AllianceTag.js';
@@ -17,6 +18,7 @@ import { useSession } from '../stores/session.js';
 import { formatClockTime, formatWhen } from '../utils/time.js';
 import { CityDistrictMap, type CityDistrictMapEntry } from '../components/CityDistrictMap.js';
 import { EmpireAreaLegend, EmpireInspector, EmpireManagementLayout, EmpireRosterCard } from '../components/EmpireManagement.js';
+import { thugsPostedOn } from '../utils/crewWhereabouts.js';
 
 const ORDER: Record<TurfBlockDto['district'], number> = {
   CASINO: 0,
@@ -40,6 +42,20 @@ function turfTime(seconds: number): string {
   const hours = seconds / 3600;
   if (hours < 48) return `${hours.toFixed(hours < 10 ? 1 : 0)}h`;
   return `${(hours / 24).toFixed(1)}d`;
+}
+
+function describeCityMemoryEvent(event: { kind: string; summary: unknown }): string {
+  const summary = (event.summary ?? {}) as Record<string, unknown>;
+  if (event.kind === 'takeover') return 'an alliance seized city control';
+  if (event.kind === 'war_win') {
+    const reason = typeof summary.reason === 'string' ? summary.reason.toLowerCase() : 'settled';
+    const district = typeof summary.district === 'string' ? ` in ${summary.district}` : '';
+    return `a block war ${reason}${district}`;
+  }
+  if (event.kind === 'business_flip') return 'a business changed hands';
+  if (event.kind === 'crackdown') return 'a federal crackdown swept the streets';
+  if (event.kind === 'operation_complete') return 'a criminal operation went down';
+  return 'the streets shifted';
 }
 
 function pulse(city: CityCharacterDto) {
@@ -95,13 +111,21 @@ function holder(block: TurfBlockDto) {
   );
 }
 
-function CityBlockBoard({ city, onChanged, onSelect, selectedDistrict }: { city: CityCharacterDto; onChanged: () => void; onSelect: (district: TurfBlockDto['district']) => void; selectedDistrict: TurfBlockDto['district'] | null }) {
+const cornerJobLabel: Record<string, string> = {
+  TURF: 'Posted',
+  CORNER_ENFORCER: 'Enforcer',
+  CORNER_LOOKOUT: 'Lookout',
+  STASH_GUARD: 'Stash guard',
+};
+
+function CityBlockBoard({ city, onChanged, onSelect, selectedDistrict, postedCrew }: { city: CityCharacterDto; onChanged: () => void; onSelect: (district: TurfBlockDto['district']) => void; selectedDistrict: TurfBlockDto['district'] | null; postedCrew: CrewMemberDto[] }) {
   const turf = city.turf;
   if (!turf) return <p className="se-muted">Turf is not enabled in this round.</p>;
   const blocks = [...turf.blocks].sort((a, b) => ORDER[a.district] - ORDER[b.district]);
   const block = blocks.find((entry) => entry.district === selectedDistrict) ?? blocks[0] ?? null;
   if (!block) return <p className="se-muted">No districts are available in this city.</p>;
   const status = block.isMine ? 'mine' : block.holder ? 'held' : block.localsReclaimAt ? 'vacant' : 'locals';
+  const namedHere = block.isMine ? thugsPostedOn(postedCrew, block.id) : [];
 
   return (
     <>
@@ -142,6 +166,24 @@ function CityBlockBoard({ city, onChanged, onSelect, selectedDistrict }: { city:
                 )}
                 <span><b className="se-num">{Math.floor(block.presenceTurns)}</b><small>your presence</small></span>
               </div>
+              {block.isMine ? (
+                <div className="se-turfboard__posted">
+                  <span className="se-eyebrow">Who is posted here</span>
+                  {namedHere.length ? (
+                    <ul>
+                      {namedHere.map((member) => (
+                        <li key={member.id}>
+                          <span>#{String(member.serial).padStart(3, '0')} {member.name}</span>
+                          <small>{cornerJobLabel[member.assignment?.kind ?? ''] ?? 'Posted'}</small>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : <p className="se-muted">No named thugs are recorded on this corner.</p>}
+                  {block.cornerThugs > namedHere.length ? (
+                    <p className="se-hint">{formatNumber(block.cornerThugs - namedHere.length)} posted here {namedHere.length ? 'are not tied to a named thug' : 'have no named thug recorded'}.</p>
+                  ) : null}
+                </div>
+              ) : null}
               {block.fatigue && block.fatigue.percent > 0 ? (
                 <span className="se-hint se-turfboard__fatigue" title="War fatigue: businesses here earn this much less until it heals.">
                   Fatigue {block.fatigue.percent}% · output {100 - block.fatigue.percent}%
@@ -197,8 +239,6 @@ function CityTurfMap({
   selectedDistrict: TurfBlockDto['district'] | null;
 }) {
   const blocks = [...(city.turf?.blocks ?? [])].sort((a, b) => ORDER[a.district] - ORDER[b.district]);
-  const cityController = city.turf?.control?.alliance.tag;
-  const blocksHeldByController = city.turf?.control?.blocksHeld ?? 0;
   const mapDistricts = blocks.map((block): CityDistrictMapEntry => {
     const locked = block.districtAccess?.unlocked === false;
     const activePush = Boolean(block.push || block.war);
@@ -228,23 +268,18 @@ function CityTurfMap({
       <div className="se-citymap-layout">
         <CityDistrictMap citySlug={city.slug} cityName={city.name} districts={mapDistricts} selectedDistrict={selectedDistrict} onSelect={(district) => onSelect(district as TurfBlockDto['district'])} />
 
-        <aside className="se-citymap-brief" aria-label="City control summary">
-          <div className="se-citymap-brief__control">
-            <span className="se-eyebrow">City control</span>
-            <strong>{cityController ? `[${cityController}]` : 'Contested city'}</strong>
-            <span>{cityController ? `${blocksHeldByController} of 5 blocks held · 3 needed to control` : 'No alliance currently controls the city'}</span>
-          </div>
+        <aside className="se-citymap-brief" aria-label="District map key">
           <EmpireAreaLegend label="Turf map legend" items={[
             { key: 'mine', label: 'Your crew', tone: 'mine' }, { key: 'held', label: 'Other crew', tone: 'held' },
             { key: 'locals', label: 'Locals', tone: 'locals' }, { key: 'vacant', label: 'Rebuilding', tone: 'vacant' },
             { key: 'pressure', label: 'Active conflict', tone: 'pressure' }, { key: 'locked', label: 'Locked', tone: 'locked' },
           ]} />
           {selectedDistrict ? (
-            <a className="se-citymap-brief__action" href={`#turf-block-${selectedDistrict}`}>
+            <Link className="se-citymap-brief__action" to={`/game/turf?city=${encodeURIComponent(city.slug)}&district=${encodeURIComponent(selectedDistrict)}#turf-block-${encodeURIComponent(selectedDistrict)}`}>
               Jump to district actions <span aria-hidden="true">↓</span>
-            </a>
+            </Link>
           ) : null}
-          <p>Select a district to open its controls in the inspector below.</p>
+          <p>Select a district to open its controls.</p>
         </aside>
       </div>
     </details>
@@ -289,6 +324,12 @@ function TurfReports({ city }: { city: CityCharacterDto }) {
                 {Object.entries(report.outpostLoot.products).map(([key, quantity]) => ` · ${formatNumber(quantity)} ${key.toLowerCase()}`).join('')}
               </span>
             ) : null}
+            {report.territoryCacheRaidReceipt ? (
+              <span className="se-hint">
+                Territory cache exposed to the incoming alliance ({report.territoryCacheRaidReceipt.retainedBasisPoints / 100}% retained): {formatCentsExact(report.territoryCacheRaidReceipt.cashCents + report.territoryCacheRaidReceipt.tollCents)} cash/tolls
+                {Object.entries(report.territoryCacheRaidReceipt.goods).map(([key, quantity]) => ` · ${formatNumber(quantity)} ${key.toLowerCase()}`).join('')}
+              </span>
+            ) : null}
           </li>
         );
       })}
@@ -301,6 +342,7 @@ export function TurfPage() {
   const [cities, setCities] = useState<CitiesDto | null>(null);
   const [rankings, setRankings] = useState<RankingsDto | null>(null);
   const [travel, setTravel] = useState<TravelDto | null>(null);
+  const [postedCrew, setPostedCrew] = useState<CrewMemberDto[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [params, setParams] = useSearchParams();
 
@@ -309,10 +351,12 @@ export function TurfPage() {
       api.get<CitiesDto>('/game/cities'),
       communityApi.rankings(),
       api.get<TravelDto>('/game/travel'),
-    ]).then(([cityData, rankingData, travelData]) => {
+      crewApi.roster({ role: 'THUG', status: 'ASSIGNED', limit: 200 }).catch(() => null),
+    ]).then(([cityData, rankingData, travelData, roster]) => {
       setCities(cityData);
       setRankings(rankingData);
       setTravel(travelData);
+      setPostedCrew(roster?.members ?? []);
       setError(null);
     }).catch((caught: unknown) => {
       setError(caught instanceof ApiError ? caught.message : 'Could not load turf.');
@@ -374,15 +418,7 @@ export function TurfPage() {
 
         {turfCities.length ? (
           <>
-            <section className="se-cityblocks-cities">
-              <div className="se-cityblocks-sectionhead">
-                <div>
-                  <span className="se-eyebrow">City selector</span>
-                  <h2>Choose the battlefield</h2>
-                </div>
-                <p>Control is city-specific. Switch cities without leaving the territory board.</p>
-              </div>
-
+            <section className="se-cityblocks-cities" aria-label="Choose a city">
               <div className="se-turfcitystrip" role="tablist" aria-label="Cities">
                 {turfCities.map((city) => {
                   const stats = pulse(city);
@@ -410,10 +446,10 @@ export function TurfPage() {
             {selected && selectedPulse ? (
               <>
                 <section className="se-cityblocks-section">
-                  <div className="se-cityblocks-sectionhead">
+                  <div className="se-cityblocks-sectionhead se-cityblocks-sectionhead--overview">
                     <div>
-                      <span className="se-eyebrow">City control · {selected.name}</span>
-                      <h2>{selected.turf?.control ? `[${selected.turf.control.alliance.tag}] controls ${selected.turf.control.blocksHeld} of 5` : 'No alliance controls the city yet'}</h2>
+                      <span className="se-eyebrow">{selected.name} · city control</span>
+                      <h2>{selected.turf?.control ? `[${selected.turf.control.alliance.tag}] controls ${selected.turf.control.blocksHeld} / 5` : 'Contested city'}</h2>
                     </div>
                     <div className="se-cityblocks-control">
                       {selected.turf?.control ? (
@@ -427,6 +463,12 @@ export function TurfPage() {
                       )}
                     </div>
                   </div>
+                  {selected.turf?.latestEvent ? (
+                    <p className="se-hint" role="status">
+                      Last shook the city: {describeCityMemoryEvent(selected.turf.latestEvent)} ·{' '}
+                      {new Date(selected.turf.latestEvent.happenedAt).toLocaleString()}
+                    </p>
+                  ) : null}
 
                   <div className="se-cityblocks-pulse">
                     <CityBlocksMetric label="Player-held" value={`${formatNumber(selectedPulse.held)} / 5`} detail="blocks with player crews" />
@@ -439,7 +481,7 @@ export function TurfPage() {
                       tone={selectedPulse.visiblePushes > 0 ? 'warn' : 'good'}
                     />
                   </div>
-                  <p className="se-hint">City control is a current snapshot. Round performance still uses cumulative block-time in the standings below.</p>
+                  <p className="se-hint">Control takes 3 of 5 districts. Round standings use cumulative block-time.</p>
                 </section>
 
                 <CityTurfMap
@@ -456,10 +498,10 @@ export function TurfPage() {
                 <section className="se-cityblocks-section">
                   <div className="se-cityblocks-sectionhead">
                     <div>
-                      <span className="se-eyebrow">City control board</span>
-                      <h2>Choose a district to work</h2>
+                      <span className="se-eyebrow">District operations</span>
+                      <h2>Choose a district</h2>
                     </div>
-                    <span className="se-cityblocks-sectionhead__meta">Select a district for its actions</span>
+                    <span className="se-cityblocks-sectionhead__meta">Actions open on the right</span>
                   </div>
 
                   {selected.turf?.upkeepDiscount ? (
@@ -471,6 +513,7 @@ export function TurfPage() {
                     <CityBlockBoard
                       city={selected}
                       onChanged={load}
+                      postedCrew={postedCrew}
                       selectedDistrict={selectedDistrict}
                       onSelect={(district) => {
                         const next = new URLSearchParams(params);
@@ -545,36 +588,6 @@ export function TurfPage() {
                     ) : null}
                   </div>
 
-                  <div className="se-cityblocks-stack">
-                    <Panel title="Territory read" aside="Current city" className="se-cityblocks-panel">
-                      <div className="se-cityblocks-read">
-                        <div>
-                          <span>City controller</span>
-                          <strong>
-                            {selected.turf?.control
-                              ? `[${selected.turf.control.alliance.tag}] ${selected.turf.control.alliance.name}`
-                              : 'No controller'}
-                          </strong>
-                        </div>
-                        <div>
-                          <span>Your footprint</span>
-                          <strong>{selectedPulse.mine ? `${selectedPulse.mine} of 5 blocks` : 'No blocks held'}</strong>
-                        </div>
-                        <div>
-                          <span>Open opportunity</span>
-                          <strong>{selectedPulse.locals + selectedPulse.vacant} blocks outside player control</strong>
-                        </div>
-                        <div>
-                          <span>Visible conflict</span>
-                          <strong>{selectedPulse.visiblePushes ? `${selectedPulse.visiblePushes} active push${selectedPulse.visiblePushes === 1 ? '' : 'es'}` : 'None visible'}</strong>
-                        </div>
-                      </div>
-                      <p className="se-hint">
-                        Corner claiming, reinforcement, pulls, pushes, revenge windows, and alliance calls stay on the district cards above.
-                      </p>
-                    </Panel>
-
-                  </div>
                 </section>
               </>
             ) : null}

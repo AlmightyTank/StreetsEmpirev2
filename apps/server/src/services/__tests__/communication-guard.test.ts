@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { commsMuted, foreignLinks, isNewAccount, NEW_ACCOUNT_HOURS } from '../communication-guard.js';
+import { ACCOUNT_TRUST_GATES } from '@streets/shared';
+import { assertTrustGate, commsMuted, foreignLinks, isNewAccount, meetsTrustGate, NEW_ACCOUNT_HOURS } from '../communication-guard.js';
 
 const own = new Set(['streetsempire.com', 'forum.streetsempire.dev']);
 
@@ -32,5 +33,23 @@ describe('0.9.0-H account rules', () => {
     expect(commsMuted({ commsMutedUntil: new Date(now.getTime() + 1_000), commsMutedPermanent: false }, now)).toBe(true);
     expect(commsMuted({ commsMutedUntil: new Date(now.getTime() - 1_000), commsMutedPermanent: false }, now)).toBe(false);
     expect(commsMuted({ commsMutedUntil: null, commsMutedPermanent: true }, now)).toBe(true);
+  });
+});
+
+describe('account level trust gates', () => {
+  const gate = ACCOUNT_TRUST_GATES.coldMessage.level;
+
+  it('opens at the gate level and always for staff', () => {
+    expect(meetsTrustGate({ level: gate - 1, isAdmin: false }, 'coldMessage')).toBe(false);
+    expect(meetsTrustGate({ level: gate, isAdmin: false }, 'coldMessage')).toBe(true);
+    expect(meetsTrustGate({ level: 1, isAdmin: true }, 'foundAlliance')).toBe(true);
+    expect(meetsTrustGate({ level: 1, isAdmin: false, veteran: true }, 'sportsbook')).toBe(true);
+  });
+
+  it('explains the level needed when it refuses', () => {
+    expect(() => assertTrustGate({ level: 1, isAdmin: false }, 'foundAlliance')).toThrow(
+      expect.objectContaining({ code: 'ACCOUNT_LEVEL_REQUIRED', statusCode: 403 }),
+    );
+    expect(() => assertTrustGate({ level: 1, isAdmin: false }, 'foundAlliance')).toThrow(`level ${ACCOUNT_TRUST_GATES.foundAlliance.level}`);
   });
 });

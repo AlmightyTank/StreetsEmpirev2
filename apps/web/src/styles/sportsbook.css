@@ -1,0 +1,198 @@
+/* Sportsbook: My Tickets, live banner, league pills and the two-team matchup card. */
+.se-sportsbook {
+  --sb-glow: rgba(var(--se-accent-rgb), .35);
+  --sb-card: linear-gradient(160deg, color-mix(in srgb, var(--se-panel-hi) 92%, var(--se-accent) 8%), var(--se-panel) 70%);
+  --sb-good-glow: rgba(var(--se-good-rgb), .3);
+}
+
+/* My Tickets head */
+.sb-tickets-head { display: grid; gap: .5rem; }
+.sb-tickets-head__row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .6rem; }
+.sb-tickets-head__row h3 { font-size: 1.15rem; font-weight: 800; letter-spacing: .01em; }
+.sb-tickets-head__summary { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .25rem 1rem; color: var(--se-text-dim); font-size: .86rem; font-variant-numeric: tabular-nums; }
+.sb-tickets-head__summary strong { color: var(--se-text); font-weight: 700; }
+.sb-tickets-head__summary .is-accent { color: var(--se-accent); }
+.sb-tickets-head__summary .is-good { color: var(--se-good); }
+.sb-tickets-head__summary .is-bad { color: var(--se-bad); }
+
+.sb-segment { display: inline-flex; padding: .2rem; gap: .2rem; border: 1px solid var(--se-line); border-radius: 999px; background: var(--se-bg); }
+.sb-segment__btn {
+  display: inline-flex; align-items: center; gap: .45rem; min-height: 2.1rem; padding: .25rem .95rem;
+  border: 0; border-radius: 999px; background: transparent; color: var(--se-text-dim); font: inherit; font-size: .88rem; font-weight: 650; cursor: pointer;
+  transition: background .15s, color .15s, box-shadow .15s;
+}
+.sb-segment__btn b { min-width: 1.35rem; padding: 0 .35rem; border-radius: 999px; background: var(--se-line-soft); color: var(--se-muted); font-size: .75rem; text-align: center; font-variant-numeric: tabular-nums; }
+.sb-segment__btn:hover { color: var(--se-text); }
+.sb-segment__btn.is-active { background: var(--se-accent); color: #fff; box-shadow: 0 0 .9rem var(--sb-glow); }
+.sb-segment__btn.is-active b { background: rgb(0 0 0 / .25); color: #fff; }
+
+/* Live banner */
+.sb-banner {
+  display: flex; align-items: center; gap: .75rem; padding: .65rem .85rem;
+  border: 1px solid color-mix(in srgb, var(--se-good) 40%, var(--se-line)); border-radius: .85rem;
+  background: linear-gradient(90deg, rgba(var(--se-good-rgb), .12), transparent 70%), var(--se-panel);
+}
+.sb-banner__pulse { position: relative; flex: 0 0 auto; width: .7rem; height: .7rem; border-radius: 50%; background: var(--se-good); box-shadow: 0 0 .6rem var(--sb-good-glow); }
+.sb-banner__pulse::after { content: ''; position: absolute; inset: 0; border-radius: inherit; background: inherit; animation: sb-pulse 1.8s ease-out infinite; }
+.sb-banner__copy { display: grid; min-width: 0; flex: 1 1 auto; }
+.sb-banner__copy strong { font-size: .95rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--se-good); }
+.sb-banner__copy small { color: var(--se-text-dim); font-size: .8rem; }
+.sb-banner__badge { flex: 0 0 auto; padding: .2rem .6rem; border: 1px solid currentColor; border-radius: 999px; color: var(--se-good); font-size: .72rem; font-weight: 750; letter-spacing: .05em; text-transform: uppercase; }
+.sb-banner.is-warn { border-color: color-mix(in srgb, var(--se-warn) 45%, var(--se-line)); background: linear-gradient(90deg, color-mix(in srgb, var(--se-warn) 12%, transparent), transparent 70%), var(--se-panel); }
+.sb-banner.is-warn .sb-banner__pulse { background: var(--se-warn); box-shadow: none; }
+.sb-banner.is-warn .sb-banner__copy strong, .sb-banner.is-warn .sb-banner__badge { color: var(--se-warn); }
+.sb-banner.is-off { border-color: var(--se-line); background: var(--se-panel); }
+.sb-banner.is-off .sb-banner__pulse { background: var(--se-muted); box-shadow: none; }
+.sb-banner.is-off .sb-banner__pulse::after, .sb-banner.is-warn .sb-banner__pulse::after { animation: none; }
+.sb-banner.is-off .sb-banner__copy strong, .sb-banner.is-off .sb-banner__badge { color: var(--se-muted); }
+@keyframes sb-pulse { from { transform: scale(1); opacity: .7; } to { transform: scale(2.6); opacity: 0; } }
+
+/* League pills */
+.sb-leagues { display: flex; gap: .45rem; overflow-x: auto; padding: .1rem .05rem .3rem; scrollbar-width: none; }
+.sb-leagues::-webkit-scrollbar { display: none; }
+.sb-leagues__pill {
+  display: inline-flex; flex: 0 0 auto; align-items: center; gap: .45rem; min-height: 2.25rem; padding: .3rem .85rem;
+  border: 1px solid var(--se-line); border-radius: 999px; background: var(--se-panel); color: var(--se-text-dim);
+  font: inherit; font-size: .86rem; font-weight: 700; letter-spacing: .03em; cursor: pointer; transition: border-color .15s, box-shadow .15s, color .15s;
+}
+.sb-leagues__pill b { color: var(--se-muted); font-size: .75rem; font-variant-numeric: tabular-nums; }
+.sb-leagues__pill:hover { color: var(--se-text); border-color: color-mix(in srgb, var(--se-accent) 50%, var(--se-line)); }
+.sb-leagues__pill.is-active { border-color: var(--se-accent); background: rgba(var(--se-accent-rgb), .14); color: var(--se-text); box-shadow: 0 0 .8rem var(--sb-glow), inset 0 0 .5rem rgba(var(--se-accent-rgb), .15); }
+.sb-leagues__pill.is-active b { color: var(--se-accent); }
+
+/* League tag */
+.sb-league { padding: .1rem .45rem; border-radius: .35rem; background: var(--se-line-soft); color: var(--se-text); font-size: .7rem; font-weight: 800; letter-spacing: .06em; }
+.sb-league--nfl { background: #13306b; }
+.sb-league--nba { background: #7a2414; }
+.sb-league--mlb { background: #0f3b6e; }
+.sb-league--nhl { background: #2b2f36; }
+
+/* Cards */
+.sb-ticket-list { display: grid; gap: .7rem; }
+.sb-empty { padding: 1rem; border: 1px dashed var(--se-line); border-radius: .85rem; color: var(--se-muted); text-align: center; font-size: .9rem; }
+.sb-card {
+  position: relative; display: grid; gap: .75rem; padding: .8rem .9rem; overflow: hidden;
+  border: 1px solid var(--se-line); border-radius: 1rem; background: var(--sb-card);
+  box-shadow: 0 .4rem 1.2rem rgb(0 0 0 / .3);
+}
+.sb-card::before { content: ''; position: absolute; inset: 0 0 auto; height: 2px; background: linear-gradient(90deg, transparent, var(--se-accent), transparent); opacity: .7; }
+.sb-card__top { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem .6rem; color: var(--se-text-dim); font-size: .8rem; }
+.sb-card__top time { font-weight: 650; font-variant-numeric: tabular-nums; }
+.sb-card__countdown { margin-left: auto; color: var(--se-muted); font-size: .78rem; font-variant-numeric: tabular-nums; }
+.sb-card__countdown.is-soon { color: var(--se-warn); font-weight: 700; }
+
+.sb-chip { padding: .12rem .5rem; border-radius: 999px; font-size: .66rem; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; border: 1px solid currentColor; }
+.sb-chip.is-upcoming { color: var(--se-accent); background: rgba(var(--se-accent-rgb), .1); }
+.sb-chip.is-live { color: var(--se-good); background: rgba(var(--se-good-rgb), .12); }
+.sb-chip.is-review, .sb-chip.is-push { color: var(--se-text-dim); }
+.sb-chip.is-won { color: var(--se-good); background: rgba(var(--se-good-rgb), .14); }
+.sb-chip.is-lost { color: var(--se-bad); background: color-mix(in srgb, var(--se-bad) 12%, transparent); }
+
+/* Matchup row: away · VS · home */
+.sb-matchup { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: .5rem; }
+.sb-matchup__vs {
+  display: grid; place-items: center; min-width: 2.4rem; height: 2.4rem; padding: 0 .4rem; border-radius: 999px;
+  border: 1px solid var(--se-line); background: var(--se-bg); color: var(--se-muted); font-size: .78rem; font-weight: 900; letter-spacing: .06em;
+}
+.sb-score { display: inline-flex; gap: .3rem; color: var(--se-text); font-size: 1rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.sb-score i { color: var(--se-muted); font-style: normal; }
+.sb-matchup__vs:has(.sb-score) { padding: 0 .7rem; }
+
+.sb-side { display: grid; justify-items: center; gap: .3rem; min-width: 0; padding: .55rem .35rem; border-radius: .8rem; text-align: center; transition: background .15s, box-shadow .15s; }
+.sb-side.is-clickable { cursor: pointer; }
+.sb-side.is-clickable:focus-visible { outline: 2px solid var(--se-accent); outline-offset: 2px; }
+.sb-side__name { display: grid; min-width: 0; line-height: 1.15; }
+.sb-side__name small { color: var(--se-muted); font-size: .72rem; font-weight: 600; overflow-wrap: anywhere; }
+.sb-side__name strong { font-size: .98rem; font-weight: 800; overflow-wrap: anywhere; }
+.sb-side__tag { color: var(--se-muted); font-size: .62rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.sb-side.is-picked { background: rgba(var(--se-accent-rgb), .1); box-shadow: inset 0 0 0 1px rgba(var(--se-accent-rgb), .55); }
+.sb-side.is-picked .sb-side__tag { color: var(--se-accent); }
+
+/* Team logo in a glowing ring; the league name shows until the logo loads, or if it never does. */
+.sb-badge {
+  display: grid; place-items: center; flex: 0 0 auto; width: 3.4rem; height: 3.4rem; padding: .2rem; border-radius: 50%;
+  background: radial-gradient(circle at 30% 25%, var(--se-panel-hi), var(--se-bg) 75%);
+  box-shadow: 0 0 0 1px var(--se-line), 0 0 1rem rgba(var(--se-accent-rgb), .18);
+}
+.sb-badge .se-sportsbook__ticket-mark {
+  position: relative; display: grid; place-items: center; overflow: hidden; width: 100%; height: 100%; border-radius: 50%;
+  color: var(--se-muted); font-size: .68rem; font-weight: 850; letter-spacing: .05em;
+}
+.sb-badge .se-sportsbook__ticket-mark img {
+  position: absolute; inset: 0; width: 100%; height: 100%; padding: .3rem;
+  object-fit: contain; opacity: 0; transition: opacity .15s ease;
+}
+.sb-badge .se-sportsbook__ticket-mark img.is-loaded { opacity: 1; border-radius: 50%; background: var(--se-bg); }
+.sb-side.is-picked .sb-badge { box-shadow: 0 0 0 2px var(--se-accent), 0 0 1.1rem var(--sb-glow); }
+.sb-ticket.is-won .sb-side.is-picked .sb-badge { box-shadow: 0 0 0 2px var(--se-good), 0 0 1.1rem var(--sb-good-glow); }
+.sb-ticket.is-lost .sb-side.is-picked .sb-badge { box-shadow: 0 0 0 2px var(--se-bad); }
+
+.sb-odds {
+  display: inline-grid; place-items: center; min-width: 4.2rem; min-height: 2rem; padding: .15rem .6rem;
+  border: 1px solid var(--se-line); border-radius: .55rem; background: var(--se-bg); color: var(--se-text-dim);
+  font: inherit; font-size: .92rem; font-weight: 800; font-variant-numeric: tabular-nums;
+}
+.sb-odds.is-empty { border-style: dashed; color: var(--se-muted); }
+.sb-odds.is-locked { border-color: var(--se-accent); color: var(--se-accent); box-shadow: 0 0 .7rem var(--sb-glow); }
+button.sb-odds { cursor: pointer; color: var(--se-accent); transition: border-color .15s, box-shadow .15s, background .15s; }
+button.sb-odds:hover:not(:disabled) { border-color: var(--se-accent); box-shadow: 0 0 .7rem var(--sb-glow); }
+button.sb-odds.is-selected { background: var(--se-accent); border-color: var(--se-accent); color: #fff; box-shadow: 0 0 1rem var(--sb-glow); }
+button.sb-odds:disabled { cursor: not-allowed; color: var(--se-muted); opacity: .6; }
+button.sb-odds:focus-visible, .sb-segment__btn:focus-visible, .sb-leagues__pill:focus-visible { outline: 2px solid var(--se-focus, var(--se-accent)); outline-offset: 2px; }
+
+/* Stake / To win / Payout strip */
+.sb-money { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; border: 1px solid var(--se-line-soft); border-radius: .7rem; background: rgb(0 0 0 / .25); }
+.sb-money > div { display: grid; gap: .1rem; padding: .45rem .6rem; text-align: center; }
+.sb-money > div + div { border-left: 1px solid var(--se-line-soft); }
+.sb-money dt { color: var(--se-muted); font-size: .64rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.sb-money dd { margin: 0; font-size: .95rem; font-weight: 800; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.sb-money .is-payout dd { color: var(--se-accent); text-shadow: 0 0 .6rem var(--sb-glow); }
+
+/* Settled tickets: the result colors the card, not just a label. */
+.sb-ticket.is-won { border-color: color-mix(in srgb, var(--se-good) 55%, var(--se-line)); box-shadow: 0 0 1.1rem var(--sb-good-glow); }
+.sb-ticket.is-won::before { background: linear-gradient(90deg, transparent, var(--se-good), transparent); }
+.sb-ticket.is-won .sb-money__net, .sb-ticket.is-won .sb-side.is-picked .sb-side__tag { color: var(--se-good); }
+.sb-ticket.is-won .sb-side.is-picked { background: rgba(var(--se-good-rgb), .1); box-shadow: inset 0 0 0 1px rgba(var(--se-good-rgb), .55); }
+.sb-ticket.is-won .sb-odds.is-locked { border-color: var(--se-good); color: var(--se-good); box-shadow: none; }
+.sb-ticket.is-lost { border-color: color-mix(in srgb, var(--se-bad) 40%, var(--se-line)); }
+.sb-ticket.is-lost::before { background: linear-gradient(90deg, transparent, var(--se-bad), transparent); }
+.sb-ticket.is-lost .sb-money__net { color: var(--se-bad); }
+.sb-ticket.is-lost .sb-side.is-picked { background: color-mix(in srgb, var(--se-bad) 8%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--se-bad) 45%, transparent); }
+.sb-ticket.is-lost .sb-side.is-picked .sb-side__tag, .sb-ticket.is-lost .sb-odds.is-locked { color: var(--se-bad); border-color: var(--se-bad); box-shadow: none; }
+.sb-ticket.is-push, .sb-ticket.is-review { box-shadow: none; }
+.sb-ticket.is-push::before { opacity: 0; }
+.sb-ticket.is-live::before { background: linear-gradient(90deg, transparent, var(--se-good), transparent); }
+
+/* Beta's ticket entrance and settle animations, carried onto the matchup card. */
+.sb-ticket.is-new { animation: se-sportsbook-ticket-in .42s cubic-bezier(.2,.78,.24,1.08) both; }
+.sb-ticket.is-just-settled { animation: se-sportsbook-settled .7s ease-out both; }
+
+/* Board */
+.sb-board-head { display: grid; gap: .3rem; padding-top: .6rem; border-top: 1px solid var(--se-line); }
+.sb-board-head h3 { font-size: 1.15rem; font-weight: 800; }
+.sb-event.is-closed { opacity: .72; box-shadow: none; }
+.sb-event.is-closed::before { opacity: 0; }
+.sb-event.has-pick { border-color: rgba(var(--se-accent-rgb), .6); box-shadow: 0 0 1.1rem var(--sb-glow); }
+
+@media (max-width: 560px) {
+  .sb-tickets-head__row { align-items: stretch; }
+  .sb-segment { flex: 1 1 100%; }
+  .sb-segment__btn { flex: 1 1 0; justify-content: center; }
+  .sb-banner { padding: .55rem .7rem; gap: .6rem; }
+  .sb-banner__badge { display: none; }
+  .sb-card { padding: .7rem .65rem; gap: .6rem; border-radius: .9rem; }
+  .sb-card__countdown { flex-basis: 100%; margin-left: 0; }
+  .sb-matchup { gap: .25rem; }
+  .sb-side { padding: .45rem .2rem; }
+  .sb-badge { width: 2.9rem; height: 2.9rem; }
+  .sb-side__name strong { font-size: .9rem; }
+  .sb-matchup__vs { min-width: 2rem; height: 2rem; font-size: .7rem; }
+  .sb-odds { min-width: 3.6rem; font-size: .86rem; }
+  .sb-money > div { padding: .4rem .3rem; }
+  .sb-money dd { font-size: .85rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sb-banner__pulse::after, .sb-ticket.is-new, .sb-ticket.is-just-settled { animation: none; }
+  .sb-side, .sb-segment__btn, .sb-leagues__pill, button.sb-odds { transition: none; }
+}

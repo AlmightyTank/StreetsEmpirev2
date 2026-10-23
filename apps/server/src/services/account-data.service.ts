@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import type { Account, PrismaClient, Session } from '@prisma/client';
 import { APP_VERSION, normalizeUsername } from '@streets/shared';
 import { hashPassword, verifyPassword } from '../auth/password.js';
+import { isStaff } from '../auth/play-access.js';
 import { lockAccount, type Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { AdminAuditService } from './admin-audit.service.js';
@@ -69,9 +70,19 @@ export async function eraseAccount(tx: Db, before: Account, replacementPasswordH
       discordUsername: null,
       discordAvatar: null,
       discordLinkedAt: null,
+      appleId: null,
+      appleEmail: null,
+      appleLinkedAt: null,
+      googleId: null,
+      googleEmail: null,
+      googleLinkedAt: null,
+      facebookId: null,
+      facebookEmail: null,
+      facebookLinkedAt: null,
       lastLoginAt: null,
       isActive: false,
       isAdmin: false,
+      staffRole: null,
       betaApproved: false,
       suspendedUntil: null,
       suspendedReason: null,
@@ -115,7 +126,7 @@ export const AccountDataService = {
     });
     const playerIds = players.map((row) => row.id);
     const nameChanges = await prisma.accountUsernameChange.findMany({ where: { accountId }, orderBy: { createdAt: 'asc' }, select: { fromUsername: true, toUsername: true, createdAt: true } });
-    const [profile, cosmetics, notifications, sessions, trustedDevices, devices, forumLink, sent, received, contacts, mutes, messageReports, bugReports, supportTickets, supporterMembership, supporterPayments] = await Promise.all([
+    const [profile, cosmetics, notifications, sessions, trustedDevices, devices, forumLink, sent, received, contacts, mutes, messageReports, bugReports, supportTickets, supporterMembership, googlePlayMemberships, supporterPayments] = await Promise.all([
       prisma.accountProfile.findUnique({ where: { accountId } }),
       prisma.accountCosmeticUnlock.findMany({ where: { accountId } }),
       prisma.notificationSettings.findUnique({ where: { accountId } }),
@@ -131,7 +142,8 @@ export const AccountDataService = {
       prisma.bugReport.findMany({ where: { accountId }, select: { category: true, summary: true, details: true, pagePath: true, source: true, createdAt: true, resolvedAt: true, resolution: true, playerReply: true } }),
       prisma.supportTicket.findMany({ where: { accountId }, select: { subject: true, createdAt: true, closedAt: true } }),
       prisma.supporterMembership.findUnique({ where: { accountId }, select: { status: true, startedAt: true, currentPeriodEnd: true, cancelAtPeriodEnd: true, endedAt: true } }),
-      prisma.supporterPayment.findMany({ where: { accountId }, orderBy: { paidAt: 'asc' }, select: { amountCents: true, currency: true, status: true, paidAt: true, stripeInvoiceId: true } }),
+      prisma.googlePlaySupporterSubscription.findMany({ where: { accountId }, orderBy: { startedAt: 'asc' }, select: { productId: true, status: true, startedAt: true, currentPeriodEnd: true, autoRenewing: true, endedAt: true } }),
+      prisma.supporterPayment.findMany({ where: { accountId }, orderBy: { paidAt: 'asc' }, select: { provider: true, providerPaymentId: true, amountCents: true, currency: true, status: true, paidAt: true } }),
     ]);
 
     return plain({
@@ -147,9 +159,13 @@ export const AccountDataService = {
         createdAt: account.createdAt,
         lastLoginAt: account.lastLoginAt,
         ageConfirmedAt: account.ageConfirmedAt,
+        birthDate: account.birthDate ? account.birthDate.toISOString().slice(0, 10) : null,
         rulesAcceptedAt: account.rulesAcceptedAt,
         rulesAcceptedVersion: account.rulesAcceptedVersion,
         discord: account.discordId ? { username: account.discordUsername, linkedAt: account.discordLinkedAt } : null,
+        appleSignIn: account.appleId ? { linkedAt: account.appleLinkedAt, email: account.appleEmail } : null,
+        googleSignIn: account.googleId ? { linkedAt: account.googleLinkedAt, email: account.googleEmail } : null,
+        facebookSignIn: account.facebookId ? { linkedAt: account.facebookLinkedAt, email: account.facebookEmail } : null,
         twoStepSignIn: account.twoFactorEnabledAt ? { enabledAt: account.twoFactorEnabledAt } : null,
         registeredFromAddress: account.registeredIp,
         suspension: account.suspendedUntil ? { until: account.suspendedUntil, reason: account.suspendedReason } : null,
@@ -171,8 +187,8 @@ export const AccountDataService = {
       messageReportsMade: messageReports,
       bugReports,
       supportTickets,
-      // Card details stay with Stripe; StreetsEmpire never sees them.
-      supporter: { membership: supporterMembership, payments: supporterPayments },
+      // Card details stay with Stripe or Google Play; StreetsEmpire never sees them.
+      supporter: { stripeMembership: supporterMembership, googlePlayMemberships, payments: supporterPayments },
     }) as Record<string, unknown>;
   },
 
@@ -181,10 +197,11 @@ export const AccountDataService = {
    * sign-in needs none) and by typing DELETE. Recorded in the audit log.
    */
   async deleteSelf(prisma: PrismaClient, account: Account, session: Pick<Session, 'method'>, currentPassword: string | undefined): Promise<ErasureResult> {
-    if (account.isAdmin) {
-      throw AppError.conflict('ADMIN_DELETE_ADMIN', 'Admins cannot delete their own account. Have the admin role removed first.');
+    if (isStaff(account)) {
+      throw AppError.conflict('ADMIN_DELETE_ADMIN', 'Staff cannot delete their own account. Have the staff role removed first.');
     }
-    if (session.method !== 'DISCORD' || currentPassword) {
+    const federated = session.method === 'DISCORD' || session.method === 'APPLE' || session.method === 'PLAY_GAMES' || session.method === 'GOOGLE' || session.method === 'FACEBOOK';
+    if (!federated || currentPassword) {
       if (!currentPassword || !(await verifyPassword(account.passwordHash, currentPassword))) {
         throw AppError.badRequest('CURRENT_PASSWORD_INVALID', 'That password does not match.', { currentPassword: 'Enter your password.' });
       }

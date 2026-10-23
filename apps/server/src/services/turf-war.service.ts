@@ -1,5 +1,5 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
-import { blockWarsOn, cornerMinimumFor, headsUpMinutes, turfPushCombatModel, type Ruleset } from '@streets/rules-engine';
+import { blockWarsOn, cornerMinimumFor, equipCombatSquadWithAmmo, hashParts, headsUpMinutes, seededRng, turfPushCombatModel, type Ruleset } from '@streets/rules-engine';
 import type { DistrictKey } from '@streets/rulesets';
 import type {
   TurfPushBackupInput,
@@ -22,6 +22,7 @@ import {
   type CornerGuns,
 } from './turf.service.js';
 import { CrewRosterService } from './crew-roster.service.js';
+import { planIndividualCombat } from './individual-combat.service.js';
 
 const json = (value: unknown): Prisma.InputJsonValue =>
   JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
@@ -152,6 +153,16 @@ export const TurfWarService = {
         if (!guns) throw AppError.conflict('TURF_NOT_ENOUGH_ARMED', `You need ${input.squad} home guns to send that squad.`);
         assertTurns(current.turns, turfRules.push.turnCost);
 
+        const ammoRules = ruleset.ammoParts?.enabled && ruleset.ammoParts.combatEnabled ? ruleset.ammoParts.ammo : null;
+        const itemRules = ruleset.individualItems?.enabled && ammoRules ? ruleset.individualItems : null;
+        const individual = itemRules ? await planIndividualCombat(tx, attackerId,
+          { thugs: fitThugs(current), thugHappiness: player.thugHappiness, weapons: engineGuns(guns) },
+          Math.min(input.squad, model.squadCap), model, itemRules, ammoRules!, current.ammo ?? 0, 'ATTACKER', Math.random) : null;
+        const ammoSquad = !individual && ammoRules ? equipCombatSquadWithAmmo({ thugs: fitThugs(current), thugHappiness: player.thugHappiness,
+          weapons: engineGuns(guns) }, Math.min(input.squad, model.squadCap), model, current.ammo ?? 0, ammoRules.roundsPerFight) : null;
+        const ammoSpentRounds = individual?.roundsSpent ?? ammoSquad?.roundsSpent ?? 0;
+        const individualGuns = individual ? await individual.reserve(tx, attackerId, input.actionId ?? 'TURF_PUSH') : [];
+
         const landsAt = new Date(now.getTime() + turfRules.push.warningMinutes * 60_000);
         const push = await tx.turfPush.create({
           data: {
@@ -162,7 +173,8 @@ export const TurfWarService = {
             defenderId: defender.id,
             defenderAllianceId: defender.allianceId,
             squad: input.squad,
-            attackerCrew: json({ thugHappiness: player.thugHappiness, weapons: engineGuns(guns) }),
+            attackerCrew: json({ thugHappiness: player.thugHappiness, weapons: individual?.crew.weapons ?? (ammoSquad ? ammoSquad.equipment : engineGuns(guns)),
+              ...(individual ? { strengthMultiplier: individual.strengthMultiplier, individualGuns } : {}), ...(ammoRules ? { ammoSpentRounds } : {}) }),
             turnsSpent: turfRules.push.turnCost,
             actionId: input.actionId,
             startedAt: now,
@@ -180,6 +192,8 @@ export const TurfWarService = {
           turnsUsed: turfRules.push.turnCost,
           startedAt: now.toISOString(),
           landsAt: landsAt.toISOString(),
+          ...(ammoRules ? { ammoSpentRounds } : {}),
+          ...(individualGuns.length ? { individualGuns } : {}),
         };
 
         return {
@@ -187,6 +201,7 @@ export const TurfWarService = {
             ...current,
             turns: current.turns - turfRules.push.turnCost,
             busyThugs: current.busyThugs + input.squad,
+            ...(ammoRules ? { ammo: (current.ammo ?? 0) - ammoSpentRounds } : {}),
             pistols: current.pistols - guns.pistols,
             shotguns: current.shotguns - guns.shotguns,
             tek9s: current.tek9s - guns.tek9s,
@@ -250,6 +265,14 @@ export const TurfWarService = {
 
         const guns = allocateCornerGuns(current, input.thugs);
         if (!guns) throw AppError.conflict('TURF_NOT_ENOUGH_ARMED', `You need ${input.thugs} home guns to send that backup.`);
+        const ammoRules = ruleset.ammoParts?.enabled && ruleset.ammoParts.combatEnabled ? ruleset.ammoParts.ammo : null;
+        const itemRules = ruleset.individualItems?.enabled && ammoRules ? ruleset.individualItems : null;
+        const individual = itemRules ? await planIndividualCombat(tx, senderId,
+          { thugs: fitThugs(current), thugHappiness: player.thugHappiness, weapons: engineGuns(guns) },
+          Math.min(input.thugs, model.squadCap), model, itemRules, ammoRules!, 2_147_483_647, 'ATTACKER',
+          seededRng(hashParts(push.id, senderId, 'turf-backup-individual'))) : null;
+        const individualGuns = individual ? await individual.reserve(tx, senderId, input.actionId ?? `TURF_BACKUP:${push.id}`) : [];
+        const legacyGuns = individual?.crew.weapons ?? engineGuns(guns);
 
         await tx.turfPushBackup.create({
           data: {
@@ -257,7 +280,8 @@ export const TurfWarService = {
             playerId: senderId,
             kind,
             thugs: input.thugs,
-            crew: json({ thugHappiness: player.thugHappiness, weapons: engineGuns(guns) }),
+            crew: json({ thugHappiness: player.thugHappiness, weapons: legacyGuns,
+              ...(individual ? { strengthMultiplier: individual.strengthMultiplier, individualGuns } : {}) }),
             sentAt: now,
           },
         });
@@ -267,6 +291,7 @@ export const TurfWarService = {
           thugs: input.thugs,
           kind,
           landsAt: push.landsAt.toISOString(),
+          ...(individualGuns.length ? { individualGuns } : {}),
         };
         return {
           next: {

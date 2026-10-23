@@ -30,7 +30,6 @@ export interface CombatIntelReportDto {
   /** 0.3.0-D. The ally who gathered it, when it is shared alliance intel rather than your own. */
   sharedBy?: string | null;
 }
-
 export interface CombatReconResultDto {
   intel: CombatIntelReportDto;
   turnsSpent: number;
@@ -83,12 +82,26 @@ export interface BattleReportDto {
   inventoryChanges?: Array<{
     product: string;
     name: string;
+    unitLabel?: string;
     change: number;
     after: number;
     used: number;
     gained: number;
     lost: number;
   }>;
+  /** 2.4.0-D. Ammo consumed, granted as defender floor, or looted in this raid. */
+  ammoCombat?: {
+    spentRounds: number;
+    freeDefenderRounds: number;
+    gainedRounds: number;
+    lostRounds: number;
+    afterRounds: number;
+  };
+  /** 2.5.0-D. Item-by-item gun use and loot, including the condition at settlement. */
+  itemCombat?: {
+    fired: Array<{ id: string; model: string; name: string | null; rounds: number; jammed: boolean; conditionBefore: number; conditionAfter: number }>;
+    looted: Array<{ model: string; name: string | null; mods: Array<{ key: string; tier: number }>; condition: number; hotUntil: string | null; recovered: boolean }>;
+  };
   /** 0.7.0-B. Defender assets that the Safe Room kept out of this raid. */
   raidProtection?: {
     protectedCashCents: number;
@@ -122,6 +135,8 @@ export interface BattleReportDto {
     defenderCrackBurned?: number;
     defenderCondomsBurned?: number;
     lowRidersStolen?: number;
+    /** 2.5.0-E. Exact vehicles transferred in a ride theft. */
+    individualVehiclesStolen?: Array<{ id: string; model: 'LOW_RIDER' | 'SEDAN' | 'VAN'; name: string | null; plate: string | null; condition: number; mods: Array<{ key: string; tier: number }> }>;
     lowRidersAfter?: number;
     whoresLured?: number;
     thugsLured?: number;
@@ -183,6 +198,8 @@ export interface CombatTargetDto {
   specialRaidBlockedReasons?: Partial<Record<SpecialRaidKindDto, string | null>>;
   /** True when this target openly holds the Ring (revealed holder). */
   hasRing?: boolean;
+  /** Owner-scoped training target shown while the guided raid quest is active. */
+  tutorial?: boolean;
 }
 
 
@@ -266,6 +283,8 @@ export interface EncounterGangIntelDto {
 export interface CombatPageDto {
   enabled: boolean;
   roundId: string;
+  /** Round-pinned catalog, used for the client-side combat preview. */
+  rulesetId?: string;
   serverTime: string;
   blockedReason: string | null;
   protectedUntil: string | null;
@@ -279,6 +298,14 @@ export interface CombatPageDto {
     minLootPercent?: number; maxLootPercent?: number; weightedLootExponent?: number;
     repeatLootPenaltyPercent?: number; repeatLootFloorPercent?: number;
     reconTurnCost?: number; reconFavorKey?: string; intelExpiresMinutes?: number; retaliationHours?: number;
+    /** 2.4.0-D. The exact ammo costs and weapon preference for the raid preview. */
+    ammo?: {
+      availableRounds: number;
+      roundsPerFight: Record<string, number>;
+      defenderFloor: number;
+      lootShareBps: number;
+      weaponPriority: 'POWER' | 'CONSERVE';
+    };
   };
   targets: CombatTargetDto[];
   nextTarget: number | null;
@@ -302,4 +329,13 @@ export interface CombatRingDto {
   destroyTurnCost: number;
   foundryCitySlug: string;
   surfacedAt: string | null;
+}
+export interface IndividualGunUseDto {
+  id: string;
+  model: string;
+  name: string | null;
+  rounds: number;
+  jammed: boolean;
+  conditionBefore: number;
+  conditionAfter: number;
 }

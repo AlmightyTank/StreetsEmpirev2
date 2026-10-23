@@ -108,6 +108,13 @@ const RULES = '/game/rules';
 
 /** "How this page works" for every major page. */
 export const PAGE_HELP: Record<string, PageHelp> = {
+  account: {
+    title: 'Profile & look',
+    what: 'Set your crew name and profile appearance, including a custom metal street sign.',
+    terms: [['Street sign', 'A cosmetic crew mark shown on your public profile when your look is visible.']],
+    risks: ['A street sign is not a turf claim.'],
+    rules: RULES,
+  },
   dashboard: {
     title: 'Dashboard',
     what: 'Your operation at a glance: cash, turns, crew, ranks and the one or two things that need you right now.',
@@ -217,7 +224,8 @@ export const PAGE_HELP: Record<string, PageHelp> = {
 
 /** Which help entry a route shows. */
 export function pageHelpFor(pathname: string): PageHelp | null {
-  const path = pathname.split('?')[0] ?? pathname;
+  const path = pathname.split(/[?#]/)[0] ?? pathname;
+  if (path === '/account') return PAGE_HELP.account!;
   if (path === '/game') return PAGE_HELP.dashboard!;
   if (path.startsWith('/game/stores')) return PAGE_HELP.stores!;
   if (path === '/game/blocks') return PAGE_HELP.turf!;
@@ -234,11 +242,10 @@ export interface GuideStepCopy {
 }
 
 export const GUIDE_STEPS: Record<OnboardingGuideStepKey, GuideStepCopy> = {
-  scout: { title: 'Scout the streets', detail: 'Spend some turns working a district.', to: '/game/scout' },
-  recruit: { title: 'Recruit your first thug', detail: 'Scouting finds recruits, or hire one at the store.', to: '/game/scout' },
-  restock: { title: 'Restock condoms and beer', detail: 'Keep the girls working and the thugs happy.', to: '/game/stores' },
-  produce: { title: 'Produce your first product', detail: 'Cook your own instead of buying it.', to: '/game/produce' },
-  weapon: { title: 'Buy your first weapon', detail: 'Every thug wants one, and armed thugs cover the street.', to: '/game/stores' },
+  meet_contact: { title: 'Meet your first contact', detail: 'Scout one district for Mama King.', to: '/game/scout' },
+  open_front: { title: 'Open your first front', detail: 'Turn street money into a business the city can see.', to: '/game/businesses' },
+  face_encounter: { title: 'Make a street decision', detail: 'Resolve one pending encounter and own the consequence.', to: '/game' },
+  choose_career: { title: 'Choose what they call you', detail: 'Pick a cosmetic career identity for your first chapter.', to: '/game#origin-career' },
 };
 
 export interface TourStepCopy {
@@ -248,15 +255,21 @@ export interface TourStepCopy {
   to: string;
   /** Value of the data-tour attribute the overlay highlights. */
   target: string;
+  /** Mentor voice used by the compact tracker and completion feedback. */
+  mentor: 'Mama' | 'Pip' | 'Tommy';
+  /** Beginner-journey chapter shown in the persistent tracker. */
+  chapter: string;
 }
 
 /** Guided walkthrough: one tooltip per core-loop step, in tour order. */
 export const TOUR_STEPS: Record<TourStepKey, TourStepCopy> = {
-  'accept-quest': { title: 'Take your first job', detail: 'Jobs pay for real work. Accept one to start the tour.', to: '/game/quests', target: 'accept-quest' },
-  scout: { title: 'Work the block', detail: 'Send the crew scouting to earn cash.', to: '/game/scout', target: 'scout' },
-  'shop-supplies': { title: 'Stock up', detail: 'Buy condoms and beer so the crew keeps working.', to: '/game/stores', target: 'shop-supplies' },
-  'grow-crew': { title: 'Grow the crew', detail: 'Scout again until a thug joins, or hire muscle at the store.', to: '/game/scout', target: 'scout' },
-  produce: { title: 'Cook your first batch', detail: 'Producing beats buying. Start a batch.', to: '/game/produce', target: 'produce' },
-  'upgrade-hideout': { title: 'Build the base', detail: 'Upgrade the Safe Room or Workshop once.', to: '/game/hideout', target: 'upgrade-hideout' },
-  'recon-raid': { title: 'Take a shot', detail: 'Recon a mark, then resolve one raid. Losing still counts.', to: '/game/combat', target: 'recon-raid' },
+  'build-street-sign': { title: 'Build your street sign', detail: 'Give your crew a street to call its own. Save a custom metal sign; it is identity, not a turf claim.', to: '/account#settings-profile', target: 'build-street-sign', mentor: 'Mama', chapter: 'Make your mark' },
+  'accept-quest': { title: 'Take your first job', detail: 'Jobs pay for real work. Accept one to start the tour.', to: '/game/quests', target: 'accept-quest', mentor: 'Mama', chapter: 'Learn the streets' },
+  scout: { title: 'Work the block', detail: 'Send the crew scouting to earn cash.', to: '/game/scout', target: 'scout', mentor: 'Mama', chapter: 'Learn the streets' },
+  'complete-quest': { title: 'Collect your payment', detail: 'After scouting, come back here and collect the payment for your first job.', to: '/game/quests', target: 'complete-quest', mentor: 'Mama', chapter: 'Learn the streets' },
+  'shop-supplies': { title: 'Stock up', detail: 'You start with $20,000, 100 crack, 250 condoms, 10 beer, 5 medicine, and 10 pistols—but no car. Buy 1,000 condoms, 1,000 beer, 15 medicine, 5 pistols, and an Ammo Crate · 10,000 rounds. I’ll take you shelf by shelf.', to: '/game/stores/corner?tourItem=condoms', target: 'shop-supplies', mentor: 'Pip', chapter: 'Build your operation' },
+  'grow-crew': { title: 'Grow the crew', detail: 'You begin with 10 thugs and 1 worker. Thugs protect the street and carry the guns; workers earn. Scout again until a thug joins, or hire muscle at the store.', to: '/game/scout', target: 'scout', mentor: 'Tommy', chapter: 'Build your operation' },
+  produce: { title: 'Cook your first batch', detail: 'Producing beats buying. Start a batch.', to: '/game/produce', target: 'produce', mentor: 'Pip', chapter: 'Grow your foundation' },
+  'upgrade-hideout': { title: 'Build the base', detail: 'Upgrade the Safe Room or Workshop once.', to: '/game/hideout', target: 'upgrade-hideout', mentor: 'Mama', chapter: 'Grow your foundation' },
+  'recon-raid': { title: 'Take a shot', detail: 'Recon the practice crew, then launch one raid. You always win, and the dummy disappears afterward.', to: '/game/combat', target: 'recon-raid', mentor: 'Tommy', chapter: 'Taking control' },
 };

@@ -3,6 +3,8 @@ import {
   type ContactKey,
   type FactionKey,
   type QuestRewardDefinition,
+  type QuestObjectiveDefinition,
+  type QuestProgressMap,
   type Ruleset,
 } from '@streets/rulesets';
 import { formatCentsExact, type QuestRewardDto } from '@streets/shared';
@@ -13,6 +15,8 @@ import { FavorInventoryService } from './favor-inventory.service.js';
 import { PermanentUnlockService } from './permanent-unlock.service.js';
 import { CRACK, ProductInventoryService } from './product-inventory.service.js';
 import { QuestCosmeticService } from './quest-cosmetic.service.js';
+import { CrownWalletService } from './crown-wallet.service.js';
+import { DROP_ITEMS } from '@streets/rulesets';
 
 /**
  * Paying out rewards, shared by Jobs and the Street Pass so both grant and
@@ -20,6 +24,40 @@ import { QuestCosmeticService } from './quest-cosmetic.service.js';
  */
 
 const CONTACT_MAX = 1000;
+
+/** Each independently completed optional quest objective raises eligible numeric rewards by 10%. */
+export const BONUS_OBJECTIVE_REWARD_PERCENT = 10;
+
+export function completedBonusObjectiveCount(
+  objectives: readonly QuestObjectiveDefinition[],
+  progress: QuestProgressMap,
+): number {
+  return objectives.filter((objective) => progress[objective.id]?.completed === true).length;
+}
+
+const BONUS_SCALABLE_REWARD_KINDS = new Set<QuestRewardDefinition['kind']>([
+  'CASH', 'TURNS', 'ITEM', 'PRODUCT', 'CONTACT_REP', 'FACTION_STANDING',
+]);
+
+/**
+ * Scale only stackable numeric payouts. Permanent unlocks, one-off cosmetics,
+ * weapon access and favor grants must never be multiplied by bonus objectives.
+ */
+export function bumpRewardsForCompletedBonuses(
+  rewards: readonly QuestRewardDefinition[],
+  completedBonuses: number,
+): QuestRewardDefinition[] {
+  const count = Number.isSafeInteger(completedBonuses) && completedBonuses > 0 ? completedBonuses : 0;
+  if (!count) return [...rewards];
+  const scale = 100 + count * BONUS_OBJECTIVE_REWARD_PERCENT;
+  return rewards.map((reward) => {
+    if (!BONUS_SCALABLE_REWARD_KINDS.has(reward.kind)
+        || reward.amount === undefined
+        || !Number.isSafeInteger(reward.amount)
+        || reward.amount <= 0) return reward;
+    return { ...reward, amount: Math.floor((reward.amount * scale) / 100) };
+  });
+}
 
 export async function addContactRep(db: Db, roundPlayerId: string, contact: string, amount: number): Promise<number> {
   const current = await db.playerReputation.findUnique({
@@ -83,10 +121,26 @@ export async function grantRewards(
   next: PlayerState,
   rewards: readonly QuestRewardDefinition[],
 ): Promise<void> {
-  const { tx, roundPlayerId, ruleset, now, sourceKey } = ctx;
+  const { tx, roundPlayerId, accountId, ruleset, now, sourceKey } = ctx;
   const productChanges: Record<string, number> = {};
   for (const reward of rewards) {
-    if (reward.kind === 'CONTACT_REP') {
+    if (reward.kind === 'CROWNS') {
+      const amount = reward.amount;
+      if (typeof amount !== 'number' || !Number.isSafeInteger(amount) || amount <= 0) {
+        throw AppError.conflict('QUEST_REWARD_INVALID', 'That reward has an invalid Crown amount.');
+      }
+      const player = await tx.roundPlayer.findUnique({ where: { id: roundPlayerId }, select: { roundId: true } });
+      if (!player) throw AppError.notFound('PLAYER_NOT_FOUND', 'That player no longer exists.');
+      await CrownWalletService.apply(tx, {
+        accountId,
+        kind: 'EARN',
+        delta: amount,
+        source: 'street-pass',
+        externalRef: `earn:street-pass:${roundPlayerId}:${sourceKey}`,
+        roundId: player.roundId,
+        reason: `Street Pass reward · ${sourceKey}`,
+      });
+    } else if (reward.kind === 'CONTACT_REP') {
       if (!reward.key || !ruleset.contacts?.[reward.key as ContactKey]) {
         throw AppError.conflict('QUEST_REWARD_INVALID', 'That quest has an invalid contact reward.');
       }
@@ -136,6 +190,8 @@ export function rewardLabel(reward: QuestRewardDefinition, ruleset: Ruleset): st
   switch (reward.kind) {
     case 'CASH':
       return formatCentsExact(amount);
+    case 'CROWNS':
+      return `${amount.toLocaleString('en-US')} Crowns`;
     case 'TURNS':
       return `${amount.toLocaleString('en-US')} turns`;
     case 'ITEM': {
@@ -159,6 +215,8 @@ export function rewardLabel(reward: QuestRewardDefinition, ruleset: Ruleset): st
     case 'FACTION_STANDING':
       return `+${amount} ${ruleset.factions?.[reward.key as FactionKey]?.name ?? reward.key ?? 'faction'} standing`;
     case 'COSMETIC_UNLOCK': {
+      if (reward.key === 'round-roll-call-cheap-drop-crate') return 'Mystery Drop crate';
+      if (reward.key && DROP_ITEMS[reward.key]) return DROP_ITEMS[reward.key]!.name;
       const cosmetic = ruleset.cosmetics?.[reward.key ?? ''];
       return `Permanent cosmetic · ${cosmetic?.name ?? reward.key ?? 'Cosmetic'}`;
     }

@@ -1,6 +1,7 @@
 import type {
   BugReportInput,
   AccountDto,
+  BirthDateUpdateInput,
   AccountSessionsResponseDto,
   AccountProfileSettingsResponseDto,
   ChangeEmailInput,
@@ -26,6 +27,10 @@ interface AccountResponse {
   message?: string;
 }
 
+interface PlayGamesResponse extends AccountResponse {
+  linked: boolean;
+}
+
 interface MessageResponse {
   ok: true;
   message: string;
@@ -36,11 +41,17 @@ interface OptionalAccountResponse extends MessageResponse {
 }
 
 export const authApi = {
+  providers: () => api.get<{ apple: boolean; discord: boolean; google: boolean; facebook: boolean }>('/auth/providers'),
   register: (input: RegisterInput) =>
     api.post<AccountResponse>('/auth/register', input),
 
+  saveBirthday: (input: BirthDateUpdateInput) => api.post<AccountResponse>('/auth/birthday', input),
+
   /** rc.3: with two-step sign-in on, the answer asks for a code instead of signing in. */
   login: (input: LoginInput) => api.post<AccountResponse | TwoFactorRequiredDto>('/auth/login', input),
+
+  playGames: (serverAuthCode: string, link = false) =>
+    api.post<PlayGamesResponse>('/auth/play-games', { serverAuthCode, link }),
 
   /** rc.3. The authenticator (or recovery) code for a sign-in that is waiting for one. */
   verifyTwoFactor: (code: string, trustDevice = false) =>
@@ -78,6 +89,13 @@ export const authApi = {
 
   unlinkDiscord: (input: { currentPassword: string }) =>
     api.delete<AccountResponse & { ok: true; message: string }>('/auth/discord', input),
+
+  unlinkApple: (input: { currentPassword: string }) =>
+    api.delete<AccountResponse & { ok: true; message: string }>('/auth/apple', input),
+  unlinkGoogle: (input: { currentPassword: string }) =>
+    api.delete<AccountResponse & { ok: true; message: string }>('/auth/google', input),
+  unlinkFacebook: (input: { currentPassword: string }) =>
+    api.delete<AccountResponse & { ok: true; message: string }>('/auth/facebook', input),
 
   requestEmailVerification: () =>
     api.post<MessageResponse>('/auth/email/verify/request'),

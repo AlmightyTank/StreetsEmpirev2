@@ -13,7 +13,7 @@ describe('commandData', () => {
   });
 
   it('keeps account commands private', () => {
-    expect([...PRIVATE_COMMANDS].sort()).toEqual(['alerts', 'announce', 'bug', 'help', 'link', 'remind', 'stats', 'support', 'sync', 'syncall']);
+    expect([...PRIVATE_COMMANDS].sort()).toEqual(['alerts', 'announce', 'bug', 'help', 'link', 'remind', 'staff', 'stats', 'support', 'sync', 'syncall']);
     for (const name of PRIVATE_COMMANDS) expect(commandData.some((command) => command.name === name)).toBe(true);
   });
 
@@ -30,6 +30,11 @@ describe('errorReply', () => {
   it('tells people how to link their own account', () => {
     expect(errorReply(notLinked, origin, true)).toBe(`Your Discord isn't linked to a StreetsEmpire account yet. Link it from ${origin}/account, then try again.`);
     expect(errorReply(notLinked, origin, false)).toBe(notLinked.message);
+  });
+
+  it('passes refusals from the game through, written for the person asking', () => {
+    expect(errorReply(new GameApiError(403, 'STAFF_RANK', 'Only the Founder can make Admins.'), origin, false)).toBe('Only the Founder can make Admins.');
+    expect(errorReply(new GameApiError(409, 'STAFF_ROLE_UNCHANGED', 'Ace is already Mod.'), origin, false)).toBe('Ace is already Mod.');
   });
 
   it('passes through other not-found messages and hides everything else', () => {

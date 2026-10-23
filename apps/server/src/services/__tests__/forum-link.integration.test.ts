@@ -19,7 +19,7 @@ describe.runIf(process.env.FORUM_LINK_INTEGRATION === '1')('verified forum links
     for (let i = 0; i < 2; i++) {
       const username = `forum_${randomUUID().slice(0, 8)}`;
       const password = randomUUID();
-      const response = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { username, email: `${username}@example.invalid`, password } });
+      const response = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { ageConfirmed: true, username, email: `${username}@example.invalid`, password } });
       expect(response.statusCode).toBe(201);
       accounts.push({ id: response.json().account.id, username, password, cookie: response.cookies.map((c) => `${c.name}=${c.value}`).join('; ') });
     }

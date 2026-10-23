@@ -1,6 +1,7 @@
 import type { AllianceTagDto } from './alliance.js';
-import type { QuestLinkDto, QuestLockDto, RandomEncounterDto } from './api.js';
+import type { QuestLinkDto, QuestLockDto, RandomEncounterDto, TerritoryModifierReceiptDto } from './api.js';
 import type { AvatarParts } from '../avatar-builder.js';
+import type { IndividualGunUseDto } from './combat.js';
 
 /** 0.3.0-D. Limits that keep the wire and the rolodex small. Not balance, so they live here. */
 export const WIRE_POST_MAX = 280;
@@ -12,6 +13,33 @@ export const CONTACT_NOTE_MAX = 280;
 export type ContactKindDto = 'CONTACT' | 'ENEMY';
 export type ContactCategoryDto = ContactKindDto | 'ALLIANCE' | 'BLOCKED';
 export type WirePostKindDto = 'MESSAGE' | 'ANNOUNCEMENT';
+
+export type IntelConfidenceDto = 'rumor' | 'likely' | 'confirmed';
+export type IntelSourceKindDto = 'contact' | 'scout' | 'faction_warning';
+
+export interface BlackBookEntryDto {
+  id: string;
+  confidence: IntelConfidenceDto;
+  sourceKinds: IntelSourceKindDto[];
+  observedAt: string;
+  expiresAt: string;
+  ageMinutes: number;
+  target: { publicPimpId: number; displayName: string } | null;
+  city: { slug: string; name: string };
+  district: string | null;
+  strengthBand: 'light' | 'guarded' | 'heavy' | 'unknown';
+  actions: {
+    investigate: string;
+    negotiate: string | null;
+    reinforce: string;
+    strike: string | null;
+  };
+}
+
+export interface BlackBookPageDto {
+  entries: BlackBookEntryDto[];
+  expiredRemoved: number;
+}
 
 export type AllianceCoordinationCardKindDto =
   | 'SHARED_RECON'
@@ -74,6 +102,8 @@ export interface WirePostDto {
     isSupporter: boolean;
     /** UTC month (YYYY-MM) of the author's earliest supporter reward, null when not a supporter. */
     supporterSince: string | null;
+    /** Lifetime account level. Optional for older servers. */
+    accountLevel?: number;
   };
   body: string;
   kind: WirePostKindDto;
@@ -167,6 +197,8 @@ export interface PlayerDirectoryEntryDto {
   isSupporter: boolean;
   /** UTC month (YYYY-MM) of the account's earliest supporter reward, null when not a supporter. */
   supporterSince: string | null;
+  /** Lifetime account level for the chip beside the name. Optional for older servers. */
+  accountLevel?: number;
 }
 
 export interface PlayerDirectoryDto {
@@ -541,6 +573,9 @@ export interface TurfBattleReportDto {
   /** An ally may commit but fail the ruleset's show-up roll. Null for attacker/defender. */
   showedUp: boolean | null;
   strength: { attacker: number; defender: number } | null;
+  territoryModifierReceipts?: TerritoryModifierReceiptDto[];
+  /** Cache contents exposed to the attacker when a turf push flips this block. */
+  territoryCacheRaidReceipt?: { fromAllianceId: string | null; toAllianceId: string | null; retainedBasisPoints: number; goods: Record<string, number>; cashCents: number; tollCents: number };
   shieldUntil: string | null;
   revengeUntil: string | null;
   /** 0.6.0-D. Positive for the attacker, negative for the defender; empty on home turf. */
@@ -604,6 +639,89 @@ export interface CityTurfDto {
   blocks: TurfBlockDto[];
   /** Recent fights in this city that this player took part in, newest first. */
   reports: TurfBattleReportDto[];
+  /** 2.0.0. Latest public city-memory event for this city, if any. */
+  latestEvent?: { kind: string; summary: unknown; happenedAt: string } | null;
+}
+
+/** 2.0.0. A criminal operation: intel, crew lock, execution, outcome report. */
+export interface OperationSeatDto {
+  role: string;
+  roundPlayerId: string | null;
+  displayName: string | null;
+  status: 'LOCKED' | 'INVITED' | 'ACCEPTED' | 'DECLINED' | 'OPEN';
+}
+
+export interface OperationBandDto {
+  payoutCents: number;
+  label: string;
+}
+
+export interface OperationDto {
+  id: string;
+  template: string;
+  label: string;
+  catalogKey: string | null;
+  catalogVersion: string | null;
+  status: 'INTEL' | 'CREW_LOCK' | 'READY' | 'EXECUTING' | 'REPORTED' | 'CANCELLED' | 'EXPIRED';
+  citySlug: string;
+  cityName: string;
+  district: TurfBlockDto['district'] | null;
+  /** Prototype cards keep the three classic seats. Templated jobs use `seats`. */
+  roles: Record<'driver' | 'enforcer' | 'intel', {
+    roundPlayerId: string | null;
+    displayName: string | null;
+    status: 'LOCKED' | 'INVITED' | 'ACCEPTED' | 'DECLINED' | 'OPEN';
+  }>;
+  seats: OperationSeatDto[];
+  checklist: Array<{ key: string; label: string; done: boolean; optional?: boolean; sourceKinds?: string[] }>;
+  /** Leader or a locked seat can cite a settled result. Invites cannot. */
+  canCite: boolean;
+  countdownEndsAt: string | null;
+  bands: { success: OperationBandDto; partial: OperationBandDto; failure: OperationBandDto } | null;
+  isLeader: boolean;
+  /** The viewer's pending invite, if any. */
+  myInvite: { role: string; expiresAt: string | null } | null;
+  report: {
+    success: boolean;
+    band?: 'success' | 'partial' | 'failure';
+    stages: Array<{ stage: string; detail: string; wentWrong: boolean; optional?: boolean; contributorId?: string | null }>;
+    payoutCents: number;
+    totalPayoutCents?: number;
+    contributions?: Array<{ roundPlayerId: string; role: string; payoutCents?: number; windows?: string[] }>;
+    capApplied?: boolean;
+    source?: { kind: string | null; id: string | null; escort?: unknown; routeRisk?: unknown } | null;
+  } | null;
+  createdAt: string;
+}
+
+export interface OperationCatalogCardDto {
+  key: string;
+  label: string;
+  available: boolean;
+  unavailableReason: string | null;
+  startCostCents: number;
+  deadlineHours: number | null;
+  bands: { success: OperationBandDto; partial: OperationBandDto; failure: OperationBandDto } | null;
+}
+
+export interface OperationsPageDto {
+  operations: OperationDto[];
+  /** Hours between operations led by one player (anti-farming). */
+  leaderCooldownHours: number;
+  underworldOperationsEnabled: boolean;
+  catalog: OperationCatalogCardDto[];
+  sources: {
+    stash: Array<{ id: string; citySlug: string; productKey: string; quantity: number }>;
+    shipments: Array<{ id: string; homeCity: string; status: string }>;
+    threats: Array<{
+      kind: 'block-war' | 'turf-push';
+      id: string;
+      citySlug: string;
+      district: string;
+      status: string;
+      endsAt: string | null;
+    }>;
+  };
 }
 
 export interface TurfTripDto {
@@ -687,6 +805,8 @@ export interface TurfClaimResult {
   localsThugs: number;
   cornerThugs: number;
   turnsUsed: number;
+  ammoSpentRounds?: number;
+  individualGuns?: IndividualGunUseDto[];
 }
 export interface TurfPostResult {
   district: TurfBlockDto['district'];
@@ -817,6 +937,8 @@ export interface RunDto {
   lowRiders: number;
   /** 1.5.0-B. Vehicle composition, preserved for the return trip. */
   vehicleLoadout?: { LOW_RIDER: number; SEDAN: number; VAN: number };
+  /** 2.5.0-E. Vehicles currently assigned to this run. */
+  individualVehicles?: Array<{ id: string; model: 'SEDAN' | 'LOW_RIDER' | 'VAN'; name: string | null; plate: string | null; mods: Array<{ key: string; tier: number }>; condition: number; trouble?: 'READY' | 'DAMAGED' | 'DISABLED' }>;
   /** 1.5.0-C. The part of the loadout coming home Damaged or Disabled. Absent on a clean run. */
   vehicleDamage?: VehicleDamageDto;
   escortThugs: number;
@@ -923,6 +1045,8 @@ export interface RunReceiptDto {
   cities: Array<{ slug: string; name: string }>;
   lowRiders: number;
   vehicleLoadout?: { LOW_RIDER: number; SEDAN: number; VAN: number };
+  /** 2.5.0-E. The actual vehicles returned from this run, including wear and trouble. */
+  individualVehicles?: Array<{ id: string; model: 'SEDAN' | 'LOW_RIDER' | 'VAN'; name: string | null; plate: string | null; condition: number; status: 'READY' | 'DAMAGED' | 'DISABLED'; mods: Array<{ key: string; tier: number }> }>;
   /** 1.5.0-C. What came home needing the garage. */
   vehicleDamage?: VehicleDamageDto;
   escortThugs: number;
@@ -954,6 +1078,8 @@ export interface TravelDto extends CitiesDto {
     cargoPercent?: number;
     crewSeats?: number | null;
     purchasePriceCents?: number | null;
+    /** 2.4.0-E. Cash fee charged per vehicle at run launch. */
+    runFeeCents?: number;
     routeProfile?: 'NORMAL' | 'LOW_PROFILE' | 'HIGH_VISIBILITY';
     /** 1.5.0-E. The profile's whole-percent change to route risk: -5 is 5% lower. */
     routeRiskPercent?: number;
@@ -963,6 +1089,15 @@ export interface TravelDto extends CitiesDto {
     /** 1.5.0-C. Price per vehicle to put a Damaged / Disabled one back to Ready, after any 1.5.0-D discount. */
     repairCents?: number;
     recoveryCents?: number;
+    /** 2.4.0-E. Parts and cash for parts-based service. */
+    repairParts?: number;
+    repairPartsCashCents?: number;
+    recoveryParts?: number;
+    recoveryPartsCashCents?: number;
+    /** 2.4.0-E. Cash-only fallback, after discounts. */
+    repairCashOnlyCents?: number;
+    recoveryCashOnlyCents?: number;
+    scrapYieldParts?: number;
     /** 1.5.0-D. The garage's list prices, when a discount applies. */
     listRepairCents?: number;
     listRecoveryCents?: number;
@@ -971,6 +1106,9 @@ export interface TravelDto extends CitiesDto {
     /** 1.5.0-E2. Sold over Charlie's counter instead of here, and the job that opens it. */
     charlie?: QuestLockDto | null;
   }>;
+  /** 2.5.0-E. Individual ready vehicles available for the next run. */
+  vehicleItems?: Array<{ id: string; model: 'SEDAN' | 'LOW_RIDER' | 'VAN'; name: string | null; plate: string | null; condition: number; mods: Array<{ key: string; tier: number }>; quantity: number }>;
+  individualVehiclesEnabled?: boolean;
   /** 1.5.0-C. What road trouble does to a run's vehicles, so it can be shown before launch. */
   vehicleService?: {
     damagedByBust: number;
@@ -1004,6 +1142,7 @@ export interface TravelDto extends CitiesDto {
   /** What home has to load up with. */
   home: {
     cashCents: number;
+    vehicleParts?: number;
     beer: number;
     lowRiders: number;
     vehicles?: { LOW_RIDER: number; SEDAN: number; VAN: number };
@@ -1043,10 +1182,14 @@ export interface VehicleDamageDto {
 export interface VehicleServiceResult {
   classId: 'LOW_RIDER' | 'SEDAN' | 'VAN';
   name: string;
-  kind: 'REPAIR' | 'RECOVER';
+  kind: 'REPAIR' | 'RECOVER' | 'SCRAP';
   quantity: number;
   paidCents: number;
   readyCount: number;
+  partsUsed?: number;
+  partsGained?: number;
+  vehiclePartsRemaining?: number;
+  turnsSpent?: number;
   /** 1.5.0-D. Percent the road lane took off. */
   discountPercent?: number;
 }
@@ -1302,6 +1445,7 @@ export interface RelocationResult {
   /** 0.7.0-D. Garage discount on this move. */
   garageFeeDiscountPercent?: number;
   garageSavingsCents?: number;
+  territoryModifierReceipts?: TerritoryModifierReceiptDto[];
   arrivesAt: string;
   /** 0.6.0-D. What will happen to held turf on arrival. */
   turfPlan: RelocationTurfPlanDto;
@@ -1320,6 +1464,8 @@ export interface RunLaunchResult {
   lowRiders: number;
   escortThugs: number;
   cashCents: number;
+  /** 2.4.0-E. Fleet fee paid at launch, separately from the cash loaded in the run. */
+  vehicleFeeCents?: number;
   beer: number;
   cargo: Record<string, number>;
   /** 0.5.0-F. What it bought on the home market on the way out, and what that cost. */
@@ -1345,6 +1491,8 @@ export interface RunOutpostEstablishResult {
   beer: number;
   products: Record<string, number>;
   turnsUsed: number;
+  ammoSpentRounds?: number;
+  individualGuns?: IndividualGunUseDto[];
 }
 
 export interface RunOutpostTransferResult {
@@ -1552,6 +1700,7 @@ export interface BossHitBackupResult {
   hitId: string;
   thugs: number;
   landsAt: string;
+  individualGuns?: IndividualGunUseDto[];
 }
 
 export interface BossHitResult {
@@ -1561,6 +1710,7 @@ export interface BossHitResult {
   cityName: string;
   squad: number;
   turns: number;
+  individualGuns?: IndividualGunUseDto[];
 }
 
 export interface ConvoyTailResult {
@@ -1570,6 +1720,7 @@ export interface ConvoyTailResult {
   cityName: string;
   squad: number;
   turns: number;
+  individualGuns?: IndividualGunUseDto[];
 }
 
 export interface ConvoyReconResult {
@@ -1585,6 +1736,7 @@ export interface ConvoyBackupResult {
   tailId: string;
   thugs: number;
   landsAt: string;
+  individualGuns?: IndividualGunUseDto[];
 }
 
 
@@ -1597,6 +1749,8 @@ export interface TurfPushStartResult {
   turnsUsed: number;
   startedAt: string;
   landsAt: string;
+  ammoSpentRounds?: number;
+  individualGuns?: IndividualGunUseDto[];
 }
 
 export interface TurfPushBackupResult {
@@ -1604,6 +1758,7 @@ export interface TurfPushBackupResult {
   thugs: number;
   kind: 'OWNER' | 'ALLY';
   landsAt: string;
+  individualGuns?: IndividualGunUseDto[];
 }
 
 export interface TurfPushCallResult {

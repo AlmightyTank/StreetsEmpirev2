@@ -1,0 +1,115 @@
+[
+  {
+    "url": "/game/events",
+    "finalPath": "/game/events",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 10,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, auditwjsnnn\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "button.se-btn \"Active 0\" 182x40",
+        "button.se-btn.se-btn--ghost \"Upcoming 2\" 182x40",
+        "button.se-btn.se-btn--ghost \"Completed 0\" 182x40",
+        "button.se-btn.se-btn--ghost \"Claimed 0\" 182x40",
+        "a.se-btn.se-btn--ghost \"Browse jobs\" 133x40"
+      ],
+      "total": 24
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "count": 1,
+        "targets": [
+          ".is-active > small"
+        ]
+      }
+    ]
+  },
+  {
+    "url": "/game/events",
+    "finalPath": "/game/events",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 12,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, auditwjsnnn\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "button.se-btn \"Active 0\" 102x40",
+        "button.se-btn.se-btn--ghost \"Upcoming 2\" 130x40",
+        "button.se-btn.se-btn--ghost \"Completed 0\" 135x40",
+        "button.se-btn.se-btn--ghost \"Claimed 0\" 115x40",
+        "a.se-btn.se-btn--ghost \"Browse jobs\" 133x40"
+      ],
+      "total": 25
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": []
+  },
+  {
+    "url": "/game/events",
+    "finalPath": "/game/events",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "count": 1,
+        "targets": [
+          ".is-active > small"
+        ]
+      }
+    ]
+  }
+]

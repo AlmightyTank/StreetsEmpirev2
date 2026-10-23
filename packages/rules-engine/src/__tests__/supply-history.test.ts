@@ -9,8 +9,10 @@ import { laneRules } from '../calculations/supply-lanes.js';
  * crews, sales and lanes are all switched off for it; and the 1.6 slices only ever add.
  */
 const SLICES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const;
-// 1.6.5, 1.7.0 and 1.8.0 build on the finished 1.6.0 season, so they carry the whole supply network.
-const family = (ruleset: Ruleset) => ['classic-og-v1.6-', 'classic-og-v1.6.5-', 'classic-og-v1.7-', 'classic-og-v1.8-'].some((prefix) => ruleset.meta.id.startsWith(prefix));
+// Registration order is release order: every ruleset from 1.6.0-A on builds on the 1.6 supply network.
+const ids = Object.keys(rulesets);
+const firstSupplyRuleset = ids.indexOf('classic-og-v1.6-a');
+const family = (ruleset: Ruleset) => ids.indexOf(ruleset.meta.id) >= firstSupplyRuleset;
 
 describe('1.6.0 never reaches a round pinned before it', () => {
   it('leaves every earlier ruleset without a supply network', () => {

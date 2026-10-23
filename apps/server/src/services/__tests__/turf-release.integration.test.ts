@@ -32,6 +32,8 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('0.6.0-F turf release regre
           usernameNormalized: username.toLowerCase(),
           email: `${username}@example.invalid`,
           passwordHash: 'integration-fixture',
+          // Seasoned enough to found an alliance.
+          experiencePoints: 5_000,
         },
       });
       accountIds.push(account.id);

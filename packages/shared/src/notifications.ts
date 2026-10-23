@@ -65,6 +65,7 @@ export const BELL_CATEGORY_BY_ACTIVITY: Partial<Record<ActivityType, Notificatio
   FACTION_WARNING: 'factions',
   // 1.6.0-H. A lane shipment landed, and whether it was searched.
   SUPPLY_LANE_ARRIVED: 'orders',
+  AMMO_LOW: 'orders',
 };
 
 /** Categories that have in-game bell items, and so can be muted there. */

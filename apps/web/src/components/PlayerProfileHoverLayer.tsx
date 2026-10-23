@@ -7,7 +7,10 @@ import { communityApi } from '../api/community.js';
 import { ItemTile } from './ItemTile.js';
 import { hasProfileLook } from './ProfileLook.js';
 import { SupporterMark } from './SupporterMark.js';
+import { LevelChip } from './LevelChip.js';
+import { BirthdayCake } from './BirthdayCake.js';
 import { AvatarPortrait } from './BuiltAvatar.js';
+import { StreetSignDisplay } from './StreetSignBuilder.js';
 
 type Target = { id: number; anchor: HTMLAnchorElement; hoverRoot: HTMLElement; label: string };
 type Position = { top: number; left: number; width: number };
@@ -309,6 +312,7 @@ export function PlayerProfileHoverLayer() {
     >
       <div
         className="se-profile-hover-card__banner"
+        data-crew-banner={profile?.look?.crewBanner ?? undefined}
         aria-hidden="true"
         style={profile?.cosmetics.bannerUrl ? { backgroundImage: `linear-gradient(90deg, rgba(5, 8, 8, 0.36), rgba(5, 8, 8, 0.82)), url("${profile.cosmetics.bannerUrl}")` } : undefined}
       >
@@ -327,7 +331,7 @@ export function PlayerProfileHoverLayer() {
         </span>
         <span className="se-profile-hover-card__identity-copy">
           {profile?.cosmetics.title ? <span className="se-profile-hover-card__title">{profile.cosmetics.title}</span> : null}
-          <strong><span>{profile?.displayName ?? target.label}</span>{profile?.isSupporter ? <SupporterMark /> : null}</strong>
+          <strong><span>{profile?.displayName ?? target.label}</span>{profile?.isSupporter ? <SupporterMark /> : null}{profile?.birthdayToday ? <BirthdayCake /> : null}<LevelChip level={profile?.experience?.level} /></strong>
           <small>PLAYER #{formatNumber(target.id)}{profile?.isSupporter ? ' · SUPPORTER' : ''}</small>
         </span>
       </div>
@@ -338,6 +342,7 @@ export function PlayerProfileHoverLayer() {
             {profile.alliance ? <span>[{profile.alliance.tag}] {profile.alliance.name}</span> : null}
             <span>{profile.city.name} · {profile.seasonName}</span>
           </div>
+          <StreetSignDisplay design={profile.streetSign} compact />
           {profile.profileBio ? <p className="se-profile-hover-card__bio">{profile.profileBio}</p> : null}
           <div className="se-profile-hover-card__stats">
             <div><small>National rank</small><strong>#{formatNumber(profile.rank.national)}</strong></div>

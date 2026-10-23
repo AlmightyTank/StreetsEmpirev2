@@ -11,6 +11,7 @@ import {
   readRacketEffects,
 } from '@streets/rules-engine';
 import type { WeaponKey } from '@streets/rulesets';
+import { territoryCatalogForRuleset } from '@streets/rulesets';
 import type { Db } from '../utils/db.js';
 import { lockRoundPlayer } from '../utils/db.js';
 import { ActivityService } from './activity.service.js';
@@ -32,10 +33,15 @@ import { recordTerritoryControlChange, territoryControlForCity } from './turf-te
 import { endTurfHold, startTurfHold } from './turf-history.service.js';
 import { BlockWarSettleService } from './block-war-settle.service.js';
 import { CrewRosterService } from './crew-roster.service.js';
+import { resolveTerritoryModifiers, territorySourcesForAction } from './territory-perks.service.js';
+import { districtTerritoryControlIntervals, settlePersistedTerritoryYield } from './territory-yield.service.js';
+import { PlayerSkillService } from './player-skill.service.js';
+import { IndividualItemsService } from './individual-items.service.js';
+import { releaseReservedIndividualGuns, settleReservedIndividualGuns, type IndividualGunReceipt } from './individual-combat.service.js';
 
 type Weapons = Record<WeaponKey, number>;
 type PushModel = NonNullable<ReturnType<typeof turfPushCombatModel>>;
-interface CrewSnapshot { thugHappiness: number; weapons: Weapons; }
+interface CrewSnapshot { thugHappiness: number; weapons: Weapons; strengthMultiplier?: number; individualGuns?: IndividualGunReceipt[]; }
 interface OutpostLoot {
   cashCents: number;
   beer: number;
@@ -57,11 +63,15 @@ interface StoredPushResult {
   attackerReturnedGuns: CornerGuns;
   strength: { attacker: number; defender: number } | null;
   enforcerDefenseBonusPercent?: number;
+  territoryModifierReceipts?: Array<{ effectId: string; action: string; valueBasisPoints: number; multiplierBasisPoints: number; capBasisPoints: number; sources: Array<{ id: string; label: string; valueBasisPoints: number }> }>;
+  territoryCacheRaidReceipt?: { fromAllianceId: string | null; toAllianceId: string | null; retainedBasisPoints: number; goods: Record<string, number>; cashCents: number; tollCents: number };
   cornerDefenseExperience?: number;
   shieldUntil: string | null;
   recoverAt: string | null;
   outpostLoot: OutpostLoot | null;
   stashGuardLootReductionPercent?: number;
+  ammoLootRounds?: number;
+  individualGuns?: IndividualGunReceipt[];
 }
 
 const EMPTY: CornerGuns = { pistols: 0, shotguns: 0, tek9s: 0, ak47s: 0 };
@@ -222,9 +232,12 @@ export const TurfWarSettlementService = {
       let cornerWounds = 0;
       let ownerBackupWounds = 0;
       let strength: StoredPushResult['strength'] = null;
+      let territoryModifierReceipts: ReturnType<typeof resolveTerritoryModifiers> = [];
       let enforcerDefenseBonusPercent = 0;
       let cornerDefenseExperience = 0;
+      let ammoLootRounds = 0;
       let recoverAt: Date | null = null;
+      const engagedSlots: Record<string, number> = {};
       const woundByBackup = new Map<string, number>();
 
       if (stillDefended) {
@@ -236,6 +249,7 @@ export const TurfWarSettlementService = {
         // The combat model has a hard engagement cap. Corner thugs fill it first,
         // then owner backup, then allies in send order; only engaged groups can be wounded.
         const engaged = engagement(groups.map(({ key, size }) => ({ key, size })), model.squadCap);
+        Object.assign(engagedSlots, engaged);
         let defenderWeapons: Weapons = { PISTOL: 0, SHOTGUN: 0, TEK9: 0, AK47: 0 };
         let defenderCount = 0;
         let moraleTotal = 0;
@@ -254,7 +268,15 @@ export const TurfWarSettlementService = {
           assignmentKind: 'TURF',
           assignmentRef: turf.id,
         });
+        territoryModifierReceipts = resolveTerritoryModifiers(await territorySourcesForAction({
+          tx, round: loaded.round, ruleset: base, allianceId: defender.allianceId, cityId: turf.cityId, citySlug: turf.city.slug, district: turf.district,
+        }), 'TURF_DEFEND');
+        const territoryDefenseMultiplier = territoryModifierReceipts.reduce((value, receipt) => value * receipt.multiplierBasisPoints / 10_000, 10_000);
+        const individualDefenderMultiplier = defenderCount > 0
+          ? groups.reduce((sum, group) => sum + (engaged[group.key] ?? 0) * Number((group.snapshot as CrewSnapshot).strengthMultiplier ?? 1), 0) / defenderCount
+          : 1;
 
+        const ammoRules = base.ammoParts?.enabled && base.ammoParts.combatEnabled ? base.ammoParts.ammo : null;
         const fight = simulateRaid({
           attacker: { thugs: loaded.squad, thugHappiness: attacker.thugHappiness, weapons: attacker.weapons },
           defender: {
@@ -262,11 +284,17 @@ export const TurfWarSettlementService = {
             thugHappiness: defenderCount > 0 ? Math.round(moraleTotal / defenderCount) : defender.thugHappiness,
             weapons: defenderWeapons,
           },
-          defenderBoost: { strength: 1 + enforcerDefenseBonusPercent / 100, wounds: 1 },
+          ...(attacker.strengthMultiplier ? { attackerBoost: { strength: attacker.strengthMultiplier, wounds: 1 } } : {}),
+          defenderBoost: { strength: (1 + enforcerDefenseBonusPercent / 100) * territoryDefenseMultiplier / 10_000 * individualDefenderMultiplier, wounds: 1 },
           attackingThugs: loaded.squad,
           attackerTurns: model.turnCost,
           defenderCashCents: 0n,
+          ...(ammoRules ? { ammo: { attackerRounds: (Object.entries(attacker.weapons) as Array<[WeaponKey, number]>)
+            .reduce((sum, [key, count]) => sum + count * ammoRules.roundsPerFight[key], 0), defenderRounds: defender.ammo,
+            roundsPerFight: ammoRules.roundsPerFight, defenderFloor: ammoRules.defenderFloor, lootShareBps: ammoRules.lootShareBps } } : {}),
         }, model, seededRng(hashParts(loaded.id, 'turf-fight')));
+        ammoLootRounds = fight.ammunition?.ammoLootRounds ?? 0;
+        if (fight.ammunition) await tx.roundPlayer.update({ where: { id: defender.id }, data: { ammo: fight.ammunition.defenderRoundsAfter } });
 
         won = fight.winner === 'ATTACKER';
         unopposed = false;
@@ -291,7 +319,35 @@ export const TurfWarSettlementService = {
             ruleset: base,
             turfId: turf.id,
             at,
+            sourceKey: `TURF_DEFENSE:${loaded.id}`,
           });
+        }
+      }
+
+      const individualGuns = attacker.individualGuns ?? [];
+      if (stillDefended) await settleReservedIndividualGuns(tx, loaded.attackerId, individualGuns);
+      else await releaseReservedIndividualGuns(tx, loaded.attackerId, individualGuns);
+      if (individualGuns.length) await IndividualItemsService.refreshSummary(tx, loaded.attackerId);
+      const usedIndividualGuns = [...individualGuns];
+      for (const backup of backups) {
+        const backupCrew = crew(backup.crew);
+        const backupKey = `${backup.kind === 'OWNER' ? 'owner' : 'ally'}:${backup.id}`;
+        const fought = stillDefended && (engagedSlots[backupKey] ?? 0) > 0;
+        const receipts = backupCrew.individualGuns ?? [];
+        if (fought) { await settleReservedIndividualGuns(tx, backup.playerId, receipts); usedIndividualGuns.push(...receipts); }
+        else await releaseReservedIndividualGuns(tx, backup.playerId, receipts);
+        if (receipts.length) await IndividualItemsService.refreshSummary(tx, backup.playerId);
+      }
+
+      // Muscle: the pusher is paid whenever the push meets the block; the holder and every
+      // ally who showed up are paid when it came to a fight. A stale push paid nobody.
+      if (!stale) {
+        const fightKey = `turf-push:${loaded.id}`;
+        await PlayerSkillService.awardFight(tx, base.streetSkills, { roundPlayerId: loaded.attackerId, action: 'TURF_PUSH', won, fightKey, now: at });
+        if (stillDefended) {
+          for (const id of new Set([loaded.defenderId, ...shownAllies.map((backup) => backup.playerId)])) {
+            await PlayerSkillService.awardFight(tx, base.streetSkills, { roundPlayerId: id, action: 'TURF_PUSH', won: !won, fightKey, now: at });
+          }
         }
       }
 
@@ -399,6 +455,31 @@ export const TurfWarSettlementService = {
         });
       }
 
+      let territoryCacheRaidReceipt: StoredPushResult['territoryCacheRaidReceipt'];
+      if (won && loaded.round.territoryPerksEnabled && loaded.round.territoryPerksCatalogVersion) {
+        const catalog = territoryCatalogForRuleset(base);
+        const profile = catalog?.districts[turf.district]?.yieldProfileKey
+          ? catalog.yieldProfiles[catalog.districts[turf.district]!.yieldProfileKey]
+          : null;
+        if (catalog && profile) {
+          const locationKey = `${turf.city.slug}:${turf.district}`;
+          const cacheBefore = await tx.territoryYieldCache.findUnique({
+            where: { roundId_scope_locationKey: { roundId: loaded.roundId, scope: 'district', locationKey } },
+          });
+          const ownerChanged = (cacheBefore?.ownerAllianceId ?? null) !== loaded.attackerAllianceId;
+          const intervals = await districtTerritoryControlIntervals({ tx, roundId: loaded.roundId, cityId: turf.cityId, district: turf.district, roundStartedAt: loaded.round.startsAt, now: at });
+          const settled = await settlePersistedTerritoryYield({ tx, roundId: loaded.roundId, scope: 'district', locationKey, profile, intervals, initialSettledAt: loaded.round.startsAt, currentAllianceId: loaded.attackerAllianceId, now: at, priorSameTierHoldings: 0 });
+          if (ownerChanged && loaded.attackerAllianceId) territoryCacheRaidReceipt = {
+            fromAllianceId: cacheBefore?.ownerAllianceId ?? null,
+            toAllianceId: loaded.attackerAllianceId,
+            retainedBasisPoints: Math.max(0, Math.min(10_000, Math.trunc(profile.ownershipChangeTransferBasisPoints ?? 2500))),
+            goods: settled.contents,
+            cashCents: settled.cashCents,
+            tollCents: settled.tollCents ?? 0,
+          };
+        }
+      }
+
       const result: StoredPushResult = {
         won, unopposed, stale, attackerWounds, defenderWounds, cornerWounds, ownerBackupWounds,
         allyBackup: allyShown,
@@ -410,8 +491,12 @@ export const TurfWarSettlementService = {
         },
         attackerPostedThugs, attackerPostedGuns, attackerReturnedGuns,
         strength, enforcerDefenseBonusPercent, cornerDefenseExperience,
+        ...(territoryModifierReceipts.length ? { territoryModifierReceipts: territoryModifierReceipts.map((receipt) => ({ ...receipt, sources: receipt.sources.map((source) => ({ ...source })) })) } : {}),
+        ...(territoryCacheRaidReceipt ? { territoryCacheRaidReceipt } : {}),
         shieldUntil: shieldUntil?.toISOString() ?? null, recoverAt: recoverAt?.toISOString() ?? null,
         outpostLoot,
+        ...(usedIndividualGuns.length ? { individualGuns: usedIndividualGuns } : {}),
+        ...(ammoLootRounds ? { ammoLootRounds } : {}),
         ...(stashGuardLootReductionPercent > 0 ? { stashGuardLootReductionPercent } : {}),
       };
       await tx.turfPush.update({
@@ -464,6 +549,14 @@ export const TurfWarSettlementService = {
       if (!push || push.status !== 'PENDING' || push.landsAt <= cutoff) continue;
 
       const attacker = crew(push.attackerCrew);
+      const individualGuns = attacker.individualGuns ?? [];
+      await releaseReservedIndividualGuns(tx, push.attackerId, individualGuns);
+      if (individualGuns.length) await IndividualItemsService.refreshSummary(tx, push.attackerId);
+      for (const backup of push.backups) {
+        const receipts = crew(backup.crew).individualGuns ?? [];
+        await releaseReservedIndividualGuns(tx, backup.playerId, receipts);
+        if (receipts.length) await IndividualItemsService.refreshSummary(tx, backup.playerId);
+      }
       const attackerReturnedGuns = fromWeapons(attacker.weapons);
       const result: StoredPushResult = {
         won: false,
@@ -489,6 +582,7 @@ export const TurfWarSettlementService = {
         shieldUntil: null,
         recoverAt: null,
         outpostLoot: null,
+        ...(individualGuns.length ? { individualGuns } : {}),
       };
       await tx.turfPushBackup.updateMany({
         where: { pushId: push.id },
@@ -531,6 +625,7 @@ export const TurfWarSettlementService = {
     let postedNetWorthCents = player.postedNetWorthCents;
     let cashCents = player.cashCents;
     let beer = player.beer;
+    let ammo = player.ammo;
     const productLoot: Record<string, number> = {};
     let homeGuns: CornerGuns = { pistols: player.pistols, shotguns: player.shotguns, tek9s: player.tek9s, ak47s: player.ak47s };
 
@@ -541,6 +636,7 @@ export const TurfWarSettlementService = {
       homeGuns = addCornerGuns(homeGuns, result.attackerReturnedGuns);
       const returnedWorth = cornerGunWorthCents(ruleset, result.attackerReturnedGuns);
       postedNetWorthCents = postedNetWorthCents >= returnedWorth ? postedNetWorthCents - returnedWorth : 0n;
+      ammo = Math.min(2_147_483_647, ammo + (result.ammoLootRounds ?? 0));
       if (result.recoverAt && result.attackerWounds > 0) {
         await CombatRecoveryService.add(tx, playerId, null, result.attackerWounds, new Date(result.recoverAt));
       }
@@ -588,7 +684,7 @@ export const TurfWarSettlementService = {
     }
     await tx.roundPlayer.update({
       where: { id: playerId },
-      data: { cashCents, beer, busyThugs, postedThugs, postedNetWorthCents, ...homeGuns },
+      data: { cashCents, beer, busyThugs, postedThugs, postedNetWorthCents, ammo, ...homeGuns },
     });
   },
 };

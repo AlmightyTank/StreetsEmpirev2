@@ -9,8 +9,10 @@ import {
   type BugReportInput,
   type BugReportResolution,
   type BugReportSource,
+  staffCan,
 } from '@streets/shared';
 import { verifyPassword } from '../auth/password.js';
+import { isStaff, staffRoleOf } from '../auth/play-access.js';
 import { AppError } from '../utils/errors.js';
 import { AdminAuditService, type AuditActor } from './admin-audit.service.js';
 import { wakeDiscordBot } from './discord-bot-push.service.js';
@@ -87,7 +89,7 @@ export const BugReportService = {
     return BugReportService.create(prisma, account, input, { userAgent: 'Discord /bug', source: 'DISCORD' }, now);
   },
 
-  /** A staff button in Discord: only a linked game admin, recorded in the audit log as them. */
+  /** A staff button in Discord: only linked staff who triage bugs, recorded in the audit log as them. */
   async resolveFromDiscord(
     prisma: PrismaClient,
     discordId: string,
@@ -96,7 +98,7 @@ export const BugReportService = {
     now = new Date(),
   ): Promise<StaffBugReportDto> {
     const account = await linkedDiscordAccount(prisma, discordId);
-    if (!account.isAdmin) throw AppError.forbidden('Only game admins can resolve bug reports.');
+    if (!staffCan(staffRoleOf(account), 'bugs.triage')) throw AppError.forbidden('Only staff can resolve bug reports.');
     await BugReportService.resolve(prisma, account, reportId, input.resolution, input.note, now, input.playerReply);
     return staffBugReport(await prisma.bugReport.findUniqueOrThrow({ where: { id: reportId } }));
   },
@@ -162,11 +164,12 @@ export const AccountClosureService = {
     currentPassword: string | undefined,
     now = new Date(),
   ): Promise<void> {
-    if (account.isAdmin) {
-      throw AppError.conflict('ADMIN_CLOSE', 'Admins cannot close their own account. Have the admin role removed first.');
+    if (isStaff(account)) {
+      throw AppError.conflict('ADMIN_CLOSE', 'Staff cannot close their own account. Have the staff role removed first.');
     }
     // A Discord sign-in is its own proof; a Discord-made account never chose a password.
-    if (session.method !== 'DISCORD' || currentPassword) {
+    const federated = session.method === 'DISCORD' || session.method === 'APPLE' || session.method === 'PLAY_GAMES' || session.method === 'GOOGLE' || session.method === 'FACEBOOK';
+    if (!federated || currentPassword) {
       const ok = currentPassword ? await verifyPassword(account.passwordHash, currentPassword) : false;
       if (!ok) {
         throw AppError.badRequest('CURRENT_PASSWORD_INVALID', 'That password does not match.', {

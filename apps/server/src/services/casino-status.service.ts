@@ -15,13 +15,14 @@ import {
   type Ruleset,
 } from '@streets/rules-engine';
 import type { CasinoRoom, CasinoRules, CasinoStatusRules, CasinoStatusTierRules, CasinoVenueRules } from '@streets/rulesets';
-import { DONT_PANIC_WAGER_CENTS, type CasinoStatusDto, type CasinoStatusTierDto, type CasinoVenueDto } from '@streets/shared';
+import { DONT_PANIC_WAGER_CENTS, LEET_RETURN_CENTS, type CasinoStatusDto, type CasinoStatusTierDto, type CasinoVenueDto } from '@streets/shared';
 import type { Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { ActivityService } from './activity.service.js';
 import { bossPresence } from './boss-presence.service.js';
 import { EasterEggService } from './easter-egg.service.js';
 import { QuestProgressService } from './quest-progress.service.js';
+import { AvatarWearableService } from './avatar-wearable.service.js';
 
 /**
  * 1.2.0-E — High Rollers & City Identity.
@@ -35,7 +36,7 @@ import { QuestProgressService } from './quest-progress.service.js';
 type DbLike = Db | PrismaClient;
 
 /** 1.2.0-F. The casino game a quest signal came from. */
-export type CasinoGameKey = 'SLOTS' | 'BLACKJACK' | 'ROULETTE' | 'STREET_DICE' | 'POKER';
+export type CasinoGameKey = 'SLOTS' | 'BLACKJACK' | 'ROULETTE' | 'SCRATCH_CARDS' | 'HORSE_RACING' | 'POKER' | 'POOL';
 
 /** A memorable moment on a settled result, for Jobs such as Natural Talent. */
 export type CasinoResultHighlight = 'NATURAL' | 'JACKPOT' | 'MEGA_WIN' | 'BIG_WIN' | 'STRAIGHT_UP' | 'POINT_MADE' | 'SHOWDOWN_WIN';
@@ -330,6 +331,13 @@ export const CasinoStatusService = {
     // Easter egg: a winning $42 play at any table or machine.
     if (input.stakeCents === BigInt(DONT_PANIC_WAGER_CENTS) && input.returnCents > input.stakeCents) {
       await EasterEggService.discoverForPlayer(tx, input.roundPlayerId, 'DONT_PANIC', input.now);
+    }
+    if (input.returnCents === BigInt(LEET_RETURN_CENTS)) {
+      await EasterEggService.discoverForPlayer(tx, input.roundPlayerId, 'LEET', input.now);
+    }
+    // A jackpot or a mega win earns the gold dice for the built avatar, once.
+    if (input.highlight === 'JACKPOT' || input.highlight === 'MEGA_WIN') {
+      await AvatarWearableService.grantToRoundPlayer(tx, input.roundPlayerId, 'avatar-dice', 'CASINO', input.now);
     }
     if (!ruleset.casino?.status) return;
     const net = input.returnCents - input.stakeCents;

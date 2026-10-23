@@ -20,13 +20,14 @@ datasource db {
 
 /// A permanent player identity. Survives every round.
 model Account {
-  id                          String    @id @default(cuid())
+  id                          String              @id @default(cuid())
   username                    String
+  crewLegendArchives          CrewLegendArchive[]
   /// Lowercased username. Enforces case-insensitive uniqueness. A database CHECK
   /// (Account_usernameNormalized_lowercase) refuses any row where this is not lower(username).
-  usernameNormalized          String    @unique
+  usernameNormalized          String              @unique
   /// Lowercased email. Private account recovery and login address.
-  email                       String    @unique
+  email                       String              @unique
   emailVerifiedAt             DateTime?
   /// Set for every account that existed before email verification was required: they may
   /// keep playing without verifying. Accounts created later are never grandfathered.
@@ -38,9 +39,11 @@ model Account {
   closedAt                    DateTime?
   /// rc.2. The address the account signed up from, for the per-address daily sign-up cap.
   registeredIp                String?
-  /// rc.5. When the player confirmed at sign-up that they are 13 or older. The rules
+  /// rc.5. When the player confirmed at sign-up that they meet the minimum age. The rules
   /// agreement asks every player too (Discord sign-ups included).
   ageConfirmedAt              DateTime?
+  /// Private date-only birthday. Null on legacy/Discord accounts until collected after sign-in.
+  birthDate                   DateTime?           @db.Date
   /// rc.3. Authenticator-app two-step sign-in. Secrets are AES-GCM sealed (auth/totp.ts).
   twoFactorSecret             String?
   /// Set while the player is scanning the QR code, before they confirm a first code.
@@ -55,13 +58,40 @@ model Account {
   discordAvatar   String?
   discordLinkedAt DateTime?
 
+  /// Google Play Games player identity. Never auto-linked by email.
+  playGamesId          String?   @unique
+  playGamesDisplayName String?
+  playGamesLinkedAt    DateTime?
+
+  /// Apple Sign in subject identifier. Stored independently of email so Private Relay works.
+  appleId       String?   @unique
+  appleEmail   String?
+  appleLinkedAt DateTime?
+
+  /// Google OAuth subject. Kept separate from Google Play Games credentials.
+  googleId       String?   @unique
+  googleEmail   String?
+  googleLinkedAt DateTime?
+
+  /// Facebook Login subject identifier, separate from the profile email.
+  facebookId       String?   @unique
+  facebookEmail    String?
+  facebookLinkedAt DateTime?
+
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   lastLoginAt DateTime?
 
-  isActive     Boolean @default(true)
-  isAdmin      Boolean @default(false)
-  betaApproved Boolean @default(false)
+  isActive     Boolean    @default(true)
+  /// Kept equal to "staffRole is FOUNDER or ADMIN" by a database trigger and CHECK
+  /// (see the staff_roles migration). Writing isAdmin alone still works: true makes
+  /// the account ADMIN, false takes ADMIN away. New code reads and writes staffRole.
+  isAdmin      Boolean    @default(false)
+  /// Null for players. Set from Admin → Staff; FOUNDER only from the console.
+  staffRole    StaffRole?
+  betaApproved Boolean    @default(false)
+  /// 2.4.0-F. Explicitly marked disposable account eligible for the beta territory encounter tester.
+  territoryTestAccount Boolean @default(false)
 
   /// 0.3.0-B. A timed suspension. The account signs back in on its own once this
   /// passes; the fields are cleared lazily on the next sign-in attempt.
@@ -80,45 +110,99 @@ model Account {
   commsMuteReason      String?
   commsMutedByUsername String?
 
-  sessions               Session[]
-  bugReports             BugReport[]
-  supportTickets         SupportTicket[]
-  twoFactorRecoveryCodes TwoFactorRecoveryCode[]
-  trustedDevices         TrustedDevice[]
-  knownDevices           AccountDevice[]
-  loginChallenges        LoginChallenge[]
-  passwordResetTokens    PasswordResetToken[]
-  accountEmailTokens     AccountEmailToken[]
-  forumLink              ForumLink?
-  forumLinkRequest       ForumLinkRequest?
-  notificationSettings   NotificationSettings?
-  notificationOutbox     NotificationOutbox[]
-  pushSubscriptions      PushSubscription[]
-  profile                AccountProfile?
-  cosmeticUnlocks        AccountCosmeticUnlock[]
-  supporterMembership    SupporterMembership?
-  supporterPayments      SupporterPayment[]
-  supporterSeasonStamps  SupporterSeasonStamp[]
-  supporterVotes         SupporterVote[]
-  roundPlayers           RoundPlayer[]
-  aftermathRewardClaims  RoundAftermathRewardClaim[]
-  authoredNews           GameNews[]                  @relation("GameNewsAuthor")
-  adminAuditEntries      AdminAuditLog[]             @relation("AdminAuditActor")
-  messageBlocksMade      PlayerBlock[]               @relation("PlayerBlocker")
-  messageBlocksReceived  PlayerBlock[]               @relation("PlayerBlocked")
-  messageReports         PlayerMessageReport[]
+  sessions                         Session[]
+  bugReports                       BugReport[]
+  supportTickets                   SupportTicket[]
+  twoFactorRecoveryCodes           TwoFactorRecoveryCode[]
+  trustedDevices                   TrustedDevice[]
+  knownDevices                     AccountDevice[]
+  loginChallenges                  LoginChallenge[]
+  passwordResetTokens              PasswordResetToken[]
+  accountEmailTokens               AccountEmailToken[]
+  forumLink                        ForumLink?
+  forumLinkRequest                 ForumLinkRequest?
+  notificationSettings             NotificationSettings?
+  notificationOutbox               NotificationOutbox[]
+  pushSubscriptions                PushSubscription[]
+  profile                          AccountProfile?
+  cosmeticUnlocks                  AccountCosmeticUnlock[]
+  legacyEntries                    LegacyEntry[]
+  playerCareer                     PlayerCareer?
+  careerStoryPortfolios            CareerStoryPortfolio[]
+  supporterMembership              SupporterMembership?
+  googlePlaySupporterSubscriptions GooglePlaySupporterSubscription[]
+  supporterPayments                SupporterPayment[]
+  crownWallet                      CrownWallet?
+  crownLedger                      CrownLedgerEntry[]
+  dropOrders                       DropOrder[]
+  crownPackOrders                  CrownPackOrder[]
+  googlePlayCrownPackOrders        GooglePlayCrownPackOrder[]
+  crownAdjustments                 CrownAdjustmentRequest[]
+  supporterSeasonStamps            SupporterSeasonStamp[]
+  supporterVotes                   SupporterVote[]
+  admissionTickets                 AdmissionTicket[]
+  admissionLeases                  AdmissionLease[]
+  roundPlayers                     RoundPlayer[]
+  aftermathRewardClaims            RoundAftermathRewardClaim[]
+  authoredNews                     GameNews[]                        @relation("GameNewsAuthor")
+  adminAuditEntries                AdminAuditLog[]                   @relation("AdminAuditActor")
+  messageBlocksMade                PlayerBlock[]                     @relation("PlayerBlocker")
+  messageBlocksReceived            PlayerBlock[]                     @relation("PlayerBlocked")
+  messageReports                   PlayerMessageReport[]
   /// 0.9.0-H.
-  mutesMade              PlayerMute[]                @relation("PlayerMuter")
-  mutesReceived          PlayerMute[]                @relation("PlayerMuted")
-  moderationNotes        AccountModerationNote[]
-  surveySubmissions      SurveySubmission[]
-  experienceEvents       PlayerExperienceEvent[]
-  experiencePoints       Int                         @default(0)
+  mutesMade                        PlayerMute[]                      @relation("PlayerMuter")
+  mutesReceived                    PlayerMute[]                      @relation("PlayerMuted")
+  moderationNotes                  AccountModerationNote[]
+  surveySubmissions                SurveySubmission[]
+  experienceEvents                 PlayerExperienceEvent[]
+  mentees                          Mentorship[]                      @relation("Mentor")
+  mentor                           Mentorship?                       @relation("Mentee")
+  experiencePoints                 Int                               @default(0)
+  /// Turn XP taper: the daily window being counted and the turns spent in it.
+  turnXpWindowStartsAt             DateTime?
+  turnXpTurnsInWindow              Int                               @default(0)
   /// When the player last changed their own pimp name. Null until the first change, which is free.
-  usernameChangedAt      DateTime?
-  usernameChanges        AccountUsernameChange[]
+  usernameChangedAt                DateTime?
+  usernameChanges                  AccountUsernameChange[]
+  staffRoleChanges                 StaffRoleChange[]                 @relation("StaffRoleTarget")
+  staffRoleChangesMade             StaffRoleChange[]                 @relation("StaffRoleActor")
 
   @@index([registeredIp, createdAt])
+  @@index([staffRole])
+}
+
+/// Staff ranks, highest first. Discord roles and forum groups follow these.
+enum StaffRole {
+  FOUNDER
+  ADMIN
+  MOD
+  JR_MOD
+  HELPER
+}
+
+/// Every staff role change. Unlike AdminAuditLog it is never purged by audit retention,
+/// so the Staff page can always say who was staff and who made them so.
+model StaffRoleChange {
+  id String @id @default(cuid())
+
+  accountId String?
+  account   Account? @relation("StaffRoleTarget", fields: [accountId], references: [id], onDelete: SetNull)
+  username  String
+
+  actorAccountId String?
+  actor          Account? @relation("StaffRoleActor", fields: [actorAccountId], references: [id], onDelete: SetNull)
+  actorUsername  String
+
+  fromRole StaffRole?
+  toRole   StaffRole?
+  reason   String
+  /// GAME (Admin → Staff), DISCORD (/staff) or CONSOLE (npm run admin).
+  source   String
+
+  createdAt DateTime @default(now())
+
+  @@index([accountId, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
 }
 
 /// Every pimp name an account has had, so staff can tell who a player used to be.
@@ -128,20 +212,33 @@ model AccountUsernameChange {
   accountId String
   account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
-  fromUsername String
+  fromUsername           String
   /// lower(fromUsername). A name given up is held for its previous owner for 30 days.
   fromUsernameNormalized String
-  toUsername   String
+  toUsername             String
   /// PLAYER for a self-service change, REVERT for a player taking back the name they just
   /// gave up, STAFF for an admin rename (whose old name nobody may take for 30 days).
-  source       String
-  createdAt    DateTime @default(now())
+  source                 String
+  createdAt              DateTime @default(now())
 
   @@index([accountId, createdAt])
   @@index([fromUsernameNormalized, createdAt])
 }
 
 /// Permanent account progress, separate from season resources and Street Pass Cred.
+/// Mentoring: a new player names one seasoned mentor, who earns account XP
+/// as the mentee reaches levels. One mentor per mentee, for good.
+model Mentorship {
+  id              String   @id @default(cuid())
+  mentorAccountId String
+  mentor          Account  @relation("Mentor", fields: [mentorAccountId], references: [id], onDelete: Cascade)
+  menteeAccountId String   @unique
+  mentee          Account  @relation("Mentee", fields: [menteeAccountId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+
+  @@index([mentorAccountId])
+}
+
 model PlayerExperienceEvent {
   id        String  @id @default(cuid())
   accountId String
@@ -154,6 +251,22 @@ model PlayerExperienceEvent {
 
   @@unique([accountId, sourceKey])
   @@index([accountId, awardedAt(sort: Desc)])
+  @@index([awardedAt])
+}
+
+/// The server-selected monthly Double XP Weekend. The schedule is persisted so
+/// every request and every server instance uses the same weekend.
+model DoubleXpWeekend {
+  id         String    @id @default(cuid())
+  monthKey   String    @unique
+  startsAt   DateTime
+  endsAt     DateTime
+  announceAt DateTime
+  newsId     String?   @unique
+  news       GameNews? @relation(fields: [newsId], references: [id], onDelete: SetNull)
+  createdAt  DateTime  @default(now())
+
+  @@index([startsAt, endsAt])
 }
 
 /// 0.9.0-H. Private admin notes on an account. Never shown to the player.
@@ -214,47 +327,81 @@ model AccountProfile {
   accountId String  @id
   account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
-  activeTitleKey        String?
-  titlePlacement        String  @default("prefix")
+  activeTitleKey             String?
+  titlePlacement             String  @default("prefix")
   /// 0.9.0-F. Optional public crew name, account-level so it carries across seasons.
-  crewName              String?
-  profileBio            String?
-  profileImageUrl       String?
+  crewName                   String?
+  /// Slice A. Versioned cosmetic street-sign design; never used as turf ownership.
+  streetSign                 Json?
+  profileBio                 String?
+  profileImageUrl            String?
   /// Avatar built from face pieces (base, hair, eyes, shirt, ...). Shown when there is no image.
-  profileAvatar         Json?
-  profileBannerUrl      String?
-  profileEffect         String  @default("none")
-  activeProfileFrameKey String?
-  activeAvatarFrameKey  String?
+  profileAvatar              Json?
+  profileBannerUrl           String?
+  /// Slice C. Stable supporter crew banner key; entitlement is checked before display.
+  activeCrewBannerKey        String?
+  profileEffect              String  @default("none")
+  activeProfileFrameKey      String?
+  activeAvatarFrameKey       String?
   /// Signature Profile Card surface finish: brushed, carbon or engine-turned. Null shows brushed.
-  profileSurface        String?
+  profileSurface             String?
   /// Supporter thank-you list on the public site. Opt-in, so off by default.
-  showOnSupporterList   Boolean @default(false)
+  showOnSupporterList        Boolean @default(false)
   /// Supporter release-notes credits are opt-in and never list payments.
-  releaseNotesCreditOptIn Boolean @default(false)
-  activeSiteThemeKey    String?
+  releaseNotesCreditOptIn    Boolean @default(false)
+  activeSiteThemeKey         String?
+  /// Account-level hideout presentation; cosmetic only and independent of seasonal room state.
+  activeHideoutDecorationKey String?
+  activeStreetSignKey        String?
   /// Player-selected visual skin per inventory item key. Cosmetic only.
-  itemCosmetics         Json    @default("{}")
+  itemCosmetics              Json    @default("{}")
+  /// Slice F. A player's featured named item survives the round that created it.
+  famousItem                 Json?
   /// THUG / HOE visual styles. Crew is aggregate inventory, so the style applies to the whole type.
-  crewCosmetics         Json    @default("{}")
+  crewCosmetics              Json    @default("{}")
   /// Slice E. Visitors see the owner's site theme on their public profile.
-  showThemeOnProfile    Boolean @default(true)
+  showThemeOnProfile         Boolean @default(true)
   /// Slice E. Visitors see the owner's item and crew look on their public profile.
-  showLookOnProfile     Boolean @default(true)
-  featuredBadgeKeys     Json    @default("[]")
-  profileAccent         String  @default("default")
-  uiDensity             String  @default("comfortable")
-  reducedMotion         Boolean @default(false)
-  moneyFormat           String  @default("full")
-  defaultLanding        String  @default("game")
+  showLookOnProfile          Boolean @default(true)
+  /// Slice E. Opt-in decorative cosmetics for the linked forum account.
+  forumCosmeticsVisible      Boolean @default(false)
+  /// 2.1.0-C. Player-only crew stories; never affects gameplay.
+  showCrewMoments            Boolean @default(false)
+  /// 2.1.0-F. Account-private cosmetic milestone celebrations, off by default.
+  showCrewCelebrations       Boolean @default(false)
+  /// Birthdays (docs/BIRTHDAYS.md). A cake on the name on the birthday itself. Opt-in, so off by default.
+  showBirthdayCake           Boolean @default(false)
+  featuredBadgeKeys          Json    @default("[]")
+  featuredLegacyEntryId      String?
+  profileAccent              String  @default("default")
+  uiDensity                  String  @default("comfortable")
+  reducedMotion              Boolean @default(false)
+  moneyFormat                String  @default("full")
+  defaultLanding             String  @default("game")
+  /// Whether this player wants ordinary profanity shown in communication.
+  showProfanity              Boolean @default(false)
   /// Start daily, weekly and city board work as soon as it appears.
-  autoAcceptBoardWork   Boolean @default(true)
+  autoAcceptBoardWork        Boolean @default(true)
   /// 1.0.0-B. Tutorial progress: intro completed/skipped, page intros seen, guide
   /// dismissed for a season. Never gameplay state; see OnboardingService.
-  onboarding            Json    @default("{}")
+  onboarding                 Json    @default("{}")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+/// Permanent cosmetic identity. Gameplay and fresh-round resources never read it.
+model PlayerCareer {
+  accountId String  @id
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  career            String
+  history           Json     @default("[]")
+  selectedAt        DateTime @default(now())
+  switchAvailableAt DateTime
+  updatedAt         DateTime @updatedAt
+
+  @@index([career])
 }
 
 /// Permanent account cosmetics. Display metadata is snapshotted when earned so
@@ -305,24 +452,75 @@ model SupporterMembership {
   @@index([status])
 }
 
-/// One paid Stripe invoice for a supporter subscription. Kept when the account
-/// is deleted (the link is cleared), since it is a financial record.
+/// One verified provider payment for a supporter subscription. Kept when the
+/// account is deleted (the link is cleared), since it is a financial record.
 model SupporterPayment {
-  id               String   @id @default(cuid())
-  accountId        String?
-  account          Account? @relation(fields: [accountId], references: [id], onDelete: SetNull)
-  stripeInvoiceId  String   @unique
-  stripeCustomerId String
-  amountCents      Int
-  currency         String
+  id                String   @id @default(cuid())
+  accountId         String?
+  account           Account? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  provider          String   @default("stripe")
+  providerPaymentId String   @unique
+  stripeInvoiceId   String?  @unique
+  stripeCustomerId  String?
+  amountCents       Int
+  currency          String
   /// paid, refunded or disputed. Refunds and disputes never take rewards back.
-  status           String
-  paidAt           DateTime
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  status            String
+  paidAt            DateTime
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   @@index([accountId, paidAt])
   @@index([stripeCustomerId, paidAt])
+  @@index([provider, paidAt])
+}
+
+/// A Google Play supporter subscription. Tokens can be replaced during plan
+/// changes, so history is retained and the newest verified row is authoritative.
+model GooglePlaySupporterSubscription {
+  purchaseToken       String    @id
+  accountId           String
+  account             Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  productId           String
+  status              String
+  currentPeriodEnd    DateTime?
+  autoRenewing        Boolean   @default(false)
+  startedAt           DateTime
+  endedAt             DateTime?
+  latestOrderId       String?
+  linkedPurchaseToken String?
+  lastVerifiedAt      DateTime
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@index([accountId, lastVerifiedAt])
+  @@index([status, currentPeriodEnd])
+  @@map("google_play_supporter_subscription")
+}
+
+/// A verified record for one Google Play Crown pack. The purchase token is the
+/// provider idempotency key; wallet changes remain server-authoritative.
+model GooglePlayCrownPackOrder {
+  purchaseToken  String    @id
+  accountId      String?
+  account        Account?  @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  productId      String
+  packId         String
+  crowns         Int
+  status         String    @default("pending")
+  orderId        String?
+  currency       String?
+  amountCents    Int?
+  purchasedAt    DateTime?
+  creditedAt     DateTime?
+  refundedAt     DateTime?
+  lastVerifiedAt DateTime
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([accountId, createdAt])
+  @@index([orderId])
+  @@index([status, createdAt])
 }
 
 /// One permanent record that an account supported during a season (round).
@@ -375,6 +573,182 @@ model SupporterVote {
 }
 
 /// Stripe webhook events already applied, so a redelivered event changes nothing.
+// ---------------------------------------------------------------------------
+// The Drop: Crowns and the cosmetic storefront (docs/THE-DROP.md)
+// ---------------------------------------------------------------------------
+
+/// One Crown balance per account, never per round. Only CrownWalletService
+/// changes it, under a row lock and always together with a CrownLedgerEntry, so
+/// the balance always equals the sum of the ledger.
+model CrownWallet {
+  accountId  String    @id
+  account    Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  /// Whole Crowns. A CHECK keeps it at zero or above.
+  balance    Int       @default(0)
+  /// Bumped on every change.
+  version    Int       @default(0)
+  /// Set when a refunded or disputed pack was already spent: spending stops until support clears it.
+  heldAt     DateTime?
+  holdReason String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+/// Append-only. Every Crown that moves has one row; `externalRef` is the
+/// idempotency key of the event that moved it, so a replay can never apply twice.
+model CrownLedgerEntry {
+  id             String   @id @default(cuid())
+  accountId      String
+  account        Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  /// EARN, PAID_GRANT, SPEND, ADJUSTMENT or REVERSAL.
+  kind           String
+  delta          Int
+  balanceAfter   Int
+  /// What moved it, e.g. daily-contract, pack:boss, drop-order, street-pass-skip, admin.
+  source         String
+  externalRef    String   @unique
+  /// The round an EARN was earned in, for the per-round cap. Never used for ownership.
+  roundId        String?
+  reason         String?
+  metadata       Json?
+  actorAccountId String?
+  createdAt      DateTime @default(now())
+
+  @@index([accountId, createdAt])
+  @@index([accountId, kind, roundId])
+  @@index([kind, createdAt])
+}
+
+/// Admin overrides for one Drop item or bundle. Art, names and kinds stay in
+/// code (packages/rulesets/src/drop.ts); a missing row means the code defaults.
+model DropCatalogEntry {
+  key               String   @id
+  /// ITEM or BUNDLE.
+  kind              String
+  /// DRAFT, QA, SCHEDULED, LIVE, VAULTED or ARCHIVED. Only LIVE is sold.
+  state             String   @default("LIVE")
+  priceCrowns       Int?
+  /// MAY_RETURN, PERMANENT or NEVER_RETURNING.
+  returnPolicy      String   @default("MAY_RETURN")
+  inDailyPool       Boolean  @default(true)
+  homepageSlot      Int?
+  updatedAt         DateTime @updatedAt
+  updatedByUsername String?
+}
+
+/// An admin-scheduled offer. Daily and weekly-featured offers are computed
+/// from the rotation and are not stored.
+model DropOffer {
+  id                String    @id @default(cuid())
+  /// ITEM or BUNDLE.
+  kind              String
+  refKey            String
+  /// FEATURED, DAILY or CATALOG.
+  slot              String
+  /// DROP_EXCLUSIVE, DAILY, FEATURED, RETURNING or PERMANENT.
+  badge             String
+  /// Null sells at the catalog price.
+  priceCrowns       Int?
+  startsAt          DateTime
+  endsAt            DateTime?
+  cancelledAt       DateTime?
+  createdByUsername String
+  note              String?
+  createdAt         DateTime  @default(now())
+
+  @@index([startsAt, endsAt])
+  @@index([refKey])
+}
+
+/// One Crown purchase: an item, a bundle or Street Pass level skips. Written in
+/// the same transaction as the debit and the unlocks. Kept, unlinked, if the
+/// account is deleted.
+model DropOrder {
+  id            String   @id @default(cuid())
+  accountId     String?
+  account       Account? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  /// The client's idempotency key: the same id never charges twice.
+  actionId      String
+  /// ITEM, BUNDLE or STREET_PASS_SKIP.
+  kind          String
+  refKey        String
+  offerId       String?
+  priceCrowns   Int
+  grantedKeys   String[]
+  roundPlayerId String?
+  metadata      Json?
+  createdAt     DateTime @default(now())
+
+  @@unique([accountId, actionId])
+  @@index([accountId, createdAt])
+  @@index([createdAt])
+}
+
+/// A real-money Crown pack checkout. Credited once, only from a verified
+/// provider event. Kept, unlinked, if the account is deleted.
+model CrownPackOrder {
+  id                String    @id @default(cuid())
+  accountId         String?
+  account           Account?  @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  provider          String    @default("stripe")
+  packId            String
+  crowns            Int
+  amountCents       Int
+  currency          String
+  /// pending, credited, refunded, refund_review, disputed, failed or expired.
+  status            String    @default("pending")
+  checkoutSessionId String?   @unique
+  /// Stripe payment intent; refunds and disputes are matched on it.
+  providerPaymentId String?   @unique
+  creditedAt        DateTime?
+  refundedAt        DateTime?
+  lastEventAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([accountId, createdAt])
+  @@index([status])
+}
+
+/// Kill switches and tuning for The Drop. One row, id "global".
+model DropSettings {
+  id                       String   @id @default("global")
+  storefrontEnabled        Boolean  @default(true)
+  purchasesEnabled         Boolean  @default(true)
+  earningEnabled           Boolean  @default(true)
+  checkoutEnabled          Boolean  @default(false)
+  streetPassSkipsEnabled   Boolean  @default(true)
+  dailyOfferCount          Int      @default(4)
+  dailyResetHourUtc        Int      @default(0)
+  autoFeatured             Boolean  @default(true)
+  roundEarnCap             Int      @default(500)
+  largeAdjustmentThreshold Int      @default(1000)
+  updatedAt                DateTime @updatedAt
+  updatedByUsername        String?
+}
+
+/// An admin Crown grant or removal. Small ones apply at once; ones at or above
+/// the threshold wait for a second admin.
+model CrownAdjustmentRequest {
+  id                  String    @id @default(cuid())
+  accountId           String
+  account             Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  delta               Int
+  reason              String
+  /// PENDING, APPLIED or REJECTED.
+  status              String    @default("PENDING")
+  requestedById       String
+  requestedByUsername String
+  decidedById         String?
+  decidedByUsername   String?
+  ledgerEntryId       String?
+  createdAt           DateTime  @default(now())
+  decidedAt           DateTime?
+
+  @@index([status, createdAt])
+  @@index([accountId, createdAt])
+}
+
 model StripeWebhookEvent {
   id          String   @id
   type        String
@@ -572,6 +946,61 @@ model Session {
   @@index([expiresAt])
 }
 
+/// A single account's place in the optional capacity waiting room. This is
+/// deliberately account-scoped, rather than session-scoped, so extra tabs and
+/// devices cannot consume extra admission slots.
+model AdmissionTicket {
+  id         String    @id @default(cuid())
+  accountId  String
+  account    Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  roundId    String
+  round      Round     @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  lane       String
+  enqueuedAt DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  admittedAt DateTime?
+  canceledAt DateTime?
+
+  @@unique([accountId, roundId])
+  @@index([lane, enqueuedAt])
+  @@index([canceledAt, enqueuedAt])
+  @@index([roundId, lane, enqueuedAt])
+}
+
+/// Renewable account admission lease. A lease is never tied to a browser
+/// session and is the only thing that permits gameplay while capacity control
+/// is enabled.
+model AdmissionLease {
+  id        String   @id @default(cuid())
+  accountId String
+  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  roundId   String
+  round     Round    @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  issuedAt  DateTime @default(now())
+  renewedAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@unique([accountId, roundId])
+  @@index([expiresAt])
+  @@index([roundId, expiresAt])
+}
+
+/// One row controls admission for one round. It is seeded lazily so a migration
+/// never enables a queue by accident.
+model AdmissionSettings {
+  id                   Int       @id @default(autoincrement())
+  roundId              String    @unique
+  round                Round     @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  enabled              Boolean   @default(false)
+  supporterPriority    Boolean   @default(false)
+  capacity             Int?
+  rotationSequence     Int       @default(0)
+  renewalFailures      Int       @default(0)
+  lastRenewalFailureAt DateTime?
+  lastPromotionAt      DateTime?
+  updatedAt            DateTime  @updatedAt
+}
+
 /// rc.3. One-use codes for signing in when the authenticator phone is lost. Only hashes are kept.
 model TwoFactorRecoveryCode {
   id String @id @default(cuid())
@@ -704,17 +1133,20 @@ model SupportTicket {
 /// What the Discord bot posts to the staff channel: a new bug report, its
 /// resolution (an edit of the first post), held patch notes. Claimed once, like news.
 model DiscordStaffPost {
-  id        String    @id @default(cuid())
+  id           String    @id @default(cuid())
   /// BUG_REPORT, BUG_REPORT_RESOLVED or PATCH_NOTES_HELD.
-  kind      String
+  kind         String
   /// The bug report or news post it is about; read fresh when the bot claims it.
-  targetId  String
-  createdAt DateTime  @default(now())
-  claimedAt DateTime?
+  targetId     String
+  createdAt    DateTime  @default(now())
+  claimedAt    DateTime?
   /// The staff channel message, so a later post about the same target can edit it.
-  messageId String?
+  messageId    String?
   /// Why Discord refused it, as the bot reported it.
-  error     String?
+  error        String?
+  /// Last patch-notes snapshot shown in the staff channel, for in-place refreshes.
+  syncedNewsAt DateTime?
+  syncedState  String?
 
   @@index([claimedAt, createdAt])
   @@index([kind, targetId])
@@ -1063,6 +1495,60 @@ model PlayerArmedFavor {
 }
 
 // ---------------------------------------------------------------------------
+// Round Roll Call (docs/ROUND-ROLL-CALL.md)
+// ---------------------------------------------------------------------------
+
+/// A stamp is an authenticated foreground visit to one server-side round day.
+model RoundLoginCheckIn {
+  id            String      @id @default(cuid())
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  dayIndex      Int
+  checkedInAt   DateTime    @default(now())
+  /// LOGIN is an actual foreground check-in, RECOVERY is an audited missed-day repair.
+  source        String      @default("LOGIN")
+
+  @@unique([roundPlayerId, dayIndex])
+  @@index([roundPlayerId, checkedInAt])
+}
+
+/// One bounded, account-owned, server-verified recovery of a missed round day.
+/// No purchases, transferable tokens, or privileged shortcuts may create this receipt.
+model RoundLoginRecovery {
+  id             String      @id @default(cuid())
+  roundPlayerId  String
+  roundPlayer    RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  dayIndex       Int
+  actionId       String
+  actorAccountId String
+  reason         String      @default("SELF_SERVICE")
+  stampsBefore   Int
+  missedBefore   Int
+  createdAt      DateTime    @default(now())
+
+  @@unique([roundPlayerId, dayIndex])
+  @@unique([roundPlayerId, actionId])
+  @@index([roundPlayerId, createdAt])
+}
+
+/// One atomic paid reward step; ownership and payout are per round player.
+/// Cosmetics in Slice D will separately use persistent AccountCosmeticUnlock.
+model RoundLoginRewardClaim {
+  id            String      @id @default(cuid())
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  tier          Int
+  rewardVersion String
+  rarity        String
+  /// Stable snapshot of what was actually awarded, including amounts in cents.
+  definition    Json
+  claimedAt     DateTime    @default(now())
+
+  @@unique([roundPlayerId, tier])
+  @@index([roundPlayerId, claimedAt])
+}
+
+// ---------------------------------------------------------------------------
 // Street Pass (docs/STREET-PASS.md)
 // ---------------------------------------------------------------------------
 
@@ -1234,14 +1720,20 @@ model QuestProgressReceipt {
 }
 
 model Round {
-  id   String @id @default(cuid())
-  name String
-  slug String @unique
+  id                String             @id @default(cuid())
+  admissionSettings AdmissionSettings?
+  admissionTickets  AdmissionTicket[]
+  admissionLeases   AdmissionLease[]
+  criminalCaseFiles CriminalCaseFile[]
+  name              String
+  slug              String             @unique
 
-  rulesetId          String
-  rulesetVersion     String
+  rulesetId               String
+  rulesetVersion          String
   /// Per-round Street Pass reward edits, frozen when registration opens.
-  streetPassOverride Json?
+  streetPassOverride      Json?
+  /// Reward catalog version fixed for this round; newer seasons never rewrite its prizes.
+  roundLoginRewardVersion String @default("round-roll-call-v1")
 
   status RoundStatus @default(SCHEDULED)
 
@@ -1249,11 +1741,25 @@ model Round {
   endsAt   DateTime
 
   /// 1.0.0-E. A paused round refuses player actions; timers already running still land.
-  pausedAt           DateTime?
-  pauseReason        String?
-  pausedByUsername   String?
+  pausedAt                    DateTime?
+  pauseReason                 String?
+  pausedByUsername            String?
   /// Minutes of completed pauses, for the record and for extending the end on resume.
-  pausedMinutesTotal Int       @default(0)
+  pausedMinutesTotal          Int                   @default(0)
+  /// 2.2.0. New underworld templates stay off until an admin enables them for this round.
+  underworldOperationsEnabled Boolean               @default(false)
+  /// Territory perks are opt-in per round. Existing pinned rounds keep their historical behavior.
+  territoryPerksEnabled       Boolean               @default(false)
+  territoryPerksCatalogVersion String?
+  /// 2.5.0. Optional, round-pinned rivalry/vendetta capability.
+  rivalries                   RivalryRelationship[]
+  territoryPowerSelections    TerritoryPowerSelection[]
+  territoryAuditEvents        TerritoryAuditEvent[]
+  territoryYieldCaches        TerritoryYieldCache[]
+  territoryTollPayments       TerritoryTollPayment[]
+  territoryYieldDailyLedgers  TerritoryYieldDailyLedger[]
+  territoryYieldPlayerDailyLedgers TerritoryYieldPlayerDailyLedger[]
+  territoryRoundAwards TerritoryRoundAward[]
 
   registrationOpensAt DateTime?
 
@@ -1292,6 +1798,10 @@ model Round {
   turfControlEvents        TurfControlEvent[]
   turfHoldSegments         TurfHoldSegment[]
   turfCrackdown            TurfCrackdown?
+  cityMemoryEvents         CityMemoryEvent[]
+  operations               Operation[]
+  legacyEntries            LegacyEntry[]
+  intelRumors              IntelRumor[]
   directMessages           DirectMessage[]
   businesses               Business[]
   blockWars                BlockWar[]
@@ -1301,9 +1811,89 @@ model Round {
   supplySupplierStocks     SupplySupplierStock[]
   encounterGangs           EncounterGang[]
   encounterGangTurfs       EncounterGangTurf[]
+  careerStoryInstances     CareerStoryInstance[]
 
   @@index([status])
   @@index([discordEndedAt, discordEndedClaimedAt])
+}
+
+/// 2.4.0. Round-scoped career story progress pinned to an immutable catalog.
+model CareerStoryInstance {
+  id                String                    @id @default(cuid())
+  roundPlayerId     String
+  roundId           String
+  career            String
+  catalogVersion    String
+  status            String                    @default("ACTIVE")
+  currentChapterKey String?
+  startedAt         DateTime                  @default(now())
+  expiresAt         DateTime?
+  archivedAt        DateTime?
+  updatedAt         DateTime                  @updatedAt
+  roundPlayer       RoundPlayer               @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  round             Round                     @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  sourceClaims      CareerStorySourceClaim[]
+  choices           CareerStoryChoice[]
+  relationships     CareerStoryRelationship[]
+  portfolio         CareerStoryPortfolio?
+
+  @@unique([roundPlayerId, career, catalogVersion])
+  @@index([roundId, career, status])
+}
+
+model CareerStorySourceClaim {
+  id           String              @id @default(cuid())
+  instanceId   String
+  sourceKind   String
+  sourceId     String
+  objectiveKey String
+  settledAt    DateTime
+  createdAt    DateTime            @default(now())
+  instance     CareerStoryInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+
+  @@unique([instanceId, sourceKind, sourceId, objectiveKey])
+  @@index([instanceId, objectiveKey])
+}
+
+model CareerStoryChoice {
+  id         String              @id @default(cuid())
+  instanceId String
+  chapterKey String
+  branchKey  String
+  chosenAt   DateTime            @default(now())
+  instance   CareerStoryInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+
+  @@unique([instanceId, chapterKey])
+}
+
+model CareerStoryRelationship {
+  id              String              @id @default(cuid())
+  instanceId      String
+  subjectKey      String
+  relationshipKey String
+  value           Int                 @default(0)
+  updatedAt       DateTime            @updatedAt
+  instance        CareerStoryInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+
+  @@unique([instanceId, subjectKey, relationshipKey])
+}
+
+model CareerStoryPortfolio {
+  id                String              @id @default(cuid())
+  accountId         String
+  instanceId        String              @unique
+  career            String
+  title             String
+  visibility        String              @default("PUBLIC")
+  completedChapters Int                 @default(0)
+  finaleEarned      Boolean             @default(false)
+  provenance        Json                @default("{}")
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  account           Account             @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  instance          CareerStoryInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, visibility])
 }
 
 /// Immutable end-of-round report. A round gets one report for its schema
@@ -1358,11 +1948,12 @@ model RoundAftermathRewardClaim {
 /// Travel does not exist in 0.1.0, but every player has a home city from day
 /// one and the modifiers are already wired into the ruleset math.
 model City {
-  id        String  @id @default(cuid())
-  slug      String  @unique
-  name      String
-  sortOrder Int     @default(0)
-  isEnabled Boolean @default(false)
+  id                String             @id @default(cuid())
+  criminalCaseFiles CriminalCaseFile[]
+  slug              String             @unique
+  name              String
+  sortOrder         Int                @default(0)
+  isEnabled         Boolean            @default(false)
 
   // 0.5.0-A: a city's character (prices, supply, police, Heat levels, roads and the
   // old scout/income/crack modifiers) lives in the round's pinned ruleset.
@@ -1370,21 +1961,24 @@ model City {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  players           RoundPlayer[]
-  turf              Turf[]
-  turfPresence      TurfPresence[]
-  turfControlEvents TurfControlEvent[]
-  turfCrackdowns    TurfCrackdown[]
-  casinoWallets     CasinoWallet[]
-  casinoSessions    CasinoSession[]
-  casinoLedger      CasinoLedgerEntry[]
-  sportsbookBets    SportsbookBet[]     @relation("SportsbookBetCasinoCity")
-  casinoRatings     CasinoRating[]
-  playerCases       PlayerCase[]
-  caseReceipts      PlayerCaseReceipt[]
-  warrants          PlayerWarrant[]
-  officials         PlayerOfficial[]
-  tips              PlayerTip[]
+  players            RoundPlayer[]
+  turf               Turf[]
+  turfPresence       TurfPresence[]
+  turfControlEvents  TurfControlEvent[]
+  turfCrackdowns     TurfCrackdown[]
+  cityMemoryEvents   CityMemoryEvent[]
+  operations         Operation[]
+  intelRumors        IntelRumor[]
+  casinoWallets      CasinoWallet[]
+  casinoSessions     CasinoSession[]
+  casinoLedger       CasinoLedgerEntry[]
+  sportsbookBets     SportsbookBet[]     @relation("SportsbookBetCasinoCity")
+  casinoRatings      CasinoRating[]
+  playerCases        PlayerCase[]
+  caseReceipts       PlayerCaseReceipt[]
+  warrants           PlayerWarrant[]
+  officials          PlayerOfficial[]
+  tips               PlayerTip[]
   encounterGangsHome EncounterGang[]     @relation("EncounterGangHomeCity")
   encounterGangsHere EncounterGang[]     @relation("EncounterGangCurrentCity")
   encounterGangTurfs EncounterGangTurf[]
@@ -1395,7 +1989,12 @@ model City {
 // ---------------------------------------------------------------------------
 
 model RoundPlayer {
-  id String @id @default(cuid())
+  id                String             @id @default(cuid())
+  criminalCaseFiles CriminalCaseFile[]
+  guns              PlayerGun[]
+  vehicles          PlayerVehicle[]
+  armorySummary     PlayerArmorySummary?
+  armoryBuilds      PlayerArmoryBuild[]
 
   roundId String
   round   Round  @relation(fields: [roundId], references: [id], onDelete: Cascade)
@@ -1405,6 +2004,24 @@ model RoundPlayer {
 
   /// Player-visible OG id, unique inside the round.
   publicPimpId Int
+
+  /// Saved placement of currently owned stash item stacks.
+  stashLayout Json @default("[]")
+
+  /// 2.3.0. Hideout components found while scouting; keyed by component id.
+  scavengedComponents Json @default("{}")
+  /// 2.3.0. Cache rewards earned from scouting, before they are opened.
+  scavengedCaches Json @default("[]")
+
+  /// 2.3.0. Generator state; fuel is measured in powered turns.
+  generatorPowered       Boolean @default(false)
+  generatorFuel          Int     @default(0)
+  generatorCapacityLevel Int     @default(0)
+  generatorEfficiencyLevel Int   @default(0)
+
+  /// 2.4.0. Workshop crafting progression; recipe repetition has diminishing returns.
+  workshopSkillXp Int @default(0)
+  workshopLastRecipe String?
 
   displayName String
 
@@ -1435,6 +2052,16 @@ model RoundPlayer {
   shotguns Int @default(0)
   tek9s    Int @default(0)
   ak47s    Int @default(0)
+
+  /// 2.4.0-B. Generic ammunition and vehicle repair parts. Older pinned rulesets ignore these balances.
+  ammo             Int @default(0)
+  vehicleParts     Int @default(0)
+
+  /// 2.4.0-B. Ammunition and parts store shelves use the standard lazy restock clock.
+  ammoStock          Int      @default(0)
+  ammoStockAt        DateTime @default(now())
+  vehiclePartsStock Int      @default(0)
+  vehiclePartsStockAt DateTime @default(now())
 
   /// What each shop currently has on the shelf for this player, and the clock
   /// each shelf refills on. Same lazy-regeneration shape as turns: the counter only
@@ -1491,102 +2118,108 @@ model RoundPlayer {
 
   /// 0.4.0-C. Attention the crew's product draws, 0..ruleset heat max. Decays on the turn clock
   /// (lastTurnCalculationAt), so it needs no clock of its own. Always 0 on rounds without Heat.
-  heat                    Int                      @default(0)
+  heat                     Int                      @default(0)
   /// 0.5.0-C. Locked up after an arrest at home: no actions until then.
-  lockedUntil             DateTime?
+  lockedUntil              DateTime?
   /// 0.5.0-D. On the road to a new home until then: no actions, and still a target in
   /// the old city (cityId changes on arrival). The move itself is a Relocation row.
-  movingUntil             DateTime?
+  movingUntil              DateTime?
   /// Trips C. A beaten boss heals until then: no trips, no riding along, and the
   /// lieutenant keeps running home.
-  laidUpUntil             DateTime?
+  laidUpUntil              DateTime?
   /// 0.5.0-E. Thugs out on a tail or riding backup for a convoy: still the player's, still
   /// in net worth, but not fit for anything else until the fight is settled.
-  busyThugs               Int                      @default(0)
+  busyThugs                Int                      @default(0)
   /// 0.6.0-A. Thugs standing on corners this crew holds: still the player's and still in
   /// net worth, but not at home to work, cover the street, cook or defend. Unlike
   /// `busyThugs` they have no deadline: they stand there until they are pulled or pushed off.
-  postedThugs             Int                      @default(0)
+  postedThugs              Int                      @default(0)
   /// 0.6.0-B. Net-worth value of guns removed from the home arsenal and posted on turf.
-  postedNetWorthCents     BigInt                   @default(0)
+  postedNetWorthCents      BigInt                   @default(0)
   /// 0.6.0-D. Net-worth value stored in away outpost boxes.
-  outpostNetWorthCents    BigInt                   @default(0)
+  outpostNetWorthCents     BigInt                   @default(0)
   /// 1.1.0-B. Thugs and girls working a business. Still counted in `thugs` and `whores`
   /// (and in net worth), but never fit at home and never working the street.
-  businessThugs           Int                      @default(0)
-  businessWhores          Int                      @default(0)
+  businessThugs            Int                      @default(0)
+  businessWhores           Int                      @default(0)
   /// 1.6.0-A. Thugs assigned to dealer crews. Still owned, but unavailable for other work.
-  dealerThugs             Int                      @default(0)
+  dealerThugs              Int                      @default(0)
   /// 1.6.5-A. What the player owes the loan shark: every loan's unpaid obligation plus unpaid
   /// late fees. Held under the ruleset's debt ceiling; comes off net worth at the cash weight.
-  loanDebtCents           BigInt                   @default(0)
+  loanDebtCents            BigInt                   @default(0)
   /// 1.6.5-A. Every late fee ever assessed this round, paid or not. Held under the ruleset's fee cap.
-  loanFeesAssessedCents   BigInt                   @default(0)
-  loanCollectionState     LoanCollectionState      @default(CLEAR)
+  loanFeesAssessedCents    BigInt                   @default(0)
+  loanCollectionState      LoanCollectionState      @default(CLEAR)
   /// 1.6.5-E. While RECOVERING: installments still to be paid on time before new loans unlock.
-  loanRecoveryNeeded      Int                      @default(0)
+  loanRecoveryNeeded       Int                      @default(0)
   /// 1.6.5-E. When the player went into collections: only income earned since is garnished.
-  loanCollectionsSince    DateTime?
+  loanCollectionsSince     DateTime?
   /// 1.2.0-A. City chip wallets, open bankroll sessions and immutable casino receipts.
-  casinoWallets           CasinoWallet[]
-  casinoSessions          CasinoSession[]
-  casinoLedger            CasinoLedgerEntry[]
+  casinoWallets            CasinoWallet[]
+  casinoSessions           CasinoSession[]
+  casinoLedger             CasinoLedgerEntry[]
   /// 1.8.0-A. Off-turn pregame sportsbook tickets.
-  sportsbookBets          SportsbookBet[]
+  sportsbookBets           SportsbookBet[]
   /// 1.3.0-A. What each city's police have on this player, and every change to it.
-  cases                   PlayerCase[]
-  caseReceipts            PlayerCaseReceipt[]
-  factionStandings        PlayerFactionStanding[]
-  factionReceipts         PlayerFactionReceipt[]
-  factionPerkUses         PlayerFactionPerkUse[]
-  factionWarnings         PlayerFactionWarning[]
-  warrants                PlayerWarrant[]
+  cases                    PlayerCase[]
+  caseReceipts             PlayerCaseReceipt[]
+  factionStandings         PlayerFactionStanding[]
+  factionReceipts          PlayerFactionReceipt[]
+  factionPerkUses          PlayerFactionPerkUse[]
+  factionWarnings          PlayerFactionWarning[]
+  warrants                 PlayerWarrant[]
   /// 1.3.0-D. Corrupt officials on the payroll, and tips bought from informants.
-  officials               PlayerOfficial[]
-  tips                    PlayerTip[]
-  randomEncounters        RandomEncounter[]
-  encounterGangGrudges    EncounterGangGrudge[]
-  eventParticipations     GameEventParticipation[]
-  casinoFreeSpinBonus     CasinoFreeSpinBonus?
-  casinoBlackjackShoes    CasinoBlackjackShoe[]
-  casinoBlackjackHands    CasinoBlackjackHand[]
-  casinoBlackjackActions  CasinoBlackjackAction[]
-  casinoStreetDiceRounds  CasinoStreetDiceRound[]
-  casinoStreetDiceActions CasinoStreetDiceAction[]
-  casinoPokerHands        CasinoPokerHand[]
-  casinoPokerActions      CasinoPokerAction[]
-  casinoPokerSeats        CasinoPokerSeat[]
-  casinoPokerTableActions CasinoPokerTableAction[]
+  officials                PlayerOfficial[]
+  tips                     PlayerTip[]
+  randomEncounters         RandomEncounter[]
+  encounterGangGrudges     EncounterGangGrudge[]
+  rivalriesAsA             RivalryRelationship[]    @relation("RivalryParticipantA")
+  rivalriesAsB             RivalryRelationship[]    @relation("RivalryParticipantB")
+  rivalrySources           RivalrySourceReceipt[]   @relation("RivalrySourceParticipant")
+  rivalryContractsProposed RivalryFeudContract[]    @relation("RivalryContractProposer")
+  rivalryContractsTargeted RivalryFeudContract[]    @relation("RivalryContractTarget")
+  rivalryAwardClaims       RivalryAwardClaim[]
+  eventParticipations      GameEventParticipation[]
+  casinoFreeSpinBonus      CasinoFreeSpinBonus?
+  casinoBlackjackShoes     CasinoBlackjackShoe[]
+  casinoBlackjackHands     CasinoBlackjackHand[]
+  casinoBlackjackActions   CasinoBlackjackAction[]
+  casinoPoolGames          CasinoPoolGame[]
+  casinoPoolActions        CasinoPoolAction[]
+  casinoPokerHands         CasinoPokerHand[]
+  casinoPokerActions       CasinoPokerAction[]
+  casinoPokerSeats         CasinoPokerSeat[]
+  casinoPokerTableActions  CasinoPokerTableAction[]
   /// 1.2.0-E. Rated play per casino city: theo, status and comps.
-  casinoRatings           CasinoRating[]
+  casinoRatings            CasinoRating[]
   /// 1.1.0-C. The crew's live rackets, racket key -> strength (0..1], rebuilt on every
   /// business settle so any system can read them off the player row.
-  racketEffects           Json                     @default("{}")
+  racketEffects            Json                     @default("{}")
   /// Heat washed by laundering rackets on `launderedDay` (UTC) and over the round, for the caps.
-  launderedDay            String?
-  launderedHeatToday      Int                      @default(0)
-  launderedHeatRound      Int                      @default(0)
+  launderedDay             String?
+  launderedHeatToday       Int                      @default(0)
+  launderedHeatRound       Int                      @default(0)
   /// 1.3.0-B. Case washed by laundering on `launderedCaseDay` (UTC), in hundredths, for the daily cap.
-  launderedCaseDay        String?
-  launderedCaseToday      Int                      @default(0)
+  launderedCaseDay         String?
+  launderedCaseToday       Int                      @default(0)
   /// 1.3.0-C. Police losses (busts, arrests, raids, fines) on `policeLossDay` (UTC), at net-worth
   /// value, for the daily cap. Busts and arrests count toward it but are never reduced by it.
-  policeLossDay           String?
-  policeLossCents         BigInt                   @default(0)
+  policeLossDay            String?
+  policeLossCents          BigInt                   @default(0)
   /// 1.3.0-C. A lawyer on retainer until then.
-  lawyerRetainedUntil     DateTime?
+  lawyerRetainedUntil      DateTime?
   /// Rocks sold to Pip this round, for his favour. Cumulative, never reset.
-  rocksSuppliedToPip      Int                      @default(0)
+  rocksSuppliedToPip       Int                      @default(0)
   /// Drive-bys carried out this round, landed or not, for Charlie's favour.
-  driveBysDone            Int                      @default(0)
+  driveBysDone             Int                      @default(0)
   /// 0.3.0-B favours. Store purchases this round, whichever shop sold them. Rows from
   /// rounds before these were added start at zero.
-  condomsBought           Int                      @default(0)
-  medicineBought          Int                      @default(0)
-  beerBought              Int                      @default(0)
-  pistolsBought           Int                      @default(0)
+  condomsBought            Int                      @default(0)
+  medicineBought           Int                      @default(0)
+  beerBought               Int                      @default(0)
+  pistolsBought            Int                      @default(0)
   /// Raids carried out this round in any form but the drive-by, landed or not.
-  raidsDone               Int                      @default(0)
+  raidsDone                Int                      @default(0)
 
   /// Derived from supplies, protection and fatigue. Stored so it can be read
   /// and ranked without recomputing, but never the source of truth.
@@ -1612,36 +2245,42 @@ model RoundPlayer {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  activity              PlayerActivity[]
-  inAppNotifications    InAppNotification[]
-  scheduledAlerts       ScheduledAlert[]
-  economyLedger         EconomyLedgerEntry[]
-  processedActions      ProcessedAction[]
-  reputation            PlayerReputation[]
-  playerQuests          PlayerQuest[]
-  permanentUnlocks      PlayerUnlock[]
-  favorInventory        PlayerFavor[]
-  activeFavors          PlayerActiveFavor[]
-  armedFavors           PlayerArmedFavor[]
-  streetPassProgress    StreetPassProgress?
-  streetPassClaims      StreetPassClaim[]
-  surveySubmissions     SurveySubmission[]
-  raidsSent             RaidBattle[]         @relation("RaidAttacker")
-  raidsReceived         RaidBattle[]         @relation("RaidDefender")
-  combatInjuries        CombatInjury[]
-  observedIntel         CombatIntel[]        @relation("IntelObserver")
-  targetedIntel         CombatIntel[]        @relation("IntelTarget")
-  heldRing              RingState[]          @relation("RingHolder")
-  raidProtectedUntil    DateTime?
-  raidCooldownUntil     DateTime?
-  lastRaidedAt          DateTime?
+  activity               PlayerActivity[]
+  careerStoryInstances   CareerStoryInstance[]
+  inAppNotifications     InAppNotification[]
+  scheduledAlerts        ScheduledAlert[]
+  economyLedger          EconomyLedgerEntry[]
+  processedActions       ProcessedAction[]
+  reputation             PlayerReputation[]
+  skills                 PlayerSkill[]
+  skillAwards            PlayerSkillAward[]
+  playerQuests           PlayerQuest[]
+  permanentUnlocks       PlayerUnlock[]
+  favorInventory         PlayerFavor[]
+  activeFavors           PlayerActiveFavor[]
+  armedFavors            PlayerArmedFavor[]
+  streetPassProgress     StreetPassProgress?
+  streetPassClaims       StreetPassClaim[]
+  roundLoginCheckIns     RoundLoginCheckIn[]
+  roundLoginRecoveries   RoundLoginRecovery[]
+  roundLoginRewardClaims RoundLoginRewardClaim[]
+  surveySubmissions      SurveySubmission[]
+  raidsSent              RaidBattle[]            @relation("RaidAttacker")
+  raidsReceived          RaidBattle[]            @relation("RaidDefender")
+  combatInjuries         CombatInjury[]
+  observedIntel          CombatIntel[]           @relation("IntelObserver")
+  targetedIntel          CombatIntel[]           @relation("IntelTarget")
+  heldRing               RingState[]             @relation("RingHolder")
+  raidProtectedUntil     DateTime?
+  raidCooldownUntil      DateTime?
+  lastRaidedAt           DateTime?
   /// Drive-bys run on their own clocks so one can set up a raid.
-  driveByCooldownUntil  DateTime?
-  driveByProtectedUntil DateTime?
-  lastDrivenByAt        DateTime?
+  driveByCooldownUntil   DateTime?
+  driveByProtectedUntil  DateTime?
+  lastDrivenByAt         DateTime?
   /// The Ring: while this is in the future the crew has vanished and cannot
   /// be raided, driven by, or specially raided. Attacking breaks the spell.
-  invisibleUntil        DateTime?
+  invisibleUntil         DateTime?
 
   /// Seasonal hideout rooms. These reset naturally because each round creates
   /// a fresh RoundPlayer row, while ended rows keep the final build archived.
@@ -1651,6 +2290,7 @@ model RoundPlayer {
   hideoutBackOfficeLevel          Int     @default(0)
   /// 0.6.0-D. One level opens a second concurrent travel run.
   hideoutGarageLevel              Int     @default(0)
+  hideoutStorageLevel             Int     @default(0)
   /// 0.7.0-F. Which guns home squads and run escorts consume first.
   hideoutWeaponPriority           String  @default("POWER")
   /// 0.7.0-G. Permanent for this RoundPlayer; the next season starts clean.
@@ -1662,13 +2302,16 @@ model RoundPlayer {
   /// 0.3.0-C. The alliance this player is in now, and since when. Shared revenge only
   /// counts hits on the alliance from after the member joined.
   allianceId            String?
-  alliance              Alliance?            @relation("AllianceMembers", fields: [allianceId], references: [id], onDelete: SetNull)
+  alliance              Alliance?              @relation("AllianceMembers", fields: [allianceId], references: [id], onDelete: SetNull)
   allianceJoinedAt      DateTime?
   /// The alliance this player last left or was kicked from. Until the cooldown passes
   /// they cannot join or found an alliance, and they and that alliance cannot hit each other.
   formerAllianceId      String?
   allianceCooldownUntil DateTime?
-  allianceInvites       AllianceInvite[]     @relation("AllianceInvitee")
+  allianceInvites       AllianceInvite[]       @relation("AllianceInvitee")
+  territoryTollPayments TerritoryTollPayment[]
+  territoryYieldDailyLedgers TerritoryYieldPlayerDailyLedger[]
+  territoryRoundAwards TerritoryRoundAward[]
   /// 0.4.0-A. Every product except crack, which stays on the `crack` column in every round.
   products              PlayerProduct[]
   productShelves        ProductShelf[]
@@ -1689,6 +2332,9 @@ model RoundPlayer {
   /// 1.7.0-A. The individual thugs and workers behind the counts above, and their migration.
   crewMembers           CrewMember[]
   crewMemberEvents      CrewMemberEvent[]
+  crewLoyaltyEntries    CrewLoyaltyEntry[]
+  crewMentorBonds       CrewMentorBond[]
+  crewBondMemories      CrewBondMemory[]
   crewRosterMigration   CrewRosterMigration?
   /// 1.8.6-A. Durable targets for person-first crew assignment jobs.
   crewJobPosts          CrewJobPost[]
@@ -1700,27 +2346,31 @@ model RoundPlayer {
   /// Trips A. The boss away from home and back.
   bossTrips             BossTrip[]
   /// Trips C. Hits on a visiting boss: started and taken.
-  bossHitsStarted       BossHit[]            @relation("BossHitAttacker")
-  bossHitsTaken         BossHit[]            @relation("BossHitOwner")
+  bossHitsStarted       BossHit[]              @relation("BossHitAttacker")
+  bossHitsTaken         BossHit[]              @relation("BossHitOwner")
   /// Trips D2. Backup sent to allies' bosses, and sit-downs proposed and received.
   bossHitBackups        BossHitBackup[]
-  sitDownsProposed      SitDown[]            @relation("SitDownProposer")
-  sitDownsInvited       SitDown[]            @relation("SitDownInvitee")
-  convoyTailsOwned      ConvoyTail[]         @relation("ConvoyTailOwner")
-  convoyTailsStarted    ConvoyTail[]         @relation("ConvoyTailAttacker")
+  sitDownsProposed      SitDown[]              @relation("SitDownProposer")
+  sitDownsInvited       SitDown[]              @relation("SitDownInvitee")
+  convoyTailsOwned      ConvoyTail[]           @relation("ConvoyTailOwner")
+  convoyTailsStarted    ConvoyTail[]           @relation("ConvoyTailAttacker")
   convoyBackups         ConvoyBackup[]
   convoyRecon           ConvoyRecon?
   /// 0.6.0-A. Blocks this crew holds, and the blocks it has worked lately.
-  turfHeld              Turf[]               @relation("TurfHolder")
-  businessesStaffed     Business[]           @relation("BusinessStaffOwner")
+  turfHeld              Turf[]                 @relation("TurfHolder")
+  businessesStaffed     Business[]             @relation("BusinessStaffOwner")
   turfPresence          TurfPresence[]
-  turfTaxPaid           TurfTaxLedger[]      @relation("TurfTaxPayer")
-  turfTaxEarned         TurfTaxLedger[]      @relation("TurfTaxHolder")
+  turfTaxPaid           TurfTaxLedger[]        @relation("TurfTaxPayer")
+  turfTaxEarned         TurfTaxLedger[]        @relation("TurfTaxHolder")
   /// 0.6.0-C. Turf wars started against or defended by this crew.
-  turfPushesStarted     TurfPush[]           @relation("TurfPushAttacker")
-  turfPushesDefended    TurfPush[]           @relation("TurfPushDefender")
-  blockWarsDeclared     BlockWar[]           @relation("BlockWarAttacker")
-  blockWarsDefended     BlockWar[]           @relation("BlockWarDefender")
+  turfPushesStarted     TurfPush[]             @relation("TurfPushAttacker")
+  turfPushesDefended    TurfPush[]             @relation("TurfPushDefender")
+  blockWarsDeclared     BlockWar[]             @relation("BlockWarAttacker")
+  blockWarsDefended     BlockWar[]             @relation("BlockWarDefender")
+  operationsLed         Operation[]            @relation("OperationLeader")
+  operationSeats        OperationParticipant[]
+  blackBookIntel        IntelRumor[]           @relation("IntelRumorOwner")
+  blackBookMentions     IntelRumor[]           @relation("IntelRumorTarget")
   blockWarSquads        BlockWarSquad[]
   turfPushBackups       TurfPushBackup[]
   /// 0.6.0-D. Supply/tax boxes for away turf.
@@ -1729,17 +2379,139 @@ model RoundPlayer {
   /// 0.4.0-B. Which products each job burns, in order.
   supplyPolicies        WorkSupplyPolicy[]
   /// 0.3.0-D. Wire posts written, and the private rolodex in both directions.
-  wirePosts             AllianceWirePost[]   @relation("WireAuthor")
-  contacts              PlayerContact[]      @relation("ContactOwner")
-  contactOf             PlayerContact[]      @relation("ContactTarget")
-  messagesSent          DirectMessage[]      @relation("DirectMessageSender")
-  messagesReceived      DirectMessage[]      @relation("DirectMessageRecipient")
+  wirePosts             AllianceWirePost[]     @relation("WireAuthor")
+  contacts              PlayerContact[]        @relation("ContactOwner")
+  contactOf             PlayerContact[]        @relation("ContactTarget")
+  messagesSent          DirectMessage[]        @relation("DirectMessageSender")
+  messagesReceived      DirectMessage[]        @relation("DirectMessageRecipient")
 
   @@unique([roundId, accountId])
   @@unique([roundId, publicPimpId])
   @@index([roundId, netWorthCents(sort: Desc)])
   @@index([roundId, cityId, netWorthCents(sort: Desc)])
   @@index([allianceId])
+}
+
+/// 2.5.0-A/F. One row represents one customized gun or a stack of identical stock guns, with item-specific history.
+model PlayerGun {
+  id            String      @id @default(cuid())
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  model         String
+  name          String?
+  condition     Int         @default(100)
+  mods          Json        @default("[]")
+  lookKey       String?
+  origin        Json        @default("{}")
+  stats         Json        @default("{}")
+  history       Json        @default("[]")
+  status        String      @default("READY")
+  quantity      Int         @default(1)
+  favorite      Boolean     @default(false)
+  reserve       Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([roundPlayerId, model, status])
+  @@index([roundPlayerId, condition])
+}
+
+/// 2.5.0-A/F. Vehicle rows are stackable until customized or damaged; plates and history stay attached to the item.
+model PlayerVehicle {
+  id            String      @id @default(cuid())
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  model         String
+  name          String?
+  plate         String?
+  condition     Int         @default(100)
+  mods          Json        @default("[]")
+  lookKey       String?
+  origin        Json        @default("{}")
+  stats         Json        @default("{}")
+  history       Json        @default("[]")
+  status        String      @default("READY")
+  quantity      Int         @default(1)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([roundPlayerId, model, status])
+  @@index([roundPlayerId, condition])
+}
+
+/// Transactional inventory totals for fast player headers and future rankings.
+model PlayerArmorySummary {
+  roundPlayerId String      @id
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  pistolCount   Int         @default(0)
+  shotgunCount  Int         @default(0)
+  tek9Count     Int         @default(0)
+  ak47Count     Int         @default(0)
+  sedanCount    Int         @default(0)
+  lowRiderCount Int         @default(0)
+  vanCount      Int         @default(0)
+  gunCount      Int         @default(0)
+  vehicleCount  Int         @default(0)
+  gunsCondition0To19    Int @default(0)
+  gunsCondition20To39   Int @default(0)
+  gunsCondition40To59   Int @default(0)
+  gunsCondition60To79   Int @default(0)
+  gunsCondition80To100  Int @default(0)
+  vehiclesCondition0To19   Int @default(0)
+  vehiclesCondition20To39  Int @default(0)
+  vehiclesCondition40To59  Int @default(0)
+  vehiclesCondition60To79  Int @default(0)
+  vehiclesCondition80To100 Int @default(0)
+  updatedAt     DateTime    @updatedAt
+}
+
+/// 2.5.0-C. Player-saved mod layouts, scoped to one round and one item model.
+model PlayerArmoryBuild {
+  id            String      @id @default(cuid())
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  name          String
+  nameNormalized String
+  kind          String
+  model         String
+  mods          Json        @default("[]")
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([roundPlayerId, kind, model, nameNormalized])
+  @@index([roundPlayerId, kind, model])
+}
+
+/// 2.3.0-A. Seasonal boss skill progress. Absent rows mean zero progress.
+model PlayerSkill {
+  id                String   @id @default(cuid())
+  roundPlayerId     String
+  skill             String
+  xp                Int      @default(0)
+  points            Int      @default(0)
+  choices           Json     @default("{}")
+  xpWindowStartsAt  DateTime?
+  xpInWindow        Int      @default(0)
+  respecs           Int      @default(0)
+  respecReadyAt     DateTime?
+  roundPlayer       RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  awards            PlayerSkillAward[]
+  @@unique([roundPlayerId, skill])
+  @@index([roundPlayerId])
+}
+
+/// Durable action receipt; prevents a retried settlement from awarding twice.
+model PlayerSkillAward {
+  id            String      @id @default(cuid())
+  playerSkillId String
+  roundPlayerId String
+  sourceKey     String
+  amount        Int
+  awardedAt     DateTime    @default(now())
+  playerSkill   PlayerSkill @relation(fields: [playerSkillId], references: [id], onDelete: Cascade)
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  @@unique([roundPlayerId, sourceKey])
+  @@index([playerSkillId, awardedAt])
 }
 
 // ---------------------------------------------------------------------------
@@ -1782,10 +2554,135 @@ model Alliance {
   invites AllianceInvite[]
   events  AllianceEvent[]
   wire    AllianceWirePost[]
+  territoryPowerSelection TerritoryPowerSelection?
+  territoryRoundAwards TerritoryRoundAward[]
 
   @@unique([roundId, nameNormalized])
   @@unique([roundId, tagNormalized])
   @@index([roundId, disbandedAt])
+}
+
+/// 2.4.0-A. One explicitly selected region power per alliance and round.
+model TerritoryPowerSelection {
+  id          String   @id @default(cuid())
+  roundId     String
+  round       Round    @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  allianceId  String   @unique
+  alliance    Alliance @relation(fields: [allianceId], references: [id], onDelete: Cascade)
+  regionKey   String
+  perkKey     String
+  selectedAt  DateTime @default(now())
+  changedAt   DateTime @updatedAt
+
+  @@index([roundId, regionKey])
+}
+
+/// 2.4.0-A. Durable record of territory eligibility and activation decisions.
+/// JSON snapshots keep this history readable after catalog or alliance changes.
+model TerritoryAuditEvent {
+  id          String   @id @default(cuid())
+  roundId     String
+  round       Round    @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  allianceId  String?
+  actorId     String?
+  eventType   String
+  sourceKey   String?
+  details     Json
+  catalogVersion String
+  idempotencyKey String? @unique
+  happenedAt  DateTime @default(now())
+
+  @@index([roundId, happenedAt(sort: Desc)])
+  @@index([roundId, allianceId, eventType])
+}
+
+/// 2.4.0-B2. Lazy-settled local goods cache; control intervals remain the ownership source.
+model TerritoryYieldCache {
+  id              String   @id @default(cuid())
+  roundId         String
+  round           Round    @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  scope           String
+  locationKey     String
+  ownerAllianceId String?
+  contents        Json     @default("{}")
+  fractionalRemainders Json @default("{}")
+  lastSettledAt   DateTime
+  carryMillis     Int      @default(0)
+  updatedAt       DateTime @updatedAt
+
+  @@unique([roundId, scope, locationKey])
+  @@index([roundId, ownerAllianceId, scope])
+}
+
+/// 2.4.0-B. Paid access receipts are durable for daily caps, audit and cache credit.
+model TerritoryTollPayment {
+  id                String      @id @default(cuid())
+  roundId           String
+  round             Round       @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  roundPlayerId     String
+  roundPlayer       RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  holderAllianceId  String
+  accessKey         String
+  locationKey       String
+  chargedCents      BigInt
+  /// 2.4.0-F. In-kind access toll deposits.
+  chargedAmmo       Int         @default(0)
+  chargedVehicleParts Int        @default(0)
+  actionId          String
+  usedAt            DateTime    @default(now())
+  consumedAt        DateTime?
+  consumedByActionId String?
+
+  @@unique([roundPlayerId, actionId])
+  @@index([roundPlayerId, accessKey, usedAt])
+  @@index([holderAllianceId, usedAt])
+}
+
+/// 2.4.0-B2. Serialized alliance-wide daily value ceiling for territory yields.
+model TerritoryYieldDailyLedger {
+  id         String   @id @default(cuid())
+  roundId    String
+  round      Round    @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  allianceId String
+  dayStart   DateTime
+  valueCents BigInt   @default(0)
+  updatedAt  DateTime @updatedAt
+
+  @@unique([roundId, allianceId, dayStart])
+  @@index([roundId, allianceId, dayStart])
+}
+
+/// 2.4.0-B2. Per-player guard prevents alliance hopping from resetting a member's daily allowance.
+model TerritoryYieldPlayerDailyLedger {
+  id            String      @id @default(cuid())
+  roundId       String
+  round         Round       @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  dayStart      DateTime
+  valueCents    BigInt      @default(0)
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([roundPlayerId, dayStart])
+  @@index([roundId, dayStart])
+}
+
+/// 2.4.0-F. Frozen territory-hold milestone and National Kingpin awards for the Hall of Fame.
+model TerritoryRoundAward {
+  id            String      @id @default(cuid())
+  roundId       String
+  round         Round       @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  allianceId    String
+  alliance      Alliance    @relation(fields: [allianceId], references: [id], onDelete: Cascade)
+  awardKey      String
+  scopeKey      String
+  awardedAt     DateTime    @default(now())
+
+  @@unique([roundPlayerId, awardKey, scopeKey])
+  @@index([roundId, awardKey, scopeKey])
+  @@index([allianceId, awardedAt])
 }
 
 /// A standing offer to one player. Accepting re-checks the cap under the alliance lock.
@@ -1892,6 +2789,8 @@ enum SupplyMovementKind {
   RETURNED
   /// 1.6.0-I. An audited staff correction: quantityDelta is signed.
   CORRECTED
+  /// 2.2.0. Units moved by a stash-recovery operation. Not a second inventory.
+  OPERATION_RECOVERY
 }
 
 /// 1.6.0-A. Prepaid bulk stock reserved from a ruleset-defined supplier.
@@ -2266,6 +3165,13 @@ model CrewMember {
   statusSince               DateTime
   releasedAt                DateTime?
   events                    CrewMemberEvent[]
+  /// 2.1.0-B. Cosmetic-only round progression; never part of combat or economy.
+  loyaltyPoints             Int                 @default(0)
+  loyaltyEntries            CrewLoyaltyEntry[]
+  nicknameKey               String?
+  nicknameSuppressed        Boolean             @default(false)
+  mentoringBonds            CrewMentorBond[]    @relation("Mentor")
+  apprenticeship            CrewMentorBond?     @relation("Apprentice")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2290,6 +3196,87 @@ model CrewMemberEvent {
 
   @@index([memberId, at])
   @@index([roundPlayerId, at(sort: Desc)])
+}
+
+/// 2.1.0-B. Immutable loyalty receipts from settled gameplay events.
+model CrewLoyaltyEntry {
+  id            String      @id @default(cuid())
+  memberId      String
+  member        CrewMember  @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  source        String
+  sourceKey     String
+  points        Int
+  summary       String
+  at            DateTime
+
+  @@unique([memberId, sourceKey])
+  @@index([memberId, at(sort: Desc)])
+  @@index([roundPlayerId, at(sort: Desc)])
+}
+
+/// 2.1.0-E. Detached account biography: no FK to the live round/player/member.
+model CrewLegendArchive {
+  id               String           @id @default(cuid())
+  accountId        String
+  account          Account          @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  sourceRoundId    String
+  roundName        String
+  sourceMemberId   String
+  role             CrewMemberRole
+  serial           Int
+  memberName       String
+  nicknameKey      String
+  nicknameLabel    String
+  proof            String
+  trait            String
+  loyaltyPoints    Int
+  experiencePoints Int
+  finalStatus      CrewMemberStatus
+  joinedAt         DateTime
+  archivedAt       DateTime
+  artworkKey       String
+  suppressedAt     DateTime?
+  suppressReason   String?
+
+  @@unique([accountId, sourceRoundId, sourceMemberId])
+  @@index([accountId, archivedAt(sort: Desc)])
+}
+
+/// 2.1.0-D. An optional round-only mentoring connection. Each apprentice
+/// can link only once per round, preventing reassignment/relink farming.
+model CrewMentorBond {
+  id            String           @id @default(cuid())
+  roundPlayerId String
+  roundPlayer   RoundPlayer      @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  mentorId      String
+  mentor        CrewMember       @relation("Mentor", fields: [mentorId], references: [id], onDelete: Cascade)
+  apprenticeId  String           @unique
+  apprentice    CrewMember       @relation("Apprentice", fields: [apprenticeId], references: [id], onDelete: Cascade)
+  lessons       Int              @default(0)
+  startedAt     DateTime
+  endedAt       DateTime?
+  memories      CrewBondMemory[]
+
+  @@index([roundPlayerId, endedAt])
+  @@index([roundPlayerId, mentorId, endedAt])
+}
+
+/// One memory per successful joint operation, no combat or economic modifiers.
+model CrewBondMemory {
+  id            String         @id @default(cuid())
+  roundPlayerId String
+  roundPlayer   RoundPlayer    @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  bondId        String
+  bond          CrewMentorBond @relation(fields: [bondId], references: [id], onDelete: Cascade)
+  sourceKey     String
+  source        String
+  summary       String
+  at            DateTime
+
+  @@unique([bondId, sourceKey])
+  @@index([bondId, at(sort: Desc)])
 }
 
 /// 1.8.6-A. A durable assignment target for crew jobs. Later slices attach selected
@@ -2557,6 +3544,8 @@ model Run {
   /// 1.5.0-C. The part of the loadout that comes home Damaged or Disabled:
   /// { damaged: {LOW_RIDER, SEDAN, VAN}, disabled: {...} }. Empty is a clean run.
   vehicleDamage        Json           @default("{}")
+  /// 2.5.0-E. Individual garage vehicle ids reserved by this run, with their launch specs.
+  individualVehicles   Json           @default("[]")
   escortThugs          Int
   /// The run's wallet, integer cents. Never below zero.
   cashCents            BigInt
@@ -3132,10 +4121,18 @@ model GameNews {
 
   /// When the Discord bot claimed it for the news channel. Posts from before
   /// auto-posting were backfilled so the first run doesn't flood the channel.
-  discordPostedAt DateTime?
+  discordPostedAt      DateTime?
   /// Why Discord refused the post, as the bot reported it. Set together with
   /// discordPostedAt = null; the bot skips it until an admin resends it.
-  discordError    String?
+  discordError         String?
+  /// Discord's original news-channel message. Null for legacy posts and failed sends.
+  discordMessageId     String?
+  /// A text/title edit waits here until the bot updates that original message.
+  discordEditQueuedAt  DateTime?
+  /// Claim lease for in-flight edits; a dropped bot run can retry after timeout.
+  discordEditClaimedAt DateTime?
+  /// An edit failure blocks retries until staff use Resend, without creating another post.
+  discordEditError     String?
 
   /// 1.0.0-E. A broadcast reaches every player of the season: the bell and their alert channels.
   broadcast   Boolean   @default(false)
@@ -3143,6 +4140,9 @@ model GameNews {
 
   createdByAccountId String?
   createdBy          Account? @relation("GameNewsAuthor", fields: [createdByAccountId], references: [id], onDelete: SetNull)
+
+  autoGenerated     Boolean @default(false)
+  cityMemoryEventId String? @unique
 
   /// 0.3.0-B forum announcements mirror. The discussion id is set once the forum
   /// accepted the post; forumError keeps the last failure for a retry.
@@ -3153,13 +4153,16 @@ model GameNews {
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
+  doubleXpWeekend DoubleXpWeekend?
+
   @@index([roundId, isPinned, publishedAt(sort: Desc)])
+  @@index([discordEditQueuedAt])
 }
 
 /// The Ring: at most one row per round. The holder is hidden while invisible
 /// and named once revealed; a destroyed Ring stays as a record.
 model RingState {
-  id     String @id @default(cuid())
+  id      String @id @default(cuid())
   roundId String @unique
   round   Round  @relation(fields: [roundId], references: [id], onDelete: Cascade)
 
@@ -3168,7 +4171,7 @@ model RingState {
   holderRoundPlayerId String?
   holder              RoundPlayer? @relation("RingHolder", fields: [holderRoundPlayerId], references: [id], onDelete: SetNull)
 
-  surfacedAt  DateTime @default(now())
+  surfacedAt  DateTime  @default(now())
   destroyedAt DateTime?
 
   createdAt DateTime @default(now())
@@ -3303,6 +4306,8 @@ enum ActivityType {
   BUSINESS_COLLECT
   BUSINESS_RACKET
   BUSINESS_TORCH
+  RANDOM_ENCOUNTER_CHOICE
+  CAREER_CHOSEN
   BLOCK_WAR_DECLARED
   BLOCK_WAR_FIGHT
   BLOCK_WAR_ENDED
@@ -3330,6 +4335,8 @@ enum ActivityType {
   FACTION_WARNING
   /// 1.6.0-H. A lane shipment landed: clean, partly searched, or seized.
   SUPPLY_LANE_ARRIVED
+  /// 2.4.0-F. The player's ammo crossed below one armed squad's reserve.
+  AMMO_LOW
   /// 1.6.5-D. Loan shark: a loan taken, a payment (scheduled or manual), a missed installment.
   LOAN_TAKEN
   LOAN_PAYMENT
@@ -3526,16 +4533,16 @@ model EncounterGang {
 model EncounterGangTurf {
   id String @id @default(cuid())
 
-  gangId String
-  gang   EncounterGang @relation(fields: [gangId], references: [id], onDelete: Cascade)
-  roundId String
-  round   Round         @relation(fields: [roundId], references: [id], onDelete: Cascade)
-  cityId  String
-  city    City          @relation(fields: [cityId], references: [id])
-  district String
-  strength Int          @default(1)
-  status   String       @default("HELD")
-  claimedAt DateTime    @default(now())
+  gangId      String
+  gang        EncounterGang @relation(fields: [gangId], references: [id], onDelete: Cascade)
+  roundId     String
+  round       Round         @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  cityId      String
+  city        City          @relation(fields: [cityId], references: [id])
+  district    String
+  strength    Int           @default(1)
+  status      String        @default("HELD")
+  claimedAt   DateTime      @default(now())
   abandonedAt DateTime?
 
   @@unique([roundId, cityId, district])
@@ -3546,10 +4553,10 @@ model EncounterGangTurf {
 model EncounterGangGrudge {
   id String @id @default(cuid())
 
-  gangId String
-  gang   EncounterGang @relation(fields: [gangId], references: [id], onDelete: Cascade)
+  gangId        String
+  gang          EncounterGang @relation(fields: [gangId], references: [id], onDelete: Cascade)
   roundPlayerId String
-  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  roundPlayer   RoundPlayer   @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
 
   hits            Int       @default(1)
   expiresAt       DateTime
@@ -4038,33 +5045,29 @@ model CasinoBlackjackAction {
   @@index([handId, createdAt])
 }
 
-/// 1.2.0-D. One reconnect-safe Street Dice pass-line cycle.
-/// The line and odds wagers stay committed until the point resolves.
-model CasinoStreetDiceRound {
+/// Reconnect-safe eight-ball rack against a house hustler. The rack JSON holds both
+/// groups, ball in hand and the shot log; settled rows double as game history.
+model CasinoPoolGame {
   id String @id @default(cuid())
 
   roundPlayerId String
   roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
 
-  sessionId String
-  cityId    String
-  tableKey  String
-  status    String @default("ACTIVE")
-
-  lineWagerCents BigInt
-  oddsWagerCents BigInt  @default(0)
-  point          Int?
-  lastDice       Json    @default("[]")
-  lastOutcome    String?
-  rollCount      Int     @default(0)
-
-  totalReturnCents   BigInt @default(0)
-  bankrollAfterCents BigInt @default(0)
-
-  initialActionId String
-  settledAt       DateTime?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  sessionId           String
+  cityId              String
+  tableKey            String
+  status              String    @default("ACTIVE")
+  wagerCents          BigInt
+  /// The opening wager plus any press.
+  committedWagerCents BigInt
+  pressed             Boolean   @default(false)
+  rack                Json
+  totalReturnCents    BigInt    @default(0)
+  bankrollAfterCents  BigInt    @default(0)
+  initialActionId     String
+  settledAt           DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   @@unique([roundPlayerId, initialActionId])
   @@index([roundPlayerId, status, createdAt(sort: Desc)])
@@ -4072,21 +5075,21 @@ model CasinoStreetDiceRound {
   @@index([cityId, createdAt(sort: Desc)])
 }
 
-/// Idempotency receipt for Street Dice start / roll / odds actions.
-model CasinoStreetDiceAction {
+/// Idempotency receipt for Pool Rack / Shot / Press, holding the exact response.
+model CasinoPoolAction {
   id String @id @default(cuid())
 
   roundPlayerId String
   roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
 
-  diceRoundId String
-  actionId    String
-  kind        String
-  response    Json
-  createdAt   DateTime @default(now())
+  gameId    String
+  actionId  String
+  kind      String
+  response  Json
+  createdAt DateTime @default(now())
 
   @@unique([roundPlayerId, actionId])
-  @@index([diceRoundId, createdAt])
+  @@index([gameId, createdAt])
 }
 
 /// 1.2.0-E. Server-owned solo Hold’em hand. The JSON game state includes bot cards
@@ -4443,19 +5446,19 @@ model SportsbookBet {
   casinoCityId    String?
   casinoCity      City?          @relation("SportsbookBetCasinoCity", fields: [casinoCityId], references: [id], onDelete: SetNull)
 
-  actionId     String
+  actionId             String
   /// Provider whose displayed price was pinned when the ticket was accepted.
-  oddsProvider String    @default("therundown")
-  selection    String
-  oddsAmerican Int
-  stakeCents   BigInt
-  payoutCents  BigInt
-  status       String    @default("OPEN")
-  settledAt    DateTime?
+  oddsProvider         String    @default("therundown")
+  selection            String
+  oddsAmerican         Int
+  stakeCents           BigInt
+  payoutCents          BigInt
+  status               String    @default("OPEN")
+  settledAt            DateTime?
   startedNotifiedAt    DateTime?
   settlementNotifiedAt DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
   @@unique([roundPlayerId, actionId])
   @@index([roundPlayerId, createdAt(sort: Desc)])
@@ -5182,4 +6185,421 @@ model PlayerFactionWarning {
 
   @@unique([roundPlayerId, warningKey])
   @@index([alertsCollectedAt, createdAt])
+}
+
+model CityMemoryEvent {
+  id                String             @id @default(cuid())
+  criminalCaseFiles CriminalCaseFile[]
+  roundId           String
+  round             Round              @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  cityId            String
+  city              City               @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  kind              String
+  visibility        String             @default("public")
+  actors            Json               @default("[]")
+  summary           Json               @default("{}")
+  idempotencyKey    String             @unique
+  happenedAtActive  DateTime?
+  happenedAt        DateTime           @default(now())
+  createdAt         DateTime           @default(now())
+
+  @@index([roundId, cityId, happenedAt(sort: Desc)])
+  @@index([roundId, kind, happenedAt(sort: Desc)])
+}
+
+model Operation {
+  id                 String                 @id @default(cuid())
+  roundId            String
+  round              Round                  @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  cityId             String
+  city               City                   @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  template           String                 @default("CORNER_TAKEOVER")
+  status             String                 @default("INTEL")
+  leaderId           String
+  leader             RoundPlayer            @relation("OperationLeader", fields: [leaderId], references: [id], onDelete: Cascade)
+  target             Json                   @default("{}")
+  roles              Json                   @default("{}")
+  report             Json?
+  /// 2.2.0. Null keeps the Corner Takeover prototype interpreter.
+  catalogKey         String?
+  catalogVersion     String?
+  rulesSnapshot      Json?
+  windows            Json                   @default("[]")
+  committedCostCents Int                    @default(0)
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+  participants       OperationParticipant[]
+  transitions        OperationTransition[]
+  sourceClaims       OperationSourceClaim[]
+  grants             OperationGrant[]
+
+  @@index([roundId, status, createdAt(sort: Desc)])
+  @@index([leaderId, createdAt(sort: Desc)])
+}
+
+model OperationParticipant {
+  id            String      @id @default(cuid())
+  operationId   String
+  operation     Operation   @relation(fields: [operationId], references: [id], onDelete: Cascade)
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  role          String
+  status        String      @default("LOCKED")
+  invitedById   String?
+  expiresAt     DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([operationId, role])
+  @@index([roundPlayerId, status])
+}
+
+/// 2.2.0. Append-only status history for criminal operations. Business-operations admin does not read these rows.
+model OperationTransition {
+  id          String    @id @default(cuid())
+  operationId String
+  operation   Operation @relation(fields: [operationId], references: [id], onDelete: Cascade)
+  actorId     String?
+  fromStatus  String
+  toStatus    String
+  reason      String
+  createdAt   DateTime  @default(now())
+
+  @@index([operationId, createdAt])
+}
+
+/// 2.2.0. One limited source (stash, shipment, or threat) can be claimed by one operation in a round.
+model OperationSourceClaim {
+  id          String    @id @default(cuid())
+  roundId     String
+  sourceKind  String
+  sourceId    String
+  operationId String
+  operation   Operation @relation(fields: [operationId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+
+  @@unique([roundId, sourceKind, sourceId])
+  @@index([operationId])
+}
+
+/// 2.2.0. Backstop so a retry cannot pay the same participant twice. The ledger itself does not dedupe.
+model OperationGrant {
+  id            String    @id @default(cuid())
+  operationId   String
+  operation     Operation @relation(fields: [operationId], references: [id], onDelete: Cascade)
+  roundPlayerId String
+  kind          String
+  createdAt     DateTime  @default(now())
+
+  @@unique([operationId, roundPlayerId, kind])
+}
+
+model IntelRumor {
+  id         String       @id @default(cuid())
+  roundId    String
+  round      Round        @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  ownerId    String
+  owner      RoundPlayer  @relation("IntelRumorOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  targetId   String?
+  target     RoundPlayer? @relation("IntelRumorTarget", fields: [targetId], references: [id], onDelete: Cascade)
+  cityId     String
+  city       City         @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  district   String?
+  topic      String
+  confidence String       @default("rumor")
+  sources    Json         @default("[]")
+  detail     Json         @default("{}")
+  expiresAt  DateTime
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  @@unique([ownerId, topic])
+  @@index([ownerId, expiresAt])
+  @@index([roundId, cityId, confidence])
+  @@index([targetId])
+}
+
+model LegacyEntry {
+  id             String   @id @default(cuid())
+  accountId      String
+  account        Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  sourceRoundId  String
+  sourceRound    Round    @relation(fields: [sourceRoundId], references: [id], onDelete: Restrict)
+  kind           String
+  title          String
+  summary        Json     @default("{}")
+  coverNewsId    String?
+  idempotencyKey String   @unique
+  awardedAt      DateTime @default(now())
+
+  @@index([accountId, awardedAt(sort: Desc)])
+  @@index([sourceRoundId, kind])
+}
+
+// Living Streets 2.0.0-B. Case files are player-owned evidence narratives,
+// separate from federal PlayerCase, quests, and GameEventParticipation.
+enum CriminalCaseStatus {
+  LOCKED
+  AVAILABLE
+  ACTIVE
+  SOLVED
+  CLOSED
+  EXPIRED
+}
+
+model RivalryRelationship {
+  id                String                       @id @default(cuid())
+  roundId           String
+  round             Round                        @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  participantAId    String
+  participantA      RoundPlayer                  @relation("RivalryParticipantA", fields: [participantAId], references: [id], onDelete: Cascade)
+  participantBId    String
+  participantB      RoundPlayer                  @relation("RivalryParticipantB", fields: [participantBId], references: [id], onDelete: Cascade)
+  rulesetId         String
+  rulesetVersion    String
+  status            RivalryStatus                @default(ACTIVE)
+  mutuality         RivalryMutuality             @default(UNKNOWN)
+  scoreA            Int                          @default(0)
+  scoreB            Int                          @default(0)
+  lastSettledAt     DateTime?
+  archivedAt        DateTime?
+  suppressedAt      DateTime?
+  suppressionReason String?
+  sources           RivalrySourceReceipt[]
+  transitions       RivalryStateTransition[]
+  contracts         RivalryFeudContract[]
+  settlements       RivalrySettlement[]
+  stories           RivalryPublicStoryDecision[]
+  reports           RivalrySuppressionReport[]
+  awards            RivalryAwardClaim[]
+  createdAt         DateTime                     @default(now())
+  updatedAt         DateTime                     @updatedAt
+
+  @@unique([roundId, participantAId, participantBId])
+  @@index([roundId, status, updatedAt])
+  @@index([participantAId, roundId, updatedAt])
+  @@index([participantBId, roundId, updatedAt])
+}
+
+model RivalrySourceReceipt {
+  id             String              @id @default(cuid())
+  relationshipId String
+  relationship   RivalryRelationship @relation(fields: [relationshipId], references: [id], onDelete: Cascade)
+  sourceKind     String
+  sourceId       String
+  participantId  String
+  participant    RoundPlayer         @relation("RivalrySourceParticipant", fields: [participantId], references: [id], onDelete: Cascade)
+  outcome        String
+  scoreDelta     Int                 @default(0)
+  settledAt      DateTime
+  visibility     RivalryVisibility   @default(INVOLVED_ONLY)
+  decisionReason String?
+  metadata       Json                @default("{}")
+  createdAt      DateTime            @default(now())
+
+  @@unique([relationshipId, sourceKind, sourceId])
+  @@index([relationshipId, settledAt])
+  @@index([sourceKind, sourceId])
+}
+
+model RivalryStateTransition {
+  id             String              @id @default(cuid())
+  relationshipId String
+  relationship   RivalryRelationship @relation(fields: [relationshipId], references: [id], onDelete: Cascade)
+  fromStatus     RivalryStatus?
+  toStatus       RivalryStatus
+  reason         String
+  createdAt      DateTime            @default(now())
+
+  @@index([relationshipId, createdAt])
+}
+
+model RivalryFeudContract {
+  id             String              @id @default(cuid())
+  relationshipId String
+  relationship   RivalryRelationship @relation(fields: [relationshipId], references: [id], onDelete: Cascade)
+  proposerId     String
+  proposer       RoundPlayer         @relation("RivalryContractProposer", fields: [proposerId], references: [id], onDelete: Cascade)
+  targetId       String
+  target         RoundPlayer         @relation("RivalryContractTarget", fields: [targetId], references: [id], onDelete: Cascade)
+  status         String              @default("PROPOSED")
+  objective      Json
+  terms          Json
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  settledAt      DateTime?
+  idempotencyKey String              @unique
+  createdAt      DateTime            @default(now())
+
+  @@index([relationshipId, status, expiresAt])
+  @@index([targetId, createdAt])
+}
+
+model RivalrySettlement {
+  id             String              @id @default(cuid())
+  relationshipId String
+  relationship   RivalryRelationship @relation(fields: [relationshipId], references: [id], onDelete: Cascade)
+  contractId     String?
+  status         String
+  reason         String
+  receipt        Json                @default("{}")
+  settledAt      DateTime            @default(now())
+
+  @@unique([relationshipId, contractId, status])
+  @@index([relationshipId, settledAt])
+}
+
+model RivalryPublicStoryDecision {
+  id             String              @id @default(cuid())
+  relationshipId String
+  relationship   RivalryRelationship @relation(fields: [relationshipId], references: [id], onDelete: Cascade)
+  sourceId       String?
+  published      Boolean             @default(false)
+  suppressed     Boolean             @default(false)
+  headline       String?
+  reason         String?
+  decidedBy      String?
+  decidedAt      DateTime            @default(now())
+
+  @@index([relationshipId, published, decidedAt])
+}
+
+model RivalrySuppressionReport {
+  id             String              @id @default(cuid())
+  relationshipId String
+  relationship   RivalryRelationship @relation(fields: [relationshipId], references: [id], onDelete: Cascade)
+  reporterId     String?
+  reason         String
+  status         String              @default("OPEN")
+  operatorId     String?
+  resolvedAt     DateTime?
+  createdAt      DateTime            @default(now())
+
+  @@index([relationshipId, status, createdAt])
+}
+
+model RivalryAwardClaim {
+  id              String              @id @default(cuid())
+  relationshipId  String
+  relationship    RivalryRelationship @relation(fields: [relationshipId], references: [id], onDelete: Cascade)
+  roundPlayerId   String
+  roundPlayer     RoundPlayer         @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  awardKey        String
+  sourceMilestone String
+  claimedAt       DateTime            @default(now())
+
+  @@unique([relationshipId, roundPlayerId, awardKey])
+  @@index([roundPlayerId, claimedAt])
+}
+
+enum RivalryStatus {
+  ACTIVE
+  MUTUAL
+  ONE_SIDED
+  SUPPRESSED
+  CEASEFIRE
+  TIMEOUT
+  DEFEATED
+  CLOSED
+}
+
+enum RivalryMutuality {
+  UNKNOWN
+  MUTUAL
+  ONE_SIDED
+  SUPPRESSED
+}
+
+enum RivalryVisibility {
+  PARTICIPANT
+  INVOLVED_ONLY
+  PUBLIC
+  SUPPRESSED
+}
+
+model CriminalCaseFile {
+  id              String                 @id @default(cuid())
+  roundId         String
+  round           Round                  @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  ownerId         String
+  owner           RoundPlayer            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  cityId          String
+  city            City                   @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  storyKey        String
+  caseKey         String
+  rulesetId       String
+  rulesetVersion  String
+  sourceMemoryId  String?
+  sourceMemory    CityMemoryEvent?       @relation(fields: [sourceMemoryId], references: [id], onDelete: SetNull)
+  offerDedupeKey  String                 @unique
+  offeredAtActive DateTime?
+  cluePlan        Json                   @default("[]")
+  branchKeys      Json                   @default("[]")
+  status          CriminalCaseStatus     @default(AVAILABLE)
+  expiresAtActive DateTime
+  acceptedAt      DateTime?
+  solvedAt        DateTime?
+  chosenBranch    String?
+  outcomeTitle    String?
+  outcomeSummary  String?
+  outcomeCategory String?
+  rewardCents     Int                    @default(0)
+  rewardClaimedAt DateTime?
+  chosenAt        DateTime?
+  closedAt        DateTime?
+  expiredAt       DateTime?
+  evidence        CriminalCaseEvidence[]
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  @@index([ownerId, roundId, status, createdAt(sort: Desc)])
+  @@index([roundId, cityId, createdAt(sort: Desc)])
+  @@index([sourceMemoryId])
+  @@index([ownerId, offeredAtActive])
+  @@index([roundId, cityId, offeredAtActive])
+}
+
+// Every entry links to a verified server-side action receipt. No raw recon
+// payload or secret case details are written to public Activity/News.
+model CriminalCaseEvidence {
+  id              String           @id @default(cuid())
+  caseId          String
+  caseFile        CriminalCaseFile @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  clueKey         String
+  sourceKind      String
+  sourceReceiptId String
+  observedAt      DateTime
+  recordedAt      DateTime         @default(now())
+
+  @@unique([caseId, clueKey])
+  @@unique([caseId, sourceKind])
+  @@unique([caseId, sourceReceiptId])
+  @@unique([sourceReceiptId])
+  @@index([caseId, recordedAt])
+}
+
+/**
+ * 2.0.0-G: disabled authoring proposals, never executable by live gameplay.
+ */
+model AdminLivingStoryDraft {
+  id                        String   @id @default(cuid())
+  key                       String
+  baseRulesetId             String
+  baseRulesetVersion        String
+  title                     String
+  caseKey                   String
+  eventKinds                Json     @default("[]")
+  audience                  String
+  visibility                String
+  expiresAfterActiveMinutes Int
+  rewardBudgetCents         Int      @default(0)
+  enabled                   Boolean  @default(false)
+  revision                  Int      @default(1)
+  createdByAccountId        String
+  updatedByAccountId        String
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  @@unique([baseRulesetId, key])
+  @@index([baseRulesetId, updatedAt(sort: Desc)])
 }

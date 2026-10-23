@@ -1,0 +1,270 @@
+[
+  {
+    "url": "/game/casino/slots",
+    "finalPath": "/game/casino/slots",
+    "width": "phone-360",
+    "rail": false,
+    "theme": "none",
+    "accent": "default",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 360,
+    "viewport": 360,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 16,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit4mhbcy\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 312x32",
+        "a.se-casino-tablehead__back \"← Lobby\" 76x35",
+        "button.se-btn.se-btn \"Get on the floor\" 143x40",
+        "button.se-btn.se-btn \"Buy chips\" 243x40",
+        "button.se-btn.se-btn \"Redeem chips\" 243x40",
+        "button.se-btn.se-btn--ghost \"Sound on\" 97x40",
+        "button.se-btn.se-btn--sm \"Decrease bet per line\" 34x38",
+        "button.se-btn.se-btn--sm \"Increase bet per line\" 132x38",
+        "button.se-btn.se-btn--sm \"Max\" 52x38",
+        "button.se-btn.se-btn--sm \"Fewer paylines\" 34x38",
+        "button.se-btn.se-btn--sm \"More paylines\" 34x38",
+        "button.se-btn.se-btn \"Pull to spin\" 130x40"
+      ],
+      "total": 47
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": [],
+    "performance": {
+      "routeReadyMs": 3946,
+      "domContentLoadedMs": 694.4000000059605,
+      "loadMs": 700.2999999970198,
+      "transferBytes": 2887,
+      "cls": 0.5383,
+      "lcpMs": 1664,
+      "longTaskCount": 4,
+      "longTaskTotalMs": 356,
+      "longTaskMaxMs": 121
+    },
+    "responsive": {
+      "issues": [],
+      "verticalScroll": "passed",
+      "maxY": 2024,
+      "sticky": [
+        {
+          "className": "se-dock",
+          "top": 490,
+          "bottom": 677,
+          "tabbarTop": 679,
+          "computedBottom": "68px",
+          "mobileStickyOffset": "calc(calc(60px + 0px) + 8px)",
+          "clear": true
+        }
+      ],
+      "containedHorizontalScrollers": 1
+    },
+    "mobileShell": null,
+    "retention": null
+  },
+  {
+    "url": "/game/casino/slots",
+    "finalPath": "/game/casino/slots",
+    "width": "phone-390",
+    "rail": false,
+    "theme": "federal-case",
+    "accent": "crimson",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 390,
+    "viewport": 390,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 16,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 77x36",
+        "a.se-statusbar__item \"Turns144/144\" 107x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "button.se-account__button \"Account menu, audit4mhbcy\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 342x32",
+        "a.se-casino-tablehead__back \"← Lobby\" 76x35",
+        "button.se-btn.se-btn \"Get on the floor\" 143x40",
+        "button.se-btn.se-btn \"Buy chips\" 243x40",
+        "button.se-btn.se-btn \"Redeem chips\" 243x40",
+        "button.se-btn.se-btn--ghost \"Sound on\" 97x40",
+        "button.se-btn.se-btn--sm \"Decrease bet per line\" 34x38",
+        "button.se-btn.se-btn--sm \"Increase bet per line\" 162x38",
+        "button.se-btn.se-btn--sm \"Max\" 52x38",
+        "button.se-btn.se-btn--sm \"Fewer paylines\" 34x38",
+        "button.se-btn.se-btn--sm \"More paylines\" 34x38",
+        "button.se-btn.se-btn \"Pull to spin\" 130x40"
+      ],
+      "total": 47
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": [],
+    "performance": {
+      "routeReadyMs": 3687,
+      "domContentLoadedMs": 872.2000000029802,
+      "loadMs": 878.9000000059605,
+      "transferBytes": 2887,
+      "cls": 0.3523,
+      "lcpMs": 1540,
+      "longTaskCount": 3,
+      "longTaskTotalMs": 336,
+      "longTaskMaxMs": 130
+    },
+    "responsive": {
+      "issues": [],
+      "verticalScroll": "passed",
+      "maxY": 1903,
+      "sticky": [
+        {
+          "className": "se-dock",
+          "top": 594,
+          "bottom": 781,
+          "tabbarTop": 783,
+          "computedBottom": "68px",
+          "mobileStickyOffset": "calc(calc(60px + 0px) + 8px)",
+          "clear": true
+        }
+      ],
+      "containedHorizontalScrollers": 0
+    },
+    "mobileShell": null,
+    "retention": {
+      "before": 240,
+      "after": 240,
+      "issues": []
+    }
+  },
+  {
+    "url": "/game/casino/slots",
+    "finalPath": "/game/casino/slots",
+    "width": "tablet-768",
+    "rail": false,
+    "theme": "midnight-market",
+    "accent": "blue",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 768,
+    "viewport": 768,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 18,
+      "smallList": [
+        "a.se-statusbar__item \"Cash$20,000$20K\" 42x36",
+        "a.se-statusbar__item \"Turns144/144\" 65x36",
+        "a.se-statusbar__item \"Heat0\" 53x36",
+        "a.se-statusbar__item.se-statusbar__item--worth \"Net Worth$25,202$25K\" 42x36",
+        "button.se-notification-bell \"Notifications\" 34x34",
+        "button.se-account__button \"Account menu, audit4mhbcy\" 40x40",
+        "a.se-gamebar__xp \"Level 1, 0 of 100 XP to the next level. \" 708x32",
+        "a.se-casino-tablehead__back \"← Lobby\" 76x35",
+        "button.se-btn.se-btn \"Get on the floor\" 143x40",
+        "button.se-btn.se-btn--ghost \"Sound on\" 112x40",
+        "button.se-btn.se-btn--sm \"Decrease bet per line\" 34x34",
+        "button.se-btn.se-btn--sm \"Increase bet per line\" 34x34",
+        "button.se-btn.se-btn--sm \"Max\" 52x34",
+        "button.se-btn.se-btn--sm \"Fewer paylines\" 34x34",
+        "button.se-btn.se-btn--sm \"More paylines\" 34x34",
+        "button.se-btn.se-btn \"Pull to spin\" 170x40",
+        "button.se-btn.se-btn--ghost \"5 lines\" 89x40",
+        "button.se-btn.se-btn--ghost \"Max lines\" 112x40"
+      ],
+      "total": 48
+    },
+    "dashboard": null,
+    "focus": null,
+    "axe": [],
+    "performance": {
+      "routeReadyMs": 3233,
+      "domContentLoadedMs": 741.4000000059605,
+      "loadMs": 748.4000000059605,
+      "transferBytes": 2887,
+      "cls": 0.5685,
+      "lcpMs": 1236,
+      "longTaskCount": 3,
+      "longTaskTotalMs": 282,
+      "longTaskMaxMs": 117
+    },
+    "responsive": {
+      "issues": [],
+      "verticalScroll": "passed",
+      "maxY": 1110,
+      "sticky": [
+        {
+          "className": "se-dock",
+          "top": 830,
+          "bottom": 956,
+          "tabbarTop": 963,
+          "computedBottom": "68px",
+          "mobileStickyOffset": "calc(calc(60px + 0px) + 8px)",
+          "clear": true
+        }
+      ],
+      "containedHorizontalScrollers": 0
+    },
+    "mobileShell": null,
+    "retention": null
+  },
+  {
+    "url": "/game/casino/slots",
+    "finalPath": "/game/casino/slots",
+    "width": "desktop-1440-rail",
+    "rail": true,
+    "theme": "federal-case",
+    "accent": "gold",
+    "errors": [],
+    "overflow": false,
+    "scrollWidth": 1440,
+    "viewport": 1440,
+    "wide": [],
+    "targets": {
+      "fail": [],
+      "small": 0,
+      "smallList": [],
+      "total": 0
+    },
+    "dashboard": null,
+    "focus": {
+      "firstIsSkip": true,
+      "unringed": []
+    },
+    "axe": [],
+    "performance": {
+      "routeReadyMs": 3305,
+      "domContentLoadedMs": 711,
+      "loadMs": 717.0999999940395,
+      "transferBytes": 2887,
+      "cls": 0.1225,
+      "lcpMs": 1524,
+      "longTaskCount": 3,
+      "longTaskTotalMs": 310,
+      "longTaskMaxMs": 119
+    },
+    "responsive": {
+      "issues": [],
+      "verticalScroll": "passed",
+      "maxY": 583,
+      "sticky": [
+        {
+          "className": "se-dock",
+          "top": 818,
+          "bottom": 890,
+          "tabbarTop": null,
+          "computedBottom": "10px",
+          "mobileStickyOffset": "calc(calc(60px + 0px) + 8px)",
+          "clear": true
+        }
+      ],
+      "containedHorizontalScrollers": 0
+    },
+    "mobileShell": null,
+    "retention": null
+  }
+]

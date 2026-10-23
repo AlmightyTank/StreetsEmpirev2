@@ -41,8 +41,10 @@ function presenceForUrl(rawUrl) {
   let state = 'Building an empire';
   if (path.startsWith('/game/casino/slots')) state = 'Playing Slots';
   else if (path.startsWith('/game/casino/blackjack')) state = 'Playing Blackjack';
+  else if (path.startsWith('/game/casino/pool')) state = 'Shooting Pool';
   else if (path.startsWith('/game/casino/roulette')) state = 'Playing Roulette';
-  else if (path.startsWith('/game/casino/street-dice')) state = 'Playing Street Dice';
+  else if (path.startsWith('/game/casino/scratch-cards')) state = 'Playing Scratch Cards';
+  else if (path.startsWith('/game/casino/horse-racing')) state = 'At the Horse Races';
   else if (path.startsWith('/game/casino/poker')) state = 'Playing Poker';
   else if (path.startsWith('/game/casino')) state = 'At the casino';
   else if (path.startsWith('/game/scout')) state = 'Scouting the streets';

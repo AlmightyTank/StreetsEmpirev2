@@ -96,12 +96,14 @@ export const SLICE_C_ART_FILES = {
     'urban-ghost': 'cosmetics/crew/thug-urban-ghost.webp',
     'cartel-gold': 'cosmetics/crew/thug-cartel-gold.webp',
     'midnight-chrome': 'cosmetics/crew/thug-midnight-chrome.webp',
+    'obsidian-signal-crew': 'cosmetics/drop/thug-obsidian-signal.svg',
   },
   HOE: {
     'midnight-ops': 'cosmetics/crew/hoe-midnight-ops.webp',
     'urban-ghost': 'cosmetics/crew/hoe-urban-ghost.webp',
     'cartel-gold': 'cosmetics/crew/hoe-cartel-gold.webp',
     'midnight-chrome': 'cosmetics/crew/hoe-midnight-chrome.webp',
+    'obsidian-signal-crew': 'cosmetics/drop/hoe-obsidian-signal.svg',
   },
 } as const satisfies Partial<Record<ItemArtKey, Partial<Record<ItemCosmeticStyleKey, string>>>>;
 
@@ -152,8 +154,146 @@ export const EIGHT_BIT_ART_FILES = {
 
 /** Easter egg looks drawn for a single item. */
 export const SINGLE_ITEM_ART_FILES = {
-  SEDAN: { 'time-machine': 'cosmetics/rides/sedan-time-machine.webp' },
+  SEDAN: {
+    'time-machine': 'cosmetics/rides/sedan-time-machine.webp',
+    'holiday-road': 'cosmetics/rides/sedan-holiday-road.svg',
+  },
   METH: { 'blue-sky': 'cosmetics/products/meth-blue-sky.webp' },
+} as const satisfies Partial<Record<ItemArtKey, Partial<Record<ItemCosmeticStyleKey, string>>>>;
+
+/**
+ * The Drop looks (docs/THE-DROP.md), one per SKU, relative to public/items/.
+ * Plain SVG from scripts/art/generate-drop-art.mjs; each dresses only its item.
+ */
+export const DROP_ART_FILES = {
+  SEDAN: {
+    'kingpin-luxe-sedan': 'cosmetics/drop/sedan-kingpin-luxe.svg',
+    'biscayne-sunset-sedan': 'cosmetics/drop/sedan-biscayne-sunset.svg',
+    'velvet-speakeasy-sedan': 'cosmetics/drop/sedan-velvet-speakeasy.svg',
+    'redline-syndicate-sedan': 'cosmetics/drop/sedan-redline-syndicate.svg',
+    'crown-jewels-sedan': 'cosmetics/drop/sedan-crown-jewels.svg',
+    'snake-eyes-sedan': 'cosmetics/drop/sedan-snake-eyes.svg',
+    'graveyard-shift-sedan': 'cosmetics/drop/sedan-graveyard-shift.svg',
+    'taxi-hustle-sedan': 'cosmetics/drop/sedan-taxi-hustle.svg',
+    'two-tone-classic-sedan': 'cosmetics/drop/sedan-two-tone.svg',
+    'quarter-mile-sedan': 'cosmetics/drop/sedan-quarter-mile.svg',
+    'iron-front-sedan': 'cosmetics/drop/sedan-iron-front.svg',
+  },
+  LOW_RIDER: {
+    'neon-underworld-low-rider': 'cosmetics/drop/low-rider-neon-underworld.svg',
+    'platinum-funk-low-rider': 'cosmetics/drop/low-rider-platinum-funk.svg',
+    'wet-paint-low-rider': 'cosmetics/drop/low-rider-wet-paint.svg',
+    'desert-mirage-low-rider': 'cosmetics/drop/low-rider-desert-mirage.svg',
+    'heartbreaker-low-rider': 'cosmetics/drop/low-rider-heartbreaker.svg',
+    'lime-flake-low-rider': 'cosmetics/drop/low-rider-lime-flake.svg',
+    'hot-flames-low-rider': 'cosmetics/drop/low-rider-hot-flames.svg',
+    'quarter-mile-low-rider': 'cosmetics/drop/low-rider-quarter-mile.svg',
+  },
+  VAN: {
+    'winter-heist-van': 'cosmetics/drop/van-winter-heist.svg',
+    'hazard-cook-van': 'cosmetics/drop/van-hazard-cook.svg',
+    'dockside-van': 'cosmetics/drop/van-dockside.svg',
+    'bayou-smoke-van': 'cosmetics/drop/van-bayou-smoke.svg',
+    'rewind-van': 'cosmetics/drop/van-rewind.svg',
+    'naughty-list-van': 'cosmetics/drop/van-naughty-list.svg',
+    'block-party-van': 'cosmetics/drop/van-block-party.svg',
+    'pipe-dreams-van': 'cosmetics/drop/van-pipe-dreams.svg',
+    'flower-power-van': 'cosmetics/drop/van-flower-power.svg',
+    '88-club-van': 'cosmetics/drop/van-88-club.svg',
+    'swamp-kingdom-van': 'cosmetics/drop/van-swamp-kingdom.svg',
+    'zombie-apocalypse-van': 'cosmetics/drop/van-zombie-apocalypse.svg',
+    'iron-front-van': 'cosmetics/drop/van-iron-front.svg',
+  },
+  PISTOL: {
+    'biscayne-sunset-pistol': 'cosmetics/drop/pistol-biscayne-sunset.svg',
+    'wet-paint-pistol': 'cosmetics/drop/pistol-wet-paint.svg',
+    'snake-eyes-pistol': 'cosmetics/drop/pistol-snake-eyes.svg',
+    'graveyard-shift-pistol': 'cosmetics/drop/pistol-graveyard-shift.svg',
+    'tiger-stripe-pistol': 'cosmetics/drop/pistol-tiger-stripe.svg',
+    '88-club-pistol': 'cosmetics/drop/pistol-88-club.svg',
+  },
+  SHOTGUN: {
+    'winter-heist-shotgun': 'cosmetics/drop/shotgun-winter-heist.svg',
+    'hazard-cook-shotgun': 'cosmetics/drop/shotgun-hazard-cook.svg',
+    'bayou-smoke-shotgun': 'cosmetics/drop/shotgun-bayou-smoke.svg',
+    'block-party-shotgun': 'cosmetics/drop/shotgun-block-party.svg',
+    'rust-bucket-shotgun': 'cosmetics/drop/shotgun-rust-bucket.svg',
+    'swamp-kingdom-shotgun': 'cosmetics/drop/shotgun-swamp-kingdom.svg',
+    'zombie-apocalypse-shotgun': 'cosmetics/drop/shotgun-zombie-apocalypse.svg',
+  },
+  TEK9: {
+    'neon-underworld-tek9': 'cosmetics/drop/tek9-neon-underworld.svg',
+    'desert-mirage-tek9': 'cosmetics/drop/tek9-desert-mirage.svg',
+    'rewind-tek9': 'cosmetics/drop/tek9-rewind.svg',
+    'naughty-list-tek9': 'cosmetics/drop/tek9-naughty-list.svg',
+    'heartbreaker-tek9': 'cosmetics/drop/tek9-heartbreaker.svg',
+    'bubblegum-tek9': 'cosmetics/drop/tek9-bubblegum.svg',
+    'quarter-mile-tek9': 'cosmetics/drop/tek9-quarter-mile.svg',
+  },
+  AK47: {
+    'velvet-speakeasy-ak47': 'cosmetics/drop/ak47-velvet-speakeasy.svg',
+    'redline-syndicate-ak47': 'cosmetics/drop/ak47-redline-syndicate.svg',
+    'dockside-ak47': 'cosmetics/drop/ak47-dockside.svg',
+    'crown-jewels-ak47': 'cosmetics/drop/ak47-crown-jewels.svg',
+    'damascus-ak47': 'cosmetics/drop/ak47-damascus.svg',
+    'iron-front-ak47': 'cosmetics/drop/ak47-iron-front.svg',
+  },
+  THUG: {
+    'kingpin-luxe-thug': 'cosmetics/drop/thug-kingpin-luxe.svg',
+    'neon-underworld-thug': 'cosmetics/drop/thug-neon-underworld.svg',
+    'winter-heist-crew': 'cosmetics/drop/thug-winter-heist.svg',
+    'biscayne-sunset-thug': 'cosmetics/drop/thug-biscayne-sunset.svg',
+    'velvet-speakeasy-thug': 'cosmetics/drop/thug-velvet-speakeasy.svg',
+    'platinum-funk-thug': 'cosmetics/drop/thug-platinum-funk.svg',
+    'redline-syndicate-thug': 'cosmetics/drop/thug-redline-syndicate.svg',
+    'wet-paint-thug': 'cosmetics/drop/thug-wet-paint.svg',
+    'hazard-cook-crew': 'cosmetics/drop/thug-hazard-cook.svg',
+    'dockside-thug': 'cosmetics/drop/thug-dockside.svg',
+    'crown-jewels-crew': 'cosmetics/drop/thug-crown-jewels.svg',
+    'bayou-smoke-thug': 'cosmetics/drop/thug-bayou-smoke.svg',
+    'desert-mirage-thug': 'cosmetics/drop/thug-desert-mirage.svg',
+    'rewind-thug': 'cosmetics/drop/thug-rewind.svg',
+    'snake-eyes-thug': 'cosmetics/drop/thug-snake-eyes.svg',
+    'graveyard-shift-thug': 'cosmetics/drop/thug-graveyard-shift.svg',
+    'naughty-list-crew': 'cosmetics/drop/thug-naughty-list.svg',
+    'heartbreaker-thug': 'cosmetics/drop/thug-heartbreaker.svg',
+    'block-party-thug': 'cosmetics/drop/thug-block-party.svg',
+    'velour-tracksuit-thug': 'cosmetics/drop/thug-velour-tracksuit.svg',
+    'bowling-shirt-thug': 'cosmetics/drop/thug-bowling-shirt.svg',
+    'quarter-mile-thug': 'cosmetics/drop/thug-quarter-mile.svg',
+    '88-club-thug': 'cosmetics/drop/thug-88-club.svg',
+    'swamp-kingdom-thug': 'cosmetics/drop/thug-swamp-kingdom.svg',
+    'zombie-apocalypse-thug': 'cosmetics/drop/thug-zombie-apocalypse.svg',
+    'iron-front-crew': 'cosmetics/drop/thug-iron-front.svg',
+  },
+  HOE: {
+    'kingpin-luxe-hoe': 'cosmetics/drop/hoe-kingpin-luxe.svg',
+    'neon-underworld-hoe': 'cosmetics/drop/hoe-neon-underworld.svg',
+    'winter-heist-crew': 'cosmetics/drop/hoe-winter-heist.svg',
+    'biscayne-sunset-hoe': 'cosmetics/drop/hoe-biscayne-sunset.svg',
+    'velvet-speakeasy-hoe': 'cosmetics/drop/hoe-velvet-speakeasy.svg',
+    'platinum-funk-hoe': 'cosmetics/drop/hoe-platinum-funk.svg',
+    'redline-syndicate-hoe': 'cosmetics/drop/hoe-redline-syndicate.svg',
+    'wet-paint-hoe': 'cosmetics/drop/hoe-wet-paint.svg',
+    'hazard-cook-crew': 'cosmetics/drop/hoe-hazard-cook.svg',
+    'dockside-hoe': 'cosmetics/drop/hoe-dockside.svg',
+    'crown-jewels-crew': 'cosmetics/drop/hoe-crown-jewels.svg',
+    'bayou-smoke-hoe': 'cosmetics/drop/hoe-bayou-smoke.svg',
+    'desert-mirage-hoe': 'cosmetics/drop/hoe-desert-mirage.svg',
+    'rewind-hoe': 'cosmetics/drop/hoe-rewind.svg',
+    'snake-eyes-hoe': 'cosmetics/drop/hoe-snake-eyes.svg',
+    'graveyard-shift-hoe': 'cosmetics/drop/hoe-graveyard-shift.svg',
+    'naughty-list-crew': 'cosmetics/drop/hoe-naughty-list.svg',
+    'heartbreaker-hoe': 'cosmetics/drop/hoe-heartbreaker.svg',
+    'block-party-hoe': 'cosmetics/drop/hoe-block-party.svg',
+    'leopard-coat-hoe': 'cosmetics/drop/hoe-leopard-coat.svg',
+    'tie-dye-hoe': 'cosmetics/drop/hoe-tie-dye.svg',
+    'quarter-mile-hoe': 'cosmetics/drop/hoe-quarter-mile.svg',
+    '88-club-hoe': 'cosmetics/drop/hoe-88-club.svg',
+    'swamp-kingdom-hoe': 'cosmetics/drop/hoe-swamp-kingdom.svg',
+    'zombie-apocalypse-hoe': 'cosmetics/drop/hoe-zombie-apocalypse.svg',
+    'iron-front-crew': 'cosmetics/drop/hoe-iron-front.svg',
+  },
 } as const satisfies Partial<Record<ItemArtKey, Partial<Record<ItemCosmeticStyleKey, string>>>>;
 
 /**
@@ -164,13 +304,13 @@ export const SINGLE_ITEM_ART_FILES = {
  * a broken image.
  */
 const ITEM_COSMETIC_ART = {
-  PISTOL: { classic: 'pistol.svg', ...SLICE_A_ART_FILES.PISTOL, ...EIGHT_BIT_ART_FILES.PISTOL },
-  SHOTGUN: { classic: 'shotgun.svg', ...SLICE_A_ART_FILES.SHOTGUN, ...EIGHT_BIT_ART_FILES.SHOTGUN },
-  TEK9: { classic: 'tek9.svg', ...SLICE_A_ART_FILES.TEK9, ...EIGHT_BIT_ART_FILES.TEK9 },
-  AK47: { classic: 'ak47.svg', ...SLICE_A_ART_FILES.AK47, ...EIGHT_BIT_ART_FILES.AK47 },
-  LOW_RIDER: { classic: 'low-rider.svg', ...SLICE_A_ART_FILES.LOW_RIDER, ...EIGHT_BIT_ART_FILES.LOW_RIDER },
-  SEDAN: { classic: 'sedan.svg', ...VEHICLE_ART_FILES.SEDAN, ...EIGHT_BIT_ART_FILES.SEDAN, ...SINGLE_ITEM_ART_FILES.SEDAN },
-  VAN: { classic: 'van.svg', ...VEHICLE_ART_FILES.VAN, ...EIGHT_BIT_ART_FILES.VAN },
+  PISTOL: { classic: 'pistol.svg', ...SLICE_A_ART_FILES.PISTOL, ...EIGHT_BIT_ART_FILES.PISTOL, ...DROP_ART_FILES.PISTOL },
+  SHOTGUN: { classic: 'shotgun.svg', ...SLICE_A_ART_FILES.SHOTGUN, ...EIGHT_BIT_ART_FILES.SHOTGUN, ...DROP_ART_FILES.SHOTGUN },
+  TEK9: { classic: 'tek9.svg', ...SLICE_A_ART_FILES.TEK9, ...EIGHT_BIT_ART_FILES.TEK9, ...DROP_ART_FILES.TEK9 },
+  AK47: { classic: 'ak47.svg', ...SLICE_A_ART_FILES.AK47, ...EIGHT_BIT_ART_FILES.AK47, ...DROP_ART_FILES.AK47 },
+  LOW_RIDER: { classic: 'low-rider.svg', ...SLICE_A_ART_FILES.LOW_RIDER, ...EIGHT_BIT_ART_FILES.LOW_RIDER, ...DROP_ART_FILES.LOW_RIDER },
+  SEDAN: { classic: 'sedan.svg', ...VEHICLE_ART_FILES.SEDAN, ...EIGHT_BIT_ART_FILES.SEDAN, ...SINGLE_ITEM_ART_FILES.SEDAN, ...DROP_ART_FILES.SEDAN },
+  VAN: { classic: 'van.svg', ...VEHICLE_ART_FILES.VAN, ...EIGHT_BIT_ART_FILES.VAN, ...DROP_ART_FILES.VAN },
   CRACK: { classic: 'crack.svg', ...SLICE_B_ART_FILES.CRACK, ...EIGHT_BIT_ART_FILES.CRACK },
   WEED: { classic: 'weed.svg', ...SLICE_B_ART_FILES.WEED, ...EIGHT_BIT_ART_FILES.WEED },
   ECSTASY: { classic: 'ecstasy.svg', ...SLICE_B_ART_FILES.ECSTASY, ...EIGHT_BIT_ART_FILES.ECSTASY },
@@ -180,8 +320,8 @@ const ITEM_COSMETIC_ART = {
   CONDOM: { classic: 'condoms.svg', ...SLICE_B_ART_FILES.CONDOM, ...EIGHT_BIT_ART_FILES.CONDOM },
   MEDICINE: { classic: 'medicine.svg', ...SLICE_B_ART_FILES.MEDICINE, ...EIGHT_BIT_ART_FILES.MEDICINE },
   BEER: { classic: 'beer.svg', ...SLICE_B_ART_FILES.BEER, ...EIGHT_BIT_ART_FILES.BEER },
-  THUG: { classic: 'thug.svg', ...SLICE_C_ART_FILES.THUG, ...EIGHT_BIT_ART_FILES.THUG },
-  HOE: { classic: 'hoe.svg', ...SLICE_C_ART_FILES.HOE, ...EIGHT_BIT_ART_FILES.HOE },
+  THUG: { classic: 'thug.svg', ...SLICE_C_ART_FILES.THUG, ...EIGHT_BIT_ART_FILES.THUG, ...DROP_ART_FILES.THUG },
+  HOE: { classic: 'hoe.svg', ...SLICE_C_ART_FILES.HOE, ...EIGHT_BIT_ART_FILES.HOE, ...DROP_ART_FILES.HOE },
 } as const satisfies Partial<Record<ItemArtKey, Partial<Record<ItemCosmeticStyleKey, string>>>>;
 
 export function itemCosmeticArtFile(item: ItemArtKey, style: ItemCosmeticStyleKey): string {
@@ -192,4 +332,25 @@ export function itemCosmeticArtFile(item: ItemArtKey, style: ItemCosmeticStyleKe
 
 export function itemCosmeticArtUrl(item: ItemArtKey, style: ItemCosmeticStyleKey): string {
   return `/items/${itemCosmeticArtFile(item, style)}`;
+}
+
+/**
+ * The SVG masters behind the rendered WebP skins, keyed by their path from this
+ * file. The build emits each one as an asset; only the URL strings are bundled.
+ */
+const COSMETIC_MASTER_URLS = import.meta.glob<string>('../../art/cosmetics/**/*.svg', {
+  query: '?url',
+  import: 'default',
+  eager: true,
+});
+
+/**
+ * Art for the enlarged item view. Rendered skins are 512px per cell, which
+ * blurs when blown up on a high-density screen, so this serves the skin's
+ * vector master instead; anything already vector (Classic, Drop) is unchanged.
+ */
+export function itemCosmeticZoomUrl(item: ItemArtKey, style: ItemCosmeticStyleKey): string {
+  const rendered = itemCosmeticArtFile(item, style).match(/^cosmetics\/(.+)\.webp$/);
+  const master = rendered ? COSMETIC_MASTER_URLS[`../../art/cosmetics/${rendered[1]}.svg`] : undefined;
+  return master ?? itemCosmeticArtUrl(item, style);
 }

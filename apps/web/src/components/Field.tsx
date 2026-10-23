@@ -6,22 +6,23 @@ interface FieldProps extends InputHTMLAttributes<HTMLInputElement> {
   error?: string;
 }
 
-export function Field({ label, hint, error, id, ...input }: FieldProps) {
+export function Field({ label, hint, error, id, className, required, ...input }: FieldProps) {
   const inputId = id ?? input.name ?? label.toLowerCase().replace(/\s+/g, '-');
 
   return (
     <div className="se-field">
       <label className="se-label" htmlFor={inputId}>
-        {label}
+        {label}{required ? <span className="se-required" aria-hidden="true"> *</span> : null}
       </label>
       <input
         id={inputId}
-        className={`se-input${error ? ' se-input--error' : ''}`}
+        className={`se-input${error ? ' se-input--error' : ''}${className ? ` ${className}` : ''}`}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? `${inputId}-error` : hint ? `${inputId}-hint` : undefined}
         // 1.0.0-G: a number box opens the phone's number pad, unless it takes negatives
         // (the number pad on iPhone has no minus key).
         inputMode={input.inputMode ?? (input.type === 'number' && Number(input.min) >= 0 ? 'numeric' : undefined)}
+        required={required}
         {...input}
       />
       {error ? (

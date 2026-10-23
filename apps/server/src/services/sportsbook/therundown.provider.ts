@@ -22,6 +22,8 @@ const LEAGUE_SPORT_IDS: Record<SportsbookLeagueKey, number> = {
   NBA: 4,
   MLB: 3,
   NHL: 6,
+  SOFTBALL: 0,
+  MMA: 0,
 };
 
 type JsonRecord = Record<string, unknown>;

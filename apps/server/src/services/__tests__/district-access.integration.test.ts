@@ -36,7 +36,7 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('district access with Postg
     vi.spyOn(RoundService, 'getCurrent').mockImplementation(current);
 
     const name = `district_${randomUUID().slice(0, 6)}`;
-    const registered = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { username: name, email: `${name}@example.invalid`, password: randomUUID() } });
+    const registered = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { birthDate: '1990-01-01', ageConfirmed: true, username: name, email: `${name}@example.invalid`, password: randomUUID() } });
     accountId = registered.json().account.id;
     cookie = registered.cookies.map((entry) => `${entry.name}=${entry.value}`).join('; ');
     // Enough supplies for Keeping Them Happy (50 condoms, 25 beer, 25 crack) and a crew for turf.

@@ -4,6 +4,7 @@ import type { FastifyInstance } from 'fastify';
 import { classicOgV12F } from '@streets/rulesets';
 import { seededRng, startingStock } from '@streets/rules-engine';
 import { BlackjackService } from '../blackjack.service.js';
+import { CasinoInstantGamesService } from '../casino-instant-games.service.js';
 import { CasinoPokerService } from '../casino-poker.service.js';
 import { CasinoService } from '../casino.service.js';
 import { HandcraftedQuestService } from '../handcrafted-quest.service.js';
@@ -11,7 +12,6 @@ import { ReputationService } from '../reputation.service.js';
 import { RouletteService } from '../roulette.service.js';
 import { seasonFeatAwards } from '../season-feats.js';
 import { SeasonStatsService } from '../season-stats.service.js';
-import { StreetDiceService } from '../street-dice.service.js';
 
 const ruleset = classicOgV12F;
 
@@ -56,7 +56,7 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.2.0-F casino Jobs with P
     const name = 'casino_f_' + randomUUID().slice(0, 6);
     const registered = await app.inject({
       method: 'POST', url: '/api/auth/register',
-      payload: { username: name, email: name + '@example.invalid', password: randomUUID() },
+      payload: { ageConfirmed: true, username: name, email: name + '@example.invalid', password: randomUUID() },
     });
     accountId = registered.json().account.id;
   });
@@ -110,12 +110,7 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.2.0-F casino Jobs with P
       machineKey: machine.key, betPerLineCents: machine.minBetPerLineCents,
       activePaylineKeys: machine.paylines.map((line) => line.key), actionId: randomUUID(),
     }, seededRng(2));
-    const dice = await StreetDiceService.start(app.prisma, player.id, { tableKey: 'STREET_DICE', wagerCents: 1_000, actionId: randomUUID() }, seededRng(1));
-    let point = dice;
-    for (let roll = 0; point.status === 'ACTIVE' && roll < 200; roll++) {
-      point = await StreetDiceService.roll(app.prisma, player.id, { roundId: dice.id, actionId: randomUUID() }, seededRng(100 + roll));
-    }
-    expect(point.status).toBe('SETTLED');
+    await CasinoInstantGamesService.playScratch(app.prisma, player.id, { denominationCents: 1_000, actionId: randomUUID() }, seededRng(1));
 
     // Stand on every hand until the persisted shoe deals a natural.
     let natural = false;
@@ -161,11 +156,7 @@ describe.runIf(process.env.TURF_INTEGRATION === '1')('1.2.0-F casino Jobs with P
       machineKey: machine.key, betPerLineCents: machine.minBetPerLineCents,
       activePaylineKeys: machine.paylines.map((line) => line.key), actionId: randomUUID(),
     }, seededRng(2));
-    const dice = await StreetDiceService.start(app.prisma, player.id, { tableKey: 'STREET_DICE', wagerCents: 1_000, actionId: randomUUID() }, seededRng(1));
-    let point = dice;
-    for (let roll = 0; point.status === 'ACTIVE' && roll < 200; roll++) {
-      point = await StreetDiceService.roll(app.prisma, player.id, { roundId: dice.id, actionId: randomUUID() }, seededRng(100 + roll));
-    }
+    await CasinoInstantGamesService.playScratch(app.prisma, player.id, { denominationCents: 1_000, actionId: randomUUID() }, seededRng(1));
     const hand = await BlackjackService.deal(app.prisma, player.id, { tableKey: 'STREET_BLACKJACK', wagerCents: 1_000, actionId: randomUUID() }, seededRng(31));
     if (hand.status === 'ACTIVE') await BlackjackService.stand(app.prisma, player.id, { handId: hand.id, actionId: randomUUID() });
 

@@ -9,7 +9,7 @@
  * See scripts/ops/bump-version.mjs. Deploy patch notes use this version in
  * their title.
  */
-export const APP_VERSION = '2.1.1';
+export const APP_VERSION = '2.3.42';
 
 export const APP_ENVIRONMENTS = ['production', 'beta', 'development', 'test'] as const;
 export type AppEnvironment = (typeof APP_ENVIRONMENTS)[number];
@@ -87,4 +87,10 @@ export interface PlatformMetaDto {
   } | null;
   /** rc.5/rc.6. Cloudflare Turnstile site key for sign-in, sign-up and password reset; null when bot checks are off. */
   turnstileSiteKey: string | null;
+  /** The exact agreement a client must show before calling /auth/rules/accept. */
+  rulesAgreement: {
+    version: string;
+    minimumAge: number;
+    rules: ReadonlyArray<{ title: string; body: string }>;
+  };
 }

@@ -6,6 +6,8 @@ import type {
   ActivityDto,
   DefaultLanding,
   GameSnapshotDto,
+  PlayerSnapshot,
+  RankChanges,
   VerifyEmailTokenInput,
   LoginInput,
   RegisterInput,
@@ -28,10 +30,12 @@ export const DEFAULT_PROFILE_SETTINGS: AccountProfileSettingsDto = {
   activeTitleKey: null,
   titlePlacement: 'prefix',
   crewName: null,
+  streetSign: null,
   profileBio: null,
   profileImageUrl: null,
   profileAvatar: null,
   profileBannerUrl: null,
+  activeCrewBannerKey: null,
   profileEffect: 'none',
   activeProfileFrameKey: null,
   activeAvatarFrameKey: null,
@@ -41,12 +45,16 @@ export const DEFAULT_PROFILE_SETTINGS: AccountProfileSettingsDto = {
   crewCosmetics: { THUG: 'classic', HOE: 'classic' },
   showThemeOnProfile: true,
   showLookOnProfile: true,
+  showCrewMoments: false,
+  showCrewCelebrations: false,
+  showBirthdayCake: false,
   featuredBadgeKeys: [],
   profileAccent: 'default',
   uiDensity: 'comfortable',
   reducedMotion: false,
   moneyFormat: 'full',
   defaultLanding: 'game',
+  showProfanity: false,
 };
 
 const LANDING_PATHS: Record<DefaultLanding, string> = {
@@ -63,6 +71,7 @@ export function landingPath(setting: DefaultLanding, hasPlayer: boolean): string
 
 /** The /meta read in flight, so the shell and a form mounting together share one. */
 let platformLoad: Promise<void> | null = null;
+let snapshotLoad: Promise<void> | null = null;
 
 interface SessionState {
   phase: Phase;
@@ -93,10 +102,13 @@ interface SessionState {
   refreshRound: () => Promise<void>;
   /** Section 45/47. Pull the authoritative dashboard state. */
   refreshSnapshot: (options?: { background?: boolean }) => Promise<void>;
+  /** Paint an action receipt's balances before the follow-up /me settle returns. */
+  applyActionSnapshot: (after: PlayerSnapshot, rankChanges?: RankChanges) => void;
 
   register: (input: RegisterInput) => Promise<string | null>;
   /** rc.3: resolves `twoFactorRequired` when the sign-in waits for an authenticator code. */
   login: (input: LoginInput) => Promise<{ twoFactorRequired: boolean }>;
+  playGames: (serverAuthCode: string) => Promise<void>;
   resetPassword: (input: ResetPasswordInput) => Promise<{ twoFactorRequired: boolean }>;
   /** rc.3. Finishes a sign-in that waits for its code. Returns how many recovery codes are left when one was used. */
   completeTwoFactor: (code: string, trustDevice?: boolean) => Promise<{ recoveryCodesLeft: number | null }>;
@@ -185,24 +197,58 @@ export const useSession = create<SessionState>((set, get) => ({
     });
   },
 
-  async refreshSnapshot(options = {}) {
-    let snapshot: GameSnapshotDto;
-    try {
-      snapshot = await gameApi.me(options);
-    } catch (error) {
-      if (error instanceof ApiError && ['NOT_IN_ROUND', 'NO_ACTIVE_ROUND', 'ROUND_ENDED'].includes(error.code)) {
-        await get().refreshRound();
-      }
-      throw error;
-    }
+  applyActionSnapshot(after, rankChanges) {
+    const me = get().me;
+    if (!me) return;
     set({
-      round: snapshot.round,
-      me: snapshot.player,
-      roundOver: null,
-      recentActivity: snapshot.recentActivity,
-      activityHydratedForPlayerId: snapshot.player.id,
-      canJoin: false,
+      me: {
+        ...me,
+        netWorthCents: after.netWorthCents,
+        resources: { ...me.resources, ...after.resources },
+        turns: { ...me.turns, turns: after.turns },
+        happiness: {
+          ...me.happiness,
+          whore: after.whoreHappiness,
+          thug: after.thugHappiness,
+        },
+        rank: rankChanges
+          ? { ...me.rank, local: rankChanges.localAfter, national: rankChanges.nationalAfter }
+          : me.rank,
+        products: me.products?.map((product) => product.key === 'CRACK'
+          ? { ...product, quantity: after.resources.crack }
+          : product) ?? me.products,
+      },
     });
+  },
+
+  async refreshSnapshot(options = {}) {
+    if (snapshotLoad) return snapshotLoad;
+
+    snapshotLoad = (async () => {
+      let snapshot: GameSnapshotDto;
+      try {
+        snapshot = await gameApi.me(options);
+      } catch (error) {
+        if (error instanceof ApiError && ['NOT_IN_ROUND', 'NO_ACTIVE_ROUND', 'ROUND_ENDED'].includes(error.code)) {
+          await get().refreshRound();
+        }
+        throw error;
+      }
+      set({
+        round: snapshot.round,
+        me: snapshot.player,
+        roundOver: null,
+        recentActivity: snapshot.recentActivity,
+        activityHydratedForPlayerId: snapshot.player.id,
+        canJoin: false,
+      });
+    })();
+
+    try {
+      await snapshotLoad;
+    } finally {
+      snapshotLoad = null;
+    }
   },
 
   async register(input) {
@@ -224,6 +270,13 @@ export const useSession = create<SessionState>((set, get) => ({
     await get().refreshProfileSettings();
     await get().refreshRound();
     return { twoFactorRequired: false };
+  },
+
+  async playGames(serverAuthCode) {
+    const response = await authApi.playGames(serverAuthCode);
+    set({ account: response.account });
+    await get().refreshProfileSettings();
+    await get().refreshRound();
   },
 
   async resetPassword(input) {

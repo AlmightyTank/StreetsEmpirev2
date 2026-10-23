@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { rememberedKey, useRememberedState } from '../utils/remembered.js';
 import { Link, Navigate } from 'react-router-dom';
+import { LevelChip } from '../components/LevelChip.js';
 import type { AllianceRankingsDto, RankingEntryDto, RankingsDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
 import { allianceApi } from '../api/alliances.js';
@@ -15,7 +16,7 @@ import { Panel } from '../components/Panel.js';
 import { SocialNavigation } from '../components/SocialExperience.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
-import { AllianceRankingTable } from './AlliancesPage.js';
+import { AllianceRankingTable } from '../components/AllianceRankingTable.js';
 import { formatElapsed, formatWhen } from '../utils/time.js';
 import { HallOfFamePage } from './HallOfFamePage.js';
 import { roundAftermathPublicEnabled } from '../config/features.js';
@@ -102,6 +103,7 @@ function RankingTable({ rows, showCity }: { rows: RankingEntryDto[]; showCity: b
                       {row.displayName} <span className="se-muted se-num">#{row.publicPimpId}</span>
                     </Link>
                     {row.isSupporter ? <SupporterMark /> : null}
+                    <LevelChip level={row.accountLevel} />
                     <ThemeSwatch theme={row.siteTheme} label={row.siteThemeLabel} />
                     {row.isYou ? <span className="se-you">YOU</span> : null}
                   </span>
@@ -288,7 +290,7 @@ export function RankingsPage() {
                 <p>Rank movement compares your current position with the previous ranking snapshot. Rank streak shows how long the current position has been held.</p>
               </div>
 
-              <div className="se-rankings-metrics">
+              <div className="se-rankings-metrics" role="region" aria-label="Your ranking statistics" tabIndex={0}>
                 <RankingMetric
                   label="National rank"
                   value={`#${formatNumber(data.me.nationalRank)}`}

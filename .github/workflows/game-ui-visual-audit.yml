@@ -1,0 +1,124 @@
+name: Game UI Visual Audit
+
+on:
+  pull_request:
+    branches: [beta]
+    paths:
+      - 'apps/web/src/**'
+      - 'apps/web/public/**'
+      - 'scripts/qa/ui-audit.mjs'
+      - 'scripts/qa/ui-style-*.mjs'
+      - 'scripts/qa/ui-style-baseline.json'
+      - '.github/workflows/game-ui-visual-audit.yml'
+      - '.github/pull_request_template.md'
+  schedule:
+    - cron: '17 6 * * 2'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  style-guard:
+    name: UI token / selector guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run qa:ui:styles
+
+  browser-smoke:
+    name: Routes / themes / accessibility (${{ matrix.shard }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        # More audited pages need smaller per-job batches to stay under the test API's request throttle.
+        shard: ['1/3', '2/3', '3/3']
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: streets
+          POSTGRES_PASSWORD: streets
+          POSTGRES_DB: streets_empire_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U streets -d streets_empire_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://streets:streets@127.0.0.1:5432/streets_empire_ci?schema=public
+      SESSION_SECRET: ci-only-session-secret-change-me-32-characters
+      REQUIRE_VERIFIED_EMAIL: 'false'
+      BETA_INVITE_ONLY: 'false'
+      CORS_ORIGINS: http://127.0.0.1:5173
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install project and browser
+        run: |
+          npm ci
+          npx playwright-core install --with-deps chromium
+      - name: Seed isolated visual test database
+        run: |
+          npx prisma generate
+          npx prisma migrate deploy
+          npm run db:seed
+      - name: Start isolated API and game web client
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run dev:server > /tmp/streets-api.log 2>&1 &
+          npm run dev -w @streets/web -- --host 127.0.0.1 > /tmp/streets-web.log 2>&1 &
+          for i in $(seq 1 90); do
+            if curl --fail --silent http://127.0.0.1:3001/api/health >/dev/null \
+              && curl --fail --silent http://127.0.0.1:5173/login >/dev/null; then
+              echo "API and browser client ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Local visual-test services failed to start"
+          tail -n 75 /tmp/streets-api.log || true
+          tail -n 75 /tmp/streets-web.log || true
+          exit 1
+      - name: Capture deterministic game UI smoke matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            profile="--visual-smoke"
+            routes="/login,/game,/game/scout,/game/combat,/game/stores/pip,/game/casino/slots,/game/rankings,/game/street-pass"
+            pace=700
+          else
+            profile="--responsive"
+            routes="/login,/game,/game/scout,/game/produce,/game/combat,/game/quests,/game/stores/pip,/game/casino/slots,/game/travel,/game/turf,/game/rankings,/game/profile,/game/street-pass"
+            pace=1100
+          fi
+          npm run qa:ui -- $profile --deterministic --routes "$routes" --shard "${{ matrix.shard }}" --shots --strict --pace "$pace" --base http://127.0.0.1:5173 --out "game-ui-visual-audit-${{ strategy.job-index }}"
+      - name: Upload screenshots and accessibility report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: game-ui-visual-audit-${{ strategy.job-index }}
+          path: game-ui-visual-audit-${{ strategy.job-index }}/
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Show service logs on failure
+        if: failure()
+        run: |
+          tail -n 80 /tmp/streets-api.log || true
+          tail -n 80 /tmp/streets-web.log || true

@@ -2,11 +2,17 @@ import { createHash, randomUUID } from 'node:crypto';
 import type { Prisma, PrismaClient } from '@prisma/client';
 import type { Ruleset } from '@streets/rules-engine';
 import type { BusinessKey } from '@streets/rulesets';
-import type { CrewAssignmentKindDto, CrewCornerJobInput, CrewMemberDto, CrewMemberHistoryDto, CrewMemberStatusDto, CrewRosterDto, CrewRosterQuery } from '@streets/shared';
+import type { CrewAssignmentKindDto, CrewCornerJobInput, CrewMemberDto, CrewMemberHistoryDto, CrewLoyaltyHistoryDto, CrewMemberStatusDto, CrewRosterDto, CrewRosterQuery } from '@streets/shared';
 import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { crewMemberName, crewMemberSpecialty, crewMemberTraits } from './crew-profile.js';
+import { assertCrewRosterPlan } from './crew-roster-identity-audit.js';
+import { CrewLoyaltyService, crewLoyaltyEnabled, crewLoyaltyTier } from './crew-loyalty.service.js';
+import { crewMomentsFor } from './crew-moments.js';
+import { CrewBondService } from './crew-bonds.service.js';
+import { eligibleCrewNicknames, selectedCrewNickname } from './crew-legends.service.js';
 import { IdempotencyService } from './idempotency.service.js';
+import { escortWhereabouts } from './crew-whereabouts.js';
 
 import {
   crewPlaceCounts,
@@ -65,7 +71,8 @@ const COUNT_FIELDS = {
 } as const;
 
 const MEMBER_FIELDS = {
-  id: true, role: true, serial: true, status: true, assignmentKind: true, assignmentRef: true, experiencePoints: true, specialty: true, specialtyExperiencePoints: true, dealerStaffId: true,
+  id: true, role: true, serial: true, status: true, assignmentKind: true, assignmentRef: true, experiencePoints: true, specialty: true, specialtyExperiencePoints: true, dealerStaffId: true, loyaltyPoints: true, nicknameKey: true, nicknameSuppressed: true,
+  apprenticeship: { select: { id: true } }, mentoringBonds: { select: { id: true }, take: 1 },
 } as const;
 
 /** Rows per statement, well inside Postgres' bind-parameter limit. */
@@ -258,8 +265,8 @@ async function totalsFor(db: Db | PrismaClient, roundPlayerId: string) {
 
 function memberDto(row: {
   id: string; role: CrewRole; serial: number; status: CrewMemberStatusDto; assignmentKind: CrewAssignmentKindDto | null; assignmentRef: string | null;
-  experiencePoints: number; specialty: CrewMemberDto['specialty']; specialtyExperiencePoints: number; dealerStaffId: string | null; joinedAt: Date; statusSince: Date;
-}, assignmentLabel: string | null, history: CrewMemberHistoryDto[], ruleset: Ruleset): CrewMemberDto {
+  experiencePoints: number; specialty: CrewMemberDto['specialty']; specialtyExperiencePoints: number; dealerStaffId: string | null; joinedAt: Date; statusSince: Date; loyaltyPoints: number; nicknameKey: string | null; nicknameSuppressed: boolean;
+}, assignmentLabel: string | null, history: CrewMemberHistoryDto[], ruleset: Ruleset, loyaltyHistory: CrewLoyaltyHistoryDto[], moments: CrewMemberDto['moments'], legend: CrewMemberDto['legend'], lastMajorMoment: CrewLoyaltyHistoryDto | null): CrewMemberDto {
   const assignment = row.assignmentKind ? {
     kind: row.assignmentKind,
     ref: row.assignmentRef,
@@ -267,7 +274,7 @@ function memberDto(row: {
   } : null;
   const unavailableReason = row.status === 'ASSIGNED' ? `Currently assigned to ${assignment?.label ?? 'a job'}.`
     : row.status === 'IN_TRANSIT' ? 'Away on a run.'
-      : row.status === 'RECOVERING' ? 'Recovering from injuries.'
+      : row.status === 'RECOVERING' ? 'Away, hurt and recovering from injuries.'
         : row.status === 'RELEASED' ? 'Released from the active crew.' : null;
   return {
     id: row.id,
@@ -288,6 +295,15 @@ function memberDto(row: {
     traits: crewMemberTraits(row.role, row.serial),
     unavailableReason,
     history,
+    moments,
+    legend,
+    lastMajorMoment,
+    loyalty: {
+      enabled: crewLoyaltyEnabled(ruleset),
+      points: crewLoyaltyEnabled(ruleset) ? row.loyaltyPoints : 0,
+      ...crewLoyaltyTier(crewLoyaltyEnabled(ruleset) ? row.loyaltyPoints : 0),
+      history: loyaltyHistory,
+    },
     dealerStaffId: row.dealerStaffId,
     joinedAt: row.joinedAt.toISOString(),
     statusSince: row.statusSince.toISOString(),
@@ -552,6 +568,12 @@ export const CrewRosterService = {
         }] : []),
       ]),
     });
+    for (const member of members) await CrewLoyaltyService.award(tx, {
+      ruleset: input.ruleset, roundPlayerId: input.roundPlayerId, memberId: member.id,
+      source: 'TRAVEL_COMPLETED', sourceKey: `TRAVEL:${input.kind}:${input.assignmentRef}`,
+      summary: input.kind === 'BODYGUARD' ? 'Completed bodyguard duty' : 'Completed an escort run',
+      at: input.at,
+    });
     return members.length;
   },
   /**
@@ -599,6 +621,17 @@ export const CrewRosterService = {
       firstBuild,
       newId: randomUUID,
     });
+    // Fail closed before the first write if reconciliation would create phantom
+    // headcount, lose a dealer identity, or leave an assignment unfilled.
+    assertCrewRosterPlan({
+      counts: player,
+      refs: { ...refs, releasedCareers: releasedCareers.map((row) => ({ staffId: row.id, experiencePoints: row.experiencePoints })) },
+      members: changes.members,
+      placed: changes.placed,
+      nextSerial: (last._max.serial ?? 0) + 1,
+      firstBuild,
+      newId: randomUUID,
+    }, plan);
 
     for (const batch of chunks(plan.creates)) {
       await tx.crewMember.createMany({
@@ -669,7 +702,7 @@ export const CrewRosterService = {
   },
 
   /** Award a bounded career point share after a server-resolved operation commits successfully. */
-  async awardCompletedWork(tx: Db, input: { roundPlayerId: string; ruleset: Ruleset; role: 'THUG' | 'WORKER'; specialty: 'ENFORCER' | 'WHEELMAN' | 'SCOUT' | 'SERVICE'; memberIds?: string[]; assignmentKind?: CrewAssignmentKindDto; assignmentRef?: string | null; at: Date; label: string }): Promise<void> {
+  async awardCompletedWork(tx: Db, input: { roundPlayerId: string; ruleset: Ruleset; role: 'THUG' | 'WORKER'; specialty: 'ENFORCER' | 'WHEELMAN' | 'SCOUT' | 'SERVICE'; memberIds?: string[]; assignmentKind?: CrewAssignmentKindDto; assignmentRef?: string | null; at: Date; label: string; sourceKey?: string }): Promise<void> {
     const rules = input.ruleset.crewRoster;
     if (!rules?.enabled || !rules.experiencePerCompletedJob) return;
     const [member] = await tx.crewMember.findMany({
@@ -683,10 +716,14 @@ export const CrewRosterService = {
     const specialty = member.specialty === 'GENERALIST' && nextPoints >= (rules.specialtyUnlockExperience ?? Number.MAX_SAFE_INTEGER) ? input.specialty : member.specialty;
     await tx.crewMember.update({ where: { id: member.id }, data: { experiencePoints: { increment: points }, specialtyExperiencePoints: { increment: points }, specialty } });
     await tx.crewMemberEvent.create({ data: { memberId: member.id, roundPlayerId: input.roundPlayerId, kind: 'WORK_COMPLETED', assignmentKind: input.assignmentKind, assignmentRef: input.assignmentRef, summary: `${input.label} · +${points} XP.`, at: input.at } });
+    if (input.sourceKey) await CrewLoyaltyService.award(tx, {
+      ruleset: input.ruleset, roundPlayerId: input.roundPlayerId, memberId: member.id,
+      source: 'JOB_COMPLETED', sourceKey: input.sourceKey, summary: input.label, at: input.at,
+    });
   },
 
   /** 1.8.6-D. Every named corner defender earns Enforcer progress when a push is beaten off. */
-  async awardCornerDefense(tx: Db, input: { roundPlayerId: string; ruleset: Ruleset; turfId: string; at: Date }): Promise<number> {
+  async awardCornerDefense(tx: Db, input: { roundPlayerId: string; ruleset: Ruleset; turfId: string; at: Date; sourceKey?: string }): Promise<number> {
     const rules = input.ruleset.crewRoster;
     if (!rules?.enabled || !rules.experiencePerCompletedJob) return 0;
     const members = await tx.crewMember.findMany({
@@ -719,6 +756,10 @@ export const CrewRosterService = {
         summary: `Corner defense held · +${points} XP.`,
         at: input.at,
       })),
+    });
+    if (input.sourceKey) for (const member of members) await CrewLoyaltyService.award(tx, {
+      ruleset: input.ruleset, roundPlayerId: input.roundPlayerId, memberId: member.id,
+      source: 'DEFENSE_HELD', sourceKey: input.sourceKey, summary: 'Held a corner defense', at: input.at,
     });
     return members.length;
   },
@@ -783,7 +824,7 @@ export const CrewRosterService = {
   },
 
   /** One history entry per member for a settled dealer shift, never one per interval. */
-  async recordDealerShift(tx: Db, roundPlayerId: string, ruleset: Ruleset, crewId: string, dealerStaffIds: string[], sold: number, product: string, at: Date): Promise<void> {
+  async recordDealerShift(tx: Db, roundPlayerId: string, ruleset: Ruleset, crewId: string, dealerStaffIds: string[], sold: number, product: string, at: Date, settlementKey?: string): Promise<void> {
     if (!ruleset.crewRoster?.enabled || sold <= 0 || !dealerStaffIds.length) return;
     const members = await tx.crewMember.findMany({ where: { roundPlayerId, dealerStaffId: { in: dealerStaffIds } }, select: { id: true } });
     if (!members.length) return;
@@ -801,6 +842,11 @@ export const CrewRosterService = {
         at,
       })),
     });
+    if (settlementKey) for (const member of members) await CrewLoyaltyService.award(tx, {
+      ruleset, roundPlayerId, memberId: member.id, source: 'DEALER_SHIFT',
+      sourceKey: `DEALER:${crewId}:${settlementKey}:${product}`,
+      summary: 'Completed a dealer sales shift', at,
+    });
   },
 
   /** The roster as it stands, brought in line with the counts first. */
@@ -817,7 +863,7 @@ export const CrewRosterService = {
         ...(query.specialty ? { specialty: query.specialty } : {}),
         status: query.status ?? { not: 'RELEASED' },
       };
-      const [migration, totals, total, members] = await Promise.all([
+      const [migration, totals, total, members, storyPreference] = await Promise.all([
         tx.crewRosterMigration.findUnique({ where: { roundPlayerId }, select: { createdAt: true } }),
         totalsFor(tx, roundPlayerId),
         tx.crewMember.count({ where }),
@@ -828,17 +874,25 @@ export const CrewRosterService = {
           take: query.limit,
           select: { ...MEMBER_FIELDS, joinedAt: true, statusSince: true },
         }),
+        tx.roundPlayer.findUniqueOrThrow({ where: { id: roundPlayerId }, select: {
+          account: { select: { profile: { select: { showCrewMoments: true } } } },
+        } }),
       ]);
       const ids = members.map((member) => member.id);
       const refs = [...new Set(members.flatMap((member) => member.assignmentRef ? [[member.assignmentKind, member.assignmentRef] as const] : []))];
-      const [businesses, dealerCrews, turf, events] = await Promise.all([
+      const [businesses, dealerCrews, turf, runs, events, loyaltyEntries] = await Promise.all([
         tx.business.findMany({ where: { id: { in: refs.filter(([kind]) => kind === 'BUSINESS').map(([, ref]) => ref) } }, select: { id: true, kind: true } }),
         tx.dealerCrew.findMany({ where: { id: { in: refs.filter(([kind]) => kind === 'DEALER').map(([, ref]) => ref) } }, select: { id: true, citySlug: true, districtKey: true } }),
         tx.turf.findMany({
           where: { id: { in: refs.filter(([kind]) => kind === 'TURF' || kind === 'CORNER_LOOKOUT' || kind === 'STASH_GUARD').map(([, ref]) => ref) } },
           select: { id: true, district: true, city: { select: { name: true } } },
         }),
+        tx.run.findMany({
+          where: { id: { in: refs.filter(([kind]) => kind === 'ESCORT').map(([, ref]) => ref) } },
+          select: { id: true, stops: { orderBy: { order: 'asc' }, select: { city: true, route: true, departAt: true, arriveAt: true, leaveAt: true } } },
+        }),
         ids.length ? tx.crewMemberEvent.findMany({ where: { memberId: { in: ids } }, orderBy: [{ at: 'desc' }, { id: 'desc' }], select: { memberId: true, kind: true, assignmentKind: true, assignmentRef: true, summary: true, at: true } }) : Promise.resolve([]),
+        ids.length && crewLoyaltyEnabled(ruleset) ? tx.crewLoyaltyEntry.findMany({ where: { memberId: { in: ids } }, orderBy: [{ at: 'desc' }, { id: 'desc' }], select: { memberId: true, source: true, points: true, summary: true, at: true } }) : Promise.resolve([]),
       ]);
       const labels = new Map<string, string>();
       for (const business of businesses) {
@@ -857,14 +911,57 @@ export const CrewRosterService = {
         labels.set(`CORNER_LOOKOUT:${block.id}`, `Corner lookout · ${district} · ${block.city.name}`);
         labels.set(`STASH_GUARD:${block.id}`, `Stash guard · ${district} · ${block.city.name}`);
       }
+      for (const run of runs) {
+        labels.set(`ESCORT:${run.id}`, escortWhereabouts(ruleset, run.stops, now));
+      }
       const eventsByMember = new Map<string, typeof events>();
       for (const event of events) {
         const bucket = eventsByMember.get(event.memberId) ?? [];
         if (bucket.length < 4) bucket.push(event);
         eventsByMember.set(event.memberId, bucket);
       }
+      const optedIntoMoments = crewLoyaltyEnabled(ruleset) && (storyPreference.account.profile?.showCrewMoments ?? false);
+      // Project from already-fetched private roster events; no extra event queries
+      // or writes, and no source history leaks to other accounts or public feeds.
+      const momentReceipts = new Map<string, typeof loyaltyEntries>();
+      const momentEvents = new Map<string, typeof events>();
+      if (optedIntoMoments) {
+        for (const entry of loyaltyEntries) {
+          const bucket = momentReceipts.get(entry.memberId) ?? [];
+          bucket.push(entry);
+          momentReceipts.set(entry.memberId, bucket);
+        }
+        for (const event of events) {
+          const bucket = momentEvents.get(event.memberId) ?? [];
+          bucket.push(event);
+          momentEvents.set(event.memberId, bucket);
+        }
+      }
+      // All entries are already sorted newest-first; zero-point capped entries
+      // cannot masquerade as the last genuinely earned crew milestone.
+      const latestPositiveByMember = new Map<string, CrewLoyaltyHistoryDto>();
+      const loyaltyByMember = new Map<string, typeof loyaltyEntries>();
+      for (const entry of loyaltyEntries) {
+        if (entry.points > 0 && !latestPositiveByMember.has(entry.memberId)) {
+          latestPositiveByMember.set(entry.memberId, CrewLoyaltyService.history([entry])[0]!);
+        }
+        const bucket = loyaltyByMember.get(entry.memberId) ?? [];
+        if (bucket.length < 4) bucket.push(entry);
+        loyaltyByMember.set(entry.memberId, bucket);
+      }
+      const bondsEnabled = crewLoyaltyEnabled(ruleset);
+      const bonds = await CrewBondService.list(tx, roundPlayerId, bondsEnabled);
+      const mentoredMemberIds = bondsEnabled && ids.length
+        ? (await tx.crewMentorBond.findMany({
+          where: { roundPlayerId, apprenticeId: { in: ids } },
+          select: { apprenticeId: true },
+        })).map((row) => row.apprenticeId)
+        : [];
       return {
         enabled: true,
+        bondsEnabled,
+        bonds,
+        mentoredMemberIds,
         supportsSelectedTeams: ruleset.crewRoster?.selectedTeams === true,
         migratedAt: migration?.createdAt.toISOString() ?? null,
         totals,
@@ -873,6 +970,21 @@ export const CrewRosterService = {
           assignmentName(member.assignmentKind, member.assignmentRef, labels),
           eventHistory(eventsByMember.get(member.id) ?? [], member.joinedAt, labels),
           ruleset,
+          CrewLoyaltyService.history(loyaltyByMember.get(member.id) ?? []),
+          optedIntoMoments ? crewMomentsFor({
+            role: member.role, serial: member.serial,
+            receipts: momentReceipts.get(member.id) ?? [],
+            careerEvents: momentEvents.get(member.id) ?? [],
+          }) : [],
+          crewLoyaltyEnabled(ruleset) ? (() => {
+            const proof = {
+              loyaltyPoints: member.loyaltyPoints, nicknameKey: member.nicknameKey,
+              suppressed: member.nicknameSuppressed,
+              receipts: loyaltyEntries.filter((entry) => entry.memberId === member.id),
+            };
+            return { nickname: selectedCrewNickname(proof), options: eligibleCrewNicknames(proof), moderated: member.nicknameSuppressed };
+          })() : undefined,
+          latestPositiveByMember.get(member.id) ?? null,
         )),
         total,
       };

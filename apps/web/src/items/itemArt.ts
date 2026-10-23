@@ -51,6 +51,36 @@ export const ITEM_ART = {
   SEDAN: { name: 'Sedan', shortName: 'Sedan', category: 'VEHICLE', rarity: 'UNCOMMON', file: 'sedan.svg', cells: WIDE },
   VAN: { name: 'Van', shortName: 'Van', category: 'VEHICLE', rarity: 'RARE', file: 'van.svg', cells: WIDE },
 
+  // 2.4.0 ammo and garage parts. Package sizes share consistent supply art.
+  AMMO_BOX: { name: 'Ammo Box', shortName: 'Ammo Box', category: 'SUPPLY', rarity: 'COMMON', file: 'ammo.svg', cells: ONE },
+  AMMO_CASE: { name: 'Ammo Case', shortName: 'Ammo Case', category: 'SUPPLY', rarity: 'UNCOMMON', file: 'ammo.svg', cells: ONE },
+  AMMO_CRATE: { name: 'Ammo Crate', shortName: 'Ammo Crate', category: 'SUPPLY', rarity: 'RARE', file: 'ammo.svg', cells: ONE },
+  PARTS_BOX: { name: 'Parts Box', shortName: 'Parts Box', category: 'SUPPLY', rarity: 'COMMON', file: 'parts.svg', cells: ONE },
+  PARTS_CRATE: { name: 'Parts Crate', shortName: 'Parts Crate', category: 'SUPPLY', rarity: 'UNCOMMON', file: 'parts.svg', cells: ONE },
+  PARTS_PALLET: { name: 'Parts Pallet', shortName: 'Pallet', category: 'SUPPLY', rarity: 'RARE', file: 'parts.svg', cells: ONE },
+
+  // Hideout scavenging components. Cloth, lumber, tool kit, fasteners and scrap
+  // metal have their own art; the rest reuse supply illustrations for now.
+  SCRAP_METAL: { name: 'Scrap metal', shortName: 'Scrap', category: 'SUPPLY', rarity: 'COMMON', file: 'scrap-metal.svg', cells: ONE },
+  WIRING: { name: 'Wiring', shortName: 'Wiring', category: 'SUPPLY', rarity: 'COMMON', file: 'parts.svg', cells: ONE },
+  TOOL_KIT: { name: 'Tool kit', shortName: 'Tool kit', category: 'SUPPLY', rarity: 'COMMON', file: 'tool-kit.svg', cells: ONE },
+  BOTTLES: { name: 'Bottles', shortName: 'Bottles', category: 'SUPPLY', rarity: 'COMMON', file: 'beer.svg', cells: ONE },
+  LABELS: { name: 'Labels', shortName: 'Labels', category: 'SUPPLY', rarity: 'COMMON', file: 'parts.svg', cells: ONE },
+  PACKAGING: { name: 'Packaging', shortName: 'Pack', category: 'SUPPLY', rarity: 'COMMON', file: 'parts.svg', cells: ONE },
+  LUMBER: { name: 'Lumber', shortName: 'Lumber', category: 'SUPPLY', rarity: 'COMMON', file: 'lumber.svg', cells: ONE },
+  FASTENERS: { name: 'Fasteners', shortName: 'Fasteners', category: 'SUPPLY', rarity: 'COMMON', file: 'fasteners.svg', cells: ONE },
+  CLOTH: { name: 'Cloth', shortName: 'Cloth', category: 'SUPPLY', rarity: 'COMMON', file: 'cloth.svg', cells: ONE },
+  BASIC_MEDICINE: { name: 'Basic medicine', shortName: 'Basic meds', category: 'SUPPLY', rarity: 'UNCOMMON', file: 'medicine.svg', cells: ONE },
+  FUEL_CAN: { name: 'Fuel can', shortName: 'Fuel can', category: 'SUPPLY', rarity: 'UNCOMMON', file: 'parts.svg', cells: ONE },
+  RADIO: { name: 'Radio', shortName: 'Radio', category: 'SUPPLY', rarity: 'UNCOMMON', file: 'parts.svg', cells: ONE },
+  MOTOR_ASSEMBLY: { name: 'Motor assembly', shortName: 'Motor', category: 'SUPPLY', rarity: 'RARE', file: 'parts.svg', cells: ONE },
+  REPAIR_SUPPLIES: { name: 'Repair supplies', shortName: 'Repairs', category: 'SUPPLY', rarity: 'RARE', file: 'parts.svg', cells: ONE },
+  SPECIALTY_CONTAINER: { name: 'Specialty container', shortName: 'Container', category: 'SUPPLY', rarity: 'RARE', file: 'parts.svg', cells: ONE },
+  PRECISION_PARTS: { name: 'Precision parts', shortName: 'Precision', category: 'SUPPLY', rarity: 'EPIC', file: 'parts.svg', cells: ONE },
+  ADVANCED_MEDICAL: { name: 'Advanced medical component', shortName: 'Adv. med', category: 'SUPPLY', rarity: 'EPIC', file: 'medicine.svg', cells: ONE },
+  HIGH_CAPACITY_FUEL_CELL: { name: 'High-capacity fuel cell', shortName: 'Fuel cell', category: 'SUPPLY', rarity: 'LEGENDARY', file: 'parts.svg', cells: ONE },
+  SPECIALIST_CIRCUITRY: { name: 'Specialist circuitry', shortName: 'Circuitry', category: 'SUPPLY', rarity: 'LEGENDARY', file: 'parts.svg', cells: ONE },
+
   // Products
   CRACK: { name: 'Crack', shortName: 'Crack', category: 'PRODUCT', rarity: 'COMMON', file: 'crack.svg', cells: ONE },
   WEED: { name: 'Weed', shortName: 'Weed', category: 'PRODUCT', rarity: 'COMMON', file: 'weed.svg', cells: ONE },
@@ -78,8 +108,11 @@ export const ITEM_ART = {
   // Rewards that are not store items
   CASH: { name: 'Cash', shortName: 'Cash', category: 'CURRENCY', rarity: 'UNCOMMON', file: 'cash.svg', cells: ONE },
   TURNS: { name: 'Turns', shortName: 'Turns', category: 'CURRENCY', rarity: 'UNCOMMON', file: 'turns.svg', cells: ONE },
+  // The Drop's account currency, e.g. free Crowns on the Street Pass.
+  CROWNS: { name: 'Crowns', shortName: 'Crowns', category: 'CURRENCY', rarity: 'RARE', file: 'crowns.svg', cells: ONE },
 
   // Street Pass Season 1 cosmetics, keyed by cosmetic key
+  'street-pass-s1-snapback': { name: 'Snapback · Season 1', shortName: 'Snapback', category: 'COSMETIC', rarity: 'UNCOMMON', file: 'street-pass-s1-snapback.svg', cells: ONE },
   'street-pass-s1-fresh-face': { name: 'Fresh Face · Season 1', shortName: 'Fresh Face', category: 'COSMETIC', rarity: 'RARE', file: 'street-pass-s1-fresh-face.svg', cells: ONE },
   'street-pass-s1-made-man': { name: 'Made Man · Season 1', shortName: 'Made Man', category: 'COSMETIC', rarity: 'EPIC', file: 'street-pass-s1-made-man.svg', cells: ONE },
   'street-pass-s1-kingpin': { name: 'Kingpin · Season 1', shortName: 'Kingpin', category: 'COSMETIC', rarity: 'LEGENDARY', file: 'street-pass-s1-kingpin.svg', cells: ONE },
@@ -150,6 +183,8 @@ export function rewardArtKey(reward: { kind: string; key: string | null; amount?
       return 'CASH';
     case 'TURNS':
       return 'TURNS';
+    case 'CROWNS':
+      return 'CROWNS';
     case 'ITEM':
       if (!reward.key) return null;
       if (Object.hasOwn(REWARD_FIELD_ART, reward.key)) return REWARD_FIELD_ART[reward.key] ?? null;

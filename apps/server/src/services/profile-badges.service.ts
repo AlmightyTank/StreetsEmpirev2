@@ -5,6 +5,7 @@ import { CommunityService, permanentAwardsForAccount } from './community.service
 import { selectProfileBadges } from './profile-badges.js';
 import { RoundPlayerService } from './round-player.service.js';
 import { RoundService } from './round.service.js';
+import { ActiveSupporterService } from './active-supporter.service.js';
 
 const SUPPORTER_FORUM_FLAIR: ProfileBadgeDto = {
   key: 'supporter-active',
@@ -16,8 +17,7 @@ const SUPPORTER_FORUM_FLAIR: ProfileBadgeDto = {
 };
 
 async function activeSupporterFlair(prisma: PrismaClient, accountId: string): Promise<ProfileBadgeDto[]> {
-  const membership = await prisma.supporterMembership.findUnique({ where: { accountId }, select: { status: true } });
-  return membership?.status === 'active' || membership?.status === 'trialing' ? [SUPPORTER_FORUM_FLAIR] : [];
+  return await ActiveSupporterService.has(prisma, accountId) ? [SUPPORTER_FORUM_FLAIR] : [];
 }
 
 export const ProfileBadgeService = {

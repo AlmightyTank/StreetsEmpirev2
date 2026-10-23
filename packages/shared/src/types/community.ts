@@ -3,6 +3,7 @@ import type { AvatarParts } from '../avatar-builder.js';
 import type { AllianceDetailDto, AllianceTagDto } from './alliance.js';
 import type { NoticeCategory, NotificationCategory } from '../notifications.js';
 import type { ActivityDto, CityDto, PlayerExperienceDto, ProfileAccent, ProfileEffect, ProfileSurface, RoundDto, SeasonHideoutDto } from './api.js';
+import type { StreetSignDesign } from '../street-sign.js';
 
 export type PublicAchievementCategory =
   | 'rank'
@@ -252,6 +253,20 @@ export interface PublicCareerDto {
   seasons: PublicSeasonResultDto[];
   /** 0.9.0-F. Every finished top-ten season, newest first. */
   hallOfFame: PublicHallOfFameAppearanceDto[];
+  /** Optional for compatibility with profiles serialized before Empire Legacy. */
+  legacyEntries?: PublicLegacyEntryDto[];
+}
+
+/** Permanent, cosmetic-only receipt from a finished season. */
+export interface PublicLegacyEntryDto {
+  id: string;
+  kind: string;
+  title: string;
+  summary: unknown;
+  coverNewsId: string | null;
+  awardedAt: string;
+  featured: boolean;
+  round: { id: string; name: string; slug: string; endedAt: string };
 }
 
 export interface RankingEntryDto {
@@ -277,6 +292,8 @@ export interface RankingEntryDto {
   isSupporter: boolean;
   /** UTC month (YYYY-MM) of the account's earliest supporter reward, null when not a supporter. */
   supporterSince: string | null;
+  /** Lifetime account level for the chip beside the name. Optional for older servers. */
+  accountLevel?: number;
   /** 0.3.0-C. Null for solo players and on rounds without alliances. */
   alliance: AllianceTagDto | null;
   /** Slice F. The site theme this player shows on their profile; optional for older servers. */
@@ -337,6 +354,8 @@ export interface ProfileLookDto {
   crew: CrewCosmeticLoadout;
   /** Item art collections the owner has earned, oldest first. */
   collections: { key: string; title: string; rarity: string }[];
+  /** Slice C. Stable owned banner style, absent for old clients and classic profiles. */
+  crewBanner?: string | null;
 }
 
 export interface PublicPlayerProfileDto {
@@ -364,6 +383,8 @@ export interface PublicPlayerProfileDto {
   };
   /** Slice E. Null when the owner hides their look. Optional for older servers. */
   look?: ProfileLookDto | null;
+  /** Slice F. Player-selected named item, preserved across rounds. */
+  famousItem?: import('./api.js').FeaturedItemDto | null;
   /** Lifetime account XP, safe to show on public player cards. */
   experience?: PlayerExperienceDto;
   publicPimpId: number;
@@ -372,6 +393,8 @@ export interface PublicPlayerProfileDto {
   crewName: string | null;
   /** Plain-text profile description written by the player. */
   profileBio: string | null;
+  /** Slice B. Normalized cosmetic sign, omitted by older servers and hidden with the profile look. */
+  streetSign?: StreetSignDesign | null;
   /** 0.9.0-F. The live season this profile belongs to. */
   seasonName: string;
   /** 0.3.0-C. Null for solo players and on rounds without alliances. */
@@ -417,15 +440,36 @@ export interface PublicPlayerProfileDto {
   /** UTC month (YYYY-MM) of the account's earliest supporter reward, null when not a supporter. */
   supporterSince: string | null;
   /**
+   * Birthdays: true on the player's birthday when they chose to show a cake.
+   * Never the date, age or year. Absent from older servers.
+   */
+  birthdayToday?: boolean;
+  /**
    * 1.4.0-F. The factions this player stands at Connected or above with, and the tier. Never the
    * points, and nothing below Connected. Absent before 1.4.0-F.
    */
   factionAlignment?: Array<{ key: string; name: string; tierName: string }>;
+  /** Cosmetic playstyle identity. It never changes combat or economy math. */
+  careerIdentity?: CareerIdentityDto | null;
   /**
    * Hidden Streets Slice C. Secrets / Discoveries collection: per-round
    * in-progress stories plus permanent trophies. Optional for older servers.
    */
   discoveries?: SecretCollectionDto;
+  /** Street Skills Slice D. Points-only current-round identity badges. */
+  streetSkillBadges?: import('./street-skills.js').StreetSkillBadgeDto[];
+}
+
+export type CareerIdentityKey = 'ENFORCER' | 'SMUGGLER' | 'FIXER' | 'BUSINESS_BOSS' | 'INTELLIGENCE_BROKER';
+
+export interface CareerIdentityDto {
+  key: CareerIdentityKey;
+  title: string;
+  contractCategories: string[];
+  selectedAt: string;
+  switchAvailableAt: string;
+  canSwitch: boolean;
+  history: Array<{ key: CareerIdentityKey; selectedAt: string }>;
 }
 
 export interface PublicPlayerProfileResponseDto {
@@ -689,6 +733,15 @@ export interface DiscordCrackdownEventDto {
   thugsPickedUp: number;
 }
 
+/** Anonymous game activity that is safe to show in the Discord bot's public presence. */
+export interface DiscordPresenceHighlightsDto {
+  highlights: Array<{
+    kind: 'jackpot' | 'sportsbook' | 'raid' | 'scout';
+    /** Deliberately contains no player name, id, profile, or Discord account data. */
+    message: string;
+  }>;
+}
+
 export interface DiscordRankAlertDto {
   discordId: string;
   displayName: string;
@@ -925,6 +978,10 @@ export interface GameNewsDto {
   isPinned: boolean;
   publishedAt: string;
   authorName: string | null;
+  /** True for published Streets Daily stories generated from city memory. */
+  autoGenerated: boolean;
+  /** City slug for the story's district, when it came from a memory event. */
+  citySlug: string | null;
 }
 
 export interface GameNewsFeedDto {

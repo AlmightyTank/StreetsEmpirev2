@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV18O, type QuestDefinition } from '@streets/rulesets';
+import { classicOgV18O, classicOgV19D, type QuestDefinition } from '@streets/rulesets';
 import { announceableQuestKeys } from '../handcrafted-quest.service.js';
 
-const definitions = classicOgV18O.questDefinitions as Record<string, QuestDefinition | undefined>;
+const definitions = {
+  ...classicOgV18O.questDefinitions,
+  ...classicOgV19D.questDefinitions,
+} as Record<string, QuestDefinition | undefined>;
 const now = new Date('2026-10-17T12:00:00.000Z');
 
 function statuses(entries: Record<string, string>): Map<string, string> {
@@ -70,13 +73,19 @@ describe('announceableQuestKeys', () => {
     )).toEqual(['FRESH_FACES']);
   });
 
-  it('announces Night Shift once the Nightclub is open', () => {
+  it('keeps a paced side quest off the bell until it is actually available', () => {
+    expect(definitions.ACE_HOUSE_RULES).toBeDefined();
     expect(announceableQuestKeys(
-      ['MAMA_NIGHT_SHIFT'],
+      ['ACE_HOUSE_RULES', 'FRESH_FACES'],
       definitions,
-      statuses({ MAMA_NIGHT_SHIFT: 'AVAILABLE' }),
+      statuses({ ACE_HOUSE_RULES: 'LOCKED', FRESH_FACES: 'AVAILABLE' }),
       now,
-      { lockedDistricts: new Set() },
-    )).toEqual(['MAMA_NIGHT_SHIFT']);
+    )).toEqual(['FRESH_FACES']);
+    expect(announceableQuestKeys(
+      ['ACE_HOUSE_RULES'],
+      definitions,
+      statuses({ ACE_HOUSE_RULES: 'AVAILABLE' }),
+      now,
+    )).toEqual(['ACE_HOUSE_RULES']);
   });
 });
