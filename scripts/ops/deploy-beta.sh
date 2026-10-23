@@ -29,9 +29,6 @@ SEED="${SEED:-0}"
 SKIP_BOT="${SKIP_BOT:-0}"
 SKIP_PULL="${SKIP_PULL:-0}"
 SKIP_BACKUP="${SKIP_BACKUP:-0}"
-# The shared entitlement DB is owned by the production compose project. Beta
-# starts that same compose service instead of creating a second instance.
-PRODUCTION_APP_DIR="${PRODUCTION_APP_DIR:-$(dirname "$APP_DIR")/StreetsEmpirev2}"
 SUDO=""
 [ "$(id -u)" -eq 0 ] || SUDO="sudo"
 
@@ -94,10 +91,8 @@ else
     || fail "the pre-deploy backup failed, so nothing was migrated. Fix it (see docs/RECOVERY.md) or rerun with SKIP_BACKUP=1 to deploy without one."
 fi
 
-step "Starting the shared entitlements database from production compose"
-[ -f "$PRODUCTION_APP_DIR/docker-compose.yml" ] || fail "production compose file not found at $PRODUCTION_APP_DIR/docker-compose.yml. Set PRODUCTION_APP_DIR to the main checkout."
-command -v docker >/dev/null 2>&1 || fail "Docker is required to start postgres-entitlements."
-docker compose -f "$PRODUCTION_APP_DIR/docker-compose.yml" up -d postgres-entitlements
+step "Checking the manually started shared entitlements database"
+command -v docker >/dev/null 2>&1 || fail "Docker is required to check postgres-entitlements."
 for attempt in $(seq 1 30); do
   health="$(docker inspect --format '{{.State.Health.Status}}' streets-empire-entitlements-db 2>/dev/null || true)"
   if [ "$health" = "healthy" ]; then
@@ -105,8 +100,8 @@ for attempt in $(seq 1 30); do
     break
   fi
   if [ "$attempt" -eq 30 ]; then
-    docker compose -f "$PRODUCTION_APP_DIR/docker-compose.yml" logs --tail=50 postgres-entitlements || true
-    fail "the shared entitlements database did not become healthy within 60 seconds."
+    docker logs --tail=50 streets-empire-entitlements-db || true
+    fail "the shared entitlements database is not healthy. Start postgres-entitlements from the main checkout compose file, then rerun beta deploy."
   fi
   sleep 2
 done
