@@ -22,6 +22,10 @@ import { isEntryState, isReturnPolicy, loadCatalog, type CatalogEntry } from './
 import { DropPurchaseService } from './drop-purchase.service.js';
 import { DropSettingsService, settingsDto, type DropSettingsValues } from './drop-settings.service.js';
 import { RoundService } from './round.service.js';
+import type { sharedEntitlementRuntime } from './shared-entitlement-runtime.js';
+import { getSharedCrownHold } from './shared-entitlement-runtime.js';
+
+type SharedRuntime = NonNullable<Awaited<ReturnType<typeof sharedEntitlementRuntime>>>;
 
 /**
  * The Drop, Slice F: operator tools. Every change here needs a reason and
@@ -292,13 +296,13 @@ export const DropAdminService = {
     });
   },
 
-  async wallet(prisma: PrismaClient, accountId: string): Promise<AdminCrownWalletDto> {
+  async wallet(prisma: PrismaClient, accountId: string, shared?: SharedRuntime | null): Promise<AdminCrownWalletDto> {
     const account = await prisma.account.findUnique({ where: { id: accountId }, select: { id: true, username: true } });
     if (!account) throw AppError.notFound('ACCOUNT_NOT_FOUND', 'That account was not found.');
     const [settings, round] = await Promise.all([DropSettingsService.get(prisma), RoundService.getCurrent(prisma)]);
     const [wallet, history, orders, packOrders] = await Promise.all([
-      CrownWalletService.view(prisma, accountId, round?.id ?? null, settings.roundEarnCap),
-      CrownWalletService.history(prisma, accountId, 100),
+      CrownWalletService.view(prisma, accountId, round?.id ?? null, settings.roundEarnCap, shared),
+      CrownWalletService.history(prisma, accountId, 100, shared),
       DropPurchaseService.orders(prisma, accountId, 50),
       CrownPackService.orders(prisma, accountId, 50),
     ]);
@@ -361,9 +365,10 @@ export const DropAdminService = {
     const reason = requireReason(reasonInput);
     await prisma.$transaction(async (tx) => {
       const before = await tx.crownWallet.findUnique({ where: { accountId } });
-      if (!before?.heldAt) throw AppError.conflict('CROWN_WALLET_NOT_HELD', 'That wallet is not on hold.');
+      const sharedHold = await getSharedCrownHold(accountId);
+      if (!before?.heldAt && !sharedHold?.heldAt) throw AppError.conflict('CROWN_WALLET_NOT_HELD', 'That wallet is not on hold.');
       await CrownWalletService.release(tx, accountId);
-      await AdminAuditService.record(tx, actor, { action: 'drop.wallet.release', targetType: 'Account', targetId: accountId, reason, before });
+      await AdminAuditService.record(tx, actor, { action: 'drop.wallet.release', targetType: 'Account', targetId: accountId, reason, before: before ?? sharedHold });
     });
   },
 

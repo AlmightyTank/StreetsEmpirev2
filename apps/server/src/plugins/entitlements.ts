@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import type { FastifyPluginAsync } from 'fastify';
 import fp from 'fastify-plugin';
 import { env } from '../config/env.js';
+import { configureSharedEntitlements } from '../services/shared-entitlement-runtime.js';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -16,6 +17,7 @@ declare module 'fastify' {
  */
 const entitlementsPlugin: FastifyPluginAsync = async (fastify) => {
   if (!env.sharedEntitlements.enabled) {
+    configureSharedEntitlements(null);
     fastify.decorate('entitlements', null);
     return;
   }
@@ -26,8 +28,12 @@ const entitlementsPlugin: FastifyPluginAsync = async (fastify) => {
     transactionOptions: { maxWait: 10_000, timeout: 15_000 },
   });
   await prisma.$connect();
+  configureSharedEntitlements(prisma);
   fastify.decorate('entitlements', prisma);
-  fastify.addHook('onClose', async () => { await prisma.$disconnect(); });
+  fastify.addHook('onClose', async () => {
+    configureSharedEntitlements(null);
+    await prisma.$disconnect();
+  });
 };
 
 export default fp(entitlementsPlugin, { name: 'entitlements', dependencies: ['prisma'] });

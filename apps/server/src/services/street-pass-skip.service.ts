@@ -17,6 +17,9 @@ import { CrownWalletService } from './crown-wallet.service.js';
 import { assertActionId } from './drop-purchase.service.js';
 import { DropSettingsService, requireDropEnabled, switchesFor } from './drop-settings.service.js';
 import { progressFor } from './street-pass-cred.service.js';
+import type { sharedEntitlementRuntime } from './shared-entitlement-runtime.js';
+
+type SharedRuntime = NonNullable<Awaited<ReturnType<typeof sharedEntitlementRuntime>>>;
 
 /**
  * The Drop, Slice E: Street Pass level skips, bought with Crowns. A skip raises
@@ -34,12 +37,14 @@ function requirePassRules(ruleset: Ruleset) {
 }
 
 export const StreetPassSkipService = {
-  async quote(prisma: PrismaClient, accountId: string, roundPlayerId: string, ruleset: Ruleset): Promise<StreetPassSkipQuoteDto> {
+  async quote(prisma: PrismaClient, accountId: string, roundPlayerId: string, ruleset: Ruleset, shared?: SharedRuntime | null): Promise<StreetPassSkipQuoteDto> {
     const rules = ruleset.streetPass;
     const settings = await DropSettingsService.get(prisma);
     const [progress, wallet, discount] = await Promise.all([
       prisma.streetPassProgress.findUnique({ where: { roundPlayerId } }),
-      prisma.crownWallet.findUnique({ where: { accountId }, select: { balance: true } }),
+      shared
+        ? shared.db.sharedCrownWallet.findUnique({ where: { accountId: shared.accountId }, select: { balance: true } })
+        : prisma.crownWallet.findUnique({ where: { accountId }, select: { balance: true } }),
       dropDiscountFor(prisma, accountId, new Date()),
     ]);
     const tierCount = rules?.tiers.length ?? 0;
@@ -60,6 +65,7 @@ export const StreetPassSkipService = {
     prisma: PrismaClient,
     roundPlayerId: string,
     input: { tiers: number; actionId: string },
+    shared?: SharedRuntime | null,
   ): Promise<GameActionResult<StreetPassSkipResultDto>> {
     requireDropEnabled();
     assertActionId(input.actionId);
@@ -117,7 +123,7 @@ export const StreetPassSkipService = {
           kind: 'SPEND',
           delta: -price,
           source: 'street-pass-skip',
-          externalRef: `order:${order.id}`,
+          externalRef: `street-pass-skip:${player.accountId}:${input.actionId}`,
           reason: `Street Pass tier ${fromTier} → ${toTier}`,
           metadata: { orderId: order.id, roundPlayerId, fromTier, toTier },
         });
@@ -129,7 +135,7 @@ export const StreetPassSkipService = {
             fromTier,
             toTier,
             priceCrowns: price,
-            wallet: await CrownWalletService.view(tx, player.accountId, round.id, settings.roundEarnCap),
+            wallet: await CrownWalletService.view(tx, player.accountId, round.id, settings.roundEarnCap, shared),
           },
         };
       },

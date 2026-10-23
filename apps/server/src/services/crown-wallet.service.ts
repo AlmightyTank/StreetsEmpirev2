@@ -3,6 +3,7 @@ import type { CrownLedgerEntryDto, CrownLedgerKindDto, DropWalletDto } from '@st
 import type { Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import type { sharedEntitlementRuntime } from './shared-entitlement-runtime.js';
+import { applySharedCrownMovement, setSharedCrownHold } from './shared-entitlement-runtime.js';
 
 type SharedRuntime = NonNullable<Awaited<ReturnType<typeof sharedEntitlementRuntime>>>;
 
@@ -110,11 +111,12 @@ export const CrownWalletService = {
       }
       return { applied: false, balance: wallet.balance, entry: existing };
     }
-    if (movement.delta < 0 && wallet.heldAt && !movement.allowHeld) {
+    const shared = await applySharedCrownMovement(movement);
+    if (movement.delta < 0 && wallet.heldAt && !movement.allowHeld && !shared) {
       throw AppError.conflict('CROWN_WALLET_HELD', 'Your Crown wallet is on hold while support reviews a payment. Contact support to clear it.');
     }
-    const balance = wallet.balance + movement.delta;
-    if (balance < 0) {
+    const balance = shared?.balance ?? wallet.balance + movement.delta;
+    if (!shared && balance < 0) {
       throw AppError.conflict(
         'INSUFFICIENT_CROWNS',
         `That costs ${(-movement.delta).toLocaleString('en-US')} Crowns. You have ${wallet.balance.toLocaleString('en-US')}.`,
@@ -138,16 +140,18 @@ export const CrownWalletService = {
         actorAccountId: movement.actorAccountId ?? null,
       },
     });
-    return { applied: true, balance, entry };
+    return { applied: shared?.applied ?? true, balance, entry };
   },
 
   /** Freeze spending (a spent pack was refunded or disputed). Credits still land. */
   async hold(tx: Db, accountId: string, reason: string, at = new Date()): Promise<void> {
+    await setSharedCrownHold(accountId, reason);
     await lockCrownWallet(tx, accountId);
     await tx.crownWallet.update({ where: { accountId }, data: { heldAt: at, holdReason: reason } });
   },
 
   async release(tx: Db, accountId: string): Promise<void> {
+    await setSharedCrownHold(accountId, null);
     await lockCrownWallet(tx, accountId);
     await tx.crownWallet.update({ where: { accountId }, data: { heldAt: null, holdReason: null } });
   },
