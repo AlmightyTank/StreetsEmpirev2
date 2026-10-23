@@ -33,6 +33,7 @@ import { StashGrid } from '../components/StashGrid.js';
 import { ScavengingPanel } from '../components/ScavengingPanel.js';
 import { GeneratorPanel } from '../components/GeneratorPanel.js';
 import { WorkshopPanel } from '../components/WorkshopPanel.js';
+import { GameTabs } from '../components/GameUI.js';
 import type { CraftingWorkshopDto } from '@streets/shared';
 import type { ScavengePageDto } from '@streets/shared';
 
@@ -325,6 +326,7 @@ export function HideoutPage() {
   const [stashBusy, setStashBusy] = useState(false);
   const [scavenging, setScavenging] = useState<ScavengePageDto | null>(null);
   const [workshop, setWorkshop] = useState<CraftingWorkshopDto | null>(null);
+  const [hideoutTab, setHideoutTab] = useState<'stash' | 'scavenging' | 'workshop' | 'generator'>('stash');
 
   useEffect(() => {
     let active = true;
@@ -462,16 +464,28 @@ export function HideoutPage() {
         {cosmeticError ? <Alert>{cosmeticError}</Alert> : null}
         {stashError ? <Alert>{stashError}</Alert> : null}
 
-        {me && stash ? (
-          <section id="hideout-stash" className="se-hideout-section">
-            <SectionHeading eyebrow="Inventory" title="Your stash" copy="Arrange your owned items in the hideout grid. Store, Armory, and Garage balances remain connected to this stock." />
-            <StashGrid stash={stash} busy={stashBusy} onSave={(items) => void saveStash(items)} />
+        {me && (stash || scavenging || workshop || hideout?.generator) ? (
+          <section id="hideout-resources" className="se-hideout-section se-hideout-resources">
+            <SectionHeading eyebrow="Hideout resources" title="Supplies and systems" copy="Move between your stock, scavenged components, crafting bench, and generator." />
+            <GameTabs
+              label="Hideout resource sections"
+              activeId={hideoutTab}
+              onChange={(id) => setHideoutTab(id as typeof hideoutTab)}
+              items={[
+                { id: 'stash', label: 'Your stash', disabled: !stash },
+                { id: 'scavenging', label: 'Caches and components', disabled: !scavenging },
+                { id: 'workshop', label: 'Crafting bench', disabled: !workshop },
+                { id: 'generator', label: 'Generator', disabled: !hideout?.generator },
+              ]}
+            />
+            <div className="se-hideout-resources__panel" role="tabpanel" aria-label={`${hideoutTab} panel`}>
+              {hideoutTab === 'stash' && me && stash ? <div id="hideout-stash"><StashGrid stash={stash} busy={stashBusy} onSave={(items) => void saveStash(items)} /></div> : null}
+              {hideoutTab === 'scavenging' && scavenging ? <ScavengingPanel page={scavenging} onChanged={setScavenging} /> : null}
+              {hideoutTab === 'workshop' && workshop ? <WorkshopPanel workshop={workshop} onChanged={setWorkshop} /> : null}
+              {hideoutTab === 'generator' && hideout?.generator ? <GeneratorPanel generator={hideout.generator} onChanged={(generator) => setHideout((current) => current ? { ...current, generator } : current)} /> : null}
+            </div>
           </section>
         ) : null}
-
-        {scavenging ? <ScavengingPanel page={scavenging} onChanged={setScavenging} /> : null}
-        {workshop ? <WorkshopPanel workshop={workshop} onChanged={setWorkshop} /> : null}
-        {hideout?.generator ? <GeneratorPanel generator={hideout.generator} onChanged={(generator) => setHideout((current) => current ? { ...current, generator } : current)} /> : null}
 
         {!hideout && !loadError ? (
           <Panel title="Loading"><p className="se-muted">Checking the locks...</p></Panel>
@@ -487,7 +501,7 @@ export function HideoutPage() {
           <>
             <nav className="se-hideout-nav" aria-label="Hideout sections">
               <a href="#hideout-overview">Overview</a>
-              <a href="#hideout-stash">Stash</a>
+              <a href="#hideout-stash" onClick={() => setHideoutTab('stash')}>Stash</a>
               <a href="#hideout-look">Look</a>
               <a href="#hideout-upgrades">Upgrades <span>{formatNumber(readyRooms.length)}</span></a>
               {hasSecurity ? <a href="#hideout-security">Security</a> : null}

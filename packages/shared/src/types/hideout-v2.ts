@@ -118,12 +118,14 @@ export interface CraftingWorkshopDto {
   level: number;
   skill: number;
   skillXp: number;
+  availableComponents: Array<{ key: string; quantity: number }>;
   recipes: CraftingRecipeDto[];
 }
 
 export interface CraftingResultDto {
   recipe: CraftingRecipeDto;
   output: { key: string; name: string; quantity: number; footprint: { width: number; height: number } };
+  availableComponents: Array<{ key: string; quantity: number }>;
   skill: number;
   skillXp: number;
 }
@@ -190,6 +192,7 @@ export interface HideoutGeneratorDto {
   estimatedPoweredTurns: number;
   capacityLevel: number;
   efficiencyLevel: number;
+  availableComponents: Array<{ key: string; quantity: number }>;
   upgrades: HideoutGeneratorUpgradeDto[];
 }
 

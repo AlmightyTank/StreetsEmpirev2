@@ -4,6 +4,7 @@ import { AppError } from '../utils/errors.js';
 import { ActionService, assertTurns } from './action.service.js';
 import { canFitAdditionalStack, StashService } from './stash.service.js';
 import { generatorFuelPerTurn } from './generator.service.js';
+import { recordHideoutEconomy } from './hideout-economy-telemetry.service.js';
 
 type Recipe = Omit<CraftingRecipeDto, 'unlocked'>;
 
@@ -31,9 +32,9 @@ export function workshopSkill(xp: number): number { return skillFromXp(xp); }
 
 export const WorkshopService = {
   async page(prisma: PrismaClient, roundPlayerId: string): Promise<CraftingWorkshopDto> {
-    const player = await prisma.roundPlayer.findUnique({ where: { id: roundPlayerId }, select: { hideoutWorkshopLevel: true, workshopSkillXp: true } });
+    const player = await prisma.roundPlayer.findUnique({ where: { id: roundPlayerId }, select: { hideoutWorkshopLevel: true, workshopSkillXp: true, scavengedComponents: true } });
     if (!player) throw AppError.notFound('PLAYER_NOT_FOUND', 'Player not found.');
-    return { level: player.hideoutWorkshopLevel, skill: skillFromXp(player.workshopSkillXp), skillXp: player.workshopSkillXp, recipes: RECIPES.map((recipe) => recipeDto(recipe, player.hideoutWorkshopLevel)) };
+    return { level: player.hideoutWorkshopLevel, skill: skillFromXp(player.workshopSkillXp), skillXp: player.workshopSkillXp, availableComponents: Object.entries(balances(player.scavengedComponents)).map(([key, quantity]) => ({ key, quantity })), recipes: RECIPES.map((recipe) => recipeDto(recipe, player.hideoutWorkshopLevel)) };
   },
 
   craft(prisma: PrismaClient, roundPlayerId: string, recipeKey: string, actionId?: string): Promise<import('@streets/shared').GameActionResult<CraftingResultDto>> {
@@ -58,8 +59,10 @@ export const WorkshopService = {
         const outputField = LEGACY_FIELDS[recipe.output.key];
         if (!outputField) throw AppError.conflict('INVALID_CRAFTING_OUTPUT', 'That recipe has no valid stash output.');
         const next = { ...current, turns: current.turns - recipe.turns, [outputField]: Number(current[outputField] ?? 0) + recipe.output.quantity };
-        await tx.roundPlayer.update({ where: { id: roundPlayerId }, data: { scavengedComponents: components as Prisma.InputJsonValue, workshopSkillXp: skillXp, workshopLastRecipe: recipe.key } });
-        return { next, result: { recipe: recipeDto(recipe, current.hideoutWorkshopLevel), output: recipe.output, skill: skillFromXp(skillXp), skillXp } };
+         await tx.roundPlayer.update({ where: { id: roundPlayerId }, data: { scavengedComponents: components as Prisma.InputJsonValue, workshopSkillXp: skillXp, workshopLastRecipe: recipe.key } });
+         for (const ingredient of recipe.ingredients) await recordHideoutEconomy(tx, roundPlayerId, 'COMPONENT_SPENT', { itemKey: ingredient.key, quantity: ingredient.quantity, payload: { source: 'CRAFT', recipeKey: recipe.key } });
+         await recordHideoutEconomy(tx, roundPlayerId, 'RECIPE_COMPLETED', { itemKey: recipe.output.key, quantity: recipe.output.quantity, payload: { recipeKey: recipe.key, turns: recipe.turns } });
+          return { next, result: { recipe: recipeDto(recipe, current.hideoutWorkshopLevel), output: recipe.output, availableComponents: Object.entries(components).map(([key, quantity]) => ({ key, quantity })), skill: skillFromXp(skillXp), skillXp } };
       },
     });
   },

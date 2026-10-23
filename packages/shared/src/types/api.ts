@@ -428,6 +428,7 @@ export interface ScavengeComponentDto {
   quantity: number;
   rarity: ScavengeRarityDto;
   purpose: string;
+  footprint: { width: number; height: number };
 }
 export interface CacheOddsDto {
   COMMON: number;
@@ -445,7 +446,7 @@ export interface ScavengeCacheDto {
   createdAt: string;
   opened: boolean;
   odds: CacheOddsDto;
-  eligiblePool: Array<{ key: string; name: string; rarity: ScavengeRarityDto; purpose: string }>;
+  eligiblePool: Array<{ key: string; name: string; rarity: ScavengeRarityDto; purpose: string; footprint: { width: number; height: number } }>;
   rewards?: ScavengeComponentDto[];
 }
 export interface ScavengePageDto {
@@ -1369,7 +1370,7 @@ export interface IndividualInventoryDto {
 export interface ArmoryLookActionResult { updated: number; lookKey: string | null }
 export interface ArmoryFeatureItemResult { featuredItem: FeaturedItemDto | null }
 export interface ArmoryBulkActionResult {
-  action: 'FAVORITE' | 'RESERVE' | 'CLEAR_FLAGS' | 'RENAME';
+  action: 'FAVORITE' | 'RESERVE' | 'CLEAR_FLAGS' | 'RENAME' | 'COMBINE';
   updated: number;
   names: string[];
 }

@@ -888,6 +888,10 @@ export interface StartingPlayer {
   readonly shotguns: number;
   readonly tek9s: number;
   readonly ak47s: number;
+  /** Ammunition rounds, when the ammo/parts economy is enabled. */
+  readonly ammo: number;
+  /** Vehicle repair/modification parts, when the ammo/parts economy is enabled. */
+  readonly vehicleParts: number;
   readonly lowRiders: number;
   readonly payoutPercent: number;
 }

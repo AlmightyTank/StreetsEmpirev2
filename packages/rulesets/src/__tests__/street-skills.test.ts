@@ -53,7 +53,7 @@ describe('street skills slice A catalog', () => {
   });
 
   it('marks every perk that needs an unbuilt system, and gives every other perk an effect or a rule', () => {
-    const rules = ['UNTAXED', 'WHEELMAN', 'SUPPLIERS_FRIEND', 'SECOND_CHANCE'];
+    const rules = ['UNTAXED', 'WHEELMAN', 'SUPPLIERS_FRIEND', 'SECOND_CHANCE', 'FAST_PASS', 'INSIDE_LINE'];
     for (const milestones of Object.values(STREET_SKILLS_V1.milestones)) {
       for (const choice of (milestones ?? []).flatMap((milestone) => milestone.choices)) {
         expect(Boolean(choice.requires || choice.effect || rules.includes(choice.key)), choice.key).toBe(true);

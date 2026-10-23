@@ -25,6 +25,8 @@ export interface ItemArt {
   readonly file: string;
   /** Footprint in grid cells, [width, height]. */
   readonly cells: readonly [number, number];
+  /** Short gameplay-facing explanation shown in reward previews. */
+  readonly purpose?: string;
 }
 
 const ONE = [1, 1] as const;

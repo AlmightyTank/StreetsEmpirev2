@@ -9,6 +9,8 @@ export interface StartingPlayerResources {
   shotguns: number;
   tek9s: number;
   ak47s: number;
+  ammo: number;
+  vehicleParts: number;
   lowRiders: number;
   payoutPercent: number;
   cashCents: number;
@@ -31,6 +33,8 @@ export function buildRoundStartingResources(start: StartingPlayerResources, afte
     shotguns: start.shotguns,
     tek9s: start.tek9s,
     ak47s: start.ak47s,
+    ammo: start.ammo,
+    vehicleParts: start.vehicleParts,
     lowRiders: start.lowRiders,
     payoutPercent: start.payoutPercent,
     cashCents: BigInt(start.cashCents) + aftermathRewardCents,

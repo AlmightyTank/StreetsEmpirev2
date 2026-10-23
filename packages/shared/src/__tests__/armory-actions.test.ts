@@ -7,6 +7,7 @@ describe('armory bulk action input', () => {
   it('accepts gun flags and vehicle naming', () => {
     expect(armoryBulkActionSchema.safeParse({ ...base, action: 'RESERVE' }).success).toBe(true);
     expect(armoryBulkActionSchema.safeParse({ ...base, items: [{ kind: 'VEHICLE', id: 'car-1' }], action: 'RENAME', name: 'Night Runner' }).success).toBe(true);
+    expect(armoryBulkActionSchema.safeParse({ ...base, items: [{ kind: 'VEHICLE', id: 'car-1' }], action: 'COMBINE' }).success).toBe(true);
   });
 
   it('requires a name for renames and keeps favourites/reserves gun-only', () => {

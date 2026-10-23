@@ -44,6 +44,7 @@ function upgrades(row: GeneratorRow): HideoutGeneratorDto['upgrades'] {
 
 export function generatorDto(row: GeneratorRow): HideoutGeneratorDto {
   const fuelPerTurn = generatorFuelPerTurn(row.generatorEfficiencyLevel);
+  const balances = componentBalances(row.scavengedComponents);
   return {
     powered: row.generatorPowered,
     fuel: row.generatorFuel,
@@ -52,6 +53,7 @@ export function generatorDto(row: GeneratorRow): HideoutGeneratorDto {
     estimatedPoweredTurns: Math.floor(row.generatorFuel / fuelPerTurn),
     capacityLevel: row.generatorCapacityLevel,
     efficiencyLevel: row.generatorEfficiencyLevel,
+    availableComponents: Object.entries(balances).map(([key, quantity]) => ({ key, quantity })),
     upgrades: upgrades(row),
   };
 }
