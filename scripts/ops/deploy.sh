@@ -54,13 +54,17 @@ else
 fi
 
 step "Installing dependencies"
-deploy_user="$(id -un)"
-if [ -d "$APP_DIR/node_modules" ] \
-  && find "$APP_DIR/node_modules" -not -user "$deploy_user" -print -quit | grep -q .; then
-  step "Repairing dependency ownership"
-  # Older manual/root deployments can leave packages unwritable to the deploy
-  # account. npm ci removes the existing tree before installing the lockfile.
-  $SUDO chown -R "$deploy_user:$(id -gn)" "$APP_DIR/node_modules"
+if [ -d "$APP_DIR/node_modules" ]; then
+  unwritable_dependency_dir="$(find "$APP_DIR/node_modules" -type d ! -writable -print -quit 2>/dev/null || true)"
+  if [ -n "$unwritable_dependency_dir" ]; then
+    step "Moving aside dependencies owned by another user"
+    # npm ci deletes node_modules. Preserve the old tree where the deploy user
+    # can rename it but cannot unlink its root-owned contents, then install a
+    # clean tree without requiring sudo. The saved tree is outside Git and can
+    # be removed by an administrator after the deployment is confirmed.
+    stale_node_modules="$APP_DIR/.node_modules-stale-$(date -u +%Y%m%dT%H%M%S)-$$"
+    mv "$APP_DIR/node_modules" "$stale_node_modules"
+  fi
 fi
 npm ci
 
