@@ -17,4 +17,8 @@ describe('OAuth return redirects', () => {
     expect(oauthPostLoginRedirect(frontend, 'https://evil.example')).toBe('https://streetsempire.dev/game');
     expect(oauthPostLoginRedirect(frontend, 'http://beta.streetsempire.dev')).toBe('https://streetsempire.dev/game');
   });
+
+  it('can fall back to the trusted OAuth callback host', () => {
+    expect(oauthPostLoginRedirect('https://play.streetsempire.dev', 'https://evil.example')).toBe('https://play.streetsempire.dev/game');
+  });
 });
