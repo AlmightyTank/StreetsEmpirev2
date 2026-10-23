@@ -961,7 +961,7 @@
   padding: 0;
   border: 1px solid color-mix(in srgb, var(--se-line) 68%, transparent);
   border-radius: 3px;
-  background: rgba(0, 0, 0, 0.12);
+  background: color-mix(in srgb, var(--se-overlay-mix) 12%, transparent);
 }
 
 .se-stash__cell:not(.is-covered):hover { border-color: var(--se-accent); background: color-mix(in srgb, var(--se-accent) 12%, transparent); }
