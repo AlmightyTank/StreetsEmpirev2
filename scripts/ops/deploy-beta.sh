@@ -95,8 +95,7 @@ else
 fi
 
 step "Starting the shared entitlements database from production compose"
-[ -f "$PRODUCTION_APP_DIR/docker-compose.yml" ] \\
-  || fail "production compose file not found at $PRODUCTION_APP_DIR/docker-compose.yml. Set PRODUCTION_APP_DIR to the main checkout."
+[ -f "$PRODUCTION_APP_DIR/docker-compose.yml" ] || fail "production compose file not found at $PRODUCTION_APP_DIR/docker-compose.yml. Set PRODUCTION_APP_DIR to the main checkout."
 command -v docker >/dev/null 2>&1 || fail "Docker is required to start postgres-entitlements."
 docker compose -f "$PRODUCTION_APP_DIR/docker-compose.yml" up -d postgres-entitlements
 for attempt in $(seq 1 30); do
