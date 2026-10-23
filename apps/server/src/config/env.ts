@@ -113,6 +113,12 @@ const envSchema = z.object({
   STRIPE_SUPPORTER_PRICE_ID: z.union([z.literal(''), z.string().startsWith('price_', 'STRIPE_SUPPORTER_PRICE_ID must start with price_.')]).default(''),
   /** The Drop (docs/THE-DROP.md). Unset: on everywhere except production. */
   DROP_ENABLED: z.enum(['true', 'false']).optional(),
+  /** Canonical cross-environment Drop entitlement store. Empty keeps local entitlements. */
+  ENTITLEMENT_DATABASE_URL: z.string().default(''),
+  /** Enables beta/live sharing after the entitlement store has been migrated. */
+  SHARED_ENTITLEMENTS_ENABLED: z.enum(['true', 'false']).default('false'),
+  /** Shared-store authentication secret for future entitlement API workers. */
+  ENTITLEMENT_SHARED_SECRET: z.union([z.literal(''), z.string().min(32)]).default(''),
   /** Real-money Crown packs, through Stripe Checkout and Google Play alike. Off unless set to true. */
   DROP_CROWN_PACKS_ENABLED: z.enum(['true', 'false']).default('false'),
   /** Base64-encoded Google service-account JSON with Android Publisher access. */
@@ -269,7 +275,14 @@ export const env = {
     /** Stripe Crown packs: the switch above plus Stripe keys. */
     crownPacksConfigured: parsed.data.NODE_ENV !== 'test'
       && parsed.data.DROP_CROWN_PACKS_ENABLED === 'true'
-      && Boolean(parsed.data.STRIPE_SECRET_KEY && parsed.data.STRIPE_WEBHOOK_SECRET),
+       && Boolean(parsed.data.STRIPE_SECRET_KEY && parsed.data.STRIPE_WEBHOOK_SECRET),
+  },
+  sharedEntitlements: {
+    enabled: parsed.data.NODE_ENV !== 'test'
+      && parsed.data.SHARED_ENTITLEMENTS_ENABLED === 'true'
+      && Boolean(parsed.data.ENTITLEMENT_DATABASE_URL),
+    databaseUrl: parsed.data.ENTITLEMENT_DATABASE_URL,
+    sharedSecret: parsed.data.ENTITLEMENT_SHARED_SECRET,
   },
   trustProxy: parsed.data.TRUST_PROXY ? parsed.data.TRUST_PROXY === 'true' : parsed.data.NODE_ENV === 'production',
   logLevel: parsed.data.LOG_LEVEL ?? (parsed.data.NODE_ENV === 'production' ? 'info' : 'debug'),

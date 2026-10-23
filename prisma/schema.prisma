@@ -577,6 +577,105 @@ model SupporterVote {
 // The Drop: Crowns and the cosmetic storefront (docs/THE-DROP.md)
 // ---------------------------------------------------------------------------
 
+/// Canonical account for persistent Drop entitlements shared by beta and live.
+/// These tables intentionally have no Account relation: the entitlement store
+/// is a separate database from either gameplay deployment.
+model SharedEntitlementAccount {
+  id          String                    @id @default(cuid())
+  identityKey String                    @unique
+  links       SharedEntitlementLink[]
+  wallets     SharedCrownWallet?
+  ledger      SharedCrownLedgerEntry[]
+  unlocks     SharedCosmeticUnlock[]
+  purchases   SharedEntitlementPurchase[]
+  createdAt   DateTime                  @default(now())
+  updatedAt   DateTime                  @updatedAt
+}
+
+/// Explicit mapping between an isolated gameplay account and its canonical
+/// entitlement account. Email and username are intentionally not used for
+/// automatic linking; operators create this row after verifying ownership.
+model SharedEntitlementLink {
+  id             String                   @id @default(cuid())
+  accountId      String
+  account        SharedEntitlementAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  environment    String
+  localAccountId String
+  createdAt      DateTime                 @default(now())
+
+  @@unique([environment, localAccountId])
+  @@index([accountId])
+}
+
+model SharedCrownWallet {
+  accountId  String                   @id
+  account    SharedEntitlementAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  balance    Int                      @default(0)
+  version    Int                      @default(0)
+  heldAt     DateTime?
+  holdReason String?
+  createdAt  DateTime                 @default(now())
+  updatedAt  DateTime                 @updatedAt
+}
+
+model SharedCrownLedgerEntry {
+  id             String                   @id @default(cuid())
+  accountId      String
+  account        SharedEntitlementAccount  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  kind           String
+  delta          Int
+  balanceAfter   Int
+  source         String
+  externalRef    String                   @unique
+  environment    String
+  localAccountId String?
+  roundId        String?
+  reason         String?
+  metadata       Json?
+  createdAt      DateTime                 @default(now())
+
+  @@index([accountId, createdAt])
+}
+
+model SharedCosmeticUnlock {
+  id             String                   @id @default(cuid())
+  accountId      String
+  account        SharedEntitlementAccount  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  key            String
+  kind           String
+  title          String
+  description    String
+  rarity         String
+  styleKey       String?
+  source         String
+  environment    String
+  localAccountId String?
+  awardedAt      DateTime                 @default(now())
+
+  @@unique([accountId, key])
+  @@index([accountId, awardedAt])
+}
+
+model SharedEntitlementPurchase {
+  id             String                   @id @default(cuid())
+  accountId      String
+  account        SharedEntitlementAccount  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  environment    String
+  localOrderId   String?
+  provider       String?
+  providerRef    String?
+  kind           String
+  refKey         String
+  crownsDelta    Int                      @default(0)
+  status         String                   @default("completed")
+  metadata       Json?
+  createdAt      DateTime                 @default(now())
+
+  @@unique([environment, localOrderId])
+  @@index([accountId, createdAt])
+  @@index([provider, providerRef])
+}
+
 /// One Crown balance per account, never per round. Only CrownWalletService
 /// changes it, under a row lock and always together with a CrownLedgerEntry, so
 /// the balance always equals the sum of the ledger.
