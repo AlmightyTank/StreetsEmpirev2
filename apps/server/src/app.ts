@@ -7,6 +7,7 @@ import authPlugin from './plugins/auth.js';
 import admissionPlugin from './plugins/admission.js';
 import errorHandlerPlugin from './plugins/error-handler.js';
 import prismaPlugin from './plugins/prisma.js';
+import entitlementsPlugin from './plugins/entitlements.js';
 import rateLimitPlugin from './plugins/rate-limit.js';
 import maintenancePlugin, { maintenanceRefusals } from './plugins/maintenance.js';
 import playAccessPlugin from './plugins/play-access.js';
@@ -56,6 +57,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   });
 
   await app.register(prismaPlugin);
+  await app.register(entitlementsPlugin);
   await app.register(authPlugin);
   await app.register(admissionPlugin);
   await app.register(rateLimitPlugin);

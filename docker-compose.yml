@@ -17,5 +17,26 @@ services:
       timeout: 5s
       retries: 10
 
+  # Canonical local Drop wallet/unlock store. Keep this database separate from
+  # gameplay data just as beta and production are separate in deployment.
+  postgres-entitlements:
+    image: postgres:16-alpine
+    container_name: streets-empire-entitlements-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: streets
+      POSTGRES_PASSWORD: streets
+      POSTGRES_DB: streets_empire_entitlements
+    ports:
+      - "5434:5432"
+    volumes:
+      - streets-empire-entitlements-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U streets -d streets_empire_entitlements"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
 volumes:
   streets-empire-pgdata:
+  streets-empire-entitlements-pgdata:
