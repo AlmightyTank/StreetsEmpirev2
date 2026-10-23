@@ -1078,7 +1078,7 @@
 .se-generator__fuel small { color: var(--se-muted); font-family: inherit; font-size: 10px; }
 .se-generator__hint { margin: 0; padding: 9px 11px; border-left: 2px solid var(--se-accent); color: var(--se-text-dim); font-size: 11px; background: rgba(var(--se-accent-rgb), .045); }
 .se-generator__actions { justify-content: flex-start; padding-top: 2px; }
-.se-generator__actions .se-btn { min-width: 132px; }
+.se-generator__actions > button { min-width: 132px; }
 .se-generator__upgrades { display: grid; gap: 10px; margin-top: 2px; padding-top: 14px; border-top: 1px solid var(--se-line); }
 .se-generator__upgrades-head { display: flex; justify-content: space-between; gap: 12px; color: var(--se-muted); font-size: 10px; }
 .se-generator__upgrades-head .se-eyebrow { color: var(--se-accent-dim); }
@@ -1169,5 +1169,5 @@
   .se-generator__topline, .se-generator__upgrades-head { align-items: flex-start; flex-direction: column; gap: 10px; }
   .se-generator__fuel { width: 100%; padding: 10px 0 0; border-top: 1px solid var(--se-line); border-left: 0; }
   .se-generator__actions { align-items: stretch; flex-direction: column; }
-  .se-generator__actions .se-btn { width: 100%; }
+  .se-generator__actions > button { width: 100%; }
 }
