@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
 import type { StaffCapability } from '@streets/shared';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { AccountSettingsPage } from './pages/AccountSettingsPage.js';
@@ -159,6 +159,14 @@ function GameEntry() {
 function Booting() {
   // 1.0.0-F: in maintenance mode the first requests are turned away; say why instead of waiting forever.
   const maintenance = useMaintenanceMessage();
+  const bootstrapError = useSession((s) => s.bootstrapError);
+  const bootstrap = useSession((s) => s.bootstrap);
+  const [retrying, setRetrying] = useState(false);
+
+  function retry() {
+    setRetrying(true);
+    void bootstrap().finally(() => setRetrying(false));
+  }
   return (
     <div className="se-booting">
       <span className="se-eyebrow">StreetsEmpire</span>
@@ -167,6 +175,13 @@ function Booting() {
           <p><strong>Down for maintenance.</strong></p>
           <p className="se-muted">{maintenance}</p>
           <button type="button" className="se-btn" onClick={() => window.location.reload()}>Check again</button>
+        </>
+      ) : bootstrapError ? (
+        <>
+          <p className="se-muted" role="alert">{bootstrapError}</p>
+          <button type="button" className="se-btn" onClick={retry} disabled={retrying}>
+            {retrying ? 'Checking the streets...' : 'Try again'}
+          </button>
         </>
       ) : <p className="se-muted">Checking the streets...</p>}
     </div>
