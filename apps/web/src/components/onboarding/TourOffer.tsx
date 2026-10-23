@@ -25,7 +25,7 @@ export function TourOffer({ tour: tourOverride }: { tour?: OnboardingStateDto['t
         </div>
         <div className="se-tour__actions">
           <button type="button" className="se-btn se-btn--primary se-btn--sm" onClick={() => void act({ action: 'dismiss-sign-recap' })}>Keep going</button>
-          <button type="button" className="se-btn se-btn--ghost se-btn--sm" onClick={() => navigate('/account#settings-profile')}>Edit sign</button>
+          <button type="button" className="se-btn se-btn--ghost se-btn--sm" onClick={() => navigate('/account', { state: { tourTarget: 'build-street-sign' } })}>Edit sign</button>
         </div>
       </section>
     );

@@ -196,11 +196,11 @@ export type HideoutSpecializationInput = z.infer<typeof hideoutSpecializationSch
 export const armoryBulkActionSchema = z.object({
   actionId: actionIdSchema,
   items: z.array(z.object({ kind: z.enum(['GUN', 'VEHICLE']), id: z.string().trim().min(1).max(64) }).strict()).min(1).max(100),
-  action: z.enum(['FAVORITE', 'RESERVE', 'CLEAR_FLAGS', 'RENAME']),
+  action: z.enum(['FAVORITE', 'RESERVE', 'CLEAR_FLAGS', 'RENAME', 'COMBINE']),
   name: z.string().trim().min(1).max(40).optional(),
 }).strict().superRefine((value, context) => {
   if (value.action === 'RENAME' && !value.name) context.addIssue({ code: z.ZodIssueCode.custom, path: ['name'], message: 'Enter a name.' });
-  if (value.action !== 'RENAME' && value.items.some((item) => item.kind === 'VEHICLE')) {
+  if (!['RENAME', 'COMBINE'].includes(value.action) && value.items.some((item) => item.kind === 'VEHICLE')) {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ['items'], message: 'Favourite and reserve actions apply to guns.' });
   }
 });

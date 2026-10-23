@@ -36,6 +36,8 @@ export const round = {
     shotguns: 0,
     tek9s: 0,
     ak47s: 0,
+    ammo: 0,
+    vehicleParts: 0,
 
     lowRiders: 0,
 

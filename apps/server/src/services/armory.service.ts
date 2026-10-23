@@ -147,6 +147,11 @@ async function updateGunFlags(db: Db, roundPlayerId: string, gun: PlayerGun, fla
   });
 }
 
+function combineKey(row: PlayerGun | PlayerVehicle, kind: 'GUN' | 'VEHICLE'): string {
+  const common = [row.model, row.name, row.condition, row.mods, row.lookKey, row.status];
+  return JSON.stringify(kind === 'GUN' && 'favorite' in row ? [...common, row.favorite, row.reserve] : common);
+}
+
 export const ArmoryService = {
   async catalog(prisma: PrismaClient, roundPlayerId: string, accountId: string, ruleset: Ruleset): Promise<IndividualInventoryDto> {
     const catalog = ruleset.individualItems;
@@ -286,6 +291,34 @@ export const ArmoryService = {
         ]);
         if (guns.length !== gunIds.length || vehicles.length !== vehicleIds.length) throw AppError.notFound('ARMORY_ITEM_NOT_FOUND', 'One or more selected items are no longer in your inventory. Refresh and try again.');
         let names: string[] = [];
+        if (input.action === 'COMBINE') {
+          let mergedStacks = 0;
+          for (const [kind, rows] of [['GUN', guns], ['VEHICLE', vehicles]] as const) {
+            const groups = new Map<string, Array<PlayerGun | PlayerVehicle>>();
+            for (const row of rows) {
+              const key = combineKey(row, kind);
+              const group = groups.get(key) ?? [];
+              group.push(row);
+              groups.set(key, group);
+            }
+            for (const group of groups.values()) {
+              if (group.length < 2) continue;
+              const target = group[0]!;
+              const quantity = group.reduce((sum, row) => sum + row.quantity, 0);
+              if (kind === 'GUN') {
+                await tx.playerGun.update({ where: { id: target.id }, data: { quantity } });
+                await tx.playerGun.deleteMany({ where: { roundPlayerId, id: { in: group.slice(1).map((row) => row.id) } } });
+              } else {
+                await tx.playerVehicle.update({ where: { id: target.id }, data: { quantity } });
+                await tx.playerVehicle.deleteMany({ where: { roundPlayerId, id: { in: group.slice(1).map((row) => row.id) } } });
+              }
+              mergedStacks += group.length - 1;
+            }
+          }
+          if (!mergedStacks) throw AppError.conflict('NO_COMBINABLE_ARMORY_STACKS', 'Select matching stacks to combine.');
+          await IndividualItemsService.refreshSummary(tx, roundPlayerId);
+          return { next: current, result: { action: input.action, updated: mergedStacks, names } };
+        }
         if (input.action === 'RENAME') {
           const requested = input.name!.trim();
           assertCommunicationContent(requested, '');

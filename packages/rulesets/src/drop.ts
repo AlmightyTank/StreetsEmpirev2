@@ -74,6 +74,8 @@ export interface DropBundleDefinition {
   readonly collection: string;
   readonly itemKeys: readonly string[];
   readonly priceCrowns: number;
+  /** Reference price shown beside the discounted bundle price. */
+  readonly listPriceCrowns: number;
 }
 
 export const DROP_COLLECTIONS = {
@@ -266,6 +268,14 @@ export const DROP_COLLECTIONS = {
 
 export type DropCollectionKey = keyof typeof DROP_COLLECTIONS;
 
+const DROP_ITEM_PRICES_BY_RARITY: Readonly<Record<QuestCosmeticRarity, number>> = {
+  common: 100,
+  uncommon: 150,
+  rare: 250,
+  epic: 400,
+  legendary: 600,
+};
+
 function item(
   collection: DropCollectionKey,
   slug: string,
@@ -281,7 +291,12 @@ function item(
     dresses?: string;
   },
 ): DropItemDefinition {
-  return { key: `${DROP_KEY_PREFIX}${collection}-${slug}`, collection, ...def };
+  return {
+    key: `${DROP_KEY_PREFIX}${collection}-${slug}`,
+    collection,
+    ...def,
+    priceCrowns: DROP_ITEM_PRICES_BY_RARITY[def.rarity],
+  };
 }
 
 /**
@@ -1544,14 +1559,15 @@ const ITEMS: readonly DropItemDefinition[] = [
 
 export const DROP_ITEMS: Readonly<Record<string, DropItemDefinition>> = Object.fromEntries(ITEMS.map((entry) => [entry.key, entry]));
 
-function bundleOf(collection: DropCollectionKey, priceCrowns: number, description: string): DropBundleDefinition {
+function bundleOf(collection: DropCollectionKey, _legacyPriceCrowns: number, description: string): DropBundleDefinition {
   return {
     key: `${DROP_KEY_PREFIX}${collection}-bundle`,
     name: `${DROP_COLLECTIONS[collection].name} Bundle`,
     description,
     collection,
     itemKeys: ITEMS.filter((entry) => entry.collection === collection).map((entry) => entry.key),
-    priceCrowns,
+    priceCrowns: 1_000,
+    listPriceCrowns: 2_800,
   };
 }
 
@@ -1661,11 +1677,11 @@ export interface CrownPackDefinition {
 
 /** Draft pricing from the roadmap. Not live until checkout is switched on. */
 export const CROWN_PACKS: readonly CrownPackDefinition[] = [
-  { id: 'starter', name: 'Starter', priceCents: 399, currency: 'usd', crowns: 500 },
-  { id: 'street', name: 'Street', priceCents: 749, currency: 'usd', crowns: 1_000 },
-  { id: 'boss', name: 'Boss', priceCents: 1_949, currency: 'usd', crowns: 2_800, featured: true },
-  { id: 'kingpin', name: 'Kingpin', priceCents: 3_099, currency: 'usd', crowns: 5_000 },
-  { id: 'empire', name: 'Empire', priceCents: 7_499, currency: 'usd', crowns: 13_500 },
+  { id: 'starter', name: 'Starter', priceCents: 99, currency: 'usd', crowns: 125 },
+  { id: 'street', name: 'Street', priceCents: 199, currency: 'usd', crowns: 450 },
+  { id: 'boss', name: 'Boss', priceCents: 399, currency: 'usd', crowns: 1_000, featured: true },
+  { id: 'kingpin', name: 'Kingpin', priceCents: 599, currency: 'usd', crowns: 1_450 },
+  { id: 'empire', name: 'Empire', priceCents: 799, currency: 'usd', crowns: 2_000 },
 ];
 
 export function crownPack(id: string): CrownPackDefinition | null {

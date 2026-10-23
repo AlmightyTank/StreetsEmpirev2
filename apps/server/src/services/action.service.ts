@@ -43,6 +43,7 @@ import { QuestProgressService } from './quest-progress.service.js';
 import { EconomyLedgerService, type EconomyLedgerWrite } from './economy-ledger.service.js';
 import { StreetPassCredService } from './street-pass-cred.service.js';
 import { consumeGeneratorFuel } from './generator.service.js';
+import { recordHideoutEconomy } from './hideout-economy-telemetry.service.js';
 import { LawService, type CaseEvidence } from './law.service.js';
 import { LawWarrantService } from './law-warrant.service.js';
 import { CrewRosterService } from './crew-roster.service.js';
@@ -572,6 +573,8 @@ export const ActionService = {
         withSkillHeat(current, outcome.next, skills),
         Math.max(0, current.turns - outcome.next.turns),
       );
+      const fuelUsed = Math.max(0, (current.generatorFuel ?? 0) - (executed.generatorFuel ?? 0));
+      if (fuelUsed > 0) await recordHideoutEconomy(tx, roundPlayerId, 'FUEL_USED', { quantity: fuelUsed, payload: { action: options.action, turns: Math.max(0, current.turns - outcome.next.turns) } });
 
       const trigger = encounterTriggerForAction(options.action);
       const actionEncounter = trigger ? await RandomEncounterService.action({

@@ -405,6 +405,14 @@ export function TurfPage() {
               </Link>
             ) : null}
           </div>
+          {selected && selectedPulse ? (
+            <div className="se-cityblocks-hero__metrics" aria-label={`${selected.name} turf status`}>
+              <CityBlocksMetric label="Player-held" value={`${formatNumber(selectedPulse.held)} / 5`} detail="blocks with player crews" />
+              <CityBlocksMetric label="Your blocks" value={formatNumber(selectedPulse.mine)} detail="currently under your control" tone={selectedPulse.mine > 0 ? 'accent' : undefined} />
+              <CityBlocksMetric label="Open ground" value={formatNumber(selectedPulse.locals + selectedPulse.vacant)} detail="outside player control" tone={selectedPulse.locals + selectedPulse.vacant > 0 ? 'good' : undefined} />
+              <CityBlocksMetric label="Active fronts" value={formatNumber(selectedPulse.visiblePushes)} detail={selectedPulse.visiblePushes ? 'districts under pressure' : 'no visible conflict'} tone={selectedPulse.visiblePushes > 0 ? 'warn' : 'good'} />
+            </div>
+          ) : null}
         </header>
 
         {error ? <Alert>{error}</Alert> : null}
@@ -445,45 +453,14 @@ export function TurfPage() {
 
             {selected && selectedPulse ? (
               <>
-                <section className="se-cityblocks-section">
-                  <div className="se-cityblocks-sectionhead se-cityblocks-sectionhead--overview">
-                    <div>
-                      <span className="se-eyebrow">{selected.name} · city control</span>
-                      <h2>{selected.turf?.control ? `[${selected.turf.control.alliance.tag}] controls ${selected.turf.control.blocksHeld} / 5` : 'Contested city'}</h2>
-                    </div>
-                    <div className="se-cityblocks-control">
-                      {selected.turf?.control ? (
-                        <Link to={`/game/alliances/${encodeURIComponent(selected.turf.control.alliance.tag)}`}>
-                          {selected.turf.control.blocksHeld >= 3
-                            ? 'City control threshold met'
-                            : `${3 - selected.turf.control.blocksHeld} more ${selected.turf.control.blocksHeld === 2 ? 'district' : 'districts'} needed for control`}
-                        </Link>
-                      ) : (
-                        <span>One alliance needs 3 of 5 districts</span>
-                      )}
-                    </div>
-                  </div>
-                  {selected.turf?.latestEvent ? (
-                    <p className="se-hint" role="status">
-                      Last shook the city: {describeCityMemoryEvent(selected.turf.latestEvent)} ·{' '}
-                      {new Date(selected.turf.latestEvent.happenedAt).toLocaleString()}
-                    </p>
-                  ) : null}
+                {selected.turf?.latestEvent ? (
+                  <p className="se-cityblocks-event" role="status">
+                    <span className="se-eyebrow">Street report</span>
+                    Last shook the city: {describeCityMemoryEvent(selected.turf.latestEvent)} · {new Date(selected.turf.latestEvent.happenedAt).toLocaleString()}
+                  </p>
+                ) : null}
 
-                  <div className="se-cityblocks-pulse">
-                    <CityBlocksMetric label="Player-held" value={`${formatNumber(selectedPulse.held)} / 5`} detail="blocks with player crews" />
-                    <CityBlocksMetric label="Your blocks" value={formatNumber(selectedPulse.mine)} detail="currently under your control" tone={selectedPulse.mine > 0 ? 'accent' : undefined} />
-                    <CityBlocksMetric label="Open ground" value={formatNumber(selectedPulse.locals + selectedPulse.vacant)} detail="outside player control" tone={selectedPulse.locals + selectedPulse.vacant > 0 ? 'good' : undefined} />
-                    <CityBlocksMetric
-                      label="Active fronts"
-                      value={formatNumber(selectedPulse.visiblePushes)}
-                      detail={selectedPulse.visiblePushes ? 'districts under pressure' : 'no visible conflict'}
-                      tone={selectedPulse.visiblePushes > 0 ? 'warn' : 'good'}
-                    />
-                  </div>
-                  <p className="se-hint">Control takes 3 of 5 districts. Round standings use cumulative block-time.</p>
-                </section>
-
+                <div className="se-cityblocks-command">
                 <CityTurfMap
                   city={selected}
                   selectedDistrict={selectedDistrict}
@@ -524,6 +501,7 @@ export function TurfPage() {
                     />
                   </div>
                 </section>
+                </div>
 
                 <section className="se-cityblocks-ops">
                   <div className="se-cityblocks-stack">

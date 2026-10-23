@@ -2022,6 +2022,7 @@ model RoundPlayer {
   /// 2.4.0. Workshop crafting progression; recipe repetition has diminishing returns.
   workshopSkillXp Int @default(0)
   workshopLastRecipe String?
+  hideoutEconomyTelemetry HideoutEconomyTelemetry[]
 
   displayName String
 
@@ -4451,6 +4452,22 @@ model PlayerActivity {
   createdAt DateTime @default(now())
 
   @@index([roundPlayerId, createdAt(sort: Desc)])
+}
+
+/// 2.5.0. Queryable hideout sources, sinks, and failure outcomes.
+model HideoutEconomyTelemetry {
+  id            String      @id @default(cuid())
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  event         String
+  itemKey       String?
+  quantity      Int?
+  rarity        String?
+  payload       Json        @default("{}")
+  createdAt     DateTime    @default(now())
+
+  @@index([roundPlayerId, event, createdAt(sort: Desc)])
+  @@index([roundPlayerId, itemKey, createdAt(sort: Desc)])
 }
 
 /// 1.6.0-F. Durable action-triggered street situations.

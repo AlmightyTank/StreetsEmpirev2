@@ -62,7 +62,7 @@ first; the twelve after them were added on 2026-10-18 and three movie homages
 | Swamp Kingdom | Van (700) | Thug (600), Hoe (600) | Shotgun (450) | Frame (400) | Shell (1,000), Loch Green accent (250) | Could You Ever Love Me? (150) |
 | Zombie Apocalypse | Van (700) | Thug (600), Hoe (600) | Shotgun (450) | Frame (400) | Shell (1,000), Quarantine Orange accent (250) | Last One Standing (200) |
 
-Bundles: Kingpin Luxe 2,800 (list 4,800), Neon Underworld 2,800 (list 5,150), Winter Heist 2,750 (list 4,600), Biscayne Sunset 2,350 (list 4,150), Velvet Speakeasy 2,400 (list 4,350), Platinum Funk 2,250 (list 3,850), Redline Syndicate 2,400 (list 4,350), Wet Paint 2,300 (list 4,050), Hazard Cook 2,250 (list 3,750), Dockside 2,350 (list 4,200), Crown Jewels 2,400 (list 4,350), Bayou Smoke 2,350 (list 4,150), Desert Mirage 2,400 (list 4,350), Rewind 2,350 (list 4,150), Snake Eyes 2,400 (list 4,300), Graveyard Shift 2,400 (list 4,250), Naughty List 2,250 (list 3,700), Heartbreaker 2,400 (list 4,350), Block Party 2,300 (list 4,150), Quarter Mile 2,400 (list 5,050), 88 Club 2,350 (list 4,200), Swamp Kingdom 2,350 (list 4,150), Zombie Apocalypse 2,350 (list 4,200).
+All cosmetic collection bundles cost **1,000 Crowns** before partial-ownership adjustments (the list-value savings still applies).
 
 ### Shell themes
 
@@ -175,11 +175,11 @@ over; the cap starts again with the next round. Hooks:
 
 | Pack | Price | Crowns |
 | --- | --- | --- |
-| Starter | $3.99 | 500 |
-| Street | $7.49 | 1,000 |
-| Boss | $19.49 | 2,800 |
-| Kingpin | $30.99 | 5,000 |
-| Empire | $74.99 | 13,500 |
+| Starter | $0.99 | 125 |
+| Street | $1.99 | 450 |
+| Boss | $3.99 | 1,000 |
+| Kingpin | $5.99 | 1,450 |
+| Empire | $7.99 | 2,000 |
 
 Draft prices from the roadmap; change them in `CROWN_PACKS`.
 
@@ -268,7 +268,7 @@ The Stripe webhook now runs whenever `STRIPE_SECRET_KEY` and
 ### 2.2.18 launch approvals and disclosures
 
 - Release target: **2.2.18**.
-- Approved USD web Crown packs: Starter $3.99/500, Street $7.49/1,000, Boss $19.49/2,800, Kingpin $30.99/5,000, Empire $74.99/13,500. The server owns these amounts; clients never submit a price.
+- Approved USD web Crown packs: Starter $0.99/125, Street $1.99/450, Boss $3.99/1,000, Kingpin $5.99/1,450, Empire $7.99/2,000. The server owns these amounts; clients never submit a price.
 - Proposed player-facing disclosure copy (business/legal owner must approve before production): “Crowns are virtual currency for cosmetic items and cosmetic-only Street Pass skips in The Drop. Crowns do not provide competitive advantages, cannot be exchanged for cash, and are not transferable. Purchases are optional. Prices are shown in your store currency at checkout; taxes, local pricing, age limits, and refunds follow the payment platform and applicable law. Cosmetic purchases are permanent unless a platform or support refund process applies. Google Play purchases are processed by Google Play; web purchases are processed by Stripe.”
 - Add the Stripe endpoint `POST /api/internal/stripe/webhook` with: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired`, `charge.refunded`, `charge.dispute.created`, plus the existing supporter events `invoice.paid`, `customer.subscription.created`, `customer.subscription.updated`, and `customer.subscription.deleted`.
 - Google Play one-time Crown products are configured with `GOOGLE_PLAY_CROWN_PACK_PRODUCT_IDS=starter=...,...` before Android checkout is enabled. The app sends only a product ID and purchase token; the server verifies both with Google before crediting Crowns.

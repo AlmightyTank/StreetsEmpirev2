@@ -67,7 +67,7 @@ const stopTurfWars = startPoller('Turf wars', 60_000, async () => {
 // refresh window. A 15-minute scheduler tick can recover failed leagues from another provider;
 // the database lease and per-provider cooldowns bound provider usage.
 const stopSportsbook = startPoller('Sportsbook odds cache', 15 * 60_000, async () => {
-  const result = await refreshSportsbookCache(app.prisma, { internal: 'internal' }, new Date(), {
+  const result = await refreshSportsbookCache(app.prisma, { ...env.sportsbook.keys, internal: 'internal' }, new Date(), {
     normalIntervalMs: env.SPORTSBOOK_POLL_MINUTES * 60_000,
   });
   if (result.errors.length || result.warnings.length) app.log.warn({ sportsbook: result }, 'Sportsbook feed run finished with issues');

@@ -42,15 +42,15 @@ Players can **earn or buy Crowns** and spend them on **entirely new, Drop-origin
 
 ### 2.1 Approved Crown packs (USD)
 
-**Reference value:** approximately **100 Crowns per US dollar** for the smallest pack, with progressively higher value on larger packs. The numbers below are the approved product prices for release 2.2.18. Provider regional pricing, tax handling, and platform-specific product configuration remain deployment tasks.
+**Reference value:** approximately **100 Crowns per US dollar** for the smallest pack, with progressively higher value on larger packs. The numbers below are the approved product prices for the current release. Provider regional pricing, tax handling, and platform-specific product configuration remain deployment tasks.
 
 | Pack | Price (USD) | Crowns credited | Approx. Crowns / USD | Positioning |
 |:---|---:|---:|---:|:---|
-| Starter | $4.99 | 500 | 100.2 | entry purchase |
-| Street | $8.99 | 1,000 | 111.2 | standard |
-| Boss | $22.99 | 2,800 | 121.8 | featured |
-| Kingpin | $36.99 | 5,000 | 135.2 | collector |
-| Empire | $89.99 | 13,500 | 150.0 | highest value |
+| Starter | $0.99 | 125 | 126.3 | entry purchase |
+| Street | $1.99 | 450 | 226.1 | standard |
+| Boss | $3.99 | 1,000 | 250.6 | featured |
+| Kingpin | $5.99 | 1,450 | 242.1 | collector |
+| Empire | $7.99 | 2,000 | 250.3 | highest value |
 
 Display **both the currency quantity and actual USD cost** clearly at checkout. Do not claim a discount or bonus value unless the comparison is mathematically honest. Regional storefront pricing, taxation, and platform-specific product IDs require separate approval; the actual billing-provider charge, not client UI state, is authoritative.
 
@@ -58,15 +58,12 @@ Display **both the currency quantity and actual USD cost** clearly at checkout. 
 
 | Category | Crowns | Notes |
 |:---|---:|:---|
-| Badge / simple nameplate | 150–300 | Accessible to Crown earners |
-| Profile frame / avatar accent | 300–500 | Preview on own avatar |
-| Street sign / hideout decoration | 350–650 | Account-owned scene variant |
-| Vehicle look | 500–900 | Fits existing sedan/van/low-rider art pipeline |
-| Crew outfit | 500–900 | Cosmetics only, no stats |
-| Weapon look | 400–800 | Visual skin, no weapon access granted |
-| Animated profile / special FX | 700–1,200 | Reduced-motion alternative required |
-| Full game-shell theme | 1,000–1,500 | Respects theme, layout, and contrast constraints |
-| Curated cosmetic bundle | 1,800–2,800 | Real, visible savings versus buying its singles |
+| Common cosmetic | 100 | Accessible to Crown earners |
+| Uncommon cosmetic | 150 | Preview on own avatar or item |
+| Rare cosmetic | 250 | Cosmetics only, no stats |
+| Epic cosmetic | 400 | Premium authored look |
+| Legendary cosmetic | 600 | Highest individual tier |
+| Curated cosmetic bundle | 1,000 | Real, visible savings versus buying its singles |
 | Optional cosmetic-only pass level skip | 150 | No gameplay resources or Crowns from skipping |
 | Optional pack of 10 cosmetic-only skips | 1,200 | Discount versus 10 individual skips |
 

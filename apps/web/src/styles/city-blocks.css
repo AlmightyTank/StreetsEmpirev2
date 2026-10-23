@@ -216,6 +216,33 @@
   align-items: stretch;
 }
 
+@media (min-width: 1051px) {
+  .se-cityblocks-command .se-citymap-layout {
+    min-height: 540px;
+  }
+
+  .se-cityblocks-command .se-districtmap,
+  .se-cityblocks-command .se-districtmap__svg {
+    height: 100%;
+  }
+
+  .se-cityblocks-command .se-empire-area-legend {
+    gap: 14px;
+    padding: 18px 8px;
+  }
+
+  .se-cityblocks-command .se-empire-area-legend > span {
+    gap: 11px;
+    font-size: 13px;
+  }
+
+  .se-cityblocks-command .se-empire-area-dot {
+    width: 10px;
+    height: 10px;
+    flex-basis: 10px;
+  }
+}
+
 .se-citymap {
   position: relative;
   min-width: 0;
@@ -839,3 +866,73 @@
 .se-citymap-brief { gap: 10px; padding: 11px; }
 .se-citymap-brief > p { padding-top: 8px; }
 .se-cityblocks-ops { margin-top: 2px; }
+
+/* Turf War Room: keep the strategic readout and the next action in one
+   command surface, then let reports/rankings sit below it as intelligence. */
+.se-cityblocks-hero__metrics {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-top: 1px solid var(--se-line);
+  padding-top: 12px;
+}
+
+.se-cityblocks-event {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: -4px 0 0;
+  padding: 8px 10px;
+  border-left: 2px solid var(--se-warn);
+  background: rgba(var(--se-warn-rgb), .045);
+  color: var(--se-text-dim);
+  font-size: 10px;
+}
+
+.se-cityblocks-event .se-eyebrow { color: var(--se-warn); }
+
+.se-cityblocks-command {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+.se-cityblocks-command > .se-cityblocks-section {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--se-line);
+  border-radius: 4px;
+  background: var(--se-panel);
+}
+
+.se-cityblocks-command .se-cityblocks-sectionhead { margin-bottom: 2px; }
+.se-cityblocks-command .se-cityblocks-boardwrap { margin-top: 8px; }
+.se-cityblocks-ops { display: block; }
+
+.se-cityblocks-command .se-empire-management__list {
+  gap: 9px;
+}
+
+.se-cityblocks-command .se-empire-roster__select {
+  min-height: 66px;
+  padding: 11px 12px;
+}
+
+.se-cityblocks-command .se-empire-roster__identity > strong {
+  font-size: 14px;
+}
+
+.se-cityblocks-command .se-empire-roster__identity > small,
+.se-cityblocks-command .se-empire-roster__meta {
+  font-size: 10px;
+}
+
+@media (max-width: 720px) {
+  .se-cityblocks-hero__metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .se-cityblocks-event { align-items: flex-start; flex-direction: column; gap: 3px; }
+}
+
+@media (max-width: 480px) {
+  .se-cityblocks-hero__metrics { grid-template-columns: 1fr 1fr; }
+}

@@ -183,7 +183,7 @@ export function ArmoryPage() {
     });
   }
 
-  function apply(actionName: 'FAVORITE' | 'RESERVE' | 'CLEAR_FLAGS' | 'RENAME') {
+  function apply(actionName: 'FAVORITE' | 'RESERVE' | 'CLEAR_FLAGS' | 'RENAME' | 'COMBINE') {
     const items = allItems.filter((item) => selected.has(itemKey(item))).map(({ id, kind }) => ({ id, kind }));
     if (!items.length) return;
     action.clear();
@@ -261,17 +261,18 @@ export function ArmoryPage() {
                   <div className="se-armory-bulk__buttons">
                     <input aria-label="Name or name prefix" value={name} onChange={(event) => setName(event.target.value)} maxLength={40} placeholder="Name / prefix" />
                     <Button size="sm" variant="primary" disabled={!name.trim() || action.busy} onClick={() => apply('RENAME')}>Name</Button>
+                    <Button size="sm" variant="primary" disabled={selectedCount < 2 || action.busy} onClick={() => apply('COMBINE')}>Combine matching</Button>
                     {selectedGunsOnly ? <>
                       <Button size="sm" disabled={action.busy} onClick={() => apply('FAVORITE')}>Favourite</Button>
                       <Button size="sm" disabled={action.busy} onClick={() => apply('RESERVE')}>Reserve</Button>
                       <Button size="sm" variant="ghost" disabled={action.busy} onClick={() => apply('CLEAR_FLAGS')}>Clear flags</Button>
                     </> : null}
                   </div>
-                  <small>Naming or flagging takes one copy from each selected stack. Naming several adds a number to each name.</small>
+                   <small>Naming or flagging takes one copy from each selected stack. Combine merges matching equipment; acquisition origin does not matter.</small>
                 </div>
               ) : null}
               {action.error ? <Alert tone="error">{action.error}</Alert> : null}
-              {action.result ? <Alert tone="success">Updated {action.result.result.updated} selected {action.result.result.updated === 1 ? 'item' : 'items'}.</Alert> : null}
+               {action.result ? <Alert tone="success">{action.result.result.action === 'COMBINE' ? `Combined ${action.result.result.updated} matching ${action.result.result.updated === 1 ? 'stack' : 'stacks'}.` : `Updated ${action.result.result.updated} selected ${action.result.result.updated === 1 ? 'item' : 'items'}.`}</Alert> : null}
               {modAction.error ? <Alert tone="error">{modAction.error}</Alert> : null}
               {modAction.result ? (() => {
                 const receipt = modAction.result!.result;

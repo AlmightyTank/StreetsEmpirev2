@@ -317,6 +317,7 @@ export const ScoutService = {
           localDistrict(ruleset, player.city.slug, found.key, found.district).name,
           input.turns,
           rng ?? Math.random,
+          prisma,
         );
 
         // 0.4.0-C: the trip's Heat lands, and a hot crew can be busted on the way home.

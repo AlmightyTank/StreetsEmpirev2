@@ -300,6 +300,14 @@ export const env = {
     enabled: parsed.data.MAINTENANCE_MODE,
     message: parsed.data.MAINTENANCE_MESSAGE,
   },
+  sportsbook: {
+    keys: {
+      therundown: parsed.data.THERUNDOWN_API_KEY,
+      theoddsapi: parsed.data.THE_ODDS_API_KEY,
+    },
+    configured: Boolean(parsed.data.THERUNDOWN_API_KEY || parsed.data.THE_ODDS_API_KEY),
+    pollMinutes: parsed.data.SPORTSBOOK_POLL_MINUTES,
+  },
   betaAccess: {
     inviteOnly: parsed.data.BETA_INVITE_ONLY,
   },

@@ -72,11 +72,11 @@ describe('The Drop catalogue', () => {
     }
   });
 
-  it('prices every item inside the roadmap ranges and as whole Crowns', () => {
+  it('prices every item by its lowered rarity tier', () => {
+    const prices = { common: 100, uncommon: 150, rare: 250, epic: 400, legendary: 600 } as const;
     for (const item of items) {
       expect(Number.isSafeInteger(item.priceCrowns)).toBe(true);
-      expect(item.priceCrowns).toBeGreaterThanOrEqual(150);
-      expect(item.priceCrowns).toBeLessThanOrEqual(1500);
+      expect(item.priceCrowns).toBe(prices[item.rarity]);
     }
   });
 
@@ -84,8 +84,7 @@ describe('The Drop catalogue', () => {
     for (const bundle of bundles) {
       expect(bundle.itemKeys.every((key) => DROP_ITEMS[key])).toBe(true);
       expect(bundle.priceCrowns).toBeLessThan(bundleListPrice(bundle));
-      expect(bundle.priceCrowns).toBeGreaterThanOrEqual(1500);
-      expect(bundle.priceCrowns).toBeLessThanOrEqual(2000);
+      expect(bundle.priceCrowns).toBe(1_000);
     }
   });
 });
@@ -121,9 +120,14 @@ describe('Street Pass level skips', () => {
 });
 
 describe('Crown packs and earning', () => {
-  it('gives more Crowns per dollar on bigger packs', () => {
-    const rates = CROWN_PACKS.map((pack) => pack.crowns / pack.priceCents);
-    for (let i = 1; i < rates.length; i++) expect(rates[i]!).toBeGreaterThan(rates[i - 1]!);
+  it('uses the approved Crown pack prices and quantities', () => {
+    expect(CROWN_PACKS.map((pack) => [pack.priceCents, pack.crowns])).toEqual([
+      [99, 125],
+      [199, 450],
+      [399, 1_000],
+      [599, 1_450],
+      [799, 2_000],
+    ]);
   });
 
   it('caps play earnings near 500 a round, and an earn-only player can afford a starter item', () => {

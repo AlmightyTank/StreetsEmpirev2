@@ -22,6 +22,15 @@ const vehicleMods: readonly IndividualItemModRule[] = [
 export const classicOgV25A = {
   ...classicOgV24F,
   meta: { ...classicOgV24F.meta, id: 'classic-og-v2.5-a', version: '2.5.0-A', name: 'Classic OG - Individual Armory' },
+  round: {
+    ...classicOgV24F.round,
+    startingPlayer: {
+      ...classicOgV24F.round.startingPlayer,
+      pistols: 15,
+      ammo: 100,
+      vehicleParts: 50,
+    },
+  },
   streetSkills: STREET_SKILLS_V2,
   individualItems: {
     enabled: true,

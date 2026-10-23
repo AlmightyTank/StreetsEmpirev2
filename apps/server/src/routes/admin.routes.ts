@@ -1274,7 +1274,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
   /** 1.8.0-C: sportsbook feed health, quota and unresolved results. The feed is global, not per round. */
   const sportsbookFeed = () => ({
     configured: true, pollMinutes: env.SPORTSBOOK_POLL_MINUTES,
-    keys: { internal: 'internal' },
+    keys: { ...env.sportsbook.keys, internal: 'internal' },
   });
   fastify.get('/sportsbook', async () => AdminSportsbookService.report(fastify.prisma, sportsbookFeed()));
 
