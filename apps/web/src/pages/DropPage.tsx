@@ -716,19 +716,18 @@ function WalletView() {
       <Panel title="Link your beta and main accounts" subtitle="Use this on both environments to combine your Drop Crowns and cosmetics.">
         <p className="se-hint">This is permanent. It combines only The Drop balances and Drop cosmetics. You must control both accounts; we never match accounts by username or email.</p>
         {linkError ? <Alert tone="warning">{linkError}</Alert> : null}
-        {!linkStatus ? <p className="se-hint">Checking account link…</p> : !linkStatus.available ? <p className="se-hint">Account linking is not configured on this environment yet.</p> : linkStatus.status === 'linked' ? <Alert tone="success" title="Accounts linked">Your beta and main Drop wallet now use the same Crowns and cosmetics.</Alert> : linkStatus.status === 'pending' || (linkStatus.environment === 'production' && linkStatus.status === 'not-linked') ? (
-          <div><p className="se-hint">A beta pairing code is waiting to be used on main. Codes expire after 48 hours.</p>
-            {issuedCode ? <><label htmlFor="drop-pairing-code">Pairing code</label><input id="drop-pairing-code" readOnly value={issuedCode.code} onFocus={(event) => event.currentTarget.select()} /><p className="se-hint">Expires {new Date(issuedCode.expiresAt).toLocaleString()} · Copy this code, sign into main, and enter it there.</p></> : null}
-            {linkStatus.environment === 'production' ? <><label htmlFor="drop-pairing-entry">Beta pairing code</label><input id="drop-pairing-entry" value={pairingCode} onChange={(event) => setPairingCode(event.target.value)} autoComplete="off" />
-              <label><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} /> I control both accounts and want to permanently link them.</label>
-              <button type="button" disabled={!confirmed || !pairingCode.trim() || linkBusy} onClick={() => void finishLink()}>{linkBusy ? 'Linking…' : 'Link accounts'}</button></> : null}
-            {linkStatus.environment === 'beta' && !issuedCode ? <><label><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} /> I control the beta account I’m signed into and the main account I’ll use to redeem this code. I want to permanently link them.</label>
-              <button type="button" disabled={!confirmed || linkBusy} onClick={() => void beginLink()}>{linkBusy ? 'Creating code…' : 'Create a new pairing code'}</button></> : null}
+        {!linkStatus ? <p className="se-hint">Checking account link…</p> : !linkStatus.available ? <p className="se-hint">Account linking is not configured on this environment yet.</p> : linkStatus.status === 'linked' ? <Alert tone="success" title="Accounts linked">Your beta and main Drop wallet now use the same Crowns and cosmetics.</Alert> : linkStatus.status === 'pending' ? (
+          <div><p className="se-hint">A pairing code was created on {linkStatus.environment === 'beta' ? 'beta' : 'main'}. Sign into the other environment and redeem it. Codes expire after 48 hours.</p>
+            {issuedCode ? <><label htmlFor="drop-pairing-code">Pairing code</label><input id="drop-pairing-code" readOnly value={issuedCode.code} onFocus={(event) => event.currentTarget.select()} /><p className="se-hint">Expires {new Date(issuedCode.expiresAt).toLocaleString()} · Copy this code and redeem it in the other environment.</p></> : <><label><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} /> I control both accounts and want to permanently link them.</label><button type="button" disabled={!confirmed || linkBusy} onClick={() => void beginLink()}>{linkBusy ? 'Creating code…' : 'Create a replacement code'}</button></>}
           </div>
-        ) : linkStatus.environment === 'beta' ? (
-          <div><label><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} /> I control the beta account I’m signed into and the main account I’ll use to redeem this code. I want to permanently link them.</label>
-            <button type="button" disabled={!confirmed || linkBusy} onClick={() => void beginLink()}>{linkBusy ? 'Creating code…' : 'Create pairing code'}</button></div>
-        ) : <p className="se-hint">To link, sign into the beta account first and create a pairing code. Then sign into this main account and redeem it here.</p>}
+        ) : (
+          <div><p className="se-hint">Create a code here and redeem it in the other environment, or enter a code created there. You can start on beta or main.</p>
+            <label><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} /> I control both accounts and want to permanently link them.</label>
+            <button type="button" disabled={!confirmed || linkBusy} onClick={() => void beginLink()}>{linkBusy ? 'Creating code…' : `Create ${linkStatus.environment === 'beta' ? 'beta' : 'main'} pairing code`}</button>
+            <label htmlFor="drop-pairing-entry">Pairing code from the other environment</label><input id="drop-pairing-entry" value={pairingCode} onChange={(event) => setPairingCode(event.target.value)} autoComplete="off" />
+            <button type="button" disabled={!confirmed || !pairingCode.trim() || linkBusy} onClick={() => void finishLink()}>{linkBusy ? 'Linking…' : 'Link accounts'}</button>
+          </div>
+        )}
       </Panel>
       {error && !data ? <Alert>{error}</Alert> : null}
       {!data ? <Panel title="Wallet" loading>{null}</Panel> : null}
