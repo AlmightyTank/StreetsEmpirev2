@@ -8,6 +8,7 @@ import { queueDiscordRoleResync } from './discord-resync.service.js';
 import { SupporterService } from './supporter.service.js';
 import { queueDropOrderNotification } from './drop-notification.service.js';
 import { CrownWalletService, lockCrownWallet } from './crown-wallet.service.js';
+import { getSharedCrownBalance } from './shared-entitlement-runtime.js';
 
 const ANDROID_PUBLISHER_SCOPE = 'https://www.googleapis.com/auth/androidpublisher';
 const ACTIVE_STATES = new Set(['SUBSCRIPTION_STATE_ACTIVE', 'SUBSCRIPTION_STATE_IN_GRACE_PERIOD']);
@@ -326,7 +327,8 @@ export const GooglePlayBillingService = {
         return 'applied';
       }
       const wallet = await lockCrownWallet(tx, order.accountId);
-      if (full && wallet.balance >= order.crowns) {
+      const balance = await getSharedCrownBalance(order.accountId) ?? wallet.balance;
+      if (full && balance >= order.crowns) {
         await CrownWalletService.apply(tx, {
           accountId: order.accountId,
           kind: 'REVERSAL',

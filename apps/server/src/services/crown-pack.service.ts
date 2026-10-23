@@ -5,6 +5,7 @@ import { env } from '../config/env.js';
 import type { Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { CrownWalletService, lockCrownWallet } from './crown-wallet.service.js';
+import { getSharedCrownBalance } from './shared-entitlement-runtime.js';
 import { DropSettingsService, requireDropEnabled, switchesFor } from './drop-settings.service.js';
 import { stripeApi, type StripeApi, type StripeEvent } from './stripe.client.js';
 import { queueDropOrderNotification } from './drop-notification.service.js';
@@ -118,7 +119,8 @@ async function refund(tx: Db, order: CrownPackOrder, full: boolean, at: Date): P
     return 'applied';
   }
   const wallet = await lockCrownWallet(tx, order.accountId);
-  if (full && wallet.balance >= order.crowns) {
+  const balance = await getSharedCrownBalance(order.accountId) ?? wallet.balance;
+  if (full && balance >= order.crowns) {
     await CrownWalletService.apply(tx, {
       accountId: order.accountId,
       kind: 'REVERSAL',

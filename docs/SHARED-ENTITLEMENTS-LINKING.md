@@ -1,8 +1,9 @@
 # Shared Entitlements Account Linking
 
-Slice 1 adds the operator-controlled link and one-time import for the shared
-beta/main Crown and Drop entitlement store. Slice 2 routes wallet and Drop
-ownership reads through the canonical store and charges Drop purchases there.
+Slice 1 adds operator-controlled linking and the one-time import. Slice 2 routes
+wallet and Drop ownership reads through the canonical store and charges Drop
+purchases there. Slice 3 routes every Crown movement and wallet hold through
+the canonical wallet as well.
 
 ## Safety rules
 
@@ -57,8 +58,14 @@ balance/history, Drop ownership, and Drop purchase debit then use the shared
 database. Shared Drop unlocks are copied idempotently into each local account
 unlock table so existing equip and collection checks continue to work.
 
-Other Crown earning and pack billing paths still write the environment-local
-Crown ledger. They need a follow-up integration before Crown gains from play
-or Crown pack purchases made in one environment appear in the other. Keep
-shared mode disabled until that integration and the production account linking
-are complete.
+Gameplay earnings, account and birthday milestones, Street Pass skips, Stripe
+and Google Play Crown pack credits/refunds, admin adjustments, holds, and hold
+releases now update the shared wallet when shared mode is enabled. Per-round
+earning caps remain scoped to the local game round; the Crown balance, payment
+hold, and wallet history are shared. Refund checks use the canonical balance,
+including when the refund is handled in the other environment.
+
+Keep shared mode disabled until the shared database is migrated, both
+deployments are configured, and verified beta/production account links are in
+place. Then verify one earn, one purchase, and a refund/hold across both
+environments before opening the storefront to players.

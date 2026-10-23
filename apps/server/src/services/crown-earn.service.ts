@@ -5,6 +5,9 @@ import { env } from '../config/env.js';
 import type { Db } from '../utils/db.js';
 import { CrownWalletService } from './crown-wallet.service.js';
 import { DropSettingsService } from './drop-settings.service.js';
+import type { sharedEntitlementRuntime } from './shared-entitlement-runtime.js';
+
+type SharedRuntime = NonNullable<Awaited<ReturnType<typeof sharedEntitlementRuntime>>>;
 
 /**
  * The Drop, Slice D: Crowns earned from play. Every award runs inside the
@@ -132,7 +135,7 @@ export const CrownEarnService = {
   },
 
   /** The wallet page's "how to earn more" list for this round. */
-  async opportunities(prisma: PrismaClient, accountId: string, roundId: string | null, roundPlayerId: string | null, now = new Date()): Promise<DropEarnOpportunityDto[]> {
+  async opportunities(prisma: PrismaClient, accountId: string, roundId: string | null, roundPlayerId: string | null, now = new Date(), shared?: SharedRuntime | null): Promise<DropEarnOpportunityDto[]> {
     if (!roundId) return [];
     const refs = [
       `earn:daily:${accountId}:${dropDailyWindow(now).key}`,
@@ -140,14 +143,18 @@ export const CrownEarnService = {
       ...CROWN_EARN_RULES.checkInMilestones.map((milestone) => `earn:milestone:${accountId}:${roundId}:${milestone}`),
     ];
     const [done, events, checkIns, account] = await Promise.all([
-      prisma.crownLedgerEntry.findMany({ where: { externalRef: { in: refs } }, select: { externalRef: true } }),
-      prisma.crownLedgerEntry.aggregate({ where: { accountId, roundId, kind: 'EARN', source: 'event' }, _sum: { delta: true } }),
+      shared
+        ? shared.db.sharedCrownLedgerEntry.findMany({ where: { accountId: shared.accountId, environment: shared.environment, localAccountId: accountId, externalRef: { in: refs.map((ref) => `${shared.environment}:${ref}`) } }, select: { externalRef: true } })
+        : prisma.crownLedgerEntry.findMany({ where: { externalRef: { in: refs } }, select: { externalRef: true } }),
+      shared
+        ? shared.db.sharedCrownLedgerEntry.aggregate({ where: { accountId: shared.accountId, environment: shared.environment, localAccountId: accountId, roundId, kind: 'EARN', source: 'event' }, _sum: { delta: true } })
+        : prisma.crownLedgerEntry.aggregate({ where: { accountId, roundId, kind: 'EARN', source: 'event' }, _sum: { delta: true } }),
       roundPlayerId ? prisma.roundLoginCheckIn.count({ where: { roundPlayerId, source: 'LOGIN' } }) : Promise.resolve(0),
       prisma.account.findUnique({ where: { id: accountId }, select: { experiencePoints: true } }),
     ]);
     const level = experienceLevelFor(account?.experiencePoints ?? 0);
     const nextLevel = experienceCrownMilestones(level, level + EXPERIENCE_LEVEL_CROWNS.every)[0]!;
-    const got = new Set(done.map((row) => row.externalRef));
+    const got = new Set(done.map((row) => shared ? row.externalRef.slice(shared.environment.length + 1) : row.externalRef));
     const eventCrowns = events._sum.delta ?? 0;
     return [
       { key: 'daily', label: 'Daily Crown contract', crowns: CROWN_EARN_RULES.dailyContract, done: got.has(refs[0]!), detail: 'Turn in any daily contract. Once per UTC day.' },

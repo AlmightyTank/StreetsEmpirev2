@@ -4,6 +4,7 @@ import { DropAdminService } from '../services/drop-admin.service.js';
 import { DropCatalogService } from '../services/drop-catalog.service.js';
 import { AppError } from '../utils/errors.js';
 import { parseBody } from '../utils/validate.js';
+import { sharedEntitlementRuntime } from '../services/shared-entitlement-runtime.js';
 
 const reason = z.string().trim().min(4).max(500);
 const settingsSchema = z.object({
@@ -86,12 +87,14 @@ const adminDropRoutes: FastifyPluginAsync = async (fastify) => {
     const { username } = parseBody(lookupQuery, request.query ?? {});
     const account = await fastify.prisma.account.findUnique({ where: { usernameNormalized: username.toLowerCase() }, select: { id: true } });
     if (!account) throw AppError.notFound('ACCOUNT_NOT_FOUND', 'No account has that username.');
-    return DropAdminService.wallet(fastify.prisma, account.id);
+    const shared = await sharedEntitlementRuntime(fastify, account.id);
+    return DropAdminService.wallet(fastify.prisma, account.id, shared);
   });
 
   fastify.get('/drop/wallets/:accountId', async (request) => {
     const { accountId } = parseBody(accountParams, request.params);
-    return DropAdminService.wallet(fastify.prisma, accountId);
+    const shared = await sharedEntitlementRuntime(fastify, accountId);
+    return DropAdminService.wallet(fastify.prisma, accountId, shared);
   });
 
   fastify.post('/drop/wallets/:accountId/adjust', async (request) => {
@@ -104,7 +107,8 @@ const adminDropRoutes: FastifyPluginAsync = async (fastify) => {
     const { accountId } = parseBody(accountParams, request.params);
     const { reason: why } = parseBody(reasonOnly, request.body ?? {});
     await DropAdminService.releaseHold(fastify.prisma, actor(request), accountId, why);
-    return DropAdminService.wallet(fastify.prisma, accountId);
+    const shared = await sharedEntitlementRuntime(fastify, accountId);
+    return DropAdminService.wallet(fastify.prisma, accountId, shared);
   });
 
   fastify.post('/drop/adjustments/:id/decide', async (request) => {

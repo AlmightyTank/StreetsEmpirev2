@@ -74,7 +74,7 @@ const dropRoutes: FastifyPluginAsync = async (fastify) => {
     const player = round ? await RoundPlayerService.find(fastify.prisma, round.id, accountId) : null;
     const [wallet, opportunities, history, orders, packOrders] = await Promise.all([
       CrownWalletService.view(fastify.prisma, accountId, round?.id ?? null, settings.roundEarnCap, shared),
-      CrownEarnService.opportunities(fastify.prisma, accountId, round?.id ?? null, player?.id ?? null),
+      CrownEarnService.opportunities(fastify.prisma, accountId, round?.id ?? null, player?.id ?? null, undefined, shared),
       CrownWalletService.history(fastify.prisma, accountId, 50, shared),
       DropPurchaseService.orders(fastify.prisma, accountId),
       CrownPackService.orders(fastify.prisma, accountId),
@@ -100,24 +100,28 @@ const dropRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post('/crowns/checkout', { preHandler: fastify.requireAuth }, async (request) => {
     const body = parseBody(checkoutSchema, request.body ?? {});
     if (body.platform === 'android') throw AppError.conflict('CROWN_PACKS_ANDROID', 'Use Google Play billing in the Android app.');
+    await sharedEntitlementRuntime(fastify, request.auth!.account.id);
     return CrownPackService.startCheckout(fastify.prisma, request.auth!.account, body.packId);
   });
 
   fastify.post('/crowns/play-purchase', { preHandler: fastify.requireAuth }, async (request) => {
     const body = parseBody(playPurchaseSchema, request.body ?? {});
+    await sharedEntitlementRuntime(fastify, request.auth!.account.id);
     await GooglePlayBillingService.verifyCrownPack(fastify.prisma, request.auth!.account.id, body.productId, body.purchaseToken);
     return { credited: true };
   });
 
   fastify.get('/street-pass-skip', { preHandler: fastify.requireAuth }, async (request) => {
     const { round, player } = await requirePlayer(request.auth!.account.id);
-    return StreetPassSkipService.quote(fastify.prisma, request.auth!.account.id, player.id, loadRulesetForRound(round));
+    const shared = await sharedEntitlementRuntime(fastify, request.auth!.account.id);
+    return StreetPassSkipService.quote(fastify.prisma, request.auth!.account.id, player.id, loadRulesetForRound(round), shared);
   });
 
   fastify.post('/street-pass-skip', { preHandler: fastify.requireAuth }, async (request) => {
     const body = parseBody(skipSchema, request.body ?? {});
     const { player } = await requirePlayer(request.auth!.account.id);
-    return StreetPassSkipService.skip(fastify.prisma, player.id, body);
+    const shared = await sharedEntitlementRuntime(fastify, request.auth!.account.id);
+    return StreetPassSkipService.skip(fastify.prisma, player.id, body, shared);
   });
 };
 
