@@ -77,7 +77,7 @@ jobs:
       # Apply the proposed version BEFORE tests/builds. The deploy job can only
       # push this exact version after validation succeeds.
       - name: Prepare release version for CI
-        if: (github.event_name == 'push' && github.ref_name == 'beta') || (github.event_name == 'workflow_dispatch' && inputs.deploy_branch == 'beta' && inputs.commit_sha == '')
+        if: (github.event_name == 'push' && (github.ref_name == 'beta' || github.ref_name == 'main')) || (github.event_name == 'workflow_dispatch' && inputs.commit_sha == '')
         id: release_version
         shell: bash
         env:
