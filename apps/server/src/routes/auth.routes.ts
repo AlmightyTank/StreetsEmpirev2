@@ -74,11 +74,46 @@ const APPLE_AUTHORIZE_URL = 'https://appleid.apple.com/auth/authorize';
 const APPLE_TOKEN_URL = 'https://appleid.apple.com/auth/token';
 const appleJwks = createRemoteJWKSet(new URL('https://appleid.apple.com/auth/keys'));
 
+/**
+ * Provider authorization codes are single-use. Browsers can nevertheless
+ * deliver the callback twice (for example after a double-click or a retry),
+ * so share the in-flight/result identity briefly instead of exchanging the
+ * same code twice. The code itself is only hashed and is never logged.
+ */
+const OAUTH_CODE_CACHE_TTL_MS = 2 * 60 * 1000;
+type OAuthIdentity = { id: string; email: string | null };
+const oauthCodeCache = new Map<string, { expiresAt: number; promise: Promise<OAuthIdentity> }>();
+
+function oauthCodeCacheKey(provider: 'facebook' | 'google', code: string, redirectUri: string): string {
+  return createHash('sha256').update(`${provider}:${redirectUri}:${code}`).digest('hex');
+}
+
+function exchangeOAuthCodeOnce(
+  provider: 'facebook' | 'google',
+  code: string,
+  redirectUri: string,
+  exchange: () => Promise<OAuthIdentity>,
+): Promise<OAuthIdentity> {
+  const key = oauthCodeCacheKey(provider, code, redirectUri);
+  const now = Date.now();
+  const existing = oauthCodeCache.get(key);
+  if (existing && existing.expiresAt > now) return existing.promise;
+  if (existing) oauthCodeCache.delete(key);
+
+  const promise = Promise.resolve().then(exchange);
+  const entry = { expiresAt: now + OAUTH_CODE_CACHE_TTL_MS, promise };
+  oauthCodeCache.set(key, entry);
+  void promise.catch(() => {
+    if (oauthCodeCache.get(key) === entry) oauthCodeCache.delete(key);
+  });
+  return promise;
+}
+
 const discordStartSchema = z.object({
   // `?link=1` / `?link=true`; anything else (including "false" and "0") is not a link.
   link: z.string().optional().transform((value) => value === '1' || value === 'true'),
   // rc.4: `?remember=0` for a sign-in that ends with the browser. Anything else keeps it.
-  remember: z.string().optional().transform((value) => value !== '0' && value !== 'false'),
+  remember: z.string().optional().default('1').transform((value) => value !== '0' && value !== 'false'),
 });
 
 const discordCallbackSchema = z.object({
@@ -571,18 +606,20 @@ async function linkAppleToAccount(prisma: PrismaClient, account: Account, identi
 }
 
 async function googleIdentityFromCode(code: string, redirectUri: string, nonce: string) {
-  const client = new OAuth2Client(env.googleOAuth.clientId, env.googleOAuth.clientSecret, redirectUri);
-  const { tokens } = await client.getToken({ code, redirect_uri: redirectUri }).catch(() => { throw new AppError(401, 'GOOGLE_CODE_INVALID', 'Google could not complete sign-in. Please try again.'); });
-  if (!tokens.id_token) throw new AppError(401, 'GOOGLE_TOKEN_INVALID', 'Google did not return a valid sign-in. Try again.');
-  try {
-    const ticket = await client.verifyIdToken({ idToken: tokens.id_token, audience: env.googleOAuth.clientId });
-    const payload = ticket.getPayload();
-    if (!payload?.sub || payload.nonce !== nonce) throw new Error('Invalid Google identity or nonce');
-    const email = payload.email_verified ? payload.email?.toLowerCase() ?? null : null;
-    return { id: payload.sub, email };
-  } catch {
-    throw new AppError(401, 'GOOGLE_TOKEN_INVALID', 'Google could not verify this sign-in. Try again.');
-  }
+  return exchangeOAuthCodeOnce('google', code, redirectUri, async () => {
+    const client = new OAuth2Client(env.googleOAuth.clientId, env.googleOAuth.clientSecret, redirectUri);
+    const { tokens } = await client.getToken({ code, redirect_uri: redirectUri }).catch(() => { throw new AppError(401, 'GOOGLE_CODE_INVALID', 'Google could not complete sign-in. Please try again.'); });
+    if (!tokens.id_token) throw new AppError(401, 'GOOGLE_TOKEN_INVALID', 'Google did not return a valid sign-in. Try again.');
+    try {
+      const ticket = await client.verifyIdToken({ idToken: tokens.id_token, audience: env.googleOAuth.clientId });
+      const payload = ticket.getPayload();
+      if (!payload?.sub || payload.nonce !== nonce) throw new Error('Invalid Google identity or nonce');
+      const email = payload.email_verified ? payload.email?.toLowerCase() ?? null : null;
+      return { id: payload.sub, email };
+    } catch {
+      throw new AppError(401, 'GOOGLE_TOKEN_INVALID', 'Google could not verify this sign-in. Try again.');
+    }
+  });
 }
 
 async function accountForGoogleIdentity(prisma: PrismaClient, identity: { id: string; email: string | null }): Promise<Account> {
@@ -617,22 +654,24 @@ async function linkGoogleToAccount(prisma: PrismaClient, account: Account, ident
 }
 
 async function facebookIdentityFromCode(code: string, redirectUri: string) {
-  const tokenUrl = new URL('https://graph.facebook.com/v26.0/oauth/access_token');
-  tokenUrl.searchParams.set('client_id', env.facebook.appId);
-  tokenUrl.searchParams.set('client_secret', env.facebook.appSecret);
-  tokenUrl.searchParams.set('redirect_uri', redirectUri);
-  tokenUrl.searchParams.set('code', code);
-  const tokenResponse = await fetch(tokenUrl).catch(() => null);
-  if (!tokenResponse?.ok) throw new AppError(401, 'FACEBOOK_CODE_INVALID', 'Facebook could not complete sign-in. Please try again.');
-  const token = z.object({ access_token: z.string().min(1) }).safeParse(await tokenResponse.json());
-  if (!token.success) throw new AppError(401, 'FACEBOOK_TOKEN_INVALID', 'Facebook did not return a valid sign-in. Try again.');
-  const profileUrl = new URL('https://graph.facebook.com/me');
-  profileUrl.searchParams.set('fields', 'id,email');
-  const profileResponse = await fetch(profileUrl, { headers: { authorization: `Bearer ${token.data.access_token}` } }).catch(() => null);
-  if (!profileResponse?.ok) throw new AppError(401, 'FACEBOOK_PROFILE_INVALID', 'Facebook could not verify this sign-in. Try again.');
-  const profile = z.object({ id: z.string().min(1), email: z.string().email().optional() }).safeParse(await profileResponse.json());
-  if (!profile.success) throw new AppError(401, 'FACEBOOK_PROFILE_INVALID', 'Facebook could not verify this sign-in. Try again.');
-  return { id: profile.data.id, email: profile.data.email?.toLowerCase() ?? null };
+  return exchangeOAuthCodeOnce('facebook', code, redirectUri, async () => {
+    const tokenUrl = new URL('https://graph.facebook.com/v26.0/oauth/access_token');
+    tokenUrl.searchParams.set('client_id', env.facebook.appId);
+    tokenUrl.searchParams.set('client_secret', env.facebook.appSecret);
+    tokenUrl.searchParams.set('redirect_uri', redirectUri);
+    tokenUrl.searchParams.set('code', code);
+    const tokenResponse = await fetch(tokenUrl).catch(() => null);
+    if (!tokenResponse?.ok) throw new AppError(401, 'FACEBOOK_CODE_INVALID', 'Facebook could not complete sign-in. Please try again.');
+    const token = z.object({ access_token: z.string().min(1) }).safeParse(await tokenResponse.json());
+    if (!token.success) throw new AppError(401, 'FACEBOOK_TOKEN_INVALID', 'Facebook did not return a valid sign-in. Try again.');
+    const profileUrl = new URL('https://graph.facebook.com/me');
+    profileUrl.searchParams.set('fields', 'id,email');
+    const profileResponse = await fetch(profileUrl, { headers: { authorization: `Bearer ${token.data.access_token}` } }).catch(() => null);
+    if (!profileResponse?.ok) throw new AppError(401, 'FACEBOOK_PROFILE_INVALID', 'Facebook could not verify this sign-in. Try again.');
+    const profile = z.object({ id: z.string().min(1), email: z.string().email().optional() }).safeParse(await profileResponse.json());
+    if (!profile.success) throw new AppError(401, 'FACEBOOK_PROFILE_INVALID', 'Facebook could not verify this sign-in. Try again.');
+    return { id: profile.data.id, email: profile.data.email?.toLowerCase() ?? null };
+  });
 }
 
 async function accountForFacebookIdentity(prisma: PrismaClient, identity: { id: string; email: string | null }): Promise<Account> {
@@ -1335,9 +1374,13 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
         return conclude(twoFactorRedirect(redirectUri, returnOrigin));
       }
       const { token } = await createSession(fastify.prisma, account.id, { userAgent: request.headers['user-agent'], ip: request.ip, method: 'FACEBOOK', remember });
-      fastify.setSessionCookie(reply, token, remember);
       await noteSignIn(fastify.prisma, request, reply, account);
-      return conclude(postLoginRedirect(redirectUri, returnOrigin));
+      // Keep setting the session cookie as the final OAuth-side effect. If a future
+      // post-login operation fails, the callback must not report an error after
+      // already making the browser look signed in.
+      const destination = postLoginRedirect(redirectUri, returnOrigin);
+      fastify.setSessionCookie(reply, token, remember);
+      return conclude(destination);
     } catch (error) {
       request.log.warn({ err: error }, linkMode ? 'Facebook account link failed' : 'Facebook sign-in failed');
       const message = error instanceof AppError ? error.message : 'Facebook sign-in failed. Try again.';
@@ -1402,9 +1445,13 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
         return conclude(twoFactorRedirect(redirectUri, returnOrigin));
       }
       const { token } = await createSession(fastify.prisma, account.id, { userAgent: request.headers['user-agent'], ip: request.ip, method: 'GOOGLE', remember });
-      fastify.setSessionCookie(reply, token, remember);
       await noteSignIn(fastify.prisma, request, reply, account);
-      return conclude(postLoginRedirect(redirectUri, returnOrigin));
+      // Keep setting the session cookie as the final OAuth-side effect. If a future
+      // post-login operation fails, the callback must not report an error after
+      // already making the browser look signed in.
+      const destination = postLoginRedirect(redirectUri, returnOrigin);
+      fastify.setSessionCookie(reply, token, remember);
+      return conclude(destination);
     } catch (error) {
       request.log.warn({ err: error }, linkMode ? 'Google account link failed' : 'Google sign-in failed');
       const message = error instanceof AppError ? error.message : 'Google sign-in failed. Try again.';

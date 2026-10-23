@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import type { AccountDto, ForumLinkStatusDto, NotificationSettingsDto } from '@streets/shared';
 import { authApi } from '../api/auth.js';
 import { ApiError } from '../api/client.js';
@@ -45,11 +45,20 @@ export function ConnectedAccountsPanel({ account, onConnectionsChanged }: Connec
   const [appleEnabled, setAppleEnabled] = useState(false);
   const [googleEnabled, setGoogleEnabled] = useState(false);
   const [facebookEnabled, setFacebookEnabled] = useState(false);
+  const oauthStart = useRef(false);
   const [confirmApple, setConfirmApple] = useState(false);
   const [applePassword, setApplePassword] = useState('');
   const [applePasswordError, setApplePasswordError] = useState<string | null>(null);
   const [nativePlayGames, setNativePlayGames] = useState(false);
   const working = 'Finishing the last thing you asked for.';
+
+  function startOAuth(event: MouseEvent<HTMLAnchorElement>) {
+    if (oauthStart.current) {
+      event.preventDefault();
+      return;
+    }
+    oauthStart.current = true;
+  }
 
   useEffect(() => {
     const bridge = (window as Window & { StreetsEmpireAndroid?: { isNative?: () => boolean; linkPlayGames?: () => void } }).StreetsEmpireAndroid;
@@ -340,7 +349,7 @@ export function ConnectedAccountsPanel({ account, onConnectionsChanged }: Connec
               ) : null}
             </>
           ) : (
-            <a className="se-btn se-btn--discord" href="/api/auth/discord?link=1">Link Discord</a>
+            <a onClick={startOAuth} className="se-btn se-btn--discord" href="/api/auth/discord?link=1">Link Discord</a>
           )}
         </section>
 
@@ -371,7 +380,7 @@ export function ConnectedAccountsPanel({ account, onConnectionsChanged }: Connec
                 ) : null}
               </>
             ) : (
-              <a className="se-btn se-auth-apple" href="/api/auth/apple?link=1">Link Apple</a>
+              <a onClick={startOAuth} className="se-btn se-auth-apple" href="/api/auth/apple?link=1">Link Apple</a>
             )}
           </section>
         ) : null}
@@ -380,7 +389,7 @@ export function ConnectedAccountsPanel({ account, onConnectionsChanged }: Connec
           <section className="se-connection">
             <div className="se-connection__head"><div><span className="se-connection__eyebrow">Sign-in account</span><h3>Google</h3></div><span className={`se-tag ${account.googleLinked ? 'se-tag--good' : ''}`}>{account.googleLinked ? 'Connected' : 'Not connected'}</span></div>
             <p>{account.googleLinked ? 'Your Google account can sign in to this StreetsEmpire account.' : 'Connect Google to use it to sign in.'}</p>
-            {account.googleLinked ? <Button type="button" className="se-btn se-btn--ghost" onClick={unlinkGoogle} disabledReason={off}>{busy === 'google' ? 'Unlinking...' : 'Unlink Google'}</Button> : <a className="se-btn se-auth-google" href="/api/auth/google?link=1">Link Google</a>}
+            {account.googleLinked ? <Button type="button" className="se-btn se-btn--ghost" onClick={unlinkGoogle} disabledReason={off}>{busy === 'google' ? 'Unlinking...' : 'Unlink Google'}</Button> : <a onClick={startOAuth} className="se-btn se-auth-google" href="/api/auth/google?link=1">Link Google</a>}
           </section>
         ) : null}
 
@@ -388,7 +397,7 @@ export function ConnectedAccountsPanel({ account, onConnectionsChanged }: Connec
           <section className="se-connection">
             <div className="se-connection__head"><div><span className="se-connection__eyebrow">Sign-in account</span><h3>Facebook</h3></div><span className={`se-tag ${account.facebookLinked ? 'se-tag--good' : ''}`}>{account.facebookLinked ? 'Connected' : 'Not connected'}</span></div>
             <p>{account.facebookLinked ? 'Your Facebook account can sign in to this StreetsEmpire account.' : 'Connect Facebook to use it to sign in.'}</p>
-            {account.facebookLinked ? <Button type="button" className="se-btn se-btn--ghost" onClick={unlinkFacebook} disabledReason={off}>{busy === 'facebook' ? 'Unlinking...' : 'Unlink Facebook'}</Button> : <a className="se-btn se-auth-facebook" href="/api/auth/facebook?link=1">Link Facebook</a>}
+            {account.facebookLinked ? <Button type="button" className="se-btn se-btn--ghost" onClick={unlinkFacebook} disabledReason={off}>{busy === 'facebook' ? 'Unlinking...' : 'Unlink Facebook'}</Button> : <a onClick={startOAuth} className="se-btn se-auth-facebook" href="/api/auth/facebook?link=1">Link Facebook</a>}
           </section>
         ) : null}
 

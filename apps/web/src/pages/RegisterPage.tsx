@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type MouseEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { MINIMUM_AGE, latestEligibleBirthDate, PASSWORD_MIN, USERNAME_MAX, USERNAME_MIN } from '@streets/shared';
 import { ApiError } from '../api/client.js';
@@ -35,6 +35,15 @@ export function RegisterPage() {
   const [appleEnabled, setAppleEnabled] = useState(false);
   const [googleEnabled, setGoogleEnabled] = useState(false);
   const [facebookEnabled, setFacebookEnabled] = useState(false);
+  const oauthStart = useRef(false);
+
+  function startOAuth(event: MouseEvent<HTMLAnchorElement>) {
+    if (oauthStart.current) {
+      event.preventDefault();
+      return;
+    }
+    oauthStart.current = true;
+  }
 
   useEffect(() => {
     let active = true;
@@ -188,7 +197,7 @@ export function RegisterPage() {
           <div className="se-auth-providers">
             <Panel title="Create an account with Discord">
               <p>Use Discord to create or access your StreetsEmpire account.</p>
-              <a className="se-btn se-btn--discord se-btn--block" href="/api/auth/discord">
+              <a onClick={startOAuth} className="se-btn se-btn--discord se-btn--block" href="/api/auth/discord">
                 Continue with Discord
               </a>
             </Panel>
@@ -196,13 +205,13 @@ export function RegisterPage() {
             {googleEnabled ? (
               <Panel title="Create an account with Google">
                 <p>Use your Google account to create or access your StreetsEmpire account.</p>
-                <a className="se-btn se-btn--block se-auth-google" href="/api/auth/google">Continue with Google</a>
+                <a onClick={startOAuth} className="se-btn se-btn--block se-auth-google" href="/api/auth/google">Continue with Google</a>
               </Panel>
             ) : null}
             {facebookEnabled ? (
               <Panel title="Create an account with Facebook">
                 <p>Use Facebook to create or access your StreetsEmpire account.</p>
-                <a className="se-btn se-btn--block se-auth-facebook" href="/api/auth/facebook">Continue with Facebook</a>
+                <a onClick={startOAuth} className="se-btn se-btn--block se-auth-facebook" href="/api/auth/facebook">Continue with Facebook</a>
               </Panel>
             ) : null}
           </div>
@@ -228,7 +237,7 @@ export function RegisterPage() {
           {appleEnabled ? (
             <Panel title="Create an account with Apple">
               <p>Use your Apple ID to create an account or sign in to an existing StreetsEmpire account.</p>
-              <a className="se-btn se-btn--block se-auth-apple" href="/api/auth/apple">Continue with Apple</a>
+               <a onClick={startOAuth} className="se-btn se-btn--block se-auth-apple" href="/api/auth/apple">Continue with Apple</a>
             </Panel>
           ) : null}
         </div>
