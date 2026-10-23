@@ -255,7 +255,8 @@ export function useNewPlayerNavModel(): boolean {
 /** The Drop answers 404 while it is off by environment; ask once per page load. */
 let dropAvailability: Promise<boolean> | null = null;
 function dropAvailable(): Promise<boolean> {
-  dropAvailability ??= dropApi.status().then((status) => status.enabled).catch(() => false);
+  dropAvailability ??= Promise.allSettled([dropApi.status(), dropApi.accountLinkStatus()]).then(([drop, linking]) =>
+    (drop.status === 'fulfilled' && drop.value.enabled) || (linking.status === 'fulfilled' && linking.value.available));
   return dropAvailability;
 }
 

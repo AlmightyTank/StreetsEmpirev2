@@ -39,7 +39,12 @@ const playPurchaseSchema = z.object({ productId: z.string().trim().min(1).max(10
  * account. Nothing here answers while the Drop is off by environment.
  */
 const dropRoutes: FastifyPluginAsync = async (fastify) => {
-  fastify.addHook('onRequest', async () => requireDropEnabled());
+  fastify.addHook('onRequest', async (request) => {
+    // Keep the signed-in wallet page reachable for account linking even when
+    // The Drop storefront is switched off in this environment.
+    if (request.url.split('?')[0] === '/wallet') return;
+    requireDropEnabled();
+  });
 
   async function requirePlayer(accountId: string) {
     const round = await RoundService.requireCurrent(fastify.prisma);
