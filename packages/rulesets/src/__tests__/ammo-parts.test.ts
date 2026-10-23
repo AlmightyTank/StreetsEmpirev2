@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV23A, classicOgV24A, classicOgV24B, classicOgV24C, classicOgV24D, classicOgV24E, classicOgV24F } from '../index.js';
+import { classicOgV23A, classicOgV24A, classicOgV24B, classicOgV24C, classicOgV24D, classicOgV24E, classicOgV24F, classicOgV25A } from '../index.js';
 import { territoryCatalogForRuleset } from '../territory-perks.js';
 
 describe('ammo and vehicle parts foundation', () => {
@@ -80,5 +80,9 @@ describe('ammo and vehicle parts foundation', () => {
     expect(f.yieldProfiles[f.cities.detroit!.yieldProfileKey]?.goodsPerHour).toHaveProperty('VEHICLE_PARTS', 1);
     expect(f.cities.chicago!.access).toMatchObject({ accessType: 'toll', tollAmmoPerUse: 20, dailyTollCapAmmo: 100 });
     expect(f.cities.detroit!.access).toMatchObject({ tollVehiclePartsPerUse: 2, dailyTollCapVehicleParts: 10 });
+  });
+
+  it('gives the current individual-armory round starter both ammo and vehicle parts', () => {
+    expect(classicOgV25A.round.startingPlayer).toMatchObject({ ammo: 100, vehicleParts: 50 });
   });
 });
