@@ -54,6 +54,14 @@ else
 fi
 
 step "Installing dependencies"
+deploy_user="$(id -un)"
+if [ -d "$APP_DIR/node_modules" ] \
+  && find "$APP_DIR/node_modules" -not -user "$deploy_user" -print -quit | grep -q .; then
+  step "Repairing dependency ownership"
+  # Older manual/root deployments can leave packages unwritable to the deploy
+  # account. npm ci removes the existing tree before installing the lockfile.
+  $SUDO chown -R "$deploy_user:$(id -gn)" "$APP_DIR/node_modules"
+fi
 npm ci
 
 step "Generating the Prisma client"
