@@ -11,7 +11,7 @@ A Audit & contracts (done)
 ├─ A2 Basket checkout evidence fix (done)
 └─ B Story-scene engine (server) (done)
    └─ C Story-scene UI (Quest page) (done)
-      └─ D PILOT: Act I (Main 1–5) + new ruleset
+      └─ D PILOT: Act I (Main 1–5) + new ruleset (done)
          ├─ E Act II (Main 6–10) ──┬─ K Side: Pip arc (S4–S6)
          │                         └─ L Side: Tommy arc (S7–S9)
          ├─ F Act III (Main 11–15) ── first turn-in branch (Q15)
@@ -103,7 +103,18 @@ The card opens its details when a scene becomes playable. Chapter copy keeps par
 - Post answers to `POST /api/game/quests/:key/scenes/:sceneKey` with `{ responseKey }`. Render from `story.scenes[]`: show `available`, the response buttons, and the recorded `response.outcome` (see the Slice B contract).
 - **Done when:** the Slice B test quest is playable end to end in the web app on desktop and mobile widths.
 
-## Slice D — PILOT: Act I, "A Name in the Rain" (Main 1–5)
+## Slice D — PILOT: Act I, "A Name in the Rain" (Main 1–5) ✅
+
+**Done:** ruleset `classic-og-v2.6-a` (2.6.0-A), now the default for new rounds, adds `ML_M01_NIGHT_RECEIPT` → `ML_M05_MISSING_LINE` in `packages/rulesets/src/classic-og-v2.6-a/missing-line-act-1.ts`.
+
+- **Chain and evidence:** linear chain. M01 has no prerequisite. Category is `CAMPAIGN`, with no lesson text. Evidence: scenes for M01, M02, M05; a `STORE_SELL` to Pip for M03; `RUN_RETURNED` for M04.
+- **Rewards:** $1,000 / $1,000 / $1,500 / $2,000 / $2,500 cash ($8,000 for the act) plus 3–5 contact rep each, which is the opening board-job band. Contact rep also pays the contact's faction standing, as it does for those jobs.
+- **Board order:** appended after the 2.5.0-A catalog, so the Origin and first-names jobs keep their board order. M05 has no follow-up until Act II ships.
+- **Tests:**
+  - `missing-line-act-1.test.ts` covers the chain, that contacts exist in the ruleset, the evidence, the reward band, and that 2.5.0-A is untouched;
+  - `missing-line-act-1.integration.test.ts` plays M01 to M05 on PostgreSQL, checking pay, rep, recorded choices, and no double claim;
+  - a manual check in the running app.
+- **Known pilot issues:** M04 needs a car (players start with none; Charlie sells them), and the hint says so. The campaign shares the board's "Main story" slot with the Origin and first-names jobs: whichever story job is furthest along is featured.
 
 **Goal:** first playable arc, as the Spine's production rule asks for.
 

@@ -88,6 +88,5 @@ describe('story campaign Slice A contracts', () => {
     const contacts = LATEST_RULESET.contacts ?? {};
     for (const key of ['MAMA_KING', 'PIP', 'TOMMY', 'WHEELS', 'VIC', 'BLOCKS', 'LEDGER']) expect(contacts).toHaveProperty(key);
     expect(contacts).not.toHaveProperty('MARA_VENN');
-    expect(Object.keys(LATEST_RULESET.questDefinitions ?? {}).filter((key) => key.startsWith('ML_'))).toEqual([]);
   });
 });
