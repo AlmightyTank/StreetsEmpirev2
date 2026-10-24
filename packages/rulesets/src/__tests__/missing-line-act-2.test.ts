@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV26A, classicOgV26B, LATEST_RULESET, missingLineActOne, missingLineActTwo } from '../index.js';
+import { classicOgV26A, classicOgV26B, missingLineActOne, missingLineActTwo } from '../index.js';
 import { questDefinitionProblems } from '../quest-definitions.js';
 import type { QuestDefinition, QuestDefinitionCatalog } from '../types.js';
 
@@ -9,8 +9,8 @@ const catalog = classicOgV26B.questDefinitions as QuestDefinitionCatalog;
 const quest = (key: string) => catalog[key] as QuestDefinition;
 
 describe('2.6.0-B The Missing Line, Act II', () => {
-  it('ships as the latest ruleset on top of 2.6.0-A, which keeps Act I as it was', () => {
-    expect(LATEST_RULESET.meta.id).toBe('classic-og-v2.6-b');
+  it('ships in 2.6.0-B on top of 2.6.0-A, which keeps Act I as it was', () => {
+    expect(classicOgV26B.meta).toMatchObject({ id: 'classic-og-v2.6-b', version: '2.6.0-B' });
     expect(questDefinitionProblems(catalog)).toEqual([]);
     expect((classicOgV26A.questDefinitions as QuestDefinitionCatalog).ML_M05_MISSING_LINE?.followUpKeys).toEqual([]);
     expect(Object.keys(classicOgV26A.questDefinitions).some((key) => NEW.includes(key))).toBe(false);
