@@ -23,7 +23,7 @@
 1. `package.json` on `beta` already declares `2.0.0`, and `docs/2.0-STORY-PLAN.md` already describes a **shipped storytelling backbone** (City Memory, Streets Daily draft handoff, prototype cooperative Operation, Black Book intel, Empire Legacy, careers). **2.0.0 here means finishing and branding the Living Streets Stories feature release**, not recreating those components. If a `v2.0.0` release/tag has already been publicly issued, do **not** reuse or rewrite it: keep these names as planning milestones and allocate the next unissued patch/minor version when executing release engineering.
 2. Existing `docs/ROADMAP-2.0.0-BEGINNER-JOURNEY.md`, UI-consistency plans, and `docs/ROADMAP-3.0.0.md` are independent plans. Preserve their scopes. In particular, 3.0 Empire Cohesion includes a **law case view**; the Criminal Case Files in 2.0 are **player-owned underworld investigations**, not a second federal-law case engine.
 3. Roll Call/login-reward development in PR #298 is independent. Reuse its permanent cosmetic entitlement infrastructure only when appropriate. Do not couple attendance to required story progress, and do not introduce a competing daily scheduler.
-4. `beta` contains or plans much of the required infrastructure; a roadmap entry does not assert that an unmerged PR or a feature behind a ruleset has shipped to `main`.
+4. The 2.3.0 Empire Advisor was scrapped and its implementation removed. Do not treat it as an active release or make later work depend on it; 2.6 goal preferences belong on existing Dashboard/Holdings surfaces.\n5. `beta` contains or plans much of the required infrastructure; a roadmap entry does not assert that an unmerged PR or a feature behind a ruleset has shipped to `main`.
 
 ## Core design rules across all releases
 
