@@ -12,7 +12,7 @@ A Audit & contracts (done)
 └─ B Story-scene engine (server) (done)
    └─ C Story-scene UI (Quest page) (done)
       └─ D PILOT: Act I (Main 1–5) + new ruleset (done)
-         ├─ E Act II (Main 6–10) ──┬─ K Side: Pip arc (S4–S6)
+         ├─ E Act II (Main 6–10) (done) ┬─ K Side: Pip arc (S4–S6)
          │                         └─ L Side: Tommy arc (S7–S9)
          ├─ F Act III (Main 11–15) ── first turn-in branch (Q15)
          ├─ G Act IV (Main 16–20) ─┬─ M Side: Alvarez/Mama arc (S1–S3)
@@ -126,7 +126,13 @@ The card opens its details when a scene becomes playable. Chapter copy keeps par
 - **Note:** M04 needs intercity runs to be unlocked. Check that against the tutorial gates (Roadmap Slice D) so the pilot cannot get stuck behind a gate it does not explain.
 - **Done when:** a new test-round player can go from M01 through M05, see M06–M08 waiting as "coming soon" or simply absent, and everything holds across reloads and round restarts.
 
-## Slice E — Act II, "Three Ways to Lose a Load" (Main 6–10)
+## Slice E — Act II, "Three Ways to Lose a Load" (Main 6–10) ✅
+
+**Done:** ruleset `classic-og-v2.6-b` (2.6.0-B), now the default for new rounds.
+- **Re-issued chapter:** `ML_M05_MISSING_LINE` is re-issued, unchanged apart from opening the three leads. 2.6.0-A rounds keep Act I as it shipped.
+- **Leads and evidence:** `ML_M06_PIPS_COUNT` (a trade with Pip), `ML_M07_NORTH_ROAD` (`RUN_RETURNED`) and `ML_M08_TOMMYS_SERIAL` (a buy from Tommy) can be held at once and done in any order. `ML_M09_TWO_BUYERS` (Ledger's scene: who hears it first) needs all three, then `ML_M10_FAVOR_ALREADY_PAID` (Vic's scene).
+- **Rewards:** $2,500–$4,000 each, $16,000 for the act, plus 5 contact rep each.
+- **Tests:** `missing-line-act-2.test.ts`; `missing-line-act-2.integration.test.ts` checks all six lead orders reach M09, that one lead's work doesn't advance another, and plays M09 and M10.
 
 - M06 Pip's Count (`STORE_BUY`|`STORE_SELL`/PIP), M07 The North Road (`RUN_RETURNED`), M08 Tommy's Serial (`STORE_BUY`/TOMMY) all unlock together from M05 and can be done in any order.
 - M09 Two Buyers, One Load: three `QUEST_COMPLETED` prerequisites plus the `two_buyers_briefed` scene.
