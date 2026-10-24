@@ -7,11 +7,11 @@
 | Test | Runs | Pins |
 | --- | --- | --- |
 | `apps/server/src/services/__tests__/story-campaign-contracts.test.ts` | `npm test` | Prerequisite AND, branches sharing one follow-up, type-only matching for run/recon/lane events, target-ruleset facts (stores, supply network, runs, contacts, no `ML_` keys yet). |
-| `apps/server/src/services/__tests__/story-campaign-evidence.integration.test.ts` | `STORY_INTEGRATION=1` with PostgreSQL | Real `StoreService.trade` / `checkout` rows for Pip and Tommy, run through the real quest matcher, including blocker B1. |
+| `apps/server/src/services/__tests__/story-campaign-evidence.integration.test.ts` | `STORY_INTEGRATION=1` with PostgreSQL | Real `StoreService.trade` / `checkout` rows for Pip and Tommy, run through the real quest matcher; a mixed basket through the real quest-progress pipeline (B1 fix). |
 
 ## Blockers
 
-### B1: basket checkout evidence never reaches store-filtered objectives
+### B1: basket checkout evidence never reached store-filtered objectives — **fixed in Slice A2**
 
 `StoreService.checkout` (the web store's basket) writes **one** `STORE_BUY`/`STORE_SELL` activity for the whole basket. Its `storeKey`, `item`, `direction`, and `quantity` are inside `lines[]`, and the event type is picked by the basket's net cash. The quest matcher (`packages/rulesets/src/quest-progress.ts`) only matches dot-paths exactly, so:
 
@@ -20,7 +20,7 @@
 
 Single trades (`StoreService.trade`) and special orders write the fields at the top level and match correctly.
 
-This is **live today**: the latest ruleset has 57 store-filtered objectives (Pip/Tommy contact jobs, dailies, weeklies, season contracts, `CREW_BOSS_PATH`) that ignore basket purchases, plus 11 unfiltered store-sum objectives that read basket fields wrong. **Every campaign store objective (M03, M06, M08, M19, S4, S6, S7, S9) is blocked until this is fixed.** The fix belongs in the quest-progress signal (per-line evidence for baskets, without double-counting unfiltered "any store" objectives), not in campaign definitions. It is tracked as its own slice before the pilot (see Slice A2 in the slices doc).
+This is **live today**: the latest ruleset has 57 store-filtered objectives (Pip/Tommy contact jobs, dailies, weeklies, season contracts, `CREW_BOSS_PATH`) that ignore basket purchases, plus 11 unfiltered store-sum objectives that read basket fields wrong. Every campaign store objective (M03, M06, M08, M19, S4, S6, S7, S9) depended on this. The fix belongs in the quest-progress signal (per-line evidence for baskets, without double-counting unfiltered "any store" objectives), not in campaign definitions. **Fix (Slice A2, all rulesets):** each checkout line now records its `itemKey` (and `product` for Pip products), and `QuestProgressService.recordActivity` credits a basket as one signal per line, typed by that line's direction, with source key `activity:<id>:line:<n>`. A basket now counts exactly like the same trades made one at a time, including for unfiltered "N store actions" counts. Mixed-basket sales totals now count only the sale lines. The feed still shows one activity per checkout. Activities recorded before the fix are not replayed. Covered by `quest-progress-basket.test.ts` and the evidence integration suite.
 
 ## Decisions
 
@@ -52,7 +52,7 @@ This is **live today**: the latest ruleset has 57 store-filtered objectives (Pip
 | --- | --- | --- | --- |
 | `STORE_SELL` / `STORE_BUY` (single trade) | `StoreService.trade` | Every successful trade | Top-level `storeKey` (`PIP`, `TOMMY`, `CORNER`, `CHARLIE`), `itemKey`, `direction`, `quantity`, `totalCents`; Pip products add `product`. **Verified against PostgreSQL.** |
 | `STORE_BUY` (special order) | `StoreService.specialOrder` | Every paid special order | Top-level `storeKey`, `itemKey`, `specialOrder: true`; no `quantity`. Counts for an `EVENT_COUNT`, not a quantity sum. |
-| `STORE_BUY` / `STORE_SELL` (basket) | `StoreService.checkout` | Every checkout | **B1:** fields only inside `lines[]`; type set by net cash. **Verified against PostgreSQL.** |
+| `STORE_BUY` / `STORE_SELL` (basket) | `StoreService.checkout` | Every checkout | One feed activity with `lines[]` (each with `storeKey`, `itemKey`, `direction`, `quantity`, `totalCents`, Pip `product`); quests receive one signal per line. **Verified against PostgreSQL.** |
 | `RUN_RETURNED` | `bringHome` in `run-settle.service.ts` | Every run. `RunStatus` is only `ACTIVE`/`RETURNED`, so incidents, damage, tails, and empty trunks all still return once. | Match on type only. Needs `ruleset.travel.runs` (enabled in v2.5-a), a ready vehicle at home, and real road time; there's no tutorial gate. Emitted-once is already covered by `travel.integration.test.ts`. |
 | `COMBAT_RECON` | `CombatService.recon` | A successful recon only | Needs strategy combat, a non-allied rival in the **same city**, and enough turns; the tutorial target only works during *Take a Shot*. Unreliable in quiet rounds, so bonus only (decision 6). |
 | `SUPPLY_LANE_ARRIVED` | `SupplyLaneSettleService.settle` | Every lane shipment that lands, including seizures (`delivered: 0`) | Match on type only. Needs `supplyNetwork.enabled` (true in v2.5-a) plus an ordered lane shipment. It's an optional system, so bonus only (decision 6). |
@@ -60,27 +60,27 @@ This is **live today**: the latest ruleset has 57 store-filtered objectives (Pip
 
 ## Objective Map rows
 
-**Verified** = works on beta today. **Scene** = needs Slice B. **B1** = blocked by the basket fix. **Fallback** = required objective changed per decision 6.
+**Verified** = works on beta today. **Scene** = needs Slice B. **Fallback** = required objective changed per decision 6.
 
 | Row | Evidence | Status |
 | --- | --- | --- |
 | M01, M02, M05 | Scene | Scene |
-| M03 | `STORE_SELL` where `storeKey: PIP` | Verified for single trades; **B1** |
+| M03 | `STORE_SELL` where `storeKey: PIP` | Verified |
 | M04, M07, M16 | `RUN_RETURNED` | Verified |
-| M06 | `STORE_BUY`/`STORE_SELL` where `storeKey: PIP` | Verified for single trades; **B1** |
-| M08 | `STORE_BUY` where `storeKey: TOMMY` | Verified for single trades; **B1** |
+| M06 | `STORE_BUY`/`STORE_SELL` where `storeKey: PIP` | Verified |
+| M08 | `STORE_BUY` where `storeKey: TOMMY` | Verified |
 | M09 | 3 × `QUEST_COMPLETED` + scene | Prerequisites verified; Scene |
 | M10, M11, M12, M14, M17, M18, M20, M21, M24 | Scene | Scene |
 | M13 | Scene required, `COMBAT_RECON` bonus | Fallback; Scene |
 | M15 | Scene + turn-in branch | Branches verified; Scene |
-| M19 | `STORE_SELL` where `storeKey: PIP` | Verified for single trades; **B1** |
+| M19 | `STORE_SELL` where `storeKey: PIP` | Verified |
 | M22 | Main-chain `QUEST_COMPLETED` + scene | Prerequisites verified; Scene |
 | M23, M25 | Turn-in branch, shared follow-up | Verified |
 | S1, S2, S3, S8, S11, S13, S14, S15 | Scene (S15 also 2 × `QUEST_COMPLETED`) | Scene |
-| S4 | `STORE_BUY`/`STORE_SELL` where `storeKey: PIP` | Verified for single trades; **B1** |
+| S4 | `STORE_BUY`/`STORE_SELL` where `storeKey: PIP` | Verified |
 | S5 | Scene required, `SUPPLY_LANE_ARRIVED` bonus | Fallback; Scene |
-| S6 | `STORE_SELL` PIP + scene | **B1**; Scene |
-| S7, S9 | `STORE_BUY` where `storeKey: TOMMY` | Verified for single trades; **B1** |
+| S6 | `STORE_SELL` PIP + scene | Verified; Scene |
+| S7, S9 | `STORE_BUY` where `storeKey: TOMMY` | Verified |
 | S10 | `RUN_RETURNED` | Verified |
 | S12 | `RUN_RETURNED` + scene | Verified; Scene |
 

@@ -8,10 +8,10 @@ The order: build the systems first (A–C), ship Act I as a playable pilot (D), 
 
 ```
 A Audit & contracts (done)
-├─ A2 Basket checkout evidence fix (blocks every store objective)
+├─ A2 Basket checkout evidence fix (done)
 └─ B Story-scene engine (server)
    └─ C Story-scene UI (Quest page)
-      └─ D PILOT: Act I (Main 1–5) + new ruleset   (needs A2 for M03)
+      └─ D PILOT: Act I (Main 1–5) + new ruleset
          ├─ E Act II (Main 6–10) ──┬─ K Side: Pip arc (S4–S6)
          │                         └─ L Side: Tommy arc (S7–S9)
          ├─ F Act III (Main 11–15) ── first turn-in branch (Q15)
@@ -54,15 +54,17 @@ Side slices K–O depend only on the main slice they branch from and can be buil
 - **Deliverable:** `docs/STORY-QUEST-CAMPAIGN-SLICE-A.md` (contract), plus server tests that pin the payload fields above so later slices can rely on them.
 - **Done when:** every row in the Objective Map is marked *verified*, *fallback to scene*, or *blocked: reason*.
 
-## Slice A2 — Basket checkout evidence fix
+## Slice A2 — Basket checkout evidence fix ✅
 
-**Goal:** a basket checkout gives quests the same evidence as the single trades it contains (Slice A blocker B1). This is live today: 57 store-filtered objectives in the latest ruleset ignore basket purchases.
+**Done, for every ruleset:** a basket counts exactly like the same trades made one at a time, including for unfiltered store-action counts. See B1 in the [Slice A contract](./STORY-QUEST-CAMPAIGN-SLICE-A.md).
+
+**Goal:** a basket checkout gives quests the same evidence as the single trades it contains (Slice A blocker B1). Before the fix, 57 store-filtered objectives in the latest ruleset ignored basket purchases.
 
 - Give each basket line its own quest-progress evidence (its own `storeKey`, `itemKey`, `direction`, `quantity`, `totalCents`, and the event type for that line's direction) with a stable per-line source key, so `QuestProgressReceipt` still makes each line count once.
-- Keep unfiltered "any store" objectives counting a basket the way they do today, with no double count from also crediting the whole basket.
-- Decide whether pinned rulesets get the fix too. It is a bug fix, but it changes how fast in-flight jobs progress.
+- Unfiltered "any store" objectives count a basket the same way: one per line, as if each line were its own trade. (Chosen over "one per basket" so a basket and separate trades always give the same result.)
+- Applies to every ruleset, including rounds already running (decided by the owner).
 - **Tests:** extend `story-campaign-evidence.integration.test.ts` so the basket case matches Pip and Tommy objectives; add mixed-basket and sum cases.
-- **Done when:** the B1 test flips, and no unfiltered store objective changes its count for the same basket.
+- **Done when:** a mixed basket credits Pip and Tommy objectives line by line, exactly once, through the real pipeline.
 
 ## Slice B — Story-scene engine (server)
 
