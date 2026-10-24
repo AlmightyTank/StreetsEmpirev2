@@ -1,4 +1,4 @@
-import type { QuestCosmeticCatalog, QuestDataObject, QuestDefinition, QuestDefinitionCatalog, SecretContentMeta } from './types.js';
+import { QUEST_STORY_VARIANT_FIELDS, type QuestCosmeticCatalog, type QuestDataObject, type QuestDefinition, type QuestDefinitionCatalog, type SecretContentMeta } from './types.js';
 
 export const SECRET_TRIGGER_KINDS = [
   'STATE_AT_LEAST',
@@ -227,6 +227,38 @@ export function storySceneProblems(quest: QuestDefinition): string[] {
   return problems;
 }
 
+/**
+ * Story campaign Slice H. Every variant names a real outcome in this catalog and replaces at
+ * least one known line; the quest's own lines are the defaults, so nothing can resolve to empty.
+ */
+export function storyVariantProblems(quest: QuestDefinition, catalog: QuestDefinitionCatalog): string[] {
+  const problems: string[] = [];
+  const fields = new Set<string>(QUEST_STORY_VARIANT_FIELDS);
+  (quest.story?.variants ?? []).forEach((variant, index) => {
+    const label = `variant ${index + 1}`;
+    const when = variant.when;
+    const source = when ? catalog[when.questKey] : undefined;
+    if (!when || !source) {
+      problems.push(`${label}: names unknown quest ${when?.questKey ?? '(none)'}`);
+    } else if (when.kind === 'BRANCH_CHOSEN') {
+      if (!source.branches?.some((branch) => branch.key === when.branchKey)) problems.push(`${label}: unknown branch ${when.questKey}/${when.branchKey}`);
+    } else if (when.kind === 'SCENE_RESPONSE') {
+      const scene = source.story?.scenes?.find((entry) => entry.key === when.sceneKey);
+      if (!scene) problems.push(`${label}: unknown scene ${when.questKey}/${when.sceneKey}`);
+      else if (!scene.responses.some((response) => response.key === when.responseKey)) problems.push(`${label}: unknown response ${when.questKey}/${when.sceneKey}/${when.responseKey}`);
+    } else if (when.kind !== 'QUEST_COMPLETED') {
+      problems.push(`${label}: unknown condition ${(when as { kind: string }).kind}`);
+    }
+    const lines = Object.entries(variant).filter(([field]) => field !== 'when');
+    if (!lines.length) problems.push(`${label}: replaces no line`);
+    for (const [field, value] of lines) {
+      if (!fields.has(field)) problems.push(`${label}: cannot replace ${field}`);
+      else if (typeof value !== 'string' || !value.trim()) problems.push(`${label}: ${field} is empty`);
+    }
+  });
+  return problems;
+}
+
 export function questDefinitionProblems(catalog: QuestDefinitionCatalog): string[] {
   const problems: string[] = [];
 
@@ -239,13 +271,14 @@ export function questDefinitionProblems(catalog: QuestDefinitionCatalog): string
     if (quest.objectives.length === 0) problems.push(`${catalogKey}: at least one objective is required`);
     if (quest.story) {
       for (const [field, value] of Object.entries(quest.story)) {
-        if (field === 'scenes') continue;
+        if (field === 'scenes' || field === 'variants') continue;
         if (typeof value !== 'string' || !value.trim()) {
           problems.push(`${catalogKey}: story.${field} is required`);
         }
       }
     }
     for (const problem of storySceneProblems(quest)) problems.push(`${catalogKey}: ${problem}`);
+    for (const problem of storyVariantProblems(quest, catalog)) problems.push(`${catalogKey}: ${problem}`);
     if (quest.type === 'SECRET') {
       if (quest.repeatability !== 'ONCE') problems.push(`${catalogKey}: SECRET quests must be ONCE`);
       if (quest.availability.hidden !== true) problems.push(`${catalogKey}: SECRET quests must set availability.hidden=true`);

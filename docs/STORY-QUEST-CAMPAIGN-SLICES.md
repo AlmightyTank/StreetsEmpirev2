@@ -240,7 +240,24 @@ The card opens its details when a scene becomes playable. Chapter copy keeps par
 - M16 (`RUN_RETURNED`), M17 Passenger No. 9 (scene), M18 What Mama Bought (scene, response recorded), M19 The Honest Scale (`STORE_SELL`/PIP), M20 The Map in the Margins (scene, no turf requirement).
 - **Done when:** the chain plays through, and the M18 response is readable by Slice H.
 
-## Slice H — Branch-aware story copy layer
+## Slice H — Branch-aware story copy layer ✅
+
+**Done:**
+- **Variants:** `QuestStoryDefinition.variants` adds conditional story lines. Each variant has a `when` condition (`BRANCH_CHOSEN`, `SCENE_RESPONSE` or `QUEST_COMPLETED`) and may replace `intro`, `inProgress`, `ready`, `completed` or `actionHint`. For each line, the first matching variant wins; the quest's own line is always the default.
+- **Resolver:** `resolveStoryCopy` in `packages/rulesets/src/story-copy.ts`, a pure function.
+- **Validator:** `storyVariantProblems` checks that every condition names a real quest, branch, scene and response in the same catalog, and that each variant replaces at least one allowed, non-empty line.
+- **Server:** `storyFactsFor` loads the player's earlier outcomes in one query, only for the quests some line depends on, and only when the ruleset has variants. `storyDto` resolves the lines, so the client and the contact room receive plain text, never conditions.
+- **Content:** ruleset `classic-og-v2.6-f` (2.6.0-F), now the default, re-issues three Act IV chapters with echoes. Nothing else changes.
+  - Mile Marker Nine answers each Your Name in the Margin choice.
+  - Passenger No. 9 answers what was done at the depot.
+  - What Mama Bought's opening remembers whether Mr. Alvarez's name went into the record, and its closing line follows how Mama settled her debt.
+- **Tests:**
+  - `story-copy.test.ts` covers the resolver and validator;
+  - `missing-line-echoes.test.ts` checks that every choice has its echo;
+  - `missing-line-echoes.integration.test.ts` checks the served text for each choice, the default for players without history, and the echoes in history.
+
+**Plan as written:**
+
 
 **Goal:** later text can respond to earlier choices. This has to land before Act V, whose finale depends on it.
 

@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client';
-import { QUEST_STORY_SCENE_EVENT, type QuestDefinition, type QuestProgressMap, type Ruleset } from '@streets/rulesets';
+import { NO_STORY_FACTS, QUEST_STORY_SCENE_EVENT, storyFactQuestKeys, type QuestDefinition, type QuestProgressMap, type Ruleset, type StoryFacts } from '@streets/rulesets';
 import type { QuestStorySceneDto } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
 import type { Db } from '../utils/db.js';
@@ -34,6 +34,42 @@ function sceneOpen(definition: QuestDefinition, sceneKey: string, row: SceneRow)
   if (!scene || !ANSWERABLE.includes(row.status)) return false;
   const done = completedObjectives(row.objectiveProgress);
   return (scene.after ?? []).every((id) => done.has(id));
+}
+
+/**
+ * Story campaign Slice H. The earlier outcomes this ruleset's story lines depend on, for one
+ * player: one query over just the quests some line names, or none when nothing varies.
+ */
+export async function storyFactsFor(db: Db, roundPlayerId: string, ruleset: Ruleset): Promise<StoryFacts> {
+  const keys = storyFactQuestKeys(ruleset.questDefinitions);
+  if (!keys.length) return NO_STORY_FACTS;
+  const rows = await db.playerQuest.findMany({
+    where: {
+      roundPlayerId,
+      questDefinition: { rulesetId: ruleset.meta.id, rulesetVersion: ruleset.meta.version, key: { in: keys } },
+    },
+    select: {
+      status: true,
+      chosenBranch: true,
+      questDefinition: { select: { key: true } },
+      sceneResponses: { select: { sceneKey: true, responseKey: true } },
+    },
+    orderBy: { attempt: 'desc' },
+  });
+  const completed = new Set<string>();
+  const branches = new Map<string, string>();
+  const responses = new Map<string, Map<string, string>>();
+  const seen = new Set<string>();
+  for (const row of rows) {
+    const key = row.questDefinition.key;
+    if (row.status === 'COMPLETED') completed.add(key);
+    // Rows are newest attempt first: the latest attempt speaks for choices and answers.
+    if (seen.has(key)) continue;
+    seen.add(key);
+    if (row.chosenBranch) branches.set(key, row.chosenBranch);
+    if (row.sceneResponses.length) responses.set(key, new Map(row.sceneResponses.map((response) => [response.sceneKey, response.responseKey])));
+  }
+  return { completed, branches, responses };
 }
 
 /** Recorded responses for the rows whose quests have scenes, keyed by player quest then scene. One query, or none. */

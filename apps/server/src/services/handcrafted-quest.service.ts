@@ -6,6 +6,7 @@ import {
   jobFaction,
   type FactionKey,
   type FactionTier,
+  NO_STORY_FACTS,
   type QuestBranchDefinition,
   type QuestDefinition,
   type QuestObjectiveDefinition,
@@ -14,7 +15,9 @@ import {
   questRequiredRecipes,
   type QuestRewardDefinition,
   type QuestType,
+  resolveStoryCopy,
   type Ruleset,
+  type StoryFacts,
 } from '@streets/rulesets';
 import type {
   GameActionResult,
@@ -94,7 +97,7 @@ import {
 } from './seasonal-event.service.js';
 import { CityConditionService } from './city-condition.service.js';
 import { PermanentUnlockService } from './permanent-unlock.service.js';
-import { recordSceneResponse, sceneResponsesFor, storyScenesDto, type SceneResponses } from './quest-story-scene.service.js';
+import { recordSceneResponse, sceneResponsesFor, storyFactsFor, storyScenesDto, type SceneResponses } from './quest-story-scene.service.js';
 
 const TRACKED_LIMIT = 3;
 /** Shared-board work: not counted as a personal job and not abandonable. Personal jobs have no cap. */
@@ -288,10 +291,10 @@ function branchChoicesDto(row: QuestRow, ruleset: Ruleset): QuestBranchChoiceDto
   }));
 }
 
-function storyDto(row: QuestRow, ruleset: Ruleset, sceneResponses?: SceneResponses): QuestStoryDto | undefined {
+function storyDto(row: QuestRow, ruleset: Ruleset, sceneResponses?: SceneResponses, storyFacts: StoryFacts = NO_STORY_FACTS): QuestStoryDto | undefined {
   const definition = ruleset.questDefinitions?.[row.questDefinition.key];
   if (!definition?.story) return undefined;
-  const { scenes: _scenes, ...story } = definition.story;
+  const { scenes: _scenes, ...story } = resolveStoryCopy(definition.story, storyFacts);
   const scenes = storyScenesDto(definition, row, sceneResponses?.get(row.id));
   return {
     ...story,
@@ -373,6 +376,8 @@ interface QuestContext {
   actionCounts?: Readonly<Record<string, number>>;
   /** Story campaign: recorded scene responses, by player quest id then scene key. */
   sceneResponses?: SceneResponses;
+  /** Story campaign: the earlier outcomes story lines depend on. */
+  storyFacts?: StoryFacts;
 }
 
 interface QuestGateContext {
@@ -477,7 +482,7 @@ function questDto(row: QuestRow, ruleset: Ruleset, context: QuestContext, commun
     finishedBonuses,
   );
   const availability = availabilityJson(row.questDefinition.availability);
-  const story = storyDto(row, ruleset, context.sceneResponses);
+  const story = storyDto(row, ruleset, context.sceneResponses, context.storyFacts);
   return {
     key: row.questDefinition.key,
     attempt: row.attempt,
@@ -1102,6 +1107,7 @@ export const HandcraftedQuestService = {
     const context: QuestContext = {
       points: {}, netWorthCents: 0n, completed: new Set(), reps: {},
       sceneResponses: await sceneResponsesFor(prisma, rows, ruleset),
+      storyFacts: await storyFactsFor(prisma, roundPlayerId, ruleset),
     };
     return { quests: rows.map((row) => questDto(row, ruleset, context)) };
   },
@@ -1224,6 +1230,7 @@ export const HandcraftedQuestService = {
         reps,
         ...gate,
         sceneResponses: await sceneResponsesFor(tx, rows, ruleset),
+        storyFacts: await storyFactsFor(tx, roundPlayerId, ruleset),
       };
       // 1.4.0-D: what standing opens with each faction, and what it says right now.
       const factions = ruleset.factions ? Object.values(ruleset.factions).flatMap((faction) => faction ? [{

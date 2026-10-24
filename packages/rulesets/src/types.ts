@@ -303,7 +303,25 @@ export interface QuestStoryDefinition {
    * an EVENT_COUNT objective filtered on `where: { questKey, sceneKey }`.
    */
   readonly scenes?: readonly QuestStorySceneDefinition[];
+  /**
+   * Story campaign Slice H. Lines that change with what the player chose earlier. The server
+   * resolves them when it builds the quest page: for each line, the first variant whose
+   * condition holds replaces it, and the line above stays the default.
+   */
+  readonly variants?: readonly QuestStoryVariant[];
 }
+
+/** The story lines a variant may replace. */
+export const QUEST_STORY_VARIANT_FIELDS = ['intro', 'inProgress', 'ready', 'completed', 'actionHint'] as const;
+export type QuestStoryVariantField = typeof QUEST_STORY_VARIANT_FIELDS[number];
+
+/** Something the player did earlier that a line can depend on. */
+export type QuestStoryCondition =
+  | { readonly kind: 'BRANCH_CHOSEN'; readonly questKey: string; readonly branchKey: string }
+  | { readonly kind: 'SCENE_RESPONSE'; readonly questKey: string; readonly sceneKey: string; readonly responseKey: string }
+  | { readonly kind: 'QUEST_COMPLETED'; readonly questKey: string };
+
+export type QuestStoryVariant = { readonly when: QuestStoryCondition } & Partial<Record<QuestStoryVariantField, string>>;
 
 export interface QuestStorySceneDefinition {
   /** Stable lower_snake key, unique within the quest. Recorded with the response; never rename. */

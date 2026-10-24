@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV26D, classicOgV26E, LATEST_RULESET, missingLineActFour } from '../index.js';
+import { classicOgV26D, classicOgV26E, missingLineActFour } from '../index.js';
 import { questDefinitionProblems } from '../quest-definitions.js';
 import type { QuestDefinition, QuestDefinitionCatalog } from '../types.js';
 
@@ -10,8 +10,8 @@ const quest = (key: string) => catalog[key] as QuestDefinition;
 const isScene = (objective: QuestDefinition['objectives'][number]) => (objective.params?.eventTypes as string[] | undefined)?.includes('QUEST_STORY_SCENE');
 
 describe('2.6.0-E The Missing Line, Act IV', () => {
-  it('ships as the latest ruleset on top of 2.6.0-D, which keeps Act III closed', () => {
-    expect(LATEST_RULESET.meta.id).toBe('classic-og-v2.6-e');
+  it('ships in 2.6.0-E on top of 2.6.0-D, which keeps Act III closed', () => {
+    expect(classicOgV26E.meta).toMatchObject({ id: 'classic-og-v2.6-e', version: '2.6.0-E' });
     expect(questDefinitionProblems(catalog)).toEqual([]);
     expect(Object.keys(missingLineActFour)).toEqual(['ML_M15_NAME_IN_THE_MARGIN', ...ACT]);
     for (const [key, definition] of Object.entries(before)) {
