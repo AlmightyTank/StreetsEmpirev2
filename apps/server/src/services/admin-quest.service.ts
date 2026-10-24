@@ -1,6 +1,6 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
 import type { QuestObjectiveDefinition, Ruleset } from '@streets/rulesets';
-import type { AdminPlayerDto, AdminQuestContentDto } from '@streets/shared';
+import type { AdminPlayerDto, AdminQuestContentDto, AdminStoryCampaignDto } from '@streets/shared';
 import { loadRulesetForRound } from '@streets/rules-engine';
 import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
@@ -116,6 +116,77 @@ function grantSupported(definition: NonNullable<Ruleset['questDefinitions']>[str
 }
 
 export const AdminQuestService = {
+  /**
+   * Story campaign Slice J. Where a round's crews stand in The Missing Line: each chapter's status
+   * counts (drop-off is the gap between one chapter's completions and the next), how each scene
+   * was answered, and which way each turn-in choice went, the ending included.
+   */
+  async storyCampaign(prisma: PrismaClient, roundId: string): Promise<AdminStoryCampaignDto> {
+    const { round, ruleset } = await roundContext(prisma, roundId);
+    await syncDefinitions(prisma, ruleset);
+    const definitions = Object.entries(ruleset.questDefinitions ?? {}).filter(([key]) => key.startsWith('ML_'));
+    const rows = await prisma.questDefinition.findMany({
+      where: { rulesetId: ruleset.meta.id, rulesetVersion: ruleset.meta.version, key: { in: definitions.map(([key]) => key) } },
+      select: { id: true, key: true },
+    });
+    const keyById = new Map(rows.map((row) => [row.id, row.key]));
+    const inRound = { questDefinitionId: { in: rows.map((row) => row.id) }, roundPlayer: { roundId } };
+    const [players, statuses, branches, responses] = await Promise.all([
+      prisma.roundPlayer.count({ where: { roundId } }),
+      prisma.playerQuest.groupBy({ by: ['questDefinitionId', 'status'], where: inRound, _count: { _all: true } }),
+      prisma.playerQuest.groupBy({
+        by: ['questDefinitionId', 'chosenBranch'], where: { ...inRound, chosenBranch: { not: null } }, _count: { _all: true },
+      }),
+      prisma.questSceneResponse.findMany({
+        where: { playerQuest: inRound },
+        select: { sceneKey: true, responseKey: true, playerQuest: { select: { questDefinitionId: true } } },
+      }),
+    ]);
+
+    const statusCount = (key: string, status: string) => statuses
+      .filter((row) => keyById.get(row.questDefinitionId) === key && row.status === status)
+      .reduce((total, row) => total + row._count._all, 0);
+    const answered = new Map<string, number>();
+    for (const response of responses) {
+      const id = `${keyById.get(response.playerQuest.questDefinitionId)}/${response.sceneKey}/${response.responseKey}`;
+      answered.set(id, (answered.get(id) ?? 0) + 1);
+    }
+
+    return {
+      round: { id: round.id, name: round.name, rulesetVersion: round.rulesetVersion },
+      players,
+      chapters: definitions.map(([key, definition]) => ({
+        key,
+        title: definition.title,
+        chapter: definition.story?.chapter ?? '',
+        arc: key.startsWith('ML_S') ? 'SIDE' : 'MAIN',
+        available: statusCount(key, 'AVAILABLE'),
+        active: statusCount(key, 'ACTIVE'),
+        ready: statusCount(key, 'READY_TO_TURN_IN'),
+        completed: statusCount(key, 'COMPLETED'),
+      })),
+      scenes: definitions.flatMap(([key, definition]) => (definition.story?.scenes ?? []).map((scene) => ({
+        questKey: key,
+        sceneKey: scene.key,
+        title: scene.title,
+        responses: scene.responses.map((response) => ({
+          key: response.key, label: response.label, count: answered.get(`${key}/${scene.key}/${response.key}`) ?? 0,
+        })),
+      }))),
+      choices: definitions.filter(([, definition]) => definition.branches?.length).map(([key, definition]) => ({
+        questKey: key,
+        title: definition.title,
+        branches: definition.branches!.map((branch) => ({
+          key: branch.key,
+          title: branch.title,
+          count: branches
+            .filter((row) => keyById.get(row.questDefinitionId) === key && row.chosenBranch === branch.key)
+            .reduce((total, row) => total + row._count._all, 0),
+        })),
+      })),
+    };
+  },
+
   async content(prisma: PrismaClient, roundId: string, now = new Date()): Promise<AdminQuestContentDto> {
     const { round, ruleset } = await roundContext(prisma, roundId);
     await syncDefinitions(prisma, ruleset);

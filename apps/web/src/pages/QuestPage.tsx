@@ -954,6 +954,7 @@ export function QuestPage() {
 
           <div className="se-quests-hero__side">
             <div className="se-quests-hero__actions">
+              <Link className="se-btn se-btn--ghost se-btn--sm" to="/game/story">Story so far</Link>
               <Button
                 className="se-btn se-btn--ghost se-btn--sm"
                 disabledReason={busy ? 'Another job update is still going through.' : null}

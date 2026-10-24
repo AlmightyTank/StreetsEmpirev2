@@ -1540,3 +1540,32 @@
     flex-basis: 100%;
   }
 }
+
+/* Story campaign Slice J: the story archive. */
+.se-story-archive__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 14px;
+}
+.se-story-archive__entry {
+  display: grid;
+  gap: 4px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--se-line);
+}
+.se-story-archive__entry:last-child { border-bottom: 0; padding-bottom: 0; }
+.se-story-archive__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.se-story-archive__answer { margin: 0; }
+.se-story-archive__closing {
+  margin: 4px 0 0;
+  font-style: italic;
+  opacity: 0.85;
+}

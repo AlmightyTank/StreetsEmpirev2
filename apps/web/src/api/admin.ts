@@ -70,6 +70,7 @@ import type {
   AdminPlayerDto,
   AdminPlayerSearchDto,
   AdminQuestContentDto,
+  AdminStoryCampaignDto,
   AdminRoundHealthDto,
   AdminStreetPassUpdateInput,
   AdminRoundResultDto,
@@ -142,6 +143,8 @@ export const adminApi = {
 
   questContent: (roundId: string) =>
     api.get<AdminQuestContentDto>(`/admin/quest-content${queryString({ roundId })}`),
+  storyCampaign: (roundId: string) =>
+    api.get<AdminStoryCampaignDto>(`/admin/story-campaign${queryString({ roundId })}`),
   setQuestEnabled: (roundId: string, key: string, enabled: boolean, reason: string) =>
     api.post<AdminQuestContentDto>(
       `/admin/quest-content/quests/${enc(key)}${queryString({ roundId })}`,

@@ -651,6 +651,35 @@ export interface AdminQuestContentDto {
   favors: AdminFavorCatalogRowDto[];
 }
 
+/** Story campaign Slice J. How far a round's crews have got through The Missing Line, and what they chose. */
+export interface AdminStoryCampaignDto {
+  round: { id: string; name: string; rulesetVersion: string };
+  /** Crews in the round; each has one campaign row per chapter once they open the job board. */
+  players: number;
+  chapters: Array<{
+    key: string;
+    title: string;
+    /** The act or side-arc label, e.g. "Act I · A Name in the Rain". */
+    chapter: string;
+    arc: 'MAIN' | 'SIDE';
+    available: number;
+    active: number;
+    ready: number;
+    completed: number;
+  }>;
+  scenes: Array<{
+    questKey: string;
+    sceneKey: string;
+    title: string;
+    responses: Array<{ key: string; label: string; count: number }>;
+  }>;
+  choices: Array<{
+    questKey: string;
+    title: string;
+    branches: Array<{ key: string; title: string; count: number }>;
+  }>;
+}
+
 export interface AdminFactionStandingDto {
   factionKey: string;
   factionName: string;

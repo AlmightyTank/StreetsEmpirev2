@@ -365,13 +365,27 @@ The card opens its details when a scene becomes playable. Chapter copy keeps par
 
 For every side slice: side quests never gate the main chain or M22. Each arc contributes at least one finale variant through Slice H; if I has already shipped, add that variant in the same PR.
 
-## Slice J — Story archive, migration, balance, and release
+## Slice J — Story archive, migration, balance, and release ✅
 
-- Story archive view: completed chapters, recorded scene responses, branch choices, and the ending, all read from stored keys and never made up from current stats.
-- Migration: players with progress in the old story chain keep their rewards with no duplicate grants; apply the Slice A decision about how the chain hands off.
-- Balance review of every campaign reward against the act's power band; confirm branch parity.
-- Telemetry: chapter completion and drop-off per quest, scene response distribution, ending distribution.
-- Release checklist: new accounts, returning accounts, mid-campaign round change, every ending, with and without side arcs.
+**Done.** Details, the balance table and the release checklist are in [STORY-QUEST-CAMPAIGN-RELEASE.md](STORY-QUEST-CAMPAIGN-RELEASE.md).
+
+- **Story archive:**
+  - `/game/story` ("Story so far" on the job board) lists the chapters the crew has reached by act and side arc, with scene answers, turn-in choices, closing lines and the ending.
+  - It reads only stored keys. Locked chapters stay hidden.
+  - Built by `utils/storyArchive.ts`.
+- **Migration:**
+  - Pinned rulesets and per-round crews mean nothing needs migrating to ship.
+  - Unlocks upsert, so none is granted twice.
+  - Fixed a gap: a mid-round ruleset change restarted the campaign, and finished chapters could pay again. `StoryCampaignCarryService` now moves each crew's `ML_` rows to the new ruleset as part of `changeRuleset`.
+- **Balance:** $193,500 across 40 chapters, rising per act. Turn-in choices add reputation only (branch parity), so no tuning this release.
+- **Telemetry:** `GET /admin/story-campaign?roundId=…` and **The Missing Line** panel on the admin Quests page report:
+  - chapter status counts and "kept going" drop-off;
+  - choice and ending distribution;
+  - scene response distribution.
+- **Tests:**
+  - `storyArchive.test.ts`;
+  - `story-campaign-report.integration.test.ts`;
+  - `story-campaign-carry.integration.test.ts`.
 
 ---
 

@@ -1088,6 +1088,11 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     return AdminQuestService.content(fastify.prisma, roundId);
   });
 
+  fastify.get('/story-campaign', async (request) => {
+    const { roundId } = parseBody(questContentQuery, request.query);
+    return AdminQuestService.storyCampaign(fastify.prisma, roundId);
+  });
+
   fastify.post('/quest-content/quests/:key', async (request) => {
     const { key } = parseBody(questContentParams, request.params);
     const { roundId } = parseBody(questContentQuery, request.query);
