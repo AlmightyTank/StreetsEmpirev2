@@ -17,17 +17,22 @@ describe('profit intelligence source projection', () => {
         { day: '2026-10-10', source: 'DEALER_SALES', citySlug: 'chicago', entryCount: '2', inflowCents: '900', outflowCents: '0', netCents: '900' },
         { day: '2026-10-10', source: 'NEW_SOURCE', citySlug: 'not-a-city', entryCount: '1', inflowCents: '0', outflowCents: '75', netCents: '-75' },
         { day: '2026-10-10', source: 'NEW_SOURCE', citySlug: null, entryCount: '1', inflowCents: '20', outflowCents: '0', netCents: '20' },
+        { day: '2026-10-10', source: 'DEALER_WAGES', citySlug: null, entryCount: '1', inflowCents: '0', outflowCents: '50', netCents: '-50' },
+        { day: '2026-10-10', source: 'RUN_HOTEL', citySlug: null, entryCount: '1', inflowCents: '0', outflowCents: '100', netCents: '-100' },
+        { day: '2026-10-10', source: 'RUN_HOTEL', citySlug: null, entryCount: '1', inflowCents: '30', outflowCents: '0', netCents: '30' },
       ],
-      ledger: { entryCount: 4, netCents: 845n },
+      ledger: { entryCount: 7, netCents: 725n },
       ruleset: classicOgV16H,
       roundId: 'round-1',
       generatedAt: new Date('2026-10-10T12:00:00.000Z'),
       period: { from: new Date('2026-10-01T12:00:00.000Z'), to: new Date('2026-10-10T12:00:00.000Z'), days: 30 },
     });
-    expect(result.reconciliation).toMatchObject({ matches: true, ledgerEntryCount: 4, projectedEntryCount: 4, varianceCents: '0' });
+    expect(result.reconciliation).toMatchObject({ matches: true, ledgerEntryCount: 7, projectedEntryCount: 7, varianceCents: '0' });
     expect(result.byCity.find((row) => row.citySlug === 'chicago')?.netCents).toBe('900');
-    expect(result.byCity.find((row) => row.citySlug === null)?.entryCount).toBe(2);
-    expect(result.dataQuality).toEqual({ unknownSourceEntries: 2, unattributedCityEntries: 2 });
+    expect(result.byCity.find((row) => row.citySlug === null)?.entryCount).toBe(5);
+    expect(result.dataQuality).toEqual({ unknownSourceEntries: 2, unattributedCityEntries: 5 });
+    expect(result.profitEstimate).toMatchObject({ recognizedIncomeCents: '900', recognizedCostsCents: '120', estimatedNetCents: '780', completeness: 'INCOMPLETE' });
+    expect(result.efficiency).toMatchObject({ dealerNetSalesCents: '900', dealerWagesCents: '50', salesToWagesRatio: '18.00', turnEfficiencyAvailable: false });
   });
 
   it('rejects unsupported report windows before hitting the database', async () => {
