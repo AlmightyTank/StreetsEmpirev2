@@ -188,7 +188,28 @@ The card opens its details when a scene becomes playable. Chapter copy keeps par
 - UI check: three active leads at once read clearly on the quest board.
 - **Done when:** all 3! = 6 completion orders of M06–M08 reach M09 (tested).
 
-## Slice F — Act III, "The Price of Keeping Quiet" (Main 11–15)
+## Slice F — Act III, "The Price of Keeping Quiet" (Main 11–15) ✅
+
+**Done:** ruleset `classic-og-v2.6-d` (2.6.0-D), now the default for new rounds (`classic-og-v2.6-d/missing-line-act-3.ts`). Written to the R3 standard. `ML_M10_FAVOR_ALREADY_PAID` is re-issued to open the act; 2.6.0-C rounds keep Act II closed.
+
+| # | Chapter (contact) | Work | Then |
+| --- | --- | --- | --- |
+| 11 | Terms of Quiet (Vic) | scout Urban Ghetto to reach the old drop | scene: the notice behind the radiator |
+| 12 | The Clerk on the Stairs (Ledger) | 5 medicine from the Corner for Mr. Hales | scene: the carbon in the bread box |
+| 13 | A Date Changed in Ink (Tommy) | 2 ammo boxes from Tommy; recon a rival is a **bonus** only | scene: the report filed before the fact |
+| 14 | The Woman at Closing (Mama) | hire a thug from Tommy for Mrs. Alvarez's door | scene: the second receipt |
+| 15 | Your Name in the Margin (Ledger) | scene: the crew's entry | **turn-in choice:** Dispute the entry / Leave it for now / Keep a copy |
+
+- **M15 choices:** every option pays the same $6,000 and +5 Ledger rep. The choice adds +2 with Ledger, Vic or Mama respectively, and is stored in `chosenBranch`.
+- **No follow-up yet:** M15 has no follow-up until Act IV re-issues it to open Mile Marker Nine.
+- **Rewards:** $4,500–$6,000 per chapter, $25,000 for the act.
+- **Rejected:** the lawyer retainer for Ledger costs at least $25,000, so it would be forced spending.
+- **Tests:**
+  - `missing-line-act-3.test.ts`;
+  - `missing-line-act-3.integration.test.ts` plays M11–M15 with the real scout, basket and store actions, confirms collecting M15 without a choice is refused, and checks that each choice pays the same and tilts the right contact.
+
+**Plan as written:**
+
 
 - M11, M12, M14 scenes; M13's required objective is the `raid_report_reviewed` scene, with `COMBAT_RECON` as an optional bonus (Slice A decision 6).
 - M15 Your Name in the Margin: first **turn-in branch** (Dispute / Leave it / Keep a copy), all leading to M16 with equal rewards.

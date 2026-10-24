@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV26B, classicOgV26C, LATEST_RULESET, missingLineDepth } from '../index.js';
+import { classicOgV26B, classicOgV26C, missingLineDepth } from '../index.js';
 import { questDefinitionProblems } from '../quest-definitions.js';
 import type { QuestDefinition, QuestDefinitionCatalog } from '../types.js';
 
@@ -10,8 +10,8 @@ const quest = (key: string) => after[key] as QuestDefinition;
 const isScene = (objective: QuestDefinition['objectives'][number]) => (objective.params?.eventTypes as string[] | undefined)?.includes('QUEST_STORY_SCENE');
 
 describe('2.6.0-C The Missing Line depth pass', () => {
-  it('ships as the latest ruleset and changes only the deepened chapters', () => {
-    expect(LATEST_RULESET.meta.id).toBe('classic-og-v2.6-c');
+  it('ships in 2.6.0-C and changes only the deepened chapters', () => {
+    expect(classicOgV26C.meta).toMatchObject({ id: 'classic-og-v2.6-c', version: '2.6.0-C' });
     expect(questDefinitionProblems(after)).toEqual([]);
     expect(Object.keys(after)).toEqual(Object.keys(before));
     expect(Object.keys(missingLineDepth)).toEqual(DEEPENED);
