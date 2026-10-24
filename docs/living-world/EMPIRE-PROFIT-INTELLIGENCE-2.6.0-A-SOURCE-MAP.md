@@ -25,7 +25,11 @@
 | Loans and collections | `LOAN_PROCEEDS`, `LOAN_PRINCIPAL`, `LOAN_CONTRACT_FEE`, `LOAN_LATE_FEE`, `LOAN_COLLECTION` in `loan-ledger.service.ts` / `loan-settle.service.ts` | Proceeds are financing inflow, not earned income. Principal and collections reduce debt, not operating expense. Contract/late fees are financing cost | Loan ID, offer, payment kind, installment and request keys are in loan records/metadata | Reconcile each cash entry to `LoanPayment`/`LoanFee`. Do not count a scheduled collection and its repayment receipt twice. Report borrowing and repayment separately from operating profit. |
 | Additional ledger writers | `RUN_HOTEL`; `TRIP_AIRPORT`; `WARRANT`, `LAWYER`; `OPERATION_COST`, `OPERATION_REFUND`, `OPERATION_PAYOUT`; `CONVOY_ATTACK`, `CONVOY_DEFENSE`; `BOSS_HIT_ATTACK`, `BOSS_HIT_DEFENSE`; `TURF_PUSH_ATTACK`, `TURF_PUSH_DEFENSE`; `BLOCK_WAR_CUT`, `BUSINESS_TORCH`, `HIDEOUT_UPGRADE`, `LIVING_CASE_REWARD`, `RAID`, `BATTLE_VOIDED`, `RANDOM_ENCOUNTER` | Fines/fees, operation stakes/refunds/payouts, PvP transfers, ally transfers, salvage, rewards, or corrections as encoded by each source | Source-specific receipts can carry operation, tail, hit, turf, war, case, or battle identifiers; some generic/action fallback rows have no stable source-event ID | Keep rewards, transfers, costs, fees, and corrections distinct. Pair transfers by authoritative event ID, never label text. `OPERATION_REFUND` reverses an operation cost; do not report both as independent operating costs/income. `RAID` currently uses one source for both sides and lacks an explicit event ID in the ledger metadata; pair through its battle record or mark linkage incomplete. |
 
-## 2.3 roadmap correction\n\nThe Empire Advisor was scrapped. The 2.6.0-E goal-setting slice must use existing Dashboard/Holdings surfaces and must not depend on or recreate the Advisor.\n\n## Classification rules
+## Roadmap alignment
+
+The Empire Advisor was scrapped. The 2.6.0-E goal-setting slice must use existing Dashboard/Holdings surfaces and must not depend on or recreate the Advisor.
+
+## Classification rules
 
 1. **Operating income:** actual settled proceeds from operating activity, classified by source. Report gross sales only when the paired cost and deductions are visible.
 2. **Operating cost:** cash paid for recurring operation (for example, dealer wages, lane fees, property upkeep, travel incidents). Keep one-time asset purchases separate.
