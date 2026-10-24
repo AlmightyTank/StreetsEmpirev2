@@ -306,6 +306,10 @@ const battleEventSchema = z.object({
   defenderName: z.string(),
   defenderProfileUrl: z.string().url(),
   attackerWon: z.boolean(),
+  spoils: z.object({
+    cashCents: z.number(),
+    products: z.array(z.object({ name: z.string(), units: z.number() })),
+  }).optional(),
   createdAt: z.string(),
 });
 

@@ -42,6 +42,7 @@ import {
   favorArmSchema,
   streetPassClaimSchema,
   CLIENT_EASTER_EGG_IDS,
+  profitIntelligenceGoalsSchema,
 } from '@streets/shared';
 import { toGameSnapshotDto } from '../game/dto.js';
 import { PayoutService } from '../services/payout.service.js';
@@ -93,6 +94,7 @@ import { RandomEncounterService } from '../services/random-encounter.service.js'
 import { EasterEggService } from '../services/easter-egg.service.js';
 import { RingService } from '../services/ring.service.js';
 import { CityHoldingsService } from '../services/city-holdings.service.js';
+import { ProfitIntelligenceService } from '../services/profit-intelligence.service.js';
 import { PlayerSkillService } from '../services/player-skill.service.js';
 
 const RECENT_ACTIVITY_LIMIT = 10;
@@ -119,6 +121,41 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
 
     return { round, player };
   }
+
+  fastify.get('/profit-intelligence', { preHandler: fastify.requireAuth }, async (request, reply) => {
+    const query = z.object({ days: z.coerce.number().int().min(1).max(90).default(30) }).safeParse(request.query);
+    if (!query.success) throw AppError.badRequest('INVALID_REPORT_PERIOD', 'Choose a report window from 1 to 90 days.');
+    const { round, player } = await requirePlayer(request.auth!.account.id);
+    reply.header('Cache-Control', 'private, no-store');
+    return ProfitIntelligenceService.get(fastify.prisma, {
+      roundId: round.id, roundPlayerId: player.id, roundStartsAt: round.startsAt,
+      ruleset: loadRulesetForRound(round), days: query.data.days,
+    });
+  });
+
+  fastify.get('/profit-intelligence/receipts', { preHandler: fastify.requireAuth }, async (request, reply) => {
+    const query = z.object({
+      days: z.coerce.number().int().min(1).max(90).default(30),
+      city: z.string().min(1).max(80).optional(),
+      source: z.string().min(1).max(80).optional(),
+      cursor: z.string().min(1).max(128).optional(),
+      limit: z.coerce.number().int().min(1).max(100).default(50),
+    }).safeParse(request.query);
+    if (!query.success) throw AppError.badRequest('INVALID_RECEIPT_QUERY', 'Choose a valid receipt filter.');
+    const { round, player } = await requirePlayer(request.auth!.account.id);
+    reply.header('Cache-Control', 'private, no-store');
+    return ProfitIntelligenceService.receipts(fastify.prisma, {
+      roundPlayerId: player.id, roundStartsAt: round.startsAt, ruleset: loadRulesetForRound(round),
+      days: query.data.days, citySlug: query.data.city, source: query.data.source,
+      cursor: query.data.cursor, limit: query.data.limit,
+    });
+  });
+
+  fastify.put('/profit-intelligence/goals', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(profitIntelligenceGoalsSchema, request.body);
+    const { round, player } = await requirePlayer(request.auth!.account.id);
+    return ProfitIntelligenceService.saveGoals(fastify.prisma, player.id, loadRulesetForRound(round), body);
+  });
 
   fastify.get('/holdings', { preHandler: fastify.requireAuth }, async (request) => {
     const { round, player } = await requirePlayer(request.auth!.account.id);
@@ -686,6 +723,11 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
     return HandcraftedQuestService.page(fastify.prisma, player.id, loadRulesetForRound(round));
   });
 
+  fastify.get('/quests/history', { preHandler: fastify.requireAuth }, async (request) => {
+    const { round, player } = await requirePlayer(request.auth!.account.id);
+    return { quests: await HandcraftedQuestService.history(fastify.prisma, player.id, loadRulesetForRound(round)) };
+  });
+
   fastify.get('/quests/tracked', { preHandler: fastify.requireAuth }, async (request) => {
     const { round, player } = await requirePlayer(request.auth!.account.id);
     return HandcraftedQuestService.tracked(fastify.prisma, player.id, loadRulesetForRound(round));
@@ -723,15 +765,9 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
     const { round, player } = await requirePlayer(request.auth!.account.id);
     const key = String((request.params as { key: string }).key).trim().toUpperCase();
     const ruleset = loadRulesetForRound(round);
-    const result = await HandcraftedQuestService.claim(fastify.prisma, player.id, ruleset, key, body);
-    // The claim already refreshed the jobs it can open. Attach that board so the
-    // client does not GET /quests, and still return the receipt if the read fails.
-    try {
-      const page = await HandcraftedQuestService.page(fastify.prisma, player.id, ruleset, { skipSync: true, skipRefresh: true });
-      return { ...result, page };
-    } catch {
-      return result;
-    }
+    // Return the paid claim receipt immediately. The client refreshes the board
+    // in the background so it does not wait for a second full quest-page read.
+    return HandcraftedQuestService.claim(fastify.prisma, player.id, ruleset, key, body);
   });
 
   /** Street Pass: the round's track and this player's Cred and claims. `pass` is null on rounds without one. */

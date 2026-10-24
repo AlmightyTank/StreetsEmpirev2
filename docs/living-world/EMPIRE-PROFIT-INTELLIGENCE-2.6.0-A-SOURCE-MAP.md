@@ -1,0 +1,59 @@
+# 2.6.0-A — Metric Inventory and Source Map
+
+**Scope:** Audit the current `beta` cash ledger and settled source records before adding profit reporting. This slice defines the reporting contract; it does not add a new ledger, alter gameplay settlements, or claim that every historical cash movement can already be attributed.
+
+## Reporting contract
+
+- **Unit:** integer cents. Convert to display currency only at the API/UI boundary; never aggregate floats.
+- **Canonical settled cash delta:** `EconomyLedgerEntry.amountCents`, signed from the player's perspective, joined through `roundPlayerId` to its round. Positive is cash received; negative is cash paid.
+- **Time:** use the server-set `createdAt` of the settled receipt and half-open UTC windows `[from, to)`. For a rolling 24-hour view, `from = serverNow - 24 hours`, `to = serverNow`. Do not use client timestamps or silently shift entries into a different period.
+- **Balance versus flow:** `RoundPlayer.cashCents`, run/trip wallets, business registers, stock, and holdings are point-in-time balances. They are not income or expense events. A movement between a player's own balances is a transfer, not earnings.
+- **Cash flow versus profit:** signed ledger totals answer where recorded cash moved. They do not by themselves establish operating profit. Borrowing, principal repayment, inventory purchases, stock transfers, uncollected registers, and asset value must remain separately classified.
+- **Read behavior:** reports read settled receipts and existing source records. A report request must not trigger settlement, spend resources, or create a ledger row.
+
+## Source map
+
+| Flow | Canonical source | Classification | Attribution available now | Reporting rule / gap |
+| --- | --- | --- | --- | --- |
+| Generic settled player action | `EconomyLedgerService.defaultForAction` in `apps/server/src/services/economy-ledger.service.ts`; source is the action key | Classify by the action-specific catalog, never by sign alone | Usually player, source key, label, and timestamp; optional metadata | This fallback records only the home-cash delta. Actions with split economics must keep explicit ledger lines. New/unknown source keys must be surfaced as unknown, not guessed. |
+| Business construction and collection | `BUSINESS_BUILD`, `BUSINESS_INCOME`, plus business registers in `business.service.ts` and `business-action.service.ts` | Build is capital/asset acquisition; collected income is a cash inflow | Build metadata can include district/lot/kind/level. Outpost collection includes business and outpost IDs. Ordinary collection currently may aggregate several businesses into one line | A collection is the time cash reaches the player, not necessarily the time it accrued. Uncollected register cash is a balance. Do not count both register accrual and collection as income. Per-business attribution for aggregated collection needs source receipts. |
+| Dealer operation | `DEALER_SALES`, `DEALER_WAGES`; `DealerSale` records in `dealer-sales-settle.service.ts` | Dealer sales are positive net of dealer cut; wages are a separate expense | Sale rows carry crew, product, quantity, gross, cut, net, and time; ledger metadata carries crew, units, gross, and cut. Crew has city/district | Use `DEALER_SALES` as gross less crew cut, then subtract `DEALER_WAGES` once. Do not subtract the cut twice. Cost of the sold inventory must be matched from stock movements before calling this product profit. |
+| Store and product trades | `STORE_BUY`, `STORE_SELL` and explicit product-market ledger lines in `product-market.service.ts` / `store.service.ts` | Purchases are cash outflows; sales are inflows | Source/label and sometimes product metadata; store/city context may be in action/source records | Buying stock is an inventory acquisition, not automatically a period expense. Sale proceeds are revenue, not profit until acquisition cost is matched. |
+| Supply orders and logistics | `SUPPLY_ORDER`, `SUPPLY_LANE_FEE`, `SUPPLY_PROPERTY`, `SUPPLY_UPKEEP`; `SupplyMovement`, order and pickup records | Goods are inventory acquisition; lane fees and upkeep are operating costs; properties are capital/holding acquisition | Order metadata carries product, quantity and supplier; property/upkeep metadata includes city and property; lane record carries route and destination | Do not expense both warehouse purchase and later movement to a dealer. Attribute route fees from the pickup/order record; a label alone is not a stable route key. |
+| Turf tax | `TURF_TAX` and the corresponding turf settlement records | Operating inflow when credited to player cash | Current ledger line has no normalized city/block key | Use source records for city/block attribution. Do not treat transfers to/from an outpost register as new income. |
+| Travel and runs | Explicit `RUN_LAUNCH` entries in `travel.service.ts`; `RUN_INCIDENT` in `run-settle.service.ts`; run, stop, cargo and sale records | Market purchases and fees are cash outflows or inventory acquisition; incident fines are expense; run-wallet movement is transfer | Runs contain ordered stops, city, route, cargo and timestamps; incident has road/city/time | `RUN_LAUNCH` and `TURF_OUTPOST_TRANSFER` are excluded from the generic cash-delta fallback in `EconomyLedgerService`. Do not count carried cash or returned run cash as earned income. Use run sale/stop records for route performance and match cargo cost to sale proceeds. |
+| Loans and collections | `LOAN_PROCEEDS`, `LOAN_PRINCIPAL`, `LOAN_CONTRACT_FEE`, `LOAN_LATE_FEE`, `LOAN_COLLECTION` in `loan-ledger.service.ts` / `loan-settle.service.ts` | Proceeds are financing inflow, not earned income. Principal and collections reduce debt, not operating expense. Contract/late fees are financing cost | Loan ID, offer, payment kind, installment and request keys are in loan records/metadata | Reconcile each cash entry to `LoanPayment`/`LoanFee`. Do not count a scheduled collection and its repayment receipt twice. Report borrowing and repayment separately from operating profit. |
+| Additional ledger writers | `RUN_HOTEL`; `TRIP_AIRPORT`; `WARRANT`, `LAWYER`; `OPERATION_COST`, `OPERATION_REFUND`, `OPERATION_PAYOUT`; `CONVOY_ATTACK`, `CONVOY_DEFENSE`; `BOSS_HIT_ATTACK`, `BOSS_HIT_DEFENSE`; `TURF_PUSH_ATTACK`, `TURF_PUSH_DEFENSE`; `BLOCK_WAR_CUT`, `BUSINESS_TORCH`, `HIDEOUT_UPGRADE`, `LIVING_CASE_REWARD`, `RAID`, `BATTLE_VOIDED`, `RANDOM_ENCOUNTER` | Fines/fees, operation stakes/refunds/payouts, PvP transfers, ally transfers, salvage, rewards, or corrections as encoded by each source | Source-specific receipts can carry operation, tail, hit, turf, war, case, or battle identifiers; some generic/action fallback rows have no stable source-event ID | Keep rewards, transfers, costs, fees, and corrections distinct. Pair transfers by authoritative event ID, never label text. `OPERATION_REFUND` reverses an operation cost; do not report both as independent operating costs/income. `RAID` currently uses one source for both sides and lacks an explicit event ID in the ledger metadata; pair through its battle record or mark linkage incomplete. |
+
+## Roadmap alignment
+
+The Empire Advisor was scrapped. The 2.6.0-E goal-setting slice must use existing Dashboard/Holdings surfaces and must not depend on or recreate the Advisor.
+
+## Classification rules
+
+1. **Operating income:** actual settled proceeds from operating activity, classified by source. Report gross sales only when the paired cost and deductions are visible.
+2. **Operating cost:** cash paid for recurring operation (for example, dealer wages, lane fees, property upkeep, travel incidents). Keep one-time asset purchases separate.
+3. **Inventory and assets:** store/supply purchases, vehicles, property, and product held in stock change holdings. They become cost of goods sold only when authoritative units leave inventory for sale or loss and can be matched to their recorded cost. Until then, show the cash outflow and stock movement separately.
+4. **Financing:** loan proceeds, principal repayment, collections, and fees are separate from operating performance. Principal repayment is not an expense; contract and late fees are.
+5. **Transfers:** moving cash between a player's own home, run, trip, register, or outpost balances does not create income or expense. Transfers between players are not business earnings; preserve each player's signed movement and identify the counterparty only where the authoritative receipt allows it.
+6. **Corrections and refunds:** retain the original receipt and the signed correcting receipt with a stable source reference. Net them in cash flow, but keep the correction visible and exclude it from ordinary sales/income unless its source classification says otherwise. No generic in-game-cash refund source was found in the audited ledger writers; Crown-pack refund reversals are a separate premium-currency ledger and are outside this report.
+7. **Unknown history:** do not backfill invented city, route, business, or cost-basis values from a display label. Mark records `unknown/incomplete` and state which figures are excluded.
+
+## Current data gaps found
+
+- `EconomyLedgerEntry` stores signed cents, source, label, optional JSON metadata, player, and timestamp. It has no normalized category, city, route, business, or linked source-event columns.
+- `EconomyLedgerService.page` aggregates only positive and negative amounts over rolling windows and returns capped itemized history. It is useful for cash movement, but it is not the canonical profit calculation. Its window filters currently use a lower time bound without an explicit upper bound; the new projection should enforce `createdAt < to`.
+- Some explicit records have strong attribution (dealer sales, supply orders/properties, run stops/incidents, loan payments); other entries rely on a label or generic action key.
+- Business collections can aggregate registers and lose per-business/city attribution at the ledger-row level.
+- Home, run, trip, property, inventory, warehouse, dealer-stock, and business-register balances live in separate records. A unified report must reconcile those records without treating their movement as new cash.
+- Historical completeness varies by source. A source that lacks event time, stable source ID, city/route key, or stock cost basis must be presented as incomplete rather than normalized by guesswork.
+
+## Slice A acceptance checklist
+
+- [x] Inventory signed ledger semantics and the current time-window behavior.
+- [x] Identify authoritative records for major business, dealer, store/supply, travel, turf, and loan flows.
+- [x] Define cash flow versus profit, inventory/asset, financing, correction, and transfer treatment.
+- [x] Record attribution and historical data gaps for Slice B projections.
+- [x] Confirm no automated trade, synthetic income, or new settlement is part of the reporting contract.
+
+Slice B should add a versioned source-classification/attribution projection with source IDs and reconciliation rules. It must not silently reinterpret legacy labels as normalized city, route, business, or cost-basis data.

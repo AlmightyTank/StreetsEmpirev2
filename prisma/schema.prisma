@@ -2439,6 +2439,7 @@ model RoundPlayer {
   /// 1.8.6-A. Durable targets for person-first crew assignment jobs.
   crewJobPosts          CrewJobPost[]
   /// 0.5.0-B. Runs out of town, Pip's shelves in other cities, and what the crew saw there.
+  profitIntelligenceGoal ProfitIntelligenceGoal?
   runs                  Run[]
   cityShelves           CityShelf[]
   citySightings         CitySighting[]
@@ -3690,6 +3691,19 @@ model Run {
 
   @@index([homeAlertedAt, returnedAt])
   @@index([roundPlayerId, status])
+}
+
+/// 2.6.0-E. Optional player-configured thresholds; informational only.
+model ProfitIntelligenceGoal {
+  id                         String      @id @default(cuid())
+  roundPlayerId              String      @unique
+  roundPlayer                RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  minimumLiquidityCents      BigInt?
+  minimumProductKey          String?
+  minimumProductUnits        Int?
+  maximumRoutePurchaseCents  BigInt?
+  createdAt                  DateTime    @default(now())
+  updatedAt                  DateTime    @updatedAt
 }
 
 enum RunStatus {

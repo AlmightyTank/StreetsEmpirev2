@@ -12,7 +12,7 @@
 | **2.0.0** | **Living Streets Stories + Criminal Case Files** | City stories, clues, investigations and meaningful choices | First-class events, Black Book, City Memory, Streets Daily |
 | **2.1.0** | **Crew Loyalty & Legends** | Memorable named crew, loyalty milestones, veteran stories | Crew roster, specialties, training, Empire Legacy |
 | **2.2.0** | **Underworld Operations 2.0** | Coordinated, multi-stage cooperative criminal jobs | Existing Operations, alliances, supply, battle receipts |
-| **2.3.0** | **Adaptive Empire Advisor** | Relevant, explainable suggestions about what to do next | Dashboard, quests, player state, holdings |
+| **2.3.0** | **Scrapped — no active feature** | Empire Advisor implementation removed; do not build downstream dependencies on it | — |
 | **2.4.0** | **Career Storylines** | Narrative identity for five existing careers | Career identity, factions, quests, cosmetic inventory |
 | **2.5.0** | **Rivalries & Vendettas** | Rival histories, personal stakes, anti-griefing guardrails | Turf revenge, combat events, City Memory, NPC gangs |
 | **2.6.0** | **Empire Profit Intelligence** | Actionable earnings, costs, and route/holding performance | Economy ledger, product markets, business settlements |
@@ -23,7 +23,8 @@
 1. `package.json` on `beta` already declares `2.0.0`, and `docs/2.0-STORY-PLAN.md` already describes a **shipped storytelling backbone** (City Memory, Streets Daily draft handoff, prototype cooperative Operation, Black Book intel, Empire Legacy, careers). **2.0.0 here means finishing and branding the Living Streets Stories feature release**, not recreating those components. If a `v2.0.0` release/tag has already been publicly issued, do **not** reuse or rewrite it: keep these names as planning milestones and allocate the next unissued patch/minor version when executing release engineering.
 2. Existing `docs/ROADMAP-2.0.0-BEGINNER-JOURNEY.md`, UI-consistency plans, and `docs/ROADMAP-3.0.0.md` are independent plans. Preserve their scopes. In particular, 3.0 Empire Cohesion includes a **law case view**; the Criminal Case Files in 2.0 are **player-owned underworld investigations**, not a second federal-law case engine.
 3. Roll Call/login-reward development in PR #298 is independent. Reuse its permanent cosmetic entitlement infrastructure only when appropriate. Do not couple attendance to required story progress, and do not introduce a competing daily scheduler.
-4. `beta` contains or plans much of the required infrastructure; a roadmap entry does not assert that an unmerged PR or a feature behind a ruleset has shipped to `main`.
+4. The 2.3.0 Empire Advisor was scrapped and its implementation removed. Do not treat it as an active release or make later work depend on it; 2.6 goal preferences belong on existing Dashboard/Holdings surfaces.
+5. `beta` contains or plans much of the required infrastructure; a roadmap entry does not assert that an unmerged PR or a feature behind a ruleset has shipped to `main`.
 
 ## Core design rules across all releases
 
@@ -290,8 +291,7 @@ NPC gangs + Black Book ─────┘                               └─�
 1.7 crew roster/training ──────────> 2.1 Crew Loyalty ────────> 2.2 Underworld Operations
 Existing operations + alliances ─────────────────────────────> 2.2 Underworld Operations
 
-Dashboard + quest progress ─────────> 2.3 Empire Advisor <──── 2.6 Empire Intelligence
-Economy ledger + Holdings ─────────> 2.6 Empire Intelligence
+Dashboard + Holdings + economy ledger ─────────> 2.6 Empire Intelligence
 
 1.8.5 Events + Round Aftermath + Empire Legacy + verified story records ──> 2.7 Last Stand
 ```

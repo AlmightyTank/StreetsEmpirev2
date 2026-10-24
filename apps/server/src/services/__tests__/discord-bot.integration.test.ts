@@ -265,7 +265,10 @@ describe.runIf(process.env.DISCORD_BOT_INTEGRATION === '1')('Discord bot interna
       }
       const raid = await app.prisma.raidBattle.create({ data: {
         attackerId: firstPlayer.id, defenderId: secondPlayer.id, actionId: randomUUID(), attackingThugs: 1, modelVersion: 'test',
-        calculation: {}, attackerReport: { kind: 'RAID', won: true }, defenderReport: { kind: 'RAID', won: false },
+        calculation: {}, attackerReport: {
+          kind: 'RAID', won: true, cashChangeCents: 4_250_000,
+          inventoryChanges: [{ name: 'Crack', gained: 3 }],
+        }, defenderReport: { kind: 'RAID', won: false },
       } });
       // The second player overtakes the first: a rank drop for the first.
       await app.prisma.roundPlayer.update({ where: { id: secondPlayer.id }, data: { netWorthCents: 950_000_00n } });
@@ -304,7 +307,8 @@ describe.runIf(process.env.DISCORD_BOT_INTEGRATION === '1')('Discord bot interna
         id: raid.id, kind: 'RAID', roundName: 'Bot Test Round',
         attackerName: first.username, attackerProfileUrl: new URL('/game/players/7101', env.frontendOrigin).toString(),
         defenderName: second.username, defenderProfileUrl: new URL('/game/players/7102', env.frontendOrigin).toString(),
-        attackerWon: true, createdAt: raid.createdAt.toISOString(),
+        attackerWon: true, spoils: { cashCents: 4_250_000, products: [{ name: 'Crack', units: 3 }] },
+        createdAt: raid.createdAt.toISOString(),
       };
       // The public feed has every battle; only the defender who opted in gets the DM.
       expect(claimed.battles.find((entry) => entry.id === raid.id)).toEqual(battle);

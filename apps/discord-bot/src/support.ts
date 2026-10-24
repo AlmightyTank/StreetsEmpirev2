@@ -21,6 +21,7 @@ import {
   type ThreadChannel,
 } from 'discord.js';
 import { escapeMarkdown, truncate } from './format.js';
+import { plainDiscordMessage } from './plain-message.js';
 import { GameApiError, type GameApi, type SupportContext, type SupportTicket } from './game-api.js';
 import { staffErrorText, type StaffMessage } from './staff.js';
 
@@ -203,11 +204,11 @@ export async function handleTicketForm(interaction: ModalSubmitInteraction, deps
       reason: `Support ticket ${ticket.id}`,
     });
     await thread.members.add(interaction.user.id);
-    await thread.send({
+    await thread.send(plainDiscordMessage({
       content: `Thanks <@${interaction.user.id}>. A staff member will reply here.`,
       ...ticketOpeningMessage(ticket, details),
       allowedMentions: { users: [interaction.user.id] },
-    });
+    }));
   } catch (error) {
     console.error(`Could not make the thread for support ticket ${ticket.id}:`, error);
     await thread?.delete().catch(() => undefined);
@@ -220,7 +221,7 @@ export async function handleTicketForm(interaction: ModalSubmitInteraction, deps
   const staff = await deps.staffChannel();
   if (staff) {
     try {
-      staffMessageId = (await staff.send({ ...ticketStaffMessage(ticket, context, thread), allowedMentions: { parse: [] } })).id;
+      staffMessageId = (await staff.send(plainDiscordMessage({ ...ticketStaffMessage(ticket, context, thread), allowedMentions: { parse: [] } }))).id;
     } catch (error) {
       console.error(`Could not post support ticket ${ticket.id} to #${staff.name}:`, error);
     }
@@ -259,8 +260,21 @@ export async function handleTicketButton(interaction: ButtonInteraction, deps: S
     const staff = ticket.staffMessageId ? await deps.staffChannel() : null;
     const posted: Message | null = staff ? await staff.messages.fetch(ticket.staffMessageId!).catch(() => null) : null;
     if (posted?.embeds[0]) {
-      await posted.edit(closedStaffMessage(posted.embeds[0].toJSON(), posted.components.map((row) => row.toJSON() as APIActionRowComponent<APIComponentInMessageActionRow>), closedBy))
+      await posted.edit(plainDiscordMessage(closedStaffMessage(posted.embeds[0].toJSON(), posted.components.map((row) => row.toJSON() as APIActionRowComponent<APIComponentInMessageActionRow>), closedBy)))
         .catch((error: unknown) => console.warn(`Could not mark support ticket ${ticket.id} closed in the staff channel:`, error));
+    } else if (posted) {
+      const links = posted.components.flatMap((row) => row.type === ComponentType.ActionRow ? row.toJSON().components : [])
+        .filter((component): component is APIButtonComponent => component.type === ComponentType.Button && component.style === ButtonStyle.Link);
+      const components: APIActionRowComponent<APIComponentInMessageActionRow>[] = links.length
+        ? [{ type: ComponentType.ActionRow, components: links }]
+        : [];
+      await posted.edit({
+        content: `${posted.content.replace('🎫 Support ticket:', '✅ Closed ticket:')}\n\nClosed by **${escapeMarkdown(closedBy)}**.`,
+        embeds: [],
+        components,
+        flags: MessageFlags.SuppressEmbeds,
+        allowedMentions: { parse: [] },
+      }).catch((error: unknown) => console.warn(`Could not mark support ticket ${ticket.id} closed in the staff channel:`, error));
     }
     await interaction.editReply({ content: 'Ticket closed.' });
     // Locking needs Manage Threads; archiving alone still tidies it away.

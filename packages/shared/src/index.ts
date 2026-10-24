@@ -52,3 +52,6 @@ export * from './markdown.js';
 export * from './sportsbook.js';
 export * from './sportsbook-teams.js';
 export * from './staff.js';
+
+export * from './types/empire-profit-intelligence.js';
+export * from './schemas/profit-intelligence.js';

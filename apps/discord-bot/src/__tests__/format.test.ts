@@ -4,6 +4,7 @@ import {
   describeDiscordError,
   allianceEmbed,
   badgesEmbed,
+  battleFeedMessage,
   compareEmbed,
   crackdownFeedEmbed,
   factionFeedEmbed,
@@ -30,7 +31,7 @@ import {
   truncate,
   turnReminderEmbed,
 } from '../format.js';
-import type { AllianceCard, BadgeCard, ProfileCard, TurfCity } from '../game-api.js';
+import type { AllianceCard, BadgeCard, BattleEvent, ProfileCard, TurfCity } from '../game-api.js';
 
 const origin = 'https://streetsempire.dev';
 
@@ -84,6 +85,34 @@ describe('helpers', () => {
     expect(formatRemaining(30_000)).toBe('1m');
     expect(formatRemaining(90 * 60_000)).toBe('1h 30m');
     expect(formatRemaining((3 * 24 + 4) * 3_600_000)).toBe('3d 4h');
+  });
+});
+
+describe('battleFeedMessage', () => {
+  const battle: BattleEvent = {
+    id: 'battle-1', kind: 'RAID', roundName: 'Game #021 · Street Skills',
+    attackerName: 'AMightyTank', attackerProfileUrl: `${origin}/game/players/1`,
+    defenderName: 'Lanchester024', defenderProfileUrl: `${origin}/game/players/2`,
+    attackerWon: true, createdAt: '2026-10-23T20:39:00.000Z',
+    spoils: { cashCents: 4_250_000, products: [{ name: 'Crack', units: 3 }] },
+  };
+
+  it('posts a regular text raid alert with cash and product spoils', () => {
+    expect(battleFeedMessage(battle)).toBe([
+      '⚔️ **RAID · ATTACKER WON**',
+      '[AMightyTank](https://streetsempire.dev/game/players/1) hit [Lanchester024](https://streetsempire.dev/game/players/2)',
+      '💰 **Spoils:** $42,500 · 3 Crack',
+      '🎮 Game \\#021 · Street Skills',
+    ].join('\n'));
+  });
+
+  it('omits spoils on a defense and on non-raid battle types', () => {
+    expect(battleFeedMessage({ ...battle, attackerWon: false })).not.toContain('Spoils');
+    expect(battleFeedMessage({ ...battle, kind: 'DRIVE_BY' })).not.toContain('Spoils');
+  });
+
+  it('omits an empty spoils line', () => {
+    expect(battleFeedMessage({ ...battle, spoils: { cashCents: 0, products: [] } })).not.toContain('Spoils');
   });
 });
 
