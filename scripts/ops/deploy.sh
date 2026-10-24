@@ -93,6 +93,21 @@ else
     || fail "the pre-deploy backup failed, so nothing was migrated. Fix it (see docs/RECOVERY.md) or rerun with SKIP_BACKUP=1 to deploy without one."
 fi
 
+step "Checking the manually started shared entitlements database"
+command -v docker >/dev/null 2>&1 || fail "Docker is required to start postgres-entitlements."
+for attempt in $(seq 1 30); do
+  health="$(docker inspect --format '{{.State.Health.Status}}' streets-empire-entitlements-db 2>/dev/null || true)"
+  if [ "$health" = "healthy" ]; then
+    echo "Shared entitlements database is healthy."
+    break
+  fi
+  if [ "$attempt" -eq 30 ]; then
+    docker compose logs --tail=50 postgres-entitlements || true
+    fail "the shared entitlements database is not healthy. Start it manually with: cd $APP_DIR && docker compose up -d postgres-entitlements"
+  fi
+  sleep 2
+done
+
 step "Applying database migrations"
 npx prisma migrate deploy
 
@@ -114,12 +129,29 @@ node scripts/ops/check-environment.mjs --expect production --url "$API_URL" --co
 
 if systemctl cat "$BOT_SERVICE" >/dev/null 2>&1; then
   step "Restarting $BOT_SERVICE"
-  $SUDO systemctl restart "$BOT_SERVICE"
-  # A bot with bad config exits within a few seconds and systemd shows it as restarting.
-  sleep 10
-  if ! systemctl is-active --quiet "$BOT_SERVICE"; then
-    $SUDO journalctl -u "$BOT_SERVICE" -n 40 --no-pager || true
-    fail "$BOT_SERVICE is not running."
+  bot_ready=false
+  for restart_attempt in 1 2 3; do
+    $SUDO systemctl restart "$BOT_SERVICE"
+    # Keep the service healthy through its Discord gateway handshake. A transient
+    # gateway error can terminate the process shortly after systemd reports active.
+    stable_seconds=0
+    for readiness_attempt in $(seq 1 15); do
+      if systemctl is-active --quiet "$BOT_SERVICE"; then
+        stable_seconds=$((stable_seconds + 1))
+      else
+        stable_seconds=0
+      fi
+      sleep 1
+    done
+    if [ "$stable_seconds" -eq 15 ]; then
+      bot_ready=true
+      break
+    fi
+    echo "$BOT_SERVICE did not stay active on start attempt $restart_attempt/3." >&2
+    $SUDO journalctl -u "$BOT_SERVICE" -n 30 --no-pager || true
+  done
+  if [ "$bot_ready" != true ]; then
+    fail "$BOT_SERVICE did not stay running after 3 start attempts."
   fi
   echo "Bot is running."
 else
