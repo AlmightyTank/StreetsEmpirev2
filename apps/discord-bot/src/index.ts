@@ -38,6 +38,7 @@ import { RoleSync } from './sync.js';
 import { startBotPresence } from './presence.js';
 import { startStatsChannelRotator, startStatsChannelUpdater, type RotatingStats } from './channel-stats.js';
 import { memberStatus, timeoutMember } from './moderation.js';
+import { plainDiscordMessage } from './plain-message.js';
 import { startOptionalPushServer } from './push-server.js';
 import { handleStaffButton, handleStaffModal, staffPostMessage } from './staff.js';
 import { OutageWatch, outageMessage, recoveredMessage, statusPostMessage } from './status.js';
@@ -205,13 +206,12 @@ async function postNews(channel: GuildTextBasedChannel, gameUpdatesRoleId: strin
       const payload = newsChannelSend(post);
       const mention = roleMention(isPatchNotesPost(post.title) ? gameUpdatesRoleId : newsUpdatesRoleId);
       const text = [mention.content, 'content' in payload ? payload.content : undefined].filter(Boolean).join('\n');
-      const message = await channel.send({
+      const message = await channel.send(plainDiscordMessage({
         ...(text ? { content: text } : {}),
         ...('embeds' in payload ? { embeds: payload.embeds } : {}),
         allowedMentions: mention.allowedMentions,
-        // Patch notes are plain text. Suppress link previews so a bullet's URL cannot come back as an embed.
         ...('content' in payload ? { flags: MessageFlags.SuppressEmbeds } : {}),
-      });
+      }));
       if (channel.type === ChannelType.GuildAnnouncement) {
         await message.crosspost().catch((error: unknown) => console.warn('Could not publish news to following servers:', error));
       }
@@ -236,12 +236,12 @@ async function postNews(channel: GuildTextBasedChannel, gameUpdatesRoleId: strin
       const payload = newsChannelSend(post);
       const mention = roleMention(isPatchNotesPost(post.title) ? gameUpdatesRoleId : newsUpdatesRoleId);
       const content = [mention.content, 'content' in payload ? payload.content : undefined].filter(Boolean).join('\n');
-      await original.edit({
+      await original.edit(plainDiscordMessage({
         content: content || null,
         embeds: 'embeds' in payload ? payload.embeds : [],
         allowedMentions: { parse: [] },
-        flags: 'content' in payload ? MessageFlags.SuppressEmbeds : [],
-      });
+        flags: MessageFlags.SuppressEmbeds,
+      }));
       await api.newsEditPosted(post.id, post.queuedAt);
       console.log(`Updated original Discord news "${post.title}" in #${channel.name}.`);
     } catch (error) {
@@ -260,7 +260,7 @@ async function postStaff(channel: GuildTextBasedChannel): Promise<void> {
     try {
       const existing = post.editMessageId ? await channel.messages.fetch(post.editMessageId).catch(() => null) : null;
       if (post.editMessageId && !existing) throw new Error('Original staff message could not be found; refusing to create a duplicate.');
-      const sent = existing ? await existing.edit(message) : await channel.send({ ...message, allowedMentions: { parse: [] } });
+      const sent = existing ? await existing.edit(plainDiscordMessage(message)) : await channel.send(plainDiscordMessage({ ...message, allowedMentions: { parse: [] } }));
       await api.staffPostPosted(post.id, sent.id, post.patchNotes ? { state: post.patchNotes.state, updatedAt: post.patchNotes.updatedAt } : undefined);
     } catch (error) {
       console.error(`Could not post staff ${post.kind} ${post.id} to #${channel.name}:`, error);
@@ -282,7 +282,7 @@ async function postStatus(channel: GuildTextBasedChannel, serverUpdatesRoleId: s
     else if (post.deploy) outages.deployEnded();
     try {
       const existing = post.editMessageId ? await channel.messages.fetch(post.editMessageId).catch(() => null) : null;
-      const sent = existing ? await existing.edit(message) : await channel.send({ ...message, ...roleMention(serverUpdatesRoleId) });
+      const sent = existing ? await existing.edit(plainDiscordMessage(message)) : await channel.send(plainDiscordMessage({ ...message, ...roleMention(serverUpdatesRoleId) }));
       await api.staffPostPosted(post.id, sent.id);
     } catch (error) {
       console.error(`Could not post status ${post.kind} ${post.id} to #${channel.name}:`, error);
@@ -297,7 +297,7 @@ async function sendAlerts(channels: { news: GuildTextBasedChannel | null; raidFe
 
   for (const reminder of claimed.turns) {
     try {
-      await client.users.send(reminder.discordId, { embeds: [turnReminderEmbed(reminder)] });
+      await client.users.send(reminder.discordId, plainDiscordMessage({ embeds: [turnReminderEmbed(reminder)] }));
     } catch (error) {
       console.warn(`Could not DM a turn reminder to ${reminder.discordId}:`, error instanceof Error ? error.message : error);
     }
@@ -305,7 +305,7 @@ async function sendAlerts(channels: { news: GuildTextBasedChannel | null; raidFe
 
   for (const alert of claimed.ranks) {
     try {
-      await client.users.send(alert.discordId, { embeds: [rankAlertEmbed(alert)] });
+      await client.users.send(alert.discordId, plainDiscordMessage({ embeds: [rankAlertEmbed(alert)] }));
     } catch (error) {
       console.warn(`Could not DM a rank alert to ${alert.discordId}:`, error instanceof Error ? error.message : error);
     }
@@ -313,7 +313,7 @@ async function sendAlerts(channels: { news: GuildTextBasedChannel | null; raidFe
 
   for (const alert of claimed.turfAlerts) {
     try {
-      await client.users.send(alert.discordId, { embeds: [turfAlertEmbed(alert)] });
+      await client.users.send(alert.discordId, plainDiscordMessage({ embeds: [turfAlertEmbed(alert)] }));
     } catch (error) {
       console.warn(`Could not DM a turf alert to ${alert.discordId}:`, error instanceof Error ? error.message : error);
     }
@@ -321,7 +321,7 @@ async function sendAlerts(channels: { news: GuildTextBasedChannel | null; raidFe
 
   for (const alert of claimed.allianceAlerts) {
     try {
-      await client.users.send(alert.discordId, { embeds: [allianceAlertEmbed(alert)] });
+      await client.users.send(alert.discordId, plainDiscordMessage({ embeds: [allianceAlertEmbed(alert)] }));
     } catch (error) {
       console.warn(`Could not DM an alliance alert to ${alert.discordId}:`, error instanceof Error ? error.message : error);
     }
@@ -329,7 +329,7 @@ async function sendAlerts(channels: { news: GuildTextBasedChannel | null; raidFe
 
   for (const notice of claimed.notices) {
     try {
-      await client.users.send(notice.discordId, { embeds: [gameNoticeEmbed(notice)] });
+      await client.users.send(notice.discordId, plainDiscordMessage({ embeds: [gameNoticeEmbed(notice)] }));
     } catch (error) {
       console.warn(`Could not DM a ${notice.category} alert to ${notice.discordId}:`, error instanceof Error ? error.message : error);
     }
@@ -348,7 +348,7 @@ async function sendAlerts(channels: { news: GuildTextBasedChannel | null; raidFe
   for (const event of claimed.turf) {
     if (channels.raidFeed) {
       try {
-        await channels.raidFeed.send({ embeds: [turfFeedEmbed(event)], allowedMentions: { parse: [] } });
+        await channels.raidFeed.send(plainDiscordMessage({ embeds: [turfFeedEmbed(event)], allowedMentions: { parse: [] } }));
       } catch (error) {
         console.error(`Could not post turf change ${event.id} to #${channels.raidFeed.name}:`, error);
       }
@@ -358,7 +358,7 @@ async function sendAlerts(channels: { news: GuildTextBasedChannel | null; raidFe
   for (const event of claimed.blockWars) {
     if (channels.raidFeed) {
       try {
-        await channels.raidFeed.send({ embeds: [blockWarFeedEmbed(event)], allowedMentions: { parse: [] } });
+        await channels.raidFeed.send(plainDiscordMessage({ embeds: [blockWarFeedEmbed(event)], allowedMentions: { parse: [] } }));
       } catch (error) {
         console.error(`Could not post block war ${event.id} to #${channels.raidFeed.name}:`, error);
       }
@@ -368,7 +368,7 @@ async function sendAlerts(channels: { news: GuildTextBasedChannel | null; raidFe
   for (const event of claimed.territory) {
     if (channels.raidFeed) {
       try {
-        await channels.raidFeed.send({ embeds: [territoryFeedEmbed(event)], allowedMentions: { parse: [] } });
+        await channels.raidFeed.send(plainDiscordMessage({ embeds: [territoryFeedEmbed(event)], allowedMentions: { parse: [] } }));
       } catch (error) {
         console.error(`Could not post city-control change ${event.id} to #${channels.raidFeed.name}:`, error);
       }
@@ -378,7 +378,7 @@ async function sendAlerts(channels: { news: GuildTextBasedChannel | null; raidFe
   for (const event of claimed.factions) {
     if (channels.raidFeed) {
       try {
-        await channels.raidFeed.send({ embeds: [factionFeedEmbed(event)], allowedMentions: { parse: [] } });
+        await channels.raidFeed.send(plainDiscordMessage({ embeds: [factionFeedEmbed(event)], allowedMentions: { parse: [] } }));
       } catch (error) {
         console.error(`Could not post Inner Circle ${event.id} to #${channels.raidFeed.name}:`, error);
       }
@@ -388,7 +388,7 @@ async function sendAlerts(channels: { news: GuildTextBasedChannel | null; raidFe
   for (const event of claimed.crackdowns) {
     if (channels.raidFeed) {
       try {
-        await channels.raidFeed.send({ embeds: [crackdownFeedEmbed(event)], allowedMentions: { parse: [] } });
+        await channels.raidFeed.send(plainDiscordMessage({ embeds: [crackdownFeedEmbed(event)], allowedMentions: { parse: [] } }));
       } catch (error) {
         console.error(`Could not post turf crackdown ${event.id} (${event.phase}) to #${channels.raidFeed.name}:`, error);
       }
@@ -397,7 +397,7 @@ async function sendAlerts(channels: { news: GuildTextBasedChannel | null; raidFe
 
   for (const alert of claimed.attacks) {
     try {
-      await client.users.send(alert.discordId, { embeds: [attackAlertEmbed(alert)] });
+      await client.users.send(alert.discordId, plainDiscordMessage({ embeds: [attackAlertEmbed(alert)] }));
     } catch (error) {
       console.warn(`Could not DM an attack alert to ${alert.discordId}:`, error instanceof Error ? error.message : error);
     }
@@ -411,7 +411,8 @@ async function sendAlerts(channels: { news: GuildTextBasedChannel | null; raidFe
         const previous = marker && recentMessages
           ? recentMessages.find((message) => message.author.id === client.user?.id && message.embeds.some((embed) => embed.footer?.text === marker))
           : null;
-        const message = previous ?? await channels.news.send({ embeds: [roundEventEmbed(event)], allowedMentions: { parse: [] } });
+        const roundMessage = { embeds: [roundEventEmbed(event)], allowedMentions: { parse: [] } };
+        const message = previous ?? await channels.news.send(event.recap ? roundMessage : plainDiscordMessage(roundMessage));
         if (event.recap) await api.roundPostPosted(event.recap.roundId, message.id);
         if (!previous && channels.news.type === ChannelType.GuildAnnouncement) {
           await message.crosspost().catch((error: unknown) => console.warn('Could not publish round-end post to following servers:', error));
@@ -428,7 +429,7 @@ async function sendAlerts(channels: { news: GuildTextBasedChannel | null; raidFe
 
   for (const alert of claimed.roundAlerts) {
     try {
-      await client.users.send(alert.discordId, { embeds: [roundEventEmbed(alert)] });
+      await client.users.send(alert.discordId, plainDiscordMessage({ embeds: [roundEventEmbed(alert)] }));
     } catch (error) {
       console.warn(`Could not DM a round alert to ${alert.discordId}:`, error instanceof Error ? error.message : error);
     }
@@ -638,15 +639,15 @@ client.once(Events.ClientReady, async (ready) => {
       if (!channel) return;
       // A failed send throws before `posted`, so the next probe offers the same news again.
       if (event.event === 'down') {
-        const sent = await channel.send({ ...outageMessage(event.since, Date.now()), ...roleMention(serverUpdatesRoleId) });
+        const sent = await channel.send(plainDiscordMessage({ ...outageMessage(event.since, Date.now()), ...roleMention(serverUpdatesRoleId) }));
         outagePost = { channelId: channel.id, messageId: sent.id };
         outages.posted(event);
         console.warn(`The game API has not answered since ${new Date(event.since).toISOString()}; posted an outage notice.`);
       } else {
         const posted = outagePost?.channelId === channel.id ? await channel.messages.fetch(outagePost.messageId).catch(() => null) : null;
         const message = recoveredMessage(event.since, event.downForMs);
-        if (posted) await posted.edit(message);
-        else await channel.send({ ...message, ...roleMention(serverUpdatesRoleId) });
+        if (posted) await posted.edit(plainDiscordMessage(message));
+        else await channel.send(plainDiscordMessage({ ...message, ...roleMention(serverUpdatesRoleId) }));
         outagePost = null;
         outages.posted(event);
         console.log(`The game API is answering again after ${Math.round(event.downForMs / 60_000)} min.`);

@@ -15,6 +15,7 @@ import {
 } from 'discord.js';
 import { BUG_REPORT_CATEGORIES, BUG_REPORT_REPLY_MAX, BUG_REPORT_RESOLUTIONS } from '@streets/shared';
 import { escapeMarkdown, truncate } from './format.js';
+import { plainDiscordMessage } from './plain-message.js';
 import {
   GameApiError,
   type BugCategory,
@@ -264,7 +265,7 @@ export async function handleStaffModal(interaction: ModalSubmitInteraction, deps
         action: act.action,
         note: interaction.fields.getTextInputValue('note').trim(),
       });
-      if (interaction.message) await interaction.message.edit(messageReportMessage(report)).catch(() => undefined);
+      if (interaction.message) await interaction.message.edit(plainDiscordMessage(messageReportMessage(report))).catch(() => undefined);
       await interaction.editReply({
         content: act.action === 'mute-1d'
           ? `Muted ${report.sender.displayName} for at least 1 day (a longer mute already in place is kept) and closed every report on that message. Change it from their admin account page.`
@@ -289,7 +290,7 @@ export async function handleStaffModal(interaction: ModalSubmitInteraction, deps
       ...(reply ? { playerReply: reply } : {}),
     });
     // The resolved post edits this message too; doing it now shows the result at once.
-    if (interaction.message) await interaction.message.edit(bugReportMessage(report)).catch(() => undefined);
+    if (interaction.message) await interaction.message.edit(plainDiscordMessage(bugReportMessage(report))).catch(() => undefined);
     await interaction.editReply({
       content: `Marked ${RESOLUTION_LABELS[resolve!.resolution]}. ${reply ? 'The reporter gets your message' : 'The reporter is told'} if they get message alerts.`,
     });
