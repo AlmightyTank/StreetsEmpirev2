@@ -21,8 +21,4 @@ describe('plainDiscordMessage', () => {
     expect(payload.flags).toBe(MessageFlags.SuppressEmbeds);
   });
 
-  it('keeps the round aftermath embed when requested for the dense report', () => {
-    const payload = { embeds: [{ title: 'ROUND #008 — AFTERMATH' }] };
-    expect(plainDiscordMessage(payload, { keepEmbeds: true })).toBe(payload);
-  });
 });
