@@ -7,10 +7,11 @@ The order: build the systems first (A–C), ship Act I as a playable pilot (D), 
 ## Dependency map
 
 ```
-A Audit & contracts
+A Audit & contracts (done)
+├─ A2 Basket checkout evidence fix (blocks every store objective)
 └─ B Story-scene engine (server)
    └─ C Story-scene UI (Quest page)
-      └─ D PILOT: Act I (Main 1–5) + LEDGER contact + new ruleset
+      └─ D PILOT: Act I (Main 1–5) + new ruleset   (needs A2 for M03)
          ├─ E Act II (Main 6–10) ──┬─ K Side: Pip arc (S4–S6)
          │                         └─ L Side: Tommy arc (S7–S9)
          ├─ F Act III (Main 11–15) ── first turn-in branch (Q15)
@@ -26,7 +27,7 @@ Side slices K–O depend only on the main slice they branch from and can be buil
 
 ## Conventions for every content slice (D–O)
 
-- **Ruleset pinning:** new quest definitions only go into a new round-pinned ruleset (following the `classic-og-vX.Y-z` pattern; the latest one now is `classic-og-v2.5-a`). Old rounds keep their catalog. Slice A confirms the version id convention and whether content slices can share one ruleset id until release.
+- **Ruleset pinning:** each content slice that changes the catalog extends the previous one with a new id, starting at `classic-og-v2.6-a`. Old rounds keep their catalog, so a round only gets the acts that existed when it opened.
 - **Quest keys:** `ML_M01_NIGHT_RECEIPT` … `ML_M25_MISSING_LINE`, `ML_S01_KEY_UNDER_MAT` … `ML_S15_PLAIN_ENGLISH`. The number in the key keeps Main 5 and Main 25 apart, since both are titled "The Missing Line".
 - **Story copy:** `story.intro / inProgress / ready / completed` hold chapter prose (see the Spine's prose standard). Story quests get no `lesson` text; mechanics stay in the tutorial.
 - **Evidence:** use only the events the Objective Map lists, verified in Slice A. Prefer events that happen after accepting the quest over `STATE_AT_LEAST`.
@@ -35,7 +36,9 @@ Side slices K–O depend only on the main slice they branch from and can be buil
 
 ---
 
-## Slice A — Audit and contracts (no player-facing change)
+## Slice A — Audit and contracts (no player-facing change) ✅
+
+**Done:** see [Slice A contract](./STORY-QUEST-CAMPAIGN-SLICE-A.md). It found blocker B1 (Slice A2) and settled the open questions below. The checklist that follows is kept as the record of what was audited.
 
 **Goal:** turn the Objective Map's "design candidates" into verified contracts before writing content.
 
@@ -51,6 +54,16 @@ Side slices K–O depend only on the main slice they branch from and can be buil
 - **Deliverable:** `docs/STORY-QUEST-CAMPAIGN-SLICE-A.md` (contract), plus server tests that pin the payload fields above so later slices can rely on them.
 - **Done when:** every row in the Objective Map is marked *verified*, *fallback to scene*, or *blocked: reason*.
 
+## Slice A2 — Basket checkout evidence fix
+
+**Goal:** a basket checkout gives quests the same evidence as the single trades it contains (Slice A blocker B1). This is live today: 57 store-filtered objectives in the latest ruleset ignore basket purchases.
+
+- Give each basket line its own quest-progress evidence (its own `storeKey`, `itemKey`, `direction`, `quantity`, `totalCents`, and the event type for that line's direction) with a stable per-line source key, so `QuestProgressReceipt` still makes each line count once.
+- Keep unfiltered "any store" objectives counting a basket the way they do today, with no double count from also crediting the whole basket.
+- Decide whether pinned rulesets get the fix too. It is a bug fix, but it changes how fast in-flight jobs progress.
+- **Tests:** extend `story-campaign-evidence.integration.test.ts` so the basket case matches Pip and Tommy objectives; add mixed-basket and sum cases.
+- **Done when:** the B1 test flips, and no unfiltered store objective changes its count for the same basket.
+
 ## Slice B — Story-scene engine (server)
 
 **Goal:** the one new system piece the Objective Map calls for, built and tested on a test-only quest.
@@ -62,7 +75,8 @@ Side slices K–O depend only on the main slice they branch from and can be buil
   - quest must be `ACTIVE` for this attempt, and the scene must belong to it and be currently available (supports scene-after-event ordering, as in Q13, S5, S6, S12);
   - writes a response receipt and the activity in one transaction, idempotent per (player-quest attempt, sceneKey); a repeat returns the existing receipt;
   - the client cannot pick the quest attempt, progress amount, or payload.
-- Store the response where later copy can read it (the receipt row or a quest-progress field); Slice A decides whether that needs a migration.
+- Store the response in a new `QuestSceneResponse` table (`@@unique([playerQuestId, sceneKey])`, `responseKey`, time). Add `QUEST_STORY_SCENE` to the Prisma `ActivityType` enum and to `packages/shared`. Both need a migration.
+- Make `QuestStoryDefinition.lesson` optional so story quests carry no lesson text.
 - **Tests:** happy path, double submit, wrong quest/inactive quest, scene out of order, concurrent submit, ruleset pinning.
 - **Done when:** a test-only quest with one scene can be accepted, answered, completed, and claimed, with one activity and one receipt.
 
@@ -74,13 +88,15 @@ Side slices K–O depend only on the main slice they branch from and can be buil
 - Handle loading, error, and already-answered states; disable double-submit.
 - Mobile layout, keyboard and screen-reader support, consistent with the quest page.
 - Keep the labeling separate: story-scene panels must not look like tutorial highlights.
+- Hide the quest card's **Lesson** block when a quest has no `lesson`, and give chapter prose room for more than one line.
 - **Done when:** the Slice B test quest is playable end to end in the web app on desktop and mobile widths.
 
 ## Slice D — PILOT: Act I, "A Name in the Rain" (Main 1–5)
 
 **Goal:** first playable arc, as the Spine's production rule asks for.
 
-- Add the `LEDGER` contact (name, role, voice/description), following the Slice A decision on contacts.
+- Reuse the existing `LEDGER` contact (Marisol "Ledger" Pike, retired records sergeant). Campaign prose must match her established voice.
+- Add a catalog check that every campaign `contactKey` exists in the ruleset's contacts.
 - Quests: M01 Night Receipt (scene), M02 A Small Favor (scene), M03 The Other Door (`STORE_SELL`/PIP), M04 Roll Call (`RUN_RETURNED`), M05 The Missing Line (scene).
 - Author the full chapter prose and the scene responses for all five.
 - Create the new ruleset id and register the catalog; old rounds are unaffected.
@@ -97,7 +113,7 @@ Side slices K–O depend only on the main slice they branch from and can be buil
 
 ## Slice F — Act III, "The Price of Keeping Quiet" (Main 11–15)
 
-- M11, M12, M14 scenes; M13 `COMBAT_RECON` then the `raid_report_reviewed` scene (or scene-only, per Slice A).
+- M11, M12, M14 scenes; M13's required objective is the `raid_report_reviewed` scene, with `COMBAT_RECON` as an optional bonus (Slice A decision 6).
 - M15 Your Name in the Margin: first **turn-in branch** (Dispute / Leave it / Keep a copy), all leading to M16 with equal rewards.
 - **Done when:** each M15 branch is recorded in `chosenBranch`, shown in the quest history, and leads to M16.
 
@@ -127,7 +143,7 @@ Side slices K–O depend only on the main slice they branch from and can be buil
 
 | Slice | Arc | Quests | Branches from | Needs | Notes |
 | --- | --- | --- | --- | --- | --- |
-| **K** | Pip | S4–S6 | M06 | E | S5 uses `SUPPLY_LANE_ARRIVED` or the scene fallback; S6 is `STORE_SELL` + scene. |
+| **K** | Pip | S4–S6 | M06 | E | S5's required objective is the scene, with `SUPPLY_LANE_ARRIVED` as a bonus; S6 is `STORE_SELL` + scene. |
 | **L** | Tommy | S7–S9 | M08 | E | Store-receipt evidence only; no invented serial tracking. |
 | **M** | Alvarez / Mama | S1–S3 | M04 (S1), M18 (S3) | D, G | S1–S2 can ship as soon as D lands; S3 waits for G. Fine to split. |
 | **N** | Wheels | S10–S12 | M07 (S10), M17 (S11) | E, G | S10 can ship after E; S11–S12 after G. |
@@ -145,10 +161,10 @@ For every side slice: side quests never gate the main chain or M22. Each arc con
 
 ---
 
-## Open questions to settle in Slice A
+## Open questions (settled in Slice A)
 
-1. Does the campaign replace the current `FIRST_NIGHT_OUT` chain in the new ruleset, or follow it?
-2. Are contacts round-pinned? `LEDGER` and `MARA_VENN` don't exist yet.
-3. Where do scene responses live: a new receipt table or the existing `PlayerQuest` progress JSON?
-4. Can quests M04 / M07 / M16 rely on intercity runs being unlocked by then, given the tutorial gates?
-5. Should content slices D–I share one ruleset id until the campaign ships, or does each slice get its own?
+1. **Campaign vs. current chain:** additive. The current `FIRST_NIGHT_OUT` chain stays; `ML_M01` has no quest prerequisite.
+2. **Contacts:** pinned per ruleset. `LEDGER` already exists and is reused; `MARA_VENN` is added with Act V.
+3. **Scene responses:** a new `QuestSceneResponse` table (Slice B).
+4. **Intercity runs:** no tutorial gate. They need a ready vehicle and road time, which the pilot copy should set up honestly.
+5. **Ruleset ids:** one new id per content slice, starting at `classic-og-v2.6-a`.
