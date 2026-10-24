@@ -143,6 +143,25 @@ describe('shared entitlement linking and transfers', () => {
       .rejects.toMatchObject({ code: 'SHARED_ENTITLEMENT_LINK_REQUIRED' });
   });
 
+  it('keeps unlinked accounts on their environment-local Drop and wallet', async () => {
+    const db = sharedDb();
+    configureSharedEntitlements(db as never);
+    mockedEnv.appEnvironment = 'beta';
+
+    // A missing link means callers use the local Drop/wallet services.
+    expect(await applySharedCrownMovement({
+      accountId: 'beta-unlinked',
+      kind: 'EARN',
+      delta: 25,
+      source: 'daily-contract',
+      externalRef: 'earn:daily:unlinked',
+    })).toBeNull();
+    const local = localDb();
+    expect(await sharedEntitlementRuntime({ entitlements: db as never, prisma: local as never } as never, 'beta-unlinked')).toBeNull();
+    expect(db.state.wallets.size).toBe(0);
+    expect(db.state.ledger.size).toBe(0);
+  });
+
   it('shares Crown credits and spends across environments and applies each request once', async () => {
     const db = sharedDb();
     const { beta, main } = await linkPair(db);

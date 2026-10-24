@@ -2,19 +2,31 @@ import type { PrismaClient } from '@prisma/client';
 import { AppError } from '../utils/errors.js';
 
 /**
- * Resolves the explicit beta/live account link in the canonical entitlement
- * store. This must never fall back to email, username, or a local account id:
- * those values are not proof that two isolated accounts belong together.
+ * Looks up the explicit beta/live account link. Unlinked accounts are valid
+ * and keep using their environment-local wallet and Drop catalog.
+ */
+export async function findSharedEntitlementAccount(
+  shared: PrismaClient,
+  environment: string,
+  localAccountId: string,
+): Promise<{ id: string } | null> {
+  const link = await shared.sharedEntitlementLink.findUnique({
+    where: { environment_localAccountId: { environment, localAccountId } },
+    select: { accountId: true },
+  });
+  return link ? { id: link.accountId } : null;
+}
+
+/**
+ * Requires an explicit link for operations that specifically need a shared
+ * account. Never infer identity from email, username, or local account id.
  */
 export async function requireSharedEntitlementAccount(
   shared: PrismaClient,
   environment: string,
   localAccountId: string,
 ): Promise<{ id: string }> {
-  const link = await shared.sharedEntitlementLink.findUnique({
-    where: { environment_localAccountId: { environment, localAccountId } },
-    select: { accountId: true },
-  });
+  const link = await findSharedEntitlementAccount(shared, environment, localAccountId);
   if (!link) {
     throw new AppError(
       503,
@@ -22,9 +34,8 @@ export async function requireSharedEntitlementAccount(
       'This account is not linked to the shared Crown wallet yet. Contact support before using shared purchases.',
     );
   }
-  return { id: link.accountId };
+  return link;
 }
-
 /**
  * Creates an operator-approved link. The identity key is supplied by the
  * merge/link workflow, never derived here from private account fields.
