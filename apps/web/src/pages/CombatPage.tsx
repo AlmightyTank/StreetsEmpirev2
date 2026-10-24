@@ -1130,7 +1130,6 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
                     ? (selectedBlock ? `${specialRaid.buttonLabel} blocked` : specialRaid.buttonLabel)
                     : (selectedBlock ? 'Raid blocked' : 'Launch raid')}
             </Button>
-            <Link className="se-btn se-btn--secondary" to="/recon">View Your Card</Link>
           </ActionDock>
 
           <OperationDetails title="Crew, weapons & supplies" summary="Treatment, fight shelf, defense assignments and combat rules">
