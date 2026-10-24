@@ -1,7 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import type { FastifyInstance } from 'fastify';
 import { env } from '../config/env.js';
-import { requireSharedEntitlementAccount } from './shared-entitlement-account.service.js';
+import { findSharedEntitlementAccount } from './shared-entitlement-account.service.js';
 import { DROP_ITEMS, DROP_SOURCE, DROP_SOURCE_VERSION } from '@streets/rulesets';
 import { AppError } from '../utils/errors.js';
 
@@ -27,7 +27,8 @@ export interface SharedCrownMovement {
 /** Applies one local wallet event to the canonical wallet with a namespaced idempotency key. */
 export async function applySharedCrownMovement(movement: SharedCrownMovement): Promise<{ balance: number; applied: boolean } | null> {
   if (!env.sharedEntitlements.enabled || !canonicalClient) return null;
-  const linked = await requireSharedEntitlementAccount(canonicalClient, env.appEnvironment, movement.accountId);
+  const linked = await findSharedEntitlementAccount(canonicalClient, env.appEnvironment, movement.accountId);
+  if (!linked) return null;
   const milestone = /:(\d+)$/.exec(movement.externalRef)?.[1];
   const externalRef = movement.source === 'account-level' && milestone
     ? `shared:account-level:${linked.id}:${milestone}`
@@ -67,7 +68,8 @@ export async function applySharedCrownMovement(movement: SharedCrownMovement): P
 
 export async function setSharedCrownHold(accountId: string, reason: string | null): Promise<void> {
   if (!env.sharedEntitlements.enabled || !canonicalClient) return;
-  const linked = await requireSharedEntitlementAccount(canonicalClient, env.appEnvironment, accountId);
+  const linked = await findSharedEntitlementAccount(canonicalClient, env.appEnvironment, accountId);
+  if (!linked) return;
   await canonicalClient.sharedCrownWallet.upsert({
     where: { accountId: linked.id }, create: { accountId: linked.id, ...(reason ? { heldAt: new Date(), holdReason: reason } : {}) },
     update: reason ? { heldAt: new Date(), holdReason: reason } : { heldAt: null, holdReason: null },
@@ -76,14 +78,16 @@ export async function setSharedCrownHold(accountId: string, reason: string | nul
 
 export async function getSharedCrownBalance(accountId: string): Promise<number | null> {
   if (!env.sharedEntitlements.enabled || !canonicalClient) return null;
-  const linked = await requireSharedEntitlementAccount(canonicalClient, env.appEnvironment, accountId);
+  const linked = await findSharedEntitlementAccount(canonicalClient, env.appEnvironment, accountId);
+  if (!linked) return null;
   const wallet = await canonicalClient.sharedCrownWallet.findUnique({ where: { accountId: linked.id }, select: { balance: true } });
   return wallet?.balance ?? 0;
 }
 
 export async function getSharedCrownHold(accountId: string): Promise<{ heldAt: Date | null; holdReason: string | null } | null> {
   if (!env.sharedEntitlements.enabled || !canonicalClient) return null;
-  const linked = await requireSharedEntitlementAccount(canonicalClient, env.appEnvironment, accountId);
+  const linked = await findSharedEntitlementAccount(canonicalClient, env.appEnvironment, accountId);
+  if (!linked) return null;
   const wallet = await canonicalClient.sharedCrownWallet.findUnique({ where: { accountId: linked.id }, select: { heldAt: true, holdReason: true } });
   return wallet ?? { heldAt: null, holdReason: null };
 }
@@ -94,7 +98,8 @@ export async function sharedEntitlementRuntime(
   localAccountId: string,
 ): Promise<{ db: PrismaClient; accountId: string; environment: string; localAccountId: string } | null> {
   if (!env.sharedEntitlements.enabled || !fastify.entitlements) return null;
-  const account = await requireSharedEntitlementAccount(fastify.entitlements, env.appEnvironment, localAccountId);
+  const account = await findSharedEntitlementAccount(fastify.entitlements, env.appEnvironment, localAccountId);
+  if (!account) return null;
   const unlocks = await fastify.entitlements.sharedCosmeticUnlock.findMany({
     where: { accountId: account.id, source: 'drop' },
     select: { key: true, kind: true, title: true, description: true, rarity: true, styleKey: true, awardedAt: true },
