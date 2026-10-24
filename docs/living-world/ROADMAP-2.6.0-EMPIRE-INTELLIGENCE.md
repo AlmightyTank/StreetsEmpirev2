@@ -18,7 +18,7 @@ Move from scattered cash numbers to an understandable **business intelligence la
 | **2.6.0-B** | **Reconciled reporting projections** | Build indexed read-only totals by source/time/city with clearly labeled incomplete or unknown history. **Pass:** global totals reconcile with ledger within defined rules. |
 | **2.6.0-C** | **Profit & efficiency views** | Realized inflows/outflows, estimated net profit, crew or turn efficiency where measurable, stock tied up and Heat/route risk context. **Pass:** explain estimate assumptions and missing costs. |
 | **2.6.0-D** | **City and route comparison** | Compare actual historical trip and business results, market pressures and cash tied in holdings. **Pass:** no fake guaranteed future price forecasts. |
-| **2.6.0-E** | **Optional financial goals** | Player-configured targets and nonpunitive warnings for liquidity, supply bottlenecks and costly routes; integrate with Advisor. **Pass:** thresholds only, no automated trade. |
+| **2.6.0-E** | **Optional financial goals** | Player-configured targets and nonpunitive warnings for liquidity, supply bottlenecks and costly routes; surface in existing Dashboard/Holdings settings; the Advisor was scrapped. **Pass:** thresholds only, no automated trade. |
 | **2.6.0-F** | **Holdings/Dashboard UI** | Profit cards, charts, city filters and drilldown to actual receipts; mobile readable and performant. **Pass:** no new redundant main navigation tab. |
 | **2.6.0-G** | **Scale, audits & release** | Reconciliation fixtures, frozen-period tests, high-volume aggregation/load QA, safe backfill and explicit unknown-history handling. **Pass:** no runaway query load or fabricated historic figures. |
 
