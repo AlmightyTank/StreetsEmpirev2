@@ -15,7 +15,7 @@ import { loadConfig } from './config.js';
 import {
   allianceAlertEmbed,
   attackAlertEmbed,
-  battleFeedEmbed,
+  battleFeedMessage,
   crackdownFeedEmbed,
   factionFeedEmbed,
   describeDiscordError,
@@ -338,7 +338,7 @@ async function sendAlerts(channels: { news: GuildTextBasedChannel | null; raidFe
   for (const battle of claimed.battles) {
     if (channels.raidFeed) {
       try {
-        await channels.raidFeed.send({ embeds: [battleFeedEmbed(battle)], allowedMentions: { parse: [] } });
+        await channels.raidFeed.send({ content: battleFeedMessage(battle), allowedMentions: { parse: [] } });
       } catch (error) {
         console.error(`Could not post battle ${battle.id} to #${channels.raidFeed.name}:`, error);
       }

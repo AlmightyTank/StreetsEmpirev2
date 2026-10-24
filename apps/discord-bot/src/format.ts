@@ -675,6 +675,26 @@ export function battleFeedEmbed(battle: BattleEvent): APIEmbed {
   };
 }
 
+/** Public raid-feed post. Keep it scannable on mobile and show only real successful-raid gains. */
+export function battleFeedMessage(battle: BattleEvent): string {
+  const outcome = battle.attackerWon ? 'ATTACKER WON' : 'DEFENDER HELD';
+  const lines = [
+    `${battle.attackerWon ? '⚔️' : '🛡️'} **${battleKind(battle.kind).toUpperCase()} · ${outcome}**`,
+    `[${escapeMarkdown(battle.attackerName)}](${battle.attackerProfileUrl}) hit [${escapeMarkdown(battle.defenderName)}](${battle.defenderProfileUrl})`,
+  ];
+  if (battle.kind === 'RAID' && battle.attackerWon && battle.spoils) {
+    const spoils = [
+      battle.spoils.cashCents > 0 ? formatCents(battle.spoils.cashCents) : null,
+      ...battle.spoils.products
+        .filter((item) => item.units > 0)
+        .map((item) => `${formatNumber(item.units)} ${escapeMarkdown(item.name)}`),
+    ].filter((item): item is string => Boolean(item));
+    if (spoils.length) lines.push(`💰 **Spoils:** ${spoils.join(' · ')}`);
+  }
+  lines.push(`🎮 ${escapeMarkdown(battle.roundName)}`);
+  return lines.join('\n');
+}
+
 export function turfFeedEmbed(event: TurfEvent): APIEmbed {
   const newHolder = event.attackerAllianceTag
     ? `[${escapeMarkdown(event.attackerAllianceTag)}] ${escapeMarkdown(event.attackerName)}`

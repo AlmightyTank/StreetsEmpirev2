@@ -76,18 +76,36 @@ export const battleEventSelect = {
 
 type BattleEventRow = Prisma.RaidBattleGetPayload<{ select: typeof battleEventSelect }>;
 
-/** Names and result only: no loot, crew or weapons. */
+/** Public raid-feed details: names, result and the attacker's cash/product gains on a successful raid. */
 export function battleEventDto(row: BattleEventRow): DiscordBattleEventDto {
-  const report = row.attackerReport as { kind?: string; won?: boolean };
+  const report = row.attackerReport as {
+    kind?: string;
+    won?: boolean;
+    cashChangeCents?: number;
+    inventoryChanges?: Array<{ name?: string; gained?: number }>;
+  };
+  const kind = BATTLE_KINDS.find((candidate) => candidate === report.kind) ?? row.kind;
+  const successfulRaid = kind === 'RAID' && report.won === true;
+  const products = successfulRaid
+    ? (report.inventoryChanges ?? [])
+      .filter((item) => typeof item.name === 'string' && Number.isFinite(item.gained) && (item.gained ?? 0) > 0)
+      .map((item) => ({ name: item.name!, units: item.gained! }))
+    : [];
   return {
     id: row.id,
-    kind: BATTLE_KINDS.find((candidate) => candidate === report.kind) ?? row.kind,
+    kind,
     roundName: row.attacker.round.name,
     attackerName: row.attacker.displayName,
     attackerProfileUrl: playerUrl(row.attacker.publicPimpId),
     defenderName: row.defender.displayName,
     defenderProfileUrl: playerUrl(row.defender.publicPimpId),
     attackerWon: report.won === true,
+    ...(successfulRaid ? {
+      spoils: {
+        cashCents: Number.isFinite(report.cashChangeCents) ? Math.max(0, report.cashChangeCents ?? 0) : 0,
+        products,
+      },
+    } : {}),
     createdAt: row.createdAt.toISOString(),
   };
 }

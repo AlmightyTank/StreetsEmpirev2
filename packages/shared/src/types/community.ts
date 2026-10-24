@@ -614,7 +614,7 @@ export interface DiscordAlertSettingsDto {
 
 export type DiscordBattleKind = 'RAID' | 'DRIVE_BY' | 'DRUG_HOES' | 'STEAL_RIDE' | 'LURE_CREW';
 
-/** A new battle for the raid feed. Names and result only: no loot, crew or weapons. */
+/** A new battle for the raid feed. Public spoils are limited to cash and product gained by a winning raid. */
 export interface DiscordBattleEventDto {
   id: string;
   kind: DiscordBattleKind;
@@ -624,6 +624,8 @@ export interface DiscordBattleEventDto {
   defenderName: string;
   defenderProfileUrl: string;
   attackerWon: boolean;
+  /** Optional for compatibility with older game servers. Only populated for successful raids. */
+  spoils?: { cashCents: number; products: Array<{ name: string; units: number }> };
   createdAt: string;
 }
 
