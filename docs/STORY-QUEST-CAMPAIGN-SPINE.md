@@ -2,6 +2,8 @@
 
 **Status:** Original narrative proposal for the Tutorial & Story Quest Overhaul. These are new story treatments, not a claim that the quests are live. The campaign is written for StreetsEmpire's existing contacts and world; Escape from Tarkov is a reference for layered pacing and connected quest progression only.
 
+See the [Objective and Gameplay Map](./STORY-QUEST-OBJECTIVE-PLAY-MAP.md) for how each main and side quest can use current game actions, where a story-scene event is needed, and how choices fit the current quest system.
+
 ## What the campaign is
 
 This is a crime drama about favors that become debts, and debts that become a kind of ownership. The player begins as a small crew doing one ordinary job. A missing line on a receipt leads through stolen shipments, altered routes, planted pressure, and a private debt market called **the Clearinghouse**. The mystery grows because every contact holds one piece and each has a reason to keep it.
