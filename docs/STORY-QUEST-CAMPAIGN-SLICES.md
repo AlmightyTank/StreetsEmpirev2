@@ -300,7 +300,32 @@ The card opens its details when a scene becomes playable. Chapter copy keeps par
 - Persist the ending with a stable server-side key so later campaigns and contact dialogue can read it.
 - **Done when:** all 3 × 3 combinations of M23 and M25 complete the chain, award equal-power rewards, and keep every specialty open.
 
-## Side-arc slices (each lands after its parent main slice)
+## Side-arc slices (each lands after its parent main slice) ✅
+
+**Done (K, L, M, N and O together):** ruleset `classic-og-v2.6-h` (2.6.0-H), now the default for new rounds (`classic-og-v2.6-h/missing-line-side-stories.ts`). It has fifteen `SIDE` quests, `ML_S01`–`ML_S15`, written to the depth standard (work, then the scene; no lessons, no branches) and appended after the 2.6.0-G catalog.
+- **Arcs open from their main chapters:**
+  - Mrs. Alvarez from M04 and M18;
+  - Pip from M06;
+  - the apprentice from M08;
+  - Wheels' drivers from M07 and M17;
+  - the signed pages from M12 and M20. S15 needs both S13 and S14.
+- **No gating:** no main chapter depends on a side quest.
+- **Optional supply lane:** S5's supply-lane arrival is a bonus only.
+- **Finale echoes:** each finished arc changes one finale line of its own, so they combine:
+  - Pip: M22 in-progress;
+  - the apprentice: M24 ready;
+  - Wheels: M24 completed;
+  - the signed pages: M25 intro;
+  - Mrs. Alvarez: M25 in-progress.
+
+  M22, M24 and M25 are re-issued with only those variants appended.
+- **Rewards:** $2,500–$6,000 cash plus 3 contact rep each, $60,000 in all.
+- **Tests:**
+  - `missing-line-side-stories.test.ts` covers where each arc opens, that nothing gates the main story, the evidence, rewards, and that the echoes combine;
+  - `missing-line-side-stories.integration.test.ts` plays all fifteen with the real scout, store, checkout, production and run actions, and checks the finale text picks up every arc at once.
+
+**Plan as written:**
+
 
 | Slice | Arc | Quests | Branches from | Needs | Notes |
 | --- | --- | --- | --- | --- | --- |

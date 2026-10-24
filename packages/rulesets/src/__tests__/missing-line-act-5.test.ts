@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV26F, classicOgV26G, LATEST_RULESET, missingLineActFive } from '../index.js';
+import { classicOgV26F, classicOgV26G, missingLineActFive } from '../index.js';
 import { questDefinitionProblems } from '../quest-definitions.js';
 import { resolveStoryCopy, type StoryFacts } from '../story-copy.js';
 import type { QuestDefinition, QuestDefinitionCatalog } from '../types.js';
@@ -15,8 +15,8 @@ const facts = (branches: Record<string, string>, responses: Record<string, Recor
 });
 
 describe('2.6.0-G The Missing Line, Act V', () => {
-  it('ships as the latest ruleset with Mara Venn, opening from Act IV', () => {
-    expect(LATEST_RULESET.meta.id).toBe('classic-og-v2.6-g');
+  it('ships in 2.6.0-G with Mara Venn, opening from Act IV', () => {
+    expect(classicOgV26G.meta).toMatchObject({ id: 'classic-og-v2.6-g', version: '2.6.0-G' });
     expect(questDefinitionProblems(catalog)).toEqual([]);
     expect(classicOgV26G.contacts).toHaveProperty('MARA_VENN');
     expect(classicOgV26F.contacts).not.toHaveProperty('MARA_VENN');
