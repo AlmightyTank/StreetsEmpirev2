@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import type { Prisma } from '@prisma/client';
 import {
-  LATEST_RULESET,
+  classicOgV26H,
   applyQuestProgress,
   type QuestDataValue,
   type QuestObjectiveDefinition,
@@ -21,7 +21,8 @@ import { StoreService } from '../store.service.js';
  * See docs/STORY-QUEST-CAMPAIGN-SLICE-A.md. Opt in with STORY_INTEGRATION=1.
  */
 describe.runIf(process.env.STORY_INTEGRATION === '1')('story campaign store evidence with PostgreSQL', () => {
-  const ruleset = LATEST_RULESET;
+  // Pinned: the basket checks use board jobs that 2.6.0-I retired.
+  const ruleset = classicOgV26H;
   let app: FastifyInstance;
   let roundId = '';
   let accountId = '';

@@ -21,7 +21,12 @@ describe.runIf(process.env.STORY_INTEGRATION === '1')('The Missing Line Act I wi
   let playerId = '';
 
   const card = (page: QuestPageDto, key: string) => page.quests.find((quest) => quest.key === key)!;
-  const claim = (key: string) => HandcraftedQuestService.claim(app.prisma, playerId, ruleset, key, { actionId: randomUUID() });
+  const paid: number[] = [];
+  const claim = async (key: string) => {
+    const receipt = await HandcraftedQuestService.claim(app.prisma, playerId, ruleset, key, { actionId: randomUUID() });
+    paid.push(...receipt.result.rewards.filter((reward) => reward.kind === 'CASH').map((reward) => reward.amount ?? 0));
+    return receipt;
+  };
   const respond = (questKey: string, sceneKey: string, responseKey: string) =>
     HandcraftedQuestService.respondToScene(app.prisma, playerId, ruleset, { questKey, sceneKey, responseKey });
   const cash = async () => (await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: playerId } })).cashCents;
@@ -100,9 +105,11 @@ describe.runIf(process.env.STORY_INTEGRATION === '1')('The Missing Line Act I wi
     await respond('ML_M05_MISSING_LINE', 'missing_line_compared', 'keep_the_name');
     await claim('ML_M05_MISSING_LINE');
 
-    // Act I pays $8,000 in all (800,000 cents) on top of whatever the Pip sale earned.
+    // Act I pays $8,000 in all (800,000 cents), read from the claim receipts. The balance also
+    // grows with the Pip sale and the crew's clock-driven background income, so it is a floor.
+    expect(paid.reduce((total, amount) => total + amount, 0)).toBe(800_000);
     const sale = await app.prisma.playerActivity.findFirstOrThrow({ where: { roundPlayerId: playerId, type: 'STORE_SELL' } });
-    expect(await cash() - cashBefore).toBe(800_000n + BigInt((sale.payload as { totalCents: number }).totalCents));
+    expect(await cash() - cashBefore).toBeGreaterThanOrEqual(800_000n + BigInt((sale.payload as { totalCents: number }).totalCents));
     expect(await rep('MAMA_KING') - mamaBefore).toBe(11);
     expect(await rep('LEDGER')).toBeGreaterThanOrEqual(5);
 

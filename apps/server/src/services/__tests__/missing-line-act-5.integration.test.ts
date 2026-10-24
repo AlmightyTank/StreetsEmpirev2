@@ -101,8 +101,14 @@ describe.runIf(process.env.STORY_INTEGRATION === '1')('The Missing Line Act V wi
     for (const ending of ENDINGS) {
       it(`finishes the campaign after ${answer} and ${ending}`, async () => {
         const playerId = await playerAt(before('ML_M23_LAST_APPOINTMENT'));
-        const { accept, claim, respond, cash } = actions(playerId);
+        const { accept, claim: claimJob, respond, cash } = actions(playerId);
         const start = await cash();
+        const claims: ReturnType<typeof claimJob>[] = [];
+        const claim = (key: string, branchKey?: string) => {
+          const receipt = claimJob(key, branchKey);
+          claims.push(receipt.catch(() => ({ result: { rewards: [] } }) as unknown as Awaited<ReturnType<typeof claimJob>>));
+          return receipt;
+        };
 
         await accept('ML_M23_LAST_APPOINTMENT');
         await respond('ML_M23_LAST_APPOINTMENT', 'mara_offer_heard', 'ask_about_the_others');
@@ -122,8 +128,12 @@ describe.runIf(process.env.STORY_INTEGRATION === '1')('The Missing Line Act V wi
         await respond('ML_M25_MISSING_LINE', 'the_book_opened', 'find_the_erased_line');
         await claim('ML_M25_MISSING_LINE', ending);
 
-        // Every combination pays the same (the beer for the table is the same in each).
-        earned.set(`${answer}/${ending}`, await cash() - start);
+        // Every combination pays the same, read from the claim receipts (the cash balance also
+        // moves with the crew's background income, which depends on the clock, not the story).
+        const paid = (await Promise.all(claims)).flatMap((receipt) => receipt.result.rewards)
+          .filter((reward) => reward.kind === 'CASH').reduce((total, reward) => total + (reward.amount ?? 0), 0);
+        earned.set(`${answer}/${ending}`, BigInt(paid));
+        expect(await cash()).toBeGreaterThan(start);
         expect(new Set(earned.values()).size).toBe(1);
 
         const history = await HandcraftedQuestService.history(app.prisma, playerId, ruleset);

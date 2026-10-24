@@ -128,11 +128,10 @@ describe.runIf(process.env.STORY_INTEGRATION === '1')('The Missing Line Act III 
       const playerId = await playerAt([...EARLIER, ...ACT]);
       await HandcraftedQuestService.accept(app.prisma, playerId, ruleset, 'ML_M15_NAME_IN_THE_MARGIN');
       await HandcraftedQuestService.respondToScene(app.prisma, playerId, ruleset, { questKey: 'ML_M15_NAME_IN_THE_MARGIN', sceneKey: 'crew_entry_read', responseKey: 'count_the_favors' });
-      const cashBefore = (await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: playerId } })).cashCents;
       const repBefore = { LEDGER: await rep(playerId, 'LEDGER'), VIC: await rep(playerId, 'VIC'), MAMA_KING: await rep(playerId, 'MAMA_KING') };
-      await HandcraftedQuestService.claim(app.prisma, playerId, ruleset, 'ML_M15_NAME_IN_THE_MARGIN', { actionId: randomUUID(), branchKey });
-      const cashAfter = (await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: playerId } })).cashCents;
-      expect(cashAfter - cashBefore).toBe(600_000n);
+      // Read from the claim receipt: the balance also moves with the crew's clock-driven income.
+      const receipt = await HandcraftedQuestService.claim(app.prisma, playerId, ruleset, 'ML_M15_NAME_IN_THE_MARGIN', { actionId: randomUUID(), branchKey });
+      expect(receipt.result.rewards.filter((reward) => reward.kind === 'CASH').map((reward) => reward.amount)).toEqual([600_000]);
       // Ledger pays 5 rep for the chapter itself; the choice adds 2 to one contact.
       expect({
         LEDGER: await rep(playerId, 'LEDGER') - repBefore.LEDGER,

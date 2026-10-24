@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV26G, classicOgV26H, LATEST_RULESET, missingLineSideEchoes, missingLineSideQuests } from '../index.js';
+import { classicOgV26G, classicOgV26H, missingLineSideEchoes, missingLineSideQuests } from '../index.js';
 import { questDefinitionProblems } from '../quest-definitions.js';
 import { resolveStoryCopy, type StoryFacts } from '../story-copy.js';
 import type { QuestDefinition, QuestDefinitionCatalog } from '../types.js';
@@ -12,8 +12,8 @@ const isScene = (objective: QuestDefinition['objectives'][number]) => (objective
 const opens = (key: string) => quest(key).prerequisites.map((prerequisite) => prerequisite.params?.questKey);
 
 describe('2.6.0-H The Missing Line side stories', () => {
-  it('ships as the latest ruleset, adding fifteen side quests after the 2.6.0-G catalog', () => {
-    expect(LATEST_RULESET.meta.id).toBe('classic-og-v2.6-h');
+  it('ships in 2.6.0-H, adding fifteen side quests after the 2.6.0-G catalog', () => {
+    expect(classicOgV26H.meta).toMatchObject({ id: 'classic-og-v2.6-h', version: '2.6.0-H' });
     expect(questDefinitionProblems(catalog)).toEqual([]);
     expect(SIDE).toEqual([
       'ML_S01_KEY_UNDER_MAT', 'ML_S02_RENT_ENVELOPE', 'ML_S03_WARM_ROOM',

@@ -84,6 +84,34 @@ Make chapters do more in the game without turning them into chores:
 
 Pinned in a new ruleset, so in-flight rounds are unaffected. Acts III–V are written to this standard from the start.
 
+## Campaign only (2.6.0-I) ✅
+
+**Done:** ruleset `classic-og-v2.6-i` (2.6.0-I), now the default for new rounds (`classic-og-v2.6-i/campaign-only-stories.ts`). The Missing Line is the game's only story.
+
+- **Retired from new rounds:** all 104 older `STORY`/`SIDE` jobs (the Origin chain, the "first names on the board" jobs, specialty paths, the old contact and faction jobs), plus the two `CONTRACT` jobs that could only open after them (`TAKING_SIDES`, `BOARD_COMMISSIONER_UNOFFICIAL_ARRANGEMENT`). Rounds on earlier rulesets keep everything.
+- **Kept unchanged:** daily, weekly, season, city and alliance boards, events, and Hidden Streets secrets. That's 259 jobs, beside the 40 campaign quests.
+- **Unlocks moved onto the campaign:** the 12 permanent unlocks only those jobs granted are now paid by campaign chapters (`CAMPAIGN_UNLOCKS`):
+
+  | Unlock | Chapter |
+  | --- | --- |
+  | Weed recipe | M03 |
+  | Ecstasy access + recipe | M06 |
+  | AK-47 | M13 |
+  | Van | M16 |
+  | Cocaine and Heroin recipes | M19 |
+  | Meth access + recipe | S04 |
+  | Cocaine and Heroin access | S06 |
+  | Out-of-town guns | S09 |
+
+  The store and production screens' "Finish … for …" hints point to these chapters automatically.
+- **Not carried over:** the retired jobs' 37 cosmetics, 20 favor items and 21 faction-standing rewards. Faction standing still comes from the boards. Ace and the Commissioner have no jobs of their own in new rounds.
+- **Tests:**
+  - `campaign-only-stories.test.ts`;
+  - `campaign-only-stories.integration.test.ts`: a fresh board shows only campaign story jobs, and claiming M03 grants the Weed recipe.
+- **Test fixes:**
+  - `story-campaign-evidence` is pinned to 2.6.0-H, because its basket checks use retired jobs.
+  - The campaign's pay checks now read claim receipts rather than cash balances, which drift with the crew's clock-driven background income.
+
 ## Slice A — Audit and contracts (no player-facing change) ✅
 
 **Done:** see [Slice A contract](./STORY-QUEST-CAMPAIGN-SLICE-A.md). It found blocker B1 (Slice A2) and settled the open questions below. The checklist that follows is kept as the record of what was audited.
