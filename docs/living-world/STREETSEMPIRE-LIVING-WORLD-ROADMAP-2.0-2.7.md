@@ -12,7 +12,7 @@
 | **2.0.0** | **Living Streets Stories + Criminal Case Files** | City stories, clues, investigations and meaningful choices | First-class events, Black Book, City Memory, Streets Daily |
 | **2.1.0** | **Crew Loyalty & Legends** | Memorable named crew, loyalty milestones, veteran stories | Crew roster, specialties, training, Empire Legacy |
 | **2.2.0** | **Underworld Operations 2.0** | Coordinated, multi-stage cooperative criminal jobs | Existing Operations, alliances, supply, battle receipts |
-| **2.3.0** | **Adaptive Empire Advisor** | Relevant, explainable suggestions about what to do next | Dashboard, quests, player state, holdings |
+| **2.3.0** | **Scrapped — no active feature** | Empire Advisor implementation removed; do not build downstream dependencies on it | — |
 | **2.4.0** | **Career Storylines** | Narrative identity for five existing careers | Career identity, factions, quests, cosmetic inventory |
 | **2.5.0** | **Rivalries & Vendettas** | Rival histories, personal stakes, anti-griefing guardrails | Turf revenge, combat events, City Memory, NPC gangs |
 | **2.6.0** | **Empire Profit Intelligence** | Actionable earnings, costs, and route/holding performance | Economy ledger, product markets, business settlements |
