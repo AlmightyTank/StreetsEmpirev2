@@ -4438,6 +4438,29 @@ button.se-notification-empty:hover { color: var(--se-text); }
   line-height: 1.5;
 }
 
+.se-tour__mentor,
+.se-tour-offer__mentor,
+.se-tour-tracker__mentor {
+  display: block;
+  max-width: 62ch;
+}
+
+.se-tour__progress {
+  height: 5px;
+  margin: 12px 0 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--se-line) 70%, transparent);
+}
+
+.se-tour__progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--se-accent);
+  transition: width 180ms ease;
+}
+
 .se-tour__dots {
   display: flex;
   gap: 6px;
@@ -4517,6 +4540,25 @@ button.se-notification-empty:hover { color: var(--se-text); }
   font-weight: 700;
 }
 
+.se-tour-tracker__meter,
+.se-tour-offer__progress {
+  display: block;
+  height: 4px;
+  margin-top: 9px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--se-line);
+}
+
+.se-tour-tracker__meter > span,
+.se-tour-offer__progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--se-accent);
+  transition: width 180ms ease;
+}
+
 .se-tour-tracker__actions {
   display: flex;
   flex: 0 0 auto;
@@ -4544,6 +4586,15 @@ button.se-notification-empty:hover { color: var(--se-text); }
 .se-tour-offer .se-tour__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 .se-tour-offer--recap { align-items: center; }
 .se-tour-offer--recap .se-street-sign-display { margin: 10px 0 0; padding: 0; }
+.se-tour-offer__handoff {
+  display: grid;
+  gap: 3px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--se-accent);
+  background: color-mix(in srgb, var(--se-accent) 8%, transparent);
+}
+.se-tour-offer__handoff span { color: var(--se-muted); font-size: .86rem; }
 @media (max-width: 640px) {
   .se-tour-offer { align-items: stretch; flex-direction: column; gap: 12px; }
   .se-tour-offer .se-tour__actions { justify-content: flex-start; }
@@ -4981,4 +5032,7 @@ button.se-notification-empty:hover { color: var(--se-text); }
 
 .se-profile-name-preview__title {
   color: var(--se-accent);
+}
+.se-account-cosmetics [data-tour="build-street-sign"] {
+  scroll-margin-top: 240px;
 }

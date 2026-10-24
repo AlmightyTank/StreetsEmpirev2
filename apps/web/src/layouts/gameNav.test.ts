@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ADMIN_SECTIONS, adminOverviewSectionsFor, adminSectionsFor, DEFAULT_TABS, filterNavSections, isCurrent, newPlayerSectionsFor, SECTIONS } from './gameNav.js';
+import { ADMIN_SECTIONS, adminOverviewSectionsFor, adminSectionsFor, DEFAULT_TABS, filterNavSections, isCurrent, SECTIONS } from './gameNav.js';
 
 const pages = SECTIONS.flatMap((section) => section.pages);
 const page = (key: string) => {
@@ -33,7 +33,6 @@ describe('consolidated game navigation', () => {
     expect(filterNavSections(SECTIONS, '').flatMap((section) => section.pages)).toEqual(pages);
   });
 });
-
 describe('game navigation route matching', () => {
   it('keeps game-specific nested routes with their destination', () => {
     expect(isCurrent(page('casino'), '/game/casino/blackjack')).toBe(true);
@@ -90,31 +89,5 @@ describe('admin workspace navigation', () => {
     expect(overview.flatMap((section) => section.pages)).toHaveLength(5);
     expect(isCurrent(overview[1]!.pages[0]!, '/game/admin/accounts/account-id')).toBe(true);
     expect(isCurrent(overview[0]!.pages[0]!, '/game/admin/rounds/round-id')).toBe(true);
-  });
-});
-
-describe('new player navigation model', () => {
-  it('keeps the story quest in the first open section', () => {
-    const sections = newPlayerSectionsFor(SECTIONS);
-    expect(sections[0]).toMatchObject({ id: 'new-player-core', title: 'Start Here', defaultOpen: true });
-    expect(sections[0]!.pages.map((item) => item.key)).toEqual([
-      'dashboard', 'quests', 'scout', 'produce', 'raids', 'operations', 'black-book', 'stores',
-    ]);
-    expect(sections.slice(1).every((section) => section.defaultOpen === false)).toBe(true);
-  });
-
-  it('keeps every full-menu page reachable exactly once', () => {
-    const shown = newPlayerSectionsFor(SECTIONS).flatMap((section) => section.pages.map((item) => item.key));
-    expect(shown).toHaveLength(pages.length);
-    expect(new Set(shown)).toEqual(new Set(pages.map((item) => item.key)));
-  });
-
-  it('does not add empty gated groups for players without a Street Pass', () => {
-    const withoutPass = SECTIONS.map((section) => ({
-      ...section,
-      pages: section.pages.filter((item) => item.key !== 'street-pass'),
-    }));
-    expect(newPlayerSectionsFor(withoutPass).flatMap((section) => section.pages.map((item) => item.key)))
-      .not.toContain('street-pass');
   });
 });

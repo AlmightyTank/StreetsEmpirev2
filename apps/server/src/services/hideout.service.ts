@@ -42,7 +42,8 @@ type ModuleKey = HideoutRoomKey | 'STORAGE';
 
 type ModuleComponentCost = { key: string; quantity: number };
 const MODULE_COMPONENTS: Record<ModuleKey, (level: number) => ModuleComponentCost[]> = {
-  SAFE_ROOM: (level) => [{ key: 'SCRAP_METAL', quantity: level * 2 }, { key: 'CLOTH', quantity: level }],
+  // Level 1 teaches the cash + turn upgrade loop; components begin at level 2.
+  SAFE_ROOM: (level) => level <= 1 ? [] : [{ key: 'SCRAP_METAL', quantity: level * 2 }, { key: 'CLOTH', quantity: level }],
   LOOKOUTS: (level) => [{ key: 'WIRING', quantity: level * 2 }, { key: 'RADIO', quantity: Math.max(0, level - 1) }],
   WORKSHOP: (level) => [{ key: 'SCRAP_METAL', quantity: level * 2 }, { key: 'TOOL_KIT', quantity: level }, ...(level >= 3 ? [{ key: 'PRECISION_PARTS', quantity: 1 }] : [])],
   BACK_OFFICE: (level) => [{ key: 'WIRING', quantity: level * 2 }, { key: 'RADIO', quantity: level }, ...(level >= 3 ? [{ key: 'SPECIALIST_CIRCUITRY', quantity: 1 }] : [])],

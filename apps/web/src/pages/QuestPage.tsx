@@ -261,12 +261,6 @@ function QuestCard({
   const [showDetails, setShowDetails] = useState(featured || focused || (quest.status === 'READY_TO_TURN_IN' && quest.branchChoices.length > 0));
   const primaryObjective = quest.objectives.find((item) => !item.bonus && !item.completed)
     ?? quest.objectives.find((item) => !item.bonus);
-  const tourTarget = quest.status === 'AVAILABLE'
-    ? 'accept-quest'
-    : quest.status === 'READY_TO_TURN_IN' && !quest.branchChoices.length
-      ? 'complete-quest'
-      : undefined;
-
   useEffect(() => {
     if (focused) setShowDetails(true);
   }, [focused]);
@@ -274,7 +268,6 @@ function QuestCard({
   return (
     <Panel
       id={`quest-${quest.key}`}
-      tourTarget={tourTarget}
       className={'se-quest-card'
         + (featured ? ' se-quest-card--featured' : '')
         + (quest.status === 'READY_TO_TURN_IN' ? ' se-quest-card--ready' : '')

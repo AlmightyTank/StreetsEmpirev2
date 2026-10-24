@@ -1,6 +1,6 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { isString, isTurns, rememberedKey, useRememberedState } from '../utils/remembered.js';
-import { Link, Navigate, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useLocation, useSearchParams } from 'react-router-dom';
 import type { DistrictDto, RandomEncounterChoiceResult, ScoutResult } from '@streets/shared';
 import { formatNumber } from '@streets/shared';
 import { EncounterEggNote } from '../components/EasterEggs.js';
@@ -55,7 +55,10 @@ function coverageTone(district: DistrictDto | undefined): 'good' | 'warn' | 'bad
 
 export function ScoutPage() {
   const me = useSession((s) => s.me);
+  const location = useLocation();
   const [searchParams] = useSearchParams();
+  const tourTarget = (location.state as { tourTarget?: unknown } | null)?.tourTarget;
+  const guidedTourScrolled = useRef(false);
   const requestedDistrict = searchParams.get('district') ?? '';
   const action = useGameAction<ScoutResult>();
   const encounterAction = useGameAction<RandomEncounterChoiceResult>();
@@ -82,9 +85,30 @@ export function ScoutPage() {
       .catch(() => setLoadError('Could not load the districts. Try again in a moment.'));
   }, [crewSize, requestedDistrict]);
 
+  useEffect(() => {
+    if (tourTarget !== 'scout-plan' || guidedTourScrolled.current) return;
+    const frame = window.requestAnimationFrame(() => {
+      const target = document.querySelector('[data-tour="scout-plan"]');
+      if (!target) return;
+      guidedTourScrolled.current = true;
+      target.scrollIntoView({
+        block: 'start',
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+      });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [tourTarget]);
+
+  const available = me?.turns.turns ?? 0;
+  useEffect(() => {
+    if (tourTarget !== 'scout-plan' || available < 1) return;
+    // The first street read should use the full 13-turn trip whenever the
+    // player has enough turns; never push the control beyond what is available.
+    setTurns((current) => Math.min(available, Math.max(13, typeof current === 'number' ? current : 13)));
+  }, [available, setTurns, tourTarget]);
+
   if (!me) return <Navigate to="/join" replace />;
 
-  const available = me.turns.turns;
   const selectedDistrict = districts.find((row) => row.key === district && isScoutDistrictUnlocked(row));
   const exposurePercent = selectedDistrict ? Math.round(selectedDistrict.exposedFraction * 100) : 0;
   const coveredPercent = 100 - exposurePercent;
@@ -187,7 +211,7 @@ export function ScoutPage() {
 
 
 
-        <div className="se-scout-plan">
+        <div className="se-scout-plan" data-tour="scout-plan" data-tour-card-anchor="scout-plan">
           <section className="se-scout-plan__main">
             <div className="se-scout-sectionhead">
               <div>
@@ -296,12 +320,14 @@ export function ScoutPage() {
             chips: resultChips(action.result, receiptLines!),
             receipt: (
               <>
-                <ActionResult
-                  title="Scouting Results"
-                  subtitle={action.result.result.district.name}
-                  result={action.result}
-                  lines={receiptLines!}
-                />
+                <div data-tour="scout-result">
+                  <ActionResult
+                    title="Scouting Results"
+                    subtitle={action.result.result.district.name}
+                    result={action.result}
+                    lines={receiptLines!}
+                  />
+                </div>
                 {pendingEncounter ? (
                   <Panel title={pendingEncounter.title} className="se-scout-panel">
                     <p className="se-scout-copy">{pendingEncounter.text}</p>

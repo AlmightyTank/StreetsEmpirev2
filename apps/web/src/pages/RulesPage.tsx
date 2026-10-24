@@ -83,7 +83,7 @@ export function RulesPage() {
                 <a href="#law"><span>12</span> The law</a>
                 <a href="#factions"><span>13</span> Factions</a>
                 <a href="#rank"><span>14</span> Money & rank</a>
-                <a href="#tour"><span>15</span> Guided tour</a>
+                <a href="#tour"><span>15</span> Guided walkthrough</a>
               </div>
             </aside>
             <div className="se-rules__content">
@@ -450,7 +450,7 @@ export function RulesPage() {
             </ul>
           </Panel></section>
 
-          <section id="tour" className="se-rules__panel"><Panel title="Guided tour">
+          <section id="tour" className="se-rules__panel"><Panel title="Guided walkthrough">
             <ul className="se-list">
               <li>New players start by building a custom street sign, then learn the loop: take a job, scout, stock up, grow the crew, cook a batch, upgrade the hideout, then recon and raid.</li>
               <li>Steps complete on real actions only, and every step pays through its job claim. The raid step counts any resolved attempt: losing still finishes the tour.</li>

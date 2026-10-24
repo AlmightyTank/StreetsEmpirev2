@@ -263,7 +263,9 @@ export function AccountSettingsPage() {
       if (!target) return;
       guidedTourScrolled.current = true;
       target.scrollIntoView({
-        block: 'center',
+        // Keep the whole naming/sign workspace in the interaction viewport and
+        // leave room above it for the anchored walkthrough card.
+        block: 'start',
         behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
       });
     });
@@ -896,21 +898,32 @@ export function AccountSettingsPage() {
             </div>
             <div className="se-account-cosmetics">
               <div>
-                <div className="se-field">
-                  <label className="se-label" htmlFor="crew-name">Crew name</label>
-                  <input
-                    id="crew-name"
-                    className="se-input"
-                    value={cosmetics.crewName ?? ''}
-                    maxLength={CREW_NAME_MAX}
-                    placeholder="No crew name"
-                    autoComplete="off"
-                    onChange={(event) => setCosmetics((current) => ({
-                      ...current,
-                      crewName: event.target.value,
-                    }))}
+                <div data-tour="build-street-sign">
+                  <div className="se-field">
+                    <label className="se-label" htmlFor="crew-name" data-tour-card-anchor="crew-name">Crew name</label>
+                    <input
+                      id="crew-name"
+                      className="se-input"
+                      value={cosmetics.crewName ?? ''}
+                      maxLength={CREW_NAME_MAX}
+                      placeholder="Name your crew"
+                      autoComplete="off"
+                      onChange={(event) => setCosmetics((current) => ({
+                        ...current,
+                        crewName: event.target.value,
+                      }))}
+                    />
+                    {fields.crewName ? <p className="se-error" role="alert">{fields.crewName}</p> : <p className="se-hint">This name is printed on your sign and shown on your profile.</p>}
+                  </div>
+
+                  <StreetSignBuilder
+                    value={cosmetics.streetSign}
+                    crewName={cosmetics.crewName}
+                    savedValue={profileSettings?.settings.streetSign ?? null}
+                    unlockedFontPacks={profileSettings?.options.streetSignFontPacks ?? []}
+                    ownedBackdrops={profileSettings?.options.streetSignBackdrops ?? []}
+                    onChange={(streetSign) => setCosmetics((current) => ({ ...current, streetSign }))}
                   />
-                  {fields.crewName ? <p className="se-error" role="alert">{fields.crewName}</p> : <p className="se-hint">Shown on your profile and searchable in the Players directory. It carries across seasons; leave it blank for none.</p>}
                 </div>
 
                 <div className="se-field">
@@ -931,15 +944,6 @@ export function AccountSettingsPage() {
                     ? <p className="se-error" role="alert">{fields.profileBio}</p>
                     : <p className="se-hint">Plain text only. Shown on your public profile. {formatNumber((cosmetics.profileBio ?? '').length)} / {formatNumber(PROFILE_BIO_MAX)}</p>}
                 </div>
-
-                <StreetSignBuilder
-                  value={cosmetics.streetSign}
-                  crewName={cosmetics.crewName}
-                  savedValue={profileSettings?.settings.streetSign ?? null}
-                  unlockedFontPacks={profileSettings?.options.streetSignFontPacks ?? []}
-                  ownedBackdrops={profileSettings?.options.streetSignBackdrops ?? []}
-                  onChange={(streetSign) => setCosmetics((current) => ({ ...current, streetSign }))}
-                />
 
                 <div className="se-field">
                   <span className="se-label" id="avatar-mode-label">Avatar</span>

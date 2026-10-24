@@ -576,6 +576,20 @@ export const AccountProfileService = {
 
     const crewName = input.crewName === undefined ? undefined : input.crewName;
     const effectiveCrewName = crewName === undefined ? savedProfile?.crewName ?? null : crewName;
+    if (crewName) {
+      const nameOwner = await prisma.accountProfile.findFirst({
+        where: {
+          crewName: { equals: crewName, mode: 'insensitive' },
+          NOT: { accountId },
+        },
+        select: { accountId: true },
+      });
+      if (nameOwner) {
+        throw AppError.badRequest('CREW_NAME_TAKEN', 'That crew name is already in use. Choose a distinct name.', {
+          crewName: 'Crew names must be unique so players can find the right crew.',
+        });
+      }
+    }
     const streetSign = input.streetSign === undefined
       ? undefined
       : input.streetSign === null
@@ -622,9 +636,10 @@ export const AccountProfileService = {
     const profileEffect = input.profileEffect === undefined ? undefined : input.profileEffect;
     const surface = input.profileSurface === undefined ? undefined : input.profileSurface;
 
-    await prisma.accountProfile.upsert({
-      where: { accountId },
-      create: {
+    try {
+      await prisma.accountProfile.upsert({
+        where: { accountId },
+        create: {
         accountId,
         activeTitleKey,
         titlePlacement: input.titlePlacement,
@@ -655,8 +670,8 @@ export const AccountProfileService = {
         moneyFormat: input.moneyFormat,
         defaultLanding: input.defaultLanding,
         showProfanity: input.showProfanity,
-      },
-      update: {
+        },
+        update: {
         activeTitleKey,
         titlePlacement: input.titlePlacement,
         ...(crewName !== undefined ? { crewName } : {}),
@@ -686,8 +701,18 @@ export const AccountProfileService = {
         moneyFormat: input.moneyFormat,
         defaultLanding: input.defaultLanding,
         showProfanity: input.showProfanity,
-      },
-    });
+        },
+      });
+    } catch (error) {
+      // The preflight check gives a useful validation error; this handles two
+      // simultaneous saves racing between the check and the unique index.
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw AppError.badRequest('CREW_NAME_TAKEN', 'That crew name is already in use. Choose a distinct name.', {
+          crewName: 'Crew names must be unique so players can find the right crew.',
+        });
+      }
+      throw error;
+    }
 
     return AccountProfileService.settings(prisma, accountId);
   },

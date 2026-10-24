@@ -75,24 +75,7 @@ describe.runIf(process.env.ONBOARDING_INTEGRATION === '1')('1.0.0-B onboarding w
     const state = (await get(fresh.cookie)).json();
     expect(state.intro).toEqual({ due: true, completedAt: null, skippedAt: null });
     expect(state.seenPages).toEqual([]);
-    expect(state.guide).toMatchObject({ dismissed: false, complete: false });
-    expect(state.guide.steps.every((step: { done: boolean }) => !step.done)).toBe(true);
     expect((await get(veteranCookie)).json().intro.due).toBe(false);
-  });
-
-  it('ticks the four origin beats off from real play', async () => {
-    const log = (type: string, payload: Prisma.InputJsonObject) => app.prisma.playerActivity.create({ data: { roundPlayerId: fresh.playerId, type: type as never, payload } });
-    await log('SCOUT', { turns: 5, thugs: 0, whores: 1 });
-    let steps = Object.fromEntries((await get(fresh.cookie)).json().guide.steps.map((step: { key: string; done: boolean }) => [step.key, step.done]));
-    expect(steps).toEqual({ meet_contact: true, open_front: false, face_encounter: false, choose_career: false });
-
-    await log('BUSINESS_BUILD', { businessKey: 'CORNER_STORE' });
-    await log('RANDOM_ENCOUNTER_CHOICE', { encounterKey: 'test', choice: 'stand_ground' });
-    steps = Object.fromEntries((await get(fresh.cookie)).json().guide.steps.map((step: { key: string; done: boolean }) => [step.key, step.done]));
-    expect(steps).toMatchObject({ open_front: true, face_encounter: true, choose_career: false });
-    await log('CAREER_CHOSEN', { career: 'ENFORCER' });
-    const guide = (await get(fresh.cookie)).json().guide;
-    expect(guide.complete).toBe(true);
   });
 
   it('offers the tour to new players, never by itself to veterans', async () => {
@@ -108,7 +91,7 @@ describe.runIf(process.env.ONBOARDING_INTEGRATION === '1')('1.0.0-B onboarding w
       update: { streetSign: { ...DEFAULT_STREET_SIGN, streetName: 'Cedar' } },
     });
     const marked = (await get(tourCookie)).json().tour;
-    expect(marked.step).toBe('accept-quest');
+    expect(marked.step).toBe('scout-streets');
     expect(marked.steps[0]).toEqual({ key: 'build-street-sign', done: true });
     expect(marked.signRecap).toMatchObject({ streetName: 'Cedar', shape: 'classic' });
     expect((await act(tourCookie, { action: 'dismiss-sign-recap' })).json().tour.signRecap).toBeNull();
@@ -120,17 +103,16 @@ describe.runIf(process.env.ONBOARDING_INTEGRATION === '1')('1.0.0-B onboarding w
 
   it('runs the tour off saved sign data and real play, counting any raid outcome', async () => {
     const log = (type: string, payload: Prisma.InputJsonObject) => app.prisma.playerActivity.create({ data: { roundPlayerId: fresh.playerId, type: type as never, payload } });
-    expect((await act(fresh.cookie, { action: 'start-tour' })).json().tour).toMatchObject({ due: false, active: true, step: 'accept-quest' });
+    expect((await act(fresh.cookie, { action: 'start-tour' })).json().tour).toMatchObject({ due: false, active: true, step: 'scout-streets' });
     const stepsOf = async () => Object.fromEntries((await get(fresh.cookie)).json().tour.steps.map((step: { key: string; done: boolean }) => [step.key, step.done]));
 
-    await log('QUEST_ACCEPTED', { questKey: 'tour-first-job' });
-    expect(await stepsOf()).toMatchObject({ 'accept-quest': true, scout: false });
-    expect((await get(fresh.cookie)).json().tour.step).toBe('scout');
-
-    await log('SCOUT', { turns: 5, thugs: 0, whores: 1 });
-    await log('STORE_BUY', { item: itemName('condoms'), direction: 'buy', quantity: 10 });
-    await log('STORE_BUY', { lines: [{ item: itemName('beer'), direction: 'buy', quantity: 5 }] });
-    expect(await stepsOf()).toMatchObject({ scout: true, 'shop-supplies': true, 'grow-crew': false });
+    await log('SCOUT', { turns: 5, thugs: 0, whores: 1, cashCents: 25_000 });
+    await log('STORE_BUY', { item: itemName('condoms'), direction: 'buy', quantity: 1_000 });
+    await log('STORE_BUY', { lines: [{ item: itemName('beer'), direction: 'buy', quantity: 1_000 }] });
+    await log('STORE_BUY', { item: itemName('medicine'), direction: 'buy', quantity: 15 });
+    await log('STORE_BUY', { item: itemName('pistols'), direction: 'buy', quantity: 5 });
+    await log('STORE_BUY', { item: 'AMMO_CRATE', direction: 'buy', quantity: 1 });
+    expect(await stepsOf()).toMatchObject({ 'scout-streets': true, 'earn-first-payout': true, 'buy-condoms': true, 'buy-beer': true, 'buy-medicine': true, 'buy-pistols': true, 'buy-ammo-crate': true, 'grow-crew': false });
 
     await log('SCOUT', { turns: 5, thugs: 2 });
     await log('STORE_BUY', { item: itemName('thugs'), direction: 'buy', quantity: 1 });
@@ -138,10 +120,11 @@ describe.runIf(process.env.ONBOARDING_INTEGRATION === '1')('1.0.0-B onboarding w
     await log('PRODUCE_CRACK', { turns: 3, productType: 'CRACK', product: 0 });
     await log('PRODUCE_CRACK', { turns: 3, productType: 'CRACK', product: 10 });
     await log('HIDEOUT_UPGRADE', { room: 'safe-room', level: 1 });
-    expect(await stepsOf()).toMatchObject({ 'grow-crew': true, produce: true, 'upgrade-hideout': true, 'recon-raid': false });
+    expect(await stepsOf()).toMatchObject({ 'grow-crew': true, produce: true, 'upgrade-hideout': true, 'recon-rival': false, 'first-raid': false });
 
-    // A lost raid still resolves the attempt and completes the tour.
     await log('COMBAT_RECON', { target: 'rival' });
+    expect((await get(fresh.cookie)).json().tour.step).toBe('first-raid');
+    // A lost raid still resolves the attempt and completes the walkthrough.
     await log('RAID_ATTACK', { won: false });
     const tour = (await get(fresh.cookie)).json().tour;
     expect(tour).toMatchObject({ complete: true, active: false, step: null });
@@ -162,28 +145,23 @@ describe.runIf(process.env.ONBOARDING_INTEGRATION === '1')('1.0.0-B onboarding w
     await log('STORE_SELL', { lines: [{ item: beer, direction: 'buy', quantity: -2 }] });
 
     const steps = Object.fromEntries((await get(fresh.cookie)).json().tour.steps.map((step: { key: string; done: boolean }) => [step.key, step.done]));
-    expect(steps['shop-supplies']).toBe(false);
+    expect(steps['buy-condoms']).toBe(false);
 
     await log('STORE_SELL', { lines: [{ item: condoms, direction: 'buy', quantity: 1 }] });
     await log('STORE_BUY', { lines: [{ item: beer, direction: 'buy', quantity: 1 }] });
     const completed = Object.fromEntries((await get(fresh.cookie)).json().tour.steps.map((step: { key: string; done: boolean }) => [step.key, step.done]));
-    expect(completed['shop-supplies']).toBe(true);
+    expect(completed['buy-condoms']).toBe(false);
   });
 
-  it('remembers intros, replays them, and hides the guide for one season', async () => {
+  it('remembers intros and replays them', async () => {
     expect((await act(fresh.cookie, { action: 'complete-intro' })).json().intro).toMatchObject({ due: false, completedAt: expect.any(String) });
     await act(fresh.cookie, { action: 'see-page', page: 'combat' });
     const seen = await act(fresh.cookie, { action: 'see-page', page: 'stores' });
     expect(seen.json().seenPages).toEqual(['stores', 'combat']);
     expect((await act(fresh.cookie, { action: 'see-page', page: 'nowhere' })).statusCode).toBe(400);
 
-    expect((await act(fresh.cookie, { action: 'dismiss-guide' })).json().guide.dismissed).toBe(true);
-    // A new season shows the guide again: the dismissal belongs to the round it was made in.
-    await app.prisma.accountProfile.update({ where: { accountId: fresh.accountId }, data: { onboarding: { guideDismissedRoundId: 'an-older-round', introCompletedAt: new Date().toISOString() } } });
-    expect((await get(fresh.cookie)).json().guide.dismissed).toBe(false);
-
     const replay = (await act(fresh.cookie, { action: 'replay' })).json();
-    expect(replay).toMatchObject({ intro: { due: true, completedAt: null }, seenPages: [], guide: { dismissed: false } });
+    expect(replay).toMatchObject({ intro: { due: true, completedAt: null }, seenPages: [] });
     expect((await act(fresh.cookie, { action: 'skip-intro' })).json().intro).toMatchObject({ due: false, skippedAt: expect.any(String) });
   });
 });
