@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV26C, classicOgV26D, LATEST_RULESET, missingLineActThree } from '../index.js';
+import { classicOgV26C, classicOgV26D, missingLineActThree } from '../index.js';
 import { questDefinitionProblems } from '../quest-definitions.js';
 import type { QuestDefinition, QuestDefinitionCatalog } from '../types.js';
 
@@ -10,8 +10,8 @@ const quest = (key: string) => catalog[key] as QuestDefinition;
 const isScene = (objective: QuestDefinition['objectives'][number]) => (objective.params?.eventTypes as string[] | undefined)?.includes('QUEST_STORY_SCENE');
 
 describe('2.6.0-D The Missing Line, Act III', () => {
-  it('ships as the latest ruleset on top of 2.6.0-C, which keeps Act II closed', () => {
-    expect(LATEST_RULESET.meta.id).toBe('classic-og-v2.6-d');
+  it('ships in 2.6.0-D on top of 2.6.0-C, which keeps Act II closed', () => {
+    expect(classicOgV26D.meta).toMatchObject({ id: 'classic-og-v2.6-d', version: '2.6.0-D' });
     expect(questDefinitionProblems(catalog)).toEqual([]);
     expect(before.ML_M10_FAVOR_ALREADY_PAID?.followUpKeys).toEqual([]);
     expect(Object.keys(missingLineActThree)).toEqual(['ML_M10_FAVOR_ALREADY_PAID', ...ACT]);

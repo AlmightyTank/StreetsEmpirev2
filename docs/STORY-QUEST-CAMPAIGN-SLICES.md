@@ -215,7 +215,27 @@ The card opens its details when a scene becomes playable. Chapter copy keeps par
 - M15 Your Name in the Margin: first **turn-in branch** (Dispute / Leave it / Keep a copy), all leading to M16 with equal rewards.
 - **Done when:** each M15 branch is recorded in `chosenBranch`, shown in the quest history, and leads to M16.
 
-## Slice G — Act IV, "The Road Keeps Its Own Books" (Main 16–20)
+## Slice G — Act IV, "The Road Keeps Its Own Books" (Main 16–20) ✅
+
+**Done:** ruleset `classic-og-v2.6-e` (2.6.0-E), now the default for new rounds (`classic-og-v2.6-e/missing-line-act-4.ts`). `ML_M15_NAME_IN_THE_MARGIN` is re-issued so every choice leads to Mile Marker Nine; its options pay exactly as before. Nothing in the act needs turf or a fight.
+
+| # | Chapter (contact) | Work | Scene |
+| --- | --- | --- | --- |
+| 16 | Mile Marker Nine (Wheels) | bring a run home | the depot that isn't on any map, and Eli's name on the list |
+| 17 | Passenger No. 9 (Wheels) | reach Eli first, then buy a Low-Rider from Charlie to get him out | Eli's account and the torn page |
+| 18 | What Mama Bought (Mama) | scene-led confession | the fire on Delancey: settle quietly, or tell the families |
+| 19 | The Honest Scale (Pip) | sell Pip 20 units | squaring it with the supplier |
+| 20 | The Map in the Margins (Blocks) | walk the corridor: scout 3 different districts | the debts under the corridor |
+
+- **New evidence:** `UNIQUE_VALUES` on the scout `districtKey`.
+- **The car:** the Low-Rider ($5,000) was picked because Sedans can be locked behind a permanent unlock.
+- **Rewards:** $6,500–$8,000 per chapter, $35,000 for the act; M17 pays more than the car it asks for.
+- **Tests:**
+  - `missing-line-act-4.test.ts`;
+  - `missing-line-act-4.integration.test.ts` confirms each Act III choice opens M16, and plays M16–M20 with the real run, store and scouting actions (a repeated district doesn't count twice).
+
+**Plan as written:**
+
 
 - M16 (`RUN_RETURNED`), M17 Passenger No. 9 (scene), M18 What Mama Bought (scene, response recorded), M19 The Honest Scale (`STORE_SELL`/PIP), M20 The Map in the Margins (scene, no turf requirement).
 - **Done when:** the chain plays through, and the M18 response is readable by Slice H.
