@@ -262,6 +262,19 @@ export async function handleTicketButton(interaction: ButtonInteraction, deps: S
     if (posted?.embeds[0]) {
       await posted.edit(plainDiscordMessage(closedStaffMessage(posted.embeds[0].toJSON(), posted.components.map((row) => row.toJSON() as APIActionRowComponent<APIComponentInMessageActionRow>), closedBy)))
         .catch((error: unknown) => console.warn(`Could not mark support ticket ${ticket.id} closed in the staff channel:`, error));
+    } else if (posted) {
+      const links = posted.components.flatMap((row) => row.components.map((component) => component.toJSON())).filter((component): component is APIButtonComponent =>
+        component.type === ComponentType.Button && component.style === ButtonStyle.Link);
+      const components: APIActionRowComponent<APIComponentInMessageActionRow>[] = links.length
+        ? [{ type: ComponentType.ActionRow, components: links }]
+        : [];
+      await posted.edit({
+        content: `${posted.content.replace('🎫 Support ticket:', '✅ Closed ticket:')}\n\nClosed by **${escapeMarkdown(closedBy)}**.`,
+        embeds: [],
+        components,
+        flags: MessageFlags.SuppressEmbeds,
+        allowedMentions: { parse: [] },
+      }).catch((error: unknown) => console.warn(`Could not mark support ticket ${ticket.id} closed in the staff channel:`, error));
     }
     await interaction.editReply({ content: 'Ticket closed.' });
     // Locking needs Manage Threads; archiving alone still tidies it away.
