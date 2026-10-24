@@ -100,7 +100,7 @@ export function projectProfitGroups(input: {
     .map(([source, value]) => ({ source, classification: profitClassificationForSource(source), ...totalsDto(value) }))
     .sort((a, b) => a.source.localeCompare(b.source));
   const byCity: ProfitIntelligenceCityTotalDto[] = [...byCityMap.entries()]
-    .map(([citySlug, value]) => ({
+    .map(([citySlug, value]): ProfitIntelligenceCityTotalDto => ({
       citySlug: citySlug || null,
       cityName: citySlug ? input.ruleset.cities?.[citySlug]?.name ?? citySlug : null,
       attribution: citySlug ? 'KNOWN_CITY' : 'UNKNOWN_CITY',
