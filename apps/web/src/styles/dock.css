@@ -286,3 +286,58 @@
     overflow: auto;
   }
 }
+
+/* Windows-style minimize control for the sticky action dock. */
+.se-dock__toolbar {
+  display: flex;
+  min-height: 27px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 3px 5px 0 10px;
+}
+
+.se-dock__minimized-label {
+  color: var(--se-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.se-dock__window-control {
+  display: grid;
+  width: 34px;
+  height: 23px;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--se-text);
+  background: transparent;
+  cursor: pointer;
+}
+
+.se-dock__window-control:hover {
+  border-color: var(--se-line);
+  background: color-mix(in srgb, var(--se-accent) 12%, transparent);
+}
+
+.se-dock__window-control:focus-visible {
+  outline: 2px solid var(--se-accent);
+  outline-offset: 1px;
+}
+
+.se-dock__window-control svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: square;
+  stroke-width: 1.5;
+}
+
+.se-dock--minimized {
+  min-height: 33px;
+}
+
+.se-dock__content[hidden] {
+  display: none;
+}

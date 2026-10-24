@@ -93,12 +93,29 @@ export function ActionDock({
 }) {
   const [openReceipt, setOpenReceipt] = useState<unknown>(null);
   const [openChips, setOpenChips] = useState<unknown>(null);
+  const [minimized, setMinimized] = useState(false);
   const expanded = outcome ? openReceipt === outcome.id : false;
   const allChips = outcome ? openChips === outcome.id : false;
   const visibleChips = outcome ? (allChips ? outcome.chips : outcome.chips.slice(0, 3)) : [];
 
   return (
-    <form className="se-dock" aria-label={label} onSubmit={onSubmit}>
+    <form className={`se-dock${minimized ? ' se-dock--minimized' : ''}`} aria-label={label} onSubmit={onSubmit}>
+      <div className="se-dock__toolbar">
+        <span className="se-dock__minimized-label">{minimized ? label : ''}</span>
+        <button
+          type="button"
+          className="se-dock__window-control"
+          aria-label={minimized ? 'Restore action dock' : 'Minimize action dock'}
+          aria-expanded={!minimized}
+          title={minimized ? 'Restore action dock' : 'Minimize action dock'}
+          onClick={() => setMinimized((value) => !value)}
+        >
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <path d={minimized ? 'M4 4h8v8H4z' : 'M3 11h10'} />
+          </svg>
+        </button>
+      </div>
+      <div className="se-dock__content" hidden={minimized}>
       <div className="se-dock__outcome" aria-live="polite">
         {outcome ? (
           <div className="se-dock__result" key={String(outcome.id)}>
@@ -149,6 +166,7 @@ export function ActionDock({
         ) : null}
       </div>
       <div className="se-dock__controls">{children}</div>
+      </div>
     </form>
   );
 }
