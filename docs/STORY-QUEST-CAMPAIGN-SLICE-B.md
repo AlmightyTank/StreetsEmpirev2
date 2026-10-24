@@ -68,6 +68,6 @@ Migration: `prisma/migrations/20261220000000_quest_story_scenes`.
   - abandon and re-take with a new answer;
   - ruleset pinning.
 
-## Left for Slice C
+## Slice C (done)
 
-The web quest card doesn't render scenes yet. It still draws an empty **Lesson** block for a story job without a lesson. Slice C renders `story.scenes`, posts to the endpoint above, and hides the block when `lesson` is absent.
+The web quest card renders `story.scenes`, posts to the endpoint above (`questsApi.respondToScene`), and hides the **Lesson** block when `lesson` is absent. See the slices doc.

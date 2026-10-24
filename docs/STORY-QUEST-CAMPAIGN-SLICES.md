@@ -10,7 +10,7 @@ The order: build the systems first (A–C), ship Act I as a playable pilot (D), 
 A Audit & contracts (done)
 ├─ A2 Basket checkout evidence fix (done)
 └─ B Story-scene engine (server) (done)
-   └─ C Story-scene UI (Quest page)
+   └─ C Story-scene UI (Quest page) (done)
       └─ D PILOT: Act I (Main 1–5) + new ruleset
          ├─ E Act II (Main 6–10) ──┬─ K Side: Pip arc (S4–S6)
          │                         └─ L Side: Tommy arc (S7–S9)
@@ -84,7 +84,14 @@ Side slices K–O depend only on the main slice they branch from and can be buil
 - **Tests:** happy path, double submit, wrong quest/inactive quest, scene out of order, concurrent submit, ruleset pinning.
 - **Done when:** a test-only quest with one scene can be accepted, answered, completed, and claimed, with one activity and one receipt.
 
-## Slice C — Story-scene UI (Quest page)
+## Slice C — Story-scene UI (Quest page) ✅
+
+**Done:** `apps/web/src/components/QuestStoryScenes.tsx` renders each scene on the quest card in one of three states:
+- **locked:** title plus a hint, with no prose;
+- **open:** prose plus one button per response. Answering asks for confirmation through the same dialog as branch choices;
+- **answered:** the chosen response and its outcome.
+
+The card opens its details when a scene becomes playable. Chapter copy keeps paragraph breaks, the **Lesson** block is hidden when there's no lesson, and scene titles are searchable. Checked in the running app at 1280px and 390px with a demo ruleset: the scene was answered, confirmed, and the job moved to *Ready to collect*.
 
 **Goal:** players can read and answer a scene on the active quest card.
 
