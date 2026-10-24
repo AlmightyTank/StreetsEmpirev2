@@ -481,6 +481,12 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
         detail: 'Return to Quests to collect payment.',
       };
 
+    case 'QUEST_STORY_SCENE':
+      return {
+        text: `Made your choice in ${str(p.title, 'a job')}.`,
+        detail: str(p.sceneTitle) || undefined,
+      };
+
     case 'QUEST_CLAIMED':
       return {
         text: `Collected payment for ${str(p.title, 'a quest')}.`,

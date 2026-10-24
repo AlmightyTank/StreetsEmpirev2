@@ -1770,6 +1770,7 @@ model PlayerQuest {
   questDefinitionId String
   questDefinition   QuestDefinition        @relation(fields: [questDefinitionId], references: [id], onDelete: Restrict)
   progressReceipts  QuestProgressReceipt[]
+  sceneResponses    QuestSceneResponse[]
 
   attempt   Int         @default(1)
   status    QuestStatus @default(AVAILABLE)
@@ -1800,6 +1801,23 @@ model PlayerQuest {
 /// Idempotency/audit receipt for one source event applied to one quest attempt.
 /// The source key is usually activity:<PlayerActivity.id>; explicit emitters may
 /// use another stable domain key.
+/// Story campaign. The response a player chose in one authored scene of one quest attempt.
+/// One row per attempt and scene, so answering is idempotent and the choice can be read back
+/// by later story copy and the story archive.
+model QuestSceneResponse {
+  id String @id @default(cuid())
+
+  playerQuestId String
+  playerQuest   PlayerQuest @relation(fields: [playerQuestId], references: [id], onDelete: Cascade)
+
+  sceneKey    String
+  responseKey String
+
+  createdAt DateTime @default(now())
+
+  @@unique([playerQuestId, sceneKey])
+}
+
 model QuestProgressReceipt {
   id String @id @default(cuid())
 
@@ -4372,6 +4390,7 @@ enum ActivityType {
   QUEST_READY
   QUEST_CLAIMED
   QUEST_ACCEPTED
+  QUEST_STORY_SCENE
   STREET_PASS_CLAIMED
   FAVOR_ACTIVATED
   FAVOR_DISARMED

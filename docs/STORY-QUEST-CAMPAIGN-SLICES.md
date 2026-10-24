@@ -9,7 +9,7 @@ The order: build the systems first (A–C), ship Act I as a playable pilot (D), 
 ```
 A Audit & contracts (done)
 ├─ A2 Basket checkout evidence fix (done)
-└─ B Story-scene engine (server)
+└─ B Story-scene engine (server) (done)
    └─ C Story-scene UI (Quest page)
       └─ D PILOT: Act I (Main 1–5) + new ruleset
          ├─ E Act II (Main 6–10) ──┬─ K Side: Pip arc (S4–S6)
@@ -66,7 +66,9 @@ Side slices K–O depend only on the main slice they branch from and can be buil
 - **Tests:** extend `story-campaign-evidence.integration.test.ts` so the basket case matches Pip and Tommy objectives; add mixed-basket and sum cases.
 - **Done when:** a mixed basket credits Pip and Tommy objectives line by line, exactly once, through the real pipeline.
 
-## Slice B — Story-scene engine (server)
+## Slice B — Story-scene engine (server) ✅
+
+**Done:** see [Slice B contract](./STORY-QUEST-CAMPAIGN-SLICE-B.md) for the authoring format, endpoint, and rules.
 
 **Goal:** the one new system piece the Objective Map calls for, built and tested on a test-only quest.
 
@@ -91,6 +93,7 @@ Side slices K–O depend only on the main slice they branch from and can be buil
 - Mobile layout, keyboard and screen-reader support, consistent with the quest page.
 - Keep the labeling separate: story-scene panels must not look like tutorial highlights.
 - Hide the quest card's **Lesson** block when a quest has no `lesson`, and give chapter prose room for more than one line.
+- Post answers to `POST /api/game/quests/:key/scenes/:sceneKey` with `{ responseKey }`. Render from `story.scenes[]`: show `available`, the response buttons, and the recorded `response.outcome` (see the Slice B contract).
 - **Done when:** the Slice B test quest is playable end to end in the web app on desktop and mobile widths.
 
 ## Slice D — PILOT: Act I, "A Name in the Rain" (Main 1–5)

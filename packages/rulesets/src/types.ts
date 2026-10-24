@@ -293,10 +293,35 @@ export interface QuestStoryDefinition {
   readonly ready: string;
   /** Contact-flavored closing line after payment is collected. */
   readonly completed: string;
-  /** Plain-language system lesson this job is teaching. */
-  readonly lesson: string;
+  /** Plain-language system lesson this job is teaching. Story-campaign jobs teach nothing and omit it. */
+  readonly lesson?: string;
   /** Short actionable nudge toward the screen/action that advances the job. */
   readonly actionHint: string;
+  /**
+   * Story campaign. Authored moments on the active quest card: the player reads the scene and
+   * picks a response, and the server records it as a QUEST_STORY_SCENE event. A scene advances
+   * an EVENT_COUNT objective filtered on `where: { questKey, sceneKey }`.
+   */
+  readonly scenes?: readonly QuestStorySceneDefinition[];
+}
+
+export interface QuestStorySceneDefinition {
+  /** Stable lower_snake key, unique within the quest. Recorded with the response; never rename. */
+  readonly key: string;
+  readonly title: string;
+  readonly prose: string;
+  readonly responses: readonly QuestStorySceneResponseDefinition[];
+  /** Required objective ids that must be complete before the scene opens, e.g. the store visit it follows. */
+  readonly after?: readonly string[];
+}
+
+export interface QuestStorySceneResponseDefinition {
+  /** Stable lower_snake key, unique within the scene. Recorded with the response; never rename. */
+  readonly key: string;
+  /** What the player chooses, e.g. "Return it unopened". */
+  readonly label: string;
+  /** What happens, shown once the response is recorded. */
+  readonly outcome: string;
 }
 
 export type ContactKey =
