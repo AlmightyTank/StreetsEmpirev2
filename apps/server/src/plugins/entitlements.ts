@@ -27,7 +27,16 @@ const entitlementsPlugin: FastifyPluginAsync = async (fastify) => {
     log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
     transactionOptions: { maxWait: 10_000, timeout: 15_000 },
   });
-  await prisma.$connect();
+  try {
+    await prisma.$connect();
+  } catch (error) {
+    await prisma.$disconnect().catch(() => undefined);
+    if (env.sharedEntitlements.enabled) throw error;
+    fastify.log.warn('Shared entitlement database is unreachable; continuing with shared entitlements unavailable because SHARED_ENTITLEMENTS_ENABLED=false.');
+    configureSharedEntitlements(null);
+    fastify.decorate('entitlements', null);
+    return;
+  }
   // Keep the canonical connection available to player account linking
   // before shared runtime mode is enabled. Wallet routes still obey the
   // explicit SHARED_ENTITLEMENTS_ENABLED switch in sharedEntitlementRuntime.
