@@ -147,7 +147,9 @@ export function ContactRoomPage() {
     <GameLayout>
       <div className="se-room" data-contact={contactKey.toLowerCase()} ref={roomRef}>
         <div className="se-room__scene" aria-hidden="true">
-          {art ? <img className="se-room__figure" src={art} alt="" draggable={false} /> : null}
+          {art
+            ? <img className="se-room__figure" src={art} alt="" draggable={false} />
+            : contact ? <span className="se-room__figure se-room__figure--silhouette" /> : null}
         </div>
         <div className="se-room__front">
           <Link className="se-room__leave" to="/game/quests#contact-standing">← All contacts</Link>

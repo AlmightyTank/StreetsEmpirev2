@@ -28,6 +28,7 @@
 .se-room[data-contact='ledger'] { --room-tint: 240, 220, 150; }
 .se-room[data-contact='ace'] { --room-tint: 240, 190, 80; }
 .se-room[data-contact='commissioner'] { --room-tint: 150, 180, 220; }
+.se-room[data-contact='mara_venn'] { --room-tint: 170, 190, 200; }
 
 .se-room__scene {
   position: absolute;
@@ -61,6 +62,16 @@
   filter: saturate(0.9) contrast(1.05) drop-shadow(0 18px 40px rgba(0, 0, 0, 0.6));
   -webkit-mask-image: radial-gradient(circle at 50% 45%, #000 52%, transparent 72%);
   mask-image: radial-gradient(circle at 50% 45%, #000 52%, transparent 72%);
+}
+
+/* A contact without portrait art is a figure in shadow: head and shoulders against the lamp. */
+.se-room__figure--silhouette {
+  display: block;
+  background:
+    radial-gradient(ellipse 15% 18% at 50% 33%, #050507 0 98%, transparent 100%),
+    linear-gradient(#050507, #050507) 50% 52% / 13% 16% no-repeat,
+    radial-gradient(ellipse 40% 30% at 50% 86%, #050507 0 98%, transparent 100%),
+    radial-gradient(circle at 50% 40%, rgba(var(--room-tint), 0.22), transparent 62%);
 }
 
 .se-room__front {

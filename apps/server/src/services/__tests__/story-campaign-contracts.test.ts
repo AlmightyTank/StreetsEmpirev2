@@ -84,9 +84,8 @@ describe('story campaign Slice A contracts', () => {
     expect(LATEST_RULESET.stores).toHaveProperty('TOMMY');
     expect(LATEST_RULESET.supplyNetwork?.enabled).toBe(true);
     expect(LATEST_RULESET.travel?.runs).toBeDefined();
-    // Contacts are pinned per ruleset. Ledger already exists (Marisol Pike); Mara Venn arrives with Act V.
+    // Contacts are pinned per ruleset. Ledger already existed (Marisol Pike); Mara Venn arrived with Act V.
     const contacts = LATEST_RULESET.contacts ?? {};
-    for (const key of ['MAMA_KING', 'PIP', 'TOMMY', 'WHEELS', 'VIC', 'BLOCKS', 'LEDGER']) expect(contacts).toHaveProperty(key);
-    expect(contacts).not.toHaveProperty('MARA_VENN');
+    for (const key of ['MAMA_KING', 'PIP', 'TOMMY', 'WHEELS', 'VIC', 'BLOCKS', 'LEDGER', 'MARA_VENN']) expect(contacts).toHaveProperty(key);
   });
 });

@@ -27,6 +27,7 @@ const GREETINGS: Readonly<Record<string, string>> = {
   LEDGER: 'Sit. Don’t touch the files.',
   ACE: 'Table minimums are posted. Everything else is negotiable.',
   COMMISSIONER: 'Make it brief. I am not your friend.',
+  MARA_VENN: 'Sit. Nobody here is armed. That’s the point.',
 };
 
 /** Contacts who also keep a counter, and where it is. */

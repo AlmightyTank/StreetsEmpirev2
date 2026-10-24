@@ -266,7 +266,33 @@ The card opens its details when a scene becomes playable. Chapter copy keeps par
 - Retrofit a few lines in Acts III–IV to prove it out (for example, M16–M18 lines that mention the M15 stance).
 - **Done when:** changing an earlier choice on a test player changes the resolved text, and a missing or uninstalled side quest falls back to the default.
 
-## Slice I — Act V, "Who Keeps the Book" (Main 21–25) and endings
+## Slice I — Act V, "Who Keeps the Book" (Main 21–25) and endings ✅
+
+**Done:** ruleset `classic-og-v2.6-g` (2.6.0-G), now the default for new rounds (`classic-og-v2.6-g/missing-line-act-5.ts`). It adds the `MARA_VENN` contact ("The Clearinghouse"; her room shows a silhouette until she has art). `ML_M20_MAP_IN_THE_MARGINS` is re-issued to open the act.
+
+| # | Chapter (contact) | Work | Scene / choice |
+| --- | --- | --- | --- |
+| 21 | The Man Who Signed Twice (Blocks) | scout Wino Slums to find him | his two papers |
+| 22 | No One Owes Alone (Mama) | scene-led | every account on one table |
+| 23 | The Last Appointment (Mara) | scene: her offer | **turn-in:** Accept / Refuse / Ask for the book first |
+| 24 | Everybody at the Table (Mama) | 10 beer from the Corner | whose concern goes first (six contacts) |
+| 25 | The Missing Line (Mama) | scene: the original book | **ending:** Open / Burn / Keep the Book |
+
+- **Echoes (Slice H):**
+  - Mara's opening line answers the M15 stance;
+  - the M24 intro answers the M23 answer;
+  - the M25 ready line remembers how Mama settled her debt (M18);
+  - the M25 closing line is the chosen ending.
+- **Choices pay the same:** every M23 and M25 option pays the same and only tilts one contact (+2).
+- **Nothing locks:** no unlock, item, cosmetic or specialty reward anywhere, and no non-campaign job depends on the campaign.
+- **Stored ending:** the ending is `chosenBranch` on `ML_M25_MISSING_LINE`, a stable server-side key for later content and contact dialogue.
+- **Rewards:** $8,500–$15,000 per chapter, $51,000 for the act.
+- **Tests:**
+  - `missing-line-act-5.test.ts`;
+  - `missing-line-act-5.integration.test.ts` plays M21–M22 with the real scout, then **all 3 × 3 combinations** of M23 and M25. Each finishes the campaign, pays exactly the same, records both choices, and shows its own ending in history.
+
+**Plan as written:**
+
 
 - Add the `MARA_VENN` contact.
 - M21 (scene), M22 No One Owes Alone (scene; requires the main clue chain only, never side quests), M23 The Last Appointment (turn-in branch: `MEET_MARA_ACCEPT` / `REFUSE` / `DEFER`), M24 Everybody at the Table (scene), M25 The Missing Line (ending branch: `OPEN_BOOK` / `BURN_BOOK` / `KEEP_BOOK`).

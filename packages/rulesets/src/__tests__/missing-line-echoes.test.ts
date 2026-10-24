@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV26E, classicOgV26F, LATEST_RULESET, missingLineEchoes } from '../index.js';
+import { classicOgV26E, classicOgV26F, missingLineEchoes } from '../index.js';
 import { questDefinitionProblems } from '../quest-definitions.js';
 import type { QuestDefinition, QuestDefinitionCatalog } from '../types.js';
 
@@ -10,8 +10,8 @@ const quest = (key: string) => catalog[key] as QuestDefinition;
 const conditions = (key: string) => quest(key).story!.variants!.map((variant) => variant.when);
 
 describe('2.6.0-F The Missing Line remembers', () => {
-  it('ships as the latest ruleset and changes only the story lines of three chapters', () => {
-    expect(LATEST_RULESET.meta.id).toBe('classic-og-v2.6-f');
+  it('ships in 2.6.0-F and changes only the story lines of three chapters', () => {
+    expect(classicOgV26F.meta).toMatchObject({ id: 'classic-og-v2.6-f', version: '2.6.0-F' });
     expect(questDefinitionProblems(catalog)).toEqual([]);
     expect(Object.keys(catalog)).toEqual(Object.keys(before));
     expect(Object.keys(missingLineEchoes)).toEqual(ECHOING);
