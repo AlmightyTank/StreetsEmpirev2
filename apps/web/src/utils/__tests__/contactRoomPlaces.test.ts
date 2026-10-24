@@ -23,6 +23,12 @@ describe('contact room places', () => {
     expect(new Set(Object.values(JOB_PLACES))).toEqual(new Set(Object.keys(PLACES)));
   });
 
+  it('sets every campaign chapter somewhere, apart from the three that happen at home', () => {
+    const campaign = Object.keys(LATEST_RULESET.questDefinitions ?? {}).filter((key) => key.startsWith('ML_'));
+    expect(campaign.filter((key) => !JOB_PLACES[key]).sort())
+      .toEqual(['ML_M18_WHAT_MAMA_BOUGHT', 'ML_M23_LAST_APPOINTMENT', 'ML_S09_RACK_KEPT_OPEN']);
+  });
+
   it('shows the contact in their own room when nothing takes them elsewhere', () => {
     expect(roomSetting([quest('ML_M18_WHAT_MAMA_BOUGHT', 'ACTIVE')], 'MAMA_KING', { kind: 'hub' }))
       .toEqual({ name: 'Mama’s kitchen', art: '/rooms/mama-king.svg' });

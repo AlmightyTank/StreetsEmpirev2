@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 480">
+  <!-- A glass office lobby after hours: a directory board of company names, a marble desk, elevators, a potted palm. -->
+  <defs>
+    <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1a1e24"/><stop offset="1" stop-color="#0e1116"/></linearGradient>
+    <radialGradient id="down" cx=".5" cy=".02" r=".6"><stop offset="0" stop-color="#f0f4ff" stop-opacity=".38"/><stop offset="1" stop-color="#a0b0d0" stop-opacity="0"/></radialGradient>
+    <linearGradient id="marble" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e8e8e4"/><stop offset="1" stop-color="#a8aaa8"/></linearGradient>
+  </defs>
+  <rect width="1200" height="480" fill="url(#wall)"/>
+  <!-- Glass curtain wall with the street outside, left -->
+  <rect x="0" y="0" width="300" height="420" fill="#0a1220"/>
+  <g stroke="#3a4250" stroke-width="6"><path d="M100 0v420M200 0v420M0 140h300M0 280h300"/></g>
+  <g fill="#ffcf6a" fill-opacity=".3"><circle cx="60" cy="380" r="4"/><circle cx="160" cy="370" r="3"/><circle cx="250" cy="390" r="5"/></g>
+  <!-- Directory board -->
+  <rect x="830" y="70" width="260" height="210" fill="#0a0c10" stroke="#8a8a90" stroke-width="4"/>
+  <text x="960" y="100" text-anchor="middle" font-family="Arial, sans-serif" font-weight="700" font-size="14" fill="#c8c8d0" letter-spacing="4">DIRECTORY</text>
+  <g font-family="Arial, sans-serif" font-size="14" fill="#e8e8f0" fill-opacity=".8"><text x="850" y="134">DELANCEY HOLDINGS LLC</text><text x="1070" y="134" text-anchor="end">4</text><text x="850" y="164">CORRIDOR PARTNERS</text><text x="1070" y="164" text-anchor="end">7</text><text x="850" y="194">NORTH ROAD FREIGHT</text><text x="1070" y="194" text-anchor="end">7</text><text x="850" y="224">V. CLEARING SERVICES</text><text x="1070" y="224" text-anchor="end">12</text><text x="850" y="254">SUITE AVAILABLE</text></g>
+  <!-- Elevators -->
+  <g fill="#6a6e78" stroke="#2a2e36" stroke-width="4"><rect x="1110" y="140" width="80" height="280"/></g><path d="M1150 140v280" stroke="#2a2e36" stroke-width="3"/>
+  <circle cx="1100" cy="120" r="6" fill="#e8c840"/>
+  <!-- Potted palm -->
+  <path d="M370 420l-14-60h70l-14 60z" fill="#3a3a40"/>
+  <g stroke="#3a7a4a" stroke-width="8" stroke-linecap="round" fill="none"><path d="M390 360c-10-60-60-80-80-80M390 360c0-70 40-100 70-100M390 360c-30-40-80-30-90-20M390 360c20-50 70-50 80-40"/></g>
+  <rect width="1200" height="480" fill="url(#down)"/>
+  <!-- Marble desk edge -->
+  <rect y="420" width="1200" height="60" fill="url(#marble)"/><rect y="416" width="1200" height="6" fill="#c8a040" fill-opacity=".7"/>
+  <rect x="740" y="426" width="90" height="10" fill="#2a2e36"/><path d="M500 432h90v8h-90z" fill="#efe6d2"/>
+</svg>

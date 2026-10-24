@@ -80,32 +80,62 @@ export const PLACES = {
   SUPPLIER_WAREHOUSE: { name: 'The supplier’s warehouse', art: '/rooms/places/supplier-warehouse.svg' },
   LONG_TABLE: { name: 'Every chair out', art: '/rooms/places/long-table.svg' },
   HOSPITAL: { name: 'The hospital, at shift change', art: '/rooms/places/hospital-corridor.svg' },
+  LOADING_DOCK: { name: 'The loading dock out back', art: '/rooms/places/loading-dock.svg' },
+  NIGHT_CURB: { name: 'The curb outside Mama’s', art: '/rooms/places/night-curb.svg' },
+  PIP_STOCKROOM: { name: 'Pip’s stockroom', art: '/rooms/places/pip-stockroom.svg' },
+  GUN_CAGE: { name: 'Tommy’s gun cage', art: '/rooms/places/gun-cage.svg' },
+  DINER: { name: 'An all-night diner', art: '/rooms/places/diner.svg' },
+  PARKING_GARAGE: { name: 'A parking garage, level three', art: '/rooms/places/parking-garage.svg' },
+  FIRING_RANGE: { name: 'Tommy’s basement range', art: '/rooms/places/firing-range.svg' },
+  TURF_MAP: { name: 'Blocks’ map room', art: '/rooms/places/turf-map.svg' },
+  ROOFTOP: { name: 'A rooftop on the corridor', art: '/rooms/places/rooftop.svg' },
+  DELANCEY: { name: 'Delancey Street', art: '/rooms/places/delancey.svg' },
+  PAWN_SHOP: { name: 'The apprentice’s pawn shop', art: '/rooms/places/pawn-shop.svg' },
+  OFFICE_LOBBY: { name: 'An office lobby downtown', art: '/rooms/places/office-lobby.svg' },
 } as const satisfies Record<string, RoomSetting>;
 
-/** The Missing Line chapters that happen somewhere other than the contact's own room. */
+/**
+ * The Missing Line chapters that happen somewhere other than the contact's own room. Three stay
+ * home on purpose: Mama's untouched tea (M18), Mara's appointment in the Clearinghouse (M23) and
+ * the rack Tommy clears behind his own counter (S09).
+ */
 export const JOB_PLACES: Readonly<Record<string, keyof typeof PLACES>> = {
   ML_M01_NIGHT_RECEIPT: 'PORCH_RAIN',
   ML_M02_SMALL_FAVOR: 'CORNER_SHOP',
+  ML_M03_OTHER_DOOR: 'LOADING_DOCK',
+  ML_M04_ROLL_CALL: 'NIGHT_CURB',
   ML_M05_MISSING_LINE: 'RECORDS_ROOM',
+  ML_M06_PIPS_COUNT: 'PIP_STOCKROOM',
   ML_M07_NORTH_ROAD: 'NORTH_ROAD',
+  ML_M08_TOMMYS_SERIAL: 'GUN_CAGE',
+  ML_M09_TWO_BUYERS: 'DINER',
+  ML_M10_FAVOR_ALREADY_PAID: 'PARKING_GARAGE',
   ML_M11_TERMS_OF_QUIET: 'OLD_DROP',
   ML_M12_CLERK_ON_THE_STAIRS: 'STAIRWELL',
+  ML_M13_DATE_CHANGED_IN_INK: 'FIRING_RANGE',
   ML_M14_WOMAN_AT_CLOSING: 'CORNER_SHOP',
   ML_M15_NAME_IN_THE_MARGIN: 'RECORDS_ROOM',
   ML_M16_MILE_MARKER_NINE: 'NORTH_ROAD',
   ML_M17_PASSENGER_NINE: 'BUS_DEPOT',
+  ML_M19_HONEST_SCALE: 'PIP_STOCKROOM',
+  ML_M20_MAP_IN_THE_MARGINS: 'TURF_MAP',
+  ML_M21_SIGNED_TWICE: 'ROOFTOP',
   ML_M22_NO_ONE_OWES_ALONE: 'LONG_TABLE',
   ML_M24_EVERYBODY_AT_THE_TABLE: 'LONG_TABLE',
   ML_M25_MISSING_LINE: 'PORCH_RAIN',
   ML_S01_KEY_UNDER_MAT: 'CORNER_SHOP',
   ML_S02_RENT_ENVELOPE: 'CORNER_SHOP',
+  ML_S03_WARM_ROOM: 'DELANCEY',
   ML_S04_WEIGHT_ON_THE_SCALE: 'SUPPLIER_WAREHOUSE',
   ML_S05_BOX_WITH_NO_LABEL: 'SUPPLIER_WAREHOUSE',
   ML_S06_LAST_HONEST_COUNT: 'SUPPLIER_WAREHOUSE',
+  ML_S07_OTHER_SERIAL: 'PAWN_SHOP',
+  ML_S08_LAST_SHIFT: 'PAWN_SHOP',
   ML_S10_MILE_MARKER_ZERO: 'NORTH_ROAD',
   ML_S11_PASSENGER_WINDOW: 'BUS_DEPOT',
   ML_S12_EVERY_ROAD_HOME: 'GAS_STATION',
   ML_S13_COPY_FOR_LEDGER: 'HOSPITAL',
+  ML_S14_HOLDING_COMPANY: 'OFFICE_LOBBY',
   ML_S15_PLAIN_ENGLISH: 'LONG_TABLE',
 };
 

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 480">
+  <!-- Blocks' map room: the whole city on the wall in pins and string, a torn page laid over it, a desk lamp. -->
+  <defs>
+    <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a1416"/><stop offset="1" stop-color="#180a0c"/></linearGradient>
+    <radialGradient id="lamp" cx=".5" cy=".3" r=".6"><stop offset="0" stop-color="#ffd8b0" stop-opacity=".35"/><stop offset="1" stop-color="#ff8a6a" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="1200" height="480" fill="url(#wall)"/>
+  <!-- The big map across the wall -->
+  <rect x="40" y="40" width="1120" height="300" fill="#a89a80" fill-opacity=".5" stroke="#3a1a14" stroke-width="10"/>
+  <g stroke="#a89878" stroke-width="3"><path d="M40 120h1120M40 200h1120M40 270h1120M200 40v300M380 40v300M560 40v300M740 40v300M920 40v300"/></g>
+  <path d="M40 300c200-40 300 20 500-10s300-60 620-20" stroke="#6a9ac0" stroke-width="18" fill="none" stroke-opacity=".6"/>
+  <!-- Owned blocks shaded -->
+  <g fill-opacity=".35"><rect x="200" y="120" width="180" height="80" fill="#c83a3a"/><rect x="740" y="40" width="180" height="80" fill="#3a6ac8"/><rect x="920" y="200" width="240" height="70" fill="#c83a3a"/><rect x="40" y="200" width="160" height="70" fill="#3ac86a"/></g>
+  <!-- Pins and red string along the corridor -->
+  <path d="M120 160L300 240L470 170L650 230L830 160L1020 230" stroke="#c8202a" stroke-width="3" fill="none"/>
+  <g fill="#c8202a" stroke="#3a0a0a" stroke-width="2"><circle cx="120" cy="160" r="8"/><circle cx="300" cy="240" r="8"/><circle cx="470" cy="170" r="8"/><circle cx="650" cy="230" r="8"/><circle cx="830" cy="160" r="8"/><circle cx="1020" cy="230" r="8"/></g>
+  <rect width="1200" height="480" fill="url(#lamp)"/>
+  <!-- Desk with the torn page -->
+  <rect y="420" width="1200" height="60" fill="#3a2016"/><rect y="416" width="1200" height="6" fill="#6a3a24"/>
+  <path d="M760 426l110-14 10 8-6 6 8 8-110 6z" fill="#efe6d2"/><g stroke="#3a3428" stroke-opacity=".5" stroke-width="2"><path d="M776 424l70-8M780 430l60-6"/></g>
+  <path d="M300 420l6-28h48l6 28z" fill="#2a1a12"/><path d="M330 392l-20-40" stroke="#2a1a12" stroke-width="6"/>
+</svg>

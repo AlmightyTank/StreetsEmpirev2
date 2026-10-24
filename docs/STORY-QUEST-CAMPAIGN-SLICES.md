@@ -75,29 +75,42 @@ Contacts carry more than the campaign: story chapters, side jobs, referrals and 
 
 ### Places (after R2) ✅
 
-Contacts aren't always home. Eleven painted places (`apps/web/public/rooms/places/`) are shared across 23 chapters (`JOB_PLACES` in `utils/contactRoom.ts`):
+Contacts aren't always home. 23 painted places (`apps/web/public/rooms/places/`) cover 37 of the 40 chapters (`JOB_PLACES` in `utils/contactRoom.ts`):
 
 | Place | Chapters |
 | --- | --- |
 | Mama's porch in the rain | M01, M25 |
 | Mrs. Alvarez's shop | M02, M14, S01, S02 |
+| The loading dock out back | M03 |
+| The curb outside Mama's | M04 |
 | The precinct records room | M05, M15 |
-| Mr. Hales's stairwell | M12 |
-| The old drop, Urban Ghetto | M11 |
+| Pip's stockroom | M06, M19 |
 | The north road | M07, M16, S10 |
+| Tommy's gun cage | M08 |
+| An all-night diner | M09 |
+| A parking garage, level three | M10 |
+| The old drop, Urban Ghetto | M11 |
+| Mr. Hales's stairwell | M12 |
+| Tommy's basement range | M13 |
 | The bus depot | M17, S11 |
-| A gas station off the highway | S12 |
-| The supplier's warehouse | S04–S06 |
+| Blocks' map room | M20 |
+| A rooftop on the corridor | M21 |
 | Every chair out (the long table) | M22, M24, S15 |
+| Delancey Street | S03 |
+| The supplier's warehouse | S04–S06 |
+| The apprentice's pawn shop | S07, S08 |
+| A gas station off the highway | S12 |
 | The hospital at shift change | S13 |
+| An office lobby downtown | S14 |
 
+- **Stays home on purpose:** M18 (Mama's untouched tea), M23 (Mara's appointment in the Clearinghouse) and S09 (the rack behind Tommy's counter).
 - **Which room shows:**
-  - Talking about one of these chapters shows its place.
+  - Talking about a chapter shows its place.
   - A contact with such a chapter taken or ready to turn in greets you from there.
   - Otherwise they're in their own room.
 - **Place label:** the stage's top-right corner names where you are.
 - **Web only:** the mapping is presentation, so it applies to every round, old rulesets included.
-- **Tests:** `contactRoomPlaces.test.ts`.
+- **Tests:** `contactRoomPlaces.test.ts`. It checks that every place is painted and used, and that every campaign chapter except those three has a place.
 
 ### Slice R3 — Objective depth pass (Acts I–II) ✅
 

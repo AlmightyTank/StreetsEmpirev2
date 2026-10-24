@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 480">
+  <!-- Tommy's basement range: lanes into the dark, paper targets, ear protection on a hook, paperwork on the bench. -->
+  <defs>
+    <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1c1d16"/><stop offset="1" stop-color="#0e0f0a"/></linearGradient>
+    <radialGradient id="lane" cx=".5" cy=".4" r=".5"><stop offset="0" stop-color="#f4f0c0" stop-opacity=".3"/><stop offset="1" stop-color="#f4f0c0" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="1200" height="480" fill="url(#wall)"/>
+  <!-- Lanes receding to the backstop -->
+  <path d="M0 60h1200l-300 120H300z" fill="#14150f"/>
+  <path d="M300 180h600v200H300z" fill="#0a0b07"/>
+  <g stroke="#3a3a30" stroke-width="4"><path d="M300 180L0 420M500 180L300 420M700 180L900 420M900 180l300 240"/></g>
+  <!-- Paper targets hanging in two lanes -->
+  <g><path d="M380 120v80" stroke="#3a3a30" stroke-width="2"/><rect x="360" y="200" width="40" height="56" fill="#e8e4d0"/><circle cx="380" cy="220" r="12" fill="none" stroke="#1a1a1a" stroke-width="3"/><path d="M370 244h20" stroke="#1a1a1a" stroke-width="3"/></g>
+  <g><path d="M820 120v80" stroke="#3a3a30" stroke-width="2"/><rect x="800" y="200" width="40" height="56" fill="#e8e4d0"/><circle cx="820" cy="220" r="12" fill="none" stroke="#1a1a1a" stroke-width="3"/><circle cx="824" cy="224" r="3" fill="#1a1a1a"/></g>
+  <ellipse cx="380" cy="230" rx="90" ry="80" fill="url(#lane)"/><ellipse cx="820" cy="230" rx="90" ry="80" fill="url(#lane)"/>
+  <!-- Lane dividers and ear protection -->
+  <g fill="#3a3a30"><rect x="0" y="260" width="200" height="160"/><rect x="1000" y="260" width="200" height="160"/></g>
+  <path d="M70 300c0-30 60-30 60 0" fill="none" stroke="#c83a2a" stroke-width="7"/><g fill="#c83a2a"><rect x="60" y="296" width="20" height="30" rx="6"/><rect x="120" y="296" width="20" height="30" rx="6"/></g>
+  <text x="1100" y="320" text-anchor="middle" font-family="Arial, sans-serif" font-weight="700" font-size="20" fill="#e8c840" fill-opacity=".7">LANE 2</text>
+  <!-- Bench with the raid report and roster -->
+  <rect y="420" width="1200" height="60" fill="#3a3020"/><rect y="416" width="1200" height="6" fill="#6a5a3a"/>
+  <g fill="#f0eadc" stroke="#8a7a5a" stroke-width="1.5"><path d="M400 430l90-12 6 12-90 12z"/><path d="M700 418h100v14H700z"/></g>
+  <path d="M708 422h60M708 427h40" stroke="#a83a2a" stroke-width="2"/>
+  <g fill="#4f5a32"><rect x="200" y="392" width="70" height="28"/></g>
+</svg>
