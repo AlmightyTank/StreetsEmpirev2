@@ -93,6 +93,7 @@ import { RandomEncounterService } from '../services/random-encounter.service.js'
 import { EasterEggService } from '../services/easter-egg.service.js';
 import { RingService } from '../services/ring.service.js';
 import { CityHoldingsService } from '../services/city-holdings.service.js';
+import { ProfitIntelligenceService } from '../services/profit-intelligence.service.js';
 import { PlayerSkillService } from '../services/player-skill.service.js';
 
 const RECENT_ACTIVITY_LIMIT = 10;
@@ -119,6 +120,17 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
 
     return { round, player };
   }
+
+  fastify.get('/profit-intelligence', { preHandler: fastify.requireAuth }, async (request, reply) => {
+    const query = z.object({ days: z.coerce.number().int().min(1).max(90).default(30) }).safeParse(request.query);
+    if (!query.success) throw AppError.badRequest('INVALID_REPORT_PERIOD', 'Choose a report window from 1 to 90 days.');
+    const { round, player } = await requirePlayer(request.auth!.account.id);
+    reply.header('Cache-Control', 'private, no-store');
+    return ProfitIntelligenceService.get(fastify.prisma, {
+      roundId: round.id, roundPlayerId: player.id, roundStartsAt: round.startsAt,
+      ruleset: loadRulesetForRound(round), days: query.data.days,
+    });
+  });
 
   fastify.get('/holdings', { preHandler: fastify.requireAuth }, async (request) => {
     const { round, player } = await requirePlayer(request.auth!.account.id);
