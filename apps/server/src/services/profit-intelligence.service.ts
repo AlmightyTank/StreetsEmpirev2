@@ -5,6 +5,7 @@ import type {
   ProfitIntelligenceCityTotalDto,
   ProfitIntelligenceDaySourceCityDto,
   ProfitIntelligenceDto,
+  ProfitComparisonDto,
   ProfitIntelligenceSourceTotalDto,
   ProfitIntelligenceTotalsDto,
 } from '@streets/shared';
@@ -158,11 +159,82 @@ export function projectProfitGroups(input: {
         'Asset purchases, financing principal, transfers, rewards, mixed events, and unknown sources are excluded from the estimate.',
       ],
     },
+    comparison: emptyProfitComparison(),
     efficiency: {
       dealerNetSalesCents: dealerNetSales.toString(), dealerWagesCents: dealerWages.toString(),
       salesToWagesRatio, turnEfficiencyAvailable: false,
       turnEfficiencyReason: 'Ledger entries do not consistently record turns consumed for the reporting window.',
     },
+  };
+}
+
+export function emptyProfitComparison(): ProfitComparisonDto {
+  return {
+    comparisonVersion: '2.6.0-D1', routes: [], tradeCities: [], currentRegisters: [], observedMarkets: [],
+    cashAway: { activeRunCents: '0', activeBossTripCents: '0', totalCents: '0' },
+    caveats: [
+      'Trade delta is sales proceeds minus purchases made on the recorded trip; it excludes home cargo cost, launch, hotel, incident, vehicle, and other costs.',
+      'Business registers and away cash are current balances, not historical balances or earned income.',
+      'Market prices are the last observed values and may be stale. They are not forecasts.',
+    ],
+  };
+}
+
+export function projectProfitComparison(input: {
+  runs: Array<{ stops: Array<{ order: number; city: string; route: unknown }>; trades: Array<{ city: string; productKey: string; direction: string; totalCents: bigint }> }>;
+  businesses: Array<{ registerCents: bigint; turf: { city: { slug: string; name: string } } }>;
+  sightings: Array<{ city: string; seenAt: Date; counter: unknown }>;
+  activeRuns: Array<{ cashCents: bigint }>;
+  activeBossTrips: Array<{ bankrollCents: bigint }>;
+  cityNames: Record<string, string>;
+}): ProfitComparisonDto {
+  const routes = new Map<string, { route: string[]; tripCount: number; buy: bigint; sell: bigint }>();
+  const tradeCities = new Map<string, { buy: bigint; sell: bigint }>();
+  for (const run of input.runs) {
+    const ordered = [...run.stops].sort((a, b) => a.order - b.order);
+    const path: string[] = [];
+    for (const stop of ordered) {
+      const leg = Array.isArray(stop.route) ? stop.route.filter((city): city is string => typeof city === 'string') : [stop.city];
+      for (const city of leg) if (path.at(-1) !== city) path.push(city);
+    }
+    const key = path.join(' → ');
+    const aggregate = routes.get(key) ?? { route: path, tripCount: 0, buy: 0n, sell: 0n };
+    aggregate.tripCount++;
+    for (const trade of run.trades) {
+      if (trade.direction === 'buy') aggregate.buy += trade.totalCents;
+      if (trade.direction === 'sell') aggregate.sell += trade.totalCents;
+      const city = tradeCities.get(trade.city) ?? { buy: 0n, sell: 0n };
+      if (trade.direction === 'buy') city.buy += trade.totalCents;
+      if (trade.direction === 'sell') city.sell += trade.totalCents;
+      tradeCities.set(trade.city, city);
+    }
+    routes.set(key, aggregate);
+  }
+  const sightings = input.sightings.map((sighting) => {
+    const value = sighting.counter as { products?: Array<{ key?: string; market?: { buyCents?: number; sellCents?: number; depth?: number } }> } | null;
+    return {
+      citySlug: sighting.city, cityName: input.cityNames[sighting.city] ?? sighting.city,
+      seenAt: sighting.seenAt.toISOString(),
+      products: (Array.isArray(value?.products) ? value.products : []).flatMap((product) =>
+        product.key && Number.isFinite(product.market?.buyCents) && Number.isFinite(product.market?.sellCents)
+          ? [{ productKey: product.key, buyCents: product.market!.buyCents!, sellCents: product.market!.sellCents!, depth: Number.isFinite(product.market?.depth) ? product.market!.depth! : null }]
+          : []),
+    };
+  });
+  const awayRun = input.activeRuns.reduce((sum, row) => sum + row.cashCents, 0n);
+  const awayBoss = input.activeBossTrips.reduce((sum, row) => sum + row.bankrollCents, 0n);
+  return {
+    comparisonVersion: '2.6.0-D1',
+    routes: [...routes.values()].map((row) => ({ route: row.route, tripCount: row.tripCount, buyCents: row.buy.toString(), sellCents: row.sell.toString(), tradeDeltaCents: (row.sell - row.buy).toString() })).sort((a, b) => b.tripCount - a.tripCount || a.route.join().localeCompare(b.route.join())),
+    tradeCities: [...tradeCities.entries()].map(([citySlug, row]) => ({ citySlug, cityName: input.cityNames[citySlug] ?? citySlug, buyCents: row.buy.toString(), sellCents: row.sell.toString(), tradeDeltaCents: (row.sell - row.buy).toString() })).sort((a, b) => a.cityName.localeCompare(b.cityName)),
+    currentRegisters: [...input.businesses.reduce((map, row) => map.set(row.turf.city.slug, (map.get(row.turf.city.slug) ?? 0n) + row.registerCents), new Map<string, bigint>()).entries()].map(([citySlug, total]) => ({ citySlug, cityName: input.cityNames[citySlug] ?? citySlug, registerCents: total.toString() })).sort((a, b) => a.cityName.localeCompare(b.cityName)),
+    observedMarkets: sightings,
+    cashAway: { activeRunCents: awayRun.toString(), activeBossTripCents: awayBoss.toString(), totalCents: (awayRun + awayBoss).toString() },
+    caveats: [
+      'Trade delta is sales proceeds minus purchases made on the recorded trip; it excludes home cargo cost, launch, hotel, incident, vehicle, and other costs.',
+      'Business registers and away cash are current balances, not historical balances or earned income.',
+      'Market prices are the last observed values and may be stale. They are not forecasts.',
+    ],
   };
 }
 
@@ -180,7 +252,7 @@ export const ProfitIntelligenceService = {
 
     return prisma.$transaction(async (tx) => {
       const where = { roundPlayerId: input.roundPlayerId, createdAt: { gte: period.from, lt: period.to } };
-      const [groups, aggregate] = await Promise.all([
+      const [groups, aggregate, runs, businesses, sightings, activeRuns, activeBossTrips] = await Promise.all([
         tx.$queryRaw<RawProfitGroup[]>`
           SELECT
             "source",
@@ -201,12 +273,22 @@ export const ProfitIntelligenceService = {
         tx.economyLedgerEntry.aggregate({
           where, _sum: { amountCents: true }, _count: { _all: true },
         }),
+        tx.run.findMany({ where: { roundPlayerId: input.roundPlayerId, status: 'RETURNED', returnedAt: { gte: period.from, lt: period.to } }, select: { stops: { select: { order: true, city: true, route: true } }, trades: { select: { city: true, productKey: true, direction: true, totalCents: true } } } }),
+        tx.business.findMany({ where: { roundId: input.roundId, turf: { holderId: input.roundPlayerId } }, select: { registerCents: true, turf: { select: { city: { select: { slug: true, name: true } } } } } }),
+        tx.citySighting.findMany({ where: { roundPlayerId: input.roundPlayerId }, select: { city: true, seenAt: true, counter: true } }),
+        tx.run.findMany({ where: { roundPlayerId: input.roundPlayerId, status: 'ACTIVE' }, select: { cashCents: true } }),
+        tx.bossTrip.findMany({ where: { roundPlayerId: input.roundPlayerId, status: 'ACTIVE' }, select: { bankrollCents: true } }),
       ]);
-      return projectProfitGroups({
+      const report = projectProfitGroups({
         groups,
         ledger: { entryCount: aggregate._count._all, netCents: aggregate._sum.amountCents ?? 0n },
         ruleset: input.ruleset, roundId: input.roundId, generatedAt: now, period,
       });
+      report.comparison = projectProfitComparison({
+        runs, businesses, sightings, activeRuns, activeBossTrips,
+        cityNames: Object.fromEntries(Object.entries(input.ruleset.cities ?? {}).map(([slug, city]) => [slug, city.name ?? slug])),
+      });
+      return report;
     }, { isolationLevel: 'RepeatableRead' });
   },
 };

@@ -95,6 +95,24 @@ export function HoldingsPage() {
         </details>
       </> : null}
     </Panel>
+    {report ? <Panel title="City & route comparison" subtitle="Recorded trips, current balances, and last observed market data" aside="Actuals">
+      <h3>Routes · {report.comparison.routes.length} completed route group(s)</h3>
+      {report.comparison.routes.length ? <ul>{report.comparison.routes.map((route) => <li key={route.route.join('→')}>
+        {route.route.join(' → ')} · {route.tripCount} trip(s) · buys {moneyCents(route.buyCents)} · sales {moneyCents(route.sellCents)} · trade delta {moneyCents(route.tradeDeltaCents)}
+      </li>)}</ul> : <p className="se-muted">No returned trips in this reporting window.</p>}
+      <h3>Trade results by city</h3>
+      {report.comparison.tradeCities.length ? <ul>{report.comparison.tradeCities.map((city) => <li key={city.citySlug}>{city.cityName}: buys {moneyCents(city.buyCents)} · sales {moneyCents(city.sellCents)} · trade delta {moneyCents(city.tradeDeltaCents)}</li>)}</ul> : <p className="se-muted">No recorded trades in returned trips for this window.</p>}
+      <h3>Cash tied up now</h3>
+      <Row label="Active run wallets" value={moneyCents(report.comparison.cashAway.activeRunCents)} />
+      <Row label="Active boss trip bankrolls" value={moneyCents(report.comparison.cashAway.activeBossTripCents)} />
+      <Row label="Current business registers" value={moneyCents(report.comparison.currentRegisters.reduce((sum, city) => sum + BigInt(city.registerCents), 0n).toString())} />
+      {report.comparison.currentRegisters.length ? <ul>{report.comparison.currentRegisters.map((city) => <li key={city.citySlug}>{city.cityName}: {moneyCents(city.registerCents)} waiting in registers</li>)}</ul> : <p className="se-muted">No current business registers.</p>}
+      <h3>Last observed market</h3>
+      {report.comparison.observedMarkets.length ? <ul>{report.comparison.observedMarkets.map((market) => <li key={market.citySlug}>
+        {market.cityName} · observed {new Date(market.seenAt).toLocaleString()}{market.products.length ? ` · ${market.products.map((item) => `${item.productKey}: buy ${moneyCents(String(item.buyCents))}, sell ${moneyCents(String(item.sellCents))}`).join('; ')}` : ' · no price details recorded'}
+      </li>)}</ul> : <p className="se-muted">No market observations recorded yet.</p>}
+      <details><summary>Comparison assumptions</summary><ul>{report.comparison.caveats.map((note) => <li key={note}>{note}</li>)}</ul></details>
+    </Panel> : null}
     {data?.cities.length === 0 ? <EmptyState title="No city holdings yet" description="Secure turf, storage, or a business front and it will appear here." /> : null}
     <div className="se-holdings__list">
       {data?.cities.map((city) => <HoldingCard key={city.citySlug} city={city} />)}
