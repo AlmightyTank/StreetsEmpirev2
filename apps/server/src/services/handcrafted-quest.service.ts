@@ -1027,6 +1027,7 @@ async function startQuest(db: Db, roundPlayerId: string, row: QuestRow, ruleset:
   // QuestProgressService so recording it cannot recursively advance quests.
   await createPlayerActivity(db, roundPlayerId, 'QUEST_ACCEPTED', {
     questKey: row.questDefinition.key,
+    title: cityContractState(row.rewardState)?.title ?? row.questDefinition.title,
   });
 }
 
@@ -1657,12 +1658,13 @@ export const HandcraftedQuestService = {
         }
         const newlyAvailable = await refreshAvailability(tx, roundPlayerId, ruleset, now, { kind: 'claim', questKey: key });
         const dtoRewards = visibleRewards(questRewards).map((reward) => rewardDto(reward, ruleset));
+        const questTitle = cityContractState(row.rewardState)?.title ?? row.questDefinition.title;
 
         return {
           next,
           result: {
             questKey: key,
-            title: cityContractState(row.rewardState)?.title ?? row.questDefinition.title,
+            title: questTitle,
             chosenBranch: selectedBranch?.key ?? row.chosenBranch,
             rewards: dtoRewards,
             reputationChanges,
@@ -1670,16 +1672,17 @@ export const HandcraftedQuestService = {
             standingChanges,
             ...(feeCents > 0n ? { feeCents: Number(feeCents) } : {}),
           },
-          // The fee is its own ledger line; whatever else the claim paid keeps the usual one.
-          ...(feeCents > 0n ? { ledger: [
-            { source: 'QUEST_FEE', label: `${row.questDefinition.title} · fee`, amountCents: -feeCents },
-            ...EconomyLedgerService.defaultForAction('QUEST_CLAIM', current.cashCents - feeCents, next.cashCents),
-          ] } : {}),
+          // The fee is its own ledger line; whatever else the claim paid is booked under the job's name.
+          ledger: [
+            ...(feeCents > 0n ? [{ source: 'QUEST_FEE', label: `${questTitle} · fee`, amountCents: -feeCents }] : []),
+            ...EconomyLedgerService.defaultForAction('QUEST_CLAIM', current.cashCents - feeCents, next.cashCents)
+              .map((entry) => ({ ...entry, label: `${questTitle} · payout` })),
+          ],
           activity: {
             type: 'QUEST_CLAIMED',
             payload: inputJson({
               questKey: key,
-              title: cityContractState(row.rewardState)?.title ?? row.questDefinition.title,
+              title: questTitle,
               contactKey: row.questDefinition.contactKey,
               chosenBranch: selectedBranch?.key ?? row.chosenBranch,
               rewards: dtoRewards.map((reward) => reward.label),

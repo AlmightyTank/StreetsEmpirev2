@@ -1066,8 +1066,25 @@
   padding-right: 34px;
 }
 
-.se-hideout-metric--art:has(.se-item-tile--wide) .se-hideout-metric__label {
+.se-hideout-metric--art:has(.se-item-tile--wide) .se-hideout-metric__label,
+.se-hideout-metric--art:has(.se-item-tile--wide) .se-hideout-metric__value {
   padding-right: 64px;
+}
+
+/* Back Office ledger: amount on top, timestamp underneath, never wrapped mid-date. */
+.se-hideout-ledger__value {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.se-hideout-ledger__when {
+  color: var(--se-muted);
+  font-size: 11px;
+  font-weight: 500;
 }
 
 .se-stash {
