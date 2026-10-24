@@ -109,6 +109,6 @@ Automated coverage is in parentheses. Integration suites run with `STORY_INTEGRA
 - [ ] On a short phone screen, the contact room still shows the contact's face above the dialogue.
 - [ ] The admin report loads for an older round without a campaign; it shows "no campaign".
 
-## Not in this release
+## Also shipped
 
-- R2: painted contact rooms and portrait art, including Mara.
+- R2: painted contact rooms for every contact, Mara included (`apps/web/public/rooms/`). Mara still has no portrait; she's shown as a silhouette in her room.

@@ -51,9 +51,27 @@ Contacts carry more than the campaign: story chapters, side jobs, referrals and 
 - **Stage ratio:** the contact keeps a fixed share of the screen (`--room-stage`: 44% of the height, 220–420px; 30% and 170–240px on phones). The portrait always fits inside it, and the dialogue may overlap only the desk edge at its bottom (28px, or 16px on phones). Checked at 1480×716, 1280×900, 1920×1080, 1024×600, 390×844 and 390×600: the dialogue covers 7–11% of the portrait at every size.
 - **Tests:** `ContactDialogue.test.tsx`, plus a manual check in the running app at 1280px and 390px.
 
-### Slice R2 — Painted rooms (art)
+### Slice R2 — Painted rooms (art) ✅
 
-Replace the CSS backdrop with a painted room per contact: Mama's kitchen table, Pip's counter, Tommy's back room, Wheels' garage, Vic's booth, Blocks' corner, Ledger's desk, Ace's casino floor, the Commissioner's office. Keep the CSS tint as the fallback.
+**Done:** every contact has a painted room behind them, drawn as SVG to match the portraits (`apps/web/public/rooms/*.svg`, 1200×480):
+
+| Contact | Room |
+| --- | --- |
+| Mama King | Her kitchen: rain on the window, kettle on, the table |
+| Pip | The counter: stocked shelves, the OPEN sign, the scale, the register |
+| Tommy | The back room: bare bulb, pegboard outlines, crates, ammo boxes |
+| Wheels | The garage: roll-up door, tool wall, tire stack, a car hood |
+| Vic | The booth: tufted leather, sconces, photographs |
+| Blocks | The corner: brick, the corner store awning, a streetlight, the fence |
+| Ledger | The desk: bound books, filing cabinets, a banker's lamp, an open page |
+| Ace | The casino floor: chandelier, slot machines, felt and chips |
+| The Commissioner | The office: blinds on the city, a flag, the nameplate |
+| Mara | A bare room: one lamp, an empty chair, two cups of water, a folder |
+
+- **Composition:** each room keeps its props to the sides and its table edge at the bottom, so the middle stays clear for the contact.
+- **Wiring:** `contact-room.css` sets `--room-art` per contact. The art fills the stage under a light veil. The CSS tint backdrop stays underneath, and shows on its own if the art doesn't load or a contact has none.
+- **Stage ratio unchanged:** the dialogue still covers 7% of the portrait at 1280×900 and 390×844.
+- **Tests:** `contactRoomArt.test.ts` checks that every contact in any ruleset has a room rule, a tint and a painted room file, and that each file is a self-contained SVG with no scripts or outside links.
 
 ### Slice R3 — Objective depth pass (Acts I–II) ✅
 

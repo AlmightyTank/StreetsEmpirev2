@@ -1,9 +1,11 @@
 /*
- * The contact room: a visit with one contact, laid out like a dialogue scene. The backdrop is
- * drawn in CSS (wall, lamp glow, desk) and tinted per contact until painted rooms exist.
+ * The contact room: a visit with one contact, laid out like a dialogue scene. Each contact has a
+ * painted room (public/rooms/*.svg, Slice R2) over the stage; underneath it, and in its place if it
+ * fails to load, the CSS backdrop (wall, lamp glow, desk) tinted per contact.
  */
 .se-room {
   --room-tint: 214, 163, 92;
+  --room-art: none;
   /*
    * The stage: the part of the room that belongs to the person you are talking to. It keeps a
    * fixed share of the screen height, the portrait always fits inside it, and the dialogue may
@@ -19,16 +21,16 @@
   isolation: isolate;
 }
 
-.se-room[data-contact='mama_king'] { --room-tint: 236, 160, 96; }
-.se-room[data-contact='pip'] { --room-tint: 110, 200, 140; }
-.se-room[data-contact='tommy'] { --room-tint: 190, 200, 120; }
-.se-room[data-contact='wheels'] { --room-tint: 120, 170, 230; }
-.se-room[data-contact='vic'] { --room-tint: 200, 120, 200; }
-.se-room[data-contact='blocks'] { --room-tint: 230, 90, 90; }
-.se-room[data-contact='ledger'] { --room-tint: 240, 220, 150; }
-.se-room[data-contact='ace'] { --room-tint: 240, 190, 80; }
-.se-room[data-contact='commissioner'] { --room-tint: 150, 180, 220; }
-.se-room[data-contact='mara_venn'] { --room-tint: 170, 190, 200; }
+.se-room[data-contact='mama_king'] { --room-tint: 236, 160, 96; --room-art: url('/rooms/mama-king.svg'); }
+.se-room[data-contact='pip'] { --room-tint: 110, 200, 140; --room-art: url('/rooms/pip.svg'); }
+.se-room[data-contact='tommy'] { --room-tint: 190, 200, 120; --room-art: url('/rooms/tommy.svg'); }
+.se-room[data-contact='wheels'] { --room-tint: 120, 170, 230; --room-art: url('/rooms/wheels.svg'); }
+.se-room[data-contact='vic'] { --room-tint: 200, 120, 200; --room-art: url('/rooms/vic.svg'); }
+.se-room[data-contact='blocks'] { --room-tint: 230, 90, 90; --room-art: url('/rooms/blocks.svg'); }
+.se-room[data-contact='ledger'] { --room-tint: 240, 220, 150; --room-art: url('/rooms/ledger.svg'); }
+.se-room[data-contact='ace'] { --room-tint: 240, 190, 80; --room-art: url('/rooms/ace.svg'); }
+.se-room[data-contact='commissioner'] { --room-tint: 150, 180, 220; --room-art: url('/rooms/commissioner.svg'); }
+.se-room[data-contact='mara_venn'] { --room-tint: 170, 190, 200; --room-art: url('/rooms/mara-venn.svg'); }
 
 .se-room__scene {
   position: absolute;
@@ -39,6 +41,21 @@
     radial-gradient(ellipse 30% 22% at 82% 62%, rgba(var(--room-tint), 0.16), transparent 70%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0 2px, transparent 2px 100%) 0 0 / 100% 64px,
     linear-gradient(180deg, #17171c 0, #0e0e12 var(--room-stage), #2a1b12 var(--room-stage), #1a110b 100%);
+}
+
+/*
+ * The painted room fills the stage and stands on the desk edge. A light veil keeps the contact
+ * the brightest thing in it; the tint glow above still shows through.
+ */
+.se-room__scene::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: var(--room-stage);
+  background:
+    radial-gradient(ellipse 34% 60% at 50% 48%, rgba(0, 0, 0, 0.32), transparent 75%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.35)),
+    var(--room-art) 50% 100% / cover no-repeat;
 }
 
 /* The desk edge the contact leans over. */

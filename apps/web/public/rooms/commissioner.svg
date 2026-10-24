@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 480">
+  <!-- The Commissioner's office: blinds on the city, a flag on a stand, a nameplate facing out. -->
+  <defs>
+    <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1a2230"/><stop offset="1" stop-color="#0e131c"/></linearGradient>
+    <linearGradient id="night" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0a1020"/><stop offset="1" stop-color="#1e2a44"/></linearGradient>
+    <radialGradient id="lamp" cx=".5" cy=".05" r=".6"><stop offset="0" stop-color="#d8e8ff" stop-opacity=".35"/><stop offset="1" stop-color="#96b4dc" stop-opacity="0"/></radialGradient>
+    <linearGradient id="desk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a2a1e"/><stop offset="1" stop-color="#1a120c"/></linearGradient>
+  </defs>
+  <rect width="1200" height="480" fill="url(#wall)"/>
+  <rect y="300" width="1200" height="8" fill="#2a3446"/>
+  <!-- Window with blinds over the city, right -->
+  <rect x="780" y="50" width="380" height="250" fill="url(#night)"/>
+  <g fill="#080c16"><rect x="800" y="170" width="50" height="130"/><rect x="860" y="130" width="40" height="170"/><rect x="910" y="190" width="60" height="110"/><rect x="980" y="110" width="44" height="190"/><rect x="1034" y="160" width="56" height="140"/><rect x="1100" y="140" width="40" height="160"/></g>
+  <g fill="#ffd88a" fill-opacity=".45"><rect x="810" y="190" width="6" height="8"/><rect x="872" y="150" width="6" height="8"/><rect x="884" y="200" width="6" height="8"/><rect x="930" y="210" width="6" height="8"/><rect x="994" y="140" width="6" height="8"/><rect x="1004" y="190" width="6" height="8"/><rect x="1050" y="180" width="6" height="8"/><rect x="1114" y="170" width="6" height="8"/></g>
+  <g fill="#9aa8bc" fill-opacity=".55"><rect x="780" y="58" width="380" height="9"/><rect x="780" y="80" width="380" height="9"/><rect x="780" y="102" width="380" height="9"/><rect x="780" y="124" width="380" height="9"/><rect x="780" y="146" width="380" height="9"/></g>
+  <rect x="772" y="42" width="396" height="266" fill="none" stroke="#2a3446" stroke-width="12"/>
+  <!-- Flag on a stand, left -->
+  <rect x="120" y="60" width="8" height="360" fill="#b08a4a"/><circle cx="124" cy="56" r="9" fill="#d8b860"/>
+  <path d="M128 70c50 14 100-10 150 6v130c-50-16-100 8-150-6z" fill="#2a3a6a"/>
+  <path d="M128 110c50 14 100-10 150 6M128 150c50 14 100-10 150 6" stroke="#8a2a2a" stroke-width="14" fill="none"/>
+  <!-- Framed certificate -->
+  <rect x="320" y="90" width="150" height="110" fill="#e8e0c8" fill-opacity=".8" stroke="#b08a4a" stroke-width="7"/>
+  <g stroke="#3a3428" stroke-opacity=".5" stroke-width="3"><path d="M345 120h100M355 140h80M355 160h80"/></g><circle cx="395" cy="182" r="9" fill="#a83a2a" fill-opacity=".7"/>
+  <rect width="1200" height="480" fill="url(#lamp)"/>
+  <!-- Desk with nameplate and phone -->
+  <rect y="420" width="1200" height="60" fill="url(#desk)"/><rect y="416" width="1200" height="6" fill="#5a4230"/>
+  <path d="M500 420l8-30h184l8 30z" fill="#2a1e14"/><rect x="510" y="394" width="180" height="22" fill="#d8b860"/>
+  <text x="600" y="411" text-anchor="middle" font-family="Georgia, serif" font-size="15" font-weight="700" fill="#2a1e14" letter-spacing="3">COMMISSIONER</text>
+  <path d="M860 420v-20h90v20z" fill="#14141a"/><path d="M856 396c0-18 98-18 98 0l-14 6h-70z" fill="#22222a"/>
+</svg>

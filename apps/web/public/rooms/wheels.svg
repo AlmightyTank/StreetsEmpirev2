@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 480">
+  <!-- Wheels' garage: the roll-up door half down, a tool wall, a car that belongs to somebody else. -->
+  <defs>
+    <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#151b24"/><stop offset="1" stop-color="#0b0f15"/></linearGradient>
+    <radialGradient id="work" cx=".5" cy=".1" r=".6"><stop offset="0" stop-color="#c8e0ff" stop-opacity=".42"/><stop offset=".45" stop-color="#5a8acc" stop-opacity=".12"/><stop offset="1" stop-color="#5a8acc" stop-opacity="0"/></radialGradient>
+    <linearGradient id="door" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a4250"/><stop offset="1" stop-color="#262c36"/></linearGradient>
+    <linearGradient id="street" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a1e3a"/><stop offset="1" stop-color="#0e0a16"/></linearGradient>
+    <linearGradient id="hood" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7a2a2a"/><stop offset="1" stop-color="#3a1010"/></linearGradient>
+  </defs>
+  <rect width="1200" height="480" fill="url(#wall)"/>
+  <!-- Roll-up door, left: street glow under it -->
+  <rect x="40" y="50" width="380" height="330" fill="url(#street)"/>
+  <g fill="#ffcf6a" fill-opacity=".5"><circle cx="120" cy="330" r="4"/><circle cx="210" cy="340" r="3"/><circle cx="330" cy="326" r="5"/></g>
+  <rect x="40" y="50" width="380" height="250" fill="url(#door)"/>
+  <g stroke="#1e232c" stroke-width="4"><path d="M40 80h380M40 110h380M40 140h380M40 170h380M40 200h380M40 230h380M40 260h380M40 290h380"/></g>
+  <rect x="200" y="288" width="60" height="10" rx="3" fill="#8a929e"/>
+  <rect x="30" y="40" width="400" height="12" fill="#222831"/><rect x="30" y="40" width="12" height="350" fill="#222831"/><rect x="418" y="40" width="12" height="350" fill="#222831"/>
+  <!-- Tool wall, right -->
+  <rect x="840" y="70" width="320" height="200" fill="#1e2530" stroke="#2c3644" stroke-width="6"/>
+  <g stroke="#a8b4c4" stroke-opacity=".6" stroke-width="7" stroke-linecap="round" fill="none">
+    <path d="M880 100v80M910 100v95M940 100v70M970 100v88"/>
+    <path d="M1010 110c0-14 24-14 24 0v90"/><path d="M1060 104l40 40M1100 104l-40 40"/><circle cx="1120" cy="210" r="22"/>
+  </g>
+  <!-- Tire stack -->
+  <g fill="#14171c" stroke="#2a2f38" stroke-width="5"><ellipse cx="1000" cy="380" rx="90" ry="24"/><ellipse cx="1000" cy="350" rx="90" ry="24"/><ellipse cx="1000" cy="320" rx="90" ry="24"/></g>
+  <ellipse cx="1000" cy="320" rx="40" ry="10" fill="#08090b"/>
+  <!-- Hanging work light -->
+  <path d="M600 0v34" stroke="#111" stroke-width="3"/><path d="M576 34h48l-6 26h-36z" fill="#d8b030"/><rect x="584" y="58" width="32" height="6" fill="#f4f8ff"/>
+  <rect width="1200" height="480" fill="url(#work)"/>
+  <!-- Car hood across the bottom, workbench edge -->
+  <path d="M0 480v-46c180-40 420-56 600-56s420 16 600 56v46z" fill="url(#hood)"/>
+  <path d="M120 446c160-34 320-48 480-48s320 14 480 48" fill="none" stroke="#c86a6a" stroke-opacity=".35" stroke-width="4"/>
+  <ellipse cx="740" cy="476" rx="120" ry="8" fill="#000" fill-opacity=".35"/>
+</svg>
