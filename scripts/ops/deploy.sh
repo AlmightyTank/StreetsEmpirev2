@@ -94,16 +94,15 @@ else
 fi
 
 step "Checking the manually started shared entitlements database"
-command -v docker >/dev/null 2>&1 || fail "Docker is required to start postgres-entitlements."
+command -v docker >/dev/null 2>&1 || fail "Docker is required to check postgres-entitlements."
 for attempt in $(seq 1 30); do
-  health="$(docker inspect --format '{{.State.Health.Status}}' streets-empire-entitlements-db 2>/dev/null || true)"
-  if [ "$health" = "healthy" ]; then
-    echo "Shared entitlements database is healthy."
+  if docker exec streets-empire-entitlements-db pg_isready -U streets -d streets_empire_entitlements >/dev/null 2>&1; then
+    echo "Shared entitlements PostgreSQL is accepting connections."
     break
   fi
   if [ "$attempt" -eq 30 ]; then
     docker compose logs --tail=50 postgres-entitlements || true
-    fail "the shared entitlements database is not healthy. Start it manually with: cd $APP_DIR && docker compose up -d postgres-entitlements"
+    fail "PostgreSQL in the shared entitlements container is not accepting connections. Check it with: docker exec streets-empire-entitlements-db pg_isready -U streets -d streets_empire_entitlements"
   fi
   sleep 2
 done
