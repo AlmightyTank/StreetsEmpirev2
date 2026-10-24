@@ -853,11 +853,11 @@ export function HideoutPage() {
                             key={vehicle.classId}
                             label={`${vehicle.name} fleet`}
                             art={vehicle.classId}
-                            value={`${formatNumber(vehicle.home)} ready · ${formatNumber(vehicle.away)} away`}
+                            value={`${formatNumber(vehicle.home)} ready`}
                             tone={(vehicle.damaged ?? 0) + (vehicle.disabled ?? 0) ? 'warn' : undefined}
                             detail={(vehicle.damaged ?? 0) + (vehicle.disabled ?? 0)
-                              ? `${formatNumber(vehicle.damaged ?? 0)} damaged · ${formatNumber(vehicle.disabled ?? 0)} disabled`
-                              : undefined}
+                              ? `${formatNumber(vehicle.away)} away · ${formatNumber(vehicle.damaged ?? 0)} damaged · ${formatNumber(vehicle.disabled ?? 0)} disabled`
+                              : `${formatNumber(vehicle.away)} away`}
                           />
                         )) : <>
                           <Metric label="Low-Riders home" art="LOW_RIDER" value={formatNumber(lowRidersHome)} />
@@ -931,7 +931,12 @@ export function HideoutPage() {
                             <Row
                               key={entry.id}
                               label={entry.label}
-                              value={`${entry.amountCents >= 0 ? '+' : '−'}${formatCents(Math.abs(entry.amountCents))} · ${formatWhen(entry.createdAt)}`}
+                              value={(
+                                <span className="se-hideout-ledger__value">
+                                  <span>{`${entry.amountCents >= 0 ? '+' : '−'}${formatCents(Math.abs(entry.amountCents))}`}</span>
+                                  <span className="se-hideout-ledger__when">{formatWhen(entry.createdAt)}</span>
+                                </span>
+                              )}
                               strong={entry.category === 'INCOME'}
                             />
                           ))}

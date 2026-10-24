@@ -487,6 +487,10 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
         detail: str(p.sceneTitle) || undefined,
       };
 
+    case 'QUEST_ACCEPTED':
+      // Older rows only stored the quest key; fall back to a plain sentence.
+      return { text: str(p.title) ? `Took the job: ${str(p.title)}.` : 'Took on a new job.' };
+
     case 'QUEST_CLAIMED':
       return {
         text: `Collected payment for ${str(p.title, 'a quest')}.`,
@@ -803,7 +807,10 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
         detail: str(p.category),
       };
     default:
-      return { text: String(activity.type).replace(/_/g, ' ').toLowerCase() };
+      {
+        const words = String(activity.type).replace(/_/g, ' ').toLowerCase();
+        return { text: `${words.charAt(0).toUpperCase()}${words.slice(1)}.` };
+      }
   }
 }
 
@@ -863,6 +870,7 @@ function activityTypeLabel(type: ActivityDto['type']): string {
     LAW_CORRUPTION: 'Corruption',
     HIDEOUT_UPGRADE: 'Hideout',
     QUEST_OBJECTIVE_COMPLETE: 'Quest objective',
+    QUEST_ACCEPTED: 'Quest accepted',
     QUEST_READY: 'Quest ready',
     QUEST_CLAIMED: 'Quest claimed',
     STREET_PASS_CLAIMED: 'Street Pass',
