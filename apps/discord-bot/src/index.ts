@@ -411,7 +411,8 @@ async function sendAlerts(channels: { news: GuildTextBasedChannel | null; raidFe
         const previous = marker && recentMessages
           ? recentMessages.find((message) => message.author.id === client.user?.id && message.embeds.some((embed) => embed.footer?.text === marker))
           : null;
-        const message = previous ?? await channels.news.send(plainDiscordMessage({ embeds: [roundEventEmbed(event)], allowedMentions: { parse: [] } }, { keepEmbeds: Boolean(event.recap) }));
+        const roundMessage = { embeds: [roundEventEmbed(event)], allowedMentions: { parse: [] } };
+        const message = previous ?? await channels.news.send(event.recap ? roundMessage : plainDiscordMessage(roundMessage));
         if (event.recap) await api.roundPostPosted(event.recap.roundId, message.id);
         if (!previous && channels.news.type === ChannelType.GuildAnnouncement) {
           await message.crosspost().catch((error: unknown) => console.warn('Could not publish round-end post to following servers:', error));
