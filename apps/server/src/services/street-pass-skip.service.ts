@@ -64,7 +64,7 @@ export const StreetPassSkipService = {
   async skip(
     prisma: PrismaClient,
     roundPlayerId: string,
-    input: { tiers: number; actionId: string },
+    input: { tiers: number; actionId: string; expectedFromTier: number },
     shared?: SharedRuntime | null,
   ): Promise<GameActionResult<StreetPassSkipResultDto>> {
     requireDropEnabled();
@@ -76,6 +76,9 @@ export const StreetPassSkipService = {
     if (!Number.isSafeInteger(input.tiers) || input.tiers < 1 || input.tiers > STREET_PASS_SKIP_PRICES.maxPerPurchase) {
       throw AppError.badRequest('STREET_PASS_SKIP_INVALID', `Skip 1 to ${STREET_PASS_SKIP_PRICES.maxPerPurchase} tiers at a time.`, { tiers: 'Pick how many tiers to skip.' });
     }
+    if (!Number.isSafeInteger(input.expectedFromTier) || input.expectedFromTier < 0 || input.expectedFromTier > 30) {
+      throw AppError.badRequest('STREET_PASS_SKIP_INVALID', 'Refresh the Street Pass and try again.');
+    }
     return ActionService.run<StreetPassSkipResultDto>(prisma, roundPlayerId, {
       action: 'STREET_PASS_SKIP',
       actionId: input.actionId,
@@ -85,12 +88,27 @@ export const StreetPassSkipService = {
         const progress = await tx.streetPassProgress.findUnique({ where: { roundPlayerId } });
         const cred = progress?.passKey === rules.key ? progress.cred : 0;
         const fromTier = streetPassTierForCred(rules, cred);
+        if (fromTier !== input.expectedFromTier) {
+          throw AppError.conflict('STREET_PASS_SKIP_STALE', 'Street Pass progress changed before this skip completed. Refresh your tier and confirm the purchase again. No Crowns were charged.');
+        }
         const last = rules.tiers.length;
         if (fromTier >= last) throw AppError.conflict('STREET_PASS_COMPLETE', 'You have already reached the last Street Pass tier.');
         if (fromTier + input.tiers > last) {
           throw AppError.conflict('STREET_PASS_SKIP_PAST_END', `Only ${last - fromTier} tier${last - fromTier === 1 ? '' : 's'} left to skip.`);
         }
         const toTier = fromTier + input.tiers;
+        const priorSkips = await tx.dropOrder.findMany({
+          where: { roundPlayerId, kind: 'STREET_PASS_SKIP', refKey: rules.key },
+          select: { metadata: true },
+        });
+        const alreadyPurchased = priorSkips.some(({ metadata }) => {
+          if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return false;
+          const transition = metadata as Record<string, unknown>;
+          return transition.fromTier === fromTier && transition.toTier === toTier;
+        });
+        if (alreadyPurchased) {
+          throw AppError.conflict('STREET_PASS_SKIP_ALREADY_PURCHASED', 'That Street Pass tier skip was already processed. Your Crowns were not charged again. Refresh the Street Pass to continue.');
+        }
         const basePrice = streetPassSkipPrice(input.tiers);
         const discount = await dropDiscountFor(tx, player.accountId, now);
         const price = discountedDropPrice(basePrice, discount?.percent ?? 0);
