@@ -10,7 +10,7 @@ type TextPayload = {
 type PlainPayload<T extends TextPayload> = Omit<T, 'content' | 'embeds' | 'flags'> & {
   content: string;
   embeds: APIEmbed[];
-  flags: MessageFlags;
+  flags: typeof MessageFlags.SuppressEmbeds;
 };
 
 /**
@@ -47,6 +47,6 @@ export function plainDiscordMessage<T extends TextPayload>(payload: T): PlainPay
     ...rest,
     content: clipped || 'StreetsEmpire update.',
     embeds: [],
-    flags: (flags | MessageFlags.SuppressEmbeds) as MessageFlags,
+    flags: (flags | MessageFlags.SuppressEmbeds) as typeof MessageFlags.SuppressEmbeds,
   } as unknown as PlainPayload<T>;
 }
