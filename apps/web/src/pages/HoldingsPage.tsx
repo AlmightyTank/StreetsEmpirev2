@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { holdingsApi, type HoldingCity } from '../api/holdings.js';
 import { Alert } from '../components/Alert.js';
 import { Panel, Row } from '../components/Panel.js';
-import type { ProfitIntelligenceDto } from '@streets/shared';
+import type { ProfitIntelligenceDto, UpdateProfitIntelligenceGoalsInput } from '@streets/shared';
 import { EmptyState, GamePageHeader } from '../components/GameUI.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 
@@ -12,6 +12,14 @@ function moneyCents(value: string): string {
   const negative = cents < 0n;
   const absolute = negative ? -cents : cents;
   return `${negative ? '−' : ''}${(absolute / 100n).toLocaleString('en-US')}.${(absolute % 100n).toString().padStart(2, '0')}`;
+}
+
+function dollarsToCents(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const match = /^(\d{1,16})(?:\.(\d{1,2}))?$/.exec(trimmed);
+  if (!match) throw new Error('Enter a non-negative dollar amount with up to two decimal places.');
+  return (BigInt(match[1]!) * 100n + BigInt((match[2] ?? '').padEnd(2, '0') || '0')).toString();
 }
 
 function stockText(stock: Array<{ productKey: string; quantity: number }>): string {
@@ -44,6 +52,10 @@ export function HoldingsPage() {
   const [reportDays, setReportDays] = useState(30);
   const [report, setReport] = useState<ProfitIntelligenceDto | null>(null);
   const [reportError, setReportError] = useState<string | null>(null);
+  const [goalDraft, setGoalDraft] = useState({ minimumLiquidity: '', productKey: '', minimumProductUnits: '', maximumRoutePurchase: '' });
+  const [goalBusy, setGoalBusy] = useState(false);
+  const [goalMessage, setGoalMessage] = useState<string | null>(null);
+  const [goalError, setGoalError] = useState<string | null>(null);
   const [data, setData] = useState<Awaited<ReturnType<typeof holdingsApi.page>> | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -62,6 +74,15 @@ export function HoldingsPage() {
     });
     return () => { active = false; };
   }, [reportDays]);
+  useEffect(() => {
+    if (!report) return;
+    setGoalDraft({
+      minimumLiquidity: report.goals.settings.minimumLiquidityCents === null ? '' : moneyCents(report.goals.settings.minimumLiquidityCents),
+      productKey: report.goals.settings.minimumProductKey ?? '',
+      minimumProductUnits: report.goals.settings.minimumProductUnits?.toString() ?? '',
+      maximumRoutePurchase: report.goals.settings.maximumRoutePurchaseCents === null ? '' : moneyCents(report.goals.settings.maximumRoutePurchaseCents),
+    });
+  }, [report?.roundId]);
   const stockUnits = (data?.cities ?? []).reduce((total, city) => total
     + city.warehouses.reduce((sum, warehouse) => sum + warehouse.stock.reduce((stock, item) => stock + item.quantity, 0), 0)
     + city.crews.reduce((sum, crew) => sum + crew.stock.reduce((stock, item) => stock + item.quantity, 0), 0), 0);
@@ -112,6 +133,44 @@ export function HoldingsPage() {
         {market.cityName} · observed {new Date(market.seenAt).toLocaleString()}{market.products.length ? ` · ${market.products.map((item) => `${item.productKey}: buy ${moneyCents(String(item.buyCents))}, sell ${moneyCents(String(item.sellCents))}`).join('; ')}` : ' · no price details recorded'}
       </li>)}</ul> : <p className="se-muted">No market observations recorded yet.</p>}
       <details><summary>Comparison assumptions</summary><ul>{report.comparison.caveats.map((note) => <li key={note}>{note}</li>)}</ul></details>
+    </Panel> : null}
+    {report ? <Panel title="Financial goals" subtitle="Set warning thresholds for total cash across your wallet, trip funds, and business registers, on-hand supply, and route purchases" aside="Optional">
+      <p className="se-muted">These targets only show reminders. They never buy, sell, or move anything for you.</p>
+      {goalError ? <Alert>{goalError}</Alert> : null}
+      {goalMessage ? <p role="status" className="se-muted">{goalMessage}</p> : null}
+      <form className="se-form" onSubmit={async (event) => {
+        event.preventDefault();
+        setGoalBusy(true); setGoalError(null); setGoalMessage(null);
+        try {
+          const minimumProductUnits = goalDraft.minimumProductUnits.trim() ? Number(goalDraft.minimumProductUnits) : null;
+          if (minimumProductUnits !== null && (!Number.isSafeInteger(minimumProductUnits) || minimumProductUnits < 1 || minimumProductUnits > 2_000_000_000)) throw new Error('Enter a valid minimum stock amount.');
+          const input: UpdateProfitIntelligenceGoalsInput = {
+            minimumLiquidityCents: dollarsToCents(goalDraft.minimumLiquidity),
+            minimumProductKey: goalDraft.productKey || null,
+            minimumProductUnits,
+            maximumRoutePurchaseCents: dollarsToCents(goalDraft.maximumRoutePurchase),
+          };
+          if ((input.minimumProductKey === null) !== (input.minimumProductUnits === null)) throw new Error('Choose both a product and minimum units, or clear both.');
+          await holdingsApi.saveProfitGoals(input);
+          const refreshed = await holdingsApi.profit(reportDays);
+          setReport(refreshed);
+          setGoalMessage('Financial goal thresholds saved.');
+        } catch (error) {
+          setGoalError(error instanceof Error ? error.message : 'Could not save financial goals.');
+        } finally { setGoalBusy(false); }
+      }}>
+        <div className="se-field"><label htmlFor="goal-liquidity">Minimum liquidity ($)</label><input id="goal-liquidity" className="se-input" inputMode="decimal" value={goalDraft.minimumLiquidity} onChange={(event) => setGoalDraft((draft) => ({ ...draft, minimumLiquidity: event.target.value }))} placeholder="Off" /></div>
+        <div className="se-field"><label htmlFor="goal-product">Minimum on-hand supply</label><div className="se-form__row">
+          <select id="goal-product" className="se-input" value={goalDraft.productKey} onChange={(event) => setGoalDraft((draft) => ({ ...draft, productKey: event.target.value }))}>
+            <option value="">Off</option>{report.goals.availableProductKeys.map((key) => <option key={key} value={key}>{key}</option>)}
+          </select>
+          <input aria-label="Minimum units" className="se-input" type="number" min="1" max="2000000000" step="1" value={goalDraft.minimumProductUnits} onChange={(event) => setGoalDraft((draft) => ({ ...draft, minimumProductUnits: event.target.value }))} placeholder="Units" />
+        </div><small>Counts stock in your warehouses and dealer crews; excludes inbound shipments.</small></div>
+        <div className="se-field"><label htmlFor="goal-route-cost">Maximum route purchases ($)</label><input id="goal-route-cost" className="se-input" inputMode="decimal" value={goalDraft.maximumRoutePurchase} onChange={(event) => setGoalDraft((draft) => ({ ...draft, maximumRoutePurchase: event.target.value }))} placeholder="Off" /><small>Warns when purchases on a recorded route exceed this amount in the selected window.</small></div>
+        <button className="se-btn se-btn--primary" type="submit" disabled={goalBusy}>{goalBusy ? 'Saving…' : 'Save goals'}</button>
+      </form>
+      <h3>Current warnings</h3>
+      {report.goals.warnings.length ? <ul>{report.goals.warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul> : <p className="se-muted">No configured goal is currently below its threshold.</p>}
     </Panel> : null}
     {data?.cities.length === 0 ? <EmptyState title="No city holdings yet" description="Secure turf, storage, or a business front and it will appear here." /> : null}
     <div className="se-holdings__list">

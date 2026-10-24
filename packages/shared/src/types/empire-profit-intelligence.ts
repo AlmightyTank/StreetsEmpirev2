@@ -44,6 +44,18 @@ export interface ProfitComparisonDto {
   caveats: string[];
 }
 
+export interface ProfitIntelligenceGoalsDto {
+  availableProductKeys: string[];
+  settings: {
+    minimumLiquidityCents: string | null;
+    minimumProductKey: string | null;
+    minimumProductUnits: number | null;
+    maximumRoutePurchaseCents: string | null;
+  };
+  observed: { liquidityCents: string; minimumProductUnits: number | null; maximumRoutePurchaseCents: string | null };
+  warnings: string[];
+}
+
 export interface ProfitIntelligenceDto {
   classificationVersion: '2.6.0-B1';
   reportVersion: '2.6.0-C1';
@@ -68,6 +80,7 @@ export interface ProfitIntelligenceDto {
     recognizedIncomeCents: string; recognizedCostsCents: string; estimatedNetCents: string; notes: string[];
   };
   comparison: ProfitComparisonDto;
+  goals: ProfitIntelligenceGoalsDto;
   efficiency: {
     dealerNetSalesCents: string; dealerWagesCents: string; salesToWagesRatio: string | null;
     turnEfficiencyAvailable: false; turnEfficiencyReason: string;
