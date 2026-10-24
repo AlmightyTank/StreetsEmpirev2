@@ -16,3 +16,5 @@ Proposed versioned feature roadmap series, 2.0.0–2.7.0, drafted from the 2026-
 - [2.7.0](./ROADMAP-2.7.0-LAST-STAND.md)
 
 - [2.6.0-B implementation](./EMPIRE-PROFIT-INTELLIGENCE-2.6.0-B.md)
+
+- [2.6.0-C implementation](./EMPIRE-PROFIT-INTELLIGENCE-2.6.0-C.md)
