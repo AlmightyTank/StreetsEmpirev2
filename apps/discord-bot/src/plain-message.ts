@@ -47,6 +47,7 @@ export function plainDiscordMessage<T extends TextPayload>(
   return {
     ...rest,
     content: clipped || 'StreetsEmpire update.',
+    embeds: [],
     flags: (payload.flags ?? 0) | MessageFlags.SuppressEmbeds,
   } as T;
 }
