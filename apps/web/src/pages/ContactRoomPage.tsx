@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import type { PlayerQuestDto, QuestPageDto } from '@streets/shared';
 import { ApiError } from '../api/client.js';
@@ -10,7 +10,7 @@ import { GameLayout } from '../layouts/GameLayout.js';
 import { publishQuestsChanged, trackedFromQuests } from '../quests/questSignals.js';
 import { confirmAction } from '../stores/confirm.js';
 import { useSession } from '../stores/session.js';
-import { contactHistory, type ContactHistoryEntry, type ContactRoomView } from '../utils/contactRoom.js';
+import { contactHistory, roomSetting, type ContactHistoryEntry, type ContactRoomView } from '../utils/contactRoom.js';
 
 /** A visit with one contact: their room, what they say, and the player's answers. */
 export function ContactRoomPage() {
@@ -142,10 +142,17 @@ export function ContactRoomPage() {
 
   const contact = page?.contacts.find((entry) => entry.key === contactKey) ?? null;
   const art = contact ? portraitUrl(contact.key) : null;
+  const setting = contact && page ? roomSetting(page.quests, contact.key, view) : null;
 
   return (
     <GameLayout>
-      <div className="se-room" data-contact={contactKey.toLowerCase()} ref={roomRef}>
+      <div
+        className="se-room"
+        data-contact={contactKey.toLowerCase()}
+        ref={roomRef}
+        style={setting ? { '--room-art': `url('${setting.art}')` } as CSSProperties : undefined}
+      >
+        {setting ? <p className="se-room__place" aria-live="polite">{setting.name}</p> : null}
         <div className="se-room__scene" aria-hidden="true">
           {art
             ? <img className="se-room__figure" src={art} alt="" draggable={false} />

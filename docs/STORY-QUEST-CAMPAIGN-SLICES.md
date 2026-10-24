@@ -73,6 +73,32 @@ Contacts carry more than the campaign: story chapters, side jobs, referrals and 
 - **Stage ratio unchanged:** the dialogue still covers 7% of the portrait at 1280×900 and 390×844.
 - **Tests:** `contactRoomArt.test.ts` checks that every contact in any ruleset has a room rule, a tint and a painted room file, and that each file is a self-contained SVG with no scripts or outside links.
 
+### Places (after R2) ✅
+
+Contacts aren't always home. Eleven painted places (`apps/web/public/rooms/places/`) are shared across 23 chapters (`JOB_PLACES` in `utils/contactRoom.ts`):
+
+| Place | Chapters |
+| --- | --- |
+| Mama's porch in the rain | M01, M25 |
+| Mrs. Alvarez's shop | M02, M14, S01, S02 |
+| The precinct records room | M05, M15 |
+| Mr. Hales's stairwell | M12 |
+| The old drop, Urban Ghetto | M11 |
+| The north road | M07, M16, S10 |
+| The bus depot | M17, S11 |
+| A gas station off the highway | S12 |
+| The supplier's warehouse | S04–S06 |
+| Every chair out (the long table) | M22, M24, S15 |
+| The hospital at shift change | S13 |
+
+- **Which room shows:**
+  - Talking about one of these chapters shows its place.
+  - A contact with such a chapter taken or ready to turn in greets you from there.
+  - Otherwise they're in their own room.
+- **Place label:** the stage's top-right corner names where you are.
+- **Web only:** the mapping is presentation, so it applies to every round, old rulesets included.
+- **Tests:** `contactRoomPlaces.test.ts`.
+
 ### Slice R3 — Objective depth pass (Acts I–II) ✅
 
 **Done:** ruleset `classic-og-v2.6-c` (2.6.0-C), now the default for new rounds (`classic-og-v2.6-c/missing-line-depth.ts`). Same keys, chain, rewards and catalog order. 2.6.0-A and 2.6.0-B rounds keep their acts.

@@ -3,6 +3,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { rulesets } from '@streets/rulesets';
 import { portraitUrl } from '../../components/Portrait.js';
+import { roomSetting } from '../contactRoom.js';
 
 /** Slice R2: every contact a round can have gets a painted room, wired up in the room stylesheet, and a portrait. */
 const web = path.resolve(import.meta.dirname, '../../..');
@@ -18,6 +19,8 @@ describe('contact room art', () => {
     expect(file, `no painted room for ${key}`).toBeDefined();
     const svg = path.join(web, 'public/rooms', file!);
     expect(existsSync(svg)).toBe(true);
+    // The room the page paints when no job takes the contact elsewhere is the stylesheet's fallback.
+    expect(roomSetting([], key, { kind: 'hub' })?.art).toBe(`/rooms/${file}`);
     const source = readFileSync(svg, 'utf8');
     expect(source).toMatch(/^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg" viewBox="0 0 1200 480">/);
     // Room art is drawn, never fetched: no scripts or outside references.
