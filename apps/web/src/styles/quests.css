@@ -1480,12 +1480,12 @@
   min-width: 0;
   padding: 10px;
   border: 1px solid var(--se-line);
-  background: rgba(0, 0, 0, 0.12);
+  background: var(--se-panel);
 }
 
 .se-quest-scene--open {
-  border-color: rgba(var(--se-accent-rgb), 0.45);
-  background: rgba(var(--se-accent-rgb), 0.06);
+  border-color: var(--se-accent-dim);
+  background: var(--se-panel-hi);
 }
 
 .se-quest-scene--locked {
