@@ -263,8 +263,8 @@ export async function handleTicketButton(interaction: ButtonInteraction, deps: S
       await posted.edit(plainDiscordMessage(closedStaffMessage(posted.embeds[0].toJSON(), posted.components.map((row) => row.toJSON() as APIActionRowComponent<APIComponentInMessageActionRow>), closedBy)))
         .catch((error: unknown) => console.warn(`Could not mark support ticket ${ticket.id} closed in the staff channel:`, error));
     } else if (posted) {
-      const links = posted.components.flatMap((row) => row.components.map((component) => component.toJSON())).filter((component): component is APIButtonComponent =>
-        component.type === ComponentType.Button && component.style === ButtonStyle.Link);
+      const links = posted.components.flatMap((row) => row.type === ComponentType.ActionRow ? row.toJSON().components : [])
+        .filter((component): component is APIButtonComponent => component.type === ComponentType.Button && component.style === ButtonStyle.Link);
       const components: APIActionRowComponent<APIComponentInMessageActionRow>[] = links.length
         ? [{ type: ComponentType.ActionRow, components: links }]
         : [];
