@@ -19,7 +19,7 @@ describe('profit intelligence source projection', () => {
         { day: '2026-10-10', source: 'NEW_SOURCE', citySlug: null, entryCount: '1', inflowCents: '20', outflowCents: '0', netCents: '20' },
       ],
       ledger: { entryCount: 4, netCents: 845n },
-      ruleset: classicOgV07E,
+      ruleset: classicOgV16H,
       roundId: 'round-1',
       generatedAt: new Date('2026-10-10T12:00:00.000Z'),
       period: { from: new Date('2026-10-01T12:00:00.000Z'), to: new Date('2026-10-10T12:00:00.000Z'), days: 30 },
@@ -36,7 +36,7 @@ describe('profit intelligence source projection', () => {
     await expect(ProfitIntelligenceService.get(prisma, {
       roundId: 'round-1', roundPlayerId: 'player-1',
       roundStartsAt: new Date('2026-10-01T00:00:00.000Z'),
-      ruleset: classicOgV07E, days: 91, now: new Date('2026-10-10T00:00:00.000Z'),
+      ruleset: classicOgV16H, days: 91, now: new Date('2026-10-10T00:00:00.000Z'),
     })).rejects.toMatchObject({ code: 'INVALID_REPORT_PERIOD' });
     expect($transaction).not.toHaveBeenCalled();
   });
