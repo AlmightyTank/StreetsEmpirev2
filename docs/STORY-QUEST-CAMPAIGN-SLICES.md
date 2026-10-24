@@ -314,7 +314,7 @@ The card opens its details when a scene becomes playable. Chapter copy keeps par
 
 ## Slice I — Act V, "Who Keeps the Book" (Main 21–25) and endings ✅
 
-**Done:** ruleset `classic-og-v2.6-g` (2.6.0-G), now the default for new rounds (`classic-og-v2.6-g/missing-line-act-5.ts`). It adds the `MARA_VENN` contact ("The Clearinghouse"; her room shows a silhouette until she has art). `ML_M20_MAP_IN_THE_MARGINS` is re-issued to open the act.
+**Done:** ruleset `classic-og-v2.6-g` (2.6.0-G), now the default for new rounds (`classic-og-v2.6-g/missing-line-act-5.ts`). It adds the `MARA_VENN` contact ("The Clearinghouse"; her portrait is `portraits/mara-venn.svg`). `ML_M20_MAP_IN_THE_MARGINS` is re-issued to open the act.
 
 | # | Chapter (contact) | Work | Scene / choice |
 | --- | --- | --- | --- |

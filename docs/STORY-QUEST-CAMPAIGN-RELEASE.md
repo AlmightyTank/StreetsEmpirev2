@@ -111,4 +111,4 @@ Automated coverage is in parentheses. Integration suites run with `STORY_INTEGRA
 
 ## Also shipped
 
-- R2: painted contact rooms for every contact, Mara included (`apps/web/public/rooms/`). Mara still has no portrait; she's shown as a silhouette in her room.
+- R2: painted contact rooms for every contact, Mara included (`apps/web/public/rooms/`). Mara has her own portrait (`apps/web/public/portraits/mara-venn.svg`): dark hair swept back with a silver streak, a charcoal suit, pearl earrings, a fountain pen, and a silver pin shaped like a closed book.
