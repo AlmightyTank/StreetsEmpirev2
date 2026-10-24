@@ -1,6 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import { describe, expect, it, vi } from 'vitest';
-import { classicOgV07E } from '@streets/rulesets';
+import { classicOgV16H } from '@streets/rulesets';
 import { profitClassificationForSource, projectProfitGroups, ProfitIntelligenceService } from '../profit-intelligence.service.js';
 
 describe('profit intelligence source projection', () => {
