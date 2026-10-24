@@ -1503,3 +1503,9 @@
   }
 }
 
+
+/* Salvage Yard: hideout parts for cash or barter. */
+.se-salvage-offer { align-items: flex-start; }
+.se-salvage-offer__price { font-size: 12px; line-height: 1.35; }
+.se-salvage-offer__price .se-eyebrow { margin-right: 4px; }
+.se-salvage-receipt { margin: 0; color: var(--se-text-dim); }

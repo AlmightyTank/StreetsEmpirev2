@@ -39,6 +39,7 @@ import { DealerSalesSettleService } from './dealer-sales-settle.service.js';
 import { SupplyLaneSettleService } from './supply-lane-settle.service.js';
 import { LoanSettleService } from './loan-settle.service.js';
 import { TurfWarSettlementService } from './turf-war-settle.service.js';
+import { HideoutBuildService } from './hideout-build.service.js';
 import { QuestProgressService } from './quest-progress.service.js';
 import { EconomyLedgerService, type EconomyLedgerWrite } from './economy-ledger.service.js';
 import { StreetPassCredService } from './street-pass-cred.service.js';
@@ -165,6 +166,11 @@ export interface PlayerState {
   hideoutBackOfficeLevel: number;
   hideoutGarageLevel: number;
   hideoutStorageLevel?: number;
+  /** The room under construction, if any; its level lands when the build is ready. */
+  hideoutBuildRoom?: string | null;
+  hideoutBuildLevel?: number | null;
+  hideoutBuildStartedAt?: Date | null;
+  hideoutBuildReadyAt?: Date | null;
   hideoutWeaponPriority: string;
   hideoutSafeRoomSpecialization: string | null;
   hideoutLookoutsSpecialization: string | null;
@@ -336,6 +342,10 @@ export function toState(player: RoundPlayer): PlayerState {
     hideoutBackOfficeLevel: player.hideoutBackOfficeLevel,
     hideoutGarageLevel: player.hideoutGarageLevel,
     hideoutStorageLevel: player.hideoutStorageLevel,
+    hideoutBuildRoom: player.hideoutBuildRoom,
+    hideoutBuildLevel: player.hideoutBuildLevel,
+    hideoutBuildStartedAt: player.hideoutBuildStartedAt,
+    hideoutBuildReadyAt: player.hideoutBuildReadyAt,
     hideoutWeaponPriority: player.hideoutWeaponPriority,
     hideoutSafeRoomSpecialization: player.hideoutSafeRoomSpecialization,
     hideoutLookoutsSpecialization: player.hideoutLookoutsSpecialization,
@@ -472,6 +482,8 @@ export const ActionService = {
       await ConvoyService.credit(tx, roundPlayerId, now);
       // 0.6.0-C: turf squads and allied backup return before another action reads them.
       await TurfWarSettlementService.credit(tx, roundPlayerId, now);
+      // Hideout construction that has finished lands before the player is read.
+      await HideoutBuildService.settle(tx, roundPlayerId, now);
 
       const loaded = await tx.roundPlayer.findUnique({
         where: { id: roundPlayerId },

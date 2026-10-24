@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { rememberedKey, useRememberedState } from '../utils/remembered.js';
-import { Link, Navigate, NavLink, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { formatCents, formatNumber, type ProductsDto, type StoreCheckoutLineInput, type StoreCheckoutResult, type StoreDto, type StoreItemDto, type StoreMarketContextDto, type StoreRestockDto, type StoresDto, type StoreSpecialOrderResult, type StoreTradeInput, type StoreTradeResult } from '@streets/shared';
+import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { formatCents, formatNumber, type ProductsDto, type StoreCheckoutLineInput, type StoreCheckoutResult, type StoreItemDto, type StoreMarketContextDto, type StoreRestockDto, type StoresDto, type StoreSpecialOrderResult, type StoreTradeInput, type StoreTradeResult } from '@streets/shared';
 import { api, ApiError } from '../api/client.js';
 import { onQuestsChanged } from '../quests/questSignals.js';
 import { storesApi } from '../api/stores.js';
@@ -9,6 +9,8 @@ import { ActionDock, resultChips } from '../components/ActionDock.js';
 import { ActionResult, type ResultLine } from '../components/ActionResult.js';
 import { Alert } from '../components/Alert.js';
 import { Portrait } from '../components/Portrait.js';
+import { StoreTabs } from '../components/StoreTabs.js';
+import { SalvageYard } from '../components/SalvageYard.js';
 import { contactRoomHref, storeHasContactRoom } from '../utils/contactRoom.js';
 import { Button } from '../components/Button.js';
 import { EconomyBatchAction, EconomyPendingNotice, EconomyQuote } from '../components/EconomyExperience.js';
@@ -390,7 +392,6 @@ function StoreItem({ item, store, storeName, keeper, owned, cashCents, bulkHelpe
 }
 
 /** Short names for the store tabs; the page title keeps the full one. */
-const TAB_NAMES: Record<string, string> = { CORNER: 'Corner', TOMMY: 'Tommy’s', CHARLIE: 'Charlie’s', PIP: 'Pip’s' };
 
 const STORE_DETAILS: Record<string, { label: string; lane: string; note: string }> = {
   CORNER: {
@@ -441,19 +442,6 @@ export function StoresIndexPage() {
     // Private browsing: the Corner Store it is.
   }
   return <Navigate to={`/game/stores/${encodeURIComponent(slug)}`} replace />;
-}
-
-function StoreTabs({ stores, slug }: { stores: StoreDto[]; slug: string }) {
-  return (
-    <nav className="se-storetabs" aria-label="Stores">
-      {stores.map((store) => (
-        <NavLink key={store.slug} to={`/game/stores/${store.slug}`} replace
-          className={`se-storetabs__tab${store.slug === slug ? ' se-storetabs__tab--active' : ''}`}>
-          {TAB_NAMES[store.key] ?? store.name}
-        </NavLink>
-      ))}
-    </nav>
-  );
 }
 
 function StoreView({
@@ -1155,6 +1143,8 @@ export function StorePage() {
   function removeFromBasket(key: string) {
     setBasket((current) => removeStoreBasketLine(current, key));
   }
+
+  if (slug === 'salvage') return <SalvageYard />;
 
   return (
     <StoreView
