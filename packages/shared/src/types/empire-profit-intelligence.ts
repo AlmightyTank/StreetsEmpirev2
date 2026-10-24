@@ -44,6 +44,21 @@ export interface ProfitComparisonDto {
   caveats: string[];
 }
 
+export interface ProfitIntelligenceReceiptDto {
+  id: string;
+  at: string;
+  source: string;
+  label: string;
+  amountCents: string;
+  citySlug: string | null;
+}
+
+export interface ProfitIntelligenceReceiptsPageDto {
+  receipts: ProfitIntelligenceReceiptDto[];
+  nextCursor: string | null;
+  limit: number;
+}
+
 export interface ProfitIntelligenceGoalsDto {
   availableProductKeys: string[];
   settings: {
