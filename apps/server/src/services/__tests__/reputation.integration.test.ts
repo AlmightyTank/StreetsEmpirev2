@@ -121,6 +121,7 @@ describe.runIf(process.env.REPUTATION_INTEGRATION === '1')('handcrafted quest AP
     expect(first.statusCode, first.body).toBe(200);
     expect(replay.statusCode, replay.body).toBe(200);
     expect(replay.json()).toEqual(first.json());
+    expect(first.json().page).toBeUndefined();
 
     const after = await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: playerId } });
     expect(after.cashCents - before.cashCents).toBe(250000n);
@@ -133,8 +134,13 @@ describe.runIf(process.env.REPUTATION_INTEGRATION === '1')('handcrafted quest AP
     expect(mama.points).toBe(5);
 
     const page = (await get('/api/game/quests')).json();
-    expect(page.quests.find((quest: { key: string }) => quest.key === 'FIRST_NIGHT_OUT').status).toBe('COMPLETED');
+    expect(page.counts.completed).toBe(1);
+    expect(page.historyCount).toBe(1);
+    expect(page.quests.find((quest: { key: string }) => quest.key === 'FIRST_NIGHT_OUT')).toBeUndefined();
     expect(page.quests.find((quest: { key: string }) => quest.key === 'FRESH_FACES').status).toBe('AVAILABLE');
+    const history = await get('/api/game/quests/history');
+    expect(history.statusCode, history.body).toBe(200);
+    expect(history.json().quests.find((quest: { key: string }) => quest.key === 'FIRST_NIGHT_OUT').status).toBe('COMPLETED');
   });
 
   it('does not expose legacy favor cards in store payloads', async () => {

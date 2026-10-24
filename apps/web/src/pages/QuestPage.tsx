@@ -1,5 +1,6 @@
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { forwardRef, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Link, Navigate, useLocation } from 'react-router-dom';
+import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 import {
   formatCents,
   formatNumber,
@@ -60,6 +61,54 @@ function statusLabel(quest: PlayerQuestDto): string {
 
 const BOARD_TYPES: ReadonlySet<string> = new Set(['DAILY', 'WEEKLY', 'CITY_CONTRACT', 'SEASON', 'ALLIANCE']);
 type QuestBoardFilter = 'all' | 'ready' | 'active' | 'available' | 'contracts' | 'story';
+
+const VirtualizedQuestListContainer = forwardRef<HTMLDivElement, {
+  children?: ReactNode;
+  style?: CSSProperties;
+  'data-testid': string;
+}>(function VirtualizedQuestListContainer({ children, style, ...props }, ref) {
+  return <div {...props} ref={ref} style={style} className="se-quests-list se-quests-list--virtualized">{children}</div>;
+});
+
+function VirtualQuestList({
+  quests,
+  focusKey,
+  renderQuest,
+}: {
+  quests: PlayerQuestDto[];
+  focusKey: string | null;
+  renderQuest: (quest: PlayerQuestDto) => ReactNode;
+}) {
+  const listRef = useRef<VirtuosoHandle>(null);
+  const rows = useMemo(() => {
+    const result: PlayerQuestDto[][] = [];
+    for (let index = 0; index < quests.length; index += 2) {
+      result.push(quests.slice(index, index + 2));
+    }
+    return result;
+  }, [quests]);
+
+  useEffect(() => {
+    if (!focusKey) return;
+    const questIndex = quests.findIndex((quest) => quest.key === focusKey);
+    if (questIndex >= 0) listRef.current?.scrollToIndex({ index: Math.floor(questIndex / 2), align: 'center' });
+  }, [quests, focusKey]);
+
+  return (
+    <Virtuoso
+      ref={listRef}
+      useWindowScroll
+      data={rows}
+      overscan={{ main: 700, reverse: 400 }}
+      components={{ List: VirtualizedQuestListContainer }}
+      itemContent={(_index, row) => (
+        <div className="se-quests-virtual-row">
+          {row.map((quest) => renderQuest(quest))}
+        </div>
+      )}
+    />
+  );
+}
 
 /** Who the work is for: the contact and their faction, or a board contract's sponsor (1.4.0-C). */
 function questByline(quest: PlayerQuestDto): string {
@@ -131,6 +180,10 @@ function timeRemaining(expiresAt: string, nowMs: number): string {
   const days = Math.floor(hours / 24);
   const leftoverHours = hours % 24;
   return days + 'd ' + leftoverHours + 'h left';
+}
+
+function isHistoricalQuest(quest: PlayerQuestDto): boolean {
+  return quest.status === 'COMPLETED' || quest.status === 'FAILED' || quest.status === 'EXPIRED';
 }
 
 function ProgressLine({
@@ -454,6 +507,9 @@ export function QuestPage() {
   const refreshSnapshot = useSession((state) => state.refreshSnapshot);
   const reloadOnboarding = useOnboarding((state) => state.load);
   const [page, setPage] = useState<QuestPageDto | null>(null);
+  const historyCache = useRef<PlayerQuestDto[] | null>(null);
+  const historyLoadInFlight = useRef<Promise<PlayerQuestDto[] | null> | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Partial<Record<QuestBoardGroupKey, boolean>>>({});
   const [showConnections, setShowConnections] = useState(false);
   const [showProgression, setShowProgression] = useState(false);
@@ -469,6 +525,30 @@ export function QuestPage() {
   const deferredBoardSearch = useDeferredValue(boardSearch);
   const pageLoadInFlight = useRef<Promise<QuestPageDto | null> | null>(null);
 
+  const loadHistory = useCallback(() => {
+    if (historyCache.current) return Promise.resolve(historyCache.current);
+    if (historyLoadInFlight.current) return historyLoadInFlight.current;
+    setError(null);
+    setHistoryLoading(true);
+    const pending = questsApi.history().then(({ quests }) => {
+      historyCache.current = quests;
+      setPage((current) => current ? {
+        ...current,
+        quests: [...current.quests.filter((quest) => !isHistoricalQuest(quest)), ...quests],
+      } : current);
+      return quests;
+    }).catch(() => {
+      setError('Could not load quest history right now. Try again.');
+      return null;
+    });
+    historyLoadInFlight.current = pending;
+    void pending.finally(() => {
+      setHistoryLoading(false);
+      if (historyLoadInFlight.current === pending) historyLoadInFlight.current = null;
+    });
+    return pending;
+  }, []);
+
   const applyPage = useCallback((
     next: QuestPageDto,
     requestStartedAtMs: number,
@@ -477,7 +557,11 @@ export function QuestPage() {
     const offset = serverClockOffsetMs(next.serverTime, requestStartedAtMs, responseReceivedAtMs);
     setClockOffsetMs(offset);
     setNowMs(serverAdjustedNowMs(responseReceivedAtMs, offset));
-    setPage(next);
+    const currentQuests = next.quests.filter((quest) => !isHistoricalQuest(quest));
+    setPage({
+      ...next,
+      quests: historyCache.current ? [...currentQuests, ...historyCache.current] : currentQuests,
+    });
   }, []);
 
   const load = useCallback(() => {
@@ -537,6 +621,9 @@ export function QuestPage() {
   useEffect(() => {
     if (!page) return;
     const focusKey = focusedQuestKey(location.search, location.hash);
+    if (focusKey && !page.quests.some((quest) => quest.key === focusKey) && (page.historyCount ?? 0) > 0) {
+      void loadHistory();
+    }
     const board = buildQuestBoard(page.quests, focusKey);
     const targetGroup = focusKey
       ? board.groups.find((group) => group.quests.some((quest) => quest.key === focusKey))?.key
@@ -548,7 +635,7 @@ export function QuestPage() {
       setShowConnections(true);
     }
     if (location.hash === '#quest-progression') setShowProgression(true);
-  }, [page, location.search, location.hash, location.key]);
+  }, [page, location.search, location.hash, location.key, loadHistory]);
 
   useEffect(() => {
     const serverNow = serverAdjustedNowMs(Date.now(), clockOffsetMs);
@@ -573,7 +660,19 @@ export function QuestPage() {
   }, [page?.dailyContracts.resetAt, page?.weeklyContracts.resetAt, page?.cityContracts.resetAt, page?.quests, clockOffsetMs, load]);
 
   const focusKey = focusedQuestKey(location.search, location.hash);
-  const board = useMemo(() => buildQuestBoard(page?.quests ?? [], focusKey), [page, focusKey]);
+  const board = useMemo(() => {
+    const result = buildQuestBoard(page?.quests ?? [], focusKey);
+    if ((page?.historyCount ?? 0) > 0 && !result.groups.some((group) => group.key === 'history')) {
+      result.groups.push({
+        key: 'history',
+        title: 'Completed & past jobs',
+        description: 'Your history, expired jobs and past rewards.',
+        defaultOpen: false,
+        quests: [],
+      });
+    }
+    return result;
+  }, [page, focusKey]);
   const visibleGroups = useMemo(() => {
     if (!career || !careerLens) return board.groups;
     const categories = new Set(career.contractCategories.map((value) => value.toUpperCase()));
@@ -582,8 +681,8 @@ export function QuestPage() {
       quests: group.quests.filter((quest) => quest.key === focusKey || quest.status !== 'AVAILABLE'
         || categories.has(quest.category.toUpperCase())
         || categories.has(quest.type.toUpperCase())),
-    })).filter((group) => group.quests.length > 0);
-  }, [board.groups, career, careerLens, focusKey]);
+    })).filter((group) => group.quests.length > 0 || (group.key === 'history' && (page?.historyCount ?? 0) > 0));
+  }, [board.groups, career, careerLens, focusKey, page?.historyCount]);
 
   const filteredGroups = useMemo(() => {
     const query = deferredBoardSearch.trim().toLocaleLowerCase();
@@ -604,8 +703,21 @@ export function QuestPage() {
         ].filter(Boolean).join(' ').toLocaleLowerCase();
         return searchable.includes(query);
       }),
-    })).filter((group) => group.quests.length > 0);
-  }, [visibleGroups, boardFilter, deferredBoardSearch, focusKey]);
+    })).filter((group) => group.quests.length > 0
+      || (group.key === 'history' && !query && (page?.historyCount ?? 0) > 0));
+  }, [visibleGroups, boardFilter, deferredBoardSearch, focusKey, page?.historyCount]);
+
+  useEffect(() => {
+    if (deferredBoardSearch.trim() && (page?.historyCount ?? 0) > 0 && !historyCache.current) {
+      void loadHistory();
+    }
+  }, [deferredBoardSearch, page?.historyCount, loadHistory]);
+
+  useEffect(() => {
+    if (expandedGroups.history && (page?.historyCount ?? 0) > 0 && !historyCache.current) {
+      void loadHistory();
+    }
+  }, [expandedGroups.history, page?.historyCount, loadHistory]);
 
   const trackedToday = useMemo(
     () => page?.quests.filter((quest) => quest.isTracked && ['ACTIVE', 'READY_TO_TURN_IN'].includes(quest.status)) ?? [],
@@ -666,10 +778,8 @@ export function QuestPage() {
     setBusy(key);
     setError(null);
     setNotice(null);
-    const requestStartedAtMs = Date.now();
     try {
       const result = await questsApi.claim(key, crypto.randomUUID(), branchKey);
-      const responseReceivedAtMs = Date.now();
       const locked = result.result.standingChanges.flatMap((change) => change.locked ?? []);
       // Quest Recipe Unlocks D: say which recipe the job opened; Produce and Pip's counter reload on the event below.
       const opened = page?.recipeLadder?.find((rung) => rung.questKey === key);
@@ -680,26 +790,32 @@ export function QuestPage() {
         + (result.result.chosenBranch ? ' Choice locked: ' + (branchTitle ?? result.result.chosenBranch) + '.' : '')
         + (locked.length ? ' Inner Circle locked for the season: ' + locked.join(', ') + '.' : ''),
       );
-      useSession.getState().applyActionSnapshot(result.after, result.rankChanges);
-      if (result.page) {
-        applyPage(result.page, requestStartedAtMs, responseReceivedAtMs);
-        publishQuestsChanged({
-          scope: 'action',
-          quests: result.page.quests,
-          tracked: trackedFromQuests(result.page.quests),
-        });
-      } else {
-        const next = await load();
-        if (next) {
-          publishQuestsChanged({
-            scope: 'action',
-            quests: next.quests,
-            tracked: trackedFromQuests(next.quests),
-          });
-        } else {
-          publishQuestsChanged({ scope: 'action' });
-        }
+      const claimedQuest = page?.quests.find((quest) => quest.key === key && quest.status === 'READY_TO_TURN_IN');
+      if (historyCache.current && claimedQuest) {
+        historyCache.current = [
+          { ...claimedQuest, status: 'COMPLETED', isTracked: false, ...(branchKey ? { chosenBranch: branchKey } : {}) },
+          ...historyCache.current.filter((quest) => quest.key !== key),
+        ];
       }
+      useSession.getState().applyActionSnapshot(result.after, result.rankChanges);
+      setPage((current) => {
+        if (!current) return current;
+        const claimed = current.quests.find((quest) => quest.key === key && quest.status === 'READY_TO_TURN_IN');
+        if (!claimed) return current;
+        return {
+          ...current,
+          quests: current.quests.filter((quest) => quest.key !== key),
+          counts: {
+            ...current.counts,
+            ready: Math.max(0, current.counts.ready - 1),
+            completed: current.counts.completed + 1,
+          },
+          historyCount: (current.historyCount ?? 0) + 1,
+        };
+      });
+      void load().then((next) => publishQuestsChanged(next
+        ? { scope: 'action', quests: next.quests, tracked: trackedFromQuests(next.quests) }
+        : { scope: 'action' }));
       void refreshSnapshot({ background: true });
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : 'Payment could not be collected.');
@@ -900,12 +1016,14 @@ export function QuestPage() {
               </div>
               {filteredGroups.length ? filteredGroups.map((group) => {
                 const open = expandedGroups[group.key] ?? group.defaultOpen;
+                const groupCount = group.key === 'history' ? page.historyCount ?? group.quests.length : group.quests.length;
                 return (
                   <section id={'quest-board-' + group.key} className="se-quests-group" key={group.key}>
                     <details
                       open={open}
                       onToggle={(event) => {
                         const next = event.currentTarget.open;
+                        if (next && group.key === 'history' && !historyCache.current) void loadHistory();
                         setExpandedGroups((current) => current[group.key] === next ? current : { ...current, [group.key]: next });
                       }}
                     >
@@ -914,14 +1032,17 @@ export function QuestPage() {
                           <strong>{group.title}</strong>
                           <small>{group.description}</small>
                         </span>
-                        <span className="se-quests-group__count">{formatNumber(group.quests.length)}</span>
+                        <span className="se-quests-group__count">{formatNumber(groupCount)}</span>
                         <span className="se-quests-group__chevron" aria-hidden="true">{open ? '−' : '+'}</span>
                       </summary>
-                      {open ? (
-                        <div className="se-quest-list se-quests-list">
-                          {group.quests.map((quest) => renderQuest(quest))}
+                      {open ? group.quests.length ? (
+                        <VirtualQuestList quests={group.quests} focusKey={focusKey} renderQuest={(quest) => renderQuest(quest)} />
+                      ) : group.key === 'history' ? (
+                        <div className="se-quests-empty" role={historyLoading ? 'status' : undefined}>
+                          <strong>{historyLoading ? 'Loading your quest history…' : historyCache.current ? 'No past jobs to show.' : 'Quest history could not be loaded.'}</strong>
+                          {!historyLoading && !historyCache.current && (page.historyCount ?? 0) > 0 ? <span>Close and reopen history to retry.</span> : null}
                         </div>
-                      ) : null}
+                      ) : null : null}
                     </details>
                   </section>
                 );

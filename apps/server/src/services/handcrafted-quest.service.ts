@@ -1097,7 +1097,7 @@ export const HandcraftedQuestService = {
     return { quests: rows.map((row) => questDto(row, ruleset, context)) };
   },
 
-  async page(prisma: PrismaClient, roundPlayerId: string, ruleset: Ruleset, opts: { skipSync?: boolean; skipRefresh?: boolean } = {}): Promise<QuestPageDto> {
+  async page(prisma: PrismaClient, roundPlayerId: string, ruleset: Ruleset, opts: { skipSync?: boolean; skipRefresh?: boolean; includeHistory?: boolean } = {}): Promise<QuestPageDto> {
     if (!opts.skipSync) await syncDefinitions(prisma, ruleset);
     return prisma.$transaction(async (tx) => {
       await lockRoundPlayer(tx, roundPlayerId);
@@ -1121,6 +1121,7 @@ export const HandcraftedQuestService = {
       const [
         seasonRow,
         rows,
+        historicalRows,
         reps,
         standings,
         points,
@@ -1143,11 +1144,23 @@ export const HandcraftedQuestService = {
         tx.playerQuest.findMany({
           where: {
             roundPlayerId,
+            ...(!opts.includeHistory ? { status: { notIn: ['COMPLETED', 'FAILED', 'EXPIRED'] } } : {}),
             questDefinition: { rulesetId: ruleset.meta.id, rulesetVersion: ruleset.meta.version, isEnabled: true },
           },
           include: { questDefinition: true },
           orderBy: [{ createdAt: 'asc' }],
         }),
+        opts.includeHistory
+          ? Promise.resolve([])
+          : tx.playerQuest.findMany({
+            where: {
+              roundPlayerId,
+              status: { in: ['COMPLETED', 'FAILED', 'EXPIRED'] },
+              questDefinition: { rulesetId: ruleset.meta.id, rulesetVersion: ruleset.meta.version, isEnabled: true },
+            },
+            select: { status: true, createdAt: true, questDefinition: { select: { key: true } } },
+            orderBy: { createdAt: 'desc' },
+          }),
         contactPoints(tx, roundPlayerId, ruleset),
         FactionService.standings(tx, roundPlayerId, ruleset),
         FactionService.points(tx, roundPlayerId),
@@ -1168,6 +1181,14 @@ export const HandcraftedQuestService = {
         CityConditionService.page(tx, roundPlayerId, ruleset, now),
       ]);
       const seasonEndsAt = seasonRow?.round.endsAt ?? null;
+      const completedQuestKeys = new Set([
+        ...rows.filter((row) => row.status === 'COMPLETED').map((row) => row.questDefinition.key),
+        ...historicalRows.filter((row) => row.status === 'COMPLETED').map((row) => row.questDefinition.key),
+      ]);
+      const latestHistoricalStatus = new Map<string, string>();
+      for (const row of historicalRows) {
+        if (!latestHistoricalStatus.has(row.questDefinition.key)) latestHistoricalStatus.set(row.questDefinition.key, row.status);
+      }
       const communitySnapshots = await communityEventSnapshots(
         tx,
         rows.filter((row) => isCommunityEventDefinition(ruleset.questDefinitions?.[row.questDefinition.key])),
@@ -1190,7 +1211,7 @@ export const HandcraftedQuestService = {
       const questContext: QuestContext = {
         points,
         netWorthCents: worth.netWorthCents,
-        completed: new Set(rows.filter((row) => row.status === 'COMPLETED').map((row) => row.questDefinition.key)),
+        completed: completedQuestKeys,
         reps,
         ...gate,
       };
@@ -1210,7 +1231,7 @@ export const HandcraftedQuestService = {
           if (definition.category !== 'FACTION' || jobFaction(ruleset, definition) !== faction.key) return [];
           const tier = factionJobTier(definition);
           const row = rows.find((candidate) => candidate.questDefinition.key === definition.key);
-          return [{ key: definition.key, title: definition.title, tierName: tier ? factionTierName(tier) : null, status: row?.status ?? 'LOCKED' }];
+          return [{ key: definition.key, title: definition.title, tierName: tier ? factionTierName(tier) : null, status: row?.status ?? latestHistoricalStatus.get(definition.key) ?? 'LOCKED' }];
         }),
         ...(ruleset.factionPerks ? { perks: perks.get(faction.key) ?? null } : {}),
         ...(ruleset.factionRivalry?.innerCircleLock ? (() => {
@@ -1218,6 +1239,7 @@ export const HandcraftedQuestService = {
           const reached = (questContext.points[faction.key] ?? 0) >= (ruleset.factionStanding?.tiers.innerCircle ?? Infinity);
           const introduction = Object.values(ruleset.questDefinitions ?? {}).find((definition) => definition.introduces === faction.key);
           const introRow = introduction ? rows.find((candidate) => candidate.questDefinition.key === introduction.key) : undefined;
+          const introStatus = introRow?.status ?? (introduction ? latestHistoricalStatus.get(introduction.key) : undefined) ?? 'LOCKED';
           const below = (questContext.points[faction.key] ?? 0) < (ruleset.factionStanding?.tiers.known ?? 0);
           return {
             innerCircle: {
@@ -1225,8 +1247,8 @@ export const HandcraftedQuestService = {
               wouldLock: lockedBy || reached ? [] : faction.rivals
                 .filter((rival) => (questContext.points[rival] ?? 0) < (ruleset.factionStanding?.tiers.innerCircle ?? Infinity))
                 .map((rival) => ({ key: rival, name: ruleset.factions?.[rival]?.name ?? rival })),
-              introduction: introduction && (below || introRow?.status === 'COMPLETED')
-                ? { key: introduction.key, title: introduction.title, status: introRow?.status ?? 'LOCKED' }
+              introduction: introduction && (below || introStatus === 'COMPLETED')
+                ? { key: introduction.key, title: introduction.title, status: introStatus }
                 : null,
             },
           };
@@ -1294,8 +1316,13 @@ export const HandcraftedQuestService = {
             && ['ACTIVE', 'READY_TO_TURN_IN'].includes(row.status)
           ).length,
           ready: rows.filter((row) => row.status === 'READY_TO_TURN_IN').length,
-          completed: rows.filter((row) => row.status === 'COMPLETED').length,
+          completed: opts.includeHistory
+            ? rows.filter((row) => row.status === 'COMPLETED').length
+            : rows.filter((row) => row.status === 'COMPLETED').length + historicalRows.filter((row) => row.status === 'COMPLETED').length,
         },
+        historyCount: opts.includeHistory
+          ? rows.filter((row) => ['COMPLETED', 'FAILED', 'EXPIRED'].includes(row.status)).length
+          : historicalRows.length,
         contacts,
         factions,
         permanentUnlocks,
@@ -1312,6 +1339,15 @@ export const HandcraftedQuestService = {
         quests: rows.map((row) => questDto(row, ruleset, questContext, communitySnapshots.get(row.id))),
       };
     });
+  },
+
+  async history(prisma: PrismaClient, roundPlayerId: string, ruleset: Ruleset): Promise<PlayerQuestDto[]> {
+    const page = await this.page(prisma, roundPlayerId, ruleset, {
+      skipSync: true,
+      skipRefresh: true,
+      includeHistory: true,
+    });
+    return page.quests.filter((quest) => ['COMPLETED', 'FAILED', 'EXPIRED'].includes(quest.status));
   },
 
   async accept(prisma: PrismaClient, roundPlayerId: string, ruleset: Ruleset, key: string): Promise<QuestPageDto> {

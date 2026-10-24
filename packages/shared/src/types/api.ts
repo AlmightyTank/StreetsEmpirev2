@@ -2249,6 +2249,8 @@ export interface QuestPageDto {
     ready: number;
     completed: number;
   };
+  /** Total completed, failed and expired quests. Their full cards load on demand. */
+  historyCount?: number;
   contacts: QuestContactDto[];
   /** 1.4.0-A. The round's factions, or null before 1.4. */
   factions: FactionDto[] | null;
@@ -2326,7 +2328,7 @@ export interface TrackedQuestsDto {
   quests: PlayerQuestDto[];
 }
 
-/** Claim receipt plus the board, so the desk does not fetch quests again. `page` is absent when that read fails. */
+/** Claim receipt. Older servers may attach an updated board; current clients refresh it in the background. */
 export interface QuestClaimResponse extends GameActionResult<QuestClaimResult> {
   page?: QuestPageDto;
 }

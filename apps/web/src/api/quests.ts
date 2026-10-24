@@ -1,8 +1,9 @@
-import type { FavorActivationResult, FavorArmResult, GameActionResult, QuestClaimResponse, QuestPageDto, TrackedQuestsDto } from '@streets/shared';
+import type { FavorActivationResult, FavorArmResult, GameActionResult, PlayerQuestDto, QuestClaimResponse, QuestPageDto, TrackedQuestsDto } from '@streets/shared';
 import { api } from './client.js';
 
 export const questsApi = {
   page: () => api.get<QuestPageDto>('/game/quests'),
+  history: () => api.get<{ quests: PlayerQuestDto[] }>('/game/quests/history'),
   tracked: () => api.get<TrackedQuestsDto>('/game/quests/tracked'),
   accept: (key: string, actionId: string) =>
     api.post<QuestPageDto>('/game/quests/' + encodeURIComponent(key) + '/accept', { actionId }),
