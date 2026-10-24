@@ -31,6 +31,14 @@ import { buildQuestBoard, legacyQuestGroup, type QuestBoardGroupKey } from '../u
 
 const BOARD_QUEST_TYPES = ['ALLIANCE', 'CITY_CONTRACT', 'EVENT', 'SEASON'] as const;
 
+/** Keep the last board mounted in memory so returning to Quests never starts blank. */
+let cachedQuestPage: { scope: string; page: QuestPageDto } | null = null;
+let questPageLoadInFlight: { scope: string; promise: Promise<{
+  page: QuestPageDto;
+  requestStartedAtMs: number;
+  responseReceivedAtMs: number;
+} | null> } | null = null;
+
 /** City, alliance, season and community work: shared boards, not personal jobs, and never abandoned. */
 function isBoardQuest(quest: PlayerQuestDto): boolean {
   return BOARD_QUEST_TYPES.includes(quest.type as typeof BOARD_QUEST_TYPES[number])
@@ -504,9 +512,13 @@ function FavorArt({ favorKey }: { favorKey: string }) {
 export function QuestPage() {
   const location = useLocation();
   const me = useSession((state) => state.me);
+  const roundId = useSession((state) => state.round?.id ?? null);
+  const cacheScope = me?.id && roundId ? `${me.id}:${roundId}` : null;
   const refreshSnapshot = useSession((state) => state.refreshSnapshot);
   const reloadOnboarding = useOnboarding((state) => state.load);
-  const [page, setPage] = useState<QuestPageDto | null>(null);
+  const [page, setPage] = useState<QuestPageDto | null>(() => (
+    cacheScope && cachedQuestPage?.scope === cacheScope ? cachedQuestPage.page : null
+  ));
   const historyCache = useRef<PlayerQuestDto[] | null>(null);
   const historyLoadInFlight = useRef<Promise<PlayerQuestDto[] | null> | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -523,7 +535,6 @@ export function QuestPage() {
   const [boardFilter, setBoardFilter] = useState<QuestBoardFilter>('all');
   const [boardSearch, setBoardSearch] = useState('');
   const deferredBoardSearch = useDeferredValue(boardSearch);
-  const pageLoadInFlight = useRef<Promise<QuestPageDto | null> | null>(null);
 
   const loadHistory = useCallback(() => {
     if (historyCache.current) return Promise.resolve(historyCache.current);
@@ -565,26 +576,32 @@ export function QuestPage() {
   }, []);
 
   const load = useCallback(() => {
-    if (pageLoadInFlight.current) return pageLoadInFlight.current;
-    const pending = (async () => {
+    if (!cacheScope) return Promise.resolve(null);
+    if (questPageLoadInFlight?.scope !== cacheScope) {
       const requestStartedAtMs = Date.now();
-      try {
-        const next = await questsApi.page();
+      const pending = questsApi.page().then((next) => {
         const responseReceivedAtMs = Date.now();
-        applyPage(next, requestStartedAtMs, responseReceivedAtMs);
-        setError(null);
-        return next;
-      } catch {
-        setError('Could not load jobs right now. Try again.');
+        cachedQuestPage = { scope: cacheScope, page: next };
+        return { page: next, requestStartedAtMs, responseReceivedAtMs };
+      }).catch(() => null);
+      questPageLoadInFlight = { scope: cacheScope, promise: pending };
+      void pending.finally(() => {
+        if (questPageLoadInFlight?.promise === pending) questPageLoadInFlight = null;
+      });
+    }
+    const pending = questPageLoadInFlight.promise;
+    return pending.then((result) => {
+      if (!result) {
+        if (!cachedQuestPage || cachedQuestPage.scope !== cacheScope) {
+          setError('Could not load jobs right now. Try again.');
+        }
         return null;
       }
-    })();
-    pageLoadInFlight.current = pending;
-    void pending.finally(() => {
-      if (pageLoadInFlight.current === pending) pageLoadInFlight.current = null;
+      applyPage(result.page, result.requestStartedAtMs, result.responseReceivedAtMs);
+      setError(null);
+      return result.page;
     });
-    return pending;
-  }, [applyPage]);
+  }, [applyPage, cacheScope]);
 
   useEffect(() => {
     void load();
