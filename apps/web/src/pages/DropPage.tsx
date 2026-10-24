@@ -917,17 +917,71 @@ export function skipPrice(count: number, single: number, tenPack: number): numbe
   return Math.floor(count / 10) * tenPack + (count % 10) * single;
 }
 
+const PENDING_STREET_PASS_SKIP_PREFIX = 'streets.drop.street-pass-skip.pending.v1';
+
+interface PendingStreetPassSkip {
+  accountId: string;
+  actionId: string;
+  tiers: number;
+  fromTier: number;
+}
+
+function pendingSkipKey(accountId: string): string {
+  return `${PENDING_STREET_PASS_SKIP_PREFIX}:${accountId}`;
+}
+
+function readPendingStreetPassSkip(accountId: string): PendingStreetPassSkip | null {
+  try {
+    const value: unknown = JSON.parse(window.localStorage.getItem(pendingSkipKey(accountId)) ?? 'null');
+    if (!value || typeof value !== 'object') return null;
+    const intent = value as Partial<PendingStreetPassSkip>;
+    if (intent.accountId !== accountId || typeof intent.actionId !== 'string'
+      || !Number.isSafeInteger(intent.tiers) || !Number.isSafeInteger(intent.fromTier)) return null;
+    return intent as PendingStreetPassSkip;
+  } catch {
+    return null;
+  }
+}
+
+function writePendingStreetPassSkip(accountId: string, intent: PendingStreetPassSkip | null): void {
+  try {
+    const key = pendingSkipKey(accountId);
+    if (intent) window.localStorage.setItem(key, JSON.stringify(intent));
+    else window.localStorage.removeItem(key);
+  } catch {
+    // The server still prevents duplicate tier transitions if storage is unavailable.
+  }
+}
+
 function PassView() {
+  const accountId = useSession((state) => state.account?.id ?? null);
   const [quote, setQuote] = useState<StreetPassSkipQuoteDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [tiers, setTiers] = useState(1);
   const [busy, setBusy] = useState(false);
-  const attempt = useRef<string | null>(null);
   const load = useCallback(() => {
     dropApi.skipQuote().then((next) => { setQuote(next); setError(null); }).catch((caught) => setError(errorText(caught)));
   }, []);
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    if (!accountId) return;
+    const pending = readPendingStreetPassSkip(accountId);
+    if (!pending) return;
+    let active = true;
+    setBusy(true);
+    dropApi.skip(pending.tiers, pending.actionId, pending.fromTier).then((result) => {
+      if (!active) return;
+      writePendingStreetPassSkip(accountId, null);
+      setNotice(`You're on tier ${result.result.toTier}. Claim your new tiers on the Street Pass.`);
+      load();
+    }).catch((caught) => {
+      if (!active) return;
+      if (caught instanceof ApiError && caught.status < 500) writePendingStreetPassSkip(accountId, null);
+      setError(errorText(caught));
+    }).finally(() => { if (active) setBusy(false); });
+    return () => { active = false; };
+  }, [accountId, load]);
 
   const count = quote ? Math.max(1, Math.min(tiers, quote.remaining || 1)) : 1;
   const basePrice = quote ? skipPrice(count, quote.single, quote.tenPack) : 0;
@@ -941,16 +995,20 @@ function PassView() {
       confirmLabel: `Skip for ${formatNumber(price)} Crowns`,
     });
     if (!ok) return;
-    attempt.current ??= newActionId();
+    const previous = accountId ? readPendingStreetPassSkip(accountId) : null;
+    const intent: PendingStreetPassSkip = previous?.fromTier === quote.tier && previous.tiers === count
+      ? previous
+      : { accountId: accountId ?? '', actionId: newActionId(), tiers: count, fromTier: quote.tier };
+    if (accountId) writePendingStreetPassSkip(accountId, intent);
     setBusy(true);
     try {
-      const result = await dropApi.skip(count, attempt.current);
-      attempt.current = null;
+      const result = await dropApi.skip(count, intent.actionId, intent.fromTier);
+      if (accountId) writePendingStreetPassSkip(accountId, null);
       setNotice(`You're on tier ${result.result.toTier}. Claim your new tiers on the Street Pass.`);
       setTiers(1);
       load();
     } catch (caught) {
-      if (caught instanceof ApiError && caught.status < 500) attempt.current = null;
+      if (accountId && caught instanceof ApiError && caught.status < 500) writePendingStreetPassSkip(accountId, null);
       setError(errorText(caught));
     } finally {
       setBusy(false);
