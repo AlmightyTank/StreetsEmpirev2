@@ -133,6 +133,24 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
     });
   });
 
+  fastify.get('/profit-intelligence/receipts', { preHandler: fastify.requireAuth }, async (request, reply) => {
+    const query = z.object({
+      days: z.coerce.number().int().min(1).max(90).default(30),
+      city: z.string().min(1).max(80).optional(),
+      source: z.string().min(1).max(80).optional(),
+      cursor: z.string().min(1).max(128).optional(),
+      limit: z.coerce.number().int().min(1).max(100).default(50),
+    }).safeParse(request.query);
+    if (!query.success) throw AppError.badRequest('INVALID_RECEIPT_QUERY', 'Choose a valid receipt filter.');
+    const { round, player } = await requirePlayer(request.auth!.account.id);
+    reply.header('Cache-Control', 'private, no-store');
+    return ProfitIntelligenceService.receipts(fastify.prisma, {
+      roundPlayerId: player.id, roundStartsAt: round.startsAt, ruleset: loadRulesetForRound(round),
+      days: query.data.days, citySlug: query.data.city, source: query.data.source,
+      cursor: query.data.cursor, limit: query.data.limit,
+    });
+  });
+
   fastify.put('/profit-intelligence/goals', { preHandler: fastify.requireAuth }, async (request) => {
     const body = parseBody(profitIntelligenceGoalsSchema, request.body);
     const { round, player } = await requirePlayer(request.auth!.account.id);

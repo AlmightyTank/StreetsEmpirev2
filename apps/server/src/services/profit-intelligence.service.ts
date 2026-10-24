@@ -1,10 +1,11 @@
-import type { PrismaClient } from '@prisma/client';
+import { Prisma, type PrismaClient } from '@prisma/client';
 import type { Ruleset } from '@streets/rules-engine';
 import type {
   ProfitClassification,
   ProfitIntelligenceCityTotalDto,
   ProfitIntelligenceDaySourceCityDto,
   ProfitIntelligenceDto,
+  ProfitIntelligenceReceiptsPageDto,
   ProfitComparisonDto,
   ProfitIntelligenceGoalsDto,
   UpdateProfitIntelligenceGoalsInput,
@@ -17,6 +18,12 @@ import { productKeys } from './product-inventory.service.js';
 export const PROFIT_CLASSIFICATION_VERSION = '2.6.0-B1' as const;
 export const MAX_PROFIT_REPORT_DAYS = 90;
 const DAY_MS = 86_400_000;
+
+function reportPeriod(roundStartsAt: Date, days: number, now: Date) {
+  const requestedFrom = new Date(now.getTime() - days * DAY_MS);
+  const from = requestedFrom < roundStartsAt ? roundStartsAt : requestedFrom;
+  return { from: from > now ? now : from, to: now, days };
+}
 
 const SOURCE_CLASSIFICATION: Readonly<Record<string, ProfitClassification>> = {
   BUSINESS_INCOME: 'OPERATING_INCOME', TURF_TAX: 'OPERATING_INCOME', DEALER_SALES: 'OPERATING_INCOME',
@@ -299,9 +306,7 @@ export const ProfitIntelligenceService = {
     if (!Number.isSafeInteger(input.days) || input.days < 1 || input.days > MAX_PROFIT_REPORT_DAYS) {
       throw AppError.badRequest('INVALID_REPORT_PERIOD', 'Choose a report window from 1 to 90 days.');
     }
-    const requestedFrom = new Date(now.getTime() - input.days * DAY_MS);
-    const from = requestedFrom < input.roundStartsAt ? input.roundStartsAt : requestedFrom;
-    const period = { from: from > now ? now : from, to: now, days: input.days };
+    const period = reportPeriod(input.roundStartsAt, input.days, now);
 
     return prisma.$transaction(async (tx) => {
       const where = { roundPlayerId: input.roundPlayerId, createdAt: { gte: period.from, lt: period.to } };
@@ -365,6 +370,67 @@ export const ProfitIntelligenceService = {
       report.goals.availableProductKeys = productKeys(input.ruleset);
       return report;
     }, { isolationLevel: 'RepeatableRead' });
+  },
+
+  async receipts(prisma: PrismaClient, input: {
+    roundPlayerId: string; roundStartsAt: Date; ruleset: Ruleset; days: number;
+    citySlug?: string; source?: string; cursor?: string; limit: number; now?: Date;
+  }): Promise<ProfitIntelligenceReceiptsPageDto> {
+    const now = input.now ?? new Date();
+    if (!Number.isSafeInteger(input.days) || input.days < 1 || input.days > MAX_PROFIT_REPORT_DAYS) {
+      throw AppError.badRequest('INVALID_REPORT_PERIOD', 'Choose a report window from 1 to 90 days.');
+    }
+    if (!Number.isSafeInteger(input.limit) || input.limit < 1 || input.limit > 100) {
+      throw AppError.badRequest('INVALID_RECEIPT_LIMIT', 'Choose between 1 and 100 receipts per page.');
+    }
+    const period = reportPeriod(input.roundStartsAt, input.days, now);
+    const knownCities = Object.keys(input.ruleset.cities ?? {});
+    if (input.citySlug && input.citySlug !== 'unattributed' && !input.ruleset.cities?.[input.citySlug]) {
+      throw AppError.badRequest('INVALID_REPORT_CITY', 'Choose a city in this round.');
+    }
+    const cityFilter = !input.citySlug ? Prisma.empty : input.citySlug === 'unattributed'
+      ? knownCities.length
+        ? Prisma.sql`AND (
+            jsonb_typeof("metadata") IS DISTINCT FROM 'object'
+            OR NULLIF("metadata" ->> 'citySlug', '') IS NULL
+            OR NULLIF("metadata" ->> 'citySlug', '') NOT IN (${Prisma.join(knownCities)})
+          )`
+        : Prisma.sql`AND (jsonb_typeof("metadata") IS DISTINCT FROM 'object' OR NULLIF("metadata" ->> 'citySlug', '') IS NULL)`
+      : Prisma.sql`AND jsonb_typeof("metadata") = 'object' AND NULLIF("metadata" ->> 'citySlug', '') = ${input.citySlug}`;
+    const sourceFilter = input.source ? Prisma.sql`AND "source" = ${input.source}` : Prisma.empty;
+    let cursorDate: Date | null = null;
+    let cursorId: string | null = null;
+    if (input.cursor) {
+      const cursorRows = await prisma.$queryRaw<Array<{ id: string; createdAt: Date }>>`
+        SELECT "id", "createdAt" FROM "EconomyLedgerEntry"
+        WHERE "roundPlayerId" = ${input.roundPlayerId}
+          AND "createdAt" >= ${period.from} AND "createdAt" < ${period.to}
+          ${sourceFilter} ${cityFilter} AND "id" = ${input.cursor}
+        LIMIT 1
+      `;
+      if (!cursorRows.length) throw AppError.badRequest('INVALID_RECEIPT_CURSOR', 'Refresh the receipt list and try again.');
+      cursorId = cursorRows[0]!.id;
+      cursorDate = cursorRows[0]!.createdAt;
+    }
+    const cursorFilter = cursorDate && cursorId
+      ? Prisma.sql`AND ("createdAt" < ${cursorDate} OR ("createdAt" = ${cursorDate} AND "id" < ${cursorId}))`
+      : Prisma.empty;
+    const rows = await prisma.$queryRaw<Array<{ id: string; at: Date; source: string; label: string; amountCents: string; citySlug: string | null }>>`
+      SELECT "id", "createdAt" AS "at", "source", "label", "amountCents"::text AS "amountCents",
+        CASE WHEN jsonb_typeof("metadata") = 'object' THEN NULLIF("metadata" ->> 'citySlug', '') ELSE NULL END AS "citySlug"
+      FROM "EconomyLedgerEntry"
+      WHERE "roundPlayerId" = ${input.roundPlayerId}
+        AND "createdAt" >= ${period.from} AND "createdAt" < ${period.to}
+        ${sourceFilter} ${cityFilter} ${cursorFilter}
+      ORDER BY "createdAt" DESC, "id" DESC
+      LIMIT ${input.limit + 1}
+    `;
+    const hasMore = rows.length > input.limit;
+    const receipts = rows.slice(0, input.limit).map((row) => ({
+      ...row, at: row.at.toISOString(),
+      citySlug: row.citySlug && input.ruleset.cities?.[row.citySlug] ? row.citySlug : null,
+    }));
+    return { receipts, nextCursor: hasMore ? receipts.at(-1)?.id ?? null : null, limit: input.limit };
   },
 
   async saveGoals(prisma: PrismaClient, roundPlayerId: string, ruleset: Ruleset, input: UpdateProfitIntelligenceGoalsInput) {

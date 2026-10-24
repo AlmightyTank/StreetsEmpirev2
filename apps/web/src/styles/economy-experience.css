@@ -210,3 +210,27 @@
   .se-economy-pending__action { width: 100%; }
   .se-economy-pending__action .se-btn { width: 100%; }
 }
+
+
+/* Slice F: compact, accessible holdings trend and receipt drilldown. */
+.se-profit-trend { display: grid; gap: 8px; min-width: 0; }
+.se-profit-trend__row { display: grid; grid-template-columns: minmax(3.5rem, 4.5rem) minmax(3rem, 1fr) minmax(10rem, auto) minmax(8rem, auto); align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--se-line); font-size: 12px; }
+.se-profit-trend__bars { display: grid; gap: 3px; min-width: 0; }
+.se-profit-trend__bars span { display: block; min-width: 0; height: 5px; border-radius: 99px; }
+.se-profit-trend__in { background: var(--se-good); }
+.se-profit-trend__out { background: var(--se-bad); }
+.se-profit-sources { display: grid; gap: 6px; padding: 0; list-style: none; }
+.se-profit-sources > li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 10px; border: 1px solid var(--se-line); border-radius: var(--se-radius-md, 6px); min-width: 0; }
+.se-profit-sources > li > span { display: grid; gap: 3px; min-width: 0; overflow-wrap: anywhere; }
+.se-profit-sources small, .se-profit-receipts small { color: var(--se-muted); }
+.se-profit-receipts { display: grid; gap: 8px; margin-top: 12px; padding: 12px; border: 1px solid var(--se-line); border-radius: var(--se-radius-lg, 8px); min-width: 0; }
+.se-profit-receipts ol { display: grid; gap: 6px; margin: 0; padding-left: 24px; }
+.se-profit-receipts li { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr)); gap: 5px 12px; padding: 8px; border-bottom: 1px solid var(--se-line); overflow-wrap: anywhere; }
+.se-profit-receipts time { color: var(--se-muted); font-size: 11px; }
+@media (max-width: 700px) {
+  .se-profit-trend__row { grid-template-columns: 3.5rem minmax(2rem, 1fr); gap: 5px 8px; }
+  .se-profit-trend__row > span, .se-profit-trend__row > strong { grid-column: 2; }
+  .se-profit-sources > li { align-items: flex-start; flex-direction: column; }
+  .se-profit-sources .se-btn { width: 100%; }
+  .se-profit-receipts { padding: 9px; }
+}
