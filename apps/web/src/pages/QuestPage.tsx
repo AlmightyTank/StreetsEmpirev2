@@ -18,6 +18,7 @@ import { Panel, Row } from '../components/Panel.js';
 import { ItemTile } from '../components/ItemTile.js';
 import { questHref } from '../components/QuestLink.js';
 import { hasOpenScene, QuestStoryScenes, StoryProse } from '../components/QuestStoryScenes.js';
+import { contactRoomHref } from '../utils/contactRoom.js';
 import { RecipeLadderPanel } from '../components/RecipeLadder.js';
 import { RewardChip } from '../components/RewardChip.js';
 import { hasItemArt } from '../items/itemArt.js';
@@ -484,6 +485,10 @@ function QuestCard({
           <Button className="se-btn se-btn--primary" disabledReason={busy} onClick={() => onClaim(quest.key)}>
             Collect payment
           </Button>
+        ) : null}
+
+        {quest.contactKey && quest.contactName && page.contacts.some((contact) => contact.key === quest.contactKey) ? (
+          <Link className="se-btn se-btn--ghost" to={contactRoomHref(quest.contactKey)}>Talk to {quest.contactName}</Link>
         ) : null}
 
         {active && showDetails ? (
@@ -1103,7 +1108,7 @@ export function QuestPage() {
                       {page.contacts.map((contact) => (
                         <div key={contact.key} className="se-quests-contact">
                           <Portrait who={contact.key} label={contact.name} />
-                          <span>{contact.name}</span>
+                          <Link className="se-golink" to={contactRoomHref(contact.key)}>{contact.name} · Visit</Link>
                           <strong>{contact.standing}</strong>
                           <small>{contact.role} · {formatNumber(contact.points)} rep</small>
                           {contact.faction ? <small>Works for {contact.faction.name}</small> : contact.independent ? <small title={contact.independent}>Independent</small> : null}

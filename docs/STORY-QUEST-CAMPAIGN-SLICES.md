@@ -36,6 +36,33 @@ Side slices K–O depend only on the main slice they branch from and can be buil
 
 ---
 
+## Contact room and depth pass (added after Act II)
+
+Contacts carry more than the campaign: story chapters, side jobs, referrals and contracts, Pip's and Tommy's counters, and standing. These slices give each contact a visit screen, then deepen the campaign's objectives before Acts III–V are written.
+
+### Slice R1 — Contact room ✅
+
+**Done:** `/game/visit/:contactKey` (`apps/web/src/pages/ContactRoomPage.tsx`, `components/ContactDialogue.tsx`, `utils/contactRoom.ts`, `styles/contact-room.css`). Web only: it reuses the quest page data and the existing accept, scene and claim endpoints.
+- **The room:** each contact's room has a CSS backdrop with its own tint, their portrait shown large, and a dialogue box with a greeting.
+- **Dialogue options:** "Got any work for me?", "Want to trade?" (Pip and Tommy link to their store), "Where do we stand?" and "I've got to go." Number keys pick options.
+- **Inside a job:** the contact speaks the job's story line. Taking the job, story-scene answers (confirmed first), branch choices and collecting payment are all dialogue options.
+- **Show history:** finished business with the contact and the choices made in it.
+- **Entry points:** each contact in the quest page's "Contact standing" panel, and "Talk to …" on every quest card with a contact.
+- **Tests:** `ContactDialogue.test.tsx`, plus a manual check in the running app at 1280px and 390px.
+
+### Slice R2 — Painted rooms (art)
+
+Replace the CSS backdrop with a painted room per contact: Mama's kitchen table, Pip's counter, Tommy's back room, Wheels' garage, Vic's booth, Blocks' corner, Ledger's desk, Ace's casino floor, the Commissioner's office. Keep the CSS tint as the fallback.
+
+### Slice R3 — Objective depth pass (Acts I–II)
+
+Make chapters do more in the game without turning them into chores:
+- add an action-then-scene pairing where a reveal now only appears in the "ready" text;
+- use more systems where the story fits them (scouting the shop's district, producing for Pip, Ledger's lawyer, Blocks' turf);
+- set real but fair targets.
+
+Pinned in a new ruleset, so in-flight rounds are unaffected. Acts III–V are written to this standard from the start.
+
 ## Slice A — Audit and contracts (no player-facing change) ✅
 
 **Done:** see [Slice A contract](./STORY-QUEST-CAMPAIGN-SLICE-A.md). It found blocker B1 (Slice A2) and settled the open questions below. The checklist that follows is kept as the record of what was audited.
