@@ -36,6 +36,7 @@ export interface ProfitIntelligenceDaySourceCityDto extends ProfitIntelligenceTo
 
 export interface ProfitIntelligenceDto {
   classificationVersion: '2.6.0-B1';
+  reportVersion: '2.6.0-C1';
   roundId: string;
   generatedAt: string;
   period: { from: string; to: string; days: number };
@@ -52,4 +53,12 @@ export interface ProfitIntelligenceDto {
     matches: boolean;
   };
   dataQuality: { unknownSourceEntries: number; unattributedCityEntries: number };
+  profitEstimate: {
+    basis: 'KNOWN_LEDGER_CASH_MARGIN'; completeness: 'INCOMPLETE';
+    recognizedIncomeCents: string; recognizedCostsCents: string; estimatedNetCents: string; notes: string[];
+  };
+  efficiency: {
+    dealerNetSalesCents: string; dealerWagesCents: string; salesToWagesRatio: string | null;
+    turnEfficiencyAvailable: false; turnEfficiencyReason: string;
+  };
 }
