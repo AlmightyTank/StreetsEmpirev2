@@ -1,6 +1,6 @@
 # StreetsEmpire 2.6.0 — Release Roadmap
 
-**Status:** Slice 2.6.0-A source audit complete on `feature/2-6-profit-intelligence-a`; slices B–G remain proposed. Base future implementation on `beta`; see [Living World Master Roadmap](STREETSEMPIRE-LIVING-WORLD-ROADMAP-2.0-2.7.md) for shared policies and dependencies.
+**Status:** Slice 2.6.0-A source audit complete on `feature/2-6-profit-intelligence-a-refresh`; slices B–G remain proposed. Base future implementation on `beta`; see [Living World Master Roadmap](STREETSEMPIRE-LIVING-WORLD-ROADMAP-2.0-2.7.md) for shared policies and dependencies.
 
 ## 2.6.0 — Empire Profit Intelligence
 
