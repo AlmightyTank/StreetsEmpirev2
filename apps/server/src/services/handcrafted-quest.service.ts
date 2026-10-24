@@ -802,7 +802,8 @@ async function refreshAvailability(
   now = new Date(),
   scope: AvailabilityScope = { kind: 'full' },
 ): Promise<string[]> {
-  await db.playerQuest.updateMany({
+  const onlyKeys = scope.kind === 'claim' ? claimRefreshKeys(ruleset, scope.questKey) : null;
+  const expiryCleanup = db.playerQuest.updateMany({
     where: {
       roundPlayerId,
       status: { in: ['AVAILABLE', 'ACTIVE', 'READY_TO_TURN_IN'] },
@@ -810,22 +811,27 @@ async function refreshAvailability(
     },
     data: { status: 'EXPIRED', isTracked: false },
   });
-
-  const onlyKeys = scope.kind === 'claim' ? claimRefreshKeys(ruleset, scope.questKey) : null;
   const newlyAvailable: string[] = [];
   if (onlyKeys && onlyKeys.size === 0) {
+    await expiryCleanup;
     if (scope.kind === 'full') await syncRotatingBoards(db, roundPlayerId, ruleset, now, newlyAvailable, []);
     return announceRefreshedQuestKeys(db, roundPlayerId, ruleset, newlyAvailable, now);
   }
 
-  const questDefinitions = await db.questDefinition.findMany({
-    where: {
-      rulesetId: ruleset.meta.id,
-      rulesetVersion: ruleset.meta.version,
-      isEnabled: true,
-      ...(onlyKeys ? { key: { in: [...onlyKeys] } } : {}),
-    },
-  });
+  // Expiry cleanup and catalog lookup do not depend on each other. Start both
+  // before waiting so a normal board refresh does not pay their latency in
+  // series.
+  const [_, questDefinitions] = await Promise.all([
+    expiryCleanup,
+    db.questDefinition.findMany({
+      where: {
+        rulesetId: ruleset.meta.id,
+        rulesetVersion: ruleset.meta.version,
+        isEnabled: true,
+        ...(onlyKeys ? { key: { in: [...onlyKeys] } } : {}),
+      },
+    }),
+  ]);
   const existing = questDefinitions.length
     ? await db.playerQuest.findMany({
       where: { roundPlayerId, questDefinitionId: { in: questDefinitions.map((definition) => definition.id) } },
@@ -849,10 +855,12 @@ async function refreshAvailability(
       .filter((row) => row.chosenBranch)
       .map((row) => [row.questDefinition.key, row.chosenBranch!]),
   );
-  const reps = await contactPoints(db, roundPlayerId, ruleset);
-  const tiers = await FactionService.tiers(db, roundPlayerId, ruleset);
-  const gateContext = await questGateContext(db, roundPlayerId, ruleset, now);
-  const adminTestMode = await seasonalEventAdminTestModeForPlayer(db, roundPlayerId);
+  const [reps, tiers, gateContext, adminTestMode] = await Promise.all([
+    contactPoints(db, roundPlayerId, ruleset),
+    FactionService.tiers(db, roundPlayerId, ruleset),
+    questGateContext(db, roundPlayerId, ruleset, now),
+    seasonalEventAdminTestModeForPlayer(db, roundPlayerId),
+  ]);
   const toCreate: Prisma.PlayerQuestCreateManyInput[] = [];
   const lockIds: string[] = [];
   const unlockIds: string[] = [];

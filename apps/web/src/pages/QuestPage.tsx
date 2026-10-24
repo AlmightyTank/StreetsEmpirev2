@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate, useLocation } from 'react-router-dom';
 import {
   formatCents,
@@ -256,6 +256,7 @@ function QuestCard({
         <span aria-hidden="true">{showDetails ? '−' : '+'}</span>
       </button>
       <div id={`quest-details-${quest.key}`} className="se-quest-card__details" hidden={!showDetails}>
+      {showDetails ? <>
       {quest.status === 'LOCKED' && quest.requires?.length ? (
         <div className="se-quest-card__requires">
           <span className="se-eyebrow">Opens after</span>
@@ -393,7 +394,7 @@ function QuestCard({
           Choice locked: {quest.branchChoices.find((choice) => choice.key === quest.chosenBranch)?.title ?? quest.chosenBranch}.
         </p>
       ) : null}
-
+      </> : null}
       </div>
       <div className="se-actions se-quest-actions">
         {quest.status === 'AVAILABLE' ? (
@@ -465,6 +466,7 @@ export function QuestPage() {
   const [careerLens, setCareerLens] = useState(true);
   const [boardFilter, setBoardFilter] = useState<QuestBoardFilter>('all');
   const [boardSearch, setBoardSearch] = useState('');
+  const deferredBoardSearch = useDeferredValue(boardSearch);
   const pageLoadInFlight = useRef<Promise<QuestPageDto | null> | null>(null);
 
   const applyPage = useCallback((
@@ -584,7 +586,7 @@ export function QuestPage() {
   }, [board.groups, career, careerLens, focusKey]);
 
   const filteredGroups = useMemo(() => {
-    const query = boardSearch.trim().toLocaleLowerCase();
+    const query = deferredBoardSearch.trim().toLocaleLowerCase();
     const matchesFilter = (group: QuestBoardGroupKey) => boardFilter === 'all'
       || (boardFilter === 'contracts' && group === 'contracts')
       || (boardFilter === 'story' && (group === 'story' || group === 'available'))
@@ -603,7 +605,7 @@ export function QuestPage() {
         return searchable.includes(query);
       }),
     })).filter((group) => group.quests.length > 0);
-  }, [visibleGroups, boardFilter, boardSearch, focusKey]);
+  }, [visibleGroups, boardFilter, deferredBoardSearch, focusKey]);
 
   const trackedToday = useMemo(
     () => page?.quests.filter((quest) => quest.isTracked && ['ACTIVE', 'READY_TO_TURN_IN'].includes(quest.status)) ?? [],
