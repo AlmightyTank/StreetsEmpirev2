@@ -29,6 +29,7 @@ const checkoutSchema = z.object({
 const skipSchema = z.object({
   tiers: z.number().int().min(1).max(30),
   actionId: z.string().trim().min(8).max(80),
+  expectedFromTier: z.number().int().min(0).max(30),
 }).strict();
 const platformQuery = z.object({ platform: z.string().trim().max(20).optional() }).passthrough();
 const playPurchaseSchema = z.object({ productId: z.string().trim().min(1).max(100), purchaseToken: z.string().trim().min(1).max(2000) }).strict();

@@ -32,7 +32,7 @@ export const dropApi = {
   checkout: (packId: string) => api.post<SupporterRedirectDto>('/drop/crowns/checkout', { packId }),
   verifyGooglePlayPack: (productId: string, purchaseToken: string) => api.post<{ credited: boolean }>('/drop/crowns/play-purchase', { productId, purchaseToken }),
   skipQuote: () => api.get<StreetPassSkipQuoteDto>('/drop/street-pass-skip'),
-  skip: (tiers: number, actionId: string) => api.post<GameActionResult<StreetPassSkipResultDto>>('/drop/street-pass-skip', { tiers, actionId }),
+  skip: (tiers: number, actionId: string, expectedFromTier: number) => api.post<GameActionResult<StreetPassSkipResultDto>>('/drop/street-pass-skip', { tiers, actionId, expectedFromTier }),
 };
 
 type WithReason<T> = T & { reason: string };
