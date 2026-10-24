@@ -34,6 +34,7 @@ import { cityChoices, parsePlayerRef, resolveCity, type Cooldowns } from './look
 import { roleNamesForKeys, type ManagedRole } from './roles.js';
 import { showBugForm } from './staff.js';
 import { statusEmbed } from './status.js';
+import { plainDiscordMessage } from './plain-message.js';
 import { showTicketForm } from './support.js';
 import type { RoleSync } from './sync.js';
 import type { StaffSyncEvent } from './staff-sync.js';
@@ -476,7 +477,7 @@ export async function handleCommand(interaction: ChatInputCommandInteraction, de
   }
 
   try {
-    await interaction.editReply({ ...reply, allowedMentions: { parse: [] } });
+    await interaction.editReply(plainDiscordMessage({ ...reply, allowedMentions: { parse: [] } }));
   } catch (error) {
     console.error(`/${interaction.commandName} could not send its reply:`, error);
   }
