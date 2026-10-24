@@ -61,7 +61,7 @@ npm run db:seed:dev-bots
 | `npm run typecheck` | Typecheck workspaces and ops scripts. |
 | `npm test` | Run the reduced five-file Vitest smoke suite. Database-backed suites are opt-in through environment flags. |
 | `npm run test:full` | Run the complete Vitest suite when full regression coverage is needed. |
-| `npm run qa:release` | Run the release gate: typecheck, tests, build, and balance gates. |
+| `npm run qa:release` | Run the release gate: typecheck, reduced smoke tests, build, and balance gates. |
 | `npm run release:rc` | Run the release candidate gate with database/load checks. |
 | `npm run db:up` / `npm run db:down` | Start/stop local PostgreSQL through Docker Compose. |
 | `npm run db:migrate` | Apply Prisma migrations in development. |
