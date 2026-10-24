@@ -9,6 +9,7 @@ import { ActionDock, resultChips } from '../components/ActionDock.js';
 import { ActionResult, type ResultLine } from '../components/ActionResult.js';
 import { Alert } from '../components/Alert.js';
 import { Portrait } from '../components/Portrait.js';
+import { contactRoomHref, storeHasContactRoom } from '../utils/contactRoom.js';
 import { Button } from '../components/Button.js';
 import { EconomyBatchAction, EconomyPendingNotice, EconomyQuote } from '../components/EconomyExperience.js';
 import { Panel } from '../components/Panel.js';
@@ -695,6 +696,9 @@ function StoreView({
             <span className="se-eyebrow">{details?.label ?? 'Street market'} · {me.city.name}</span>
             <h1>{store?.name ?? 'Stores'}</h1>
             <p>{store?.blurb ?? 'Loading the shelves and today’s prices.'}</p>
+            {store && storeHasContactRoom(store.key) ? (
+              <Link className="se-btn se-stores-hero__visit" to={contactRoomHref(store.key)}>Visit {store.keeper}</Link>
+            ) : null}
           </div>
 
           <div className="se-stores-hero__side">

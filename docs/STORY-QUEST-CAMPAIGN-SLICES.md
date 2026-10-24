@@ -47,14 +47,35 @@ Contacts carry more than the campaign: story chapters, side jobs, referrals and 
 - **Dialogue options:** "Got any work for me?", "Want to trade?" (Pip and Tommy link to their store), "Where do we stand?" and "I've got to go." Number keys pick options.
 - **Inside a job:** the contact speaks the job's story line. Taking the job, story-scene answers (confirmed first), branch choices and collecting payment are all dialogue options.
 - **Show history:** finished business with the contact and the choices made in it.
-- **Entry points:** each contact in the quest page's "Contact standing" panel, and "Talk to …" on every quest card with a contact.
+- **Entry points:** each contact in the quest page's "Contact standing" panel, "Talk to …" on every quest card with a contact, and **Visit Pip / Visit Tommy** on their store screens.
+- **Stage ratio:** the contact keeps a fixed share of the screen (`--room-stage`: 44% of the height, 220–420px; 30% and 170–240px on phones). The portrait always fits inside it, and the dialogue may overlap only the desk edge at its bottom (28px, or 16px on phones). Checked at 1480×716, 1280×900, 1920×1080, 1024×600, 390×844 and 390×600: the dialogue covers 7–11% of the portrait at every size.
 - **Tests:** `ContactDialogue.test.tsx`, plus a manual check in the running app at 1280px and 390px.
 
 ### Slice R2 — Painted rooms (art)
 
 Replace the CSS backdrop with a painted room per contact: Mama's kitchen table, Pip's counter, Tommy's back room, Wheels' garage, Vic's booth, Blocks' corner, Ledger's desk, Ace's casino floor, the Commissioner's office. Keep the CSS tint as the fallback.
 
-### Slice R3 — Objective depth pass (Acts I–II)
+### Slice R3 — Objective depth pass (Acts I–II) ✅
+
+**Done:** ruleset `classic-og-v2.6-c` (2.6.0-C), now the default for new rounds (`classic-og-v2.6-c/missing-line-depth.ts`). Same keys, chain, rewards and catalog order. 2.6.0-A and 2.6.0-B rounds keep their acts.
+
+| Chapter | Work | Then |
+| --- | --- | --- |
+| M01 The Night Receipt | scene first, then scout Low Rent to walk the receipt back | — |
+| M02 A Small Favor | 10 beer from the Corner for Mrs. Alvarez's shelf | her statement (scene) |
+| M03 The Other Door | sell Pip 10 units | **new scene:** the two slips |
+| M04 Roll Call | bring a run home | **new scene:** Eli's mark |
+| M06 Pip's Count | cook a batch and sell Pip 10 units | **new scene:** the count sheet |
+| M07 The North Road | bring a run home | **new scene:** where the road splits |
+| M08 Tommy's Serial | buy 5 pistols from Tommy | **new scene:** the tally book |
+
+**Unchanged:** M05, M09 and M10 were already scene-led.
+
+**New evidence** (verified): `SCOUT` with `districtKey`, `PRODUCE_CRACK`, and Corner `BEER` buys, which also count through the basket.
+
+**Tests:**
+- `missing-line-depth.test.ts` checks that only the deepened chapters change, that each scene waits for its work, the evidence and targets, and that the work is affordable from a fresh start.
+- `missing-line-depth.integration.test.ts` plays Acts I–II with the real scout, store, checkout and production actions from a fresh starting player.
 
 Make chapters do more in the game without turning them into chores:
 - add an action-then-scene pairing where a reveal now only appears in the "ready" text;

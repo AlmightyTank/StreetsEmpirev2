@@ -40,6 +40,11 @@ export function storeSlugFor(contactKey: string): string | null {
   return STORES[contactKey] ?? null;
 }
 
+/** True when a store's keeper is a contact with a room to visit. */
+export function storeHasContactRoom(storeKey: string): boolean {
+  return Object.hasOwn(STORES, storeKey);
+}
+
 const OPEN = new Set<PlayerQuestDto['status']>(['READY_TO_TURN_IN', 'ACTIVE', 'AVAILABLE']);
 const ORDER: Record<string, number> = { READY_TO_TURN_IN: 0, ACTIVE: 1, AVAILABLE: 2 };
 

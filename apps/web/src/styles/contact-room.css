@@ -4,10 +4,15 @@
  */
 .se-room {
   --room-tint: 214, 163, 92;
+  /*
+   * The stage: the part of the room that belongs to the person you are talking to. It keeps a
+   * fixed share of the screen height, the portrait always fits inside it, and the dialogue may
+   * only overlap its bottom edge (the desk), never the face.
+   */
+  --room-stage: clamp(220px, 44vh, 420px);
+  --room-overlap: 28px;
   position: relative;
   display: grid;
-  min-height: calc(100vh - 150px);
-  min-height: calc(100dvh - 150px);
   overflow: hidden;
   border: 1px solid var(--se-line);
   background: #07070a;
@@ -32,14 +37,14 @@
     radial-gradient(ellipse 45% 38% at 50% 8%, rgba(var(--room-tint), 0.28), transparent 70%),
     radial-gradient(ellipse 30% 22% at 82% 62%, rgba(var(--room-tint), 0.16), transparent 70%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0 2px, transparent 2px 100%) 0 0 / 100% 64px,
-    linear-gradient(180deg, #17171c 0%, #0e0e12 58%, #2a1b12 58%, #1a110b 100%);
+    linear-gradient(180deg, #17171c 0, #0e0e12 var(--room-stage), #2a1b12 var(--room-stage), #1a110b 100%);
 }
 
 /* The desk edge the contact leans over. */
 .se-room__scene::after {
   content: '';
   position: absolute;
-  inset: 58% 0 auto;
+  inset: var(--room-stage) 0 auto;
   height: 6px;
   background: linear-gradient(90deg, transparent, rgba(var(--room-tint), 0.35), transparent);
   box-shadow: 0 0 40px rgba(var(--room-tint), 0.25);
@@ -48,8 +53,8 @@
 .se-room__figure {
   position: absolute;
   left: 50%;
-  top: 7%;
-  width: min(46vh, 420px);
+  top: 14px;
+  height: calc(var(--room-stage) - 14px);
   aspect-ratio: 1;
   transform: translateX(-50%);
   object-fit: cover;
@@ -61,14 +66,14 @@
 .se-room__front {
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
   gap: 10px;
-  padding: 16px;
+  padding: calc(var(--room-stage) - var(--room-overlap)) 16px 16px;
 }
 
 .se-room__leave {
-  align-self: flex-start;
-  margin-bottom: auto;
+  position: absolute;
+  top: 14px;
+  left: 16px;
   color: var(--se-text-dim);
   font-size: 12px;
   text-decoration: none;
@@ -267,33 +272,28 @@
 }
 
 @media (max-width: 720px) {
-  /* On a phone the visit reads top to bottom: a smaller figure, then the dialogue right under it. */
+  /* Same stage on a phone, sized for a short, narrow screen. */
   .se-room {
-    min-height: 0;
-  }
-
-  .se-room__scene {
-    background:
-      radial-gradient(ellipse 60% 22% at 50% 4%, rgba(var(--room-tint), 0.3), transparent 70%),
-      linear-gradient(180deg, #17171c 0, #0e0e12 190px, #2a1b12 190px, #1a110b 100%);
-  }
-
-  .se-room__scene::after {
-    inset: 190px 0 auto;
-  }
-
-  .se-room__figure {
-    top: 28px;
-    width: 170px;
+    --room-stage: clamp(170px, 30vh, 240px);
+    --room-overlap: 16px;
   }
 
   .se-room__front {
-    justify-content: flex-start;
-    padding: 10px 10px 16px;
+    padding-right: 10px;
+    padding-left: 10px;
   }
 
   .se-room__leave {
-    margin-bottom: 168px;
+    left: 10px;
+  }
+
+  .se-room__role {
+    display: none;
+  }
+
+  .se-room__head h1,
+  .se-room__history-toggle {
+    white-space: nowrap;
   }
 
   .se-room__option kbd {

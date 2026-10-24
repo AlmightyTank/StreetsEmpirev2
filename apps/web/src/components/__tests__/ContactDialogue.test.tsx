@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
 import type { PlayerQuestDto, QuestContactDto, QuestStorySceneDto } from '@streets/shared';
 import { ContactDialogue } from '../ContactDialogue.js';
-import { contactHistory, contactJobs, contactRoomHref, greetingFor, jobLine, lockedJobCount, storeSlugFor, type ContactRoomView } from '../../utils/contactRoom.js';
+import { contactHistory, contactJobs, contactRoomHref, greetingFor, jobLine, lockedJobCount, storeHasContactRoom, storeSlugFor, type ContactRoomView } from '../../utils/contactRoom.js';
 
 const pip: QuestContactDto = {
   key: 'PIP', name: 'Pip', shortName: 'Pip', role: 'Products & Distribution', description: 'Pip moves product.',
@@ -45,6 +45,7 @@ describe('contact room helpers', () => {
     expect(greetingFor({ key: 'SOMEONE_NEW', description: 'Fallback line.' })).toBe('Fallback line.');
     expect(storeSlugFor('PIP')).toBe('pip');
     expect(storeSlugFor('LEDGER')).toBeNull();
+    expect(['PIP', 'TOMMY', 'CORNER', 'CHARLIE'].filter(storeHasContactRoom)).toEqual(['PIP', 'TOMMY']);
   });
 
   it('lists a contact’s open work: ready, then active, then on offer, campaign first', () => {
