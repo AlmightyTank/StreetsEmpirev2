@@ -455,6 +455,35 @@ export function gameEventToastFor(activity: ActivityDto, crackWord: string): Omi
           ? { title: 'Collections cleared', detail: pieces('Stay current to reopen borrowing.', detail), tone: 'warn', href: '/game/loans' }
           : { title: 'Back in good standing with the loan shark', detail: detail || 'Borrowing is available again.', tone: 'good', href: '/game/loans' };
 
+    case 'HIDEOUT_BUILD_COMPLETE':
+      return {
+        title: `${str(p.name, 'Hideout room')} level ${num(p.level)} built`,
+        detail: 'Construction finished. The new level is active.',
+        tone: 'good',
+        href: '/game/hideout',
+      };
+
+    case 'HIDEOUT_ROOM_READY': {
+      const rooms = Array.isArray(p.rooms) ? p.rooms as Array<Record<string, unknown>> : [];
+      return {
+        title: rooms.length === 1 ? `${str(rooms[0]!.name, 'A room')} is ready to build` : `${rooms.length} hideout rooms ready to build`,
+        detail: rooms.map((room) => `${str(room.name)} → level ${num(room.level)}`).join(' · ') || detail,
+        tone: 'good',
+        href: '/game/hideout#hideout-upgrades',
+      };
+    }
+
+    case 'COSMETIC_UNLOCKED': {
+      const items = Array.isArray(p.items) ? p.items as Array<Record<string, unknown>> : [];
+      const hideoutOnly = items.length > 0 && items.every((item) => item.kind === 'HIDEOUT_DECOR' || item.kind === 'STREET_SIGN');
+      return {
+        title: items.length === 1 ? `Unlocked: ${str(items[0]!.title, 'a new look')}` : `${items.length} new cosmetics unlocked`,
+        detail: `${items.map((item) => str(item.title)).filter(Boolean).slice(0, 3).join(' · ')}. ${hideoutOnly ? 'Set it in your Hideout.' : 'Equip from Account settings.'}`,
+        tone: 'good',
+        href: hideoutOnly ? '/game/hideout' : '/account',
+      };
+    }
+
     case 'EASTER_EGG_FOUND':
       return {
         title: `Easter egg: ${str(p.title, 'a secret')}`,

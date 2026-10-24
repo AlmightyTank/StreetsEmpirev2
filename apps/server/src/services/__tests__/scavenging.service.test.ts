@@ -2,8 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   cacheOdds,
   cacheQualityForTurns,
-  COMPONENTS,
-  dealerPriceCents,
   districtSupplyClue,
   eligiblePool,
   makeCache,
@@ -56,11 +54,4 @@ describe('hideout scavenging', () => {
     expect(scavengeFindCount(10)).toBe(5);
   });
 
-  it('prices every component at the salvage dealer, rarer parts costing more', () => {
-    for (const component of COMPONENTS) expect(dealerPriceCents(component.key)).toBeGreaterThan(0);
-    expect(dealerPriceCents('SCRAP_METAL')!).toBeLessThan(dealerPriceCents('RADIO')!);
-    expect(dealerPriceCents('RADIO')!).toBeLessThan(dealerPriceCents('MOTOR_ASSEMBLY')!);
-    expect(dealerPriceCents('PRECISION_PARTS')!).toBeLessThan(dealerPriceCents('SPECIALIST_CIRCUITRY')!);
-    expect(dealerPriceCents('NOT_A_PART')).toBeNull();
-  });
 });

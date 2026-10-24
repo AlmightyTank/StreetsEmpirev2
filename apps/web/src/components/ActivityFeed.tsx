@@ -643,6 +643,30 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
       };
     }
 
+    case 'HIDEOUT_BUILD_COMPLETE':
+      return {
+        text: `${str(p.name, 'A hideout room')} level ${num(p.level)} is built.`,
+        detail: 'Construction finished and the new level is active.',
+      };
+
+    case 'HIDEOUT_ROOM_READY': {
+      const rooms = Array.isArray(p.rooms) ? p.rooms as Array<Record<string, unknown>> : [];
+      return {
+        text: rooms.length === 1
+          ? `${str(rooms[0]!.name, 'A hideout room')} level ${num(rooms[0]!.level)} is ready to build.`
+          : `${rooms.length} hideout rooms are ready to build.`,
+        detail: rooms.map((room) => `${str(room.name)} → level ${num(room.level)}`).join(' · '),
+      };
+    }
+
+    case 'COSMETIC_UNLOCKED': {
+      const items = Array.isArray(p.items) ? p.items as Array<Record<string, unknown>> : [];
+      return {
+        text: items.length === 1 ? `New cosmetic unlocked: ${str(items[0]!.title, 'a new look')}.` : `${items.length} new cosmetics unlocked.`,
+        detail: items.map((item) => str(item.title)).filter(Boolean).join(' · '),
+      };
+    }
+
     case 'EASTER_EGG_FOUND':
       return {
         text: `You found an Easter egg: ${str(p.title, 'a secret')}.`,
@@ -929,6 +953,9 @@ function activityTypeLabel(type: ActivityDto['type']): string {
     LOAN_INSTALLMENT_MISSED: 'Missed installment',
     LOAN_COLLECTIONS: 'Collections',
     EASTER_EGG_FOUND: 'Easter egg',
+    HIDEOUT_BUILD_COMPLETE: 'Construction done',
+    HIDEOUT_ROOM_READY: 'Ready to build',
+    COSMETIC_UNLOCKED: 'New cosmetic',
     RING_SURFACED: 'The Ring',
     RING_STOLEN: 'The Ring',
     RING_DESTROYED: 'The Ring',

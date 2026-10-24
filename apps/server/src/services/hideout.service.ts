@@ -30,6 +30,7 @@ import { ActionService, assertTurns, fitThugs, type PlayerState } from './action
 import { AppError } from '../utils/errors.js';
 import { EconomyLedgerService } from './economy-ledger.service.js';
 import { generatorDto } from './generator.service.js';
+import { hideoutBuildMinutes } from './hideout-build.service.js';
 import { stashDimensions } from './stash.service.js';
 
 type HideoutField =
@@ -229,6 +230,33 @@ function moduleTurns(room: ModuleKey, nextLevel: number): number {
 function moduleCash(room: ModuleKey, nextLevel: number, rule?: { costsCents: number[] }): number | null {
   if (room === 'STORAGE') return STORAGE_COSTS[nextLevel - 1] ?? null;
   return rule?.costsCents[nextLevel - 1] ?? null;
+}
+
+/** The room under construction, or null. A due build is landed by settle before anyone reads this. */
+function constructionOf(player: PlayerState): { room: string; level: number; startedAt: Date; readyAt: Date } | null {
+  if (!player.hideoutBuildRoom || !player.hideoutBuildReadyAt) return null;
+  return {
+    room: player.hideoutBuildRoom,
+    level: player.hideoutBuildLevel ?? 0,
+    startedAt: player.hideoutBuildStartedAt ?? player.hideoutBuildReadyAt,
+    readyAt: player.hideoutBuildReadyAt,
+  };
+}
+
+function buildDto(room: ModuleKey, player: PlayerState): HideoutRoomV2Dto['build'] {
+  const construction = constructionOf(player);
+  return construction?.room === room
+    ? { level: construction.level, startedAt: construction.startedAt.toISOString(), readyAt: construction.readyAt.toISOString() }
+    : null;
+}
+
+/** While the crew is building one room, nothing else can start. */
+function busyReason(room: ModuleKey, player: PlayerState, roomName: (key: string) => string): string | null {
+  const construction = constructionOf(player);
+  if (!construction) return null;
+  return construction.room === room
+    ? `Level ${construction.level} is under construction.`
+    : `Your crew is busy building ${roomName(construction.room)} level ${construction.level}.`;
 }
 
 function dollars(cents: number): string {
@@ -546,7 +574,8 @@ function toRoomDto(room: HideoutRoomKey, ruleset: Ruleset, player: PlayerState, 
 
   const lockReason = maxed
     ? `${rule.name} is fully upgraded for this season.`
-    : roomLockReason(nextCostCents!, player, nextRequirements, nextCostTurns ?? 0, nextCostComponents);
+    : busyReason(room, player, (key) => roomNameFor(key, ruleset))
+      ?? roomLockReason(nextCostCents!, player, nextRequirements, nextCostTurns ?? 0, nextCostComponents);
 
   return {
     key: room,
@@ -562,8 +591,14 @@ function toRoomDto(room: HideoutRoomKey, ruleset: Ruleset, player: PlayerState, 
     nextRequirements,
     nextCostTurns,
     nextCostComponents,
+    nextBuildMinutes: maxed ? null : hideoutBuildMinutes(room, level + 1),
+    build: buildDto(room, player),
     specialization: specializationFor(room, ruleset, player),
   };
+}
+
+function roomNameFor(key: string, ruleset: Ruleset): string {
+  return key === 'STORAGE' ? 'Storage' : ruleset.hideout?.rooms[key as HideoutRoomKey]?.name ?? key;
 }
 
 function storageRoomDto(player: PlayerState, ruleset: Ruleset): HideoutRoomV2Dto {
@@ -574,11 +609,14 @@ function storageRoomDto(player: PlayerState, ruleset: Ruleset): HideoutRoomV2Dto
   const nextCostCents = maxed ? null : moduleCash('STORAGE', nextLevel)!;
   const nextCostTurns = maxed ? null : moduleTurns('STORAGE', nextLevel);
   const nextCostComponents = maxed ? [] : moduleComponents('STORAGE', nextLevel, player);
-  const lockReason = maxed ? 'Storage is fully upgraded for this season.' : roomLockReason(nextCostCents!, player, [], nextCostTurns!, nextCostComponents);
+  const lockReason = maxed
+    ? 'Storage is fully upgraded for this season.'
+    : busyReason('STORAGE', player, (key) => roomNameFor(key, ruleset)) ?? roomLockReason(nextCostCents!, player, [], nextCostTurns!, nextCostComponents);
   return {
     key: 'STORAGE', name: 'Storage', blurb: 'Expand the hideout stash without forcing overflow onto the street.', level, maxLevel,
     nextCostCents, currentEffect: effect('STORAGE', level, ruleset), nextEffect: maxed ? null : effect('STORAGE', nextLevel, ruleset),
-    canUpgrade: !maxed && lockReason === null, lockReason, nextRequirements: [], nextCostTurns, nextCostComponents, specialization: null,
+    canUpgrade: !maxed && lockReason === null, lockReason, nextRequirements: [], nextCostTurns, nextCostComponents,
+    nextBuildMinutes: maxed ? null : hideoutBuildMinutes('STORAGE', nextLevel), build: buildDto('STORAGE', player), specialization: null,
   };
 }
 
@@ -605,8 +643,12 @@ export function hideoutCatalog(
   const rooms = ROOM_ORDER.filter((room) => Boolean(ruleset.hideout!.rooms[room]))
     .map((room) => toRoomDto(room, ruleset, player, progress));
   rooms.push(storageRoomDto(player, ruleset));
+  const construction = constructionOf(player);
   return {
     enabled: true,
+    construction: construction
+      ? { room: construction.room as HideoutRoomV2Dto['key'], roomName: roomNameFor(construction.room, ruleset), level: construction.level, startedAt: construction.startedAt.toISOString(), readyAt: construction.readyAt.toISOString() }
+      : null,
     seasonScoped: true,
     rulesVersion: extension ? 2 : 1,
     totalLevel: rooms.reduce((sum, room) => sum + room.level, 0),
@@ -937,10 +979,17 @@ export const HideoutService = {
     return ActionService.run<HideoutUpgradeResult>(prisma, roundPlayerId, {
       action: 'HIDEOUT_UPGRADE',
       actionId: input.actionId,
-      execute: async ({ tx, current, ruleset, player }) => {
+      execute: async ({ tx, current, ruleset, player, now }) => {
         const hideout = ruleset.hideout;
         if (!hideout) {
           throw AppError.conflict('HIDEOUT_DISABLED', 'Hideouts are not available in this round.');
+        }
+        const construction = constructionOf(current);
+        if (construction) {
+          throw AppError.conflict(
+            'HIDEOUT_BUILD_IN_PROGRESS',
+            `Your crew is still building ${roomNameFor(construction.room, ruleset)} level ${construction.level}. One build at a time.`,
+          );
         }
 
         const room = input.room as ModuleKey;
@@ -990,14 +1039,22 @@ export const HideoutService = {
           }
         }
         for (const component of componentCosts) balances[component.key] = (balances[component.key] ?? 0) - component.quantity;
-        await tx.roundPlayer.update({ where: { id: roundPlayerId }, data: { scavengedComponents: balances as import('@prisma/client').Prisma.InputJsonValue } });
+        // The spent components ride on `next`: ActionService writes the whole state
+        // back, so a separate write here would be overwritten with the old balances.
+        const remaining = Object.fromEntries(Object.entries(balances).filter(([, quantity]) => quantity > 0));
 
+        // Paid up front; the level lands when construction finishes (instant builds land now).
+        const buildMinutes = hideoutBuildMinutes(room, levelAfter);
+        const readyAt = buildMinutes > 0 ? new Date(now.getTime() + buildMinutes * 60_000) : null;
         return {
           next: {
             ...current,
             cashCents: current.cashCents - BigInt(costCents),
-            [field]: levelAfter,
+            ...(readyAt
+              ? { hideoutBuildRoom: room, hideoutBuildLevel: levelAfter, hideoutBuildStartedAt: now, hideoutBuildReadyAt: readyAt }
+              : { [field]: levelAfter }),
             turns: current.turns - moduleTurns(room, levelAfter),
+            scavengedComponents: remaining as import('@prisma/client').Prisma.InputJsonValue,
           },
           result: {
             room,
@@ -1006,6 +1063,8 @@ export const HideoutService = {
             levelAfter,
             costCents,
             effect: effect(room, levelAfter, ruleset),
+            buildMinutes,
+            readyAt: readyAt?.toISOString() ?? null,
           },
           ledger: [{
             source: 'HIDEOUT_UPGRADE',
@@ -1014,7 +1073,7 @@ export const HideoutService = {
           }],
           activity: {
             type: 'HIDEOUT_UPGRADE',
-            payload: { room, name: rule.name, level: levelAfter, costCents },
+            payload: { room, name: rule.name, level: levelAfter, costCents, readyAt: readyAt?.toISOString() ?? null },
           },
         };
       },

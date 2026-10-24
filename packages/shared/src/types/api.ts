@@ -123,6 +123,12 @@ export type ActivityType =
   | 'SPORTSBOOK_GAME_STARTED'
   /** A sportsbook ticket was graded as won, lost, push or void. */
   | 'SPORTSBOOK_TICKET_SETTLED'
+  /** A hideout room finished construction and its new level is active. */
+  | 'HIDEOUT_BUILD_COMPLETE'
+  /** One or more hideout rooms can now be built: cash, turns, parts and gates all in hand. */
+  | 'HIDEOUT_ROOM_READY'
+  /** New cosmetics were added to the account. */
+  | 'COSMETIC_UNLOCKED'
   | 'WARRANT_DRAFTED'
   | 'WARRANT_SERVED'
   | 'WARRANT_LAWYERED'
@@ -450,27 +456,41 @@ export interface ScavengeCacheDto {
   eligiblePool: Array<{ key: string; name: string; rarity: ScavengeRarityDto; purpose: string; footprint: { width: number; height: number } }>;
   rewards?: ScavengeComponentDto[];
 }
-/** A component the salvage dealer sells for cash, so no build is gated on scouting luck. */
-export interface ScavengeDealerOfferDto {
+export interface ScavengePageDto {
+  components: ScavengeComponentDto[];
+  caches: ScavengeCacheDto[];
+}
+
+/** Store goods the Salvage Yard will take in a barter. */
+export type SalvageGoodDto = 'condoms' | 'medicine' | 'beer' | 'ammo';
+/** What one unit of a Salvage Yard offer costs: cash, or a trade of parts and goods. */
+export type SalvagePriceDto =
+  | { kind: 'CASH'; cents: number }
+  | { kind: 'BARTER'; components: Array<{ key: string; name: string; quantity: number }>; goods: Array<{ key: SalvageGoodDto; name: string; quantity: number }> };
+export interface SalvageOfferDto {
   key: string;
   name: string;
   rarity: ScavengeRarityDto;
   purpose: string;
-  priceCents: number;
+  price: SalvagePriceDto;
+  owned: number;
+  /** Most units the player can take right now, from cash or barter stock (ignores stash space). */
+  maxQuantity: number;
 }
-export interface ScavengePageDto {
-  components: ScavengeComponentDto[];
-  caches: ScavengeCacheDto[];
-  dealer: ScavengeDealerOfferDto[];
+export interface SalvageYardDto {
+  offers: SalvageOfferDto[];
+  goods: Record<SalvageGoodDto, number>;
+  maxPerTrade: number;
 }
-export interface BuyScavengeComponentInput {
+export interface SalvageTradeInput {
   key: string;
   quantity: number;
 }
-export interface BuyScavengeComponentResult {
-  page: ScavengePageDto;
-  bought: ScavengeComponentDto;
+export interface SalvageTradeResult {
+  yard: SalvageYardDto;
+  received: ScavengeComponentDto;
   spentCents: number;
+  gave: Array<{ key: string; name: string; quantity: number }>;
 }
 export interface OpenScavengeCacheResult {
   cache: ScavengeCacheDto;
@@ -1833,6 +1853,10 @@ export interface HideoutUpgradeResult {
   levelAfter: number;
   costCents: number;
   effect: string;
+  /** Construction time for this level; 0 means it landed straight away. */
+  buildMinutes?: number;
+  /** When construction finishes, or null when the level landed straight away. */
+  readyAt?: string | null;
 }
 
 /** 1.4.0-D. A Connected faction's nudge on a price: who gives it and how much it takes off. */

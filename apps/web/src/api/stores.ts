@@ -1,4 +1,4 @@
-import type { GameActionResult, StoresDto, StoreCheckoutInput, StoreCheckoutResult, StoreSpecialOrderInput, StoreSpecialOrderResult, StoreTradeInput, StoreTradeResult, WeaponUnlockInput, WeaponUnlockResult } from '@streets/shared';
+import type { GameActionResult, SalvageTradeInput, SalvageTradeResult, SalvageYardDto, StoresDto, StoreCheckoutInput, StoreCheckoutResult, StoreSpecialOrderInput, StoreSpecialOrderResult, StoreTradeInput, StoreTradeResult, WeaponUnlockInput, WeaponUnlockResult } from '@streets/shared';
 import { api } from './client.js';
 
 export const storesApi = {
@@ -6,5 +6,7 @@ export const storesApi = {
   trade: (input: StoreTradeInput) => api.post<GameActionResult<StoreTradeResult>>('/game/stores/trade', input),
   checkout: (input: StoreCheckoutInput) => api.post<GameActionResult<StoreCheckoutResult>>('/game/stores/checkout', input),
   specialOrder: (input: StoreSpecialOrderInput) => api.post<GameActionResult<StoreSpecialOrderResult>>('/game/stores/special-order', input),
+  salvage: () => api.get<SalvageYardDto>('/game/stores/salvage'),
+  salvageTrade: (input: SalvageTradeInput) => api.post<SalvageTradeResult>('/game/stores/salvage/trade', input),
   unlock: (input: WeaponUnlockInput) => api.post<GameActionResult<WeaponUnlockResult>>('/game/stores/unlock', input),
 };
