@@ -1,4 +1,4 @@
-import type { ProfitIntelligenceDto } from '@streets/shared';
+import type { ProfitIntelligenceDto, UpdateProfitIntelligenceGoalsInput } from '@streets/shared';
 import { api } from './client.js';
 
 export interface HoldingCity {
@@ -16,4 +16,5 @@ export interface HoldingCity {
 export const holdingsApi = {
   page: () => api.get<{ cities: HoldingCity[]; modifiers: { dealerSalesPace: number; demand: number; upkeep: number } }>('/game/holdings'),
   profit: (days = 30) => api.get<ProfitIntelligenceDto>(`/game/profit-intelligence?days=${days}`),
+  saveProfitGoals: (input: UpdateProfitIntelligenceGoalsInput) => api.put<UpdateProfitIntelligenceGoalsInput>('/game/profit-intelligence/goals', input),
 };

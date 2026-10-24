@@ -42,6 +42,7 @@ import {
   favorArmSchema,
   streetPassClaimSchema,
   CLIENT_EASTER_EGG_IDS,
+  profitIntelligenceGoalsSchema,
 } from '@streets/shared';
 import { toGameSnapshotDto } from '../game/dto.js';
 import { PayoutService } from '../services/payout.service.js';
@@ -130,6 +131,12 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
       roundId: round.id, roundPlayerId: player.id, roundStartsAt: round.startsAt,
       ruleset: loadRulesetForRound(round), days: query.data.days,
     });
+  });
+
+  fastify.put('/profit-intelligence/goals', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(profitIntelligenceGoalsSchema, request.body);
+    const { round, player } = await requirePlayer(request.auth!.account.id);
+    return ProfitIntelligenceService.saveGoals(fastify.prisma, player.id, loadRulesetForRound(round), body);
   });
 
   fastify.get('/holdings', { preHandler: fastify.requireAuth }, async (request) => {

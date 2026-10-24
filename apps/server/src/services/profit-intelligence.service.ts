@@ -6,10 +6,13 @@ import type {
   ProfitIntelligenceDaySourceCityDto,
   ProfitIntelligenceDto,
   ProfitComparisonDto,
+  ProfitIntelligenceGoalsDto,
+  UpdateProfitIntelligenceGoalsInput,
   ProfitIntelligenceSourceTotalDto,
   ProfitIntelligenceTotalsDto,
 } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
+import { productKeys } from './product-inventory.service.js';
 
 export const PROFIT_CLASSIFICATION_VERSION = '2.6.0-B1' as const;
 export const MAX_PROFIT_REPORT_DAYS = 90;
@@ -48,6 +51,11 @@ type MutableTotals = { entryCount: number; inflow: bigint; outflow: bigint; net:
 
 export function profitClassificationForSource(source: string): ProfitClassification {
   return SOURCE_CLASSIFICATION[source] ?? 'UNKNOWN';
+}
+function goalMoney(cents: bigint): string {
+  const sign = cents < 0n ? '−' : '';
+  const absolute = cents < 0n ? -cents : cents;
+  return `${sign}$${(absolute / 100n).toLocaleString('en-US')}.${(absolute % 100n).toString().padStart(2, '0')}`;
 }
 function emptyTotals(): MutableTotals { return { entryCount: 0, inflow: 0n, outflow: 0n, net: 0n }; }
 function addGroup(target: MutableTotals, group: { entryCount: number | string; inflowCents: string; outflowCents: string; netCents: string }): void {
@@ -160,6 +168,7 @@ export function projectProfitGroups(input: {
       ],
     },
     comparison: emptyProfitComparison(),
+    goals: emptyProfitGoals(),
     efficiency: {
       dealerNetSalesCents: dealerNetSales.toString(), dealerWagesCents: dealerWages.toString(),
       salesToWagesRatio, turnEfficiencyAvailable: false,
@@ -238,6 +247,50 @@ export function projectProfitComparison(input: {
   };
 }
 
+
+export function emptyProfitGoals(): ProfitIntelligenceGoalsDto {
+  return {
+    availableProductKeys: [],
+    settings: { minimumLiquidityCents: null, minimumProductKey: null, minimumProductUnits: null, maximumRoutePurchaseCents: null },
+    observed: { liquidityCents: '0', minimumProductUnits: null, maximumRoutePurchaseCents: null },
+    warnings: [],
+  };
+}
+
+export function projectProfitGoals(input: {
+  settings: ProfitIntelligenceGoalsDto['settings'];
+  liquidityCents: bigint;
+  productUnits: number | null;
+  routePurchases: Array<{ route: string[]; buyCents: string }>;
+}): ProfitIntelligenceGoalsDto {
+  const warnings: string[] = [];
+  if (input.settings.minimumLiquidityCents !== null && input.liquidityCents < BigInt(input.settings.minimumLiquidityCents)) {
+    warnings.push(`Liquidity is below your ${goalMoney(BigInt(input.settings.minimumLiquidityCents))} minimum.`);
+  }
+  if (input.settings.minimumProductKey && input.settings.minimumProductUnits !== null
+      && input.productUnits !== null && input.productUnits < input.settings.minimumProductUnits) {
+    warnings.push(`${input.settings.minimumProductKey} stock is below your ${input.settings.minimumProductUnits}-unit minimum.`);
+  }
+  const routeLimit = input.settings.maximumRoutePurchaseCents === null ? null : BigInt(input.settings.maximumRoutePurchaseCents);
+  const highestRoute = input.routePurchases.reduce<{ cents: bigint; name: string } | null>((best, row) => {
+    const cents = BigInt(row.buyCents);
+    return !best || cents > best.cents ? { cents, name: row.route.join(' → ') || 'Recorded route' } : best;
+  }, null);
+  if (routeLimit !== null && highestRoute && highestRoute.cents > routeLimit) {
+    warnings.push(`${highestRoute.name} purchases exceeded your ${goalMoney(routeLimit)} route limit in this report window.`);
+  }
+  return {
+    availableProductKeys: [],
+    settings: input.settings,
+    observed: {
+      liquidityCents: input.liquidityCents.toString(),
+      minimumProductUnits: input.productUnits,
+      maximumRoutePurchaseCents: highestRoute?.cents.toString() ?? null,
+    },
+    warnings,
+  };
+}
+
 export const ProfitIntelligenceService = {
   async get(prisma: PrismaClient, input: {
     roundId: string; roundPlayerId: string; roundStartsAt: Date; ruleset: Ruleset; days: number; now?: Date;
@@ -252,7 +305,7 @@ export const ProfitIntelligenceService = {
 
     return prisma.$transaction(async (tx) => {
       const where = { roundPlayerId: input.roundPlayerId, createdAt: { gte: period.from, lt: period.to } };
-      const [groups, aggregate, runs, businesses, sightings, activeRuns, activeBossTrips] = await Promise.all([
+      const [groups, aggregate, runs, businesses, sightings, activeRuns, activeBossTrips, playerCash, goalRow, warehouseStock, dealerStock] = await Promise.all([
         tx.$queryRaw<RawProfitGroup[]>`
           SELECT
             "source",
@@ -278,6 +331,10 @@ export const ProfitIntelligenceService = {
         tx.citySighting.findMany({ where: { roundPlayerId: input.roundPlayerId }, select: { city: true, seenAt: true, counter: true } }),
         tx.run.findMany({ where: { roundPlayerId: input.roundPlayerId, status: 'ACTIVE' }, select: { cashCents: true } }),
         tx.bossTrip.findMany({ where: { roundPlayerId: input.roundPlayerId, status: 'ACTIVE' }, select: { bankrollCents: true } }),
+        tx.roundPlayer.findUniqueOrThrow({ where: { id: input.roundPlayerId }, select: { cashCents: true } }),
+        tx.profitIntelligenceGoal.findUnique({ where: { roundPlayerId: input.roundPlayerId } }),
+        tx.supplyStock.findMany({ where: { warehouse: { roundPlayerId: input.roundPlayerId } }, select: { productKey: true, quantity: true } }),
+        tx.dealerStock.findMany({ where: { dealerCrew: { roundPlayerId: input.roundPlayerId } }, select: { productKey: true, quantity: true } }),
       ]);
       const report = projectProfitGroups({
         groups,
@@ -288,7 +345,53 @@ export const ProfitIntelligenceService = {
         runs, businesses, sightings, activeRuns, activeBossTrips,
         cityNames: Object.fromEntries(Object.entries(input.ruleset.cities ?? {}).map(([slug, city]) => [slug, city.name ?? slug])),
       });
+      const settings = {
+        minimumLiquidityCents: goalRow?.minimumLiquidityCents?.toString() ?? null,
+        minimumProductKey: goalRow?.minimumProductKey ?? null,
+        minimumProductUnits: goalRow?.minimumProductUnits ?? null,
+        maximumRoutePurchaseCents: goalRow?.maximumRoutePurchaseCents?.toString() ?? null,
+      };
+      const productUnits = settings.minimumProductKey === null ? null : [
+        ...warehouseStock.filter((row) => row.productKey === settings.minimumProductKey),
+        ...dealerStock.filter((row) => row.productKey === settings.minimumProductKey),
+      ].reduce((sum, row) => sum + row.quantity, 0);
+      const registerCash = businesses.reduce((sum, business) => sum + business.registerCents, 0n);
+      const awayCash = activeRuns.reduce((sum, run) => sum + run.cashCents, 0n)
+        + activeBossTrips.reduce((sum, trip) => sum + trip.bankrollCents, 0n);
+      report.goals = projectProfitGoals({
+        settings, liquidityCents: playerCash.cashCents + registerCash + awayCash,
+        productUnits, routePurchases: report.comparison.routes,
+      });
+      report.goals.availableProductKeys = productKeys(input.ruleset);
       return report;
     }, { isolationLevel: 'RepeatableRead' });
+  },
+
+  async saveGoals(prisma: PrismaClient, roundPlayerId: string, ruleset: Ruleset, input: UpdateProfitIntelligenceGoalsInput) {
+    if (input.minimumProductKey !== null && !productKeys(ruleset).includes(input.minimumProductKey)) {
+      throw AppError.badRequest('UNKNOWN_PRODUCT', 'That product is not part of this round.');
+    }
+    const saved = await prisma.profitIntelligenceGoal.upsert({
+      where: { roundPlayerId },
+      create: {
+        roundPlayerId,
+        minimumLiquidityCents: input.minimumLiquidityCents === null ? null : BigInt(input.minimumLiquidityCents),
+        minimumProductKey: input.minimumProductKey,
+        minimumProductUnits: input.minimumProductUnits,
+        maximumRoutePurchaseCents: input.maximumRoutePurchaseCents === null ? null : BigInt(input.maximumRoutePurchaseCents),
+      },
+      update: {
+        minimumLiquidityCents: input.minimumLiquidityCents === null ? null : BigInt(input.minimumLiquidityCents),
+        minimumProductKey: input.minimumProductKey,
+        minimumProductUnits: input.minimumProductUnits,
+        maximumRoutePurchaseCents: input.maximumRoutePurchaseCents === null ? null : BigInt(input.maximumRoutePurchaseCents),
+      },
+    });
+    return {
+      minimumLiquidityCents: saved.minimumLiquidityCents?.toString() ?? null,
+      minimumProductKey: saved.minimumProductKey,
+      minimumProductUnits: saved.minimumProductUnits,
+      maximumRoutePurchaseCents: saved.maximumRoutePurchaseCents?.toString() ?? null,
+    };
   },
 };
