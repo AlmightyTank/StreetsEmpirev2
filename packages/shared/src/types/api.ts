@@ -450,9 +450,27 @@ export interface ScavengeCacheDto {
   eligiblePool: Array<{ key: string; name: string; rarity: ScavengeRarityDto; purpose: string; footprint: { width: number; height: number } }>;
   rewards?: ScavengeComponentDto[];
 }
+/** A component the salvage dealer sells for cash, so no build is gated on scouting luck. */
+export interface ScavengeDealerOfferDto {
+  key: string;
+  name: string;
+  rarity: ScavengeRarityDto;
+  purpose: string;
+  priceCents: number;
+}
 export interface ScavengePageDto {
   components: ScavengeComponentDto[];
   caches: ScavengeCacheDto[];
+  dealer: ScavengeDealerOfferDto[];
+}
+export interface BuyScavengeComponentInput {
+  key: string;
+  quantity: number;
+}
+export interface BuyScavengeComponentResult {
+  page: ScavengePageDto;
+  bought: ScavengeComponentDto;
+  spentCents: number;
 }
 export interface OpenScavengeCacheResult {
   cache: ScavengeCacheDto;

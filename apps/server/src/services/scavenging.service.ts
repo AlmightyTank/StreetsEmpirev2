@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import type { Prisma, PrismaClient } from '@prisma/client';
-import type { CacheOddsDto, ScavengeCacheDto, ScavengeComponentDto, ScavengePageDto, ScavengeRarityDto } from '@streets/shared';
+import type { BuyScavengeComponentResult, CacheOddsDto, ScavengeCacheDto, ScavengeComponentDto, ScavengeDealerOfferDto, ScavengePageDto, ScavengeRarityDto } from '@streets/shared';
 import { AppError } from '../utils/errors.js';
+import { EconomyLedgerService } from './economy-ledger.service.js';
 import { recordHideoutEconomy } from './hideout-economy-telemetry.service.js';
 
 export type CacheQuality = ScavengeCacheDto['quality'];
@@ -36,6 +37,23 @@ const ODDS: Record<CacheQuality, CacheOddsDto> = {
   SECURED_CACHE: { COMMON: 30, UNCOMMON: 35, RARE: 22, EPIC: 10, LEGENDARY: 3 },
   BLACK_MARKET_CACHE: { COMMON: 15, UNCOMMON: 30, RARE: 30, EPIC: 18, LEGENDARY: 7 },
 };
+// The salvage dealer is the trade route the roadmap promises: every component
+// can be bought for cash, so a hideout build never waits on a lucky drop.
+// Scouting stays the cheaper route; the dealer trades cash for time.
+const DEALER_PRICE_CENTS: Record<ScavengeRarityDto, number> = { COMMON: 10_000, UNCOMMON: 30_000, RARE: 100_000, EPIC: 300_000, LEGENDARY: 800_000 };
+export const MAX_DEALER_QUANTITY = 50;
+export function dealerPriceCents(key: string): number | null {
+  const definition = COMPONENTS.find((row) => row.key === key);
+  return definition ? DEALER_PRICE_CENTS[definition.rarity] : null;
+}
+function dealerOffers(): ScavengeDealerOfferDto[] {
+  return COMPONENTS.map(({ key, name, rarity, purpose }) => ({ key, name, rarity, purpose, priceCents: DEALER_PRICE_CENTS[rarity] }));
+}
+function dollars(cents: number): string { return `$${(cents / 100).toLocaleString('en-US', { maximumFractionDigits: 0 })}`; }
+
+/** Components a scouting trip brings home: one for every two turns, at least one per trip. */
+export function scavengeFindCount(turns: number): number { return turns > 0 ? Math.ceil(turns / 2) : 0; }
+
 const QUALITY_LABEL: Record<CacheQuality, string> = { STREET_STASH: 'Street stash', SUPPLY_CACHE: 'Supply cache', SECURED_CACHE: 'Secured cache', BLACK_MARKET_CACHE: 'Black-market cache' };
 const DISTRICT_THEME: Record<string, { theme: string; common: string[]; scarce: string[] }> = {
   CASINO: { theme: 'commercial', common: ['Bottles', 'Labels', 'Packaging'], scarce: ['Radios', 'Specialty containers'] },
@@ -106,13 +124,14 @@ export const ScavengingService = {
        // Older builds could leave an opened cache in the JSON list. Treat it
        // as consumed on read so refreshes cannot resurrect it in the UI.
        caches: jsonCaches(player.scavengedCaches).filter((cache) => !cache.opened).map(cacheDto),
+       dealer: dealerOffers(),
      };
   },
   async addFinds(tx: Prisma.TransactionClient, roundPlayerId: string, player: { scavengedComponents: Prisma.JsonValue; scavengedCaches: Prisma.JsonValue }, districtKey: string, districtName: string, turns: number, rng = Math.random): Promise<{ components: ScavengeComponentDto[]; cache: ScavengeCacheDto | null }> {
     const theme = districtSupplyClue(districtKey).theme;
     const pool = eligiblePool(theme);
     const found: Record<string, number> = {};
-    const count = Math.max(0, Math.floor(turns / 3));
+    const count = scavengeFindCount(turns);
     for (let i = 0; i < count; i += 1) { const item = pool[Math.floor(rng() * pool.length)]; if (item) found[item.key] = (found[item.key] ?? 0) + 1; }
     const components = jsonObject(player.scavengedComponents, {});
     for (const [key, quantity] of Object.entries(found)) components[key] = (components[key] ?? 0) + quantity;
@@ -134,6 +153,32 @@ export const ScavengingService = {
      for (const [key, quantity] of Object.entries(found)) await recordHideoutEconomy(tx, roundPlayerId, 'COMPONENT_SCAVENGED', { itemKey: key, quantity, payload: { districtKey, turns } });
      if (cache) await recordHideoutEconomy(tx, roundPlayerId, 'CACHE_FOUND', { rarity: cache.quality, payload: { districtKey, turns, cacheId: cache.id } });
     return { components: Object.entries(found).map(([key, quantity]) => componentDto(key, quantity)), cache: cache ? cacheDto(cache) : null };
+  },
+
+  async buy(prisma: PrismaClient, roundPlayerId: string, key: string, quantity: number, now = new Date()): Promise<BuyScavengeComponentResult> {
+    const unitCents = dealerPriceCents(key);
+    if (unitCents === null) throw AppError.badRequest('UNKNOWN_COMPONENT', 'The dealer does not carry that component.');
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > MAX_DEALER_QUANTITY) throw AppError.badRequest('INVALID_QUANTITY', `Buy between 1 and ${MAX_DEALER_QUANTITY} at a time.`);
+    const spentCents = unitCents * quantity;
+    await prisma.$transaction(async (tx) => {
+      const player = await tx.roundPlayer.findUnique({ where: { id: roundPlayerId }, select: { cashCents: true, scavengedComponents: true } });
+      if (!player) throw AppError.notFound('PLAYER_NOT_FOUND', 'Player not found.');
+      if (player.cashCents < BigInt(spentCents)) throw AppError.badRequest('NOT_ENOUGH_CASH', `You need ${dollars(spentCents)} for that order.`);
+      const components = jsonObject(player.scavengedComponents, {});
+      if (!components[key]) {
+        // Same rule as scouting: a new component needs one free stash cell.
+        const { StashService } = await import('./stash.service.js');
+        const stash = await StashService.page(tx, roundPlayerId);
+        if (!stash.items.some((item) => item.key === key) && stash.usedCells >= stash.totalCells) {
+          throw AppError.conflict('STASH_FULL', 'There is no room in the stash for a new component. Upgrade Storage or clear a slot.');
+        }
+      }
+      components[key] = (components[key] ?? 0) + quantity;
+      await tx.roundPlayer.update({ where: { id: roundPlayerId }, data: { cashCents: player.cashCents - BigInt(spentCents), scavengedComponents: components as Prisma.InputJsonValue } });
+      await EconomyLedgerService.record(tx, roundPlayerId, [{ source: 'COMPONENT_BUY', label: 'Salvage dealer', amountCents: -spentCents, metadata: { itemKey: key, quantity } }], now);
+      await recordHideoutEconomy(tx, roundPlayerId, 'COMPONENT_BOUGHT', { itemKey: key, quantity, payload: { spentCents } });
+    });
+    return { page: await ScavengingService.page(prisma, roundPlayerId), bought: componentDto(key, quantity), spentCents };
   },
 
   async open(prisma: PrismaClient, roundPlayerId: string, cacheId: string): Promise<import('@streets/shared').OpenScavengeCacheResult> {

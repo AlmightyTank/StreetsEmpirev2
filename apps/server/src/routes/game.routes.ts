@@ -58,7 +58,7 @@ import { toState } from '../services/action.service.js';
 import { StoreService } from '../services/store.service.js';
 import { HideoutService } from '../services/hideout.service.js';
 import { StashService } from '../services/stash.service.js';
-import { ScavengingService } from '../services/scavenging.service.js';
+import { MAX_DEALER_QUANTITY, ScavengingService } from '../services/scavenging.service.js';
 import { GeneratorService, type GeneratorUpdate } from '../services/generator.service.js';
 import { WorkshopService } from '../services/workshop.service.js';
 import { HideoutCosmeticService } from '../services/hideout-cosmetic.service.js';
@@ -629,6 +629,12 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/hideout/scavenging', { preHandler: fastify.requireAuth }, async (request) => {
     const { player } = await requirePlayer(request.auth!.account.id);
     return ScavengingService.page(fastify.prisma, player.id);
+  });
+
+  fastify.post('/hideout/scavenging/buy', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(z.object({ key: z.string().trim().min(1).max(64), quantity: z.number().int().min(1).max(MAX_DEALER_QUANTITY) }).strict(), request.body);
+    const { player } = await requirePlayer(request.auth!.account.id);
+    return ScavengingService.buy(fastify.prisma, player.id, body.key, body.quantity);
   });
 
   fastify.post('/hideout/scavenging/:cacheId/open', { preHandler: fastify.requireAuth }, async (request) => {

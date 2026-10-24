@@ -2,11 +2,14 @@ import { describe, expect, it } from 'vitest';
 import {
   cacheOdds,
   cacheQualityForTurns,
+  COMPONENTS,
+  dealerPriceCents,
   districtSupplyClue,
   eligiblePool,
   makeCache,
   openCache,
   rollRarity,
+  scavengeFindCount,
 } from '../scavenging.service.js';
 
 describe('hideout scavenging', () => {
@@ -43,5 +46,21 @@ describe('hideout scavenging', () => {
     const firstReward = reward[0]!;
     expect(cache.eligiblePool.some((item) => item.key === firstReward.key)).toBe(true);
     expect(firstReward.quantity).toBeGreaterThan(0);
+  });
+
+  it('brings home at least one component per scouting trip', () => {
+    expect(scavengeFindCount(0)).toBe(0);
+    expect(scavengeFindCount(1)).toBe(1);
+    expect(scavengeFindCount(2)).toBe(1);
+    expect(scavengeFindCount(3)).toBe(2);
+    expect(scavengeFindCount(10)).toBe(5);
+  });
+
+  it('prices every component at the salvage dealer, rarer parts costing more', () => {
+    for (const component of COMPONENTS) expect(dealerPriceCents(component.key)).toBeGreaterThan(0);
+    expect(dealerPriceCents('SCRAP_METAL')!).toBeLessThan(dealerPriceCents('RADIO')!);
+    expect(dealerPriceCents('RADIO')!).toBeLessThan(dealerPriceCents('MOTOR_ASSEMBLY')!);
+    expect(dealerPriceCents('PRECISION_PARTS')!).toBeLessThan(dealerPriceCents('SPECIALIST_CIRCUITRY')!);
+    expect(dealerPriceCents('NOT_A_PART')).toBeNull();
   });
 });
