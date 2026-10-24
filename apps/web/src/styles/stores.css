@@ -286,6 +286,29 @@
   color: var(--se-warn);
 }
 
+.se-store-shelf__walkthrough {
+  display: grid;
+  gap: 3px;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--se-accent) 45%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--se-accent) 9%, transparent);
+}
+
+.se-store-shelf__walkthrough strong {
+  color: var(--se-accent);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.se-store-shelf__walkthrough span {
+  color: var(--se-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .se-stores .se-store-prices {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

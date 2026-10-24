@@ -1,6 +1,6 @@
-import { useEffect, type FormEvent } from 'react';
+import { useEffect, useRef, type FormEvent } from 'react';
 import { isString, isTurns, rememberedKey, useRememberedState } from '../utils/remembered.js';
-import { Link, Navigate } from 'react-router-dom';
+import { Link, Navigate, useLocation } from 'react-router-dom';
 import type { ProduceCrackResult, ProductsDto, ProductTypeDto } from '@streets/shared';
 import { formatCents, formatCentsExact, formatNumber } from '@streets/shared';
 import { QuestLink } from '../components/QuestLink.js';
@@ -62,6 +62,9 @@ function ProduceMetric({
 
 export function ProducePage() {
   const me = useSession((s) => s.me);
+  const location = useLocation();
+  const tourTarget = (location.state as { tourTarget?: unknown } | null)?.tourTarget;
+  const guidedTourScrolled = useRef(false);
   const action = useGameAction<ProduceCrackResult>();
 
   const [turns, setTurns] = useRememberedState<number | ''>(rememberedKey('produce.turns', me?.id), 10, { accept: isTurns });
@@ -78,6 +81,20 @@ export function ProducePage() {
       setProductType(PRODUCT_PROFILES[0]!.key as ProductTypeDto);
     }
   }, [catalog, PRODUCT_PROFILES, productType, setProductType]);
+
+  useEffect(() => {
+    if (tourTarget !== 'produce-plan' || guidedTourScrolled.current) return;
+    const frame = window.requestAnimationFrame(() => {
+      const target = document.querySelector('[data-tour="produce-plan"]');
+      if (!target) return;
+      guidedTourScrolled.current = true;
+      target.scrollIntoView({
+        block: 'start',
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+      });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [tourTarget]);
 
   if (!me) return <Navigate to="/join" replace />;
 
@@ -148,7 +165,7 @@ export function ProducePage() {
           </Alert>
         ) : null}
 
-        <div className="se-produce-plan">
+        <div className="se-produce-plan" data-tour="produce-plan" data-tour-card-anchor="produce-plan">
           <section className="se-produce-plan__main">
             <div className="se-produce-sectionhead">
               <div>
@@ -313,7 +330,7 @@ export function ProducePage() {
                   : null
             }
           />
-          <Button className="se-btn se-btn--primary" disabledReason={produceBlock} data-tour="produce">
+          <Button className="se-btn se-btn--primary" disabledReason={produceBlock}>
             {action.busy ? 'Producing...' : action.result ? 'Cook again' : `Start ${selectedProfile.name} batch`}
           </Button>
         </ActionDock>

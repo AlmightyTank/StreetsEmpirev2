@@ -1,5 +1,5 @@
-import { useEffect, useState, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import type {
   HideoutRoomV2Dto,
   HideoutSpecializationResult,
@@ -134,7 +134,7 @@ function RoomCard({
         : 'Locked';
 
   return (
-    <article className={`se-hideout-room se-hideout-room--${state}`} data-room={room.key.toLowerCase()}>
+    <article className={`se-hideout-room se-hideout-room--${state}`} data-room={room.key.toLowerCase()} data-tour={room.key === 'SAFE_ROOM' ? 'upgrade-hideout' : undefined} data-tour-card-anchor={room.key === 'SAFE_ROOM' ? 'upgrade-hideout' : undefined}>
       <div className="se-hideout-room__head">
         <div>
           <span className="se-hideout-room__kicker">{room.key.replaceAll('_', ' ')}</span>
@@ -240,7 +240,6 @@ function RoomCard({
       <Button
         type="button"
         className="se-btn se-btn--primary se-btn--block"
-        data-tour="upgrade-hideout"
         disabledReason={blocked
           ?? (maxed ? 'This room is fully upgraded for this season.' : null)
           ?? room.lockReason
@@ -311,6 +310,9 @@ function HideoutLook({
 /** Shows the current headquarters state and controls for seasonal room upgrades. */
 export function HideoutPage() {
   const me = useSession((s) => s.me);
+  const location = useLocation();
+  const tourTarget = (location.state as { tourTarget?: unknown } | null)?.tourTarget;
+  const guidedTourScrolled = useRef(false);
   const action = useGameAction<HideoutUpgradeResult>();
   const armoryAction = useGameAction<HideoutWeaponPriorityResult>();
   const specializationAction = useGameAction<HideoutSpecializationResult>();
@@ -327,6 +329,20 @@ export function HideoutPage() {
   const [scavenging, setScavenging] = useState<ScavengePageDto | null>(null);
   const [workshop, setWorkshop] = useState<CraftingWorkshopDto | null>(null);
   const [hideoutTab, setHideoutTab] = useState<'stash' | 'scavenging' | 'workshop' | 'generator'>('stash');
+
+  useEffect(() => {
+    if (tourTarget !== 'upgrade-hideout' || guidedTourScrolled.current) return;
+    const frame = window.requestAnimationFrame(() => {
+      const target = document.querySelector('[data-tour="upgrade-hideout"]');
+      if (!target) return;
+      guidedTourScrolled.current = true;
+      target.scrollIntoView({
+        block: 'start',
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+      });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [tourTarget]);
 
   useEffect(() => {
     let active = true;

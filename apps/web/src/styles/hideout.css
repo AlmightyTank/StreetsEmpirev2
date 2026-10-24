@@ -604,6 +604,7 @@
 }
 
 .se-hideout-room {
+  scroll-margin-top: 360px;
   position: relative;
   display: flex;
   flex-direction: column;

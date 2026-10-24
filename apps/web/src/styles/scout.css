@@ -52,6 +52,7 @@
 }
 
 .se-scout-plan {
+  scroll-margin-top: 360px;
   display: grid;
   grid-template-columns: minmax(0, 1.25fr) minmax(330px, 0.75fr);
   gap: 10px;

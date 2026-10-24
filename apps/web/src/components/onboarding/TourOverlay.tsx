@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { TOUR_STEP_KEYS, type OnboardingStateDto, type TourStepKey } from '@streets/shared';
 import { TOUR_STEPS } from '../../help/catalog.js';
 import { useOnboarding } from '../../stores/onboarding.js';
@@ -21,6 +21,12 @@ export function neighborStep(steps: Array<{ key: TourStepKey; done: boolean }>, 
   return null;
 }
 
+/** Adjacent walkthrough step, including completed steps, for explicit arrow navigation. */
+export function adjacentStep(current: TourStepKey, direction: 1 | -1): TourStepKey | null {
+  const index = TOUR_STEP_KEYS.indexOf(current) + direction;
+  return index >= 0 && index < TOUR_STEP_KEYS.length ? TOUR_STEP_KEYS[index]! : null;
+}
+
 type TargetRect = { top: number; left: number; width: number; height: number };
 
 /**
@@ -33,7 +39,9 @@ export function TourOverlay({ tour: tourOverride }: { tour?: OnboardingStateDto[
   const tour = tourOverride ?? storeTour;
   const act = useOnboarding((s) => s.act);
   const navigate = useNavigate();
+  const location = useLocation();
   const [rect, setRect] = useState<TargetRect | null>(null);
+  const [cardHeight, setCardHeight] = useState(220);
   const cardRef = useRef<HTMLElement>(null);
 
   const step = tour?.step ?? null;
@@ -84,30 +92,81 @@ export function TourOverlay({ tour: tourOverride }: { tour?: OnboardingStateDto[
     };
   }, [visible, measure]);
 
+  // Every guided destination owns its target, but the walkthrough owns the
+  // promise that "Go to the action" leaves that target in view. This covers
+  // pages that do not need a bespoke destination effect.
+  useEffect(() => {
+    if (!visible || !copy || typeof window === 'undefined') return;
+    let firstFrame = 0;
+    let secondFrame = 0;
+    const scrollTargetIntoView = () => {
+      const target = document.querySelector(`[data-tour="${copy.target}"]`);
+      if (!target) return;
+      target.scrollIntoView({
+        block: 'start',
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+      });
+    };
+    firstFrame = window.requestAnimationFrame(() => {
+      scrollTargetIntoView();
+      secondFrame = window.requestAnimationFrame(scrollTargetIntoView);
+    });
+    return () => {
+      window.cancelAnimationFrame(firstFrame);
+      window.cancelAnimationFrame(secondFrame);
+    };
+  }, [visible, copy, location.pathname]);
+
   useEffect(() => {
     if (!visible) return;
     cardRef.current?.focus();
+    const measureCard = () => {
+      const height = cardRef.current?.getBoundingClientRect().height;
+      if (height && height !== cardHeight) setCardHeight(height);
+    };
+    measureCard();
+    const cardObserver = cardRef.current && typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(measureCard)
+      : null;
+    if (cardObserver && cardRef.current) cardObserver.observe(cardRef.current);
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') void act({ action: 'dismiss-tour' });
     };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [visible, act]);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      cardObserver?.disconnect();
+    };
+  }, [visible, act, cardHeight]);
 
   if (!visible || !tour || !step || !copy) return null;
 
   const index = tourStepIndex(step);
-  const previous = neighborStep(tour.steps, step, -1);
+  const previous = adjacentStep(step, -1);
+  const next = adjacentStep(step, 1);
   const anchored = Boolean(rect);
+  const preferAbove = copy.target === 'build-street-sign' || copy.target === 'scout-plan' || copy.target === 'produce-plan' || copy.target === 'upgrade-hideout' || copy.target === 'combat-intel' || copy.target === 'first-raid';
+  const cardAnchor = preferAbove && typeof document !== 'undefined'
+    ? document.querySelector(`[data-tour-card-anchor="${copy.target}"]`)
+    : null;
+  const cardAnchorRect = cardAnchor?.getBoundingClientRect();
+  const cardAnchorTop = cardAnchorRect?.top ?? rect?.top ?? 0;
   const guideMe = () => {
     navigate(copy.to.split('#')[0]!, { state: { tourTarget: copy.target } });
+  };
+  const goToStep = (nextStep: TourStepKey) => {
+    const nextCopy = TOUR_STEPS[nextStep];
+    void act({ action: 'advance-tour', step: nextStep });
+    navigate(nextCopy.to.split('#')[0]!, { state: { tourTarget: nextCopy.target } });
   };
   const cardStyle =
     anchored && rect && typeof window !== 'undefined'
       ? {
-          top: rect.top + rect.height + 12 <= window.innerHeight - 220
+          top: preferAbove
+            ? Math.max(8, Math.min(window.innerHeight - cardHeight - 8, cardAnchorTop - cardHeight))
+            : rect.top + rect.height + 12 <= window.innerHeight - cardHeight
             ? rect.top + rect.height + 12
-            : Math.max(8, rect.top - 220 - 12),
+            : Math.max(8, rect.top - cardHeight - 12),
           left: Math.max(8, Math.min(window.innerWidth - 336, rect.left)),
         }
       : undefined;
@@ -138,29 +197,41 @@ export function TourOverlay({ tour: tourOverride }: { tour?: OnboardingStateDto[
         className={`se-tour__card${anchored ? ' se-tour__card--anchored' : ' se-tour__card--fallback'}`}
         style={cardStyle}
       >
-        <p className="se-eyebrow">Guided tour · Step {index + 1} of {TOUR_STEP_KEYS.length}</p>
-        <h2 id="se-tour-title">{copy.title}</h2>
-        <p>{copy.detail}</p>
-        {!anchored ? (
-          <p><button type="button" className="se-link-button" onClick={guideMe}>Guide me to the action →</button></p>
-        ) : null}
-        <ol className="se-tour__dots" aria-label="Tour progress">
+        <p className="se-eyebrow">{copy.chapter} · Step {index + 1} of {TOUR_STEP_KEYS.length}</p>
+        <h2 id="se-tour-title">Next step: {copy.title}</h2>
+        <p className="se-tour__mentor">{copy.mentor} says: {copy.detail}</p>
+        <div
+          className="se-tour__progress"
+          role="progressbar"
+          aria-label="Walkthrough progress"
+          aria-valuemin={0}
+          aria-valuemax={TOUR_STEP_KEYS.length}
+          aria-valuenow={tour.steps.filter((item) => item.done).length}
+        >
+          <span style={{ width: `${Math.round((tour.steps.filter((item) => item.done).length / TOUR_STEP_KEYS.length) * 100)}%` }} />
+        </div>
+        <ol className="se-tour__dots" aria-label="Walkthrough progress">
           {tour.steps.map((item) => (
-            <li key={item.key} className={item.done ? 'is-done' : item.key === step ? 'is-current' : ''} aria-label={`${item.key}${item.done ? ', done' : item.key === step ? ', current' : ''}`} />
+            <li key={item.key} className={item.done ? 'is-done' : item.key === step ? 'is-current' : ''} aria-label={`${TOUR_STEPS[item.key].title}${item.done ? ', done' : item.key === step ? ', current' : ''}`} />
           ))}
         </ol>
         <div className="se-tour__actions">
           {previous ? (
-            <button type="button" className="se-btn se-btn--ghost se-btn--sm" onClick={() => void act({ action: 'advance-tour', step: previous })}>
-              Back
+            <button type="button" className="se-btn se-btn--ghost se-btn--sm" aria-label={`Go back to ${TOUR_STEPS[previous].title}`} onClick={() => goToStep(previous)}>
+              ← <span className="se-tour__arrow-label">Back</span>
             </button>
           ) : null}
           <button type="button" className="se-btn se-btn--primary se-btn--sm" onClick={guideMe}>
-            Guide me
+             Go to the action
           </button>
           <button type="button" className="se-btn se-btn--ghost se-btn--sm" onClick={() => void act({ action: 'dismiss-tour' })}>
-            Skip tour
+              Skip walkthrough
           </button>
+          {next ? (
+            <button type="button" className="se-btn se-btn--ghost se-btn--sm" aria-label={`Go forward to ${TOUR_STEPS[next].title}`} onClick={() => goToStep(next)}>
+              <span className="se-tour__arrow-label">Next</span> →
+            </button>
+          ) : null}
         </div>
       </section>
     </div>
