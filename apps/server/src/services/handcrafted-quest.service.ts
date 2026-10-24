@@ -94,6 +94,7 @@ import {
 } from './seasonal-event.service.js';
 import { CityConditionService } from './city-condition.service.js';
 import { PermanentUnlockService } from './permanent-unlock.service.js';
+import { recordSceneResponse, sceneResponsesFor, storyScenesDto, type SceneResponses } from './quest-story-scene.service.js';
 
 const TRACKED_LIMIT = 3;
 /** Shared-board work: not counted as a personal job and not abandonable. Personal jobs have no cap. */
@@ -287,12 +288,15 @@ function branchChoicesDto(row: QuestRow, ruleset: Ruleset): QuestBranchChoiceDto
   }));
 }
 
-function storyDto(row: QuestRow, ruleset: Ruleset): QuestStoryDto | undefined {
+function storyDto(row: QuestRow, ruleset: Ruleset, sceneResponses?: SceneResponses): QuestStoryDto | undefined {
   const definition = ruleset.questDefinitions?.[row.questDefinition.key];
   if (!definition?.story) return undefined;
+  const { scenes: _scenes, ...story } = definition.story;
+  const scenes = storyScenesDto(definition, row, sceneResponses?.get(row.id));
   return {
-    ...definition.story,
+    ...story,
     speaker: contactFor(ruleset, definition.contactKey)?.shortName ?? 'StreetsEmpire',
+    ...(scenes ? { scenes } : {}),
   };
 }
 
@@ -367,6 +371,8 @@ interface QuestContext {
   joinedAt?: Date;
   now?: Date;
   actionCounts?: Readonly<Record<string, number>>;
+  /** Story campaign: recorded scene responses, by player quest id then scene key. */
+  sceneResponses?: SceneResponses;
 }
 
 interface QuestGateContext {
@@ -471,7 +477,7 @@ function questDto(row: QuestRow, ruleset: Ruleset, context: QuestContext, commun
     finishedBonuses,
   );
   const availability = availabilityJson(row.questDefinition.availability);
-  const story = storyDto(row, ruleset);
+  const story = storyDto(row, ruleset, context.sceneResponses);
   return {
     key: row.questDefinition.key,
     attempt: row.attempt,
@@ -1093,7 +1099,10 @@ export const HandcraftedQuestService = {
       include: { questDefinition: true },
       orderBy: [{ createdAt: 'asc' }],
     });
-    const context: QuestContext = { points: {}, netWorthCents: 0n, completed: new Set(), reps: {} };
+    const context: QuestContext = {
+      points: {}, netWorthCents: 0n, completed: new Set(), reps: {},
+      sceneResponses: await sceneResponsesFor(prisma, rows, ruleset),
+    };
     return { quests: rows.map((row) => questDto(row, ruleset, context)) };
   },
 
@@ -1214,6 +1223,7 @@ export const HandcraftedQuestService = {
         completed: completedQuestKeys,
         reps,
         ...gate,
+        sceneResponses: await sceneResponsesFor(tx, rows, ruleset),
       };
       // 1.4.0-D: what standing opens with each faction, and what it says right now.
       const factions = ruleset.factions ? Object.values(ruleset.factions).flatMap((faction) => faction ? [{
@@ -1426,6 +1436,21 @@ export const HandcraftedQuestService = {
     return this.page(prisma, roundPlayerId, ruleset);
   },
 
+  /** Story campaign: record the player's response in one of an active job's scenes, then return the board. */
+  async respondToScene(
+    prisma: PrismaClient,
+    roundPlayerId: string,
+    ruleset: Ruleset,
+    input: { questKey: string; sceneKey: string; responseKey: string },
+  ): Promise<QuestPageDto> {
+    await syncDefinitions(prisma, ruleset);
+    await prisma.$transaction(async (tx) => {
+      await lockRoundPlayer(tx, roundPlayerId);
+      await recordSceneResponse(tx, roundPlayerId, ruleset, input, new Date());
+    });
+    return this.page(prisma, roundPlayerId, ruleset, { skipSync: true });
+  },
+
   async abandon(prisma: PrismaClient, roundPlayerId: string, ruleset: Ruleset, key: string): Promise<QuestPageDto> {
     await syncDefinitions(prisma, ruleset);
     await prisma.$transaction(async (tx) => {
@@ -1446,6 +1471,8 @@ export const HandcraftedQuestService = {
         );
       }
       await tx.questProgressReceipt.deleteMany({ where: { playerQuestId: row.id } });
+      // A fresh start on the same attempt plays its scenes again too.
+      await tx.questSceneResponse.deleteMany({ where: { playerQuestId: row.id } });
       const preserveOffer = preservesGeneratedOffer(row, ruleset);
       await tx.playerQuest.update({
         where: { id: row.id },

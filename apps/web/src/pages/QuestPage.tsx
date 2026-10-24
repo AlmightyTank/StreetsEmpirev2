@@ -17,6 +17,8 @@ import { Button } from '../components/Button.js';
 import { Panel, Row } from '../components/Panel.js';
 import { ItemTile } from '../components/ItemTile.js';
 import { questHref } from '../components/QuestLink.js';
+import { hasOpenScene, QuestStoryScenes, StoryProse } from '../components/QuestStoryScenes.js';
+import { contactRoomHref } from '../utils/contactRoom.js';
 import { RecipeLadderPanel } from '../components/RecipeLadder.js';
 import { RewardChip } from '../components/RewardChip.js';
 import { hasItemArt } from '../items/itemArt.js';
@@ -241,6 +243,7 @@ function QuestCard({
   onClaim,
   onTrack,
   onAbandon,
+  onRespond,
   nowMs,
   featured = false,
   focused = false,
@@ -256,14 +259,21 @@ function QuestCard({
   onClaim: (key: string, branchKey?: string, branchTitle?: string) => void;
   onTrack: (key: string, tracked: boolean) => void;
   onAbandon: (key: string) => void;
+  onRespond: (questKey: string, sceneKey: string, responseKey: string, responseLabel: string) => void;
 }) {
   const active = quest.status === 'ACTIVE' || quest.status === 'READY_TO_TURN_IN';
-  const [showDetails, setShowDetails] = useState(featured || focused || (quest.status === 'READY_TO_TURN_IN' && quest.branchChoices.length > 0));
+  const sceneOpen = hasOpenScene(quest);
+  const [showDetails, setShowDetails] = useState(featured || focused || sceneOpen || (quest.status === 'READY_TO_TURN_IN' && quest.branchChoices.length > 0));
   const primaryObjective = quest.objectives.find((item) => !item.bonus && !item.completed)
     ?? quest.objectives.find((item) => !item.bonus);
   useEffect(() => {
     if (focused) setShowDetails(true);
   }, [focused]);
+
+  // A scene that opens mid-job (after the sale it follows, say) brings the details into view.
+  useEffect(() => {
+    if (sceneOpen) setShowDetails(true);
+  }, [sceneOpen]);
 
   return (
     <Panel
@@ -327,13 +337,15 @@ function QuestCard({
         <div className="se-quest-story">
           <div className="se-quest-story__quote">
             <span className="se-eyebrow">{quest.story.chapter} · {quest.story.speaker}</span>
-            <p>{storyLineForStatus(quest)}</p>
+            <StoryProse text={storyLineForStatus(quest) ?? ''} />
           </div>
           <div className="se-quest-story__lesson">
-            <div>
-              <span>Lesson</span>
-              <strong>{quest.story.lesson}</strong>
-            </div>
+            {quest.story.lesson ? (
+              <div>
+                <span>Lesson</span>
+                <strong>{quest.story.lesson}</strong>
+              </div>
+            ) : null}
             <div>
               <span>Next move</span>
               <strong>{quest.story.actionHint}</strong>
@@ -341,6 +353,7 @@ function QuestCard({
           </div>
         </div>
       ) : null}
+      <QuestStoryScenes quest={quest} busy={busy} onRespond={onRespond} />
       {quest.seasonalEvent ? (
         <div className="se-quest-seasonal">
           <span className="se-eyebrow">{quest.seasonalEvent.label ?? 'Seasonal event'}</span>
@@ -465,6 +478,10 @@ function QuestCard({
           <Button className="se-btn se-btn--primary" disabledReason={busy} onClick={() => onClaim(quest.key)}>
             Collect payment
           </Button>
+        ) : null}
+
+        {quest.contactKey && quest.contactName && page.contacts.some((contact) => contact.key === quest.contactKey) ? (
+          <Link className="se-btn se-btn--ghost" to={contactRoomHref(quest.contactKey)}>Talk to {quest.contactName}</Link>
         ) : null}
 
         {active && showDetails ? (
@@ -709,6 +726,7 @@ export function QuestPage() {
           quest.title, quest.description, quest.category, quest.type,
           quest.contactName, quest.factionName, quest.story?.chapter,
           quest.story?.lesson, quest.story?.actionHint,
+          ...(quest.story?.scenes ?? []).map((scene) => scene.title),
           ...quest.objectives.map((objective) => objective.description),
         ].filter(Boolean).join(' ').toLocaleLowerCase();
         return searchable.includes(query);
@@ -764,6 +782,16 @@ export function QuestPage() {
     } finally {
       setBusy(null);
     }
+  }
+
+  async function respondToScene(key: string, sceneKey: string, responseKey: string, responseLabel: string) {
+    const confirmed = await confirmAction({
+      title: `Choose "${responseLabel}"?`,
+      body: 'Your choice is part of the story from here on. You cannot change it for this job.',
+      confirmLabel: 'Make this choice',
+    });
+    if (!confirmed) return;
+    await mutate(key, () => questsApi.respondToScene(key, sceneKey, responseKey), 'Choice made.');
   }
 
   async function claim(key: string, branchKey?: string, branchTitle?: string) {
@@ -908,6 +936,7 @@ export function QuestPage() {
       onClaim={(key, branchKey, branchTitle) => void claim(key, branchKey, branchTitle)}
       onTrack={(key, tracked) => void mutate(key, () => questsApi.track(key, tracked))}
       onAbandon={(key) => void mutate(key, () => questsApi.abandon(key), 'Job abandoned.')}
+      onRespond={(key, sceneKey, responseKey, responseLabel) => void respondToScene(key, sceneKey, responseKey, responseLabel)}
     />
   ) : null;
 
@@ -1072,7 +1101,7 @@ export function QuestPage() {
                       {page.contacts.map((contact) => (
                         <div key={contact.key} className="se-quests-contact">
                           <Portrait who={contact.key} label={contact.name} />
-                          <span>{contact.name}</span>
+                          <Link className="se-golink" to={contactRoomHref(contact.key)}>{contact.name} · Visit</Link>
                           <strong>{contact.standing}</strong>
                           <small>{contact.role} · {formatNumber(contact.points)} rep</small>
                           {contact.faction ? <small>Works for {contact.faction.name}</small> : contact.independent ? <small title={contact.independent}>Independent</small> : null}

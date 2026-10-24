@@ -8,6 +8,7 @@ import {
   questAbandonSchema,
   questAutoAcceptSchema,
   questClaimSchema,
+  questSceneResponseSchema,
   questTrackSchema,
   randomEncounterChoiceSchema,
   scoutSchema,
@@ -758,6 +759,17 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
     const { round, player } = await requirePlayer(request.auth!.account.id);
     const key = String((request.params as { key: string }).key).trim().toUpperCase();
     return HandcraftedQuestService.track(fastify.prisma, player.id, loadRulesetForRound(round), key, body.tracked);
+  });
+
+  fastify.post('/quests/:key/scenes/:sceneKey', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(questSceneResponseSchema, request.body);
+    const { round, player } = await requirePlayer(request.auth!.account.id);
+    const params = request.params as { key: string; sceneKey: string };
+    return HandcraftedQuestService.respondToScene(fastify.prisma, player.id, loadRulesetForRound(round), {
+      questKey: String(params.key).trim().toUpperCase(),
+      sceneKey: String(params.sceneKey).trim().toLowerCase(),
+      responseKey: body.responseKey,
+    });
   });
 
   fastify.post('/quests/:key/claim', { preHandler: fastify.requireAuth }, async (request) => {

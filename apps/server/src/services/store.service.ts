@@ -899,6 +899,8 @@ export const StoreService = {
 
         const next: PlayerState = { ...current };
         const results: StoreTradeResult[] = [];
+        // The catalog key behind each result line, so quests see a basket line as they see a trade.
+        const itemKeys: string[] = [];
         const ledger: EconomyLedgerWrite[] = [];
         const reputation: ReputationChange[] = [];
         const creditedTraders = new Set<TraderKey>();
@@ -924,6 +926,7 @@ export const StoreService = {
 
         for (const [index, line] of input.lines.entries()) {
           const { foundStore, normalized } = normalizeStoreLine(ruleset, line);
+          itemKeys.push(normalized.item);
           // Pip's other products ride in the same basket, priced and stocked exactly as at his counter.
           if (normalized.store === 'PIP' && normalized.item !== 'CRACK' && productEconomy(ruleset, normalized.item)?.pip) {
             const product = await tradeProductLine(
@@ -1067,10 +1070,12 @@ export const StoreService = {
               itemCount: result.itemCount,
               totalCents: result.totalCents,
               cashChangeCents: result.cashChangeCents,
-              lines: results.map((line) => ({
+              lines: results.map((line, index) => ({
                 store: line.storeName,
                 storeKey: line.storeKey,
                 item: line.itemName,
+                itemKey: itemKeys[index],
+                ...(line.storeKey === 'PIP' && ruleset.products?.[itemKeys[index]!] ? { product: itemKeys[index] } : {}),
                 direction: line.direction,
                 quantity: line.quantity,
                 totalCents: line.totalCents,

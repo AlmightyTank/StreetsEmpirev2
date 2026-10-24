@@ -45,6 +45,7 @@ import './styles/city-blocks.css';
 import './styles/operations.css';
 import './styles/black-book.css';
 import './styles/quests.css';
+import './styles/contact-room.css';
 import './styles/events.css';
 import './styles/surveys.css';
 import './styles/rankings.css';

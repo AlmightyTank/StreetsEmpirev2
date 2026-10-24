@@ -4,6 +4,8 @@
 
 See the [Objective and Gameplay Map](./STORY-QUEST-OBJECTIVE-PLAY-MAP.md) for how each main and side quest can use current game actions, where a story-scene event is needed, and how choices fit the current quest system.
 
+See the [Implementation Slices](./STORY-QUEST-CAMPAIGN-SLICES.md) for the PR-sized build order.
+
 ## What the campaign is
 
 This is a crime drama about favors that become debts, and debts that become a kind of ownership. The player begins as a small crew doing one ordinary job. A missing line on a receipt leads through stolen shipments, altered routes, planted pressure, and a private debt market called **the Clearinghouse**. The mystery grows because every contact holds one piece and each has a reason to keep it.
@@ -93,7 +95,7 @@ These are five three-quest arcs. Each begins at a different main-story lead, fol
 | S10 | **Mile Marker Zero** | Main 7 | Wheels returns to the first route he ever taught Eli. A retired driver confirms the road was changed by a voice using Wheels' own call sign. He cannot remember the face, but remembers the driver waiting to be paid. |
 | S11 | **The Passenger Window** | Main 17 | Eli describes the other people on the depot run: one driver who knew, one who only needed money, and one who thought the trip was a normal delivery. Wheels refuses to let the player label them all informants. |
 | S12 | **Every Road Home** | S11 | Wheels meets the drivers at a neutral stop and offers them a route out of the work. One accepts, one refuses, and one leaves without answering. The player gets the route ledger without pretending every loose end can be tied neatly. |
-| S13 | **A Copy for Ledger** | Main 12 | Hales's daughter has the missing carbon copy but will not hand it to another fixer. Ledger must explain what the evidence can and cannot prove before she agrees to let him compare it. |
+| S13 | **A Copy for Ledger** | Main 12 | Hales's daughter has the missing carbon copy but will not hand it to another fixer. Ledger must explain what the evidence can and cannot prove before she agrees to let Ledger compare it. |
 | S14 | **The Holding Company** | Main 20 | Blocks follows the corridor's ownership through three shell businesses. The papers are legal; the pressure used to acquire the debts is not. He learns which local rival sold a signature and why. |
 | S15 | **Terms in Plain English** | S13 and S14 | Vic, Ledger, and Blocks sit with the rival and read every page aloud. The rival gives a truthful statement, not an apology. This closes the property and legal-record threads before the final settlement. |
 

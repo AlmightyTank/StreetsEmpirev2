@@ -45,6 +45,7 @@ export type ActivityType =
   | 'QUEST_OBJECTIVE_COMPLETE'
   | 'QUEST_READY'
   | 'QUEST_CLAIMED'
+  | 'QUEST_STORY_SCENE'
   | 'STREET_PASS_CLAIMED'
   | 'FAVOR_ACTIVATED'
   | 'FAVOR_ARMED'
@@ -2002,8 +2003,22 @@ export interface QuestStoryDto {
   inProgress: string;
   ready: string;
   completed: string;
-  lesson: string;
+  /** Absent on story-campaign jobs, which teach nothing. */
+  lesson?: string;
   actionHint: string;
+  /** Story campaign scenes on this job, in authored order. */
+  scenes?: QuestStorySceneDto[];
+}
+
+export interface QuestStorySceneDto {
+  key: string;
+  title: string;
+  prose: string;
+  responses: { key: string; label: string }[];
+  /** False until the job is active and the objectives the scene follows are done. */
+  available: boolean;
+  /** The recorded choice for this attempt, or null before the player answers. */
+  response: { key: string; label: string; outcome: string } | null;
 }
 
 export interface QuestContactDto {

@@ -407,6 +407,7 @@ export const AdminQuestService = {
         chosenBranch: quest.chosenBranch,
       };
       await tx.questProgressReceipt.deleteMany({ where: { playerQuestId: quest.id } });
+      await tx.questSceneResponse.deleteMany({ where: { playerQuestId: quest.id } });
       const updated = await tx.playerQuest.update({
         where: { id: quest.id },
         data: {

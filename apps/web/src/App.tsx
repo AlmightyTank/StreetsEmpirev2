@@ -58,6 +58,7 @@ import { LoginPage } from './pages/LoginPage.js';
 import { NewsPage } from './pages/NewsPage.js';
 import { ProducePage } from './pages/ProducePage.js';
 import { QuestPage } from './pages/QuestPage.js';
+import { ContactRoomPage } from './pages/ContactRoomPage.js';
 import { EventsPage } from './pages/EventsPage.js';
 import { ProfilePage } from './pages/ProfilePage.js';
 import { SkillsPage } from './pages/SkillsPage.js';
@@ -229,6 +230,7 @@ export function App() {
         <Route path="combat" element={<Protected><LiveRound><CombatPage /></LiveRound></Protected>} />
         <Route path="scout" element={<Protected><LiveRound><ScoutPage /></LiveRound></Protected>} />
         <Route path="quests" element={<Protected><LiveRound><QuestPage /></LiveRound></Protected>} />
+        <Route path="visit/:contactKey" element={<Protected><LiveRound><ContactRoomPage /></LiveRound></Protected>} />
         <Route path="events" element={<Protected><LiveRound><EventsPage /></LiveRound></Protected>} />
         <Route path="xp-progress" element={<Protected><XpProgressPage /></Protected>} />
         <Route path="skills" element={<Protected><SkillsPage /></Protected>} />
