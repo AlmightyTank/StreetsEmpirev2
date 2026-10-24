@@ -97,22 +97,6 @@ a.se-statusbar__item:focus-visible { outline: 2px solid var(--se-accent); outlin
 .se-sheet { display: none; }
 
 @media (max-width: 899px) {
-  /* Prevent the browser from turning a downward drag into a reload while
-     the mobile game is mounted. Internal page/sheet scrolling remains native. */
-  html.se-mobile-game,
-  body.se-mobile-game {
-    overscroll-behavior-y: none;
-  }
-
-  /* The fast :has() path is optional. Keep it in its own rule so legacy
-     Chromium does not discard the compatible class-based selectors. */
-  @supports selector(:has(*)) {
-    html:has(.se-app--tabbar),
-    body:has(.se-app--tabbar) {
-      overscroll-behavior-y: none;
-    }
-  }
-
   /* Room under the footer so the last line never hides behind the bar. */
   .se-app--tabbar { padding-bottom: var(--se-mobile-nav-offset); }
 
