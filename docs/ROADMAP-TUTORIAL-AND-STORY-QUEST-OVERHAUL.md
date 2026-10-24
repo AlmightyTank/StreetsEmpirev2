@@ -30,6 +30,8 @@ See a concise map of tutorial chapters and each chapter's unlock requirement. Th
 
 Meet contacts with distinct voices, motives, and ongoing problems. Jobs connect across chapters, respond to previous outcomes where practical, and reveal the city through the player's work. Brief job-specific instructions may explain the objective, but core mechanics are taught by the tutorial.
 
+The proposed growing campaign is **From Nobody to a Name**: an apparently local missing-shipment problem expands into a citywide network selling routes, supply access, and information. The contacts' motives and the player's choices drive its turns; the campaign branches for investigation, then reconverges without locking specialties. See the [Story Quest Campaign Spine](./STORY-QUEST-CAMPAIGN-SPINE.md) for the act-by-act proposal, consequence rules, quest-card hierarchy, and completion flow.
+
 ## Slices
 
 ### Slice A — Audit and system boundary
