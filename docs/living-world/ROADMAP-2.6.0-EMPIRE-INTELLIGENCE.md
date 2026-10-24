@@ -1,6 +1,6 @@
 # StreetsEmpire 2.6.0 — Release Roadmap
 
-**Status:** Slices A–C are merged to `beta`; Slices A–E are merged to `beta`; Slice F is implemented on `feature/2-6-profit-intelligence-f-ui`; Slice G remains proposed. Base future implementation on `beta`; see [Living World Master Roadmap](STREETSEMPIRE-LIVING-WORLD-ROADMAP-2.0-2.7.md) for shared policies and dependencies.
+**Status:** Slices A–F are merged to `beta`; Slice G is implemented on `feature/2-6-profit-intelligence-g-scale-release` as a release candidate. Merge requires CI; beta completion still requires the isolated database load rehearsal and operator acceptance documented in [Slice G](./EMPIRE-PROFIT-INTELLIGENCE-2.6.0-G-RELEASE.md). Base future implementation on `beta`; see [Living World Master Roadmap](STREETSEMPIRE-LIVING-WORLD-ROADMAP-2.0-2.7.md) for shared policies and dependencies.
 
 ## 2.6.0 — Empire Profit Intelligence
 
@@ -20,6 +20,6 @@ Move from scattered cash numbers to an understandable **business intelligence la
 | **2.6.0-D** | **City and route comparison** ([implementation](./EMPIRE-PROFIT-INTELLIGENCE-2.6.0-D.md)) | Compare actual historical trip trades by route and city, last observed market prices, current business registers and cash away. **Pass:** trade delta is not called profit; no future price forecasts. |
 | **2.6.0-E** | **Optional financial goals** ([implementation](./EMPIRE-PROFIT-INTELLIGENCE-2.6.0-E.md)) | Player-configured minimum liquidity, minimum on-hand product stock, and maximum route purchase thresholds; surfaced in existing Holdings settings. **Pass:** warnings only, no automated trade. |
 | **2.6.0-F** | **Holdings/Dashboard UI** ([implementation](./EMPIRE-PROFIT-INTELLIGENCE-2.6.0-F.md)) | Profit cards, daily chart, city filter and paginated drilldown to actual ledger receipts in existing Holdings. **Pass:** responsive mobile layout; no redundant navigation tab. |
-| **2.6.0-G** | **Scale, audits & release** | Reconciliation fixtures, frozen-period tests, high-volume aggregation/load QA, safe backfill and explicit unknown-history handling. **Pass:** no runaway query load or fabricated historic figures. |
+| **2.6.0-G** | **Scale, audits & release** ([implementation and acceptance](./EMPIRE-PROFIT-INTELLIGENCE-2.6.0-G-RELEASE.md)) | Reconciliation fixtures, frozen-period tests, high-volume aggregation/load QA, safe backfill and explicit unknown-history handling. **Pass:** no runaway query load or fabricated historic figures. |
 
 **Definition of done:** Players can answer **where their last 24 hours of money came from, where it went and which city/operation performed better**, with an auditable path to receipts.

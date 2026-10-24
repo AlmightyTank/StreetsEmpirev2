@@ -13,6 +13,7 @@ Proposed versioned feature roadmap series, 2.0.0–2.7.0, drafted from the 2026-
 - [2.5.0](./ROADMAP-2.5.0-RIVALRIES.md)
 - [2.6.0](./ROADMAP-2.6.0-EMPIRE-INTELLIGENCE.md)
 - [2.6.0-A source map](./EMPIRE-PROFIT-INTELLIGENCE-2.6.0-A-SOURCE-MAP.md)
+- [2.6.0-G release candidate](./EMPIRE-PROFIT-INTELLIGENCE-2.6.0-G-RELEASE.md)
 - [2.7.0](./ROADMAP-2.7.0-LAST-STAND.md)
 
 - [2.6.0-B implementation](./EMPIRE-PROFIT-INTELLIGENCE-2.6.0-B.md)
