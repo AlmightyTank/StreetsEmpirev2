@@ -25,4 +25,4 @@ describe('plainDiscordMessage', () => {
     const payload = { embeds: [{ title: 'ROUND #008 — AFTERMATH' }] };
     expect(plainDiscordMessage(payload, { keepEmbeds: true })).toBe(payload);
   });
-}
+});
