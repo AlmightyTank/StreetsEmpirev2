@@ -79,7 +79,7 @@ export function projectProfitGroups(input: {
     normalized.set(key, {
       day: row.day, source: row.source, classification: profitClassificationForSource(row.source),
       citySlug, cityName: citySlug ? input.ruleset.cities?.[citySlug]?.name ?? citySlug : null,
-      attribution: citySlug ? 'KNOWN_CITY' : 'UNKNOWN_CITY', ...totalsDto(total),
+      attribution: citySlug ? 'KNOWN_CITY' as const : 'UNKNOWN_CITY' as const, ...totalsDto(total),
     });
   }
 
@@ -99,6 +99,22 @@ export function projectProfitGroups(input: {
   const bySource: ProfitIntelligenceSourceTotalDto[] = [...bySourceMap.entries()]
     .map(([source, value]) => ({ source, classification: profitClassificationForSource(source), ...totalsDto(value) }))
     .sort((a, b) => a.source.localeCompare(b.source));
+
+  const recognizedIncome = bySource.reduce((sum, row) =>
+    row.classification === 'OPERATING_INCOME' || row.classification === 'INVENTORY_PROCEEDS'
+      ? sum + BigInt(row.netCents) : sum, 0n);
+  const recognizedCosts = bySource.reduce((sum, row) =>
+    row.classification === 'OPERATING_COST' || row.classification === 'FINES_AND_FEES'
+      ? sum + BigInt(row.outflowCents) - BigInt(row.inflowCents) : sum, 0n);
+  const dealerNetSales = BigInt(bySource.find((row) => row.source === 'DEALER_SALES')?.netCents ?? '0');
+  const dealerWages = BigInt(bySource.find((row) => row.source === 'DEALER_WAGES')?.outflowCents ?? '0');
+  const salesToWagesRatio = dealerWages > 0n
+    ? (() => {
+      const hundredths = (dealerNetSales * 100n + dealerWages / 2n) / dealerWages;
+      return `${hundredths / 100n}.${(hundredths % 100n).toString().padStart(2, '0')}`;
+    })()
+    : null;
+
   const byCity: ProfitIntelligenceCityTotalDto[] = [...byCityMap.entries()]
     .map(([citySlug, value]): ProfitIntelligenceCityTotalDto => ({
       citySlug: citySlug || null,
@@ -117,6 +133,7 @@ export function projectProfitGroups(input: {
 
   return {
     classificationVersion: PROFIT_CLASSIFICATION_VERSION,
+    reportVersion: '2.6.0-C1',
     roundId: input.roundId,
     generatedAt: input.generatedAt.toISOString(),
     period: { from: input.period.from.toISOString(), to: input.period.to.toISOString(), days: input.period.days },
@@ -129,6 +146,23 @@ export function projectProfitGroups(input: {
       matches: input.ledger.entryCount === projected.count && variance === 0n,
     },
     dataQuality: { unknownSourceEntries, unattributedCityEntries },
+    profitEstimate: {
+      basis: 'KNOWN_LEDGER_CASH_MARGIN', completeness: 'INCOMPLETE',
+      recognizedIncomeCents: recognizedIncome.toString(), recognizedCostsCents: recognizedCosts.toString(),
+      estimatedNetCents: (recognizedIncome - recognizedCosts).toString(),
+      notes: [
+        'This is a known cash-margin estimate, not complete realized profit.',
+        'Inventory acquisition cost is not matched to stock sold, so inventory proceeds are shown without cost of goods sold.',
+        'Business income is recorded when collected; uncollected registers and accrued income are excluded.',
+        'Refunds recorded against the same recognized source reduce its net contribution.',
+        'Asset purchases, financing principal, transfers, rewards, mixed events, and unknown sources are excluded from the estimate.',
+      ],
+    },
+    efficiency: {
+      dealerNetSalesCents: dealerNetSales.toString(), dealerWagesCents: dealerWages.toString(),
+      salesToWagesRatio, turnEfficiencyAvailable: false,
+      turnEfficiencyReason: 'Ledger entries do not consistently record turns consumed for the reporting window.',
+    },
   };
 }
 
