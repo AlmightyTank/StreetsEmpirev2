@@ -13,7 +13,7 @@ describe('plainDiscordMessage', () => {
       }],
     });
 
-    expect(payload).not.toHaveProperty('embeds');
+    expect(payload.embeds).toEqual([]);
     expect(payload.content).toContain('**✅ Update finished**');
     expect(payload.content).toContain('StreetsEmpire is up on the new version.');
     expect(payload.content).toContain('Build e46ba47');
