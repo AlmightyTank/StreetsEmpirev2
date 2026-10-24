@@ -15,6 +15,96 @@ export function shouldPreserveRouteScroll(previousPath: string | undefined, next
     || (isCasinoGame(previousPath) && isCasinoGame(nextPath));
 }
 
+export interface RouteScrollSnapshot {
+  pathname: string;
+  anchorId: string | null;
+  key: string;
+  completed: boolean;
+}
+
+export type RouteScrollPlan = 'ignore' | 'leave' | 'top' | 'restore' | 'preserve' | 'anchor';
+
+const routeScrollMemory = new Map<string, number>();
+const pathScrollMemory = new Map<string, number>();
+
+function rememberOffset(memory: Map<string, number>, key: string, y: number): void {
+  if (!key || !Number.isFinite(y)) return;
+  memory.set(key, Math.max(0, y));
+}
+
+/** Remember where a history entry was, so Back/Forward can return to that exact offset. */
+export function rememberRouteScroll(key: string, y: number): void {
+  rememberOffset(routeScrollMemory, key, y);
+}
+
+export function rememberedRouteScroll(key: string): number | undefined {
+  return routeScrollMemory.get(key);
+}
+
+/** Remember the latest offset for a path, so tapping back to that screen lands in the same place. */
+export function rememberPathScroll(pathname: string, y: number): void {
+  rememberOffset(pathScrollMemory, pathname, y);
+}
+
+export function rememberedPathScroll(pathname: string): number | undefined {
+  return pathScrollMemory.get(pathname);
+}
+
+export function clearRouteScrollMemory(): void {
+  routeScrollMemory.clear();
+  pathScrollMemory.clear();
+}
+
+/**
+ * Decide what to do with the window when the route changes.
+ * Back/Forward restores the offset saved for that history entry, even when the
+ * URL still has a hash — re-seeking the hash would jump to the section top
+ * instead of the spot the player had scrolled to. Opening a screen again from
+ * a tab or menu returns to the last offset on that path. A first visit still
+ * honors anchors, shared store/casino shells, and the top of a new page.
+ */
+export function planRouteScroll(input: {
+  navigationType: 'POP' | 'PUSH' | 'REPLACE';
+  pathname: string;
+  anchorId: string | null;
+  locationKey: string;
+  previous: RouteScrollSnapshot | null;
+  savedY: number | undefined;
+  /** Latest offset for this pathname. Used when a tab or menu opens the screen again. */
+  savedPathY?: number;
+  preserveSharedShell: boolean;
+}): RouteScrollPlan {
+  const { previous, pathname, anchorId, locationKey, navigationType, savedY, savedPathY, preserveSharedShell } = input;
+
+  if (
+    previous
+    && previous.key === locationKey
+    && previous.pathname === pathname
+    && previous.anchorId === anchorId
+    && previous.completed
+  ) return 'ignore';
+
+  // Search updates on the page already on screen keep the current offset.
+  if (
+    previous
+    && previous.pathname === pathname
+    && previous.anchorId === anchorId
+    && !anchorId
+    && navigationType !== 'POP'
+  ) return 'ignore';
+
+  if (navigationType === 'POP') {
+    if (savedY !== undefined) return 'restore';
+    if (anchorId) return 'anchor';
+    return 'leave';
+  }
+
+  if (preserveSharedShell) return 'preserve';
+  if (!anchorId && savedPathY !== undefined) return 'restore';
+  if (!anchorId) return 'top';
+  return 'anchor';
+}
+
 /**
  * Restore a shared page position once it is reachable. A new storefront may
  * render shorter than the previous one until its data loads, so callers can

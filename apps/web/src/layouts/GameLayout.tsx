@@ -25,7 +25,7 @@ import { AdminWorkspace } from '../components/AdminWorkspace.js';
 import { useStaff } from '../utils/staff.js';
 import { formatDuration } from '../utils/time.js';
 import { isPageScrollLocked } from '../utils/pageScrollLock.js';
-import { anchorScrollTop, isAnchorReady, preservedRouteScrollTarget, routeAnchorId, shouldPreserveRouteScroll } from '../utils/routeScroll.js';
+import { anchorScrollTop, isAnchorReady, planRouteScroll, preservedRouteScrollTarget, rememberPathScroll, rememberRouteScroll, rememberedPathScroll, rememberedRouteScroll, routeAnchorId, shouldPreserveRouteScroll } from '../utils/routeScroll.js';
 import {
   adminSectionsFor,
   isCurrent,
@@ -489,9 +489,32 @@ function useRouteScroll(pathname: string, search: string, hash: string, location
   const navigationType = useNavigationType();
   const lastTarget = useRef<{ pathname: string; anchorId: string | null; key: string; completed: boolean } | null>(null);
   const observedScrollY = useRef(typeof window === 'undefined' ? 0 : window.scrollY);
+  const locationKeyRef = useRef(locationKey);
+  const pathnameRef = useRef(pathname);
+  const restoringRef = useRef(false);
+  // Captured during render, before the next page's shorter DOM can clamp the
+  // window and fire a scroll event that would overwrite the saved offset.
+  const entryScrollRef = useRef<{ key: string; y: number | undefined }>({ key: '', y: undefined });
+  const pathScrollRef = useRef<{ path: string; y: number | undefined }>({ path: '', y: undefined });
+  if (entryScrollRef.current.key !== locationKey) {
+    entryScrollRef.current = { key: locationKey, y: rememberedRouteScroll(locationKey) };
+    restoringRef.current = true;
+  }
+  if (pathScrollRef.current.path !== pathname) {
+    pathScrollRef.current = { path: pathname, y: rememberedPathScroll(pathname) };
+  }
+  locationKeyRef.current = locationKey;
+  pathnameRef.current = pathname;
 
   useEffect(() => {
-    const remember = () => { observedScrollY.current = window.scrollY; };
+    const remember = () => {
+      observedScrollY.current = window.scrollY;
+      // A restore scrolls programmatically while the page is still growing.
+      // Keep the offset the player actually left until that restore settles.
+      if (restoringRef.current) return;
+      rememberRouteScroll(locationKeyRef.current, window.scrollY);
+      rememberPathScroll(pathnameRef.current, window.scrollY);
+    };
     window.addEventListener('scroll', remember, { passive: true });
     // Capture the position before a click swaps the view, even in the same task.
     document.addEventListener('click', remember, true);
@@ -504,37 +527,73 @@ function useRouteScroll(pathname: string, search: string, hash: string, location
   useLayoutEffect(() => {
     const anchorId = routeAnchorId(pathname, search, hash);
     const previous = lastTarget.current;
-    const current = { pathname, anchorId, key: locationKey, completed: !anchorId };
+    const savedY = entryScrollRef.current.y;
+    const savedPathY = pathScrollRef.current.y;
+    const plan = planRouteScroll({
+      navigationType,
+      pathname,
+      anchorId,
+      locationKey,
+      previous,
+      savedY,
+      savedPathY: navigationType === 'POP' ? undefined : savedPathY,
+      preserveSharedShell: !anchorId && shouldPreserveRouteScroll(previous?.pathname, pathname, hash),
+    });
+    const current = {
+      pathname,
+      anchorId,
+      key: locationKey,
+      completed: plan === 'ignore' || plan === 'leave' || plan === 'top',
+    };
     lastTarget.current = current;
-    // Re-clicking the same anchor should still navigate to it. Ordinary search
-    // changes within a page must not reset scroll position. A cancelled seek
-    // (e.g. React StrictMode's setup/cleanup replay) must retry on the next pass.
-    if (previous && previous.pathname === pathname && previous.anchorId === anchorId
-      && (!anchorId || (previous.key === locationKey && previous.completed))) return;
-    if (navigationType === 'POP' && !anchorId) return;
+    if (plan === 'ignore' || plan === 'leave') {
+      restoringRef.current = false;
+      return;
+    }
+
+    if (plan === 'top') {
+      restoringRef.current = false;
+      window.scrollTo(0, 0);
+      observedScrollY.current = 0;
+      rememberRouteScroll(locationKey, 0);
+      rememberPathScroll(pathname, 0);
+      return;
+    }
 
     // Shared storefronts and casino games keep their scroll position without
-    // repeatedly fighting a swipe. Restore once, then only retry when an async
-    // view grows enough to reach the original position. Player input wins.
-    if (!anchorId && shouldPreserveRouteScroll(previous?.pathname, pathname, hash)) {
-      const desiredY = observedScrollY.current;
+    // repeatedly fighting a swipe. Back/Forward does the same for the exact
+    // offset the player left, then retries only when a late layout grows tall
+    // enough to reach it. Player input wins.
+    if (plan === 'restore' || plan === 'preserve') {
+      const desiredY = plan === 'restore'
+        ? (navigationType === 'POP' ? savedY : savedPathY) ?? 0
+        : (previous ? rememberedRouteScroll(previous.key) : undefined) ?? observedScrollY.current;
+      restoringRef.current = true;
       let frame = 0;
       let timeout = 0;
       let observer: ResizeObserver | null = null;
       let stopped = false;
-      const onScrollKey = (event: globalThis.KeyboardEvent) => {
-        if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) stop();
-      };
-      const stop = () => {
+      const finish = (done: boolean) => {
         if (stopped) return;
         stopped = true;
+        restoringRef.current = false;
+        if (done) current.completed = true;
         if (frame) window.cancelAnimationFrame(frame);
         if (timeout) window.clearTimeout(timeout);
         observer?.disconnect();
-        document.removeEventListener('touchstart', stop, true);
-        document.removeEventListener('pointerdown', stop, true);
-        document.removeEventListener('wheel', stop, true);
+        document.removeEventListener('touchstart', onUser, true);
+        document.removeEventListener('pointerdown', onUser, true);
+        document.removeEventListener('wheel', onUser, true);
         document.removeEventListener('keydown', onScrollKey, true);
+      };
+      const onUser = () => {
+        observedScrollY.current = window.scrollY;
+        rememberRouteScroll(locationKey, window.scrollY);
+        rememberPathScroll(pathname, window.scrollY);
+        finish(true);
+      };
+      const onScrollKey = (event: globalThis.KeyboardEvent) => {
+        if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) onUser();
       };
       const restore = () => {
         frame = 0;
@@ -543,35 +602,37 @@ function useRouteScroll(pathname: string, search: string, hash: string, location
           desiredY, document.documentElement.scrollHeight, window.innerHeight,
         );
         if (Math.abs(window.scrollY - top) > 1) window.scrollTo(0, top);
-        if (settled) stop();
+        if (!settled) return;
+        observedScrollY.current = top;
+        rememberRouteScroll(locationKey, top);
+        rememberPathScroll(pathname, top);
+        finish(true);
       };
       const schedule = () => {
         if (!stopped && !frame) frame = window.requestAnimationFrame(restore);
       };
-      document.addEventListener('touchstart', stop, { capture: true, passive: true });
-      document.addEventListener('pointerdown', stop, { capture: true, passive: true });
-      document.addEventListener('wheel', stop, { capture: true, passive: true });
+      document.addEventListener('touchstart', onUser, { capture: true, passive: true });
+      document.addEventListener('pointerdown', onUser, { capture: true, passive: true });
+      document.addEventListener('wheel', onUser, { capture: true, passive: true });
       document.addEventListener('keydown', onScrollKey, true);
-      // ResizeObserver only fires when the new store/game actually changes size.
+      // ResizeObserver only fires when the returning view actually changes size.
       if (typeof ResizeObserver !== 'undefined') {
         observer = new ResizeObserver(schedule);
         const content = document.querySelector<HTMLElement>('.se-gamemain');
         observer.observe(content ?? document.documentElement);
       }
-      // Never keep scroll restoration alive indefinitely on a shorter store.
-      timeout = window.setTimeout(stop, 3000);
+      // Quest data and virtualized lists can arrive well after the pop.
+      // A shared store that is simply shorter should give up sooner.
+      timeout = window.setTimeout(() => finish(true), plan === 'restore' ? 15_000 : 3_000);
       restore();
-      return stop;
+      return () => finish(false);
     }
 
-    if (!anchorId) {
-      window.scrollTo(0, 0);
-      observedScrollY.current = 0;
-      return;
-    }
-
-    // Avoid a stale position while changing pages, but don't jump to the top
-    // when a player picks another link inside the page they're already on.
+    // Anchors are the only plan left. Avoid a stale position while changing
+    // pages, but don't jump to the top when a player picks another link inside
+    // the page they're already on.
+    restoringRef.current = false;
+    if (!anchorId) return;
     if (previous?.pathname !== pathname) window.scrollTo(0, 0);
 
     let frame = 0;

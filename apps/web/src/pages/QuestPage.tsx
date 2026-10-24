@@ -1,5 +1,5 @@
 import { forwardRef, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
-import { Link, Navigate, useLocation } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigationType } from 'react-router-dom';
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 import {
   formatCents,
@@ -28,6 +28,7 @@ import { formatClockTime, formatWhen, serverAdjustedNowMs, serverClockOffsetMs }
 import { confirmAction } from '../stores/confirm.js';
 import { publishQuestsChanged, trackedFromQuests } from '../quests/questSignals.js';
 import { buildQuestBoard, legacyQuestGroup, type QuestBoardGroupKey } from '../utils/questBoard.js';
+import { rememberedRouteScroll } from '../utils/routeScroll.js';
 
 const BOARD_QUEST_TYPES = ['ALLIANCE', 'CITY_CONTRACT', 'EVENT', 'SEASON'] as const;
 
@@ -70,6 +71,23 @@ function statusLabel(quest: PlayerQuestDto): string {
 const BOARD_TYPES: ReadonlySet<string> = new Set(['DAILY', 'WEEKLY', 'CITY_CONTRACT', 'SEASON', 'ALLIANCE']);
 type QuestBoardFilter = 'all' | 'ready' | 'active' | 'available' | 'contracts' | 'story';
 
+/** Open panels and filters, so a return visit is the same height the scroll offset expects. */
+interface QuestViewMemory {
+  scope: string;
+  showConnections: boolean;
+  showProgression: boolean;
+  expandedGroups: Partial<Record<QuestBoardGroupKey, boolean>>;
+  boardFilter: QuestBoardFilter;
+  boardSearch: string;
+  careerLens: boolean;
+}
+
+let questViewMemory: QuestViewMemory | null = null;
+
+function rememberedQuestView(scope: string | null): QuestViewMemory | null {
+  return scope && questViewMemory?.scope === scope ? questViewMemory : null;
+}
+
 const VirtualizedQuestListContainer = forwardRef<HTMLDivElement, {
   children?: ReactNode;
   style?: CSSProperties;
@@ -88,6 +106,8 @@ function VirtualQuestList({
   renderQuest: (quest: PlayerQuestDto) => ReactNode;
 }) {
   const listRef = useRef<VirtuosoHandle>(null);
+  const navigationType = useNavigationType();
+  const { key: locationKey } = useLocation();
   const rows = useMemo(() => {
     const result: PlayerQuestDto[][] = [];
     for (let index = 0; index < quests.length; index += 2) {
@@ -98,9 +118,11 @@ function VirtualQuestList({
 
   useEffect(() => {
     if (!focusKey) return;
+    // Back/forward already put the window where the player left it.
+    if (navigationType === 'POP' && rememberedRouteScroll(locationKey) !== undefined) return;
     const questIndex = quests.findIndex((quest) => quest.key === focusKey);
     if (questIndex >= 0) listRef.current?.scrollToIndex({ index: Math.floor(questIndex / 2), align: 'center' });
-  }, [quests, focusKey]);
+  }, [quests, focusKey, navigationType, locationKey]);
 
   return (
     <Virtuoso
@@ -519,21 +541,22 @@ export function QuestPage() {
   const [page, setPage] = useState<QuestPageDto | null>(() => (
     cacheScope && cachedQuestPage?.scope === cacheScope ? cachedQuestPage.page : null
   ));
+  const viewMemory = rememberedQuestView(cacheScope);
   const historyCache = useRef<PlayerQuestDto[] | null>(null);
   const historyLoadInFlight = useRef<Promise<PlayerQuestDto[] | null> | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
-  const [expandedGroups, setExpandedGroups] = useState<Partial<Record<QuestBoardGroupKey, boolean>>>({});
-  const [showConnections, setShowConnections] = useState(false);
-  const [showProgression, setShowProgression] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState<Partial<Record<QuestBoardGroupKey, boolean>>>(() => viewMemory?.expandedGroups ?? {});
+  const [showConnections, setShowConnections] = useState(() => viewMemory?.showConnections ?? false);
+  const [showProgression, setShowProgression] = useState(() => viewMemory?.showProgression ?? false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [clockOffsetMs, setClockOffsetMs] = useState(0);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [career, setCareer] = useState<CareerIdentityDto | null>(null);
-  const [careerLens, setCareerLens] = useState(true);
-  const [boardFilter, setBoardFilter] = useState<QuestBoardFilter>('all');
-  const [boardSearch, setBoardSearch] = useState('');
+  const [careerLens, setCareerLens] = useState(() => viewMemory?.careerLens ?? true);
+  const [boardFilter, setBoardFilter] = useState<QuestBoardFilter>(() => viewMemory?.boardFilter ?? 'all');
+  const [boardSearch, setBoardSearch] = useState(() => viewMemory?.boardSearch ?? '');
   const deferredBoardSearch = useDeferredValue(boardSearch);
 
   const loadHistory = useCallback(() => {
@@ -602,6 +625,23 @@ export function QuestPage() {
       return result.page;
     });
   }, [applyPage, cacheScope]);
+
+  useEffect(() => {
+    if (!cacheScope) return;
+    questViewMemory = {
+      scope: cacheScope,
+      showConnections,
+      showProgression,
+      expandedGroups,
+      boardFilter,
+      boardSearch,
+      careerLens,
+    };
+  }, [cacheScope, showConnections, showProgression, expandedGroups, boardFilter, boardSearch, careerLens]);
+
+  useEffect(() => {
+    if (expandedGroups.history) void loadHistory();
+  }, [expandedGroups.history, loadHistory]);
 
   useEffect(() => {
     void load();
