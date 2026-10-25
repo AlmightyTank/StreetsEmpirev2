@@ -433,9 +433,8 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
                   const valid = Number.isInteger(quantity) && quantity >= 1 && quantity <= max;
                   return <tr key={key}>
                     <td data-label="Trader">{store.name}</td><td data-label="Item">{store.key === 'PIP' && item.key === 'CRACK' ? 'Crack' : item.name}</td><td data-label="Price" className="se-num">{formatCentsExact(item.buyCents)}</td>
-                    <td data-label="Stock" className="se-num">{formatNumber(item.maxBuy)}</td><td className="se-market-buy-controls">
-                      <label className="se-sr-only" htmlFor={`trader-quantity-${key}`}>Quantity to buy</label>
-                      <input id={`trader-quantity-${key}`} className="se-input" type="number" inputMode="numeric" min={1} max={max} step={1} value={traderQuantities[key] ?? '1'} onChange={(event) => onTraderQuantity?.(key, event.target.value)} />
+                    <td data-label="Stock" className="se-num">{formatNumber(item.maxBuy)}</td><td data-label="Quantity" className="se-market-buy-controls">
+                      <input className="se-input se-board-buy__qty" type="number" inputMode="numeric" min={1} max={max} step={1} aria-label={`Quantity of ${item.name} to buy`} value={traderQuantities[key] ?? '1'} onChange={(event) => onTraderQuantity?.(key, event.target.value)} />
                       <Button size="sm" variant="primary" disabledReason={busy || !onTraderBuy ? 'Unavailable' : !valid ? max < 1 ? 'Not enough cash for one' : `Enter 1 to ${formatNumber(max)}` : null} onClick={() => onTraderBuy?.(store, item, quantity)}>Buy {formatNumber(valid ? quantity : 1)}</Button>
                     </td>
                   </tr>;
@@ -448,9 +447,8 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
                   const valid = Number.isInteger(quantity) && quantity >= 1 && quantity <= max;
                   return <tr key={key}>
                     <td data-label="Trader">Pip&rsquo;s Deals on Wheels</td><td data-label="Item">{product.name}</td><td data-label="Price" className="se-num">{formatCentsExact(pip.buyCents)}</td>
-                    <td data-label="Stock" className="se-num">{formatNumber(pip.maxBuy)}</td><td className="se-market-buy-controls">
-                      <label className="se-sr-only" htmlFor={`trader-quantity-${key}`}>Quantity to buy</label>
-                      <input id={`trader-quantity-${key}`} className="se-input" type="number" inputMode="numeric" min={1} max={max} step={1} value={traderQuantities[key] ?? '1'} onChange={(event) => onTraderQuantity?.(key, event.target.value)} />
+                    <td data-label="Stock" className="se-num">{formatNumber(pip.maxBuy)}</td><td data-label="Quantity" className="se-market-buy-controls">
+                      <input className="se-input se-board-buy__qty" type="number" inputMode="numeric" min={1} max={max} step={1} aria-label={`Quantity of ${item.name} to buy`} value={traderQuantities[key] ?? '1'} onChange={(event) => onTraderQuantity?.(key, event.target.value)} />
                       <Button size="sm" variant="primary" disabledReason={busy || !onPipBuy ? 'Unavailable' : !valid ? max < 1 ? 'Not enough cash for one' : `Enter 1 to ${formatNumber(max)}` : null} onClick={() => onPipBuy?.(product, quantity)}>Buy {formatNumber(valid ? quantity : 1)}</Button>
                     </td>
                   </tr>;
