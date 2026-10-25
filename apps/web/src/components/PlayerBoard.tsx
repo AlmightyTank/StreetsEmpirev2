@@ -18,6 +18,7 @@ import { confirmAction } from '../stores/confirm.js';
 import { useSession } from '../stores/session.js';
 import { newActionId } from '../utils/actionId.js';
 import { formatDuration } from '../utils/time.js';
+import '../styles/stores.css';
 import { Alert } from './Alert.js';
 import { Button } from './Button.js';
 import { ItemLabel, ShelfArt } from './ItemTile.js';
