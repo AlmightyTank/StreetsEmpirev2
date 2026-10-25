@@ -37,14 +37,14 @@ export const missingLineDepth: QuestDefinitionCatalog = {
       {
         id: 'walk_it_back',
         kind: 'EVENT_COUNT',
-        description: 'Walk the receipt back: scout Low Rent.',
+        description: 'Walk the receipt back: scout your city’s working-class district.',
         target: 1,
         params: { eventTypes: ['SCOUT'], where: { districtKey: 'LOW_RENT' } },
       },
     ],
     story: {
       ready: 'The envelope is through Mrs. Alvarez’s mail slot. On the walk back you passed the shop twice. The second time, a coat moved behind the dark glass.',
-      actionHint: 'Decide what to do with the receipt in the scene below, then scout Low Rent to walk it back to the shop.',
+      actionHint: 'Decide what to do with the receipt in the scene below, then scout your city’s working-class district to walk it back to the shop.',
     },
   }),
 
