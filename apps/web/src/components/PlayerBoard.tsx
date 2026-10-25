@@ -20,7 +20,7 @@ import { newActionId } from '../utils/actionId.js';
 import { formatDuration } from '../utils/time.js';
 import { Alert } from './Alert.js';
 import { Button } from './Button.js';
-import { ItemLabel } from './ItemTile.js';
+import { ItemLabel, ShelfArt } from './ItemTile.js';
 
 /** The posting fee the server will charge: the ruleset's percent of book, rounded up, never under the minimum. */
 export function boardPostingFeeCents(bookCents: number, quantity: number, rules: PlayerBoardDto['rules']): number {
@@ -39,7 +39,7 @@ export function parseDollarsToCents(value: string): number | null {
   return Number(match[1]) * 100 + Number((match[2] ?? '').padEnd(2, '0'));
 }
 
-const FILTERS: ReadonlyArray<readonly [PlayerBoardFilterDto, string]> = [['ALL', 'All'], ['PRODUCTS', 'Drugs'], ['KEEPER', 'Guns & cars'], ['PARTS', 'Parts']];
+const FILTERS: ReadonlyArray<readonly [PlayerBoardFilterDto, string]> = [['ALL', 'All items'], ['PRODUCTS', 'Drugs'], ['KEEPER', 'Guns & cars'], ['PARTS', 'Parts']];
 const STATUS_LABEL: Record<PlayerBoardOfferDto['status'], string> = { OPEN: 'Up', SOLD: 'Sold', CANCELLED: 'Cancelled', EXPIRED: 'Expired' };
 const BOARD_UNLOCK_QUEST_KEYS = ['ML_M09_TWO_BUYERS', 'ML_M10_FAVOR_ALREADY_PAID'] as const;
 function closesIn(iso: string, now: number): string {
@@ -287,19 +287,27 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
   const [section, setSection] = useState<'browse' | 'listings' | 'sell'>('browse');
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<'price-low' | 'price-high' | 'quantity' | 'ending'>('price-low');
+  const [selectedOfferId, setSelectedOfferId] = useState<string | null>(null);
   const visibleRows = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase();
     return book.rows
       .filter((row) => !needle || row.name.toLocaleLowerCase().includes(needle) || row.sellerName.toLocaleLowerCase().includes(needle))
       .sort((a, b) => {
-        const aPrice = a.priceKind === 'BARTER' ? Number.POSITIVE_INFINITY : a.unitPriceCents;
-        const bPrice = b.priceKind === 'BARTER' ? Number.POSITIVE_INFINITY : b.unitPriceCents;
-        if (sort === 'price-high') return bPrice - aPrice;
+        if (sort === 'price-low' || sort === 'price-high') {
+          if (a.priceKind !== b.priceKind) return a.priceKind === 'BARTER' ? 1 : -1;
+          return sort === 'price-high' ? b.unitPriceCents - a.unitPriceCents : a.unitPriceCents - b.unitPriceCents;
+        }
         if (sort === 'quantity') return b.quantity - a.quantity;
         if (sort === 'ending') return new Date(a.expiresAt).getTime() - new Date(b.expiresAt).getTime();
-        return aPrice - bPrice;
+        return 0;
       });
   }, [book.rows, query, sort]);
+  const selectedRow = visibleRows.find((row) => row.id === selectedOfferId) ?? visibleRows[0] ?? null;
+  const selectedUnits = selectedRow ? boardBuyUnits(selectedRow, buyQuantities[selectedRow.id]) : null;
+  const selectedFee = selectedRow && selectedUnits ? boardRowTopUpCents(selectedRow, selectedUnits, book.rules) : 0;
+  const selectedCash = selectedRow && selectedUnits
+    ? (selectedRow.priceKind === 'BARTER' ? 0 : selectedRow.unitPriceCents * selectedUnits) + selectedFee
+    : 0;
   return (
     <>
       <section className="se-stores-market se-board-market" aria-label="Board market">
@@ -312,92 +320,111 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
           </div>
 
           {section === 'browse' ? <>
-            <div className="se-market-controls">
-              <label className="se-field se-market-search">
-                <span>Search listings</span>
-                <input className="se-input" type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Item or seller" />
-              </label>
-              <label className="se-field se-market-sort">
-                <span>Sort by</span>
-                <select className="se-input" value={sort} onChange={(event) => setSort(event.target.value as typeof sort)}>
-                  <option value="price-low">Lowest price</option><option value="price-high">Highest price</option>
-                  <option value="quantity">Largest stack</option><option value="ending">Ending soon</option>
-                </select>
-              </label>
-            </div>
-
-            <div className="se-filter-group se-board-filters">
-              <span className="se-filter-label">Category</span>
-              <div className="se-seg" role="group" aria-label="Board goods">
+            <div className="se-market-layout">
+              <aside className="se-market-categories" aria-label="Listing categories">
+                <span className="se-eyebrow">Browse goods</span>
                 {FILTERS.map(([value, label]) => (
-                  <button key={value} type="button" className={`se-seg__btn${book.filter === value ? ' se-seg__btn--on' : ''}`}
-                    aria-pressed={book.filter === value} onClick={() => onFilter(value)}>{label}</button>
+                  <button key={value} type="button" className={`se-market-category${book.filter === value ? ' is-active' : ''}`}
+                    aria-pressed={book.filter === value} onClick={() => onFilter(value)}>
+                    <span>{label}</span>
+                  </button>
                 ))}
-              </div>
+              </aside>
+
+              <section className="se-market-results" aria-labelledby="market-listings-heading">
+                <div className="se-market-controls">
+                  <label className="se-field se-market-search">
+                    <span className="se-sr-only">Search item or seller</span>
+                    <input className="se-input" type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search item or seller" />
+                  </label>
+                  <label className="se-field se-market-sort">
+                    <span className="se-sr-only">Sort listings</span>
+                    <select className="se-input" value={sort} onChange={(event) => setSort(event.target.value as typeof sort)}>
+                      <option value="price-low">Lowest price</option><option value="price-high">Highest price</option>
+                      <option value="quantity">Largest stack</option><option value="ending">Ending soon</option>
+                    </select>
+                  </label>
+                </div>
+                <div className="se-market-results__heading">
+                  <div><span className="se-eyebrow">{formatNumber(visibleRows.length)} listings</span><h2 id="market-listings-heading">On the street</h2></div>
+                  <span>City-wide offers</span>
+                </div>
+                {visibleRows.length === 0 ? (
+                  <p className="se-board-empty">{query ? 'No listings match that search.' : 'Nothing is listed in this category yet.'}</p>
+                ) : (
+                  <div className="se-tablewrap se-market-tablewrap">
+                    <table className="se-table se-table--cards se-board-book se-market-table">
+                      <thead><tr><th>Item</th><th>Seller</th><th className="se-table__number">Available</th><th>Price / unit</th><th>Ends</th></tr></thead>
+                      <tbody>
+                        {visibleRows.map((row) => (
+                          <tr key={row.id} className={`${row.mine ? 'se-board-book__mine ' : ''}${selectedRow?.id === row.id ? 'se-market-listing--selected' : ''}`}>
+                            <td data-label="Item">
+                              <button type="button" className="se-market-rowpick" aria-pressed={selectedRow?.id === row.id} onClick={() => setSelectedOfferId(row.id)}>
+                                <ItemLabel itemKey={row.itemKey} zoomable={false}>
+                                  <span className={`se-board-rarity se-board-rarity--${row.category === 'PRODUCT' ? 'product' : row.category === 'KEEPER' ? 'keeper' : (row.rarity ?? 'common').toLowerCase()}`}>{row.name}</span>
+                                </ItemLabel>
+                              </button>
+                            </td>
+                            <td data-label="Seller"><span>{row.sellerName}{row.mine ? <span className="se-board-you"> (you)</span> : null}</span></td>
+                            <td className="se-table__number se-num" data-label="Available">{formatNumber(row.quantity)}</td>
+                            <td className="se-board-trade" data-label="Price / unit">
+                              {row.priceKind === 'BARTER' ? <span className="se-board-trade__tag">Trade offer</span> : <><span className="se-num">{formatCentsExact(row.unitPriceCents)}</span><small className="se-market-row-note"> each</small></>}
+                            </td>
+                            <td data-label="Ends">{closesIn(row.expiresAt, now)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </section>
+
+              <aside className="se-market-inspector" aria-label="Selected listing details" aria-live="polite">
+                {selectedRow ? <>
+                  <div className="se-market-inspector__art"><ShelfArt itemKey={selectedRow.itemKey} locked={false} soldOut={false} size="lg" /></div>
+                  <div className="se-market-inspector__body">
+                    <span className="se-eyebrow">Offer details</span>
+                    <h2>{selectedRow.name}</h2>
+                    <p className="se-market-inspector__seller">Listed by <strong>{selectedRow.sellerName}{selectedRow.mine ? ' · you' : ''}</strong></p>
+                    <div className="se-market-inspector__price">
+                      <span>{selectedRow.priceKind === 'BARTER' ? 'Trade terms' : 'Price per unit'}</span>
+                      <strong>{selectedRow.priceKind === 'BARTER' ? 'Trade' : formatCentsExact(selectedRow.unitPriceCents)}</strong>
+                    </div>
+                    {selectedRow.priceKind === 'BARTER' ? <p className="se-market-inspector__terms">{askSummary(selectedRow.ask)}{selectedFee > 0 ? ` + ${formatCentsExact(selectedFee)} Board fee` : ''}</p> : null}
+                    <div className="se-market-inspector__detail"><span>Available</span><strong>{formatNumber(selectedRow.quantity)}</strong></div>
+                    <div className="se-market-inspector__detail"><span>Listing ends</span><strong>{closesIn(selectedRow.expiresAt, now)}</strong></div>
+                    {!selectedRow.mine && selectedRow.priceKind === 'CASH' && selectedRow.quantity > selectedRow.lotSize ? (
+                      <label className="se-field se-market-inspector__quantity">
+                        <span>Quantity to buy · increments of {formatNumber(selectedRow.lotSize)}</span>
+                        <input className="se-input" type="number" inputMode="numeric" min={selectedRow.lotSize} max={selectedRow.quantity} step={selectedRow.lotSize}
+                          aria-label={`How many ${selectedRow.name.toLowerCase()} to buy from ${selectedRow.sellerName}`}
+                          placeholder={String(selectedRow.quantity)} value={buyQuantities[selectedRow.id] ?? ''}
+                          onChange={(event) => onBuyQuantity(selectedRow.id, event.target.value)} />
+                      </label>
+                    ) : null}
+                    {!selectedRow.mine && selectedUnits !== null ? <p className="se-market-inspector__total">You pay <strong>{formatCentsExact(selectedCash)}</strong>{selectedFee > 0 ? ' including Board fee' : ''}</p> : null}
+                    {selectedRow.mine ? <p className="se-hint">This is your listing. Manage it under My listings.</p> : (
+                      <Button variant="primary" disabledReason={buyBlocker(selectedRow, book, busy, selectedUnits)} onClick={() => onBuy(selectedRow, selectedUnits!)}>
+                        {selectedRow.priceKind === 'BARTER' ? 'Complete trade' : 'Buy listing'}
+                      </Button>
+                    )}
+                  </div>
+                </> : <p className="se-board-empty">Select a listing to inspect the offer.</p>}
+              </aside>
             </div>
 
-          <section className="se-board-section" aria-labelledby="board-book">
-            <div className="se-stores-sectionhead">
-              <div><span className="se-eyebrow">{formatNumber(visibleRows.length)} active listings</span><h2 id="board-book">Player listings</h2></div>
-              <p>Compare prices, choose a stack, and buy directly from another crew.</p>
-            </div>
-            {visibleRows.length === 0 ? (
-              <p className="se-board-empty">{query ? 'No listings match that search.' : 'Nothing is up right now.'}</p>
-            ) : (
-              <div className="se-tablewrap">
-                <table className="se-table se-table--cards se-board-book">
-                  <thead><tr><th>Item</th><th>Seller</th><th className="se-table__number">Qty</th><th>Price</th><th className="se-table__number">Cash</th><th>Closes</th><th><span className="se-sr-only">Actions</span></th></tr></thead>
-                  <tbody>
-                    {visibleRows.map((row) => (
-                      <tr key={row.id} className={row.mine ? 'se-board-book__mine' : undefined}>
-                        <td data-label="Item"><ItemLabel itemKey={row.itemKey}><span className={`se-board-rarity se-board-rarity--${row.category === 'PRODUCT' ? 'product' : row.category === 'KEEPER' ? 'keeper' : (row.rarity ?? 'common').toLowerCase()}`}>{row.name}</span></ItemLabel></td>
-                        <td data-label="Seller"><span>{row.sellerName}{row.mine ? <span className="se-board-you"> (you)</span> : null}</span></td>
-                        <td className="se-table__number se-num" data-label="Qty">{formatNumber(row.quantity)}</td>
-                        <td className="se-board-trade" data-label="Price">
-                          <span>{row.priceKind === 'BARTER' ? <><span className="se-board-trade__tag">Trade</span> {askSummary(row.ask)} {lotLabel(row.lotSize)}</> : <><span className="se-num">{formatCentsExact(row.unitPriceCents)}</span> each{boardRowTopUpCents(row, 1, book.rules) > 0 ? <span className="se-board-under"> + Board fee</span> : null}</>}</span>
-                        </td>
-                        <td className="se-table__number se-num" data-label="Cash">
-                          {row.priceKind === 'BARTER' ? (row.totalCents > 0 ? `+ ${formatCentsExact(row.totalCents)}` : 'None') : formatCentsExact(row.totalCents)}
-                        </td>
-                        <td data-label="Closes">{closesIn(row.expiresAt, now)}</td>
-                        <td data-label="">
-                          {row.mine ? null : (() => {
-                            const units = boardBuyUnits(row, buyQuantities[row.id]);
-                            return (
-                              <span className="se-board-buy">
-                                {row.quantity > row.lotSize ? (
-                                  <input className="se-input se-board-buy__qty" type="number" inputMode="numeric" min={row.lotSize} max={row.quantity} step={row.lotSize}
-                                    aria-label={`How many ${row.name.toLowerCase()} to buy from ${row.sellerName}`}
-                                    placeholder={String(boardBuyUnits(row, undefined) ?? 0)} value={buyQuantities[row.id] ?? ''}
-                                    onChange={(event) => onBuyQuantity(row.id, event.target.value)} />
-                                ) : null}
-                                <Button size="sm" variant="primary" disabledReason={buyBlocker(row, book, busy, units)} onClick={() => onBuy(row, units!)}>
-                                  {`${row.priceKind === 'BARTER' ? 'Trade' : 'Buy'} ${units !== null && units < row.quantity ? formatNumber(units) : 'all'}`}
-                                </Button>
-                              </span>
-                            );
-                          })()}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            {traderStores.length > 0 ? <section className="se-board-section se-market-traders" aria-labelledby="board-traders">
+              <div className="se-stores-sectionhead">
+                <div><span className="se-eyebrow">Trader shelves</span><h2 id="board-traders">Buy from traders</h2></div>
+                <p>Fixed-price stock from the city&rsquo;s shops.</p>
               </div>
-            )}
-          </section>
-
-          {traderStores.length > 0 ? <section className="se-board-section" aria-labelledby="board-traders">
-            <div className="se-stores-sectionhead">
-              <div><span className="se-eyebrow">Trader shelves</span><h2 id="board-traders">Buy from traders</h2></div>
-              <p>Complete trader purchases without leaving the Board.</p>
-            </div>
-            <div className="se-tablewrap"><table className="se-table se-table--cards"><thead><tr><th>Trader</th><th>Item</th><th>Price</th><th>Stock</th><th /></tr></thead><tbody>
-              {traderStores.flatMap((store) => store.items.filter((item) => item.maxBuy > 0).map((item) => <tr key={`${store.key}:${item.key}`}>
-                <td data-label="Trader">{store.name}</td><td data-label="Item">{item.name}</td><td data-label="Price" className="se-num">{formatCentsExact(item.buyCents)}</td>
-                <td data-label="Stock" className="se-num">{formatNumber(item.maxBuy)}</td><td><Button size="sm" variant="primary" disabledReason={busy || !onTraderBuy ? 'Unavailable' : null} onClick={() => onTraderBuy?.(store, item)}>Buy 1</Button></td>
-              </tr>))}
-            </tbody></table></div>
-          </section> : null}
+              <div className="se-tablewrap"><table className="se-table se-table--cards"><thead><tr><th>Trader</th><th>Item</th><th>Price</th><th>Stock</th><th /></tr></thead><tbody>
+                {traderStores.flatMap((store) => store.items.filter((item) => item.maxBuy > 0).map((item) => <tr key={`${store.key}:${item.key}`}>
+                  <td data-label="Trader">{store.name}</td><td data-label="Item">{item.name}</td><td data-label="Price" className="se-num">{formatCentsExact(item.buyCents)}</td>
+                  <td data-label="Stock" className="se-num">{formatNumber(item.maxBuy)}</td><td><Button size="sm" variant="primary" disabledReason={busy || !onTraderBuy ? 'Unavailable' : null} onClick={() => onTraderBuy?.(store, item)}>Buy 1</Button></td>
+                </tr>))}
+              </tbody></table></div>
+            </section> : null}
           </> : null}
 
           {section === 'listings' ?
@@ -594,12 +621,13 @@ export function PlayerBoard() {
   return (
     <GameLayout>
       <div className="se-stores se-stores--board se-market-page" aria-busy={loading}>
-        <header className="se-stores-hero se-stores-hero--board">
-          <div className="se-stores-hero__copy">
-            <span className="se-eyebrow">Street Market{me ? ` · ${me.city.name}` : ''}</span>
-            <h1>The Board</h1>
-            <p>Browse the city’s listings, compare prices, and trade with other crews.</p>
+        <header className="se-market-hero">
+          <div>
+            <span className="se-eyebrow">City-wide exchange{me ? ` · ${me.city.name}` : ''}</span>
+            <h1>The Street Market</h1>
+            <p>Compare crew offers and find the right price for your next move.</p>
           </div>
+          <div className="se-market-open"><span className="se-market-open__dot" />Market open <strong>{book ? formatNumber(book.openOffers) : '—'} live offers</strong></div>
         </header>
 
         {closed ? <Alert>The Street Market is closed for this round. <Link to="/game/stores">Visit the stores</Link>.</Alert> : null}

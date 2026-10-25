@@ -15,18 +15,21 @@ export function ItemLabel({
   children,
   slot = false,
   cosmeticStyle,
+  zoomable = true,
 }: {
   itemKey: string;
   children: ReactNode;
   slot?: boolean;
   /** Draw the item in this style instead of the viewer's own (e.g. an opponent's in a battle report). */
   cosmeticStyle?: ItemCosmeticStyleKey;
+  /** Disable the nested item preview when the label sits inside another interactive control. */
+  zoomable?: boolean;
 }) {
   if (!hasItemArt(itemKey)) return <>{children}</>;
   return (
     <span className="se-item-label">
       <span className={`se-item-label__art${slot ? ' se-item-label__art--slot' : ''}`}>
-        <ItemTile item={itemKey} size="sm" label={false} cosmeticStyle={cosmeticStyle} />
+        <ItemTile item={itemKey} size="sm" label={false} cosmeticStyle={cosmeticStyle} zoomable={zoomable} />
       </span>
       <span className="se-item-label__text">{children}</span>
     </span>
@@ -38,10 +41,10 @@ export function ItemLabel({
  * player can't buy it yet, dimmed while it is sold out, and absent for
  * any item that has no art so a new ruleset item still renders.
  */
-export function ShelfArt({ itemKey, locked, soldOut }: { itemKey: string; locked: boolean; soldOut: boolean }) {
+export function ShelfArt({ itemKey, locked, soldOut, size = 'md' }: { itemKey: string; locked: boolean; soldOut: boolean; size?: 'sm' | 'md' | 'lg' }) {
   if (!hasItemArt(itemKey)) return null;
   const state = locked ? 'se-item-tile--locked' : soldOut ? 'se-item-tile--out' : undefined;
-  return <ItemTile item={itemKey} label={false} className={state} />;
+  return <ItemTile item={itemKey} size={size} label={false} className={state} />;
 }
 
 /**
