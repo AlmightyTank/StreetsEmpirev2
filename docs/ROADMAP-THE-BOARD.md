@@ -98,6 +98,8 @@ One reviewable PR per slice into `beta`, in order. A through D merge dark. E is 
 | **G · Keeper goods** | Guns, ammo, and cars. Buyer must already have the unlock. Units bought from the Board that day stop at one keeper delivery: pistol 50, shotgun 5, Tek-9 3, AK-47 2, low-rider 3. Re-read ammo and parts deliveries from the ruleset when this slice is cut. | A locked buyer can read the row and cannot buy it. The next unit after the delivery cap is refused. Tommy’s and Charlie’s shelves do not change size. |
 | **H · Release** | Staff ledger of posts, fills, and cancels. A sim that random-fills. New rounds pin the enabled ruleset. Old rounds stay pinned. | Flag off is the stores screen this roadmap started from. The sim fails if a fill creates an item, loses one, or raises either rank. |
 
+Slice A shipped as `classic-og-v2.6-j` (2.6.0-J): `playerBoard: { enabled: false, taxPercent: 8 }` and `playerBoardBand`, `isPlayerBoardPriceLegal` and `playerBoardSellerProceedsCents` in `packages/rules-engine/src/calculations/player-board.ts`. Seller proceeds round down, so the deleted tax never rounds away and a fill inside the band holds for every cash balance under the 75% truncation. One cent outside the band raises one side by a fraction of a cent per unit, so the rank tests in `player-board.test.ts` use 100-unit fills to clear that rounding.
+
 F and G both sit on E. Product is the smaller cut, so it goes first. H is last. D lands before E so the tab exists on the round where fills turn on.
 
 What each slice may touch:

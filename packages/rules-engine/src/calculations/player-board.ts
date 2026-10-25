@@ -1,0 +1,51 @@
+import type { Ruleset } from '@streets/rulesets';
+
+/** The Board A. Legal unit prices for one book value, in integer cents. */
+export interface PlayerBoardBand {
+  readonly bookCents: number;
+  readonly floorCents: number;
+  readonly capCents: number;
+}
+
+type BandRules = Pick<Ruleset, 'economy'> & Partial<Pick<Ruleset, 'playerBoard'>>;
+
+/**
+ * The price band for a good whose net worth is `bookCents` per unit.
+ *
+ * Rank counts cash at `cashWeightPercent` and the seller keeps `100 - taxPercent`, so:
+ * - floor = book / weight, rounded up: the buyer's weighted cash loss covers the book they gain;
+ * - cap = book / (weight × share), rounded down: the seller's weighted proceeds stay under the book they give up.
+ *
+ * Null when the ruleset has no Board block, the book is not a positive whole number of cents, or
+ * the tax leaves no legal price. The band is priced whether or not the block is enabled.
+ */
+export function playerBoardBand(bookCents: number, ruleset: BandRules): PlayerBoardBand | null {
+  const board = ruleset.playerBoard;
+  if (!board || !Number.isSafeInteger(bookCents) || bookCents <= 0) return null;
+  const weight = BigInt(ruleset.economy.netWorth.cashWeightPercent);
+  const share = BigInt(100 - board.taxPercent);
+  if (weight <= 0n || share <= 0n) return null;
+  const book = BigInt(bookCents);
+  const floor = (book * 100n + weight - 1n) / weight;
+  const cap = (book * 10_000n) / (weight * share);
+  if (floor > cap) return null;
+  return { bookCents, floorCents: Number(floor), capCents: Number(cap) };
+}
+
+/** Whether `unitPriceCents` is a whole number of cents from the floor through the cap. */
+export function isPlayerBoardPriceLegal(unitPriceCents: number, bookCents: number, ruleset: BandRules): boolean {
+  const band = playerBoardBand(bookCents, ruleset);
+  return band !== null && Number.isSafeInteger(unitPriceCents)
+    && unitPriceCents >= band.floorCents && unitPriceCents <= band.capCents;
+}
+
+/**
+ * What the seller is paid for a fill of `totalCents`. Rounded down, so the deleted tax never
+ * falls below its share and the seller never keeps more than the cap assumes.
+ */
+export function playerBoardSellerProceedsCents(totalCents: number, ruleset: BandRules): number {
+  const board = ruleset.playerBoard;
+  if (!board) throw new Error('This ruleset has no player board.');
+  if (!Number.isSafeInteger(totalCents) || totalCents < 0) throw new Error('A fill total must be whole, non-negative cents.');
+  return Number((BigInt(totalCents) * BigInt(100 - board.taxPercent)) / 100n);
+}

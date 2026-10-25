@@ -9,8 +9,8 @@ const unlocksIn = (catalog: QuestDefinitionCatalog) => Object.values(catalog).fl
   definition.rewards.filter((reward) => reward.kind === 'PERMANENT_UNLOCK').map((reward) => ({ unlock: reward.key!, quest: definition.key })));
 
 describe('2.6.0-I The Missing Line is the only story', () => {
-  it('ships as the latest ruleset with a valid catalog', () => {
-    expect(LATEST_RULESET.meta.id).toBe('classic-og-v2.6-i');
+  it('carries into the latest ruleset with a valid catalog', () => {
+    expect(LATEST_RULESET.questDefinitions).toBe(classicOgV26I.questDefinitions);
     expect(questDefinitionProblems(after)).toEqual([]);
   });
 

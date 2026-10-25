@@ -1290,6 +1290,18 @@ export type StockAtField =
   | 'ammoStockAt'
   | 'vehiclePartsStockAt';
 
+/**
+ * The Board, slice A. Player listings trade inside a band set by the rank rule: cash counts at
+ * `economy.netWorth.cashWeightPercent` and the tax is deleted, so a fill inside the band never
+ * raises either side's net worth. Absent on rounds pinned before the Board.
+ */
+export interface PlayerBoardRules {
+  /** Off until slice E. A disabled block still prices the band; nothing may post or fill. */
+  readonly enabled: boolean;
+  /** Share of a fill deleted from the round, in percent. The seller keeps the rest, rounded down. */
+  readonly taxPercent: number;
+}
+
 /** 2.4.0-B. Versioned catalog data for the ammo and vehicle-parts foundation. */
 export interface AmmoPartsRules {
   readonly enabled: boolean;
@@ -3285,6 +3297,8 @@ export interface Ruleset {
   readonly meta: RulesetMeta;
   /** 2.4.0-B. Absent on rounds pinned before the ammo and parts catalog. */
   readonly ammoParts?: AmmoPartsRules;
+  /** The Board A. Absent on rounds pinned before player listings; `enabled` gates every post and fill. */
+  readonly playerBoard?: PlayerBoardRules;
   /** 2.5.0-A. Absent on count-based rounds pinned before individual armories. */
   readonly individualItems?: IndividualItemsRules;
   /** 2.4.0-A. Per-round catalog opt-in; the round feature flag must also be enabled. */
