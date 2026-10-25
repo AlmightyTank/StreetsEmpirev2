@@ -194,7 +194,7 @@ export function LanePlanner({ lanes, onDone }: { lanes: SupplyLanesDto; onDone: 
     <Panel title="International lanes" aside={`${lanes.inTransit}/${lanes.maxInTransit} on the way`}>
       {action.error ? <Alert>{action.error}</Alert> : null}
       {action.result ? <Alert tone="info">{action.result.result.replayed ? 'That load was already sent.' : `Paid ${money(action.result.result.chargedCents)}. ${formatNumber(action.result.result.pickup.quantity)} ${action.result.result.pickup.productName} lands in ${action.result.result.pickup.destinationCityName} around ${action.result.result.pickup.expectedArrivalAt ? formatWeekdayTime(action.result.result.pickup.expectedArrivalAt) : 'soon'}.`}</Alert> : null}
-      <p className="se-hint">Cheaper abroad, in bigger lots, but you pay for the goods and the route card up front and the load can be searched when it lands. Busier police where it lands mean more searches, and a search adds to your Case there.</p>
+      <p className="se-hint">Cheaper abroad, in bigger lots, but you pay for the goods and the route card up front and the load can be searched when it lands. Busier police where it lands mean more searches, and a search can take part of the load.</p>
       <div className="se-supply__form">
         <div className="se-launch__grid">
           <div className="se-field">
@@ -242,7 +242,7 @@ export function LanePlanner({ lanes, onDone }: { lanes: SupplyLanesDto; onDone: 
             <Row label="Paid now" value={money(goods + fee)} strong />
             <Row label="A unit, all in" value={`$${((goods + fee) / units / 100).toFixed(2)}`} />
             <Row label="Lands" value={`in ${route.transitHours}h${landing ? ` at the ${landing.name.toLowerCase()} in ${landing.cityName}` : ''}`} />
-            {landing ? <Row label="Search risk there" value={landing.risk.toLowerCase()} tooltip="A search can take part of the load, or all of it. What is taken is gone, and it adds to your Case in that city." /> : null}
+            {landing ? <Row label="Search risk there" value={landing.risk.toLowerCase()} tooltip="A search can take part of the load, or all of it. What is taken is gone." /> : null}
           </div>
         ) : null}
         <Button className="se-btn se-btn--primary se-btn--block" disabledReason={block}

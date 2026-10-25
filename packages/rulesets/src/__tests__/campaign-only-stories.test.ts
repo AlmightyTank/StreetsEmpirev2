@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { questNeedsLawCase } from '../classic-og-v2.6-i/law-case-quests.js';
 import { CAMPAIGN_UNLOCKS, classicOgV26H, classicOgV26I, isRetiredStoryJob, LATEST_RULESET } from '../index.js';
 import { questDefinitionProblems } from '../quest-definitions.js';
 import type { QuestDefinitionCatalog } from '../types.js';
@@ -27,7 +28,22 @@ describe('2.6.0-I The Missing Line is the only story', () => {
   it('keeps the boards, events and secrets exactly as they were', () => {
     const kept = Object.values(before).filter((definition) => !definition.key.startsWith('ML_') && !isRetiredStoryJob(definition));
     expect(new Set(kept.map((definition) => definition.type))).toEqual(new Set(['DAILY', 'WEEKLY', 'SECRET', 'CITY_CONTRACT', 'ALLIANCE', 'EVENT', 'SEASON']));
-    for (const definition of kept) expect(after[definition.key]).toBe(definition);
+    const lawCaseJobs = kept.filter(questNeedsLawCase);
+    expect(lawCaseJobs.length).toBeGreaterThan(0);
+    for (const definition of kept) {
+      if (questNeedsLawCase(definition)) expect(after).not.toHaveProperty(definition.key);
+      else expect(after[definition.key]).toBe(definition);
+    }
+  });
+
+  it('keeps Heat and leaves the law Case on the previous ruleset', () => {
+    expect(classicOgV26I.heat).toBe(classicOgV26H.heat);
+    expect('law' in classicOgV26I).toBe(false);
+    expect(classicOgV26H.law).toBeTruthy();
+    expect(Object.values(after).some(questNeedsLawCase)).toBe(false);
+    expect(classicOgV26I.streetSkills?.sources.find((source) => source.key === 'FIXER_LAW')?.label).toBe('Heat action');
+    expect(classicOgV26I.streetSkills?.milestones.FIXER?.flatMap((milestone) => milestone.choices).map((choice) => choice.effect?.effectId))
+      .toEqual(['FIGHT_HEAT', 'HEAT_COOLING', 'HEAT_GAIN', 'HEAT_COOLING', undefined, undefined]);
   });
 
   it('moves every permanent unlock the retired jobs granted onto exactly one campaign chapter', () => {

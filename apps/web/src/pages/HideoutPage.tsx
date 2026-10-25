@@ -35,6 +35,7 @@ import { ScavengingPanel } from '../components/ScavengingPanel.js';
 import { GeneratorPanel } from '../components/GeneratorPanel.js';
 import { WorkshopPanel } from '../components/WorkshopPanel.js';
 import { GameTabs } from '../components/GameUI.js';
+import { ArmoryBoard } from './ArmoryPage.js';
 import type { CraftingWorkshopDto } from '@streets/shared';
 import type { ScavengePageDto } from '@streets/shared';
 import {
@@ -672,6 +673,8 @@ export function HideoutPage() {
                   ...(hasSupplies ? [{ id: 'supplies', label: 'Supplies' }] : []),
                   ...(hasSecurity ? [{ id: 'security', label: activeThreats > 0 ? `Security · ${formatNumber(activeThreats)}` : 'Security' }] : []),
                   ...(hasOperations ? [{ id: 'operations', label: 'Operations' }] : []),
+                  { id: 'armory', label: 'Armory' },
+                  { id: 'garage', label: 'Garage' },
                   ...(hasLook ? [{ id: 'look', label: 'Look' }] : []),
                 ]}
               />
@@ -1010,6 +1013,20 @@ export function HideoutPage() {
                     </Panel>
                   ) : null}
                 </div>
+              </section>
+            ) : null}
+
+            {activeSection === 'armory' ? (
+              <section id="hideout-armory" className="se-hideout-section">
+                <SectionHeading eyebrow="Equipment" title="Armory" copy="Guns your crew owns this round." />
+                <ArmoryBoard lockedView="GUN" />
+              </section>
+            ) : null}
+
+            {activeSection === 'garage' ? (
+              <section id="hideout-garage" className="se-hideout-section">
+                <SectionHeading eyebrow="Equipment" title="Garage" copy="Vehicles your crew owns this round." />
+                <ArmoryBoard lockedView="VEHICLE" />
               </section>
             ) : null}
 
