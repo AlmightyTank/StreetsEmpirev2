@@ -8,6 +8,7 @@ import { useSession } from '../stores/session.js';
 import { Alert } from './Alert.js';
 import { Button } from './Button.js';
 import { Panel } from './Panel.js';
+import { QuantityStepper } from './QuantityStepper.js';
 import { formatWhen } from '../utils/time.js';
 
 /** Product keys read as names on receipts. */
@@ -124,13 +125,11 @@ export function HeatPanel() {
               value={points}
               onChange={(event) => setPoints(event.target.value === '' ? '' : Math.max(0, Math.floor(Number(event.target.value))))}
             />
-            <Button type="button" className="se-btn se-btn--ghost se-btn--sm" disabledReason={bribe.busy ? 'Paying...' : null} onClick={() => setPoints(heat.heat)}>
-              All
-            </Button>
             <Button className="se-btn se-btn--primary se-btn--sm" disabledReason={block}>
               Bribe{wanted > 0 ? ` ${formatCents(cost)}` : ''}
             </Button>
           </div>
+          <QuantityStepper value={points} onChange={setPoints} min={1} max={heat.heat} disabled={bribe.busy} unitLabel="heat points" showMax />
         </form>
       ) : null}
       {bribe.error ? <Alert>{bribe.error}</Alert> : null}

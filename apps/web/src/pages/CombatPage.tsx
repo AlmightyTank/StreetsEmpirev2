@@ -9,7 +9,7 @@ import { ringApi } from '../api/ring.js';
 import { ApiError } from '../api/client.js';
 import { ActionDock, deltaChip, type ResultChip } from '../components/ActionDock.js';
 import { ActionReadiness, OperationDetails } from '../components/ActionReadiness.js';
-import { QuantitySteps } from '../components/QuantitySteps.js';
+import { QuantityStepper } from '../components/QuantityStepper.js';
 import { Alert } from '../components/Alert.js';
 import { AllianceTag } from '../components/AllianceTag.js';
 import { showGameToast } from '../components/GameEventToasts.js';
@@ -1078,15 +1078,8 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
                 disabled={busy || !!pending}
                 onChange={(event) => setSquad(event.target.value)}
               />
-              <QuantitySteps
-                value={squad === '' ? '' : squadNumber}
-                onChange={(value) => setSquad(String(value))}
-                max={maxSquad}
-                steps={[1, 5, 10]}
-                disabled={busy || !!pending}
-                disabledReason={busy ? 'Your last hit is still going through.' : pending ? 'Settle the pending hit first.' : null}
-                emptyReason="Nobody fit to send."
-              />
+              <QuantityStepper value={squad === '' ? '' : squadNumber} onChange={(value) => setSquad(String(value))}
+                min={1} max={maxSquad} disabled={busy || !!pending} unitLabel={driving ? 'shooters' : 'thugs'} showMax />
             </div>
             {ammunition ? (
               <div className="se-dock__amount se-raids-ammo-cap">
@@ -1104,6 +1097,8 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
                   aria-describedby="raid-ammo-cap-hint"
                   onChange={(event) => setAmmoCapText(event.target.value)}
                 />
+                <QuantityStepper value={ammoCapText === '' ? '' : Number(ammoCapText)} onChange={(value) => setAmmoCapText(String(value))}
+                  min={0} max={ammunition.availableRounds} disabled={busy || !!pending} unitLabel="rounds" showMax />
                 <span id="raid-ammo-cap-hint" className="se-hint">
                   Blank uses only the rounds this squad needs. Set a cap to save ammo.
                 </span>

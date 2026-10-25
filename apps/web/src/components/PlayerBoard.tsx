@@ -24,6 +24,7 @@ import '../styles/stores.css';
 import { Alert } from './Alert.js';
 import { Button } from './Button.js';
 import { ItemLabel, ShelfArt } from './ItemTile.js';
+import { QuantityStepper } from './QuantityStepper.js';
 
 /** The posting fee the server will charge: the ruleset's percent of book, rounded up, never under the minimum. */
 export function boardPostingFeeCents(bookCents: number, quantity: number, rules: PlayerBoardDto['rules']): number {
@@ -211,6 +212,8 @@ function ListPanel({ book, busy, form, onForm, onPost }: Pick<PlayerBoardViewPro
         <label className="se-label" htmlFor="board-quantity">How many</label>
         <input id="board-quantity" className="se-input" type="number" inputMode="numeric" min={1} max={part.held} step={1}
           value={form.quantity} onChange={(event) => onForm({ ...form, quantity: event.target.value })} />
+        <QuantityStepper value={Number(form.quantity) || 1} min={1} max={part.held} unitLabel={part.name.toLowerCase()}
+          onChange={(value) => onForm({ ...form, quantity: String(value) })} />
       </div>
       <div className="se-field">
         <span className="se-label" id="board-mode-label">Sell for</span>
@@ -242,6 +245,8 @@ function ListPanel({ book, busy, form, onForm, onPost }: Pick<PlayerBoardViewPro
               </select>
               <input className="se-input" type="number" inputMode="numeric" min={1} step={1} aria-label={`How many of trade item ${index + 1}`}
                 value={line.quantity} onChange={(event) => setAsk(index, { quantity: event.target.value })} />
+              <QuantityStepper value={Number(line.quantity) || 1} min={1} unitLabel="trade items"
+                onChange={(value) => setAsk(index, { quantity: String(value) })} />
               <Button size="sm" variant="ghost" onClick={() => onForm({ ...form, ask: form.ask.filter((_, at) => at !== index) })}>Remove</Button>
             </div>
           ))}
@@ -287,31 +292,6 @@ function buyBlocker(row: PlayerBoardRowDto, book: PlayerBoardDto, busy: boolean,
   const lots = units / row.lotSize;
   const short = row.ask.find((line) => (book.holdings[line.key] ?? 0) < line.quantity * lots);
   return short ? `You need ${formatNumber(short.quantity * lots)} ${short.name.toLowerCase()} to trade.` : null;
-}
-
-const MARKET_QUANTITY_STEPS = [1, 5, 10, 25, 50, 100, 500, 1000] as const;
-
-function MarketQuantityAdjusters({ value, max, unitStep = 1, unitLabel = 'units', onChange }: {
-  value: number;
-  max: number;
-  unitStep?: number;
-  unitLabel?: string;
-  onChange: (value: number) => void;
-}) {
-  const maxSteps = Math.floor(max / unitStep);
-  const currentSteps = Math.max(0, Math.round((Number.isFinite(value) ? value : 0) / unitStep));
-  return (
-    <div className="se-market-quantity" role="group" aria-label={`Adjust quantity in ${unitLabel}`}>
-      {MARKET_QUANTITY_STEPS.map((amount) => (
-        <span className="se-market-quantity__step" key={amount}>
-          <button type="button" aria-label={`Decrease by ${amount} ${unitLabel}`} disabled={currentSteps <= 1 || maxSteps < 1}
-            onClick={() => onChange(Math.max(1, currentSteps - amount) * unitStep)}>−{formatNumber(amount)}</button>
-          <button type="button" aria-label={`Increase by ${amount} ${unitLabel}`} disabled={currentSteps >= maxSteps || maxSteps < 1}
-            onClick={() => onChange(Math.min(maxSteps, currentSteps + amount) * unitStep)}>+{formatNumber(amount)}</button>
-        </span>
-      ))}
-    </div>
-  );
 }
 
 /** The Street Market's player listings and selling desk. */
@@ -444,7 +424,7 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
                           placeholder={String(selectedRow.quantity)} value={buyQuantities[selectedRow.id] ?? ''}
                           onChange={(event) => onBuyQuantity(selectedRow.id, event.target.value)} />
                       </label>
-                      <MarketQuantityAdjusters value={Number(buyQuantities[selectedRow.id] || selectedRow.quantity)} max={selectedRow.quantity} unitStep={selectedRow.lotSize} unitLabel={selectedRow.lotSize > 1 ? 'lots' : 'units'} onChange={(value) => onBuyQuantity(selectedRow.id, String(value))} />
+                      <QuantityStepper value={Number(buyQuantities[selectedRow.id] || selectedRow.quantity)} min={selectedRow.lotSize} max={selectedRow.quantity} unit={selectedRow.lotSize} unitLabel={selectedRow.lotSize > 1 ? 'lots' : 'units'} onChange={(value) => onBuyQuantity(selectedRow.id, String(value))} showMax />
                       </>
                     ) : null}
                     {!selectedRow.mine && selectedUnits !== null ? <p className="se-market-inspector__total">You pay <strong>{formatCentsExact(selectedCash)}</strong>{selectedFee > 0 ? ' including Board fee' : ''}</p> : null}
@@ -474,7 +454,7 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
                     <td data-label="Stock" className="se-num">{formatNumber(item.maxBuy)}</td><td data-label="" className="se-market-buy-controls">
                       <div className="se-market-trader-quantity">
                       <input className="se-input se-board-buy__qty" type="number" inputMode="numeric" min={1} max={max} step={1} aria-label={`Quantity of ${item.name} to buy`} value={traderQuantities[key] ?? '1'} onChange={(event) => onTraderQuantity?.(key, event.target.value)} />
-                        <MarketQuantityAdjusters value={quantity} max={max} onChange={(value) => onTraderQuantity?.(key, String(value))} />
+                        <QuantityStepper value={quantity} min={1} max={max} onChange={(value) => onTraderQuantity?.(key, String(value))} showMax />
                       </div>
                       <Button size="sm" variant="primary" disabledReason={busy || !onTraderBuy ? 'Unavailable' : !valid ? max < 1 ? 'Not enough cash for one' : `Enter 1 to ${formatNumber(max)}` : null} onClick={() => void confirmTraderPurchase(store.name, store.key === 'PIP' && item.key === 'CRACK' ? 'Crack' : item.name, quantity, item.buyCents, () => onTraderBuy?.(store, item, quantity))}>Buy {formatNumber(valid ? quantity : 1)}</Button>
                     </td>
@@ -491,7 +471,7 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
                     <td data-label="Stock" className="se-num">{formatNumber(pip.maxBuy)}</td><td data-label="" className="se-market-buy-controls">
                       <div className="se-market-trader-quantity">
                       <input className="se-input se-board-buy__qty" type="number" inputMode="numeric" min={1} max={max} step={1} aria-label={`Quantity of ${product.name} to buy`} value={traderQuantities[key] ?? '1'} onChange={(event) => onTraderQuantity?.(key, event.target.value)} />
-                        <MarketQuantityAdjusters value={quantity} max={max} onChange={(value) => onTraderQuantity?.(key, String(value))} />
+                        <QuantityStepper value={quantity} min={1} max={max} onChange={(value) => onTraderQuantity?.(key, String(value))} showMax />
                       </div>
                       <Button size="sm" variant="primary" disabledReason={busy || !onPipBuy ? 'Unavailable' : !valid ? max < 1 ? 'Not enough cash for one' : `Enter 1 to ${formatNumber(max)}` : null} onClick={() => void confirmTraderPurchase('Pip’s Deals on Wheels', product.name, quantity, pip.buyCents, () => onPipBuy?.(product, quantity))}>Buy {formatNumber(valid ? quantity : 1)}</Button>
                     </td>

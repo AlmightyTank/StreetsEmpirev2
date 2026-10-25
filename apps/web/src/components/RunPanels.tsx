@@ -14,6 +14,7 @@ import { formatClockTime, formatDuration, formatWeekdayTime } from '../utils/tim
 import { Alert } from './Alert.js';
 import { Button } from './Button.js';
 import { Panel, Row } from './Panel.js';
+import { QuantityStepper } from './QuantityStepper.js';
 import { SUPPLY_WORD, minutesText, unitPrice } from './CityMap.js';
 
 type Products = TravelDto['products'];
@@ -242,12 +243,12 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
           <div className="se-field se-launch__fleet-picker">
             <div className="se-label">Vehicles for this run</div>
             <div className="se-btn-row"><Button type="button" variant={vehicleMode === 'manual' ? 'primary' : 'ghost'} onClick={() => setVehicleMode('manual')}>Choose vehicles</Button><Button type="button" variant={vehicleMode === 'auto' ? 'primary' : 'ghost'} onClick={() => setVehicleMode('auto')}>Auto-fleet</Button></div>
-            {vehicleMode === 'auto' ? <label className="se-label">Fleet size <input className="se-input" type="number" min={1} max={individualRows.reduce((sum, row) => sum + row.quantity, 0)} value={autoFleetCount} onChange={(event) => setAutoFleetCount(whole(event.target.value))} /></label> : (
-              <div className="se-launch__vehicle-list">{individualRows.map((vehicle) => <label key={vehicle.id} className="se-launch__vehicle">
-                <span><input type="checkbox" checked={(vehicleIds[vehicle.id] ?? 0) > 0} onChange={(event) => setVehicleIds((current) => ({ ...current, [vehicle.id]: event.target.checked ? 1 : 0 }))} /> {vehicle.name || vehicle.model.replace('_', ' ')}{vehicle.quantity > 1 ? ` · ${vehicle.quantity} stacked` : ''}</span>
+            {vehicleMode === 'auto' ? <div className="se-field"><label className="se-label">Fleet size</label><input className="se-input" type="number" min={1} max={individualRows.reduce((sum, row) => sum + row.quantity, 0)} value={autoFleetCount} onChange={(event) => setAutoFleetCount(whole(event.target.value))} /><QuantityStepper value={autoFleetCount} onChange={setAutoFleetCount} min={1} max={individualRows.reduce((sum, row) => sum + row.quantity, 0)} unitLabel="vehicles" /></div> : (
+              <div className="se-launch__vehicle-list">{individualRows.map((vehicle) => <div key={vehicle.id} className="se-launch__vehicle">
+                <span><input type="checkbox" aria-label={`Select ${vehicle.name || vehicle.model}`} checked={(vehicleIds[vehicle.id] ?? 0) > 0} onChange={(event) => setVehicleIds((current) => ({ ...current, [vehicle.id]: event.target.checked ? 1 : 0 }))} /> {vehicle.name || vehicle.model.replace('_', ' ')}{vehicle.quantity > 1 ? ` · ${vehicle.quantity} stacked` : ''}</span>
                 <span>{vehicle.condition}%{vehicle.mods.length ? ` · ${vehicle.mods.map((mod) => `${mod.key} ${mod.tier}`).join(', ')}` : ''}</span>
-                {vehicle.quantity > 1 && (vehicleIds[vehicle.id] ?? 0) > 0 ? <input aria-label={`Quantity of ${vehicle.model}`} className="se-input" type="number" min={1} max={vehicle.quantity} value={vehicleIds[vehicle.id]} onChange={(event) => setVehicleIds((current) => ({ ...current, [vehicle.id]: whole(event.target.value) || 0 }))} /> : null}
-              </label>)}</div>
+                {vehicle.quantity > 1 && (vehicleIds[vehicle.id] ?? 0) > 0 ? <><input aria-label={`Quantity of ${vehicle.model}`} className="se-input" type="number" min={1} max={vehicle.quantity} value={vehicleIds[vehicle.id]} onChange={(event) => setVehicleIds((current) => ({ ...current, [vehicle.id]: whole(event.target.value) || 0 }))} /><QuantityStepper value={vehicleIds[vehicle.id] ?? 1} onChange={(value) => setVehicleIds((current) => ({ ...current, [vehicle.id]: value }))} min={1} max={vehicle.quantity} unitLabel="vehicles" /></> : null}
+              </div>)}</div>
             )}
           </div>
         ) : null}
@@ -261,6 +262,7 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
                 <label className="se-label" htmlFor={`run-${key}`}><ItemLabel itemKey={classId}>{name} <span className="se-muted">of {owned[classId]}</span></ItemLabel></label>
                 <input id={`run-${key}`} className="se-input" type="number" inputMode="numeric" min={0} max={owned[classId]} value={vehicleLoadout[classId]}
                   onChange={(event) => setVehicleLoadout({ ...vehicleLoadout, [classId]: whole(event.target.value) })} />
+                <QuantityStepper value={vehicleLoadout[classId]} onChange={(value) => setVehicleLoadout({ ...vehicleLoadout, [classId]: value })} min={0} max={owned[classId]} unitLabel="vehicles" />
                 {spec ? <span className="se-hint">{spec.cargoPercent ?? 100}% cargo · {spec.crewSeats ?? rules.thugsPerLowRider} seats · {routeProfileText(spec)}{spec.runFeeCents !== undefined ? ` · ${formatCents(spec.runFeeCents)} per run` : ''}</span> : null}
               </div>
             );
@@ -269,6 +271,7 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
             <label className="se-label" htmlFor="run-escorts">Escorts <span className="se-muted">of {Math.min(home.fitThugs, seats)}</span></label>
             <input id="run-escorts" className="se-input" type="number" inputMode="numeric" min={0} max={Math.min(home.fitThugs, seats)} value={escorts}
               onChange={(event) => setEscorts(whole(event.target.value))} />
+            <QuantityStepper value={escorts} onChange={setEscorts} min={0} max={Math.min(home.fitThugs, seats)} unitLabel="escorts" />
           </div>
           <div className="se-field se-launch__cash">
             <label className="se-label" htmlFor="run-cash">Cash <span className="se-muted">of {formatCents(home.cashCents)}</span></label>
@@ -282,6 +285,7 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
             <label className="se-label" htmlFor="run-beer">Beer <span className="se-muted">of {formatNumber(home.beer)}</span></label>
             <input id="run-beer" className="se-input" type="number" inputMode="numeric" min={0} max={home.beer} value={beer}
               onChange={(event) => setBeer(whole(event.target.value))} />
+            <QuantityStepper value={beer} onChange={setBeer} min={0} max={home.beer} unitLabel="beer" />
           </div>
         </div>
         <p className="se-hint">{totalVehicles} vehicle{totalVehicles === 1 ? '' : 's'} · {formatNumber(seats)} crew seats · {formatNumber(capacity)} cargo units{vehicleFeeCents ? ` · ${formatCents(vehicleFeeCents)} fleet fee charged at launch` : ''}. That fee is separate from cash loaded into the run. Beer takes trunk space too. Escorts ride armed with the best guns from home, one each, and are away while it is out: they don&rsquo;t defend, cover the street or cook. A bust or an arrest takes their guns.</p>
@@ -313,6 +317,7 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
               <input id={`run-cargo-${product.key}`} className="se-input" type="number" inputMode="numeric" min={0} max={product.quantity}
                 value={cargo[product.key] ?? ''} placeholder="0" disabled={product.quantity === 0}
                 onChange={(event) => setCargo({ ...cargo, [product.key]: whole(event.target.value) })} />
+              <QuantityStepper value={cargo[product.key] ?? 0} onChange={(value) => setCargo({ ...cargo, [product.key]: value })} min={0} max={product.quantity} disabled={product.quantity === 0} unitLabel="units" />
             </div>
           ))}
         </div>
@@ -331,6 +336,8 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
                     max={marketMaxBuy(entry.market, home.cashCents - cashCents, Math.max(0, capacity - units(cargo)))}
                     value={buy[entry.key] ?? ''} placeholder="0"
                     onChange={(event) => setBuy({ ...buy, [entry.key]: whole(event.target.value) })} />
+                  <QuantityStepper value={buy[entry.key] ?? 0} onChange={(value) => setBuy({ ...buy, [entry.key]: value })} min={0}
+                    max={marketMaxBuy(entry.market, home.cashCents - cashCents, Math.max(0, capacity - units(cargo)))} unitLabel="units" />
                 </div>
               ))}
             </div>
@@ -494,8 +501,8 @@ function TownCounter({ run, data, onDone }: { run: RunDto; data: TravelDto; onDo
         <div className="se-launch__with-all">
           <input className="se-input" type="number" inputMode="numeric" min={1} max={max} value={quantity} placeholder="How many"
             aria-label="Quantity" onChange={(event) => setQuantity(whole(event.target.value))} />
-          <button type="button" className="se-btn se-btn--ghost se-btn--sm" disabled={max < 1} onClick={() => setQuantity(max)}>Max</button>
         </div>
+        <QuantityStepper value={quantity} onChange={setQuantity} min={1} max={max} disabled={max < 1} unitLabel="items" showMax />
         <Button className="se-btn se-btn--primary se-btn--block" disabledReason={block}>
           {buying ? 'Buy' : 'Sell'} {row ? nameOf(products, row.key) : ''}{!block ? ` · ${onMarket ? 'about ' : ''}${formatCents(total)}` : ''}
         </Button>
@@ -581,6 +588,8 @@ export function OutpostStopPanel({ run, data, onDone }: { run: RunDto; data: Tra
   const seedProducts = product && seedQty > 0 ? { [product]: seedQty } : {};
   const runHeld = run.cargo.find((entry) => entry.key === product)?.quantity ?? 0;
   const seedThugs = typeof thugs === 'number' ? thugs : 0;
+  const seedBeerMax = Math.min(run.beer, rules.beerCap);
+  const seedProductMax = Math.min(runHeld, rules.productCap);
 
   const establishBlock = establish.busy ? 'Setting up the corner.'
     : !target ? 'No open block is available in this city.'
@@ -605,6 +614,13 @@ export function OutpostStopPanel({ run, data, onDone }: { run: RunDto; data: Tra
   const box = boxBlock?.outpost ?? null;
   const runProduct = run.cargo.find((entry) => entry.key === moveProduct)?.quantity ?? 0;
   const boxProduct = box?.products[moveProduct] ?? 0;
+  const currentRunLoad = run.cargo.reduce((sum, entry) => sum + entry.quantity, run.beer);
+  const moveBeerMax = direction === 'deposit'
+    ? Math.min(run.beer, Math.max(0, rules.beerCap - (box?.beer ?? 0)))
+    : Math.min(box?.beer ?? 0, Math.max(0, run.capacity - currentRunLoad));
+  const moveProductMax = direction === 'deposit'
+    ? Math.min(runProduct, Math.max(0, rules.productCap - Object.values(box?.products ?? {}).reduce((sum, quantity) => sum + quantity, 0)))
+    : Math.min(boxProduct, Math.max(0, run.capacity - currentRunLoad - moveBeerCount));
   const moveSomething = moveCashCents > 0 || moveBeerCount > 0 || moveProductQty > 0;
   const transferBlock = transfer.busy ? 'Moving stock.'
     : !boxBlock || !box ? 'Pick one of your outposts.'
@@ -640,6 +656,7 @@ export function OutpostStopPanel({ run, data, onDone }: { run: RunDto; data: Tra
               <label className="se-label" htmlFor="outpost-thugs">Escorts staying</label>
               <input id="outpost-thugs" className="se-input" type="number" inputMode="numeric" min={target?.cornerMinimumThugs ?? 1} max={run.escortThugs} value={thugs}
                 onChange={(event) => setThugs(whole(event.target.value))} />
+              <QuantityStepper value={thugs} onChange={setThugs} min={target?.cornerMinimumThugs ?? 1} max={run.escortThugs} unitLabel="thugs" />
             </div>
             <div className="se-field">
               <label className="se-label" htmlFor="outpost-cash">Seed cash</label>
@@ -650,6 +667,7 @@ export function OutpostStopPanel({ run, data, onDone }: { run: RunDto; data: Tra
               <label className="se-label" htmlFor="outpost-beer">Seed beer</label>
               <input id="outpost-beer" className="se-input" type="number" inputMode="numeric" min={0} value={beer}
                 onChange={(event) => setBeer(whole(event.target.value))} />
+              <QuantityStepper value={beer} onChange={setBeer} min={0} max={seedBeerMax} unitLabel="beer" />
             </div>
           </div>
           <div className="se-launch__grid">
@@ -663,6 +681,7 @@ export function OutpostStopPanel({ run, data, onDone }: { run: RunDto; data: Tra
               <label className="se-label" htmlFor="outpost-product-qty">Units</label>
               <input id="outpost-product-qty" className="se-input" type="number" inputMode="numeric" min={0} value={productQty}
                 onChange={(event) => setProductQty(whole(event.target.value))} />
+              <QuantityStepper value={productQty} onChange={setProductQty} min={0} max={seedProductMax} unitLabel="units" />
             </div>
           </div>
           <Button type="button" className="se-btn se-btn--primary" disabledReason={establishBlock}
@@ -710,6 +729,7 @@ export function OutpostStopPanel({ run, data, onDone }: { run: RunDto; data: Tra
               <label className="se-label" htmlFor="outpost-move-beer">Beer</label>
               <input id="outpost-move-beer" className="se-input" type="number" inputMode="numeric" min={0} value={moveBeer}
                 onChange={(event) => setMoveBeer(whole(event.target.value))} />
+              <QuantityStepper value={moveBeer} onChange={setMoveBeer} min={0} max={moveBeerMax} unitLabel="beer" />
             </div>
             <div className="se-field">
               <label className="se-label" htmlFor="outpost-move-product">Product</label>
@@ -721,6 +741,7 @@ export function OutpostStopPanel({ run, data, onDone }: { run: RunDto; data: Tra
               <label className="se-label" htmlFor="outpost-move-qty">Units</label>
               <input id="outpost-move-qty" className="se-input" type="number" inputMode="numeric" min={0} value={moveQty}
                 onChange={(event) => setMoveQty(whole(event.target.value))} />
+              <QuantityStepper value={moveQty} onChange={setMoveQty} min={0} max={moveProductMax} unitLabel="units" />
             </div>
           </div>
           <Button type="button" className="se-btn" disabledReason={transferBlock}

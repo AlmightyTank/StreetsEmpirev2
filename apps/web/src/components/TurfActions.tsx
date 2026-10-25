@@ -16,6 +16,7 @@ import { useSession } from '../stores/session.js';
 import { Button } from './Button.js';
 import { formatClockTime } from '../utils/time.js';
 import { homeSquadBlock, initialTurfSquad } from '../utils/turfSquad.js';
+import { QuantityStepper } from './QuantityStepper.js';
 
 type TurfResult =
   | TurfClaimResult
@@ -111,7 +112,7 @@ export function TurfActions({
         </span>
         {block.push.role !== 'attacker' ? (
           <>
-            <label className="se-field">
+            <div className="se-field">
               <span className="se-field__label">Fight backup</span>
               <input
                 className="se-input"
@@ -124,7 +125,9 @@ export function TurfActions({
                 disabled={block.push.backupSent || action.busy || armedAtHome < 1}
                 onChange={(event) => setThugs(Math.min(armedAtHome, Math.max(1, Math.floor(Number(event.target.value) || 1))))}
               />
-            </label>
+              <QuantityStepper value={armedAtHome > 0 ? Math.min(thugs, armedAtHome) : 0} onChange={setThugs}
+                min={armedAtHome > 0 ? 1 : 0} max={Math.max(0, armedAtHome)} disabled={block.push.backupSent || action.busy || armedAtHome < 1} unitLabel="thugs" />
+            </div>
             <div className="se-actions-row">
               <Button
                 type="button"
@@ -211,7 +214,7 @@ export function TurfActions({
 
   return (
     <div className="se-turfactions">
-      <label className="se-field">
+      <div className="se-field">
         <span className="se-field__label">{block.holder ? 'Corner thugs' : 'Claim squad'}</span>
         <input
           className="se-input"
@@ -226,7 +229,9 @@ export function TurfActions({
             setThugs(squadMax > 0 ? Math.min(squadMax, Math.max(1, next)) : 0);
           }}
         />
-      </label>
+        <QuantityStepper value={squadMax > 0 ? Math.min(thugs, squadMax) : 0} onChange={setThugs}
+          min={squadMax > 0 ? 1 : 0} max={squadMax} unitLabel="thugs" />
+      </div>
       <span className="se-hint">
         {formatNumber(armedAtHome)} fit, armed {armedAtHome === 1 ? 'thug is' : 'thugs are'} at home.
         {armedAtHome < 1 ? ' Posted crew stays where they were sent.' : ''}

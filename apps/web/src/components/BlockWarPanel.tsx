@@ -6,6 +6,7 @@ import { useGameAction } from '../hooks/useGameAction.js';
 import { useSession } from '../stores/session.js';
 import { formatClockTime, formatWhen } from '../utils/time.js';
 import { Button } from './Button.js';
+import { QuantityStepper } from './QuantityStepper.js';
 
 type Wars = NonNullable<NonNullable<CityTurfDto['business']>['wars']>;
 
@@ -27,13 +28,14 @@ const ROLE: Record<BlockWarDto['role'], string> = {
   observer: 'Block war',
 };
 
-function ThugsField({ label, value, onChange, disabled }: { label: string; value: number; onChange: (value: number) => void; disabled?: boolean }) {
+function ThugsField({ label, value, onChange, disabled, max = Number.MAX_SAFE_INTEGER }: { label: string; value: number; onChange: (value: number) => void; disabled?: boolean; max?: number }) {
   return (
-    <label className="se-field se-blockwar__field">
+    <div className="se-field se-blockwar__field">
       <span className="se-field__label">{label}</span>
       <input className="se-input" type="number" inputMode="numeric" min={1} step={1} value={value} disabled={disabled}
         onChange={(event) => onChange(Math.max(1, Math.floor(Number(event.target.value) || 1)))} />
-    </label>
+      <QuantityStepper value={value} onChange={onChange} min={1} max={max} disabled={disabled} unitLabel="thugs" />
+    </div>
   );
 }
 
@@ -72,7 +74,7 @@ export function BlockWarPanel({ block, wars, isHome, onChanged }: { block: TurfB
             </label>
           ))}
         </div>
-        <ThugsField label="Squad" value={squad} onChange={setSquad} />
+        <ThugsField label="Squad" value={squad} onChange={setSquad} max={armed} />
         <div className="se-actions-row">
           <Button type="button" className="se-btn se-btn--danger se-btn--sm"
             disabledReason={busy ?? block.warBlockedReason ?? (armed > 0 && squad > armed ? `You only have ${formatNumber(armed)} fit, armed thugs at home.` : null)}
@@ -134,7 +136,7 @@ export function BlockWarPanel({ block, wars, isHome, onChanged }: { block: TurfB
       {war.torches.map((torch) => <small key={torch.lot} className="se-hint se-bad">The {torch.name} is burning; gone at {formatClockTime(torch.until)}.</small>)}
 
       {sendLabel || answerSide ? (
-        <ThugsField label={answerSide && !sendLabel ? `Ride with them (up to ${formatNumber(war.allyCap)})` : 'Thugs'} value={thugs} onChange={setThugs} />
+        <ThugsField label={answerSide && !sendLabel ? `Ride with them (up to ${formatNumber(war.allyCap)})` : 'Thugs'} value={thugs} onChange={setThugs} max={war.allyCap} />
       ) : null}
       {answerSide && !isHome ? <small className="se-hint">You are answering from your outpost here: these thugs and guns leave that corner while they fight.</small> : null}
       <div className="se-actions-row">

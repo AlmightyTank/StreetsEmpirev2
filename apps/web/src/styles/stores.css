@@ -1002,8 +1002,6 @@
 .se-access-badge--locked strong {
   color: var(--se-warn);
 }
-
-
 /* Full-shop marketplace: one trading-first experience on desktop, tablet and mobile.
    All stores share these rules; unlock/access rules still come from the server. */
 .se-stores {
@@ -2579,7 +2577,7 @@
 }
 
 
-/* Street Market quantity scaling stays compact and scrollable on small screens. */
+/* Street Market quantity fields keep the same compact, thumb-friendly stepper as other game forms. */
 .se-market-trader-quantity {
   display: grid;
   min-width: 0;
@@ -2590,51 +2588,6 @@
   box-sizing: border-box;
   width: 100%;
   min-width: 0;
-}
-.se-market-quantity {
-  display: flex;
-  min-width: 0;
-  max-width: 100%;
-  gap: 4px;
-  overflow-x: auto;
-  padding: 2px 0 4px;
-  scrollbar-width: thin;
-  -webkit-overflow-scrolling: touch;
-}
-.se-market-quantity__step {
-  display: inline-flex;
-  flex: 0 0 auto;
-  gap: 2px;
-}
-.se-market-quantity__step button {
-  min-width: 31px;
-  min-height: 27px;
-  padding: 2px 5px;
-  border: 1px solid var(--se-line);
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--se-panel-hi) 76%, transparent);
-  color: var(--se-text-dim);
-  font-family: var(--se-mono);
-  font-size: 9px;
-  font-weight: 750;
-  white-space: nowrap;
-  cursor: pointer;
-}
-.se-market-quantity__step button:hover:not(:disabled) {
-  border-color: color-mix(in srgb, var(--se-accent) 55%, var(--se-line));
-  background: color-mix(in srgb, var(--se-accent) 10%, var(--se-panel));
-  color: var(--se-accent);
-}
-.se-market-quantity__step button:disabled {
-  opacity: .42;
-  cursor: not-allowed;
-}
-.se-market-quantity__step button:focus-visible {
-  outline: 2px solid var(--se-accent);
-  outline-offset: 1px;
-}
-.se-market-inspector__body > .se-market-quantity {
-  margin-top: -5px;
 }
 @media (max-width: 700px) {
   .se-table--cards td.se-market-buy-controls {
@@ -2647,39 +2600,5 @@
   }
   .se-table--cards td.se-market-buy-controls > .se-btn {
     width: 100%;
-  }
-}
-
-
-/* Street Market quantity buttons use phone-sized tap targets. */
-@media (max-width: 700px) {
-  .se-market-quantity {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 6px;
-    overflow: visible;
-    padding: 4px 0;
-  }
-
-  .se-market-quantity__step {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 4px;
-    min-width: 0;
-  }
-
-  .se-market-quantity__step button {
-    width: 100%;
-    min-width: 0;
-    min-height: 40px;
-    padding: 4px 2px;
-    font-size: 10px;
-    touch-action: manipulation;
-  }
-}
-
-@media (min-width: 560px) and (max-width: 700px) {
-  .se-market-quantity {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }

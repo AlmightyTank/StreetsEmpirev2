@@ -8,6 +8,7 @@ import { formatClockTime, formatDuration } from '../utils/time.js';
 import { Alert } from './Alert.js';
 import { Button } from './Button.js';
 import { Panel } from './Panel.js';
+import { QuantityStepper } from './QuantityStepper.js';
 
 type Products = TravelDto['products'];
 const clock = (iso: string) => formatClockTime(iso);
@@ -75,6 +76,7 @@ function SendHelp({ tail, onDone }: { tail: ConvoyTailDto; onDone: () => void })
         <div className="se-launch__with-all">
           <input className="se-input" type="number" inputMode="numeric" min={1} max={limit.max} value={thugs} placeholder="Thugs" aria-label="Thugs to send"
             disabled={Boolean(limit.reason)} onChange={(event) => setThugs(whole(event.target.value))} />
+          <QuantityStepper value={thugs} onChange={setThugs} min={1} max={limit.max} disabled={Boolean(limit.reason)} unitLabel="thugs" />
           <Button type="button" className="se-btn se-btn--primary se-btn--sm" disabledReason={block}
             onClick={async () => {
               await send.run((actionId): Promise<GameActionResult<ConvoyBackupResult>> => api.post('/game/convoys/backup', { tailId: tail.id, thugs: count, actionId }));
@@ -166,6 +168,7 @@ function TargetRow({ target, onDone }: { target: ConvoyTargetDto; onDone: () => 
         <div className="se-launch__with-all">
           <input className="se-input" type="number" inputMode="numeric" min={1} max={max} value={squad} aria-label="Squad"
             onChange={(event) => setSquad(whole(event.target.value))} />
+          <QuantityStepper value={squad} onChange={setSquad} min={1} max={max} unitLabel="thugs" />
           <Button type="button" className="se-btn se-btn--primary se-btn--sm" disabledReason={block}
             onClick={async () => {
               await tail.run((actionId): Promise<GameActionResult<ConvoyTailResult>> => api.post('/game/convoys/tail', { runId: target.runId, squad: count, actionId }));
@@ -201,6 +204,7 @@ function BossRow({ target, onDone }: { target: BossTargetDto; onDone: () => void
         <div className="se-launch__with-all">
           <input className="se-input" type="number" inputMode="numeric" min={1} max={max} value={squad} aria-label="Squad"
             onChange={(event) => setSquad(whole(event.target.value))} />
+          <QuantityStepper value={squad} onChange={setSquad} min={1} max={max} unitLabel="thugs" />
           <Button type="button" className="se-btn se-btn--primary se-btn--sm" disabledReason={block}
             onClick={async () => {
               await hit.run((actionId): Promise<GameActionResult<BossHitResult>> => api.post('/game/convoys/boss-hit', { tripId: target.tripId, squad: count, actionId }));
@@ -250,6 +254,7 @@ function BossHitHelp({ hit, onDone }: { hit: BossHitDto; onDone: () => void }) {
         <div className="se-launch__with-all">
           <input className="se-input" type="number" inputMode="numeric" min={1} max={answer.max} value={thugs} placeholder="Thugs" aria-label="Thugs to send"
             disabled={Boolean(answer.reason)} onChange={(event) => setThugs(whole(event.target.value))} />
+          <QuantityStepper value={thugs} onChange={setThugs} min={1} max={answer.max} disabled={Boolean(answer.reason)} unitLabel="thugs" />
           <Button type="button" className="se-btn se-btn--primary se-btn--sm" disabledReason={block}
             onClick={async () => {
               await send.run((actionId): Promise<GameActionResult<BossHitBackupResult>> => api.post('/game/convoys/boss-hit/backup', { hitId: hit.id, thugs: count, actionId }));

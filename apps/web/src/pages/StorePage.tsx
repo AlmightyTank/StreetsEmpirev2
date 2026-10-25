@@ -19,7 +19,7 @@ import { ProductAccessTable } from '../components/ProductAccess.js';
 import { matchesStoreShelf, type StoreShelfFilter } from '../utils/storeShelfDisplay.js';
 import { QuestLockNote } from '../components/QuestLink.js';
 import { ShelfArt } from '../components/ItemTile.js';
-import { QuantitySteps } from '../components/QuantitySteps.js';
+import { QuantityStepper } from '../components/QuantityStepper.js';
 import { useCountdown } from '../hooks/useCountdown.js';
 import { useGameAction } from '../hooks/useGameAction.js';
 import { GameLayout } from '../layouts/GameLayout.js';
@@ -154,7 +154,7 @@ function relationshipSummary(input: {
   return parts.join(' · ');
 }
 
-function StoreItem({ item, store, storeName, keeper, owned, cashCents, bulkHelpers, blocked, basket, onTrade, onSpecialOrder, onAddToBasket, onRestock, tourTarget, tourQuantity, tourRequirement }: {
+function StoreItem({ item, store, storeName, keeper, owned, cashCents, blocked, basket, onTrade, onSpecialOrder, onAddToBasket, onRestock, tourTarget, tourQuantity, tourRequirement }: {
   item: StoreItemDto; store: string; storeName: string; keeper: string; owned: number; cashCents: number;
   /** Why the whole shelf is off, or null when it is open for business. */
   bulkHelpers: number[]; blocked: string | null;
@@ -288,17 +288,8 @@ function StoreItem({ item, store, storeName, keeper, owned, cashCents, bulkHelpe
               onChange={(e) => setQuantity(e.target.value === '' ? '' : Number(e.target.value))} />
           </div>
         </div>
-        <div className="se-spend__row">
-          <QuantitySteps
-            value={quantity}
-            onChange={setQuantity}
-            max={max}
-            steps={bulkHelpers}
-            disabled={blocked !== null || purchaseLocked}
-            disabledReason={blocked ?? (purchaseLocked ? `Complete the required job before buying ${item.name}.` : null)}
-            emptyReason={emptyReason}
-          />
-        </div>
+        <QuantityStepper value={quantity} onChange={setQuantity} min={1} max={max}
+          disabled={blocked !== null || purchaseLocked} unitLabel={item.name.toLowerCase()} showMax />
         <EconomyQuote
           eyebrow="Trade quote"
           title={quantity === '' ? item.name : `${formatNumber(quantity)} × ${item.name}`}

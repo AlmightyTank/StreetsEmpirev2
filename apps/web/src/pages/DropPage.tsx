@@ -20,6 +20,7 @@ import { dropApi } from '../api/drop.js';
 import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
+import { QuantityStepper } from '../components/QuantityStepper.js';
 import { BuiltAvatar } from '../components/BuiltAvatar.js';
 import { ItemTile } from '../components/ItemTile.js';
 import { StreetSignDisplay } from '../components/StreetSignBuilder.js';
@@ -1031,15 +1032,11 @@ function PassView() {
               </div>
               <p>Tier <strong>{quote.tier}</strong> → <strong>{quote.tier + count}</strong> of {quote.tierCount}</p>
               <div className="se-drop-skip__picker" role="group" aria-label="Tiers to skip">
-                {[1, 5, 10].filter((value) => value <= quote.remaining).map((value) => (
-                  <button key={value} type="button" className={`se-drop-chip${count === value ? ' is-active' : ''}`} aria-pressed={count === value} onClick={() => setTiers(value)}>
-                    {value} tier{value === 1 ? '' : 's'}
-                  </button>
-                ))}
                 <label className="se-drop-skip__custom">
                   <span>Tiers</span>
                   <input type="number" min={1} max={quote.remaining} value={count} onChange={(event) => setTiers(Math.max(1, Math.min(quote.remaining, Number(event.target.value) || 1)))} />
                 </label>
+                <QuantityStepper value={count} onChange={setTiers} min={1} max={quote.remaining} unitLabel="tiers" />
               </div>
               <div className="se-drop-buy__offer">
                 <div>{price < basePrice ? <Crowns value={basePrice} strike /> : null}<Crowns value={price} /><small>{count >= 10 ? 'Ten-pack price applied.' : `${10 - (count % 10)} more for the ten-pack price.`}</small></div>

@@ -7,6 +7,7 @@ import { Panel, Row } from '../components/Panel.js';
 import type { ProfitIntelligenceDto, ProfitIntelligenceReceiptsPageDto, UpdateProfitIntelligenceGoalsInput } from '@streets/shared';
 import { EmptyState, GamePageHeader } from '../components/GameUI.js';
 import { GameLayout } from '../layouts/GameLayout.js';
+import { QuantityStepper } from '../components/QuantityStepper.js';
 
 function moneyCents(value: string): string {
   const cents = BigInt(value);
@@ -262,7 +263,7 @@ export function HoldingsPage() {
             <option value="">Off</option>{report.goals.availableProductKeys.map((key) => <option key={key} value={key}>{key}</option>)}
           </select>
           <input aria-label="Minimum units" className="se-input" type="number" min="1" max="2000000000" step="1" value={goalDraft.minimumProductUnits} onChange={(event) => setGoalDraft((draft) => ({ ...draft, minimumProductUnits: event.target.value }))} placeholder="Units" />
-        </div><small>Counts stock in your warehouses and dealer crews; excludes inbound shipments.</small></div>
+        </div><QuantityStepper value={Number(goalDraft.minimumProductUnits) || 1} onChange={(value) => setGoalDraft((draft) => ({ ...draft, minimumProductUnits: String(value) }))} min={1} max={2000000000} unitLabel="units" /><small>Counts stock in your warehouses and dealer crews; excludes inbound shipments.</small></div>
         <div className="se-field"><label htmlFor="goal-route-cost">Maximum route purchases ($)</label><input id="goal-route-cost" className="se-input" inputMode="decimal" value={goalDraft.maximumRoutePurchase} onChange={(event) => setGoalDraft((draft) => ({ ...draft, maximumRoutePurchase: event.target.value }))} placeholder="Off" /><small>Warns when purchases on a recorded route exceed this amount in the selected window.</small></div>
         <button className="se-btn se-btn--primary" type="submit" disabled={goalBusy}>{goalBusy ? 'Saving…' : 'Save goals'}</button>
       </form>
