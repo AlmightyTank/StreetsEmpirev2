@@ -1659,6 +1659,12 @@
 @media (max-width: 700px) {
   .se-casino-tablehead { grid-template-columns: auto minmax(0, 1fr); }
   .se-casino-switch { grid-column: 1 / -1; overflow-x: auto; padding-bottom: .15rem; }
+  /* .se-casino * { min-width: 0 } was shrinking these chips until nowrap
+     labels ran together ("RouletteScratch"). Keep each name intact and scroll. */
+  .se-casino .se-casino-switch__game {
+    flex: 0 0 auto;
+    min-width: max-content;
+  }
   .se-casino-wallet { grid-template-columns: 1fr; }
   .se-casino-wallet__actions { justify-content: stretch; }
   .se-casino-wallet__start { flex: 1 1 auto; }
