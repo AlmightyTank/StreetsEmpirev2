@@ -2128,6 +2128,8 @@ model RoundPlayer {
 
   /// 2.3.0. Hideout components found while scouting; keyed by component id.
   scavengedComponents Json @default("{}")
+  /// The Board. Parts escrowed on open offers (and expired ones still waiting on stash room), by key. Counts toward net worth like held parts.
+  playerBoardEscrow   Json @default("{}")
   /// 2.3.0. Cache rewards earned from scouting, before they are opened.
   scavengedCaches Json @default("[]")
 

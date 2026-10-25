@@ -204,6 +204,14 @@ describe('The Board B: part books', () => {
     expect(calculateNetWorthCents(held, classicOgV26I)).toBe(calculateNetWorthCents(without, classicOgV26I));
   });
 
+  it('counts escrowed parts like held ones, so posting a stack moves nothing', () => {
+    const held = { ...empty, cashCents: 50_001, scavengedComponents: { SCRAP_METAL: 50, RADIO: 1 } };
+    const posted = { ...empty, cashCents: 50_001, scavengedComponents: { SCRAP_METAL: 20, RADIO: 1 }, playerBoardEscrow: { SCRAP_METAL: 30 } };
+    expect(calculateNetWorthCents(posted, on)).toBe(calculateNetWorthCents(held, on));
+    expect(calculateNetWorthCents({ ...posted, scavengedComponents: {} }, on) - calculateNetWorthCents({ ...empty, cashCents: 50_001 }, on)).toBe(12_000n);
+    expect(calculateNetWorthCents(posted, rules)).toBe(calculateNetWorthCents({ ...empty, cashCents: 50_001 }, rules));
+  });
+
   it('ignores stored balances that are not whole positive quantities of a booked key', () => {
     expect(playerBoardPartsNetWorthCents({ SCRAP_METAL: -5, WIRING: 1.5, TOOL_KIT: '3', LABELS: 0, MYSTERY: 10, CLOTH: 2 }, on)).toBe(800n);
     for (const junk of [null, undefined, 7, 'SCRAP_METAL', [1, 2], {}]) expect(playerBoardPartsNetWorthCents(junk, on)).toBe(0n);

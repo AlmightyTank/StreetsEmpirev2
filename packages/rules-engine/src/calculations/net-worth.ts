@@ -59,6 +59,8 @@ export function calculateNetWorthCents(
     + ammo
     // The Board B: scavenge parts at their books, only on a round with the Board switched on.
     + playerBoardPartsNetWorthCents(player.scavengedComponents, ruleset)
+    // The Board C: an escrowed stack is still the seller's until it sells.
+    + playerBoardPartsNetWorthCents(player.playerBoardEscrow, ruleset)
   );
   // 1.6.5-A: what is owed comes back off, so borrowing never buys rank. Never below zero.
   const debt = weightedDebtCents(player.loanDebtCents ?? 0, v.cashWeightPercent);

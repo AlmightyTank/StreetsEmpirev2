@@ -125,6 +125,15 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
     return { round, player };
   }
 
+  /**
+   * The Board: parts count toward rank while the Board is on, so a part or cash change made outside
+   * the action pipeline refreshes stored net worth and ranks straight away. Rounds without the Board
+   * keep settling on the next read, as before.
+   */
+  async function settleAfterParts(round: Parameters<typeof loadRulesetForRound>[0], roundPlayerId: string) {
+    if (loadRulesetForRound(round).playerBoard?.enabled) await PlayerStateService.settle(fastify.prisma, roundPlayerId);
+  }
+
   fastify.get('/profit-intelligence', { preHandler: fastify.requireAuth }, async (request, reply) => {
     const query = z.object({ days: z.coerce.number().int().min(1).max(90).default(30) }).safeParse(request.query);
     if (!query.success) throw AppError.badRequest('INVALID_REPORT_PERIOD', 'Choose a report window from 1 to 90 days.');
@@ -315,9 +324,11 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.post('/stores/salvage/trade', { preHandler: fastify.requireAuth }, async (request) => {
     const body = parseBody(z.object({ key: z.string().trim().min(1).max(64), quantity: z.number().int().min(1).max(MAX_SALVAGE_TRADE) }).strict(), request.body);
-    const { player } = await requirePlayer(request.auth!.account.id);
+    const { round, player } = await requirePlayer(request.auth!.account.id);
     await PlayerStateService.settle(fastify.prisma, player.id, { markActive: true });
-    return SalvageYardService.trade(fastify.prisma, player.id, body.key, body.quantity);
+    const trade = await SalvageYardService.trade(fastify.prisma, player.id, body.key, body.quantity);
+    await settleAfterParts(round, player.id);
+    return trade;
   });
 
   // The Board C: escrow a stack of parts, take it down, and read your own offers. Fills arrive in E.
@@ -335,7 +346,9 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
     }).strict(), request.body);
     const { round, player } = await requirePlayer(request.auth!.account.id);
     await PlayerStateService.settle(fastify.prisma, player.id, { markActive: true });
-    return PlayerBoardService.post(fastify.prisma, round, loadRulesetForRound(round), player.id, body);
+    const posted = await PlayerBoardService.post(fastify.prisma, round, loadRulesetForRound(round), player.id, body);
+    await settleAfterParts(round, player.id);
+    return posted;
   });
 
   fastify.post('/stores/board/offers/:offerId/cancel', { preHandler: fastify.requireAuth }, async (request) => {
@@ -343,7 +356,9 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
     if (!params.success) throw AppError.badRequest('OFFER_NOT_FOUND', 'That offer is not yours.');
     const { round, player } = await requirePlayer(request.auth!.account.id);
     await PlayerStateService.settle(fastify.prisma, player.id, { markActive: true });
-    return PlayerBoardService.cancel(fastify.prisma, round, player.id, params.data.offerId);
+    const cancelled = await PlayerBoardService.cancel(fastify.prisma, round, player.id, params.data.offerId);
+    await settleAfterParts(round, player.id);
+    return cancelled;
   });
 
   fastify.get('/stores', { preHandler: fastify.requireAuth }, async (request) => {
@@ -675,8 +690,10 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.post('/hideout/scavenging/:cacheId/open', { preHandler: fastify.requireAuth }, async (request) => {
     const { cacheId } = parseBody(z.object({ cacheId: z.string().trim().min(1).max(64) }).strict(), request.params);
-    const { player } = await requirePlayer(request.auth!.account.id);
-    return ScavengingService.open(fastify.prisma, player.id, cacheId);
+    const { round, player } = await requirePlayer(request.auth!.account.id);
+    const opened = await ScavengingService.open(fastify.prisma, player.id, cacheId);
+    await settleAfterParts(round, player.id);
+    return opened;
   });
 
   fastify.get('/hideout/generator', { preHandler: fastify.requireAuth }, async (request) => {
@@ -690,8 +707,10 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
       refuelCans: z.number().int().min(0).max(100).optional(),
       upgrade: z.enum(['CAPACITY', 'EFFICIENCY']).optional(),
     }).strict(), request.body) as GeneratorUpdate;
-    const { player } = await requirePlayer(request.auth!.account.id);
-    return GeneratorService.update(fastify.prisma, player.id, body);
+    const { round, player } = await requirePlayer(request.auth!.account.id);
+    const generator = await GeneratorService.update(fastify.prisma, player.id, body);
+    await settleAfterParts(round, player.id);
+    return generator;
   });
 
   fastify.get('/hideout/workshop', { preHandler: fastify.requireAuth }, async (request) => {

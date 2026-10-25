@@ -199,6 +199,8 @@ export interface PlayerState {
   generatorCapacityLevel?: number;
   generatorEfficiencyLevel?: number;
   scavengedComponents?: Prisma.InputJsonValue;
+  /** The Board C. Read-only here: only the Board service moves parts in and out of escrow. */
+  playerBoardEscrow?: Prisma.InputJsonValue;
 }
 
 export interface ActionContext {
@@ -366,6 +368,7 @@ export function toState(player: RoundPlayer): PlayerState {
     generatorCapacityLevel: player.generatorCapacityLevel,
     generatorEfficiencyLevel: player.generatorEfficiencyLevel,
     scavengedComponents: player.scavengedComponents as Prisma.InputJsonValue,
+    playerBoardEscrow: player.playerBoardEscrow as Prisma.InputJsonValue,
   };
 }
 
@@ -604,7 +607,14 @@ export const ActionService = {
         state: actionEncounter?.next ?? executed,
         player,
       });
-      const next = staffing.next;
+      let next = staffing.next;
+      // Scouting finds and workshop ingredients are written by their own services mid-action. Unless
+      // the action handed back a new balance itself (a hideout build), re-read the stored one so the
+      // whole-state write below does not put the old balance back, and net worth counts the new one.
+      if (next.scavengedComponents === current.scavengedComponents) {
+        const stored = await tx.roundPlayer.findUniqueOrThrow({ where: { id: roundPlayerId }, select: { scavengedComponents: true } });
+        next = { ...next, scavengedComponents: stored.scavengedComponents as Prisma.InputJsonValue };
+      }
       assertPlayerState(next, ruleset, 'after');
       assertLoanDebtChange(current.loanDebtCents, next.loanDebtCents, ruleset);
 

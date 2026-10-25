@@ -102,9 +102,14 @@ Slice A shipped as `classic-og-v2.6-j` (2.6.0-J): `playerBoard: { enabled: false
 
 Slice B adds `playerBoard.partBookCents` to `classic-og-v2.6-j`, which is still unreleased and dark, with the books from the part table above for all 19 keys. `playerBoardPartBookCents` returns null for any other key, so it cannot be listed. `calculateNetWorthCents` counts held parts from the stored `scavengedComponents` only while `playerBoard.enabled` is true. Flag off is today's rank.
 
-Two things must land before slice E turns the flag on:
+Parts count toward rank (decided after slice C). Every rank calculation already passes either the full player row or `toState(row)`, so held parts and the `playerBoardEscrow` column reach `calculateNetWorthCents` with no per-caller wiring. Three changes make the stored rank correct:
 
-- **Server wiring.** The rules engine counts parts only when the caller passes `scavengedComponents`. Every server path that writes `netWorthCents` must select it. The services that change part balances (scavenging, workshop, Salvage Yard, hideout builds, generator) must also recompute `netWorthCents`, because today they do not.
+- **The action pipeline re-reads part balances before its whole-state write.** It does this unless the action returned a new balance itself, as hideout builds do. Before this fix, the write put the pre-action balance back. **Scouting finds were never kept and workshop crafts never used up their ingredients, on every round.** This fix applies regardless of the Board flag.
+- **Routes that change parts or cash outside an action re-settle afterwards** when the Board is on: opening a cache, the generator, the Salvage Yard, and Board post and cancel. Rounds without the Board keep settling on the next read, as before.
+- **Escrow lives in `RoundPlayer.playerBoardEscrow`** and counts at book like held parts. Posting moves rank only by the weighted fee, and cancel and expiry move nothing.
+
+One issue is still open before slice E:
+
 - **The Salvage Yard breaks the rank rule at these books.** The yard sells commons for $100 and uncommons for $300, and it barters the rest. Two routes raise rank:
   - Cash alone. A fuel cell or specialist circuitry costs about $2,250 in yard cash, which is about $1,690 of weighted rank, for $2,500 of book.
   - Barter, once the Board is on. Every yard barter returns more book than it takes. For example, 5 commons plus 20 beer, roughly $24 of book, become an $80 motor assembly. Buying those commons on the Board at the floor is rank-neutral, so cash plus Board plus yard mints rank.
@@ -117,7 +122,7 @@ Slice C adds `PlayerBoardOffer` (migration `20261225000000_player_board_offers`)
 - **Pause.** Each offer stores `Round.pausedMinutesTotal` at posting. Expiry is pushed back by every pause since then, including one still open, so a paused round never eats a listing. Posting and cancelling are refused while paused.
 - **Expiry is lazy.** It runs when the seller posts, cancels or reads their offers, and in `PlayerBoardService.expireDue(round)`. D's book read model must call `expireDue` or filter on the effective expiry.
 - **A stack that needs a new stash cell when none is free is not lost.** Cancel refuses with `STASH_FULL`. Expiry marks the offer `EXPIRED` with `returnedAt` null, and the stack goes back on the next settle that has room. Escrow for E's item count is `OPEN` plus `EXPIRED` with `returnedAt` null. Today a level-0 stash has 60 cells and only 37 distinct stacks exist, so this path cannot trigger yet.
-- **Before E turns the flag on,** escrowed stacks must keep counting toward the seller's net worth at book, the way posted corner guns do (`postedNetWorthCents`). Otherwise posting drops rank and a fill moves value from nowhere.
+- **Escrow counts toward rank.** Escrowed stacks are held in `RoundPlayer.playerBoardEscrow` and count at book, the same as held parts. `OPEN` offers plus `EXPIRED` offers with `returnedAt` null always equal that column.
 
 F and G both sit on E. Product is the smaller cut, so it goes first. H is last. D lands before E so the tab exists on the round where fills turn on.
 

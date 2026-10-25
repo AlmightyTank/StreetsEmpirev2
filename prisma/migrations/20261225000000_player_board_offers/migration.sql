@@ -1,3 +1,6 @@
+-- AlterTable
+ALTER TABLE "RoundPlayer" ADD COLUMN "playerBoardEscrow" JSONB NOT NULL DEFAULT '{}';
+
 -- CreateEnum
 CREATE TYPE "PlayerBoardOfferStatus" AS ENUM ('OPEN', 'SOLD', 'CANCELLED', 'EXPIRED');
 

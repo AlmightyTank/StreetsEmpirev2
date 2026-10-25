@@ -15,9 +15,10 @@ import { EconomyLedgerService } from './economy-ledger.service.js';
 import { COMPONENTS, jsonObject } from './scavenging.service.js';
 
 /**
- * The Board C: escrow. Posting moves a stack of parts out of `scavengedComponents` into an OPEN
- * offer and charges the posting fee, which never comes back. Cancel and expiry return the stack.
- * An expired stack that needs a new stash cell when none is free stays held on the offer
+ * The Board C: escrow. Posting moves a stack of parts out of `scavengedComponents` into
+ * `playerBoardEscrow`, opens an offer for it, and charges the posting fee, which never comes back.
+ * Both balances count toward net worth, so only the fee moves rank. Cancel and expiry return the
+ * stack. An expired stack that needs a new stash cell when none is free stays held on the offer
  * (`returnedAt` null) and goes back the next time the seller's offers settle with room.
  * Nothing here fills an offer; that is slice E.
  */
@@ -69,9 +70,25 @@ async function canReturn(tx: Db, roundPlayerId: string, key: string, components:
   return canFitAdditionalStack(await StashService.page(tx, roundPlayerId), key as StashItemKeyDto);
 }
 
+async function escrowBalances(tx: Db, roundPlayerId: string): Promise<Record<string, number>> {
+  const player = await tx.roundPlayer.findUniqueOrThrow({ where: { id: roundPlayerId }, select: { playerBoardEscrow: true } });
+  return jsonObject(player.playerBoardEscrow, {});
+}
+
+function moveUnits(from: Record<string, number>, to: Record<string, number>, key: string, quantity: number): void {
+  from[key] = (from[key] ?? 0) - quantity;
+  if (from[key]! <= 0) delete from[key];
+  to[key] = (to[key] ?? 0) + quantity;
+}
+
+/** Escrow back to the stash. Both balances count toward net worth, so rank does not move. */
 async function returnStack(tx: Db, roundPlayerId: string, key: string, quantity: number, components: Record<string, number>): Promise<void> {
-  components[key] = (components[key] ?? 0) + quantity;
-  await tx.roundPlayer.update({ where: { id: roundPlayerId }, data: { scavengedComponents: components as Prisma.InputJsonValue } });
+  const escrow = await escrowBalances(tx, roundPlayerId);
+  moveUnits(escrow, components, key, quantity);
+  await tx.roundPlayer.update({ where: { id: roundPlayerId }, data: {
+    scavengedComponents: components as Prisma.InputJsonValue,
+    playerBoardEscrow: escrow as Prisma.InputJsonValue,
+  } });
 }
 
 /**
@@ -137,11 +154,15 @@ export const PlayerBoardService = {
         throw AppError.badRequest('NOT_ENOUGH_CASH', `The posting fee is ${dollars(feeCents)}.`);
       }
 
-      components[input.itemKey] = held - input.quantity;
-      if (components[input.itemKey]! <= 0) delete components[input.itemKey];
+      const escrow = await escrowBalances(tx, roundPlayerId);
+      moveUnits(components, escrow, input.itemKey, input.quantity);
       await tx.roundPlayer.update({
         where: { id: roundPlayerId },
-        data: { cashCents: player.cashCents - BigInt(feeCents), scavengedComponents: components as Prisma.InputJsonValue },
+        data: {
+          cashCents: player.cashCents - BigInt(feeCents),
+          scavengedComponents: components as Prisma.InputJsonValue,
+          playerBoardEscrow: escrow as Prisma.InputJsonValue,
+        },
       });
       const offer = await tx.playerBoardOffer.create({ data: {
         roundId: round.id,
