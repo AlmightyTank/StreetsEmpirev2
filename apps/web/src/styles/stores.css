@@ -1954,6 +1954,11 @@
   padding: 4px 8px;
 }
 
+.se-board-under {
+  color: var(--se-warn, #f5b041);
+  font-size: 12px;
+}
+
 .se-board-trade__tag {
   display: inline-block;
   margin-right: 6px;

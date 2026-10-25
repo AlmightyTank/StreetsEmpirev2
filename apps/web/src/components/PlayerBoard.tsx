@@ -47,15 +47,33 @@ function closesIn(iso: string, now: number): string {
 }
 
 /**
- * The cash a barter's buyer adds, as the server prices it: the gap between the stack's Board value
- * and the goods asked for, at the cash weight, rounded up to whole dollars. Null when the seller
- * asks for more than the stack is worth.
+ * The cash a barter's buyer adds, as the server prices it: the gap between the Board value taken
+ * and the goods handed over, at the cash weight, rounded up to whole dollars. Zero when the goods
+ * are worth as much or more.
  */
-export function boardBarterTopUpCents(offerBookCents: number, askBookCents: number, rules: PlayerBoardDto['rules']): number | null {
-  if (askBookCents > offerBookCents) return null;
+export function boardBarterTopUpCents(offerBookCents: number, askBookCents: number, rules: PlayerBoardDto['rules']): number {
   const gap = offerBookCents - askBookCents;
-  if (gap === 0) return 0;
+  if (gap <= 0) return 0;
   return Math.ceil(Math.ceil((gap * 100) / rules.cashWeightPercent) / 100) * 100;
+}
+
+const ceilToDollar = (cents: number) => (cents <= 0 ? 0 : Math.ceil(cents / 100) * 100);
+
+/** Listing tax for a cash price above the fair range, as the server charges it at posting. */
+export function boardCashListingTaxCents(unitPriceCents: number, bookCents: number, quantity: number, rules: PlayerBoardDto['rules']): number {
+  const proceeds = Math.floor((unitPriceCents * quantity * (100 - rules.taxPercent)) / 100);
+  return ceilToDollar(proceeds - Math.floor((bookCents * quantity * 100) / rules.cashWeightPercent));
+}
+
+/** The Board fee a buyer pays for `units` at a cash price below the fair range, as the server charges it. */
+export function boardCashBuyerFeeCents(unitPriceCents: number, bookCents: number, units: number, rules: PlayerBoardDto['rules']): number {
+  return ceilToDollar(Math.ceil((bookCents * units * 100) / rules.cashWeightPercent) - unitPriceCents * units);
+}
+
+/** Listing tax for a barter asking for more than its lots are worth, as the server charges it. */
+export function boardBarterListingTaxCents(lotBookCents: number, askBookCents: number, lots: number, rules: PlayerBoardDto['rules']): number {
+  const gain = (askBookCents - lotBookCents) * lots;
+  return gain <= 0 ? 0 : ceilToDollar(Math.ceil((gain * 100) / rules.cashWeightPercent));
 }
 
 /** What a barter's price line says about its lot: "each", or "per 10". */
@@ -63,10 +81,11 @@ export function lotLabel(lotSize: number): string {
   return lotSize === 1 ? 'each' : `per ${formatNumber(lotSize)}`;
 }
 
-/** The barter top-up for taking `units` of a row, priced together as the server does. */
+/** The Board's extra for taking `units` of a row: a barter's top-up, or the fee on a cash price below the fair range. */
 export function boardRowTopUpCents(row: PlayerBoardRowDto, units: number, rules: PlayerBoardDto['rules']): number {
+  if (row.priceKind === 'CASH') return boardCashBuyerFeeCents(row.unitPriceCents, row.lotBookCents, units, rules);
   const lots = units / row.lotSize;
-  return boardBarterTopUpCents(row.lotBookCents * lots, row.askBookCents * lots, rules) ?? 0;
+  return boardBarterTopUpCents(row.lotBookCents * lots, row.askBookCents * lots, rules);
 }
 
 /** "2 × Radio + 1 × Cloth". */
@@ -134,7 +153,9 @@ function ListPanel({ book, busy, form, onForm, onPost }: Pick<PlayerBoardViewPro
   const barter = form.mode === 'BARTER';
 
   const price = parseDollarsToCents(form.price);
-  const priceOk = price !== null && price >= part.floorCents && price <= part.capCents;
+  const priceOk = price !== null && price >= 1;
+  const listingTax = !barter && priceOk && quantityOk ? boardCashListingTaxCents(price!, part.bookCents, quantity, book.rules) : 0;
+  const underRange = !barter && priceOk && price! < part.floorCents;
 
   const askable = book.askable.filter((row) => row.key !== part.key);
   const askLines = form.ask.map((line) => ({ ...line, item: askable.find((row) => row.key === line.key), units: Number(line.quantity) }));
@@ -145,17 +166,18 @@ function ListPanel({ book, busy, form, onForm, onPost }: Pick<PlayerBoardViewPro
   const lots = lotOk && quantityOk && quantity % lot === 0 ? quantity / lot : null;
   const lotBook = lotOk ? part.bookCents * lot : 0;
   const askBook = askLines.reduce((sum, line) => sum + (line.item?.bookCents ?? 0) * (Number.isInteger(line.units) ? Math.max(0, line.units) : 0), 0);
-  const fair = askLinesOk && lotOk && askBook <= lotBook;
-  const topUp = fair && lots !== null ? boardBarterTopUpCents(lotBook * lots, askBook * lots, book.rules) : null;
+  const ready = askLinesOk && lotOk && lots !== null;
+  const topUp = ready ? boardBarterTopUpCents(lotBook * lots!, askBook * lots!, book.rules) : null;
+  const barterTax = ready ? boardBarterListingTaxCents(lotBook, askBook, lots!, book.rules) : 0;
+  const tax = barter ? barterTax : listingTax;
 
   const reason = full ? `You already have ${book.rules.maxOpenOffers} offers up.`
     : !quantityOk ? `List from 1 to ${formatNumber(part.held)}.`
       : barter
         ? !askLinesOk ? 'Ask for whole numbers of different things.'
           : !lotOk ? 'Price a whole number of units at a time.'
-            : !fair ? `Ask for no more than ${formatCentsExact(lotBook)} of Board value ${lotLabel(lot)}.`
-              : lots === null ? `List a whole number of lots of ${formatNumber(lot)}.` : busy ? 'Your last change is still going through.' : null
-        : !priceOk ? `Price each from ${formatCentsExact(part.floorCents)} to ${formatCentsExact(part.capCents)}.`
+            : lots === null ? `List a whole number of lots of ${formatNumber(lot)}.` : busy ? 'Your last change is still going through.' : null
+        : !priceOk ? 'Set a price of at least one cent each.'
           : busy ? 'Your last change is still going through.' : null;
 
   const setAsk = (index: number, change: Partial<{ key: string; quantity: string }>) =>
@@ -225,7 +247,7 @@ function ListPanel({ book, busy, form, onForm, onPost }: Pick<PlayerBoardViewPro
           ) : null}
           <p className="se-hint">
             Asking {formatCentsExact(askBook)} of {formatCentsExact(lotBook)} Board value {lotLabel(lotOk ? lot : 1)}.
-            {askLinesOk && lotOk && !fair ? ' That is more than they are worth.' : topUp ? ` Buying all of them, the buyer adds ${formatCentsExact(topUp)} to the Board to even it out.` : topUp === 0 ? ' An even swap.' : ''}
+            {barterTax > 0 ? ` That is more than they are worth, so posting costs ${formatCentsExact(barterTax)} of tax.` : topUp ? ` Buying all of them, the buyer adds ${formatCentsExact(topUp)} to the Board to even it out.` : topUp === 0 ? ' An even swap.' : ''}
             {' '}Buyers can take any number of {lotOk && lot > 1 ? `lots of ${formatNumber(lot)}` : 'them'}.
           </p>
         </fieldset>
@@ -234,14 +256,17 @@ function ListPanel({ book, busy, form, onForm, onPost }: Pick<PlayerBoardViewPro
           <label className="se-label" htmlFor="board-price">Price each</label>
           <input id="board-price" className="se-input" inputMode="decimal" value={form.price}
             onChange={(event) => onForm({ ...form, price: event.target.value })} aria-describedby="board-price-hint" />
-          <p className="se-hint" id="board-price-hint">From {formatCentsExact(part.floorCents)} to {formatCentsExact(part.capCents)}.</p>
+          <p className="se-hint" id="board-price-hint">
+            Fair range {formatCentsExact(part.floorCents)} to {formatCentsExact(part.capCents)}: no extra charge.
+            {listingTax > 0 ? ` Above it you pay ${formatCentsExact(listingTax)} of tax to post.` : underRange ? ' Below it, buyers pay the Board extra.' : ''}
+          </p>
         </div>
       )}
 
       <p className="se-board-list__terms">
-        {fee !== null ? <>Posting fee <strong>{formatCentsExact(fee)}</strong>, kept even if it does not sell. </> : null}
+        {fee !== null ? <>Posting fee <strong>{formatCentsExact(fee)}</strong>{tax > 0 ? <> plus <strong>{formatCentsExact(tax)}</strong> of tax</> : null}, kept even if it does not sell. </> : null}
         {!barter && quantityOk && priceOk ? <>A sale pays you <strong>{formatCentsExact(boardSellerProceedsCents(price! * quantity, book.rules))}</strong> after the {book.rules.taxPercent}% cut.</> : null}
-        {barter && topUp !== null && lots !== null ? <>Selling all of it hands you <strong>{askSummary(askLines.map((line) => ({ name: line.item!.name, quantity: line.units * lots })))}</strong>.</> : null}
+        {barter && ready ? <>Selling all of it hands you <strong>{askSummary(askLines.map((line) => ({ name: line.item!.name, quantity: line.units * lots! })))}</strong>.</> : null}
       </p>
       <Button type="submit" variant="primary" disabledReason={reason}>Post offer</Button>
     </form>
@@ -254,7 +279,7 @@ function buyBlocker(row: PlayerBoardRowDto, book: PlayerBoardDto, busy: boolean,
   if (units === null) {
     return row.lotSize > 1 ? `Take lots of ${formatNumber(row.lotSize)}, up to ${formatNumber(row.quantity)}.` : `Buy from 1 to ${formatNumber(row.quantity)}.`;
   }
-  const cash = row.priceKind === 'BARTER' ? boardRowTopUpCents(row, units, book.rules) : row.unitPriceCents * units;
+  const cash = (row.priceKind === 'BARTER' ? 0 : row.unitPriceCents * units) + boardRowTopUpCents(row, units, book.rules);
   if (cash > book.cashCents) return `You need ${formatCentsExact(cash)} on hand.`;
   const lots = units / row.lotSize;
   const short = row.ask.find((line) => (book.holdings[line.key] ?? 0) < line.quantity * lots);
@@ -293,7 +318,7 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
                     <td data-label="Seller"><span>{row.sellerName}{row.mine ? <span className="se-board-you"> (you)</span> : null}</span></td>
                     <td className="se-table__number se-num" data-label="Qty">{formatNumber(row.quantity)}</td>
                     <td className="se-board-trade" data-label="Price">
-                      <span>{row.priceKind === 'BARTER' ? <><span className="se-board-trade__tag">Trade</span> {askSummary(row.ask)} {lotLabel(row.lotSize)}</> : <><span className="se-num">{formatCentsExact(row.unitPriceCents)}</span> each</>}</span>
+                      <span>{row.priceKind === 'BARTER' ? <><span className="se-board-trade__tag">Trade</span> {askSummary(row.ask)} {lotLabel(row.lotSize)}</> : <><span className="se-num">{formatCentsExact(row.unitPriceCents)}</span> each{boardRowTopUpCents(row, 1, book.rules) > 0 ? <span className="se-board-under"> + Board fee</span> : null}</>}</span>
                     </td>
                     <td className="se-table__number se-num" data-label="Cash">
                       {row.priceKind === 'BARTER' ? (row.totalCents > 0 ? `+ ${formatCentsExact(row.totalCents)}` : 'None') : formatCentsExact(row.totalCents)}
@@ -438,22 +463,23 @@ export function PlayerBoard() {
         ? { itemKey: form.key, quantity: Number(form.quantity), priceKind: 'BARTER', lotSize: Number(form.lot || '1'), askItems: form.ask.map((line) => ({ key: line.key, quantity: Number(line.quantity) })), durationHours: form.hours }
         : { itemKey: form.key, quantity: Number(form.quantity), priceKind: 'CASH', unitPriceCents: price!, durationHours: form.hours });
       const terms = barter ? `for ${askSummary(result.offer.ask)} ${lotLabel(result.offer.lotSize)}` : `at ${formatCentsExact(result.offer.unitPriceCents)} each`;
-      return `Posted ${formatNumber(result.offer.quantity)} × ${result.offer.name} ${terms}. Fee ${formatCentsExact(result.feeCents)}.`;
+      return `Posted ${formatNumber(result.offer.quantity)} × ${result.offer.name} ${terms}. Fee ${formatCentsExact(result.feeCents)}${result.listingTaxCents > 0 ? `, tax ${formatCentsExact(result.listingTaxCents)}` : ''}.`;
     });
   }
 
   async function buy(row: PlayerBoardRowDto, units: number) {
     const barter = row.priceKind === 'BARTER';
-    const cost = row.unitPriceCents * units;
+    const boardFee = boardRowTopUpCents(row, units, book!.rules);
+    const cost = (barter ? 0 : row.unitPriceCents * units) + boardFee;
     const lots = units / row.lotSize;
-    const topUp = barter ? boardRowTopUpCents(row, units, book!.rules) : 0;
+    const topUp = barter ? boardFee : 0;
     const ok = await confirmAction(barter ? {
       title: `Trade for ${formatNumber(units)} × ${row.name}?`,
       body: `You hand ${row.sellerName} ${askSummary(row.ask.map((line) => ({ ...line, quantity: line.quantity * lots })))}${topUp > 0 ? `, and the Board takes ${formatCentsExact(topUp)} to even out the trade` : ''}.`,
       confirmLabel: 'Trade',
     } : {
       title: `Buy ${formatNumber(units)} × ${row.name}?`,
-      body: `You pay ${formatCentsExact(cost)} to ${row.sellerName}${units < row.quantity ? `; ${formatNumber(row.quantity - units)} stay on the Board` : ' for everything left'}.`,
+      body: `You pay ${formatCentsExact(cost)}${boardFee > 0 ? `, ${formatCentsExact(boardFee)} of it to the Board because the price is under the fair range` : ` to ${row.sellerName}`}${units < row.quantity ? `; ${formatNumber(row.quantity - units)} stay on the Board` : ' for everything left'}.`,
       confirmLabel: `Pay ${formatCentsExact(cost)}`,
     });
     if (!ok) return;

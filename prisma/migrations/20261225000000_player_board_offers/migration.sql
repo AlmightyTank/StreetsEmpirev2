@@ -17,6 +17,7 @@ CREATE TABLE "PlayerBoardOffer" (
     "remainingQuantity" INTEGER NOT NULL,
     "unitPriceCents" INTEGER NOT NULL,
     "bookCents" INTEGER NOT NULL,
+    "listingTaxCents" INTEGER NOT NULL DEFAULT 0,
     "priceKind" "PlayerBoardPriceKind" NOT NULL DEFAULT 'CASH',
     "lotSize" INTEGER NOT NULL DEFAULT 1,
     "askItems" JSONB,

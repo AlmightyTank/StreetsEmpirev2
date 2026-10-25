@@ -203,6 +203,29 @@ On the tab, barter rows show "Trade: 2 × Radio + 5 × Scrap metal" with the cas
 - **Rank.** The band is per unit and proceeds round down on each fill, so a partial buy is as rank-fair as a whole one, and the tests check it at 1, 7 and 22 units.
 - **On the tab,** cash rows get a quantity box beside the button, which reads "Buy 3" or "Buy all". Your offers show "9 of 12 left".
 
+### Any price, steeper outside the fair range
+
+The band is no longer a hard limit: it is the **fair range**. A seller can post any cash price of at least one cent, or a barter asking for any amount. Inside the fair range, nothing extra is charged. Outside it, whoever would gain rank pays exactly what cancels the gain, rounded up to whole dollars, so the charge grows the further out the price is:
+
+| Situation | Who pays | When | Helper |
+| --- | --- | --- | --- |
+| Cash price above the range | Seller, as a listing tax for the whole stack | At posting, kept like the posting fee | `playerBoardCashListingTaxCents` |
+| Cash price below the range | Buyer, as a Board fee on what they take | At each fill, deleted | `playerBoardCashBuyerFeeCents` |
+| Barter asking more than the lots are worth | Seller, as a listing tax | At posting, kept | `playerBoardBarterListingTaxCents` |
+| Barter asking less than the lots are worth | Buyer, as a top-up | At each fill, deleted | `playerBoardBarterFeeCents` |
+
+Example with 100 crack (book $3, fair range $4.00–$4.34):
+
+- **Too high.** Listing at $4.50 costs $14 of tax, at $6 costs $152, and at $10 costs $520.
+- **Too low.** Selling at $3.50 costs buyers a $50 Board fee for the lot, and at $2 a $200 fee.
+
+A below-range price has to charge the *buyer*, never the seller. Otherwise a second account could sell cheap to a main account and pass it rank.
+
+- **Rank timing.** The listing tax drops the seller's rank at posting, and the overpriced sale lifts it back to at most where it started. The integration test therefore measures the seller from before posting.
+- **Storage and ledger.** The offer stores `listingTaxCents`. The economy ledger gains `PLAYER_BOARD_LISTING_TAX` and `PLAYER_BOARD_BUYER_FEE`.
+- **On the tab.** The price box shows the fair range and the tax or fee a price would cost. Cheap rows are marked "+ Board fee", and the buy button and confirmation include it.
+- **Tests.** Sweeps cover crack and parts of every rarity, at prices from 1 cent to many times the book, for whole and partial buys and odd cash balances. Neither side's rank rises across posting and selling together.
+
 F and G both sit on E. Product is the smaller cut, so it goes first. H is last. D lands before E so the tab exists on the round where fills turn on.
 
 What each slice may touch:

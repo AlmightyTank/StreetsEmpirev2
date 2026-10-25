@@ -84,14 +84,14 @@ describe.runIf(process.env.PLAYER_BOARD_INTEGRATION === '1')('The Board escrow w
     expect(ledger.map((row) => [row.source, row.amountCents])).toEqual([['PLAYER_BOARD_FEE', -100n], ['PLAYER_BOARD_FEE', -2_500n]]);
   });
 
-  it('refuses more than you hold, a key outside the catalog, a price outside the band, and an odd length', async () => {
+  it('refuses more than you hold, a key outside the catalog, a price that is not whole cents, and an odd length', async () => {
     expect(await code(post({ quantity: 51 }))).toBe('NOT_ENOUGH_TO_LIST');
     expect(await code(post({ itemKey: 'FUEL_CAN', quantity: 1, unitPriceCents: 3_400 }))).toBe('NOT_ENOUGH_TO_LIST');
     for (const itemKey of ['AMMO_BOX', 'PISTOL', 'SPEED', 'toString', 'scrap_metal']) {
       expect(await code(post({ itemKey })), itemKey).toBe('NOT_LISTABLE');
     }
-    expect(await code(post({ unitPriceCents: 533 }))).toBe('PRICE_OUTSIDE_BAND');
-    expect(await code(post({ unitPriceCents: 580 }))).toBe('PRICE_OUTSIDE_BAND');
+    expect(await code(post({ unitPriceCents: 0 }))).toBe('INVALID_PRICE');
+    expect(await code(post({ unitPriceCents: 5.5 }))).toBe('INVALID_PRICE');
     expect(await code(post({ durationHours: 24 }))).toBe('INVALID_DURATION');
     expect(await code(post({ quantity: 0 }))).toBe('INVALID_QUANTITY');
     await prisma.roundPlayer.update({ where: { id: playerId }, data: { cashCents: 99n } });

@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
 import type { PlayerBoardDto } from '@streets/shared';
 import { StoreTabs } from '../StoreTabs.js';
-import { PlayerBoardView, askSummary, boardBuyUnits, boardRowTopUpCents, lotLabel, boardBarterTopUpCents, boardPostingFeeCents, boardSellerProceedsCents, parseDollarsToCents, type ListForm } from '../PlayerBoard.js';
+import { PlayerBoardView, askSummary, boardBarterListingTaxCents, boardBuyUnits, boardCashBuyerFeeCents, boardCashListingTaxCents, boardRowTopUpCents, lotLabel, boardBarterTopUpCents, boardPostingFeeCents, boardSellerProceedsCents, parseDollarsToCents, type ListForm } from '../PlayerBoard.js';
 
 const stores = [
   { key: 'CORNER', slug: 'corner', name: 'Corner Store' },
@@ -79,7 +79,7 @@ describe('The Board view', () => {
   });
 
   it('offers cancel only on open offers and says when a stack is waiting on room', () => {
-    const offer = { itemKey: 'RADIO', name: 'Radio', quantity: 2, remainingQuantity: 2, priceKind: 'CASH' as const, ask: [], lotSize: 1, unitPriceCents: 3_400, feeCents: 100, durationHours: 12, postedAt: later(-1) };
+    const offer = { itemKey: 'RADIO', name: 'Radio', quantity: 2, remainingQuantity: 2, priceKind: 'CASH' as const, ask: [], lotSize: 1, unitPriceCents: 3_400, feeCents: 100, listingTaxCents: 0, durationHours: 12, postedAt: later(-1) };
     const html = render({
       ...empty,
       openOffers: 1,
@@ -98,14 +98,20 @@ describe('The Board view', () => {
   it('prices the listing form with the fee and the seller share the server will use', () => {
     const listable = [{ key: 'SCRAP_METAL', name: 'Scrap metal', category: 'PART' as const, rarity: 'COMMON' as const, held: 30, bookCents: 400, floorCents: 534, capCents: 579 }];
     const ok = render({ ...empty, listable });
-    expect(ok).toContain('From $5.34 to $5.79.');
+    expect(ok).toContain('Fair range $5.34 to $5.79: no extra charge.');
     expect(ok).toContain('Posting fee <strong>$1.00</strong>');
     expect(ok).toContain('A sale pays you <strong>$50.60</strong>');
     expect(ok).toContain('12 hours');
     expect(ok).toContain('48 hours');
 
-    const outside = render({ ...empty, listable }, false, { ...form, price: '5.80' });
-    expect(outside).toContain('Price each from $5.34 to $5.79.');
+    // Any price can be posted; above the fair range the seller pays a tax to post, below it buyers pay the Board.
+    const above = render({ ...empty, listable }, false, { ...form, price: '7.00' });
+    expect(above).toContain('Above it you pay $12.00 of tax to post.'); // ten at $7: $64.40 of proceeds against $53.33
+    expect(above).toContain('plus <strong>$12.00</strong> of tax');
+    expect(above).not.toContain('Set a price');
+    const below = render({ ...empty, listable }, false, { ...form, price: '2.00' });
+    expect(below).toContain('Below it, buyers pay the Board extra.');
+    expect(render({ ...empty, listable }, false, { ...form, price: '0' })).toContain('Set a price of at least one cent each.');
     const full = render({ ...empty, listable, openOffers: 6 });
     expect(full).toContain('You already have 6 offers up.');
   });
@@ -127,7 +133,7 @@ describe('The Board with drugs', () => {
     expect(html).toContain('<optgroup label="Drugs">');
     expect(html).toContain('<optgroup label="Parts">');
     expect(html.indexOf('optgroup label="Drugs"')).toBeLessThan(html.indexOf('optgroup label="Parts"'));
-    expect(html).toContain('From $4.00 to $4.34.');
+    expect(html).toContain('Fair range $4.00 to $4.34');
     expect(html).toContain('A sale pays you <strong>$36.80</strong>');
   });
 });
@@ -173,8 +179,9 @@ describe('The Board barters', () => {
     expect(html).not.toContain('Price each');
 
     const greedy = render({ ...empty, listable }, false, { ...barter, ask: [{ key: 'RADIO', quantity: '4' }] });
-    expect(greedy).toContain('That is more than they are worth.');
-    expect(greedy).toContain('Ask for no more than $80.00 of Board value each.');
+    // 4 motors each asking $100 for $80: $80 of gain is $106.67 of tax, up to $107.
+    expect(greedy).toContain('That is more than they are worth, so posting costs $107.00 of tax.');
+    expect(greedy).toContain('plus <strong>$107.00</strong> of tax');
     const even = render({ ...empty, listable }, false, { ...barter, ask: [{ key: 'SCRAP_METAL', quantity: '20' }] });
     expect(even).toContain('An even swap.');
     const lots = render({ ...empty, listable }, false, { ...barter, quantity: '3', lot: '2', ask: [{ key: 'RADIO', quantity: '6' }] });
@@ -185,7 +192,7 @@ describe('The Board barters', () => {
     expect(boardBarterTopUpCents(8_000, 7_000, rules)).toBe(1_400); // $10 gap / 75% = $13.34, up to $14
     expect(boardBarterTopUpCents(32_000, 28_000, rules)).toBe(5_400); // four together, not 4 × $14
     expect(boardBarterTopUpCents(8_000, 8_000, rules)).toBe(0);
-    expect(boardBarterTopUpCents(8_000, 8_001, rules)).toBeNull();
+    expect(boardBarterTopUpCents(8_000, 8_001, rules)).toBe(0);
     expect(boardRowTopUpCents(trade, 2, rules)).toBe(2_700);
     expect(lotLabel(1)).toBe('each');
     expect(lotLabel(10)).toBe('per 10');
@@ -210,7 +217,7 @@ describe('The Board partial buys', () => {
   });
 
   it('shows a seller how much of their offer is left', () => {
-    const mine = render({ ...empty, openOffers: 1, mine: [{ id: 'm', itemKey: 'CRACK', name: 'Crack', quantity: 12, remainingQuantity: 9, priceKind: 'CASH', ask: [], lotSize: 1, unitPriceCents: 400, feeCents: 100, durationHours: 12, postedAt: later(-1), expiresAt: later(11), status: 'OPEN', returned: true }] });
+    const mine = render({ ...empty, openOffers: 1, mine: [{ id: 'm', itemKey: 'CRACK', name: 'Crack', quantity: 12, remainingQuantity: 9, priceKind: 'CASH', ask: [], lotSize: 1, unitPriceCents: 400, feeCents: 100, listingTaxCents: 0, durationHours: 12, postedAt: later(-1), expiresAt: later(11), status: 'OPEN', returned: true }] });
     expect(mine).toContain('9 of 12 left');
   });
 
@@ -221,6 +228,28 @@ describe('The Board partial buys', () => {
     expect(boardBuyUnits(row, '0')).toBeNull();
     expect(boardBuyUnits(row, '2.5')).toBeNull();
     expect(boardBuyUnits(row, '13')).toBeNull();
+  });
+});
+
+describe('The Board off-range prices', () => {
+  it('marks a cash offer under the fair range and prices its Board fee into the buy', () => {
+    const cheap = { id: 'c', itemKey: 'SCRAP_METAL', name: 'Scrap metal', category: 'PART' as const, rarity: 'COMMON' as const, priceKind: 'CASH' as const, ask: [],
+      lotSize: 1, lotBookCents: 400, askBookCents: 0, quantity: 10, unitPriceCents: 200, totalCents: 5_400, sellerName: 'Cheapo', mine: false, expiresAt: later(3) };
+    const html = render({ ...empty, rows: [cheap], cashCents: 2_100 }, false, form, { c: '4' });
+    expect(html).toContain('+ Board fee');
+    // Four for $8 plus a $14 Board fee: $22.
+    expect(html).toContain('You need $22.00 on hand.');
+    expect(boardRowTopUpCents(cheap, 4, rules)).toBe(1_400);
+    const fair = { ...cheap, unitPriceCents: 550, totalCents: 5_500 };
+    expect(render({ ...empty, rows: [fair] })).not.toContain('+ Board fee');
+  });
+
+  it('matches the server on every extra', () => {
+    expect(boardCashListingTaxCents(450, 300, 100, rules)).toBe(1_400);
+    expect(boardCashListingTaxCents(434, 300, 100, rules)).toBe(0);
+    expect(boardCashBuyerFeeCents(200, 300, 100, rules)).toBe(20_000);
+    expect(boardCashBuyerFeeCents(400, 300, 100, rules)).toBe(0);
+    expect(boardBarterListingTaxCents(8_000, 10_000, 1, rules)).toBe(2_700);
   });
 });
 

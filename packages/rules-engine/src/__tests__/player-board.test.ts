@@ -5,6 +5,9 @@ import {
   isPlayerBoardPriceLegal,
   playerBoardBand,
   playerBoardBarterFeeCents,
+  playerBoardBarterListingTaxCents,
+  playerBoardCashBuyerFeeCents,
+  playerBoardCashListingTaxCents,
   playerBoardBarterQuote,
   playerBoardEscrowNetWorthCents,
   playerBoardItemBookCents,
@@ -349,11 +352,10 @@ describe('The Board: barter', () => {
     expect(playerBoardBarterFeeCents(8_000, 7_000, 1, rules)).toBe(0);
   });
 
-  it('refuses an ask worth more than a lot, the offered item, an empty or long ask, or an untradeable good', () => {
+  it('allows an ask worth more than a lot, and refuses the offered item, an empty or long ask, or an untradeable good', () => {
     const refusal = (offer: string, lot: number, ask: Record<string, number>) => (playerBoardBarterQuote(offer, lot, ask, on) as { refusal?: string }).refusal;
-    expect(refusal('MOTOR_ASSEMBLY', 1, { SCRAP_METAL: 21 })).toBe('ASKS_TOO_MUCH');
-    expect(refusal('CRACK', 1, { SCRAP_METAL: 1 })).toBe('ASKS_TOO_MUCH');
-    expect(refusal('CRACK', 4, { SCRAP_METAL: 3 })).toBeUndefined();
+    expect(refusal('MOTOR_ASSEMBLY', 1, { SCRAP_METAL: 21 })).toBeUndefined();
+    expect(refusal('CRACK', 1, { SCRAP_METAL: 1 })).toBeUndefined();
     expect(refusal('MOTOR_ASSEMBLY', 1, { MOTOR_ASSEMBLY: 1 })).toBe('SAME_ITEM');
     expect(refusal('MOTOR_ASSEMBLY', 1, {})).toBe('EMPTY');
     expect(refusal('MOTOR_ASSEMBLY', 1, { SCRAP_METAL: 1, WIRING: 1, CLOTH: 1, LABELS: 1 })).toBe('TOO_MANY');
@@ -372,14 +374,79 @@ describe('The Board: barter', () => {
     for (const [offerKey, lot] of offers) for (const askKey of asks) for (const per of [1, 2, 5, 13]) for (const lots of [1, 3, 7]) for (const cash of [0, 1, 9_999]) {
       if (askKey === offerKey) continue;
       const quote = playerBoardBarterQuote(offerKey, lot, { [askKey]: per }, on);
-      if ('refusal' in quote) { expect(quote.refusal).toBe('ASKS_TOO_MUCH'); continue; }
+      if ('refusal' in quote) throw new Error(quote.refusal);
       const fee = playerBoardBarterFeeCents(quote.lotBookCents, quote.askBookCents, lots, on);
+      // An ask worth more than its lots costs the seller a tax at posting, before the stack is escrowed.
+      const tax = playerBoardBarterListingTaxCents(quote.lotBookCents, quote.askBookCents, lots, on);
       const units = lot * lots;
       const given = per * lots;
       const buyer = worth({ cashCents: cash, ...hold(offerKey, units) }) - worth({ cashCents: cash + fee, ...hold(askKey, given) });
-      const seller = worth({ cashCents: cash, ...hold(askKey, given) }) - worth({ cashCents: cash, playerBoardEscrow: { [offerKey]: units } });
+      const seller = worth({ cashCents: cash, ...hold(askKey, given) }) - worth({ cashCents: cash + tax, ...hold(offerKey, units) });
       expect(buyer, `buyer ${lots}x(${offerKey}x${lot} for ${askKey}x${per})`).toBeLessThanOrEqual(0n);
       expect(seller, `seller ${lots}x(${offerKey}x${lot} for ${askKey}x${per})`).toBeLessThanOrEqual(0n);
+    }
+  });
+});
+
+describe('The Board: any price, steeper outside the fair range', () => {
+  const on = { ...rules, playerBoard: { ...rules.playerBoard, enabled: true } } as Ruleset;
+
+  it('charges nothing extra anywhere in the fair range', () => {
+    for (const [book, units] of [[300, 1], [300, 100], [400, 7], [250_000, 1]] as const) {
+      const band = playerBoardBand(book, on)!;
+      for (const price of [band.floorCents, band.capCents]) {
+        expect(playerBoardCashListingTaxCents(price, book, units, on), `tax ${book} @${price}`).toBe(0);
+        expect(playerBoardCashBuyerFeeCents(price, book, units, on), `fee ${book} @${price}`).toBe(0);
+      }
+    }
+  });
+
+  it('taxes the seller more the further above the range, and charges the buyer more the further below', () => {
+    // 100 crack (book $3): fair range $4.00 to $4.34.
+    expect(playerBoardCashListingTaxCents(450, 300, 100, on)).toBe(1_400); // $414 of proceeds against $400 break-even
+    expect(playerBoardCashListingTaxCents(600, 300, 100, on)).toBe(15_200);
+    expect(playerBoardCashListingTaxCents(1_000, 300, 100, on)).toBe(52_000);
+    expect(playerBoardCashBuyerFeeCents(350, 300, 100, on)).toBe(5_000);
+    expect(playerBoardCashBuyerFeeCents(200, 300, 100, on)).toBe(20_000);
+    expect(playerBoardCashBuyerFeeCents(1, 300, 100, on)).toBe(39_900);
+    // A cent outside is a whole dollar: Board charges are never in cents.
+    expect(playerBoardCashListingTaxCents(435, 300, 1, on)).toBe(0); // 400 of proceeds, still not over
+    expect(playerBoardCashBuyerFeeCents(399, 300, 1, on)).toBe(100);
+    expect(playerBoardBarterListingTaxCents(8_000, 10_000, 1, on)).toBe(2_700);
+    expect(playerBoardBarterListingTaxCents(8_000, 8_000, 3, on)).toBe(0);
+  });
+
+  it('raises neither rank at any crack price, inside or out, for any amount bought and cash held', () => {
+    const worth = (p: object) => calculateNetWorthCents({ ...empty, ...p }, on);
+    for (const price of [1, 2, 150, 299, 399, 400, 434, 435, 500, 900, 5_000, 1_000_000]) {
+      for (const [posted, bought] of [[1, 1], [10, 3], [100, 100], [37, 20]] as const) for (const cash of [0, 1, 3, 12_345]) {
+        const tax = playerBoardCashListingTaxCents(price, 300, posted, on);
+        const fee = playerBoardCashBuyerFeeCents(price, 300, bought, on);
+        const proceeds = playerBoardSellerProceedsCents(price * bought, on);
+        // The seller pays the tax when posting, then sells `bought` of the stack; the rest is still theirs.
+        const seller = worth({ cashCents: cash - tax + proceeds, crack: posted - bought }) - worth({ cashCents: cash, crack: posted });
+        const buyer = worth({ cashCents: cash, crack: bought }) - worth({ cashCents: cash + price * bought + fee });
+        expect(seller, `seller ${posted}/${bought} @${price} cash ${cash}`).toBeLessThanOrEqual(0n);
+        expect(buyer, `buyer ${bought} @${price} cash ${cash}`).toBeLessThanOrEqual(0n);
+      }
+    }
+  });
+
+  it('raises neither rank at any cash price for parts of every rarity', () => {
+    const worth = (p: object) => calculateNetWorthCents({ ...empty, ...p }, on);
+    for (const [key, book] of [['SCRAP_METAL', 400], ['RADIO', 2_500], ['MOTOR_ASSEMBLY', 8_000], ['SPECIALIST_CIRCUITRY', 250_000]] as const) {
+      for (const price of [1, Math.floor(book / 2), book, playerBoardBand(book, on)!.floorCents - 1, playerBoardBand(book, on)!.capCents + 1, book * 3]) {
+        for (const [posted, bought] of [[1, 1], [9, 4]] as const) for (const cash of [0, 2, 9_999]) {
+          const tax = playerBoardCashListingTaxCents(price, book, posted, on);
+          const fee = playerBoardCashBuyerFeeCents(price, book, bought, on);
+          const proceeds = playerBoardSellerProceedsCents(price * bought, on);
+          const seller = worth({ cashCents: cash - tax + proceeds, scavengedComponents: { [key]: posted - bought } })
+            - worth({ cashCents: cash, scavengedComponents: { [key]: posted } });
+          const buyer = worth({ cashCents: cash, scavengedComponents: { [key]: bought } }) - worth({ cashCents: cash + price * bought + fee });
+          expect(seller, `${key} seller ${posted}/${bought} @${price}`).toBeLessThanOrEqual(0n);
+          expect(buyer, `${key} buyer ${bought} @${price}`).toBeLessThanOrEqual(0n);
+        }
+      }
     }
   });
 });

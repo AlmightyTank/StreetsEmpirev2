@@ -181,6 +181,56 @@ describe.runIf(process.env.PLAYER_BOARD_INTEGRATION === '1')('The Board fills wi
     }
   });
 
+  describe('prices outside the fair range', () => {
+    const ledger = (id: string, source: string) => prisma.economyLedgerEntry.findMany({ where: { roundPlayerId: id, source } }).then((rows) => rows.map((entry) => entry.amountCents));
+
+    it('taxes the seller up front for pricing above the range, so posting and selling together raise no rank', async () => {
+      const sellerCash = (await row(ids.seller)).cashCents;
+      // The tax is paid before the sale, so the seller's rank is measured from before posting.
+      const sellerBefore = await worth(ids.seller);
+      const { offer, feeCents, listingTaxCents } = await post(700, 20); // scrap: fair range $5.34 to $5.79
+      expect(listingTaxCents).toBe(2_300); // $128.80 of proceeds against $106.66 break-even, up to $23
+      expect(offer.listingTaxCents).toBe(2_300);
+      expect((await row(ids.seller)).cashCents).toBe(sellerCash - BigInt(feeCents) - 2_300n);
+      expect(await ledger(ids.seller, 'PLAYER_BOARD_LISTING_TAX')).toEqual([-2_300n]);
+      const afterPosting = await worth(ids.seller);
+      expect(afterPosting).toBeLessThan(sellerBefore);
+      const buyerBefore = await worth(ids.buyer);
+      const result = await fill(offer.id);
+      expect(result.paidCents).toBe(14_000);
+      expect(await worth(ids.seller)).toBeLessThanOrEqual(sellerBefore);
+      expect(await worth(ids.buyer)).toBeLessThanOrEqual(buyerBefore);
+    });
+
+    it('charges the buyer a Board fee for buying under the range, and pays the seller only on the sticker', async () => {
+      const { offer, listingTaxCents } = await post(200, 10);
+      expect(listingTaxCents).toBe(0);
+      const book = await PlayerBoardService.book(prisma, round, rules, ids.buyer, 'PARTS');
+      expect(book.rows.find((r) => r.id === offer.id)).toMatchObject({ unitPriceCents: 200, totalCents: 2_000 + 3_400, lotBookCents: 400 });
+      const sellerCash = (await row(ids.seller)).cashCents;
+      const sellerBefore = await worth(ids.seller);
+      const buyerBefore = await worth(ids.buyer);
+      const result = await fill(offer.id, ids.buyer, undefined, new Date(), 4);
+      // Four scrap ($16 of book) for $8: the buyer adds $13.34 to the Board, up to $14.
+      expect(result.paidCents).toBe(800 + 1_400);
+      expect(await ledger(ids.buyer, 'PLAYER_BOARD_BUY')).toEqual([-800n]);
+      expect(await ledger(ids.buyer, 'PLAYER_BOARD_BUYER_FEE')).toEqual([-1_400n]);
+      expect((await row(ids.seller)).cashCents - sellerCash).toBe(736n); // 92% of $8
+      expect(await worth(ids.seller)).toBeLessThanOrEqual(sellerBefore);
+      expect(await worth(ids.buyer)).toBeLessThanOrEqual(buyerBefore);
+    });
+
+    it('refuses a seller who cannot pay the posting tax, and a buyer who cannot pay the Board fee', async () => {
+      await prisma.roundPlayer.update({ where: { id: ids.seller }, data: { cashCents: 2_000n } });
+      expect(await code(post(700, 20))).toBe('NOT_ENOUGH_CASH');
+      expect(((await row(ids.seller)).scavengedComponents as Record<string, number>).SCRAP_METAL).toBe(50);
+      await prisma.roundPlayer.update({ where: { id: ids.seller }, data: { cashCents: 100_001n } });
+      const { offer } = await post(100, 10);
+      await prisma.roundPlayer.update({ where: { id: ids.buyer }, data: { cashCents: 1_000n } });
+      expect(await code(fill(offer.id))).toBe('NOT_ENOUGH_CASH');
+    });
+  });
+
   describe('partial buys', () => {
     const offerRow = (id: string) => prisma.playerBoardOffer.findUniqueOrThrow({ where: { id } });
     const part = (offerId: string, quantity: number, buyer = ids.buyer) => fill(offerId, buyer, undefined, new Date(), quantity);
@@ -294,8 +344,8 @@ describe.runIf(process.env.PLAYER_BOARD_INTEGRATION === '1')('The Board fills wi
       expect((await row(ids.seller)).playerBoardEscrow).toEqual({});
     });
 
-    it('fills a drug into the buyer\'s inventory with no stash check, and refuses one over the cap', async () => {
-      expect(await code(post(435, 10, 'CRACK'))).toBe('PRICE_OUTSIDE_BAND');
+    it('fills a drug into the buyer\'s inventory with no stash check, and refuses a price that is not whole cents', async () => {
+      expect(await code(post(0, 10, 'CRACK'))).toBe('INVALID_PRICE');
       expect(await code(post(400, 201, 'CRACK'))).toBe('NOT_ENOUGH_TO_LIST');
       const { offer } = await post(434, 100, 'CRACK');
       const before = await drugs('CRACK');
@@ -351,7 +401,10 @@ describe.runIf(process.env.PLAYER_BOARD_INTEGRATION === '1')('The Board fills wi
     });
 
     it('posts a barter with the buyer top-up, and refuses one that asks for more than the stack is worth', async () => {
-      expect(await code(barter([{ key: 'RADIO', quantity: 4 }]))).toBe('INVALID_BARTER');
+      // Asking for more than the stack is worth is allowed, but the seller pays for it now.
+      const greedy = await barter([{ key: 'RADIO', quantity: 4 }]);
+      expect(greedy.listingTaxCents).toBe(2_700); // $100 asked for $80: a $20 gain is $26.67 of cash, up to $27
+      await PlayerBoardService.cancel(prisma, round, ids.seller, greedy.offer.id);
       expect(await code(barter([{ key: 'MOTOR_ASSEMBLY', quantity: 1 }]))).toBe('INVALID_BARTER');
       expect(await code(barter([{ key: 'RADIO', quantity: 1 }, { key: 'RADIO', quantity: 1 }]))).toBe('INVALID_BARTER');
       const { offer } = await barter([{ key: 'RADIO', quantity: 2 }, { key: 'SCRAP_METAL', quantity: 5 }]);
@@ -395,7 +448,9 @@ describe.runIf(process.env.PLAYER_BOARD_INTEGRATION === '1')('The Board fills wi
     it('trades drugs for parts, and an even swap costs nothing', async () => {
       await prisma.roundPlayer.update({ where: { id: ids.seller }, data: { crack: 100 } });
       // Crack is worth less than any part, so it trades in lots: every 4 crack ($12) for 3 scrap ($12).
-      expect(await code(PlayerBoardService.post(prisma, round, rules, ids.seller, { itemKey: 'CRACK', quantity: 40, priceKind: 'BARTER', askItems: [{ key: 'SCRAP_METAL', quantity: 1 }], durationHours: 12 }))).toBe('INVALID_BARTER');
+      const perUnit = await PlayerBoardService.post(prisma, round, rules, ids.seller, { itemKey: 'CRACK', quantity: 40, priceKind: 'BARTER', askItems: [{ key: 'SCRAP_METAL', quantity: 1 }], durationHours: 12 });
+      expect(perUnit.listingTaxCents).toBe(5_400); // 40 × ($4 − $3) = $40 of gain is $53.34, up to $54
+      await PlayerBoardService.cancel(prisma, round, ids.seller, perUnit.offer.id);
       expect(await code(PlayerBoardService.post(prisma, round, rules, ids.seller, { itemKey: 'CRACK', quantity: 42, priceKind: 'BARTER', lotSize: 4, askItems: [{ key: 'SCRAP_METAL', quantity: 3 }], durationHours: 12 }))).toBe('INVALID_BARTER');
       const { offer } = await PlayerBoardService.post(prisma, round, rules, ids.seller, { itemKey: 'CRACK', quantity: 40, priceKind: 'BARTER', lotSize: 4, askItems: [{ key: 'SCRAP_METAL', quantity: 3 }], durationHours: 12 });
       expect(offer).toMatchObject({ lotSize: 4, ask: [{ key: 'SCRAP_METAL', quantity: 3 }] });

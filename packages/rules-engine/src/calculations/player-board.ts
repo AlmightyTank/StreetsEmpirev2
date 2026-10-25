@@ -169,15 +169,15 @@ export type PlayerBoardBarterRefusal = 'EMPTY' | 'TOO_MANY' | 'INVALID_QUANTITY'
 export interface PlayerBoardBarterQuote {
   /** Book of one lot of the item on offer. */
   lotBookCents: number;
-  /** Book of the goods asked for one lot; never above `lotBookCents`. */
+  /** Book of the goods asked for one lot. */
   askBookCents: number;
 }
 
 /**
  * The Board. Validate a barter: `ask` is what the buyer hands over for every `lotSize` units of
- * `offerKey` (1 by default, so the ask is per unit). The seller may not ask for more book than a
- * lot is worth, so no fill raises the seller's rank; the buyer's cash top-up for whatever they
- * take comes from `playerBoardBarterFeeCents`.
+ * `offerKey` (1 by default, so the ask is per unit). An ask worth more than its lot costs the
+ * seller a listing tax; one worth less costs the buyer a top-up on each fill
+ * (`playerBoardBarterFeeCents`). Either way neither side's rank rises.
  */
 export function playerBoardBarterQuote(
   offerKey: string,
@@ -200,7 +200,9 @@ export function playerBoardBarterQuote(
     askBook += book * units;
   }
   const lotBookCents = unitBook * lotSize;
-  if (!Number.isSafeInteger(askBook) || askBook > lotBookCents) return { refusal: 'ASKS_TOO_MUCH' };
+  if (!Number.isSafeInteger(askBook)) return { refusal: 'ASKS_TOO_MUCH' };
+  // Asking for more than a lot is worth is allowed; the seller pays for it at posting
+  // (`playerBoardBarterListingTaxCents`).
   return { lotBookCents, askBookCents: askBook };
 }
 
@@ -211,4 +213,48 @@ export function playerBoardBarterQuote(
  */
 export function playerBoardBarterFeeCents(lotBookCents: number, askBookCents: number, lots: number, ruleset: Ruleset): number {
   return playerBoardTradeTopUpCents(lotBookCents * lots, askBookCents * lots, ruleset);
+}
+
+/** Whole dollars, rounded up: Board charges are never in cents. */
+function ceilToDollar(cents: bigint): number {
+  return cents <= 0n ? 0 : Number(((cents + 99n) / 100n) * 100n);
+}
+
+/**
+ * The Board. Extra tax a seller pays at posting for a cash price above the band. A sale pays the
+ * seller 92% of the sticker, which rank counts at the cash weight; anything that would leave them
+ * above the book they give up is charged up front, so the further over the band, the steeper it
+ * gets. Zero inside the band. Covers the whole stack, and is kept like the posting fee.
+ */
+export function playerBoardCashListingTaxCents(unitPriceCents: number, bookCents: number, quantity: number, ruleset: BandRules): number {
+  const board = ruleset.playerBoard;
+  if (!board) return 0;
+  const proceeds = (BigInt(unitPriceCents) * BigInt(quantity) * BigInt(100 - board.taxPercent)) / 100n;
+  const weight = BigInt(ruleset.economy.netWorth.cashWeightPercent);
+  // The cash worth exactly the book given up, rounded down so the tax can only come out larger.
+  const breakEven = (BigInt(bookCents) * BigInt(quantity) * 100n) / weight;
+  return ceilToDollar(proceeds - breakEven);
+}
+
+/**
+ * The Board. Extra cash a buyer pays the Board for taking `units` at a cash price below the band:
+ * the gap between the book they gain and what they paid, at the cash weight. The further under the
+ * band, the steeper it gets, so a cheap listing can never pass rank to the buyer. Zero inside the
+ * band; deleted from the round.
+ */
+export function playerBoardCashBuyerFeeCents(unitPriceCents: number, bookCents: number, units: number, ruleset: BandRules): number {
+  const weight = BigInt(ruleset.economy.netWorth.cashWeightPercent);
+  const needed = (BigInt(bookCents) * BigInt(units) * 100n + weight - 1n) / weight;
+  return ceilToDollar(needed - BigInt(unitPriceCents) * BigInt(units));
+}
+
+/**
+ * The Board. Extra tax a seller pays at posting for a barter that asks for more book than it
+ * offers: the gain, at the cash weight, for the whole stack. Zero when the ask is worth no more
+ * than the lots; kept like the posting fee.
+ */
+export function playerBoardBarterListingTaxCents(lotBookCents: number, askBookCents: number, lots: number, ruleset: BandRules): number {
+  const weight = BigInt(ruleset.economy.netWorth.cashWeightPercent);
+  const gain = (BigInt(askBookCents) - BigInt(lotBookCents)) * BigInt(lots);
+  return gain <= 0n ? 0 : ceilToDollar((gain * 100n + weight - 1n) / weight);
 }

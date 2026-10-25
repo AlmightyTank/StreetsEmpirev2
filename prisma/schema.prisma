@@ -6809,7 +6809,10 @@ model PlayerBoardOffer {
   unitPriceCents Int
   /// Book per unit when posted, so the band and fee a listing was checked against stay on record.
   bookCents      Int
-  /// The Board. CASH sells for a unit price; BARTER asks for `askItems` for the whole stack.
+  /// The Board. Extra tax paid at posting for a price above the band (or a barter asking for more
+  /// than it offers). Kept, like the posting fee. Zero inside the band.
+  listingTaxCents Int                 @default(0)
+  /// The Board. CASH sells for a unit price; BARTER asks for `askItems` for each lot.
   priceKind      PlayerBoardPriceKind @default(CASH)
   /// Barter offers: units sold per lot. Buyers take whole lots; cash offers are always 1.
   lotSize        Int                  @default(1)

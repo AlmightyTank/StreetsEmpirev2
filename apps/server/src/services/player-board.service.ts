@@ -1,9 +1,11 @@
 import type { PlayerBoardOffer, Prisma, PrismaClient, Round } from '@prisma/client';
 import {
-  isPlayerBoardPriceLegal,
   loadRuleset,
   playerBoardBand,
   playerBoardBarterFeeCents,
+  playerBoardBarterListingTaxCents,
+  playerBoardCashBuyerFeeCents,
+  playerBoardCashListingTaxCents,
   playerBoardBarterQuote,
   playerBoardItemBookCents,
   playerBoardItemKind,
@@ -96,6 +98,7 @@ export function offerDto(offer: PlayerBoardOffer, round: Pick<BoardRound, 'pause
     ask: askLines(offer, ruleset),
     lotSize: offer.lotSize,
     feeCents: offer.feeCents,
+    listingTaxCents: offer.listingTaxCents,
     durationHours: offer.durationHours,
     postedAt: offer.postedAt.toISOString(),
     expiresAt: playerBoardOfferExpiresAt(offer, round, now).toISOString(),
@@ -197,7 +200,7 @@ export const PlayerBoardService = {
       throw AppError.badRequest('INVALID_DURATION', `Listings run for ${board.listingHours.join(' or ')} hours.`);
     }
     const barter = input.priceKind === 'BARTER';
-    let price: { unitPriceCents: number; askItems?: Record<string, number>; askBookCents?: number; lotSize?: number };
+    let price: { unitPriceCents: number; listingTaxCents: number; askItems?: Record<string, number>; askBookCents?: number; lotSize?: number };
     if (barter) {
       const ask: Record<string, number> = {};
       for (const line of input.askItems ?? []) {
@@ -208,14 +211,16 @@ export const PlayerBoardService = {
       const quote = playerBoardBarterQuote(input.itemKey, lotSize, ask, ruleset);
       if ('refusal' in quote) throw AppError.badRequest('INVALID_BARTER', BARTER_REFUSALS[quote.refusal]!);
       if (input.quantity % lotSize !== 0) throw AppError.badRequest('INVALID_BARTER', `List a whole number of lots of ${lotSize}.`);
-      price = { unitPriceCents: 0, askItems: ask, askBookCents: quote.askBookCents, lotSize };
+      const listingTaxCents = playerBoardBarterListingTaxCents(quote.lotBookCents, quote.askBookCents, input.quantity / lotSize, ruleset);
+      price = { unitPriceCents: 0, listingTaxCents, askItems: ask, askBookCents: quote.askBookCents, lotSize };
     } else {
+      // Any price is allowed. Inside the fair range it costs nothing extra; above it the seller
+      // pays a listing tax now, below it each buyer pays a Board fee (`fill`).
       const unitPriceCents = input.unitPriceCents ?? Number.NaN;
-      if (!isPlayerBoardPriceLegal(unitPriceCents, book, ruleset)) {
-        const band = playerBoardBand(book, ruleset)!;
-        throw AppError.badRequest('PRICE_OUTSIDE_BAND', `${itemName(input.itemKey, ruleset)} lists from ${dollars(band.floorCents)} to ${dollars(band.capCents)} each.`);
+      if (!Number.isSafeInteger(unitPriceCents) || unitPriceCents < 1 || !Number.isSafeInteger(unitPriceCents * input.quantity)) {
+        throw AppError.badRequest('INVALID_PRICE', 'Set a price of at least one cent each.');
       }
-      price = { unitPriceCents };
+      price = { unitPriceCents, listingTaxCents: playerBoardCashListingTaxCents(unitPriceCents, book, input.quantity, ruleset) };
     }
     const feeCents = playerBoardPostingFeeCents(book * input.quantity, ruleset);
 
@@ -233,11 +238,14 @@ export const PlayerBoardService = {
       if (held < input.quantity) {
         throw AppError.badRequest('NOT_ENOUGH_TO_LIST', `You only have ${held} ${itemName(input.itemKey, ruleset).toLowerCase()}.`);
       }
-      if (player.cashCents < BigInt(feeCents)) {
-        throw AppError.badRequest('NOT_ENOUGH_CASH', `The posting fee is ${dollars(feeCents)}.`);
+      const chargeCents = feeCents + price.listingTaxCents;
+      if (player.cashCents < BigInt(chargeCents)) {
+        throw AppError.badRequest('NOT_ENOUGH_CASH', price.listingTaxCents > 0
+          ? `Posting at that price costs ${dollars(chargeCents)}: the ${dollars(feeCents)} fee and ${dollars(price.listingTaxCents)} of tax for pricing above the fair range.`
+          : `The posting fee is ${dollars(feeCents)}.`);
       }
 
-      await tx.roundPlayer.update({ where: { id: roundPlayerId }, data: { cashCents: player.cashCents - BigInt(feeCents) } });
+      await tx.roundPlayer.update({ where: { id: roundPlayerId }, data: { cashCents: player.cashCents - BigInt(chargeCents) } });
       await moveHeld(tx, roundPlayerId, input.itemKey, -input.quantity, ruleset);
       await moveEscrow(tx, roundPlayerId, input.itemKey, input.quantity);
       const offer = await tx.playerBoardOffer.create({ data: {
@@ -248,6 +256,7 @@ export const PlayerBoardService = {
         remainingQuantity: input.quantity,
         unitPriceCents: price.unitPriceCents,
         bookCents: book,
+        listingTaxCents: price.listingTaxCents,
         ...(barter ? {
           priceKind: 'BARTER' as const,
           askItems: price.askItems as Prisma.InputJsonValue,
@@ -260,11 +269,12 @@ export const PlayerBoardService = {
         postedAt: now,
         expiresAt: new Date(now.getTime() + input.durationHours * 3_600_000),
       } });
-      await EconomyLedgerService.record(tx, roundPlayerId, [{
-        source: 'PLAYER_BOARD_FEE', label: 'Board posting fee', amountCents: -feeCents,
-        metadata: { offerId: offer.id, itemKey: input.itemKey, quantity: input.quantity },
-      }], now);
-      return { offer: offerDto(offer, round, now, ruleset), feeCents, returnedQuantity: 0 };
+      const metadata = { offerId: offer.id, itemKey: input.itemKey, quantity: input.quantity };
+      await EconomyLedgerService.record(tx, roundPlayerId, [
+        { source: 'PLAYER_BOARD_FEE', label: 'Board posting fee', amountCents: -feeCents, metadata },
+        ...(price.listingTaxCents > 0 ? [{ source: 'PLAYER_BOARD_LISTING_TAX', label: 'Board tax: priced above range', amountCents: -price.listingTaxCents, metadata }] : []),
+      ], now);
+      return { offer: offerDto(offer, round, now, ruleset), feeCents, listingTaxCents: price.listingTaxCents, returnedQuantity: 0 };
     });
   },
 
@@ -289,7 +299,7 @@ export const PlayerBoardService = {
       if (closed.count !== 1) throw AppError.conflict('OFFER_NOT_OPEN', 'That offer is already closed.');
       await returnStack(tx, roundPlayerId, offer.itemKey, offer.remainingQuantity, ruleset);
       const after = await tx.playerBoardOffer.findUniqueOrThrow({ where: { id: offer.id } });
-      return { offer: offerDto(after, round, now, ruleset), feeCents: 0, returnedQuantity: offer.remainingQuantity };
+      return { offer: offerDto(after, round, now, ruleset), feeCents: 0, listingTaxCents: 0, returnedQuantity: offer.remainingQuantity };
     });
   },
 
@@ -332,11 +342,16 @@ export const PlayerBoardService = {
       const ask = barter
         ? Object.fromEntries(Object.entries(jsonObject(offer.askItems as Prisma.JsonValue, {})).map(([key, perLot]) => [key, perLot * lots]))
         : {};
-      const paidCents = barter
+      const stickerCents = barter ? 0 : offer.unitPriceCents * units;
+      // A barter's top-up, or the Board fee on a cash price below the fair range: deleted either way.
+      const boardFeeCents = barter
         ? playerBoardBarterFeeCents(offer.bookCents * offer.lotSize, offer.askBookCents ?? 0, lots, ruleset)
-        : offer.unitPriceCents * units;
+        : playerBoardCashBuyerFeeCents(offer.unitPriceCents, offer.bookCents, units, ruleset);
+      const paidCents = stickerCents + boardFeeCents;
       if (buyer.cashCents < BigInt(paidCents)) {
-        throw AppError.badRequest('NOT_ENOUGH_CASH', barter ? `The Board also wants ${dollars(paidCents)} to even out that trade.` : `That offer costs ${dollars(paidCents)}.`);
+        throw AppError.badRequest('NOT_ENOUGH_CASH', barter
+          ? `The Board also wants ${dollars(paidCents)} to even out that trade.`
+          : boardFeeCents > 0 ? `That costs ${dollars(paidCents)}, with ${dollars(boardFeeCents)} to the Board for buying under the fair range.` : `That offer costs ${dollars(paidCents)}.`);
       }
       for (const [key, wanted] of Object.entries(ask)) {
         const held = await heldUnits(tx, buyerId, key, ruleset);
@@ -351,7 +366,7 @@ export const PlayerBoardService = {
         }
       }
 
-      const proceedsCents = barter ? 0 : playerBoardSellerProceedsCents(paidCents, ruleset);
+      const proceedsCents = barter ? 0 : playerBoardSellerProceedsCents(stickerCents, ruleset);
       const taken = await tx.playerBoardOffer.updateMany({
         where: { id: offer.id, status: 'OPEN', remainingQuantity: { gte: units } },
         data: { remainingQuantity: { decrement: units } },
@@ -374,7 +389,10 @@ export const PlayerBoardService = {
       if (barter) {
         if (paidCents > 0) await EconomyLedgerService.record(tx, buyerId, [{ source: 'PLAYER_BOARD_BARTER_FEE', label: 'Board barter top-up', amountCents: -paidCents, metadata }], now);
       } else {
-        await EconomyLedgerService.record(tx, buyerId, [{ source: 'PLAYER_BOARD_BUY', label: 'Board purchase', amountCents: -paidCents, metadata }], now);
+        await EconomyLedgerService.record(tx, buyerId, [
+          { source: 'PLAYER_BOARD_BUY', label: 'Board purchase', amountCents: -stickerCents, metadata },
+          ...(boardFeeCents > 0 ? [{ source: 'PLAYER_BOARD_BUYER_FEE', label: 'Board fee: bought under range', amountCents: -boardFeeCents, metadata }] : []),
+        ], now);
         await EconomyLedgerService.record(tx, offer.sellerId, [{ source: 'PLAYER_BOARD_SALE', label: 'Board sale', amountCents: proceedsCents, metadata }], now);
       }
 
@@ -453,10 +471,10 @@ export const PlayerBoardService = {
         unitPriceCents: offer.unitPriceCents,
         totalCents: offer.priceKind === 'BARTER'
           ? playerBoardBarterFeeCents(offer.bookCents * offer.lotSize, offer.askBookCents ?? 0, offer.remainingQuantity / offer.lotSize, ruleset)
-          : offer.unitPriceCents * offer.remainingQuantity,
+          : offer.unitPriceCents * offer.remainingQuantity + playerBoardCashBuyerFeeCents(offer.unitPriceCents, offer.bookCents, offer.remainingQuantity, ruleset),
         ask: askLines(offer, ruleset),
         lotSize: offer.lotSize,
-        lotBookCents: offer.priceKind === 'BARTER' ? offer.bookCents * offer.lotSize : 0,
+        lotBookCents: offer.bookCents * offer.lotSize,
         askBookCents: offer.askBookCents ?? 0,
         sellerName: offer.seller.displayName,
         mine: offer.sellerId === viewerId,

@@ -521,6 +521,8 @@ export interface PlayerBoardOfferDto {
   /** Units per lot: 1 for cash, and for a barter priced per unit. */
   lotSize: number;
   feeCents: number;
+  /** Extra tax paid at posting for pricing above the fair range. 0 inside it. */
+  listingTaxCents: number;
   durationHours: number;
   postedAt: string;
   /** When it stops being open, with pauses since posting already added. */
@@ -546,6 +548,8 @@ export interface PlayerBoardOfferResult {
   offer: PlayerBoardOfferDto;
   /** Posting: the fee charged. Cancelling: always 0. */
   feeCents: number;
+  /** Posting: the extra tax for pricing above the fair range. Cancelling: always 0. */
+  listingTaxCents: number;
   /** Cancelling: units back in the stash. Posting: always 0. */
   returnedQuantity: number;
 }
@@ -566,13 +570,13 @@ export interface PlayerBoardRowDto {
   priceKind: PlayerBoardPriceKindDto;
   /** Cash offers: the price per unit. Barter offers: 0. */
   unitPriceCents: number;
-  /** Cash for everything left: the sticker for cash, the Board's top-up for a barter. */
+  /** Cash for everything left: the sticker plus any below-range Board fee for cash, the Board's top-up for a barter. */
   totalCents: number;
   /** Barter offers: the goods a buyer hands over for each lot. Empty for cash. */
   ask: PlayerBoardAskDto[];
   /** Units per lot; buyers take whole lots. 1 for cash. */
   lotSize: number;
-  /** Barter offers: the Board value of one lot and of its ask, so a part-buy's top-up can be priced. 0 for cash. */
+  /** The Board value of one lot (one unit for cash), and of a barter's ask (0 for cash), so the extra on a part-buy can be priced. */
   lotBookCents: number;
   askBookCents: number;
   sellerName: string;
@@ -580,7 +584,7 @@ export interface PlayerBoardRowDto {
   mine: boolean;
   expiresAt: string;
 }
-/** The Board D-F. A part or drug the viewer holds and may list, with its legal unit prices. */
+/** The Board D-F. A part or drug the viewer holds and may list, with its fair range: no extra charge inside it. */
 export interface PlayerBoardListableDto {
   key: string;
   name: string;
