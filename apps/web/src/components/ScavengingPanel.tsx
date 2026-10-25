@@ -7,7 +7,7 @@ import { Button } from './Button.js';
 import { type ItemArtKey } from '../items/itemArt.js';
 import { GameDialog } from './GameUI.js';
 
-export function ScavengingPanel({ page, onChanged }: { page: ScavengePageDto; onChanged: (page: ScavengePageDto) => void }) {
+export function ScavengingPanel({ page, onChanged, heading = true }: { page: ScavengePageDto; onChanged: (page: ScavengePageDto) => void; heading?: boolean }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [reveal, setReveal] = useState<OpenScavengeCacheResult | null>(null);
@@ -30,7 +30,7 @@ export function ScavengingPanel({ page, onChanged }: { page: ScavengePageDto; on
   }
   return <>
     <section className="se-hideout-section se-scavenge-section">
-      <div className="se-hideout-sectionhead"><span className="se-eyebrow">Scouting supplies</span><div><h2>Caches and components</h2><p>Districts hint at what is likely nearby. Cache odds are shown before opening; no rarity is guaranteed. Short on parts? <Link to="/game/stores/salvage">The Salvage Yard</Link> sells them for cash or barter.</p></div></div>
+      {heading ? <div className="se-hideout-sectionhead"><span className="se-eyebrow">Scouting supplies</span><div><h2>Caches and components</h2><p>Districts hint at what is likely nearby. Cache odds are shown before opening; no rarity is guaranteed. Short on parts? <Link to="/game/stores/salvage">The Salvage Yard</Link> sells them for cash or barter.</p></div></div> : <p className="se-hideout-inline-note">Districts hint at what is likely nearby. Cache odds are shown before opening; no rarity is guaranteed. Short on parts? <Link to="/game/stores/salvage">The Salvage Yard</Link> sells them for cash or barter.</p>}
       <div className="se-grid se-grid--3">
         {page.components.map((item) => <article className="se-panel se-scavenge-component" key={item.key}><ItemTile item={item.key as ItemArtKey} quantity={item.quantity} label={false} /><div className="se-scavenge-component__copy"><strong>{item.name} · {item.quantity}</strong><small>{item.purpose} · {item.footprint.width}×{item.footprint.height} cell</small></div></article>)}
         {page.components.length === 0 ? <p className="se-muted">Scout districts to bring useful components home.</p> : null}

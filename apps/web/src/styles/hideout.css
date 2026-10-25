@@ -87,7 +87,7 @@
 .se-workshop__actions { justify-content: flex-start; margin-top: 2px; }
 .se-hideout-resources > .se-game-tabs { margin: 0 0 14px; }
 .se-hideout-resources > .se-game-tabs { gap: 8px; padding: 0; overflow-x: auto; border: 0; border-radius: 0; background: transparent; }
-.se-hideout-resources > .se-game-tabs > button { display: inline-flex; align-items: center; min-height: 34px; padding: 7px 11px; border: 1px solid var(--se-line); border-radius: 3px; background: var(--se-panel); color: var(--se-text-dim); font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; }
+.se-hideout-resources > .se-game-tabs > button { display: inline-flex; align-items: center; min-height: 40px; padding: 7px 11px; border: 1px solid var(--se-line); border-radius: 3px; background: var(--se-panel); color: var(--se-text-dim); font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; }
 .se-hideout-resources > .se-game-tabs > button:hover:not(:disabled),
 .se-hideout-resources > .se-game-tabs > button:focus-visible { border-color: var(--se-accent-dim); color: var(--se-text); background: var(--se-panel); }
 .se-hideout-resources > .se-game-tabs > button.is-active { border-color: var(--se-accent-dim); background: var(--se-panel); color: var(--se-accent); }
@@ -213,47 +213,80 @@
   box-shadow: 0 0 16px rgba(var(--se-accent-rgb), 0.22);
 }
 
-.se-hideout-nav {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  padding-bottom: 2px;
+.se-hideout-tabs {
+  position: sticky;
+  top: var(--se-topbar-h);
+  z-index: 4;
+  margin: 0 -2px;
+  padding: 8px 2px;
+  background: var(--se-bg);
 }
 
-.se-hideout-nav a {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 34px;
-  padding: 7px 11px;
-  border: 1px solid var(--se-line);
-  border-radius: 3px;
-  background: var(--se-panel);
+.se-hideout-tabs .se-game-tabs > button {
+  min-height: 40px;
+}
+
+.se-hideout-inline-note {
+  margin: 0;
   color: var(--se-text-dim);
-  font-size: 11px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.se-hideout-roster {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+  gap: 8px;
+}
+
+.se-hideout-roster__room {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 10px;
+  min-height: 58px;
+  padding: 10px 12px;
+  border: 1px solid var(--se-line);
+  border-left-width: 2px;
+  border-radius: 4px;
+  background: var(--se-panel);
+  color: var(--se-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.se-hideout-roster__room:hover,
+.se-hideout-roster__room:focus-visible {
+  border-color: var(--se-accent-dim);
+}
+
+.se-hideout-roster__room span {
+  overflow: hidden;
   font-weight: 800;
-  letter-spacing: 0.05em;
-  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.se-hideout-roster__room strong {
+  font-family: var(--se-mono);
+  font-size: 13px;
+}
+
+.se-hideout-roster__room small {
+  grid-column: 1 / -1;
+  color: var(--se-muted);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
-.se-hideout-nav a:hover,
-.se-hideout-nav a:focus-visible {
-  border-color: var(--se-accent-dim);
-  color: var(--se-text);
-}
-
-.se-hideout-nav a span {
-  display: inline-grid;
-  place-items: center;
-  min-width: 19px;
-  height: 19px;
-  padding: 0 5px;
-  border-radius: 10px;
-  background: rgba(var(--se-accent-rgb), 0.11);
-  color: var(--se-accent);
-  font-family: var(--se-mono);
-}
+.se-hideout-roster__room--ready { border-left-color: var(--se-accent); }
+.se-hideout-roster__room--maxed { border-left-color: var(--se-good); }
+.se-hideout-roster__room--cash { border-left-color: var(--se-warn); }
+.se-hideout-roster__room--locked { border-left-color: var(--se-bad); }
+.se-hideout-roster__room--building { border-left-color: var(--se-accent); }
 
 .se-hideout-overview,
 .se-hideout-section {
@@ -958,20 +991,6 @@
 
   .se-hideout-hero h1 {
     font-size: 34px;
-  }
-
-  .se-hideout-nav {
-    display: flex;
-    flex-wrap: nowrap;
-    gap: 6px;
-    overflow-x: auto;
-  }
-
-  .se-hideout-nav a {
-    flex: 0 0 auto;
-    justify-content: space-between;
-    min-height: 36px;
-    padding: 6px 8px;
   }
 
   .se-hideout-priority {
