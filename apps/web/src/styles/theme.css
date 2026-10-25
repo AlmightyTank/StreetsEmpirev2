@@ -545,6 +545,8 @@ body {
 
 .se-app {
   min-height: 100vh;
+  min-width: 0;
+  max-width: 100%;
   background-color: var(--se-bg);
   background-image:
     radial-gradient(900px 500px at 15% -10%, rgba(var(--se-accent-rgb), 0.055), transparent 60%),
@@ -779,12 +781,16 @@ body {
 }
 
 .se-shell {
+  min-width: 0;
+  max-width: 100%;
   max-width: 1120px;
   margin: 0 auto;
   padding: 20px var(--se-content-gutter-tablet) var(--se-shell-content-bottom);
 }
 
 .se-authshell {
+  min-width: 0;
+  max-width: 100%;
   max-width: 420px;
   margin: 0 auto;
   padding: 48px 16px 64px;
@@ -1766,6 +1772,7 @@ a:hover { color: var(--se-accent-hover); }
 
 .se-gamemain {
   min-width: 0;
+  max-width: 100%;
 }
 
 /* Game nav and the desktop sidebar frame live in app-shell.css. */
