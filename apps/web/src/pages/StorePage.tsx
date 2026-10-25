@@ -380,7 +380,7 @@ function StoreItem({ item, store, storeName, keeper, owned, cashCents, bulkHelpe
             ) : (
               <p className="se-hint">
                 {keeper} has not opened this to you yet. Access is earned through
-                {' '}<Link to="/game/quests">underworld jobs</Link>, not passive reputation.
+                {' '}<Link to="/game/quests">underworld contacts</Link>, not passive reputation.
               </p>
             )}
           </div>
@@ -1022,7 +1022,7 @@ function StoreView({
                     </div>
                     <div>
                       <strong>Jobs unlock access</strong>
-                      <span>Permanent purchase access and favors live on the <Link to="/game/quests">Quests page</Link>.</span>
+                      <span>Permanent purchase access and favors live on your <Link to="/game/quests">contact line</Link>.</span>
                     </div>
                   </div>
                 </div>
@@ -1038,7 +1038,7 @@ function StoreView({
                   <div className="se-stores-railcard">
                     <span className="se-eyebrow">Tommy&rsquo;s rack</span>
                     <p>Thugs protect the crew and fight in raids or drive-bys. Guns and muscle arrive on Tommy&rsquo;s schedule; the heavier the hardware, the longer the wait.</p>
-                    <p>Weapon access comes from underworld jobs. Once a rack opens for the round, losing cash, crew, or reputation does not take it back.</p>
+                      <p>Weapon access comes from underworld contacts. Once a rack opens for the round, losing cash, crew, or reputation does not take it back.</p>
                   </div>
                 ) : null}
 

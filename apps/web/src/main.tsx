@@ -43,6 +43,7 @@ import './styles/birthday.css';
 import './styles/travel.css';
 import './styles/city-blocks.css';
 import './styles/quests.css';
+import './styles/quest-phone.css';
 import './styles/contact-room.css';
 import './styles/events.css';
 import './styles/surveys.css';

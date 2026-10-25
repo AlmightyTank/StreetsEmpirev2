@@ -54,7 +54,7 @@ import { JoinPage } from './pages/JoinPage.js';
 import { LoginPage } from './pages/LoginPage.js';
 import { NewsPage } from './pages/NewsPage.js';
 import { ProducePage } from './pages/ProducePage.js';
-import { QuestPage } from './pages/QuestPage.js';
+import { QuestPhonePage } from './pages/QuestPhonePage.js';
 import { ContactRoomPage } from './pages/ContactRoomPage.js';
 import { StoryArchivePage } from './pages/StoryArchivePage.js';
 import { EventsPage } from './pages/EventsPage.js';
@@ -220,7 +220,9 @@ export function App() {
         <Route index element={<Protected><DashboardPage /></Protected>} />
         <Route path="combat" element={<Protected><LiveRound><CombatPage /></LiveRound></Protected>} />
         <Route path="scout" element={<Protected><LiveRound><ScoutPage /></LiveRound></Protected>} />
-        <Route path="quests" element={<Protected><LiveRound><QuestPage /></LiveRound></Protected>} />
+        <Route path="quests" element={<Protected><LiveRound><QuestPhonePage /></LiveRound></Protected>} />
+        {/* The old quest desk is retired; preserve old bookmarks without restoring it. */}
+        <Route path="quests/contracts" element={<Navigate to="/game/quests" replace />} />
         <Route path="story" element={<Protected><LiveRound><StoryArchivePage /></LiveRound></Protected>} />
         <Route path="visit/:contactKey" element={<Protected><LiveRound><ContactRoomPage /></LiveRound></Protected>} />
         <Route path="events" element={<Protected><LiveRound><EventsPage /></LiveRound></Protected>} />

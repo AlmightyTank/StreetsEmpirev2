@@ -59,7 +59,7 @@ export const SECTIONS: NavSection[] = [
     defaultOpen: true,
     pages: [
       { key: 'dashboard', label: 'Dashboard', short: 'Home', to: '/game', icon: 'dashboard' },
-      { key: 'quests', label: 'Quests', to: '/game/quests', icon: 'activity', aliases: ['/game/reputation'] },
+      { key: 'quests', label: 'Contacts', to: '/game/quests', icon: 'activity', aliases: ['/game/reputation'] },
       { key: 'scout', label: 'Scout', to: '/game/scout', icon: 'scout' },
       { key: 'produce', label: 'Produce', to: '/game/produce', icon: 'produce' },
       { key: 'raids', label: 'Raids', to: '/game/combat', icon: 'raids' },

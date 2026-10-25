@@ -23,7 +23,7 @@ export function QuestLink({ quest }: { quest: QuestLinkDto }) {
 export function QuestLockNote({ unlockName, quest, after }: { unlockName: string; quest: QuestLinkDto | null | undefined; after?: string }) {
   return (
     <p className="se-hint">
-      {quest ? <>Finish <QuestLink quest={quest} /> to unlock {unlockName}.</> : <>Earn {unlockName} through <Link className="se-golink" to="/game/quests">underworld jobs</Link>.</>}
+      {quest ? <>Finish <QuestLink quest={quest} /> to unlock {unlockName}.</> : <>Earn {unlockName} through <Link className="se-golink" to="/game/quests">underworld contacts</Link>.</>}
       {after ? ` ${after}` : ''}
     </p>
   );

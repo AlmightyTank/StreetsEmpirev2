@@ -481,7 +481,7 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
     case 'QUEST_READY':
       return {
         text: `Job complete: ${str(p.title, 'a quest')}.`,
-        detail: 'Return to Quests to collect payment.',
+        detail: 'Open your contacts to collect payment.',
       };
 
     case 'QUEST_STORY_SCENE':

@@ -99,8 +99,8 @@ export function DashboardStorySpotlight() {
         </>
       ) : (
         <div className="se-dashboard-story__fallback">
-          <p>{!quests && !failed ? 'Checking your next chapter…' : failed ? 'Your story is still available on the Quests page.' : 'Your current story is complete. Find other contracts and rewards.'}</p>
-          <Link className="se-btn se-btn--primary" to="/game/quests">Open quests</Link>
+          <p>{!quests && !failed ? 'Checking your next chapter…' : failed ? 'Your story is still available through your contacts.' : 'Your current story is complete. Call someone else and find more work.'}</p>
+          <Link className="se-btn se-btn--primary" to="/game/quests">Open contacts</Link>
         </div>
       )}
     </section>

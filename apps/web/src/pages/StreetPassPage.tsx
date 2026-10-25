@@ -523,7 +523,7 @@ export function StreetPassPage() {
                   </div>
                 </div>
                 <p className="se-hint se-mt">
-                  Pick up contracts on the <Link to="/game/quests">Quests</Link> page. Turn Cred resets with the daily contracts.
+                  Pick up work from your <Link to="/game/quests">contacts</Link>. Turn Cred resets with the daily work.
                 </p>
               </div>
 

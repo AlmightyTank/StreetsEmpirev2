@@ -241,7 +241,7 @@ function testPopupForKey(key: string): Omit<GameEventToast, 'id'> | null {
     case 'quest':
       return {
         title: 'Quest ready to turn in',
-        detail: 'First Night Out is complete. Return to Quests to collect payment.',
+        detail: 'First Night Out is complete. Open your contacts to collect payment.',
         tone: 'good',
         href: '/game/quests?tab=active&focus=FIRST_NIGHT_OUT#quest-FIRST_NIGHT_OUT',
       };
@@ -266,7 +266,7 @@ export function gameEventToastFor(activity: ActivityDto, crackWord: string): Omi
     case 'QUEST_OBJECTIVE_COMPLETE':
       return {
         title: p.bonus ? `Bonus done: ${str(p.title, 'quest')}` : `Objective done: ${str(p.title, 'quest')}`,
-        detail: pieces(str(p.objective), 'Open Quests to check the next step.') || detail,
+        detail: pieces(str(p.objective), 'Open your contacts to check the next step.') || detail,
         tone: 'good',
         href: questHref(p),
       };
