@@ -445,7 +445,8 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
                           onChange={(event) => onBuyQuantity(selectedRow.id, event.target.value)} />
                       </label>
                       <MarketQuantityAdjusters value={Number(buyQuantities[selectedRow.id] || selectedRow.quantity)} max={selectedRow.quantity} unitStep={selectedRow.lotSize} unitLabel={selectedRow.lotSize > 1 ? 'lots' : 'units'} onChange={(value) => onBuyQuantity(selectedRow.id, String(value))} />
-                      </>\n                    ) : null}
+                      </>
+                    ) : null}
                     {!selectedRow.mine && selectedUnits !== null ? <p className="se-market-inspector__total">You pay <strong>{formatCentsExact(selectedCash)}</strong>{selectedFee > 0 ? ' including Board fee' : ''}</p> : null}
                     {selectedRow.mine ? <p className="se-hint">This is your listing. Manage it under My listings.</p> : (
                       <Button variant="primary" disabledReason={buyBlocker(selectedRow, book, busy, selectedUnits)} onClick={() => onBuy(selectedRow, selectedUnits!)}>
