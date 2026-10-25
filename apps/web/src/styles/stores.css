@@ -2499,3 +2499,28 @@
     letter-spacing: 0;
   }
 }
+
+
+.se-market-buy-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.se-market-buy-controls .se-board-buy__qty {
+  flex: 0 0 76px;
+  width: 76px;
+}
+
+@media (max-width: 680px) {
+  .se-table--cards td.se-market-buy-controls {
+    justify-content: stretch;
+  }
+
+  .se-table--cards td.se-market-buy-controls .se-btn {
+    flex: 1;
+    width: auto;
+  }
+}
+
