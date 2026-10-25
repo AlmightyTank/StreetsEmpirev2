@@ -536,9 +536,9 @@ export const rulesets: Readonly<Record<string, Ruleset>> = {
   [classicOgV26G.meta.id]: classicOgV26G,
   [classicOgV26H.meta.id]: classicOgV26H,
   [classicOgV26I.meta.id]: classicOgV26I,
-  // Opt-in only: listed before 2.6.0-J so the latest (default) ruleset keeps the Board off.
-  [classicOgV26JBoard.meta.id]: classicOgV26JBoard,
+  // The Board H: the dark 2.6.0-J stays registered for any round pinned to it; new rounds take the live Board.
   [classicOgV26J.meta.id]: classicOgV26J,
+  [classicOgV26JBoard.meta.id]: classicOgV26JBoard,
 };
 
 export { ROUND_ROLL_CALL_FINALE, ROUND_ROLL_CALL_FINALE_COSMETICS } from './round-roll-call-cosmetics.js';

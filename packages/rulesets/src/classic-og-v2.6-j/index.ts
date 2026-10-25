@@ -38,9 +38,8 @@ export const classicOgV26J = {
 } as const satisfies Ruleset;
 
 /**
- * The Board E. 2.6.0-J with player listings switched on, for a new round an admin opts in. It is
- * registered ahead of 2.6.0-J, so 2.6.0-J stays the default for new rounds until the Board's
- * release slice says otherwise.
+ * The Board E-H. 2.6.0-J with player listings switched on. Since H it is registered last, so new
+ * rounds pin it; any round already on 2.6.0-J keeps the Board off.
  */
 export const classicOgV26JBoard = {
   ...classicOgV26J,

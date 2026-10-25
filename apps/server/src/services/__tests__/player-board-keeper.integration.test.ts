@@ -8,9 +8,9 @@ import { PlayerStateService } from '../player-state.service.js';
 import { ReputationService } from '../reputation.service.js';
 
 /**
- * The Board G, live: guns, low-riders and ammo. A locked buyer can read a gun's row but not buy
- * it, a buyer takes at most one keeper delivery a day, the keepers' shelves never change, only
- * clean items can be listed, item rows move with the columns, and neither rank rises.
+ * The Board G, live: guns, low-riders and ammo. Anyone can buy any amount without the keeper's
+ * unlock, the keepers' shelves never change, only clean items can be listed, item rows move with
+ * the columns, and neither rank rises.
  * Opt in with PLAYER_BOARD_INTEGRATION=1.
  */
 describe.runIf(process.env.PLAYER_BOARD_INTEGRATION === '1')('The Board keeper goods with PostgreSQL', () => {
@@ -88,29 +88,17 @@ describe.runIf(process.env.PLAYER_BOARD_INTEGRATION === '1')('The Board keeper g
     expect((await guns(ids.seller, 'AK47')).reduce((sum, gun) => sum + gun.quantity, 0)).toBe(5);
   });
 
-  it('shows a locked buyer the row and refuses the sale until they unlock it', async () => {
-    const { offer } = await post('AK47', 2, 330_000);
-    const book = await PlayerBoardService.book(prisma, round, rules, ids.buyer, 'KEEPER');
-    expect(book.rows.find((r) => r.id === offer.id)).toMatchObject({ category: 'KEEPER', name: 'AK-47', locked: true, dailyLeft: 2 });
-    expect(await code(fill(offer.id, 1))).toBe('WEAPON_LOCKED');
-    await prisma.roundPlayer.update({ where: { id: ids.buyer }, data: { ak47Unlocked: true } });
-    expect(await code(fill(offer.id, 1))).toBe('OK');
-    const unlocked = await PlayerBoardService.book(prisma, round, rules, ids.buyer, 'KEEPER');
-    expect(unlocked.rows.find((r) => r.id === offer.id)).toMatchObject({ locked: false, dailyLeft: 1 });
-  });
-
-  it('caps a buyer at one keeper delivery a day and leaves the shelves alone', async () => {
-    await prisma.roundPlayer.update({ where: { id: ids.buyer }, data: { ak47Unlocked: true } });
+  it('sells a gun to a buyer without the keeper unlock, in any amount, and leaves the shelves alone', async () => {
     const shelves = await row(ids.buyer);
     const { offer } = await post('AK47', 4, 330_000);
-    await fill(offer.id, 2);
-    expect(await code(fill(offer.id, 1))).toBe('BOARD_DAILY_LIMIT');
+    const book = await PlayerBoardService.book(prisma, round, rules, ids.buyer, 'KEEPER');
+    expect(book.rows.find((r) => r.id === offer.id)).toMatchObject({ category: 'KEEPER', name: 'AK-47', quantity: 4 });
+    // No AK unlock and well past one keeper delivery (2): the market decides what scarce guns cost.
+    expect(await code(fill(offer.id, 3))).toBe('OK');
+    expect(await code(fill(offer.id, 1))).toBe('OK');
+    expect((await row(ids.buyer)).ak47s).toBe(4);
     const after = await row(ids.buyer);
     expect([after.ak47Stock, after.pistolStock, after.lowRiderStock, after.ammoStock]).toEqual([shelves.ak47Stock, shelves.pistolStock, shelves.lowRiderStock, shelves.ammoStock]);
-    // A day later the allowance is back.
-    await prisma.playerBoardFill.updateMany({ where: { buyerId: ids.buyer }, data: { createdAt: new Date(Date.now() - 86_400_001) } });
-    expect(await code(fill(offer.id, 2))).toBe('OK');
-    expect((await row(ids.buyer)).ak47s).toBe(4);
   });
 
   it('gives the buyer a fresh Board stack and keeps every unit between the two players and escrow', async () => {
@@ -139,16 +127,14 @@ describe.runIf(process.env.PLAYER_BOARD_INTEGRATION === '1')('The Board keeper g
     expect((await row(ids.seller)).ammo).toBe(4_000);
   });
 
-  it('will not let a seller ask for a gun they have not unlocked', async () => {
+  it('lets a seller without the unlock ask for a gun in barter', async () => {
     await prisma.roundPlayer.update({ where: { id: ids.seller }, data: { ak47Unlocked: false } });
     const asked = PlayerBoardService.post(prisma, round, rules, ids.seller, { itemKey: 'PISTOL', quantity: 20, priceKind: 'BARTER', lotSize: 20, askItems: [{ key: 'AK47', quantity: 1 }], durationHours: 12 });
-    expect(await code(asked)).toBe('WEAPON_LOCKED');
+    expect(await code(asked)).toBe('OK');
   });
 
   it('raises neither rank on a gun sale', async () => {
-    await prisma.roundPlayer.update({ where: { id: ids.buyer }, data: { ak47Unlocked: true } });
     for (const price of [326_667, 355_072, 250_000, 500_000]) {
-      await prisma.playerBoardFill.deleteMany({ where: { buyerId: ids.buyer } });
       const sellerBefore = await worth(ids.seller);
       const { offer } = await post('AK47', 1, price);
       const buyerBefore = await worth(ids.buyer);

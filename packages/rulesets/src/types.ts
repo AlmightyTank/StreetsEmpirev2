@@ -1321,8 +1321,8 @@ export interface PlayerBoardRules {
   readonly maxAskItems: number;
   /**
    * The Board G. Keeper goods that may be listed: guns, low-riders and ammo. Each is listable only
-   * while its net worth value equals its keeper's buyback; a buyer needs the keeper's unlock, and
-   * buys at most one keeper delivery of it a day from the Board.
+   * while its net worth value equals its keeper's buyback. The Board needs no keeper unlock and has
+   * no daily limit: what players ask decides what scarce goods cost.
    */
   readonly listableKeeperGoods: readonly PlayerBoardKeeperKey[];
 }

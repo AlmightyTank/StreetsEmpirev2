@@ -82,7 +82,7 @@ These never join the allow-list.
 | Condoms, beer, medicine | The corner shelf is the supply that keeps a crew out of a spiral. Their book value is a token fraction of the counter, so a listing would only move supplies to another account. |
 | Cash, turns, standing, Drop cosmetics | Those are not stash stacks. Cosmetics are paid outside the round. |
 
-A quest-locked gun can be listed by someone who owns it. The buyer still needs the unlock. The row is visible. The buy stays locked.
+A quest-locked gun can be listed by someone who owns it, and anyone can buy it: the Board has no unlock requirement (decided in slice G).
 
 ## Slices
 
@@ -230,11 +230,22 @@ Slice G lists guns, low-riders and ammo through `playerBoard.listableKeeperGoods
 
 - **Books.** A gun's or low-rider's book is its net worth value, and it is listable only while that equals the keeper's buyback. Ammo's book is its per-round net worth, 6¢ (a fair range of 8¢).
 - **Left off the Board.** Sedans and vans have no buyback, and vehicle parts have no net worth, so none of them can be priced fairly.
-- **Unlocks.** A buyer needs the keeper's unlock for the shotgun, Tek-9 and AK-47 (`playerBoardKeeperUnlock`). A locked buyer sees the row, marked Locked, and the buy is refused (`WEAPON_LOCKED`). A seller can't ask for a gun in barter without its unlock either.
-- **Daily cap.** In any rolling 24 hours, a buyer takes at most one keeper delivery of each good from the Board (`playerBoardKeeperDailyCap`, read from the shelf's restock): pistol 50, shotgun 5, Tek-9 3, AK-47 2, low-rider 3, ammo 25,000 rounds. A purchase over that is refused (`BOARD_DAILY_LIMIT`). The book reports what is left today, and the buy box defaults to it.
+- **No unlocks, no daily limit.** Anyone can buy any keeper good from the Board, in any amount, without the keeper's unlock, and a seller can ask for any of them in barter. The keepers' unlocks and restocks only govern their own shelves; on the Board, scarcity shows up in what players ask, so the market sets the price. This means a player can get a shotgun, Tek-9 or AK-47 from another player before earning Tommy's favor.
 - **Shelves.** The Board never touches Tommy's or Charlie's stock, and a test holds the shelves unchanged across fills.
 - **Item rows.** On rounds with an armory and garage, guns and cars are individual item rows as well as columns. The Board trades them as interchangeable units, so only clean ones can be listed: full condition, no mods or name, ready (not locked into a fight or out on a run) and not hot. They come off the column and out of the rows together (`board-keeper-goods.ts`). The buyer gets a fresh stack with origin `BOARD`, within their armory or garage capacity, and the armory summary is refreshed.
 - **The tab** gains a Guns & cars filter, and the listing form groups keeper goods.
+
+Slice H releases the Board.
+
+- **New rounds pin the live Board.** `classic-og-v2.6-j-board` is now registered last, so it is `LATEST_RULESET` and `DEFAULT_RULESET_ID`, and the local seed opens on it. The dark `classic-og-v2.6-j` stays registered for any round already pinned to it, and every ruleset before it has no Board block. Old rounds stay on their pinned rulesets. Rounds with the Board off show the Stores screen this roadmap started from, as D's tests hold.
+- **The staff ledger.** `GET /admin/rounds/:roundId/board?hours=` (`AdminPlayerBoardService`) lists every post, fill, cancel and expiry in the window, newest first, with seller, buyer, item, units, price or barter basket, what the buyer paid and what the Board deleted. Its totals are posts, fills, cancels, expiries, open offers, units sold, cash paid, seller proceeds and cash deleted (posting fees, listing tax, sale tax, Board fees and barter top-ups). It also reconciles escrow: any seller whose `playerBoardEscrow` differs from their open and unreturned offers is listed as a problem. The admin Economy page shows it as "The Board" panel, under the same time-window picker as the money ledger. This is the wash-trade record the guardrails call for.
+- **The sim** (`npm run qa:board -- [steps] [seed]`, `scripts/qa/board-sim.ts`) runs eight players through random posts, fills, cancels and expiries on the live ruleset, using the server's pricing functions. Posts are cash or barter, at prices inside, above and below the fair range, and fills can buy part of an offer. After every step it checks:
+  - no item is created or lost across holdings and escrow;
+  - each seller's escrow equals their open offers;
+  - all cash plus everything the Board deleted stays constant;
+  - no rank rises. This is checked exactly per offer (from before posting) and per fill, and measured through `calculateNetWorthCents` for every player.
+
+  It also checks that legendary parts stay within reach on a Board round: buying a fuel cell or specialist circuitry through the Salvage Yard, with its inputs bought on the Board at their floor, costs no more than the Board's own floor for the legendary (about $3,334), give or take a few dollars of rounding. The roughly $2,850 top-up replaces book the barter inputs no longer cover, so on a Board round a legendary costs its fair price, whichever way you get it.
 
 F and G both sit on E. Product is the smaller cut, so it goes first. H is last. D lands before E so the tab exists on the round where fills turn on.
 

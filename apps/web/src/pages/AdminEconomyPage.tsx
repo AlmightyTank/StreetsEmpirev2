@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import type { AdminMarketsDto, AdminShipmentsDto, AdminSuspiciousDto } from '@streets/shared';
+import type { AdminMarketsDto, AdminPlayerBoardDto, AdminShipmentsDto, AdminSuspiciousDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
 import { adminApi } from '../api/admin.js';
 import { ApiError } from '../api/client.js';
+import { AdminBoardLedger } from '../components/AdminBoardLedger.js';
 import { AdminRoundPicker, useAdminRound } from '../components/AdminRoundPicker.js';
 import { Alert } from '../components/Alert.js';
 import { Panel, Stat } from '../components/Panel.js';
@@ -19,6 +20,7 @@ export function AdminEconomyPage() {
   const [markets, setMarkets] = useState<AdminMarketsDto | null>(null);
   const [suspicious, setSuspicious] = useState<AdminSuspiciousDto | null>(null);
   const [shipments, setShipments] = useState<AdminShipmentsDto | null>(null);
+  const [board, setBoard] = useState<AdminPlayerBoardDto | null>(null);
   const [city, setCity] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -39,6 +41,9 @@ export function AdminEconomyPage() {
     adminApi.suspicious(roundId, hours)
       .then(setSuspicious)
       .catch((caught: unknown) => setError(caught instanceof ApiError ? caught.message : 'Could not load the ledger.'));
+    adminApi.playerBoard(roundId, hours)
+      .then(setBoard)
+      .catch((caught: unknown) => setError(caught instanceof ApiError ? caught.message : 'Could not load the Board.'));
   }, [roundId, hours]);
 
   const shown = markets?.cities.find((row) => row.city === city) ?? markets?.cities[0];
@@ -48,7 +53,7 @@ export function AdminEconomyPage() {
       <div className="se-pagehead se-admin-pagehead">
         <div>
           <h1 className="se-title">Economy</h1>
-          <p className="se-eyebrow">Admin · markets, suspicious money and shipments</p>
+          <p className="se-eyebrow">Admin · markets, suspicious money, the Board and shipments</p>
         </div>
         <AdminRoundPicker rounds={rounds} roundId={roundId} onChange={setRoundId} />
       </div>
@@ -110,6 +115,8 @@ export function AdminEconomyPage() {
           </>
         )}
       </Panel>
+
+      {board?.enabled || (board && board.events.length + board.problems.length > 0) ? <AdminBoardLedger board={board} /> : null}
 
       <Panel title="Markets" aside={markets ? `priced ${adminWhen(markets.generatedAt)}` : undefined} flush className="se-mb">
         {!markets ? <p className="se-muted se-admin-pad">Pricing the markets...</p> : markets.cities.length === 0 ? (

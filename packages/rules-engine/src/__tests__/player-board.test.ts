@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV26I, classicOgV26J, classicOgV26JBoard, rulesets, type Ruleset } from '@streets/rulesets';
+import { classicOgV26I, classicOgV26J, classicOgV26JBoard, DEFAULT_RULESET_ID, rulesets, type Ruleset } from '@streets/rulesets';
 import { calculateNetWorthCents } from '../calculations/net-worth.js';
+import { loadRuleset } from '../loader.js';
 import {
   isPlayerBoardPriceLegal,
   playerBoardBand,
@@ -13,8 +14,6 @@ import {
   playerBoardItemBookCents,
   playerBoardItemKind,
   playerBoardKeeperBookCents,
-  playerBoardKeeperDailyCap,
-  playerBoardKeeperUnlock,
   playerBoardOfferExpiresAt,
   playerBoardPartBookCents,
   playerBoardPostingFeeCents,
@@ -59,7 +58,8 @@ function fill(column: Column, quantity: number, unitPriceCents: number, buyerCas
 
 describe('The Board A: ruleset', () => {
   it('ships the block switched off on the next ruleset', () => {
-    expect(Object.values(rulesets).at(-1)?.meta.id).toBe('classic-og-v2.6-j');
+    const ids = Object.keys(rulesets);
+    expect(ids.indexOf('classic-og-v2.6-j')).toBe(ids.indexOf(classicOgV26I.meta.id) + 1);
     expect(rules.playerBoard.enabled).toBe(false);
     expect(rules.playerBoard.taxPercent).toBe(8);
   });
@@ -87,11 +87,21 @@ describe('The Board E: opt-in ruleset', () => {
     expect(classicOgV26JBoard.meta.id).toBe('classic-og-v2.6-j-board');
   });
 
-  it('is never the default: new rounds still pin the dark 2.6.0-J', () => {
+});
+
+describe('The Board H: release', () => {
+  it('is the default: new rounds pin the live Board, and the dark 2.6.0-J stays registered for rounds already on it', () => {
     const ids = Object.keys(rulesets);
-    expect(ids.at(-1)).toBe(rules.meta.id);
-    expect(ids.indexOf(classicOgV26JBoard.meta.id)).toBe(ids.length - 2);
-    expect((Object.values(rulesets).at(-1) as Ruleset).playerBoard?.enabled).toBe(false);
+    expect(ids.at(-1)).toBe(classicOgV26JBoard.meta.id);
+    expect(DEFAULT_RULESET_ID).toBe(classicOgV26JBoard.meta.id);
+    expect((Object.values(rulesets).at(-1) as Ruleset).playerBoard?.enabled).toBe(true);
+    expect(ids.indexOf(rules.meta.id)).toBe(ids.length - 2);
+    expect(loadRuleset(rules.meta.id, rules.meta.version).playerBoard?.enabled).toBe(false);
+  });
+
+  it('leaves every round pinned before the Board without it', () => {
+    const ids = Object.keys(rulesets);
+    for (const id of ids.slice(0, ids.indexOf(rules.meta.id))) expect((rulesets as Record<string, Ruleset>)[id]!.playerBoard, id).toBeUndefined();
   });
 });
 
@@ -458,11 +468,11 @@ describe('The Board: any price, steeper outside the fair range', () => {
 describe('The Board G: guns, cars and ammo', () => {
   const on = { ...rules, playerBoard: { ...rules.playerBoard, enabled: true } } as Ruleset;
   const goods = {
-    PISTOL: { book: 3_500, unlock: null, cap: 50, floor: 4_667, top: 5_072, shelf: 5_000 },
-    SHOTGUN: { book: 31_500, unlock: 'SHOTGUN', cap: 5, floor: 42_000, top: 45_652, shelf: 45_000 },
-    TEK9: { book: 87_500, unlock: 'TEK9', cap: 3, floor: 116_667, top: 126_811, shelf: 125_000 },
-    AK47: { book: 245_000, unlock: 'AK47', cap: 2, floor: 326_667, top: 355_072, shelf: 350_000 },
-    LOW_RIDER: { book: 300_000, unlock: null, cap: 3, floor: 400_000, top: 434_782, shelf: 500_000 },
+    PISTOL: { book: 3_500, floor: 4_667, top: 5_072, shelf: 5_000 },
+    SHOTGUN: { book: 31_500, floor: 42_000, top: 45_652, shelf: 45_000 },
+    TEK9: { book: 87_500, floor: 116_667, top: 126_811, shelf: 125_000 },
+    AK47: { book: 245_000, floor: 326_667, top: 355_072, shelf: 350_000 },
+    LOW_RIDER: { book: 300_000, floor: 400_000, top: 434_782, shelf: 500_000 },
   } as const;
 
   it('books every gun and the low-rider at its keeper buyback, with the roadmap bands', () => {
@@ -479,18 +489,6 @@ describe('The Board G: guns, cars and ammo', () => {
     expect(playerBoardKeeperBookCents('AMMO', rules)).toBe(6);
     expect(playerBoardBand(6, rules)).toEqual({ bookCents: 6, floorCents: 8, capCents: 8 });
     for (const key of ['SEDAN', 'VAN', 'PARTS_BOX', 'VEHICLE_PARTS', 'AMMO_BOX', 'THUG']) expect(playerBoardItemKind(key, rules), key).toBeNull();
-  });
-
-  it('needs the keeper unlock for the shotgun, Tek-9 and AK-47 only', () => {
-    for (const [key, good] of Object.entries(goods)) expect(playerBoardKeeperUnlock(key, rules), key).toBe(good.unlock);
-    expect(playerBoardKeeperUnlock('AMMO', rules)).toBeNull();
-    expect(playerBoardKeeperUnlock('SCRAP_METAL', rules)).toBeNull();
-  });
-
-  it('caps a buyer at one keeper delivery a day, read from the ruleset', () => {
-    for (const [key, good] of Object.entries(goods)) expect(playerBoardKeeperDailyCap(key, rules), key).toBe(good.cap);
-    expect(playerBoardKeeperDailyCap('AMMO', rules)).toBe(rules.stores.TOMMY.items.AMMO_BOX.restock!.perInterval);
-    expect(playerBoardKeeperDailyCap('SCRAP_METAL', rules)).toBeNull();
   });
 
   it('refuses a keeper good whose book drifts from its buyback, or one off the allow-list', () => {

@@ -1,4 +1,4 @@
-import type { PlayerBoardKeeperKey, Ruleset, StoreKey, WeaponUnlockKey } from '@streets/rulesets';
+import type { PlayerBoardKeeperKey, Ruleset, StoreKey } from '@streets/rulesets';
 import { ammoNetWorthCentsPerRound } from './net-worth.js';
 import { CRACK_PRODUCT, productEconomy } from './product-economy.js';
 
@@ -161,7 +161,7 @@ const KEEPER_NET_WORTH: Readonly<Record<Exclude<PlayerBoardKeeperKey, 'AMMO'>, k
 
 function keeperItem(key: PlayerBoardKeeperKey, ruleset: Ruleset) {
   const where = PLAYER_BOARD_KEEPER_GOODS[key];
-  return (ruleset.stores[where.store]?.items as Readonly<Record<string, { sellCents: number | null; unlockKey?: WeaponUnlockKey; restock: { perInterval: number } | null; name: string }>> | undefined)?.[where.item];
+  return (ruleset.stores[where.store]?.items as Readonly<Record<string, { sellCents: number | null; name: string }>> | undefined)?.[where.item];
 }
 
 function isKeeperKey(key: string): key is PlayerBoardKeeperKey {
@@ -183,17 +183,6 @@ export function playerBoardKeeperBookCents(key: string, ruleset: Ruleset): numbe
   }
   const book = ruleset.economy.netWorth[KEEPER_NET_WORTH[key]] as number;
   return Number.isSafeInteger(book) && book > 0 && book === item.sellCents ? book : null;
-}
-
-/** The Board G. The keeper unlock a buyer needs before taking this good, if any. */
-export function playerBoardKeeperUnlock(key: string, ruleset: Ruleset): WeaponUnlockKey | null {
-  return isKeeperKey(key) ? keeperItem(key, ruleset)?.unlockKey ?? null : null;
-}
-
-/** The Board G. Most of a keeper good one buyer may take from the Board in a day: one keeper delivery. */
-export function playerBoardKeeperDailyCap(key: string, ruleset: Ruleset): number | null {
-  if (playerBoardKeeperBookCents(key, ruleset) === null) return null;
-  return keeperItem(key as PlayerBoardKeeperKey, ruleset)?.restock?.perInterval ?? null;
 }
 
 /** The Board G. The keeper's own name for a good ("Pistol", "Low-Rider"); ammo is counted in rounds. */

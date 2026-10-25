@@ -579,10 +579,6 @@ export interface PlayerBoardRowDto {
   /** The Board value of one lot (one unit for cash), and of a barter's ask (0 for cash), so the extra on a part-buy can be priced. */
   lotBookCents: number;
   askBookCents: number;
-  /** The Board G. True when the viewer lacks the keeper unlock this good needs; they can read the row but not buy. */
-  locked: boolean;
-  /** The Board G. Units of this keeper good the viewer may still buy today; null for goods without a daily limit. */
-  dailyLeft: number | null;
   sellerName: string;
   /** The viewer's own offer; it can never be bought by them. */
   mine: boolean;

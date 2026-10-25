@@ -82,7 +82,7 @@ describe.runIf(process.env.PLAYER_BOARD_INTEGRATION === '1')('The Board fills wi
     }
   });
 
-  it('ships switched on, and leaves the default ruleset off', () => {
+  it('ships switched on, and the dark 2.6.0-J stays off', () => {
     expect(rules.playerBoard?.enabled).toBe(true);
     expect(classicOgV26J.playerBoard.enabled).toBe(false);
   });

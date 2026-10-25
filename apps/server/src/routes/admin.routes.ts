@@ -53,6 +53,7 @@ import { SupporterPollService } from '../services/supporter-poll.service.js';
 import { wakeDiscordBot } from '../services/discord-bot-push.service.js';
 import { SiteBannerService } from '../services/site-banner.service.js';
 import { AdminEconomyService } from '../services/admin-economy.service.js';
+import { AdminPlayerBoardService } from '../services/admin-player-board.service.js';
 import { AdminSupplyService } from '../services/admin-supply.service.js';
 import { AdminSupplyCorrectionService } from '../services/admin-supply-correction.service.js';
 import { AdminLoansService } from '../services/admin-loans.service.js';
@@ -1262,6 +1263,13 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/rounds/:roundId/loans', async (request) => {
     const { roundId } = parseBody(roundParams, request.params);
     return AdminLoansService.report(fastify.prisma, roundId);
+  });
+
+  /** The Board H: the staff ledger of posts, fills, cancels and expiries, with an escrow check. */
+  fastify.get('/rounds/:roundId/board', async (request) => {
+    const { roundId } = parseBody(roundParams, request.params);
+    const { hours } = parseBody(z.object({ hours: z.coerce.number().int().min(1).max(24 * 14).optional() }).strict(), request.query ?? {});
+    return AdminPlayerBoardService.report(fastify.prisma, roundId, hours ?? 24);
   });
 
   fastify.get('/rounds/:roundId/suspicious', async (request) => {

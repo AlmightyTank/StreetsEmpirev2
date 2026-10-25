@@ -58,9 +58,9 @@ describe('The Board view', () => {
     const html = render({
       ...empty,
       rows: [
-        { id: 'a', itemKey: 'SCRAP_METAL', name: 'Scrap metal', category: 'PART', rarity: 'COMMON', priceKind: 'CASH', ask: [], lotSize: 1, lotBookCents: 0, askBookCents: 0, locked: false, dailyLeft: null, quantity: 10, unitPriceCents: 534, totalCents: 5_340, sellerName: 'Ace', mine: false, expiresAt: later(3) },
-        { id: 'b', itemKey: 'SCRAP_METAL', name: 'Scrap metal', category: 'PART', rarity: 'COMMON', priceKind: 'CASH', ask: [], lotSize: 1, lotBookCents: 0, askBookCents: 0, locked: false, dailyLeft: null, quantity: 4, unitPriceCents: 579, totalCents: 2_316, sellerName: 'Me', mine: true, expiresAt: later(47.5) },
-        { id: 'c', itemKey: 'RADIO', name: 'Radio', category: 'PART', rarity: 'UNCOMMON', priceKind: 'CASH', ask: [], lotSize: 1, lotBookCents: 0, askBookCents: 0, locked: false, dailyLeft: null, quantity: 1, unitPriceCents: 3_334, totalCents: 3_334, sellerName: 'Bo', mine: false, expiresAt: later(1) },
+        { id: 'a', itemKey: 'SCRAP_METAL', name: 'Scrap metal', category: 'PART', rarity: 'COMMON', priceKind: 'CASH', ask: [], lotSize: 1, lotBookCents: 0, askBookCents: 0, quantity: 10, unitPriceCents: 534, totalCents: 5_340, sellerName: 'Ace', mine: false, expiresAt: later(3) },
+        { id: 'b', itemKey: 'SCRAP_METAL', name: 'Scrap metal', category: 'PART', rarity: 'COMMON', priceKind: 'CASH', ask: [], lotSize: 1, lotBookCents: 0, askBookCents: 0, quantity: 4, unitPriceCents: 579, totalCents: 2_316, sellerName: 'Me', mine: true, expiresAt: later(47.5) },
+        { id: 'c', itemKey: 'RADIO', name: 'Radio', category: 'PART', rarity: 'UNCOMMON', priceKind: 'CASH', ask: [], lotSize: 1, lotBookCents: 0, askBookCents: 0, quantity: 1, unitPriceCents: 3_334, totalCents: 3_334, sellerName: 'Bo', mine: false, expiresAt: later(1) },
       ],
     });
     const seller = (name: string) => html.indexOf(`data-label="Seller"><span>${name}`);
@@ -74,7 +74,7 @@ describe('The Board view', () => {
     expect(html).toContain('3h 00m');
     // Buy on others' offers only, and a stack you cannot afford says so.
     expect(html.match(/>Buy all</g)).toHaveLength(2);
-    const poor = render({ ...empty, cashCents: 3_000, rows: [{ id: 'z', itemKey: 'RADIO', name: 'Radio', category: 'PART', rarity: 'UNCOMMON', priceKind: 'CASH', ask: [], lotSize: 1, lotBookCents: 0, askBookCents: 0, locked: false, dailyLeft: null, quantity: 1, unitPriceCents: 3_334, totalCents: 3_334, sellerName: 'Bo', mine: false, expiresAt: later(1) }] });
+    const poor = render({ ...empty, cashCents: 3_000, rows: [{ id: 'z', itemKey: 'RADIO', name: 'Radio', category: 'PART', rarity: 'UNCOMMON', priceKind: 'CASH', ask: [], lotSize: 1, lotBookCents: 0, askBookCents: 0, quantity: 1, unitPriceCents: 3_334, totalCents: 3_334, sellerName: 'Bo', mine: false, expiresAt: later(1) }] });
     expect(poor).toContain('You need $33.34 on hand.');
   });
 
@@ -122,7 +122,7 @@ describe('The Board with drugs', () => {
     const html = render({
       ...empty,
       filter: 'PRODUCTS',
-      rows: [{ id: 'k', itemKey: 'CRACK', name: 'Crack', category: 'PRODUCT', rarity: null, priceKind: 'CASH', ask: [], lotSize: 1, lotBookCents: 0, askBookCents: 0, locked: false, dailyLeft: null, quantity: 100, unitPriceCents: 400, totalCents: 40_000, sellerName: 'Pip2', mine: false, expiresAt: later(5) }],
+      rows: [{ id: 'k', itemKey: 'CRACK', name: 'Crack', category: 'PRODUCT', rarity: null, priceKind: 'CASH', ask: [], lotSize: 1, lotBookCents: 0, askBookCents: 0, quantity: 100, unitPriceCents: 400, totalCents: 40_000, sellerName: 'Pip2', mine: false, expiresAt: later(5) }],
       listable: [
         { key: 'CRACK', name: 'Crack', category: 'PRODUCT', rarity: null, held: 50, bookCents: 300, floorCents: 400, capCents: 434 },
         { key: 'RADIO', name: 'Radio', category: 'PART', rarity: 'UNCOMMON', held: 2, bookCents: 2_500, floorCents: 3_334, capCents: 3_623 },
@@ -141,8 +141,7 @@ describe('The Board with drugs', () => {
 describe('The Board barters', () => {
   const listable = [{ key: 'MOTOR_ASSEMBLY', name: 'Motor assembly', category: 'PART' as const, rarity: 'RARE' as const, held: 4, bookCents: 8_000, floorCents: 10_667, capCents: 11_594 }];
   const trade = { id: 't', itemKey: 'MOTOR_ASSEMBLY', name: 'Motor assembly', category: 'PART' as const, rarity: 'RARE' as const, priceKind: 'BARTER' as const,
-    ask: [{ key: 'RADIO', name: 'Radio', quantity: 2 }, { key: 'SCRAP_METAL', name: 'Scrap metal', quantity: 5 }], lotSize: 1, lotBookCents: 8_000, askBookCents: 7_000, locked: false, dailyLeft: null,
-    quantity: 4, unitPriceCents: 0, totalCents: 5_400, sellerName: 'Swapper', mine: false, expiresAt: later(4) };
+    ask: [{ key: 'RADIO', name: 'Radio', quantity: 2 }, { key: 'SCRAP_METAL', name: 'Scrap metal', quantity: 5 }], lotSize: 1, lotBookCents: 8_000, askBookCents: 7_000,    quantity: 4, unitPriceCents: 0, totalCents: 5_400, sellerName: 'Swapper', mine: false, expiresAt: later(4) };
 
   it('prices a barter per unit, and buying some hands over that many times the ask', () => {
     const html = render({ ...empty, rows: [trade], holdings: { RADIO: 8, SCRAP_METAL: 20 } });
@@ -160,7 +159,7 @@ describe('The Board barters', () => {
   });
 
   it('takes a lotted barter in whole lots only', () => {
-    const lotted = { ...trade, itemKey: 'CRACK', name: 'Crack', category: 'PRODUCT' as const, rarity: null, ask: [{ key: 'RADIO', name: 'Radio', quantity: 1 }], lotSize: 10, lotBookCents: 3_000, askBookCents: 2_500, locked: false, dailyLeft: null, quantity: 30, totalCents: 2_000 };
+    const lotted = { ...trade, itemKey: 'CRACK', name: 'Crack', category: 'PRODUCT' as const, rarity: null, ask: [{ key: 'RADIO', name: 'Radio', quantity: 1 }], lotSize: 10, lotBookCents: 3_000, askBookCents: 2_500, quantity: 30, totalCents: 2_000 };
     const html = render({ ...empty, rows: [lotted], holdings: { RADIO: 3 } }, false, form, { t: '15' });
     expect(html).toContain('1 × Radio per 10');
     expect(html).toContain('step="10"');
@@ -201,7 +200,7 @@ describe('The Board barters', () => {
 });
 
 describe('The Board partial buys', () => {
-  const row = { id: 'p', itemKey: 'CRACK', name: 'Crack', category: 'PRODUCT' as const, rarity: null, priceKind: 'CASH' as const, ask: [], lotSize: 1, lotBookCents: 0, askBookCents: 0, locked: false, dailyLeft: null, quantity: 12, unitPriceCents: 400, totalCents: 4_800, sellerName: 'Rocky', mine: false, expiresAt: later(6) };
+  const row = { id: 'p', itemKey: 'CRACK', name: 'Crack', category: 'PRODUCT' as const, rarity: null, priceKind: 'CASH' as const, ask: [], lotSize: 1, lotBookCents: 0, askBookCents: 0, quantity: 12, unitPriceCents: 400, totalCents: 4_800, sellerName: 'Rocky', mine: false, expiresAt: later(6) };
 
   it('lets a buyer take part of a cash offer and prices just that part', () => {
     const all = render({ ...empty, rows: [row] });
@@ -234,7 +233,7 @@ describe('The Board partial buys', () => {
 describe('The Board off-range prices', () => {
   it('marks a cash offer under the fair range and prices its Board fee into the buy', () => {
     const cheap = { id: 'c', itemKey: 'SCRAP_METAL', name: 'Scrap metal', category: 'PART' as const, rarity: 'COMMON' as const, priceKind: 'CASH' as const, ask: [],
-      lotSize: 1, lotBookCents: 400, askBookCents: 0, locked: false, dailyLeft: null, quantity: 10, unitPriceCents: 200, totalCents: 5_400, sellerName: 'Cheapo', mine: false, expiresAt: later(3) };
+      lotSize: 1, lotBookCents: 400, askBookCents: 0, quantity: 10, unitPriceCents: 200, totalCents: 5_400, sellerName: 'Cheapo', mine: false, expiresAt: later(3) };
     const html = render({ ...empty, rows: [cheap], cashCents: 2_100 }, false, form, { c: '4' });
     expect(html).toContain('+ Board fee');
     // Four for $8 plus a $14 Board fee: $22.
@@ -255,24 +254,16 @@ describe('The Board off-range prices', () => {
 
 describe('The Board keeper goods', () => {
   const ak = { id: 'g', itemKey: 'AK47', name: 'AK-47', category: 'KEEPER' as const, rarity: null, priceKind: 'CASH' as const, ask: [],
-    lotSize: 1, lotBookCents: 245_000, askBookCents: 0, locked: false, dailyLeft: 2, quantity: 5, unitPriceCents: 330_000, totalCents: 1_650_000, sellerName: 'Armory', mine: false, expiresAt: later(8) };
+    lotSize: 1, lotBookCents: 245_000, askBookCents: 0, quantity: 5, unitPriceCents: 330_000, totalCents: 1_650_000, sellerName: 'Armory', mine: false, expiresAt: later(8) };
 
-  it('shows a locked gun to anyone but will not sell it to them', () => {
-    const html = render({ ...empty, rows: [{ ...ak, locked: true }], cashCents: 10_000_000 });
-    expect(html).toContain('AK-47');
-    expect(html).toContain('>Locked<');
-    expect(html).toContain('Unlock the AK-47 first.');
-    expect(html).toContain('se-board-rarity--keeper');
-  });
-
-  it('caps a keeper good at one delivery a day, and defaults the buy to what is left', () => {
+  it('sells any gun to anyone with the cash, in any amount: no unlock and no daily limit', () => {
     const html = render({ ...empty, rows: [ak], cashCents: 10_000_000 });
-    expect(boardBuyUnits(ak, undefined)).toBe(2);
-    expect(html).toContain('>Buy 2<');
-    const over = render({ ...empty, rows: [ak], cashCents: 10_000_000 }, false, form, { g: '3' });
-    expect(over).toContain('The Board sells you at most 2 more ak-47 today.');
-    const done = render({ ...empty, rows: [{ ...ak, dailyLeft: 0 }], cashCents: 10_000_000 });
-    expect(done).toContain('You have bought a full keeper delivery of ak-47 from the Board today.');
+    expect(html).toContain('AK-47');
+    expect(html).toContain('se-board-rarity--keeper');
+    expect(html).not.toContain('Locked');
+    expect(boardBuyUnits(ak, undefined)).toBe(5);
+    expect(html).toContain('>Buy all<');
+    expect(html).not.toContain('disabled');
   });
 
   it('offers a Guns & cars filter and groups keeper goods in the listing form', () => {

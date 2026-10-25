@@ -1,4 +1,5 @@
 import type {
+  AdminPlayerBoardDto,
   AdminEventCalendarInput,
   AdminEventPreviewDto,
   AdminEventReleaseReportDto,
@@ -330,6 +331,8 @@ export const adminApi = {
     api.post<AdminLawPlayerDto>(`/admin/players/${enc(roundPlayerId)}/law/adjust`, input),
   suspicious: (roundId: string, hours = 24) => api.get<AdminSuspiciousDto>(`${roundPath(roundId, 'suspicious')}?hours=${hours}`),
   shipments: (roundId: string) => api.get<AdminShipmentsDto>(roundPath(roundId, 'shipments')),
+  /** The Board H. Posts, fills, cancels and expiries in the window, with an escrow check. */
+  playerBoard: (roundId: string, hours = 24) => api.get<AdminPlayerBoardDto>(`${roundPath(roundId, 'board')}?hours=${hours}`),
   playerStores: (roundPlayerId: string) => api.get<AdminPlayerStoresDto>(`/admin/players/${encodeURIComponent(roundPlayerId)}/stores`),
   roundBattles: (roundId: string, playerId?: string) => api.get<AdminRoundBattlesDto>(`${roundPath(roundId, 'battles')}${playerId ? `?playerId=${encodeURIComponent(playerId)}` : ''}`),
   exploitFlags: (status: 'open' | 'reviewed' | 'all' = 'open') => api.get<AdminExploitFlagsDto>(`/admin/exploit-flags?status=${status}`),
