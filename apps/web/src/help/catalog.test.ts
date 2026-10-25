@@ -72,8 +72,10 @@ describe('1.0.0-B help catalog', () => {
       // Each store lives at /game/stores/:slug on the same page.
       const route = path.startsWith('/game/stores/') ? '/game/stores' : path;
       const source = sources[route] ?? '';
-      // Panels take the anchor as a `tourTarget` prop, so it can appear as a string literal.
+      // Panels take the anchor as a `tourTarget` prop. Quest actions pass the
+      // same target through a `data-tour` expression on the button itself.
       const anchored = source.includes(`data-tour="${copy.target}"`)
+        || (source.includes('data-tour=') && source.includes(`'${copy.target}'`))
         || (source.includes('tourTarget') && source.includes(`'${copy.target}'`));
       expect(anchored, `${key} anchor in ${copy.to}`).toBe(true);
     }

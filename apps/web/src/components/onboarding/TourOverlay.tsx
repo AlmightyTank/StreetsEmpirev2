@@ -23,6 +23,21 @@ export function neighborStep(steps: Array<{ key: TourStepKey; done: boolean }>, 
 
 type TargetRect = { top: number; left: number; width: number; height: number };
 
+function sameRect(current: TargetRect | null, next: TargetRect | null): boolean {
+  if (current === next) return true;
+  if (!current || !next) return false;
+  return Math.abs(current.top - next.top) < 0.5
+    && Math.abs(current.left - next.left) < 0.5
+    && Math.abs(current.width - next.width) < 0.5
+    && Math.abs(current.height - next.height) < 0.5;
+}
+
+function rectFromTarget(target: Element): TargetRect | null {
+  const box = target.getBoundingClientRect();
+  if (box.width <= 0 || box.height <= 0 || box.bottom <= 0 || box.top >= window.innerHeight) return null;
+  return { top: box.top, left: box.left, width: box.width, height: box.height };
+}
+
 /**
  * Guided walkthrough spotlight. Highlights the current step's real action
  * without ever blocking the page: the overlay itself ignores pointer events
@@ -43,50 +58,65 @@ export function TourOverlay({ tour: tourOverride }: { tour?: OnboardingStateDto[
   const measure = useCallback(() => {
     if (!copy || typeof document === 'undefined') return;
     const target = document.querySelector(`[data-tour="${copy.target}"]`);
-    if (!target) {
-      setRect(null);
-      return;
-    }
-    const box = target.getBoundingClientRect();
-    setRect({ top: box.top, left: box.left, width: box.width, height: box.height });
+    const next = target ? rectFromTarget(target) : null;
+    setRect((current) => sameRect(current, next) ? current : next);
   }, [copy]);
 
   useEffect(() => {
     if (!visible || !copy) return;
+    const targetName = copy.target;
     const markTargets = () => {
-      document.querySelectorAll(`[data-tour="${copy.target}"]`).forEach((element, index) => {
+      document.querySelectorAll(`[data-tour="${targetName}"]`).forEach((element, index) => {
         element.classList.add('se-tour__page-target');
         element.classList.toggle('se-tour__page-target--blocked', index > 0);
         element.setAttribute('data-tour-focus', index === 0 ? 'active' : 'blocked');
       });
+      document.querySelectorAll(`[data-tour-blocked="${targetName}"]`).forEach((element) => {
+        element.classList.add('se-tour__page-target', 'se-tour__page-target--blocked');
+        element.setAttribute('data-tour-focus', 'blocked');
+      });
     };
-    measure();
-    markTargets();
-    const target = document.querySelector(`[data-tour="${copy.target}"]`);
-    const observer = target && typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null;
-    if (observer && target) observer.observe(target);
-    const mutationObserver = typeof MutationObserver !== 'undefined' ? new MutationObserver(() => {
+    let resizeObserver: ResizeObserver | null = null;
+    let observed: Element | null = null;
+    const sync = () => {
       markTargets();
       measure();
-    }) : null;
-    mutationObserver?.observe(document.body, { childList: true, subtree: true });
+      const target = document.querySelector(`[data-tour="${targetName}"]`);
+      if (target === observed) return;
+      resizeObserver?.disconnect();
+      resizeObserver = null;
+      observed = target;
+      if (target && typeof ResizeObserver !== 'undefined') {
+        resizeObserver = new ResizeObserver(measure);
+        resizeObserver.observe(target);
+      }
+    };
+    sync();
+    const mutationRoot = document.querySelector('.se-gamemain') ?? document.body;
+    const mutationObserver = typeof MutationObserver !== 'undefined' ? new MutationObserver(sync) : null;
+    mutationObserver?.observe(mutationRoot, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['open', 'hidden', 'class', 'style', 'data-tour', 'data-tour-blocked'],
+    });
     window.addEventListener('resize', measure);
     window.addEventListener('scroll', measure, true);
     return () => {
-      document.querySelectorAll(`[data-tour="${copy.target}"]`).forEach((element) => {
+      for (const element of document.querySelectorAll(`[data-tour="${targetName}"], [data-tour-blocked="${targetName}"]`)) {
         element.classList.remove('se-tour__page-target', 'se-tour__page-target--blocked');
         element.removeAttribute('data-tour-focus');
-      });
+      }
       window.removeEventListener('resize', measure);
       window.removeEventListener('scroll', measure, true);
-      observer?.disconnect();
+      resizeObserver?.disconnect();
       mutationObserver?.disconnect();
     };
-  }, [visible, measure]);
+  }, [visible, copy, measure]);
 
   useEffect(() => {
     if (!visible) return;
-    cardRef.current?.focus();
+    cardRef.current?.focus({ preventScroll: true });
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') void act({ action: 'dismiss-tour' });
     };

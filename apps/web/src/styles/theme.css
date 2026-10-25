@@ -4393,9 +4393,8 @@ button.se-notification-empty:hover { color: var(--se-text); }
   box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
 }
 
-/* When a page renders several copies of the guided action, only the first
-   highlighted copy may be used. The remaining copies stay visible but gray so
-   the tour cannot accidentally accept a second job. */
+/* Extra copies of the guided action are marked by the page. They stay visible
+   but cannot be used, so accepting or collecting cannot move the spotlight. */
 .se-tour__page-target--blocked {
   opacity: .45;
   filter: grayscale(1);
