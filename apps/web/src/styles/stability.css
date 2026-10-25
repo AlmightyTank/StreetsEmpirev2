@@ -4,6 +4,19 @@ html,
 body,
 #root {
   max-width: 100%;
+  min-width: 0;
+  overflow-x: clip;
+}
+
+/* Replaced elements should shrink with their panel instead of widening the
+   page when an art asset or a long generated preview is larger than its slot.
+   Components that intentionally scroll a table or strip still own that
+   overflow on their wrapper. */
+img,
+svg,
+video,
+canvas {
+  max-width: 100%;
 }
 
 .se-tablewrap,
