@@ -1164,6 +1164,16 @@
   border-radius: 10px;
   background: var(--se-panel);
   scroll-margin-top: 94px;
+}
+
+/* A window-scrolled Virtuoso list must be allowed to measure and lay out its
+   spacer rows outside the group's padding box. Clipping this ancestor can
+   make later quest rows unreachable even though the document itself scrolls. */
+.se-quests-group {
+  overflow: visible;
+}
+
+.se-quests-resources {
   overflow: clip;
 }
 
@@ -1269,7 +1279,7 @@
 .se-quests-virtual-row {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  align-items: start;
+  align-items: stretch;
   gap: 10px;
   padding-bottom: 10px;
   overflow-anchor: none;

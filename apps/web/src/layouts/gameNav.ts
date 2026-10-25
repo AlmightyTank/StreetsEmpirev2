@@ -42,7 +42,7 @@ export interface NavSection {
 export type IconName =
   | 'dashboard' | 'hideout' | 'scout' | 'produce' | 'raids' | 'stores' | 'cities'
   | 'rankings' | 'alliance' | 'contacts' | 'profile' | 'activity'
-  | 'status' | 'rules' | 'news' | 'fame' | 'account' | 'admin' | 'pass' | 'casino' | 'drop';
+  | 'status' | 'rules' | 'news' | 'fame' | 'account' | 'admin' | 'pass' | 'casino' | 'drop' | 'blocks';
 
 /**
  * One destination per feature a player acts on during a round, in six groups.
@@ -50,7 +50,7 @@ export type IconName =
  * billing are off this menu: the season card, Account, Street Pass, and the
  * check-in notice still open them. Operations, the Black Book, and individual
  * crew profiles are off it too. Armory and Garage are Hideout tabs, and every
- * section starts open so those tabs stay on the sidebar.
+ * section starts open.
  */
 export const SECTIONS: NavSection[] = [
   {
@@ -59,7 +59,7 @@ export const SECTIONS: NavSection[] = [
     defaultOpen: true,
     pages: [
       { key: 'dashboard', label: 'Dashboard', short: 'Home', to: '/game', icon: 'dashboard' },
-      { key: 'quests', label: 'Quests', to: '/game/quests', icon: 'activity', aliases: ['/game/reputation'] },
+      { key: 'quests', label: 'Contacts', to: '/game/quests', icon: 'activity', aliases: ['/game/reputation'] },
       { key: 'scout', label: 'Scout', to: '/game/scout', icon: 'scout' },
       { key: 'produce', label: 'Produce', to: '/game/produce', icon: 'produce' },
       { key: 'raids', label: 'Raids', to: '/game/combat', icon: 'raids' },
@@ -75,16 +75,11 @@ export const SECTIONS: NavSection[] = [
         label: 'Hideout',
         to: '/game/hideout',
         icon: 'hideout',
-        excludeHashes: ['#hideout-armory', '#hideout-garage'],
+        excludeHashes: [],
       },
-      { key: 'armory', label: 'Armory', short: 'Armory', to: '/game/hideout', hash: '#hideout-armory', icon: 'raids' },
-      { key: 'garage', label: 'Garage', short: 'Garage', to: '/game/hideout', hash: '#hideout-garage', icon: 'cities' },
-      { key: 'dealers', label: 'Dealer Crews', short: 'Dealers', to: '/game/dealers', icon: 'contacts' },
       { key: 'stores', label: 'Stores', to: '/game/stores', icon: 'stores', prefix: '/game/stores/' },
-      { key: 'supply', label: 'Bulk Orders', short: 'Supply', to: '/game/supply', icon: 'stores' },
-      { key: 'loans', label: 'Loan Shark', short: 'Loans', to: '/game/loans', icon: 'stores' },
       { key: 'travel', label: 'Travel', to: '/game/travel', icon: 'cities' },
-      { key: 'turf', label: 'Turf', to: '/game/turf', icon: 'cities' },
+       { key: 'turf', label: 'Turf', to: '/game/turf', icon: 'blocks' },
     ],
   },
   {
@@ -123,7 +118,6 @@ export const SECTIONS: NavSection[] = [
     title: 'Help & Settings',
     defaultOpen: true,
     pages: [
-      { key: 'status', label: 'Status & Support', short: 'Status', to: '/game/status', icon: 'status', aliases: ['/game/report-bug'] },
       { key: 'rules', label: 'Rules', to: '/game/rules', icon: 'rules' },
       { key: 'account', label: 'Account', to: '/account', icon: 'account' },
     ],
@@ -162,8 +156,6 @@ export const ADMIN_SECTIONS: NavSection[] = [
     title: 'Admin · Economy',
     pages: [
       { key: 'admin-economy', label: 'Economy', to: '/game/admin/economy', icon: 'admin' },
-      { key: 'admin-supply', label: 'Supply Operations', to: '/game/admin/supply', icon: 'admin' },
-      { key: 'admin-loans', label: 'Loan Shark', short: 'Loans', to: '/game/admin/loans', icon: 'admin' },
       { key: 'admin-casino', label: 'Casino', to: '/game/admin/casino', icon: 'admin' },
       { key: 'admin-drop', label: 'The Drop', to: '/game/admin/drop', icon: 'admin' },
     ],

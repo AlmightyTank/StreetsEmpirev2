@@ -52,6 +52,7 @@
     "qa:season": "node --import tsx scripts/qa/season-sim.mjs",
     "qa:business": "node --import tsx scripts/qa/business-sim.mjs",
     "qa:hideout": "node --import tsx scripts/qa/hideout-sim.mjs",
+    "qa:board": "tsx scripts/qa/board-sim.ts",
     "qa:ui": "node scripts/qa/ui-audit.mjs",
     "qa:pwa": "node --test scripts/qa/pwa-install-branding.test.mjs",
     "qa:ui:styles": "node scripts/qa/ui-style-guard.mjs",
@@ -91,7 +92,8 @@
     "build:site": "npm run build -w @streets/site",
     "qa:loans": "node --import tsx scripts/qa/loan-sim.mjs",
     "qa:operations": "node --import tsx scripts/qa/operation-sim.ts",
-    "qa:rivalry": "node --import tsx scripts/qa/rivalry-sim.ts"
+    "qa:rivalry": "node --import tsx scripts/qa/rivalry-sim.ts",
+    "qa:quest-narrative": "tsx scripts/qa/quest-narrative-audit.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

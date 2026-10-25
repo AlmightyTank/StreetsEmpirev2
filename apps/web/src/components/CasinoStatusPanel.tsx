@@ -8,14 +8,13 @@ import { Panel, Row } from './Panel.js';
 import { newActionId } from '../utils/actionId.js';
 import { formatWhen } from '../utils/time.js';
 
-const SIGNATURE_LABEL: Record<CasinoSignatureGameDto, string> = {
+const SIGNATURE_LABEL: Partial<Record<CasinoSignatureGameDto, string>> = {
   SLOTS: 'Slots',
   BLACKJACK: 'Blackjack',
   ROULETTE: 'Roulette',
   SCRATCH_CARDS: 'Scratch Cards',
   HORSE_RACING: 'Horse Racing',
-  POKER: 'Poker',
-  POOL: 'Pool',
+  POKER: "Texas Hold'em",
 };
 
 function percent(bps: number): string {
@@ -115,7 +114,7 @@ export function CasinoStatusPanel({
         {venue?.identity ? (
           <p className="se-casino-status__identity">
             <em>&ldquo;{venue.identity.tagline}&rdquo;</em>
-            <span>House game: {SIGNATURE_LABEL[venue.identity.signatureGame]}</span>
+            <span>House game: {SIGNATURE_LABEL[venue.identity.signatureGame] ?? 'Casino table'}</span>
           </p>
         ) : null}
         {room ? (

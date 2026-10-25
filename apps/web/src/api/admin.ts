@@ -1,4 +1,5 @@
 import type {
+  AdminPlayerBoardDto,
   AdminEventCalendarInput,
   AdminEventPreviewDto,
   AdminEventReleaseReportDto,
@@ -15,10 +16,6 @@ import type {
   AdminCrewProvenanceDto,
   AdminCrewLoyaltyRepairResultDto,
   AdminCrewRosterRepairResultDto,
-  AdminLoanCorrectionInput,
-  AdminLoanCorrectionResult,
-  AdminLoanPlayerDto,
-  AdminLoansDto,
   AdminBugReportQueueDto,
   AdminBugReportStatus,
   AdminStaffDto,
@@ -30,14 +27,11 @@ import type {
   AdminFactionAdjustmentInput,
   AdminVehicleAdjustmentInput,
   AdminVehicleRoundDto,
-  AdminArmoryPlayerDto,
   AdminFactionRoundDto,
   AdminCasinoDto,
   AdminLawDto,
   AdminLawPlayerDto,
   AdminMarketsDto,
-  AdminSupplyDto,
-  AdminSupplyCorrectionResult,
   AdminPlayerStoresDto,
   AdminRoundBattlesDto,
   AdminShipmentsDto,
@@ -289,10 +283,6 @@ export const adminApi = {
   auditExportUrl: (filters: AdminAuditFilters = {}) => `/api/admin/audit/export${queryString({ ...filters, before: undefined })}`,
   // 1.0.0-E: economy, fights, exploit flags and turf.
   markets: (roundId: string) => api.get<AdminMarketsDto>(roundPath(roundId, 'markets')),
-  supply: (roundId: string) => api.get<AdminSupplyDto>(roundPath(roundId, 'supply')),
-  /** 1.6.0-I. Set one warehouse's or crew's stock to a counted figure, audited. */
-  adjustPlayerSupply: (roundPlayerId: string, input: { target: 'WAREHOUSE' | 'CREW'; targetId: string; productKey: string; quantity: number; reason: string }) =>
-    api.post<AdminSupplyCorrectionResult>(`/admin/players/${enc(roundPlayerId)}/supply/adjust`, input),
   casino: (roundId: string) => api.get<AdminCasinoDto>(roundPath(roundId, 'casino')),
   /** 1.8.0-C. Sportsbook feed health (global, not per round), an on-demand result check and an audited void. */
   sportsbook: () => api.get<AdminSportsbookDto>('/admin/sportsbook'),
@@ -309,18 +299,12 @@ export const adminApi = {
     api.post<AdminSportsbookActionDto>(`/admin/sportsbook/events/${enc(eventId)}/void`, { reason }),
   sportsbookResolve: (eventId: string, input: { action: 'SETTLE'; provider: string; reason: string } | { action: 'VOID'; reason: string }) =>
     api.post<AdminSportsbookActionDto>(`/admin/sportsbook/events/${enc(eventId)}/resolve`, input),
-  /** 1.6.5-F. Loan shark health for a round, one player's loans, and an audited correction. */
-  loans: (roundId: string) => api.get<AdminLoansDto>(roundPath(roundId, 'loans')),
-  playerLoans: (roundPlayerId: string) => api.get<AdminLoanPlayerDto>(`/admin/players/${enc(roundPlayerId)}/loans`),
-  correctPlayerLoans: (roundPlayerId: string, input: AdminLoanCorrectionInput) =>
-    api.post<AdminLoanCorrectionResult>(`/admin/players/${enc(roundPlayerId)}/loans/correct`, input),
   // 1.4.0-G: faction standing health and audited correction.
   factions: (roundId: string) => api.get<AdminFactionRoundDto>(roundPath(roundId, 'factions')),
   adjustPlayerFaction: (roundPlayerId: string, input: AdminFactionAdjustmentInput) =>
     api.post<AdminPlayerDto>(`/admin/players/${enc(roundPlayerId)}/factions/adjust`, input),
   /** 1.5.0-E. Vehicle health for a round, and audited fleet corrections. */
   vehicles: (roundId: string) => api.get<AdminVehicleRoundDto>(roundPath(roundId, 'vehicles')),
-  armory: (roundPlayerId: string) => api.get<AdminArmoryPlayerDto>(`/admin/players/${enc(roundPlayerId)}/armory`),
   adjustPlayerVehicles: (roundPlayerId: string, input: AdminVehicleAdjustmentInput) =>
     api.post<AdminPlayerDto>(`/admin/players/${enc(roundPlayerId)}/vehicles/adjust`, input),
   // 1.3.0-G: law health, one player's Case, and an audited correction.
@@ -330,6 +314,8 @@ export const adminApi = {
     api.post<AdminLawPlayerDto>(`/admin/players/${enc(roundPlayerId)}/law/adjust`, input),
   suspicious: (roundId: string, hours = 24) => api.get<AdminSuspiciousDto>(`${roundPath(roundId, 'suspicious')}?hours=${hours}`),
   shipments: (roundId: string) => api.get<AdminShipmentsDto>(roundPath(roundId, 'shipments')),
+  /** The Board H. Posts, fills, cancels and expiries in the window, with an escrow check. */
+  playerBoard: (roundId: string, hours = 24) => api.get<AdminPlayerBoardDto>(`${roundPath(roundId, 'board')}?hours=${hours}`),
   playerStores: (roundPlayerId: string) => api.get<AdminPlayerStoresDto>(`/admin/players/${encodeURIComponent(roundPlayerId)}/stores`),
   roundBattles: (roundId: string, playerId?: string) => api.get<AdminRoundBattlesDto>(`${roundPath(roundId, 'battles')}${playerId ? `?playerId=${encodeURIComponent(playerId)}` : ''}`),
   exploitFlags: (status: 'open' | 'reviewed' | 'all' = 'open') => api.get<AdminExploitFlagsDto>(`/admin/exploit-flags?status=${status}`),

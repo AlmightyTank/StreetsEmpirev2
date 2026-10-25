@@ -4,6 +4,7 @@ import { hasItemArt, ITEM_ART, type ItemArtKey } from '../items/itemArt.js';
 import { itemCosmeticArtUrl } from '../items/itemCosmeticArt.js';
 import { useSession } from '../stores/session.js';
 import { ItemZoom, type ZoomOrigin } from './ItemZoom.js';
+import '../styles/items.css';
 
 /**
  * A small picture ahead of a list row's label. `slot` reserves room for a

@@ -116,3 +116,4 @@ export function SkillsPage() {
     </div>
   </GameLayout>;
 }
+import '../styles/street-skills.css';

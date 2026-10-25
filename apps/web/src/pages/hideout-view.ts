@@ -1,5 +1,5 @@
 /** Which Hideout surface is on screen. Hash links from the old anchor nav still resolve. */
-export type HideoutSectionId = 'overview' | 'rooms' | 'supplies' | 'security' | 'operations' | 'armory' | 'garage' | 'look';
+export type HideoutSectionId = 'overview' | 'rooms' | 'supplies' | 'scavenging' | 'workshop' | 'generator' | 'security' | 'operations' | 'armory' | 'garage' | 'look';
 
 export type HideoutSupplyTab = 'stash' | 'scavenging' | 'workshop' | 'generator';
 
@@ -24,6 +24,9 @@ const SECTION_HASH: Record<HideoutSectionId, string> = {
   overview: '#hideout-overview',
   rooms: '#hideout-upgrades',
   supplies: '#hideout-stash',
+  scavenging: '#hideout-scavenging',
+  workshop: '#hideout-workshop',
+  generator: '#hideout-generator',
   security: '#hideout-security',
   operations: '#hideout-operations',
   armory: '#hideout-armory',
@@ -55,6 +58,9 @@ export function hideoutViewFromHash(hash: string): HideoutView {
   if (id === 'hideout-garage') return { section: 'garage', supply: 'stash', roomKey: null };
   if (id === 'hideout-overview') return { section: 'overview', supply: 'stash', roomKey: null };
   const supply = SUPPLY_HASH[id];
+  if (supply === 'scavenging') return { section: 'scavenging', supply, roomKey: null };
+  if (supply === 'workshop') return { section: 'workshop', supply, roomKey: null };
+  if (supply === 'generator') return { section: 'generator', supply, roomKey: null };
   if (supply) return { section: 'supplies', supply, roomKey: null };
   return { section: 'overview', supply: 'stash', roomKey: null };
 }
@@ -62,17 +68,24 @@ export function hideoutViewFromHash(hash: string): HideoutView {
 /** Hash for a section the player just chose. A room key keeps that card in reach. */
 export function hashForHideoutView(view: HideoutView): string {
   if (view.section === 'rooms' && view.roomKey) return `#hideout-room-${view.roomKey.toLowerCase()}`;
+  if (view.section === 'scavenging') return '#hideout-scavenging';
+  if (view.section === 'workshop') return '#hideout-workshop';
+  if (view.section === 'generator') return '#hideout-generator';
   if (view.section === 'supplies') return SUPPLY_HASH_ID[view.supply];
   return SECTION_HASH[view.section];
 }
 
 export function resolveHideoutSection(
   section: HideoutSectionId,
-  available: { hasSecurity: boolean; hasOperations: boolean; hasSupplies: boolean; hasLook: boolean },
+  available: { hasSecurity: boolean; hasOperations: boolean; hasSupplies: boolean; hasLook: boolean; hasScavenging?: boolean; hasWorkshop?: boolean; hasGenerator?: boolean },
 ): HideoutSectionId {
+  if (section === 'armory' || section === 'garage') return 'overview';
   if (section === 'security' && !available.hasSecurity) return 'overview';
   if (section === 'operations' && !available.hasOperations) return 'overview';
   if (section === 'supplies' && !available.hasSupplies) return 'overview';
+  if (section === 'scavenging' && !available.hasScavenging) return 'overview';
+  if (section === 'workshop' && !available.hasWorkshop) return 'overview';
+  if (section === 'generator' && !available.hasGenerator) return 'overview';
   if (section === 'look' && !available.hasLook) return 'overview';
   return section;
 }

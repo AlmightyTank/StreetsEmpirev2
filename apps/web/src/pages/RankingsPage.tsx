@@ -441,3 +441,5 @@ export function RankingsPage() {
     </GameLayout>
   );
 }
+import '../styles/rankings.css';
+import '../styles/social-experience.css';

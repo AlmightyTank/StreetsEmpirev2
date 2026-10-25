@@ -10,7 +10,7 @@ import { ActionResult, type ResultLine } from '../components/ActionResult.js';
 import { Alert } from '../components/Alert.js';
 import { Portrait } from '../components/Portrait.js';
 import { StoreTabs } from '../components/StoreTabs.js';
-import { SalvageYard } from '../components/SalvageYard.js';
+import { PlayerBoard } from '../components/PlayerBoard.js';
 import { contactRoomHref, storeHasContactRoom } from '../utils/contactRoom.js';
 import { Button } from '../components/Button.js';
 import { EconomyBatchAction, EconomyPendingNotice, EconomyQuote } from '../components/EconomyExperience.js';
@@ -380,7 +380,7 @@ function StoreItem({ item, store, storeName, keeper, owned, cashCents, bulkHelpe
             ) : (
               <p className="se-hint">
                 {keeper} has not opened this to you yet. Access is earned through
-                {' '}<Link to="/game/quests">underworld jobs</Link>, not passive reputation.
+                {' '}<Link to="/game/quests">underworld contacts</Link>, not passive reputation.
               </p>
             )}
           </div>
@@ -401,12 +401,12 @@ const STORE_DETAILS: Record<string, { label: string; lane: string; note: string 
   },
   TOMMY: {
     label: 'Weapons & muscle',
-    lane: 'Armory counter',
+    lane: 'Weapon counter',
     note: 'Crew, pistols, and heavier hardware arrive on Tommy’s own restock schedule.',
   },
   CHARLIE: {
     label: 'Cars & mobility',
-    lane: 'Garage floor',
+    lane: 'Vehicle floor',
     note: 'Low-Riders are built one at a time and determine how many shooters a drive-by can carry.',
   },
   PIP: {
@@ -723,7 +723,7 @@ function StoreView({
           </div>
         </header>
 
-        {catalog ? <StoreTabs stores={catalog.stores} slug={slug} /> : null}
+        {catalog ? <StoreTabs stores={catalog.stores} slug={slug} board={catalog.playerBoard === true} /> : null}
 
         {loadError ? (
           <Alert>
@@ -1022,7 +1022,7 @@ function StoreView({
                     </div>
                     <div>
                       <strong>Jobs unlock access</strong>
-                      <span>Permanent purchase access and favors live on the <Link to="/game/quests">Quests page</Link>.</span>
+                      <span>Permanent purchase access and favors live on your <Link to="/game/quests">contact line</Link>.</span>
                     </div>
                   </div>
                 </div>
@@ -1038,13 +1038,13 @@ function StoreView({
                   <div className="se-stores-railcard">
                     <span className="se-eyebrow">Tommy&rsquo;s rack</span>
                     <p>Thugs protect the crew and fight in raids or drive-bys. Guns and muscle arrive on Tommy&rsquo;s schedule; the heavier the hardware, the longer the wait.</p>
-                    <p>Weapon access comes from underworld jobs. Once a rack opens for the round, losing cash, crew, or reputation does not take it back.</p>
+                      <p>Weapon access comes from underworld contacts. Once a rack opens for the round, losing cash, crew, or reputation does not take it back.</p>
                   </div>
                 ) : null}
 
                 {store.key === 'CHARLIE' ? (
                   <div className="se-stores-railcard">
-                    <span className="se-eyebrow">Garage notes</span>
+                    <span className="se-eyebrow">Vehicle notes</span>
                     <p>Each Low-Rider carries {formatNumber(catalog.lowRiderThugCapacity)} shooters for a drive-by. A car comes home if at least one shooter survives.</p>
                     <p>Charlie builds them one at a time, so fleets grow across multiple deliveries.</p>
                   </div>
@@ -1144,7 +1144,8 @@ export function StorePage() {
     setBasket((current) => removeStoreBasketLine(current, key));
   }
 
-  if (slug === 'salvage') return <SalvageYard />;
+  if (slug === 'salvage') return <Navigate to="/game/stores" replace />;
+  if (slug === 'board') return <PlayerBoard />;
 
   return (
     <StoreView
@@ -1158,3 +1159,6 @@ export function StorePage() {
     />
   );
 }
+import '../styles/stores.css';
+import '../styles/items.css';
+import '../styles/economy-experience.css';

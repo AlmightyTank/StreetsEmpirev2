@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useSearchParams } from 'react-router-dom';
-import type { CitiesDto, CityCharacterDto, CrewMemberDto, RankingsDto, TravelDto, TurfBlockDto } from '@streets/shared';
+import type { CitiesDto, CityCharacterDto, RankingsDto, TravelDto, TurfBlockDto } from '@streets/shared';
 import { formatCentsExact, formatNumber } from '@streets/shared';
 import { communityApi } from '../api/community.js';
-import { crewApi } from '../api/crew.js';
 import { api, ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
 import { AllianceTag } from '../components/AllianceTag.js';
@@ -18,7 +17,6 @@ import { useSession } from '../stores/session.js';
 import { formatClockTime, formatWhen } from '../utils/time.js';
 import { CityDistrictMap, type CityDistrictMapEntry } from '../components/CityDistrictMap.js';
 import { EmpireAreaLegend, EmpireInspector, EmpireManagementLayout, EmpireRosterCard } from '../components/EmpireManagement.js';
-import { thugsPostedOn } from '../utils/crewWhereabouts.js';
 
 const ORDER: Record<TurfBlockDto['district'], number> = {
   CASINO: 0,
@@ -111,21 +109,13 @@ function holder(block: TurfBlockDto) {
   );
 }
 
-const cornerJobLabel: Record<string, string> = {
-  TURF: 'Posted',
-  CORNER_ENFORCER: 'Enforcer',
-  CORNER_LOOKOUT: 'Lookout',
-  STASH_GUARD: 'Stash guard',
-};
-
-function CityBlockBoard({ city, onChanged, onSelect, selectedDistrict, postedCrew }: { city: CityCharacterDto; onChanged: () => void; onSelect: (district: TurfBlockDto['district']) => void; selectedDistrict: TurfBlockDto['district'] | null; postedCrew: CrewMemberDto[] }) {
+function CityBlockBoard({ city, onChanged, onSelect, selectedDistrict }: { city: CityCharacterDto; onChanged: () => void; onSelect: (district: TurfBlockDto['district']) => void; selectedDistrict: TurfBlockDto['district'] | null }) {
   const turf = city.turf;
   if (!turf) return <p className="se-muted">Turf is not enabled in this round.</p>;
   const blocks = [...turf.blocks].sort((a, b) => ORDER[a.district] - ORDER[b.district]);
   const block = blocks.find((entry) => entry.district === selectedDistrict) ?? blocks[0] ?? null;
   if (!block) return <p className="se-muted">No districts are available in this city.</p>;
   const status = block.isMine ? 'mine' : block.holder ? 'held' : block.localsReclaimAt ? 'vacant' : 'locals';
-  const namedHere = block.isMine ? thugsPostedOn(postedCrew, block.id) : [];
 
   return (
     <>
@@ -166,24 +156,6 @@ function CityBlockBoard({ city, onChanged, onSelect, selectedDistrict, postedCre
                 )}
                 <span><b className="se-num">{Math.floor(block.presenceTurns)}</b><small>your presence</small></span>
               </div>
-              {block.isMine ? (
-                <div className="se-turfboard__posted">
-                  <span className="se-eyebrow">Who is posted here</span>
-                  {namedHere.length ? (
-                    <ul>
-                      {namedHere.map((member) => (
-                        <li key={member.id}>
-                          <span>#{String(member.serial).padStart(3, '0')} {member.name}</span>
-                          <small>{cornerJobLabel[member.assignment?.kind ?? ''] ?? 'Posted'}</small>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : <p className="se-muted">No named thugs are recorded on this corner.</p>}
-                  {block.cornerThugs > namedHere.length ? (
-                    <p className="se-hint">{formatNumber(block.cornerThugs - namedHere.length)} posted here {namedHere.length ? 'are not tied to a named thug' : 'have no named thug recorded'}.</p>
-                  ) : null}
-                </div>
-              ) : null}
               {block.fatigue && block.fatigue.percent > 0 ? (
                 <span className="se-hint se-turfboard__fatigue" title="War fatigue: businesses here earn this much less until it heals.">
                   Fatigue {block.fatigue.percent}% · output {100 - block.fatigue.percent}%
@@ -342,25 +314,15 @@ export function TurfPage() {
   const [cities, setCities] = useState<CitiesDto | null>(null);
   const [rankings, setRankings] = useState<RankingsDto | null>(null);
   const [travel, setTravel] = useState<TravelDto | null>(null);
-  const [postedCrew, setPostedCrew] = useState<CrewMemberDto[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [params, setParams] = useSearchParams();
 
   const load = useCallback(() => {
-    Promise.all([
-      api.get<CitiesDto>('/game/cities'),
-      communityApi.rankings(),
-      api.get<TravelDto>('/game/travel'),
-      crewApi.roster({ role: 'THUG', status: 'ASSIGNED', limit: 200 }).catch(() => null),
-    ]).then(([cityData, rankingData, travelData, roster]) => {
-      setCities(cityData);
-      setRankings(rankingData);
-      setTravel(travelData);
-      setPostedCrew(roster?.members ?? []);
-      setError(null);
-    }).catch((caught: unknown) => {
-      setError(caught instanceof ApiError ? caught.message : 'Could not load turf.');
-    });
+    void api.get<CitiesDto>('/game/cities')
+      .then((cityData) => { setCities(cityData); setError(null); })
+      .catch((caught: unknown) => { setError(caught instanceof ApiError ? caught.message : 'Could not load turf.'); });
+    void communityApi.rankings().then(setRankings).catch(() => undefined);
+    void api.get<TravelDto>('/game/travel').then(setTravel).catch(() => undefined);
   }, []);
 
   useEffect(load, [load, me?.id]);
@@ -490,7 +452,6 @@ export function TurfPage() {
                     <CityBlockBoard
                       city={selected}
                       onChanged={load}
-                      postedCrew={postedCrew}
                       selectedDistrict={selectedDistrict}
                       onSelect={(district) => {
                         const next = new URLSearchParams(params);

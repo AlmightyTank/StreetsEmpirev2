@@ -2,6 +2,7 @@ import { classicOgV01, type Ruleset } from '@streets/rulesets';
 import type { NetWorthInput } from '../types.js';
 import { productNetWorthCents } from './product-economy.js';
 import { weightedDebtCents } from './loans.js';
+import { playerBoardEscrowNetWorthCents, playerBoardPartsNetWorthCents } from './player-board.js';
 
 /**
  * Section 16. Integer cents only - money never touches a float.
@@ -20,13 +21,7 @@ export function calculateNetWorthCents(
   // applied as a ratio rather than a float multiply.
   const cash = (BigInt(player.cashCents) * BigInt(v.cashWeightPercent)) / 100n;
   const casinoCash = (BigInt(player.casinoNetWorthCents ?? 0) * BigInt(v.cashWeightPercent)) / 100n;
-  const ammoPacks = ruleset.stores.TOMMY.items;
-  const ammoSellbackCentsPerRound = ruleset.ammoParts?.enabled
-    ? Math.min(...Object.values(ammoPacks)
-      .filter((item) => item.field === 'ammo' && item.sellCents !== null)
-      .map((item) => Math.floor(item.sellCents! / (item.unitsPerOrder ?? 1))))
-    : 0;
-  const ammo = BigInt(player.ammo ?? 0) * BigInt(Number.isFinite(ammoSellbackCentsPerRound) ? ammoSellbackCentsPerRound : 0);
+  const ammo = BigInt(player.ammo ?? 0) * BigInt(ammoNetWorthCentsPerRound(ruleset));
 
   const assets = (
     cash +
@@ -56,11 +51,24 @@ export function calculateNetWorthCents(
     // 1.2.0-A: casino chips/bankroll are cash-equivalents, so cage transfers cannot mint ranking value.
     casinoCash
     + ammo
+    // The Board B: scavenge parts at their books, only on a round with the Board switched on.
+    + playerBoardPartsNetWorthCents(player.scavengedComponents, ruleset)
+    // The Board C-F: an escrowed stack, parts or drugs, is still the seller's until it sells.
+    + playerBoardEscrowNetWorthCents(player.playerBoardEscrow, ruleset)
   );
   // 1.6.5-A: what is owed comes back off, so borrowing never buys rank. Never below zero.
   const debt = weightedDebtCents(player.loanDebtCents ?? 0, v.cashWeightPercent);
   if (debt === 0n) return assets;
   return assets > debt ? assets - debt : 0n;
+}
+
+/** 2.4.0-C. One round of ammo in net worth: the lowest pack sell-back per round, or nothing without the ammo economy. */
+export function ammoNetWorthCentsPerRound(ruleset: Ruleset = classicOgV01): number {
+  if (!ruleset.ammoParts?.enabled) return 0;
+  const perRound = Math.min(...Object.values(ruleset.stores.TOMMY.items)
+    .filter((item) => item.field === 'ammo' && item.sellCents !== null)
+    .map((item) => Math.floor(item.sellCents! / (item.unitsPerOrder ?? 1))));
+  return Number.isFinite(perRound) ? perRound : 0;
 }
 
 /** 1.5.0-C. Every vehicle at home that the garage still has to repair or recover. */

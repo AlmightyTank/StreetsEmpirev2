@@ -40,8 +40,6 @@ export function HoldingCard({ city }: { city: HoldingCity }) {
       </dl>
       <nav className="se-holdings__actions" aria-label={`${city.cityName} management`}>
         <Link to={`/game/turf?city=${encodeURIComponent(city.citySlug)}`}>Manage turf and fronts</Link>
-        <Link to="/game/supply">Manage storage</Link>
-        <Link to="/game/dealers">Manage crews</Link>
         <Link to="/game#pressure">View case</Link>
       </nav>
     </Panel>

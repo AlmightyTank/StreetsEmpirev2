@@ -467,7 +467,9 @@ export type SalvageGoodDto = 'condoms' | 'medicine' | 'beer' | 'ammo';
 /** What one unit of a Salvage Yard offer costs: cash, or a trade of parts and goods. */
 export type SalvagePriceDto =
   | { kind: 'CASH'; cents: number }
-  | { kind: 'BARTER'; components: Array<{ key: string; name: string; quantity: number }>; goods: Array<{ key: SalvageGoodDto; name: string; quantity: number }> };
+  | { kind: 'BARTER'; components: Array<{ key: string; name: string; quantity: number }>; goods: Array<{ key: SalvageGoodDto; name: string; quantity: number }>;
+    /** The Board. Cash the yard adds to a barter on rounds where parts count toward rank. */
+    cashCents?: number };
 export interface SalvageOfferDto {
   key: string;
   name: string;
@@ -492,6 +494,149 @@ export interface SalvageTradeResult {
   received: ScavengeComponentDto;
   spentCents: number;
   gave: Array<{ key: string; name: string; quantity: number }>;
+}
+/** The Board C. One of the viewer's own listings. */
+export type PlayerBoardOfferStatusDto = 'OPEN' | 'SOLD' | 'CANCELLED' | 'EXPIRED';
+/** The Board. A cash offer has a unit price; a barter offer asks for goods for the whole stack. */
+export type PlayerBoardPriceKindDto = 'CASH' | 'BARTER';
+/** One line of goods a barter offer asks for. */
+export interface PlayerBoardAskDto {
+  key: string;
+  name: string;
+  quantity: number;
+}
+export interface PlayerBoardOfferDto {
+  id: string;
+  itemKey: string;
+  name: string;
+  /** Units posted. */
+  quantity: number;
+  /** Units not yet sold; barter offers are filled as one fixed basket. */
+  remainingQuantity: number;
+  priceKind: PlayerBoardPriceKindDto;
+  /** Cash offers only; 0 for a barter. */
+  unitPriceCents: number;
+  /** Barter offers only: the fixed basket for the whole offer. Empty for cash. */
+  ask: PlayerBoardAskDto[];
+  /** Units per lot: 1 for cash, and for a barter priced per unit. */
+  lotSize: number;
+  feeCents: number;
+  /** Extra tax paid at posting for pricing above the fair range. 0 inside it. */
+  listingTaxCents: number;
+  durationHours: number;
+  postedAt: string;
+  /** When it stops being open, with pauses since posting already added. */
+  expiresAt: string;
+  status: PlayerBoardOfferStatusDto;
+  /** False only for an expired stack still waiting on a free stash cell. */
+  returned: boolean;
+}
+export interface PostPlayerBoardOfferInput {
+  itemKey: string;
+  quantity: number;
+  /** Defaults to CASH. */
+  priceKind?: PlayerBoardPriceKindDto;
+  /** Cash offers: the price per unit. */
+  unitPriceCents?: number;
+  /** Barter offers: the one fixed basket the buyer hands over for the whole offer. */
+  askItems?: Array<{ key: string; quantity: number }>;
+  /** @deprecated Barter offers no longer use lots. */
+  lotSize?: number;
+  durationHours: number;
+}
+export interface PlayerBoardOfferResult {
+  offer: PlayerBoardOfferDto;
+  /** Posting: the fee charged. Cancelling: always 0. */
+  feeCents: number;
+  /** Posting: the extra tax for pricing above the fair range. Cancelling: always 0. */
+  listingTaxCents: number;
+  /** Cancelling: units back in the stash. Posting: always 0. */
+  returnedQuantity: number;
+}
+/** The Board D-G. Which goods the book shows. */
+export type PlayerBoardFilterDto = 'ALL' | 'PARTS' | 'PRODUCTS' | 'KEEPER';
+/** The Board F-G. What kind of good an offer is: a part, a drug, or a keeper good (guns, low-riders, ammo). */
+export type PlayerBoardCategoryDto = 'PART' | 'PRODUCT' | 'KEEPER';
+/** The Board D. One open offer on the city-wide book. */
+export interface PlayerBoardRowDto {
+  id: string;
+  itemKey: string;
+  name: string;
+  category: PlayerBoardCategoryDto;
+  /** Parts only. */
+  rarity: ScavengeRarityDto | null;
+  /** Units still for sale. A cash offer can be bought in part; a barter only whole. */
+  quantity: number;
+  priceKind: PlayerBoardPriceKindDto;
+  /** Cash offers: the price per unit. Barter offers: 0. */
+  unitPriceCents: number;
+  /** Cash for everything left: the sticker plus any below-range Board fee for cash, the Board's top-up for a barter. */
+  totalCents: number;
+  /** Barter offers: the goods a buyer hands over for each lot. Empty for cash. */
+  ask: PlayerBoardAskDto[];
+  /** Units per lot; buyers take whole lots. 1 for cash. */
+  lotSize: number;
+  /** The Board value of one lot (one unit for cash), and of a barter's ask (0 for cash), so the extra on a part-buy can be priced. */
+  lotBookCents: number;
+  askBookCents: number;
+  sellerName: string;
+  /** The viewer's own offer; it can never be bought by them. */
+  mine: boolean;
+  expiresAt: string;
+}
+/** The Board D-F. A part or drug the viewer holds and may list, with its fair range: no extra charge inside it. */
+export interface PlayerBoardListableDto {
+  key: string;
+  name: string;
+  category: PlayerBoardCategoryDto;
+  /** Parts only. */
+  rarity: ScavengeRarityDto | null;
+  held: number;
+  bookCents: number;
+  floorCents: number;
+  capCents: number;
+}
+export interface PlayerBoardDto {
+  filter: PlayerBoardFilterDto;
+  /** Grouped by item in catalog order; each item's offers cheapest first. */
+  rows: PlayerBoardRowDto[];
+  mine: PlayerBoardOfferDto[];
+  listable: PlayerBoardListableDto[];
+  openOffers: number;
+  /** The viewer's cash, so a buy the server would refuse for money can say so first. */
+  cashCents: number;
+  /** What the viewer holds of every listable item, so a barter they cannot cover says so first. */
+  holdings: Record<string, number>;
+  /** Everything a barter may ask for, with its Board value (book). */
+  askable: Array<{ key: string; name: string; category: PlayerBoardCategoryDto; bookCents: number }>;
+  rules: {
+    maxOpenOffers: number;
+    startingOpenOffers: number;
+    reputationPoints: number;
+    listingHours: number[];
+    postingFeePercent: number;
+    postingFeeMinCents: number;
+    taxPercent: number;
+    maxAskItems: number;
+    /** Rank counts cash at this percent; a barter's top-up is priced against it. */
+    cashWeightPercent: number;
+  };
+}
+/** The Board E. A filled offer, as the buyer sees it. Replaying the same action id returns this again. */
+export interface PlayerBoardFillResult {
+  offerId: string;
+  itemKey: string;
+  name: string;
+  /** Units bought in this fill. */
+  quantity: number;
+  /** Units still on the offer afterwards. */
+  remainingQuantity: number;
+  unitPriceCents: number;
+  /** Cash the buyer paid: the sticker, or a barter's top-up. */
+  paidCents: number;
+  /** Barter offers: the goods the buyer handed over. */
+  gave: PlayerBoardAskDto[];
+  sellerName: string;
 }
 export interface OpenScavengeCacheResult {
   cache: ScavengeCacheDto;
@@ -2465,6 +2610,8 @@ export interface StoresDto {
   productCounter?: boolean;
   /** 0.8.0-G. Cross-system store context from Hideout, Turf, Travel, and Convoys. */
   integrations?: StoreIntegrationDto;
+  /** The Board D. True only on a round whose ruleset has the Board switched on; the tab is hidden otherwise. */
+  playerBoard?: boolean;
 }
 
 /** 1.5.0-E2. The job behind a lock, for a link straight to it on the jobs page. */

@@ -335,12 +335,6 @@
 .se-admin-drop__actions { display: inline-flex; gap: 6px; }
 .se-admin-drop__wallet { display: grid; gap: 8px; overflow-x: auto; }
 
-/* A real tap target on phones: at least 44px tall, 24px with a mouse. */
-.se-pass-hero__skip { display: inline-flex; align-items: center; min-height: 24px; margin-top: 4px; color: var(--se-accent); font-size: var(--se-type-sm); font-weight: 600; }
-@media (pointer: coarse) {
-  .se-pass-hero__skip { min-height: 44px; }
-}
-
 /* Two featured sets side by side; each hero stacks its art under its copy. */
 .se-drop-heroes { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--se-drop-gap); }
 .se-drop-heroes--pair { grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); }

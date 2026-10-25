@@ -1,85 +1,80 @@
 import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
 import type { StaffCapability } from '@streets/shared';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
-import { AccountSettingsPage } from './pages/AccountSettingsPage.js';
-import { NotFoundPage } from './pages/NotFoundPage.js';
+const AccountSettingsPage = lazy(() => import('./pages/AccountSettingsPage.js').then(({ AccountSettingsPage }) => ({ default: AccountSettingsPage })));
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage.js').then(({ NotFoundPage }) => ({ default: NotFoundPage })));
 import { KonamiCode } from './components/EasterEggs.js';
-import { AdminAccountPage } from './pages/AdminAccountPage.js';
-import { AdminAccountsPage } from './pages/AdminAccountsPage.js';
-import { AdminAuditPage } from './pages/AdminAuditPage.js';
-import { AdminEventsPage } from './pages/AdminEventsPage.js';
-import { AdminReportsPage } from './pages/AdminReportsPage.js';
-import { AdminBugReportsPage } from './pages/AdminBugReportsPage.js';
-import { AdminEconomyPage } from './pages/AdminEconomyPage.js';
-import { AdminSupplyPage } from './pages/AdminSupplyPage.js';
-import { AdminLoansPage } from './pages/AdminLoansPage.js';
-import { AdminCasinoPage } from './pages/AdminCasinoPage.js';
-import { AdminFactionsPage } from './pages/AdminFactionsPage.js';
-import { AdminCrewPage } from './pages/AdminCrewPage.js';
-import { AdminVehiclesPage } from './pages/AdminVehiclesPage.js';
-import { AdminArmoryPlayerPage } from './pages/AdminArmoryPlayerPage.js';
-import { AdminLawPage } from './pages/AdminLawPage.js';
-import { AdminLawPlayerPage } from './pages/AdminLawPlayerPage.js';
-import { AdminCombatPage } from './pages/AdminCombatPage.js';
-import { AdminTurfPage } from './pages/AdminTurfPage.js';
-import { AdminMonitoringPage } from './pages/AdminMonitoringPage.js';
-import { AdminIntegrationsPage } from './pages/AdminIntegrationsPage.js';
-import { AdminNewsPage } from './pages/AdminNewsPage.js';
-import { AdminPage } from './pages/AdminPage.js';
-import { AdminPlayerPage } from './pages/AdminPlayerPage.js';
-import { AdminQuestContentPage } from './pages/AdminQuestContentPage.js';
-import { AdminRoundPage } from './pages/AdminRoundPage.js';
-import { AdminRulesetsPage } from './pages/AdminRulesetsPage.js';
-import { AdminSignalsPage } from './pages/AdminSignalsPage.js';
-import { AdminSurveysPage } from './pages/AdminSurveysPage.js';
-import { AdminSupportersPage } from './pages/AdminSupportersPage.js';
-import { AdminStaffPage } from './pages/AdminStaffPage.js';
-import { ForumLinkPage } from './pages/ForumLinkPage.js';
-import { AlliancePage } from './pages/AlliancePage.js';
-import { AllianceDetailPage } from './pages/AlliancesPage.js';
-import { CombatPage } from './pages/CombatPage.js';
-import { StreetPassPage } from './pages/StreetPassPage.js';
-import { RoundRollCallPage } from './pages/RoundRollCallPage.js';
-import { DropPage } from './pages/DropPage.js';
-import { AdminDropPage } from './pages/AdminDropPage.js';
-import { SupporterPage } from './pages/SupporterPage.js';
-import { EmpireInsightsPage } from './pages/EmpireInsightsPage.js';
-import { XpProgressPage } from './pages/XpProgressPage.js';
-import { ConsolePage } from './pages/ConsolePage.js';
-import { DashboardPage } from './pages/DashboardPage.js';
-import { ForgotPasswordPage } from './pages/ForgotPasswordPage.js';
-import { HallOfFamePage } from './pages/HallOfFamePage.js';
-import { RoundAftermathPage } from './pages/RoundAftermathPage.js';
-import { RoundArchivePage } from './pages/RoundArchivePage.js';
+const AdminAccountPage = lazy(() => import('./pages/AdminAccountPage.js').then(({ AdminAccountPage }) => ({ default: AdminAccountPage })));
+const AdminAccountsPage = lazy(() => import('./pages/AdminAccountsPage.js').then(({ AdminAccountsPage }) => ({ default: AdminAccountsPage })));
+const AdminAuditPage = lazy(() => import('./pages/AdminAuditPage.js').then(({ AdminAuditPage }) => ({ default: AdminAuditPage })));
+const AdminEventsPage = lazy(() => import('./pages/AdminEventsPage.js').then(({ AdminEventsPage }) => ({ default: AdminEventsPage })));
+const AdminReportsPage = lazy(() => import('./pages/AdminReportsPage.js').then(({ AdminReportsPage }) => ({ default: AdminReportsPage })));
+const AdminBugReportsPage = lazy(() => import('./pages/AdminBugReportsPage.js').then(({ AdminBugReportsPage }) => ({ default: AdminBugReportsPage })));
+const AdminEconomyPage = lazy(() => import('./pages/AdminEconomyPage.js').then(({ AdminEconomyPage }) => ({ default: AdminEconomyPage })));
+const AdminCasinoPage = lazy(() => import('./pages/AdminCasinoPage.js').then(({ AdminCasinoPage }) => ({ default: AdminCasinoPage })));
+const AdminFactionsPage = lazy(() => import('./pages/AdminFactionsPage.js').then(({ AdminFactionsPage }) => ({ default: AdminFactionsPage })));
+const AdminCrewPage = lazy(() => import('./pages/AdminCrewPage.js').then(({ AdminCrewPage }) => ({ default: AdminCrewPage })));
+const AdminVehiclesPage = lazy(() => import('./pages/AdminVehiclesPage.js').then(({ AdminVehiclesPage }) => ({ default: AdminVehiclesPage })));
+const AdminLawPage = lazy(() => import('./pages/AdminLawPage.js').then(({ AdminLawPage }) => ({ default: AdminLawPage })));
+const AdminLawPlayerPage = lazy(() => import('./pages/AdminLawPlayerPage.js').then(({ AdminLawPlayerPage }) => ({ default: AdminLawPlayerPage })));
+const AdminCombatPage = lazy(() => import('./pages/AdminCombatPage.js').then(({ AdminCombatPage }) => ({ default: AdminCombatPage })));
+const AdminTurfPage = lazy(() => import('./pages/AdminTurfPage.js').then(({ AdminTurfPage }) => ({ default: AdminTurfPage })));
+const AdminMonitoringPage = lazy(() => import('./pages/AdminMonitoringPage.js').then(({ AdminMonitoringPage }) => ({ default: AdminMonitoringPage })));
+const AdminIntegrationsPage = lazy(() => import('./pages/AdminIntegrationsPage.js').then(({ AdminIntegrationsPage }) => ({ default: AdminIntegrationsPage })));
+const AdminNewsPage = lazy(() => import('./pages/AdminNewsPage.js').then(({ AdminNewsPage }) => ({ default: AdminNewsPage })));
+const AdminPage = lazy(() => import('./pages/AdminPage.js').then(({ AdminPage }) => ({ default: AdminPage })));
+const AdminPlayerPage = lazy(() => import('./pages/AdminPlayerPage.js').then(({ AdminPlayerPage }) => ({ default: AdminPlayerPage })));
+const AdminQuestContentPage = lazy(() => import('./pages/AdminQuestContentPage.js').then(({ AdminQuestContentPage }) => ({ default: AdminQuestContentPage })));
+const AdminRoundPage = lazy(() => import('./pages/AdminRoundPage.js').then(({ AdminRoundPage }) => ({ default: AdminRoundPage })));
+const AdminRulesetsPage = lazy(() => import('./pages/AdminRulesetsPage.js').then(({ AdminRulesetsPage }) => ({ default: AdminRulesetsPage })));
+const AdminSignalsPage = lazy(() => import('./pages/AdminSignalsPage.js').then(({ AdminSignalsPage }) => ({ default: AdminSignalsPage })));
+const AdminSurveysPage = lazy(() => import('./pages/AdminSurveysPage.js').then(({ AdminSurveysPage }) => ({ default: AdminSurveysPage })));
+const AdminSupportersPage = lazy(() => import('./pages/AdminSupportersPage.js').then(({ AdminSupportersPage }) => ({ default: AdminSupportersPage })));
+const AdminStaffPage = lazy(() => import('./pages/AdminStaffPage.js').then(({ AdminStaffPage }) => ({ default: AdminStaffPage })));
+const ForumLinkPage = lazy(() => import('./pages/ForumLinkPage.js').then(({ ForumLinkPage }) => ({ default: ForumLinkPage })));
+const AlliancePage = lazy(() => import('./pages/AlliancePage.js').then(({ AlliancePage }) => ({ default: AlliancePage })));
+const AllianceDetailPage = lazy(() => import('./pages/AlliancesPage.js').then(({ AllianceDetailPage }) => ({ default: AllianceDetailPage })));
+const CombatPage = lazy(() => import('./pages/CombatPage.js').then(({ CombatPage }) => ({ default: CombatPage })));
+const StreetPassPage = lazy(() => import('./pages/StreetPassPage.js').then(({ StreetPassPage }) => ({ default: StreetPassPage })));
+const RoundRollCallPage = lazy(() => import('./pages/RoundRollCallPage.js').then(({ RoundRollCallPage }) => ({ default: RoundRollCallPage })));
+const DropPage = lazy(() => import('./pages/DropPage.js').then(({ DropPage }) => ({ default: DropPage })));
+const AdminDropPage = lazy(() => import('./pages/AdminDropPage.js').then(({ AdminDropPage }) => ({ default: AdminDropPage })));
+const SupporterPage = lazy(() => import('./pages/SupporterPage.js').then(({ SupporterPage }) => ({ default: SupporterPage })));
+const EmpireInsightsPage = lazy(() => import('./pages/EmpireInsightsPage.js').then(({ EmpireInsightsPage }) => ({ default: EmpireInsightsPage })));
+const XpProgressPage = lazy(() => import('./pages/XpProgressPage.js').then(({ XpProgressPage }) => ({ default: XpProgressPage })));
+const ConsolePage = lazy(() => import('./pages/ConsolePage.js').then(({ ConsolePage }) => ({ default: ConsolePage })));
+const DashboardPage = lazy(() => import('./pages/DashboardPage.js').then(({ DashboardPage }) => ({ default: DashboardPage })));
+const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage.js').then(({ ForgotPasswordPage }) => ({ default: ForgotPasswordPage })));
+const HallOfFamePage = lazy(() => import('./pages/HallOfFamePage.js').then(({ HallOfFamePage }) => ({ default: HallOfFamePage })));
+const RoundAftermathPage = lazy(() => import('./pages/RoundAftermathPage.js').then(({ RoundAftermathPage }) => ({ default: RoundAftermathPage })));
+const RoundArchivePage = lazy(() => import('./pages/RoundArchivePage.js').then(({ RoundArchivePage }) => ({ default: RoundArchivePage })));
 import { roundAftermathPublicEnabled } from './config/features.js';
-import { HideoutPage } from './pages/HideoutPage.js';
-import { JoinPage } from './pages/JoinPage.js';
-import { LoginPage } from './pages/LoginPage.js';
-import { NewsPage } from './pages/NewsPage.js';
-import { ProducePage } from './pages/ProducePage.js';
-import { QuestPage } from './pages/QuestPage.js';
-import { ContactRoomPage } from './pages/ContactRoomPage.js';
-import { StoryArchivePage } from './pages/StoryArchivePage.js';
-import { EventsPage } from './pages/EventsPage.js';
-import { ProfilePage } from './pages/ProfilePage.js';
-import { SkillsPage } from './pages/SkillsPage.js';
-import { PlayersPage } from './pages/PlayersPage.js';
-import { RankingsPage } from './pages/RankingsPage.js';
-import { RegisterPage } from './pages/RegisterPage.js';
-import { ReportBugPage } from './pages/ReportBugPage.js';
-import { ResetPasswordPage } from './pages/ResetPasswordPage.js';
-import { RulesPage } from './pages/RulesPage.js';
-import { ScoutPage } from './pages/ScoutPage.js';
-import { StatusPage } from './pages/StatusPage.js';
-import { VerifyEmailPage } from './pages/VerifyEmailPage.js';
-import { StorePage, StoresIndexPage } from './pages/StorePage.js';
-import { SupplyPage } from './pages/SupplyPage.js';
-import { HoldingsPage } from './pages/HoldingsPage.js';
-import { LoanSharkPage } from './pages/LoanSharkPage.js';
-import { DealersPage } from './pages/DealersPage.js';
-import { TravelPage } from './pages/TravelPage.js';
-import { CasinoPage } from './pages/CasinoPage.js';
-import { TurfPage } from './pages/TurfPage.js';
+const HideoutPage = lazy(() => import('./pages/HideoutPage.js').then(({ HideoutPage }) => ({ default: HideoutPage })));
+const JoinPage = lazy(() => import('./pages/JoinPage.js').then(({ JoinPage }) => ({ default: JoinPage })));
+const LoginPage = lazy(() => import('./pages/LoginPage.js').then(({ LoginPage }) => ({ default: LoginPage })));
+const NewsPage = lazy(() => import('./pages/NewsPage.js').then(({ NewsPage }) => ({ default: NewsPage })));
+const ProducePage = lazy(() => import('./pages/ProducePage.js').then(({ ProducePage }) => ({ default: ProducePage })));
+const QuestPhonePage = lazy(() => import('./pages/QuestPhonePage.js').then(({ QuestPhonePage }) => ({ default: QuestPhonePage })));
+const ContactRoomPage = lazy(() => import('./pages/ContactRoomPage.js').then(({ ContactRoomPage }) => ({ default: ContactRoomPage })));
+const StoryArchivePage = lazy(() => import('./pages/StoryArchivePage.js').then(({ StoryArchivePage }) => ({ default: StoryArchivePage })));
+const EventsPage = lazy(() => import('./pages/EventsPage.js').then(({ EventsPage }) => ({ default: EventsPage })));
+const ProfilePage = lazy(() => import('./pages/ProfilePage.js').then(({ ProfilePage }) => ({ default: ProfilePage })));
+const SkillsPage = lazy(() => import('./pages/SkillsPage.js').then(({ SkillsPage }) => ({ default: SkillsPage })));
+const PlayersPage = lazy(() => import('./pages/PlayersPage.js').then(({ PlayersPage }) => ({ default: PlayersPage })));
+const RankingsPage = lazy(() => import('./pages/RankingsPage.js').then(({ RankingsPage }) => ({ default: RankingsPage })));
+const RegisterPage = lazy(() => import('./pages/RegisterPage.js').then(({ RegisterPage }) => ({ default: RegisterPage })));
+const ReportBugPage = lazy(() => import('./pages/ReportBugPage.js').then(({ ReportBugPage }) => ({ default: ReportBugPage })));
+const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage.js').then(({ ResetPasswordPage }) => ({ default: ResetPasswordPage })));
+const RulesPage = lazy(() => import('./pages/RulesPage.js').then(({ RulesPage }) => ({ default: RulesPage })));
+const ScoutPage = lazy(() => import('./pages/ScoutPage.js').then(({ ScoutPage }) => ({ default: ScoutPage })));
+const StatusPage = lazy(() => import('./pages/StatusPage.js').then(({ StatusPage }) => ({ default: StatusPage })));
+const VerifyEmailPage = lazy(() => import('./pages/VerifyEmailPage.js').then(({ VerifyEmailPage }) => ({ default: VerifyEmailPage })));
+const StorePage = lazy(() => import('./pages/StorePage.js').then(({ StorePage }) => ({ default: StorePage })));
+const StoresIndexPage = lazy(() => import('./pages/StorePage.js').then(({ StoresIndexPage }) => ({ default: StoresIndexPage })));
+const HoldingsPage = lazy(() => import('./pages/HoldingsPage.js').then(({ HoldingsPage }) => ({ default: HoldingsPage })));
+const TravelPage = lazy(() => import('./pages/TravelPage.js').then(({ TravelPage }) => ({ default: TravelPage })));
+const CasinoPage = lazy(() => import('./pages/CasinoPage.js').then(({ CasinoPage }) => ({ default: CasinoPage })));
+const TurfPage = lazy(() => import('./pages/TurfPage.js').then(({ TurfPage }) => ({ default: TurfPage })));
 import { GameRouteLayout } from './layouts/GameLayout.js';
 import { useMaintenanceMessage } from './components/MaintenanceBanner.js';
 import { VerifyEmailGate } from './components/VerifyEmailGate.js';
@@ -89,6 +84,7 @@ import { AdminDiscordGate } from './components/AdminDiscordGate.js';
 import { adminSectionsFor } from './layouts/gameNav.js';
 import { useStaff } from './utils/staff.js';
 import { landingPath, useSession } from './stores/session.js';
+import { prefetchRoute } from './utils/routePrefetch.js';
 
 const UiGalleryPage = import.meta.env.DEV ? lazy(() => import('./pages/UiGalleryPage.js').then((module) => ({ default: module.UiGalleryPage }))) : null;
 
@@ -205,11 +201,31 @@ export function App() {
     void bootstrap();
   }, [bootstrap]);
 
+  useEffect(() => {
+    const prefetch = (event: Event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const link = target.closest<HTMLAnchorElement>('a[href]');
+      if (!link || link.target === '_blank' || link.hasAttribute('download')) return;
+      if (event.type === 'pointerover' && event instanceof PointerEvent && event.relatedTarget instanceof Node && link.contains(event.relatedTarget)) return;
+      prefetchRoute(link.href);
+    };
+    document.addEventListener('pointerover', prefetch, { passive: true });
+    document.addEventListener('focusin', prefetch, { passive: true });
+    document.addEventListener('touchstart', prefetch, { passive: true });
+    return () => {
+      document.removeEventListener('pointerover', prefetch);
+      document.removeEventListener('focusin', prefetch);
+      document.removeEventListener('touchstart', prefetch);
+    };
+  }, []);
+
   if (phase === 'booting') return <Booting />;
 
   return (
     <>
     <KonamiCode />
+    <Suspense fallback={<Booting />}>
     <Routes>
       <Route path="/" element={<GameEntry />} />
       <Route path="/register" element={<RegisterPage />} />
@@ -226,7 +242,9 @@ export function App() {
         <Route index element={<Protected><DashboardPage /></Protected>} />
         <Route path="combat" element={<Protected><LiveRound><CombatPage /></LiveRound></Protected>} />
         <Route path="scout" element={<Protected><LiveRound><ScoutPage /></LiveRound></Protected>} />
-        <Route path="quests" element={<Protected><LiveRound><QuestPage /></LiveRound></Protected>} />
+        <Route path="quests" element={<Protected><LiveRound><QuestPhonePage /></LiveRound></Protected>} />
+        {/* The old quest desk is retired; preserve old bookmarks without restoring it. */}
+        <Route path="quests/contracts" element={<Navigate to="/game/quests" replace />} />
         <Route path="story" element={<Protected><LiveRound><StoryArchivePage /></LiveRound></Protected>} />
         <Route path="visit/:contactKey" element={<Protected><LiveRound><ContactRoomPage /></LiveRound></Protected>} />
         <Route path="events" element={<Protected><LiveRound><EventsPage /></LiveRound></Protected>} />
@@ -250,11 +268,11 @@ export function App() {
         <Route path="insights" element={<Protected><EmpireInsightsPage /></Protected>} />
         <Route path="stores" element={<Protected><LiveRound><StoresIndexPage /></LiveRound></Protected>} />
         <Route path="stores/:slug" element={<Protected><LiveRound><StorePage /></LiveRound></Protected>} />
-        <Route path="armory" element={<Navigate to="/game/hideout#hideout-armory" replace />} />
-        <Route path="supply" element={<Protected><LiveRound><SupplyPage /></LiveRound></Protected>} />
+        <Route path="armory" element={<Navigate to="/game/hideout" replace />} />
+        <Route path="supply" element={<Navigate to="/game" replace />} />
         <Route path="holdings" element={<Protected><LiveRound><HoldingsPage /></LiveRound></Protected>} />
-        <Route path="loans" element={<Protected><LiveRound><LoanSharkPage /></LiveRound></Protected>} />
-        <Route path="dealers" element={<Protected><LiveRound><DealersPage /></LiveRound></Protected>} />
+        <Route path="loans" element={<Navigate to="/game" replace />} />
+        <Route path="dealers" element={<Navigate to="/game" replace />} />
         <Route path="crew" element={<Navigate to="/game#crew-health" replace />} />
         <Route path="casino" element={<Protected><LiveRound><CasinoPage /></LiveRound></Protected>} />
         <Route path="casino/:game" element={<Protected><LiveRound><CasinoPage /></LiveRound></Protected>} />
@@ -262,7 +280,6 @@ export function App() {
         <Route path="travel" element={<Protected><LiveRound><TravelPage /></LiveRound></Protected>} />
         <Route path="turf" element={<Protected><LiveRound><TurfPage /></LiveRound></Protected>} />
         <Route path="operations" element={<Navigate to="/game" replace />} />
-        <Route path="black-book" element={<Navigate to="/game" replace />} />
         <Route path="blocks" element={<Navigate to="/game/turf" replace />} />
         {/* 0.5.0-A had a Cities page; the road map still lives on Travel. */}
         <Route path="cities" element={<Navigate to="/game/travel" replace />} />
@@ -306,13 +323,10 @@ export function App() {
         <Route path="admin/reports" element={admin(<AdminReportsPage />, 'reports.handle')} />
         <Route path="admin/bugs" element={admin(<AdminBugReportsPage />, 'bugs.triage')} />
         <Route path="admin/economy" element={admin(<AdminEconomyPage />)} />
-        <Route path="admin/supply" element={admin(<AdminSupplyPage />)} />
-        <Route path="admin/loans" element={admin(<AdminLoansPage />)} />
         <Route path="admin/casino" element={admin(<AdminCasinoPage />)} />
         <Route path="admin/factions" element={admin(<AdminFactionsPage />)} />
         <Route path="admin/crew" element={admin(<AdminCrewPage />)} />
         <Route path="admin/vehicles" element={admin(<AdminVehiclesPage />)} />
-        <Route path="admin/players/:roundPlayerId/armory" element={admin(<AdminArmoryPlayerPage />)} />
         <Route path="admin/law" element={admin(<AdminLawPage />)} />
         <Route path="admin/players/:roundPlayerId/law" element={admin(<AdminLawPlayerPage />)} />
         <Route path="admin/combat" element={admin(<AdminCombatPage />)} />
@@ -322,6 +336,7 @@ export function App() {
 
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
+    </Suspense>
     </>
   );
 }

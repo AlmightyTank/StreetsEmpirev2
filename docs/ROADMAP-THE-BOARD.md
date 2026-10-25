@@ -20,10 +20,11 @@ Same shape as a flea board, cut to this economy.
 
 - Escrow a stack, name a unit price inside the band, and leave it up for 12 hours or 48 hours.
 - Offers for an item sort cheapest first. The seller’s street name is on the row. You cannot buy your own.
-- A buy takes the whole offer. The buyer pays the sticker. The seller receives 92%. The 8% is deleted from the round.
+- **Partial buys (added after slice F).** A buyer can take any amount of an offer, say 3 of 12, and the rest stays up. On cash, the buyer pays the sticker for what they take, the seller receives 92% of it, and the 8% is deleted from the round. On a barter, the buyer hands over the per-unit (or per-lot) ask that many times.
 - Cancel and expiry return the stack. The posting fee does not come back: 1% of book value, minimum $1.
 - Six open offers per player.
-- Pay on fill. No mail delay, no partial stack, no barter, no separate Board reputation.
+- Pay on fill. No mail delay, no separate Board reputation.
+- **Barter (added after slice F, replacing "no barter").** A seller can ask for goods instead of cash. See "Player barter" below.
 
 Parts leave `scavengedComponents`. The stash grid is derived from that balance, so the cell shrinks with the escrow and grows back on cancel. A fill that needs grid space checks free cells first and refuses when they do not fit.
 
@@ -81,7 +82,7 @@ These never join the allow-list.
 | Condoms, beer, medicine | The corner shelf is the supply that keeps a crew out of a spiral. Their book value is a token fraction of the counter, so a listing would only move supplies to another account. |
 | Cash, turns, standing, Drop cosmetics | Those are not stash stacks. Cosmetics are paid outside the round. |
 
-A quest-locked gun can be listed by someone who owns it. The buyer still needs the unlock. The row is visible. The buy stays locked.
+A quest-locked gun can be listed by someone who owns it, and anyone can buy it: the Board has no unlock requirement (decided in slice G).
 
 ## Slices
 
@@ -97,6 +98,154 @@ One reviewable PR per slice into `beta`, in order. A through D merge dark. E is 
 | **F · Product** | Crack, and any other product whose book is already its Pip buyback, joins the same band. | A unit from $4.00 to $4.34 fills. Cooking to sell still loses against the $5 ingredients. A price above the cap is refused. |
 | **G · Keeper goods** | Guns, ammo, and cars. Buyer must already have the unlock. Units bought from the Board that day stop at one keeper delivery: pistol 50, shotgun 5, Tek-9 3, AK-47 2, low-rider 3. Re-read ammo and parts deliveries from the ruleset when this slice is cut. | A locked buyer can read the row and cannot buy it. The next unit after the delivery cap is refused. Tommy’s and Charlie’s shelves do not change size. |
 | **H · Release** | Staff ledger of posts, fills, and cancels. A sim that random-fills. New rounds pin the enabled ruleset. Old rounds stay pinned. | Flag off is the stores screen this roadmap started from. The sim fails if a fill creates an item, loses one, or raises either rank. |
+
+Slice A shipped as `classic-og-v2.6-j` (2.6.0-J): `playerBoard: { enabled: false, taxPercent: 8 }` and `playerBoardBand`, `isPlayerBoardPriceLegal` and `playerBoardSellerProceedsCents` in `packages/rules-engine/src/calculations/player-board.ts`. Seller proceeds round down, so the deleted tax never rounds away and a fill inside the band holds for every cash balance under the 75% truncation. One cent outside the band raises one side by a fraction of a cent per unit, so the rank tests in `player-board.test.ts` use 100-unit fills to clear that rounding.
+
+Slice B adds `playerBoard.partBookCents` to `classic-og-v2.6-j`, which is still unreleased and dark, with the books from the part table above for all 19 keys. `playerBoardPartBookCents` returns null for any other key, so it cannot be listed. `calculateNetWorthCents` counts held parts from the stored `scavengedComponents` only while `playerBoard.enabled` is true. Flag off is today's rank.
+
+Parts count toward rank (decided after slice C). Every rank calculation already passes either the full player row or `toState(row)`, so held parts and the `playerBoardEscrow` column reach `calculateNetWorthCents` with no per-caller wiring. Three changes make the stored rank correct:
+
+- **The action pipeline re-reads part balances before its whole-state write.** It does this unless the action returned a new balance itself, as hideout builds do. Before this fix, the write put the pre-action balance back. **Scouting finds were never kept and workshop crafts never used up their ingredients, on every round.** This fix applies regardless of the Board flag.
+- **Routes that change parts or cash outside an action re-settle afterwards** when the Board is on: opening a cache, the generator, the Salvage Yard, and Board post and cancel. Rounds without the Board keep settling on the next read, as before.
+- **Escrow lives in `RoundPlayer.playerBoardEscrow`** and counts at book like held parts. Posting moves rank only by the weighted fee, and cancel and expiry move nothing.
+
+**The Salvage Yard imbalance is fixed.** At the roadmap's books, two yard routes raised rank once parts counted:
+
+- **Cash alone.** A fuel cell or specialist circuitry cost about $2,250 in yard cash, roughly $1,690 of weighted rank, for $2,500 of book.
+- **Barter.** Every barter returned more book than it took. For example, 5 commons plus 20 beer, about $24 of book, became an $80 motor assembly. Buying those inputs on the Board at the floor is rank-neutral, so cash plus Board plus yard minted rank.
+
+The books stay as written. Instead, on a round with the Board on, every yard barter also asks for the cash that covers its shortfall at the cash weight: `playerBoardTradeTopUpCents`, rounded up to whole dollars. The shortfall is the output's book minus the book of the parts and goods handed over, with goods valued as `economy.netWorth` values them.
+
+At these books the top-ups per unit are:
+
+| Part | Top-up |
+| --- | ---: |
+| Motor assembly | $75 |
+| Repair supplies | $52 |
+| Specialty container | $77 |
+| Precision parts | $203 |
+| Advanced medical | $151 |
+| High-capacity fuel cell | $2,854 |
+| Specialist circuitry | $2,879 |
+
+The cash prices for commons ($100) and uncommons ($300) already pay their way, so they don't change. Because the top-ups are derived from the books, retuning the books keeps the yard safe automatically. A test runs every part through `calculateNetWorthCents`, over several quantities and cash remainders, and holds that no yard trade raises rank. Rounds without the Board trade exactly as before.
+
+The cost of the fix is that legendary barters are much dearer on Board rounds, by about $2,850 each. That falls on the hideout builds that need them: generator capacity and the intel room. The slice H sim should check that those builds stay within reach.
+
+Slice C adds `PlayerBoardOffer` (migration `20261225000000_player_board_offers`) and `PlayerBoardService` with three routes: `POST /stores/board/offers`, `POST /stores/board/offers/:offerId/cancel` and `GET /stores/board/mine`. The listing rules are on the 2.6-j block: six open offers, 12 or 48 hours, and a fee of 1% of book rounded up with a $1 minimum. Posting needs the flag on, so nothing can post on 2.6-j. Notes for the slices that follow:
+
+- **Six offers means six.** The table's "a sixth offer" contradicts "six open offers per player". The cap allows six and refuses the seventh.
+- **Pause.** Each offer stores `Round.pausedMinutesTotal` at posting. Expiry is pushed back by every pause since then, including one still open, so a paused round never eats a listing. Posting and cancelling are refused while paused.
+- **Expiry is lazy.** It runs when the seller posts, cancels or reads their offers, and in `PlayerBoardService.expireDue(round)`. D's book read model must call `expireDue` or filter on the effective expiry.
+- **A stack that needs a new stash cell when none is free is not lost.** Cancel refuses with `STASH_FULL`. Expiry marks the offer `EXPIRED` with `returnedAt` null, and the stack goes back on the next settle that has room. Escrow for E's item count is `OPEN` plus `EXPIRED` with `returnedAt` null. Today a level-0 stash has 60 cells and only 37 distinct stacks exist, so this path cannot trigger yet.
+- **Escrow counts toward rank.** Escrowed stacks are held in `RoundPlayer.playerBoardEscrow` and count at book, the same as held parts. `OPEN` offers plus `EXPIRED` offers with `returnedAt` null always equal that column.
+
+Slice D adds the Board tab at `/game/stores/board`. It is the sixth tab, not the fifth, because the Salvage Yard shipped as the fifth after this roadmap was written.
+
+- **Hidden when off.** `GET /stores` sets `playerBoard: true` only when the round's ruleset has the flag on, and the tab renders only then. `GET /stores/board` answers `BOARD_CLOSED` otherwise, and the page shows the same "store is not open" notice as an unknown shop.
+- **The read model.** `PlayerBoardService.book` runs `expireDue` first, so nothing past its time is ever listed. Offers are grouped by item in catalog order and sorted cheapest first, oldest first on a tie, with seller round names and the viewer's own offers marked.
+- **Filters.** All and Parts return the same rows until slices F and G add product and keeper goods.
+- **On the tab.** It also shows your offers with cancel, and a listing form with the band, the fee and the after-tax payout, all computed the way the server computes them. There is no buy button until slice E.
+
+Slice E adds fills through `PlayerBoardService.fill` and `POST /stores/board/offers/:offerId/buy`, plus the first enabled ruleset.
+
+- **The ruleset is opt-in.** `classic-og-v2.6-j-board` (2.6.0-J-board) is 2.6.0-J with `playerBoard.enabled` true. It is registered ahead of 2.6.0-J, so 2.6.0-J stays `LATEST_RULESET` and the default for new rounds, and a test holds that. An admin opts a new round in by picking it at scheduling. Making it the default is H's job.
+- **One transaction.** Buyer and seller are locked in id order. The offer flips `OPEN` to `SOLD` with a conditional update, so two devices can never share it. The buyer pays the sticker. The seller gets 92% rounded down as `proceedsCents`, and the rest leaves the round. Both sides get an economy ledger line (`PLAYER_BOARD_BUY` and `PLAYER_BOARD_SALE`).
+- **Retries.** A retried request with the same `actionId` returns the first receipt and charges nothing.
+- **Refusals change nothing.** These all refuse: your own offer, a closed or expired one, too little cash, and no stash room. An expiry found during a buy is committed (the stack goes home) before the buy is refused.
+- **Rank.** The route re-settles both players, so stored rank is current on both sides straight away. The integration suite shows neither rank rises at the floor, the middle or the cap, and that items across both players plus escrow stay constant.
+
+Slice F lists every drug, not just crack: crack, weed, ecstasy, cocaine, meth and heroin.
+
+- **The allow-list** is `playerBoard.listableProducts` on the 2.6-j block, and the live variant inherits it.
+- **Books.** A drug's book is its net worth value: `perCrackCents` for crack and `economy.netWorthCents` for the others. A drug is listable only while that book equals Pip's buyback, and a test holds all six there.
+
+| Drug | Book | Floor | Cap | Cook cost |
+| --- | ---: | ---: | ---: | ---: |
+| Crack | $3.00 | $4.00 | $4.34 | $5.00 |
+| Weed | $2.40 | $3.20 | $3.47 | $4.20 |
+| Ecstasy | $9.00 | $12.00 | $13.04 | $17.00 |
+| Cocaine | $12.00 | $16.00 | $17.39 | $28.00 |
+| Meth | $4.50 | $6.00 | $6.52 | $8.00 |
+| Heroin | $4.50 | $6.00 | $6.52 | $8.50 |
+
+- **Cooking to sell always loses.** Every cook cost is above its cap, so cooking for the Board never pays.
+- **Storage.** Drugs post from, and fill into, product inventory: the `crack` column and `PlayerProduct` rows, through `ProductInventoryService`. They take no stash cell, so fills and returns skip the stash check.
+- **Escrow** values parts and drugs alike (`playerBoardEscrowNetWorthCents`).
+- **The tab** gains a Drugs filter. The book lists drugs first, then parts.
+- **The rank tests** cover drug fills at the floor and the cap.
+
+### Player barter
+
+The Board is player-to-player for both kinds of price. An offer is either **cash** (a unit price inside the band, as above) or a **barter**: up to `maxAskItems` (3) other listable items, parts or drugs, asked **per unit**, or per lot of `lotSize` units for goods worth less than anything you could ask for (for example, every 10 crack for 1 radio). A buyer takes any number of units, or whole lots, and hands over the ask that many times. The buyer must hold the goods, or the cash for a cash offer.
+
+The rule that keeps barter from moving rank:
+
+- **The seller can't gain.** One lot's ask may not be worth more, at book, than the lot (`ASKS_TOO_MUCH`). No fill therefore raises the seller's rank.
+- **The buyer can't gain.** When the units taken are worth more than the goods handed over, the buyer also pays the gap to the Board in cash at the cash weight, rounded up to whole dollars (`playerBoardBarterFeeCents`, built on the same `playerBoardTradeTopUpCents` as the Salvage Yard fix). It is priced on what each fill takes, all together, never per lot. That cash is deleted from the round, so no fill raises the buyer's rank either. An even swap costs nothing extra.
+- **No 8% cut.** The posting fee still applies, but barter has no cut, because it isn't needed to keep rank fair.
+
+Mechanics:
+
+- The offer stores `priceKind`, `lotSize`, `askItems` (per lot) and `askBookCents` (per lot). A listing must be a whole number of lots, and a fill takes whole lots (`BARTER_LOT`).
+- On a fill, the buyer's goods go straight into the seller's holdings, and the stack goes from escrow to the buyer.
+- The buyer's top-up is booked as `PLAYER_BOARD_BARTER_FEE`.
+- The fill is refused if the buyer is short of goods or cash, if the buyer has no stash room for the stack, or if the seller has no stash room for a part they asked for.
+
+On the tab, barter rows show "Trade: 2 × Radio + 5 × Scrap metal" with the cash top-up, and the button reads Trade. It is disabled with a reason when the viewer is short of something. The listing form has a Cash or Barter switch, a builder for up to three lines, and a value meter that shows the buyer's top-up. Tests sweep offers against baskets with the real net worth calculator and show neither side's rank rises. Integration tests cover posting, refusals, the swap, item conservation and rank on a live Board round.
+
+### Partial buys
+
+- **Selling down.** An offer keeps `quantity` (units posted) and `remainingQuantity` (units still in escrow and for sale). Each purchase writes a `PlayerBoardFill` row (buyer, quantity, cash paid, seller proceeds), and that table is the record slice H's staff ledger reads.
+- **Fill size.** A fill takes `quantity` units of a cash offer, or whole lots of a barter, or everything left when it's omitted. More than is left is refused with `NOT_ENOUGH_LEFT`. The offer closes as `SOLD` when nothing is left.
+- **Concurrency.** Buyers lock the seller, so two buyers take turns. The decrement is also conditional on enough being left, so a unit is never sold twice.
+- **Cancel and expiry** return only what's left.
+- **Rank.** The band is per unit and proceeds round down on each fill, so a partial buy is as rank-fair as a whole one, and the tests check it at 1, 7 and 22 units.
+- **On the tab,** cash rows get a quantity box beside the button, which reads "Buy 3" or "Buy all". Your offers show "9 of 12 left".
+
+### Any price, steeper outside the fair range
+
+The band is no longer a hard limit: it is the **fair range**. A seller can post any cash price of at least one cent, or a barter asking for any amount. Inside the fair range, nothing extra is charged. Outside it, whoever would gain rank pays exactly what cancels the gain, rounded up to whole dollars, so the charge grows the further out the price is:
+
+| Situation | Who pays | When | Helper |
+| --- | --- | --- | --- |
+| Cash price above the range | Seller, as a listing tax for the whole stack | At posting, kept like the posting fee | `playerBoardCashListingTaxCents` |
+| Cash price below the range | Buyer, as a Board fee on what they take | At each fill, deleted | `playerBoardCashBuyerFeeCents` |
+| Barter asking more than the lots are worth | Seller, as a listing tax | At posting, kept | `playerBoardBarterListingTaxCents` |
+| Barter asking less than the lots are worth | Buyer, as a top-up | At each fill, deleted | `playerBoardBarterFeeCents` |
+
+Example with 100 crack (book $3, fair range $4.00–$4.34):
+
+- **Too high.** Listing at $4.50 costs $14 of tax, at $6 costs $152, and at $10 costs $520.
+- **Too low.** Selling at $3.50 costs buyers a $50 Board fee for the lot, and at $2 a $200 fee.
+
+A below-range price has to charge the *buyer*, never the seller. Otherwise a second account could sell cheap to a main account and pass it rank.
+
+- **Rank timing.** The listing tax drops the seller's rank at posting, and the overpriced sale lifts it back to at most where it started. The integration test therefore measures the seller from before posting.
+- **Storage and ledger.** The offer stores `listingTaxCents`. The economy ledger gains `PLAYER_BOARD_LISTING_TAX` and `PLAYER_BOARD_BUYER_FEE`.
+- **On the tab.** The price box shows the fair range and the tax or fee a price would cost. Cheap rows are marked "+ Board fee", and the buy button and confirmation include it.
+- **Tests.** Sweeps cover crack and parts of every rarity, at prices from 1 cent to many times the book, for whole and partial buys and odd cash balances. Neither side's rank rises across posting and selling together.
+
+Slice G lists guns, low-riders and ammo through `playerBoard.listableKeeperGoods`: pistol, shotgun, Tek-9, AK-47, low-rider and ammo.
+
+- **Books.** A gun's or low-rider's book is its net worth value, and it is listable only while that equals the keeper's buyback. Ammo's book is its per-round net worth, 6¢ (a fair range of 8¢).
+- **Left off the Board.** Sedans and vans have no buyback, and vehicle parts have no net worth, so none of them can be priced fairly.
+- **No unlocks, no daily limit.** Anyone can buy any keeper good from the Board, in any amount, without the keeper's unlock, and a seller can ask for any of them in barter. The keepers' unlocks and restocks only govern their own shelves; on the Board, scarcity shows up in what players ask, so the market sets the price. This means a player can get a shotgun, Tek-9 or AK-47 from another player before earning Tommy's favor.
+- **Shelves.** The Board never touches Tommy's or Charlie's stock, and a test holds the shelves unchanged across fills.
+- **Item rows.** On rounds with an armory and garage, guns and cars are individual item rows as well as columns. The Board trades them as interchangeable units, so only clean ones can be listed: full condition, no mods or name, ready (not locked into a fight or out on a run) and not hot. They come off the column and out of the rows together (`board-keeper-goods.ts`). The buyer gets a fresh stack with origin `BOARD`, within their armory or garage capacity, and the armory summary is refreshed.
+- **The tab** gains a Guns & cars filter, and the listing form groups keeper goods.
+
+Slice H releases the Board.
+
+- **New rounds pin the live Board.** `classic-og-v2.6-j-board` is now registered last, so it is `LATEST_RULESET` and `DEFAULT_RULESET_ID`, and the local seed opens on it. The dark `classic-og-v2.6-j` stays registered for any round already pinned to it, and every ruleset before it has no Board block. Old rounds stay on their pinned rulesets. Rounds with the Board off show the Stores screen this roadmap started from, as D's tests hold.
+- **The staff ledger.** `GET /admin/rounds/:roundId/board?hours=` (`AdminPlayerBoardService`) lists every post, fill, cancel and expiry in the window, newest first, with seller, buyer, item, units, price or barter basket, what the buyer paid and what the Board deleted. Its totals are posts, fills, cancels, expiries, open offers, units sold, cash paid, seller proceeds and cash deleted (posting fees, listing tax, sale tax, Board fees and barter top-ups). It also reconciles escrow: any seller whose `playerBoardEscrow` differs from their open and unreturned offers is listed as a problem. The admin Economy page shows it as "The Board" panel, under the same time-window picker as the money ledger. This is the wash-trade record the guardrails call for.
+- **The sim** (`npm run qa:board -- [steps] [seed]`, `scripts/qa/board-sim.ts`) runs eight players through random posts, fills, cancels and expiries on the live ruleset, using the server's pricing functions. Posts are cash or barter, at prices inside, above and below the fair range, and fills can buy part of an offer. After every step it checks:
+  - no item is created or lost across holdings and escrow;
+  - each seller's escrow equals their open offers;
+  - all cash plus everything the Board deleted stays constant;
+  - no rank rises. This is checked exactly per offer (from before posting) and per fill, and measured through `calculateNetWorthCents` for every player.
+
+  It also checks that legendary parts stay within reach on a Board round: buying a fuel cell or specialist circuitry through the Salvage Yard, with its inputs bought on the Board at their floor, costs no more than the Board's own floor for the legendary (about $3,334), give or take a few dollars of rounding. The roughly $2,850 top-up replaces book the barter inputs no longer cover, so on a Board round a legendary costs its fair price, whichever way you get it.
 
 F and G both sit on E. Product is the smaller cut, so it goes first. H is last. D lands before E so the tab exists on the round where fills turn on.
 

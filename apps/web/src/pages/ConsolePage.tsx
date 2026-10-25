@@ -1306,3 +1306,6 @@ export function ConsolePage() {
     </GameLayout>
   );
 }
+import '../styles/console.css';
+import '../styles/activity.css';
+import '../styles/social-experience.css';

@@ -1071,3 +1071,8 @@ export function DropPage({ view }: { view: DropView }) {
       return <ShopView />;
   }
 }
+import '../styles/drop.css';
+import '../styles/drop-shop.css';
+import '../styles/drop-art.css';
+import '../styles/drop-shells.css';
+import '../styles/birthday.css';

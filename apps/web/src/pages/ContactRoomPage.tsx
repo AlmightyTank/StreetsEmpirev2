@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
-import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import type { PlayerQuestDto, QuestPageDto } from '@streets/shared';
 import { ApiError } from '../api/client.js';
 import { questsApi } from '../api/quests.js';
@@ -16,6 +16,7 @@ import { contactHistory, roomSetting, type ContactHistoryEntry, type ContactRoom
 export function ContactRoomPage() {
   const me = useSession((state) => state.me);
   const refreshSnapshot = useSession((state) => state.refreshSnapshot);
+  const location = useLocation();
   const navigate = useNavigate();
   const contactKey = String(useParams().contactKey ?? '').toUpperCase();
   const [page, setPage] = useState<QuestPageDto | null>(null);
@@ -48,6 +49,13 @@ export function ContactRoomPage() {
     setHistory(null);
     setHistoryOpen(false);
   }, [contactKey]);
+
+  useEffect(() => {
+    const questKey = new URLSearchParams(location.search).get('job');
+    if (!page || !questKey) return;
+    const quest = page.quests.find((entry) => entry.key === questKey && entry.contactKey === contactKey);
+    if (quest) setView({ kind: 'job', questKey: quest.key });
+  }, [contactKey, location.search, page]);
 
   const loadHistory = useCallback(async () => {
     try {
@@ -194,3 +202,4 @@ export function ContactRoomPage() {
     </GameLayout>
   );
 }
+import '../styles/contact-room.css';

@@ -160,6 +160,37 @@
   font-size: 11px;
 }
 
+.se-stores--board .se-board-loading {
+  grid-auto-flow: column;
+  justify-content: center;
+  gap: 10px;
+  min-height: 112px;
+  border-color: color-mix(in srgb, var(--se-accent) 28%, var(--se-line));
+  background: color-mix(in srgb, var(--se-accent) 4%, var(--se-panel));
+  color: var(--se-text-dim);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.se-board-loading__mark {
+  width: 10px;
+  height: 10px;
+  border: 2px solid color-mix(in srgb, var(--se-accent) 28%, transparent);
+  border-top-color: var(--se-accent);
+  border-radius: 50%;
+  animation: se-board-loading-spin .8s linear infinite;
+}
+
+@keyframes se-board-loading-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .se-board-loading__mark {
+    animation: none;
+  }
+}
+
 .se-stores-section {
   display: grid;
   gap: 10px;
@@ -1827,5 +1858,308 @@
 
   .se-salvage-offer__actions {
     --se-salvage-btn: 44px;
+  }
+}
+
+/* The Board: player listings. Tables and segmented controls come from the shared kit. */
+.se-stores-hero--board .se-stores-hero__copy p {
+  max-width: 62ch;
+}
+
+.se-stores-hero--board {
+  position: relative;
+  overflow: hidden;
+  border-color: color-mix(in srgb, var(--se-accent) 34%, var(--se-line));
+  background:
+    radial-gradient(circle at 88% 18%, color-mix(in srgb, var(--se-accent) 16%, transparent), transparent 36%),
+    linear-gradient(135deg, color-mix(in srgb, var(--se-panel) 88%, var(--se-overlay-mix)), var(--se-panel));
+}
+
+.se-stores-hero--board::after {
+  content: 'OPEN MARKET';
+  position: absolute;
+  right: 24px;
+  bottom: 18px;
+  color: color-mix(in srgb, var(--se-accent) 28%, transparent);
+  font-size: clamp(28px, 6vw, 76px);
+  font-weight: 800;
+  letter-spacing: .12em;
+  line-height: 1;
+  pointer-events: none;
+  transform: rotate(-6deg);
+}
+
+.se-board-lock {
+  display: grid;
+  gap: 12px;
+  border: 1px solid color-mix(in srgb, var(--se-accent) 32%, var(--se-line));
+  background:
+    radial-gradient(circle at 9% 50%, color-mix(in srgb, var(--se-accent) 13%, transparent), transparent 28%),
+    linear-gradient(135deg, color-mix(in srgb, var(--se-accent) 8%, var(--se-panel)), var(--se-panel));
+  box-shadow: var(--se-shadow-soft);
+}
+
+.se-board-lock__content {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.se-board-lock__content p {
+  max-width: 62ch;
+  margin: 0 0 12px;
+  color: var(--se-text-dim);
+}
+
+.se-board-lock__mark {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--se-accent) 48%, var(--se-line));
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--se-accent) 13%, transparent);
+  color: var(--se-accent);
+  font-size: 15px;
+  line-height: 1;
+}
+
+.se-board-lock__action {
+  justify-self: start;
+}
+
+.se-board-filters {
+  justify-self: start;
+}
+
+.se-board-section {
+  display: grid;
+  gap: 10px;
+  padding: 18px 0;
+  border-top: 1px solid color-mix(in srgb, var(--se-line) 82%, transparent);
+}
+
+.se-board-market {
+  display: block;
+  padding: 0 18px;
+  border: 1px solid color-mix(in srgb, var(--se-line) 82%, transparent);
+  border-radius: calc(var(--se-radius, 8px) + 4px);
+  background: color-mix(in srgb, var(--se-panel) 72%, transparent);
+  box-shadow: var(--se-shadow-soft);
+}
+
+.se-board-market > .se-stores-market__main {
+  gap: 0;
+}
+
+.se-board-section .se-stores-sectionhead {
+  margin: 0 0 2px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--se-line) 65%, transparent);
+}
+
+.se-board-section .se-stores-sectionhead h2 {
+  letter-spacing: -.02em;
+}
+
+.se-board-section .se-table tbody tr {
+  transition: background-color 140ms ease, transform 140ms ease;
+}
+
+.se-board-section .se-table tbody tr:hover {
+  background: color-mix(in srgb, var(--se-accent) 7%, transparent);
+}
+
+.se-board-book td:last-child,
+.se-board-mine td:last-child {
+  white-space: nowrap;
+}
+
+.se-board-empty {
+  margin: 0;
+  padding: 14px 16px;
+  border: 1px dashed var(--se-line);
+  border-radius: var(--se-radius, 8px);
+  color: var(--se-text-dim);
+}
+
+.se-board-rarity {
+  --se-board-ink: var(--se-text-dim);
+  padding-left: 8px;
+  box-shadow: inset 3px 0 0 var(--se-board-ink);
+  font-weight: 650;
+}
+
+.se-board-rarity--uncommon { --se-board-ink: var(--se-good); }
+.se-board-rarity--rare { --se-board-ink: #4696ff; }
+.se-board-rarity--epic { --se-board-ink: #b066ff; }
+.se-board-rarity--legendary { --se-board-ink: #ffc440; }
+.se-board-rarity--product { --se-board-ink: var(--se-accent); }
+.se-board-rarity--keeper { --se-board-ink: #c8a46a; }
+.se-board-book__mine td {
+  background: color-mix(in srgb, var(--se-good) 8%, transparent);
+}
+
+.se-board-book__mine td:first-child {
+  box-shadow: inset 3px 0 0 var(--se-good);
+}
+
+.se-board-you {
+  color: var(--se-text-dim);
+}
+
+.se-board-list {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) repeat(2, minmax(0, 1fr)) auto;
+  gap: 12px;
+  /* Top-aligned so the price hint hangs below its box instead of lifting the whole row. */
+  align-items: start;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--se-line) 72%, transparent);
+  border-radius: var(--se-radius, 8px);
+  background: color-mix(in srgb, var(--se-bg) 35%, transparent);
+}
+
+.se-board-list > .se-field {
+  margin: 0;
+}
+
+.se-board-list__terms {
+  grid-column: 1 / -2;
+  margin: 0;
+  color: var(--se-text-dim);
+  font-size: 13px;
+}
+
+.se-board-list > .se-btn,
+.se-board-list > .se-why {
+  justify-self: end;
+  align-self: center;
+}
+
+.se-board-ask {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--se-line);
+  border-radius: var(--se-radius, 8px);
+  min-width: 0;
+  background: color-mix(in srgb, var(--se-accent) 4%, transparent);
+}
+
+.se-board-ask > legend {
+  float: left;
+  width: 100%;
+  margin: 0;
+}
+
+.se-board-ask__lot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  color: var(--se-text-dim);
+}
+
+.se-board-ask__lot .se-input {
+  width: 84px;
+}
+
+.se-board-ask__line {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.se-board-ask > .se-btn,
+.se-board-ask > .se-why {
+  justify-self: start;
+}
+
+.se-board-ask .se-hint {
+  margin: 0;
+}
+
+.se-board-buy {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.se-board-buy__qty {
+  width: 72px;
+  min-height: 32px;
+  padding: 4px 8px;
+}
+
+.se-board-under {
+  color: var(--se-warn);
+  font-size: 12px;
+}
+
+.se-board-trade__tag {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 1px 6px;
+  border: 1px solid var(--se-line);
+  border-radius: 999px;
+  color: var(--se-text-dim);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: color-mix(in srgb, var(--se-accent) 9%, transparent);
+}
+
+@media (max-width: 899px) {
+  .se-board-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .se-board-list__terms {
+    grid-column: 1 / -1;
+  }
+
+  .se-board-list > :is(.se-btn, .se-why) {
+    grid-column: 1 / -1;
+    justify-self: stretch;
+  }
+}
+
+@media (max-width: 680px) {
+  .se-stores-hero--board::after {
+    right: -12px;
+    bottom: 10px;
+    font-size: 30px;
+  }
+
+  .se-board-section {
+    padding: 12px 0;
+  }
+
+  .se-board-market {
+    padding: 0 12px;
+  }
+
+  .se-board-section .se-stores-sectionhead {
+    align-items: flex-start;
+  }
+
+  .se-board-list {
+    grid-template-columns: 1fr;
+    padding: 10px;
+  }
+
+  .se-board-ask__line {
+    grid-template-columns: minmax(0, 1fr) 84px;
+  }
+
+  .se-board-ask__line > :last-child {
+    grid-column: 1 / -1;
+    justify-self: start;
   }
 }

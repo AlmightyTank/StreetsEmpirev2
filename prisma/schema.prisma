@@ -1873,6 +1873,7 @@ model Round {
   territoryPowerSelections    TerritoryPowerSelection[]
   territoryAuditEvents        TerritoryAuditEvent[]
   territoryYieldCaches        TerritoryYieldCache[]
+  playerBoardOffers           PlayerBoardOffer[]
   territoryTollPayments       TerritoryTollPayment[]
   territoryYieldDailyLedgers  TerritoryYieldDailyLedger[]
   territoryYieldPlayerDailyLedgers TerritoryYieldPlayerDailyLedger[]
@@ -2127,6 +2128,11 @@ model RoundPlayer {
 
   /// 2.3.0. Hideout components found while scouting; keyed by component id.
   scavengedComponents Json @default("{}")
+  /// Components that still retain found-in-raid provenance.
+  foundInRaid Json @default("{}")
+  /// The Board. Parts escrowed on open offers (and expired ones still waiting on stash room), by key. Counts toward net worth like held parts.
+  playerBoardEscrow   Json @default("{}")
+  playerBoardEscrowFoundInRaid Json @default("{}")
   /// 2.3.0. Cache rewards earned from scouting, before they are opened.
   scavengedCaches Json @default("[]")
 
@@ -2140,6 +2146,8 @@ model RoundPlayer {
   workshopSkillXp Int @default(0)
   workshopLastRecipe String?
   hideoutEconomyTelemetry HideoutEconomyTelemetry[]
+  playerBoardOffers       PlayerBoardOffer[]       @relation("PlayerBoardSeller")
+  playerBoardPurchases    PlayerBoardFill[]        @relation("PlayerBoardBuyer")
 
   displayName String
 
@@ -6765,4 +6773,92 @@ model AdminLivingStoryDraft {
 
   @@unique([baseRulesetId, key])
   @@index([baseRulesetId, updatedAt(sort: Desc)])
+}
+
+// ---------------------------------------------------------------------------
+// The Board (player listings)
+// ---------------------------------------------------------------------------
+
+/// The Board. How an offer is paid for: cash per unit, or a basket of goods for the whole stack.
+enum PlayerBoardPriceKind {
+  CASH
+  BARTER
+}
+
+/// The Board C. OPEN holds the stack in escrow. CANCELLED and EXPIRED return it; SOLD arrives with fills.
+enum PlayerBoardOfferStatus {
+  OPEN
+  SOLD
+  CANCELLED
+  EXPIRED
+}
+
+/// The Board C. One posted stack. The parts leave `scavengedComponents` while it is OPEN, and an
+/// EXPIRED offer whose stack found no free stash cell keeps it until one opens (`returnedAt` null).
+model PlayerBoardOffer {
+  id String @id @default(cuid())
+
+  roundId  String
+  round    Round       @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  sellerId String
+  seller   RoundPlayer  @relation("PlayerBoardSeller", fields: [sellerId], references: [id], onDelete: Cascade)
+
+  itemKey        String
+  /// Units posted.
+  quantity       Int
+  /// Units still for sale and in escrow. Cash offers sell down in part; a barter goes whole.
+  remainingQuantity Int
+  /// Cash offers: the price per unit. Barter offers: 0.
+  unitPriceCents Int
+  /// Book per unit when posted, so the band and fee a listing was checked against stay on record.
+  bookCents      Int
+  /// The Board. Extra tax paid at posting for a price above the band (or a barter asking for more
+  /// than it offers). Kept, like the posting fee. Zero inside the band.
+  listingTaxCents Int                 @default(0)
+  /// The Board. CASH sells for a unit price; BARTER asks for `askItems` for each lot.
+  priceKind      PlayerBoardPriceKind @default(CASH)
+  /// Barter offers: units sold per lot. Buyers take whole lots; cash offers are always 1.
+  lotSize        Int                  @default(1)
+  /// Barter offers: what the buyer hands over for each lot, { itemKey: quantity }.
+  askItems       Json?
+  /// Barter offers: the book of one lot's `askItems`, never above the lot's book. The buyer's
+  /// cash top-up is priced from it on each fill.
+  askBookCents   Int?
+  feeCents       Int
+  durationHours  Int
+
+  /// `Round.pausedMinutesTotal` at posting. Pauses since then push the expiry back.
+  pausedMinutesAtPost Int
+  postedAt            DateTime @default(now())
+  /// Wall-clock expiry before any pause.
+  expiresAt           DateTime
+
+  status     PlayerBoardOfferStatus @default(OPEN)
+  closedAt   DateTime?
+  /// When the escrowed stack went back to the seller. Null while OPEN, SOLD, or EXPIRED and waiting on stash room.
+  returnedAt DateTime?
+  fills PlayerBoardFill[]
+
+  @@index([roundId, status, itemKey, unitPriceCents])
+  @@index([sellerId, status])
+}
+
+/// The Board E. One purchase from an offer: all of it, or part of a cash offer.
+model PlayerBoardFill {
+  id String @id @default(cuid())
+
+  offerId String
+  offer   PlayerBoardOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  buyerId String?
+  buyer   RoundPlayer?     @relation("PlayerBoardBuyer", fields: [buyerId], references: [id], onDelete: SetNull)
+
+  quantity      Int
+  /// Cash the buyer paid: the sticker for a cash offer, the top-up for a barter.
+  paidCents     Int
+  /// Cash the seller received, after the deleted tax. Zero for a barter.
+  proceedsCents Int
+  createdAt     DateTime @default(now())
+
+  @@index([offerId])
+  @@index([buyerId])
 }

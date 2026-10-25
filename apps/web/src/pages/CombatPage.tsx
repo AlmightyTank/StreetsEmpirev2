@@ -14,7 +14,6 @@ import { Alert } from '../components/Alert.js';
 import { AllianceTag } from '../components/AllianceTag.js';
 import { showGameToast } from '../components/GameEventToasts.js';
 import { Button } from '../components/Button.js';
-import { CrewTeamPicker } from '../components/CrewTeamPicker.js';
 import { ItemLabel, ItemTile } from '../components/ItemTile.js';
 import { Panel, Row } from '../components/Panel.js';
 import { supplyEffects, supplySummary, WorkSupplyPanel, WorkSupplyStockRows } from '../components/WorkSupplyPanel.js';
@@ -474,8 +473,6 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
     { accept: (value): value is Mode => value === 'RAID' || value === 'DRIVE_BY' || value === 'DRUG_HOES' || value === 'STEAL_RIDE' || value === 'LURE_CREW' });
   const [squad, setSquad] = useRememberedState<string>(rememberedKey('combat.squad', playerId), '1', { accept: isString });
   const [ammoCapText, setAmmoCapText] = useState('');
-  const [raidTeam, setRaidTeam] = useRememberedState<string[]>(rememberedKey('combat.raidTeam', playerId), [],
-    { accept: (value): value is string[] => Array.isArray(value) && value.length <= 5 && value.every((entry) => typeof entry === 'string') });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -487,11 +484,14 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
   const refresh = useCallback(async (background = false) => {
     const sequence = ++refreshSequence.current;
     try {
-      const [next, battles] = await Promise.all([combatApi.page(after, background), combatApi.reports(roundId)]);
+      const next = await combatApi.page(after, background);
       if (sequence !== refreshSequence.current) return;
       setPage(next);
-      setReports(battles.reports);
-      setNextBefore(battles.nextBefore);
+      void combatApi.reports(roundId).then((battles) => {
+        if (sequence !== refreshSequence.current) return;
+        setReports(battles.reports);
+        setNextBefore(battles.nextBefore);
+      }).catch(() => undefined);
     } catch (err) {
       if (sequence === refreshSequence.current) setError(err instanceof Error ? err.message : 'Could not get the latest word from the street.');
     }
@@ -622,8 +622,6 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
                     ? `You can send at most ${formatNumber(maxSquad)}.`
                     : ammoCapInvalid
                       ? `Set an ammo cap from 0 to ${formatNumber(ammunition?.availableRounds ?? 0)} rounds.`
-                    : raidTeam.length > squadNumber
-                      ? 'Choose no more crew specialists than the raid squad.'
                     : null;
   const disabled = attackBlock !== null;
   const pagingBlock = busy ? 'Your last hit is still going through.' : pending ? 'Get the report for your unsettled hit first.' : null;
@@ -639,7 +637,6 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
     event?.preventDefault();
     if (inFlight.current || (!pending && disabled)) return;
     const request: PendingRaid = pending ?? { input: { roundId, targetPublicPimpId: selected!.publicPimpId, attackingThugs: squadNumber,
-      ...(!driving && !doingSpecialRaid && raidTeam.length ? { crewMemberIds: raidTeam } : {}),
       ...(ammunition && ammoCapRounds !== undefined ? { attackerAmmoCapRounds: ammoCapRounds } : {}),
       actionId: newActionId() }, targetName: selected!.displayName, kind: driving ? 'DRIVE_BY' : doingSpecialRaid ? specialRaid.kind : 'RAID' };
     inFlight.current = true;
@@ -1121,7 +1118,6 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
                 ) : null}
               </div>
             ) : null}
-            {!driving && !doingSpecialRaid ? <CrewTeamPicker role="THUG" specialty="ENFORCER" selectedIds={raidTeam} onChange={setRaidTeam} disabled={busy || !!pending || raidTeam.length > squadNumber} refreshKey={latest} /> : null}
             <Button type="submit" className="se-btn se-btn--primary" disabledReason={attackBlock}>
               {busy
                 ? 'Crew is out...'
@@ -1220,7 +1216,6 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
           </section>
           </OperationDetails>
 
-          <OperationDetails title="Battle history" summary="View earlier raids, defenses and their full reports" open={Boolean(report)}>
           <section className="se-raids-section">
             <div className="se-raids-sectionhead">
               <div>
@@ -1265,7 +1260,6 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
               ) : null}
             </Panel>
           </section>
-          </OperationDetails>
 
 
         </>
@@ -1280,3 +1274,7 @@ export function CombatPage() {
   if (!me || !round) return <Navigate to="/join" replace />;
   return <RaidPage key={me.id} playerId={me.id} roundId={round.id} />;
 }
+import '../styles/raids.css';
+import '../styles/encounter-cinema.css';
+import '../styles/action-experience.css';
+import '../styles/action-readiness-accessibility.css';

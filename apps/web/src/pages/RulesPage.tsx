@@ -4,6 +4,7 @@ import { roundsApi } from '../api/rounds.js';
 import { Panel } from '../components/Panel.js';
 import { InfoLayout } from '../layouts/InfoLayout.js';
 import { ReplayTutorial } from '../components/onboarding/ReplayTutorial.js';
+import '../styles/public-info.css';
 
 /**
  * How the game works, not what the numbers are.

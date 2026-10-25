@@ -16,7 +16,6 @@ import { Panel, Row } from '../components/Panel.js';
 import { TurnSpend } from '../components/TurnSpend.js';
 import { WorkSupplyPanel, WorkSupplyStockRows } from '../components/WorkSupplyPanel.js';
 import { HeatNotice } from '../components/HeatPanel.js';
-import { CrewTeamPicker } from '../components/CrewTeamPicker.js';
 import { EmpireAreaLegend } from '../components/EmpireManagement.js';
 import { useGameAction } from '../hooks/useGameAction.js';
 import { GameLayout } from '../layouts/GameLayout.js';
@@ -44,10 +43,6 @@ function ScoutMetric({
   );
 }
 
-function isIdList(value: unknown): value is string[] {
-  return Array.isArray(value) && value.length <= 5 && value.every((entry) => typeof entry === 'string');
-}
-
 function coverageTone(district: DistrictDto | undefined): 'good' | 'warn' | 'bad' {
   if (!district || district.exposedFraction <= 0) return 'good';
   return district.exposedFraction < 0.35 ? 'warn' : 'bad';
@@ -68,13 +63,6 @@ export function ScoutPage() {
   const [district, setDistrict] = useRememberedState<string>(rememberedKey('scout.district', me?.id), '', { accept: isString });
   const [turns, setTurns] = useRememberedState<number | ''>(rememberedKey('scout.turns', me?.id), 13, { accept: isTurns });
   const [loadError, setLoadError] = useState<string | null>(null);
-  // Lena stays picked between visits (per player); stale ids simply match nothing.
-  const [scoutTeam, setScoutTeam] = useRememberedState<string[]>(rememberedKey('scout.team', me?.id), [], { accept: isIdList });
-
-  // Refetched whenever the crew changes, because the visible coverage on offer
-  // depends on how many people and armed fit thugs the player has available.
-  const crewSize = me ? me.resources.whores + me.resources.fitThugs : 0;
-
   useEffect(() => {
     actionsApi
       .districts()
@@ -83,7 +71,7 @@ export function ScoutPage() {
         setDistrict((current) => resolveScoutDistrict(response.districts, requestedDistrict, current));
       })
       .catch(() => setLoadError('Could not load the districts. Try again in a moment.'));
-  }, [crewSize, requestedDistrict]);
+  }, [requestedDistrict]);
 
   useEffect(() => {
     if (tourTarget !== 'scout-plan' || guidedTourScrolled.current) return;
@@ -173,7 +161,7 @@ export function ScoutPage() {
     const grantStorageKey = accessKey ? `se-territory-grant-${accessKey}` : null;
     const territoryAccessGrantId = grantStorageKey ? sessionStorage.getItem(grantStorageKey) ?? undefined : undefined;
     await action.run(async (actionId) => {
-      const result = await actionsApi.scout({ district, turns, ...(scoutTeam.length ? { crewMemberIds: scoutTeam } : {}), ...(territoryAccessGrantId ? { territoryAccessGrantId } : {}), actionId });
+      const result = await actionsApi.scout({ district, turns, ...(territoryAccessGrantId ? { territoryAccessGrantId } : {}), actionId });
       if (territoryAccessGrantId && grantStorageKey) sessionStorage.removeItem(grantStorageKey);
       return result;
     });
@@ -231,7 +219,6 @@ export function ScoutPage() {
               onChange={chooseDistrict}
               disabled={action.busy}
             />
-            <CrewTeamPicker role="WORKER" specialty="SCOUT" selectedIds={scoutTeam} onChange={setScoutTeam} disabled={action.busy} refreshKey={action.result} />
           </section>
 
           <aside className="se-scout-plan__intel">
@@ -522,3 +509,6 @@ export function ScoutPage() {
     </GameLayout>
   );
 }
+import '../styles/scout.css';
+import '../styles/action-experience.css';
+import '../styles/action-readiness-accessibility.css';

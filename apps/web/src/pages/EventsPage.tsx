@@ -73,7 +73,7 @@ function CityConditionCard({ condition }: { condition: CityConditionDto }) {
 function EventCard({ event, shelf }: { event: PlayerQuestDto; shelf: EventShelf }) {
   const scheduleStart = event.seasonalEvent?.startsAt ?? event.communityEvent?.startsAt;
   const scheduleEnd = event.seasonalEvent?.endsAt ?? event.communityEvent?.endsAt;
-  const destination = `/game/quests?tab=events&focus=${encodeURIComponent(event.key)}#quest-${encodeURIComponent(event.key)}`;
+  const destination = `/game/quests?view=jobs&focus=${encodeURIComponent(event.key)}#quest-${encodeURIComponent(event.key)}`;
   const timeline = [
     event.acceptedAt ? { label: 'Joined', at: event.acceptedAt } : null,
     event.completedAt ? { label: 'Completed', at: event.completedAt } : null,
@@ -177,3 +177,5 @@ export function EventsPage() {
     </main>
   </GameLayout>;
 }
+import '../styles/events.css';
+import '../styles/career-experience.css';

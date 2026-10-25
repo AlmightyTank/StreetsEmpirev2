@@ -51,7 +51,6 @@ export function routeIdentity(pathname: string): string {
   if (path === '/game/travel') return 'travel';
   if (path === '/game/turf') return 'turf';
   if (path === '/game/operations') return 'operations';
-  if (path === '/game/black-book') return 'black-book';
   if (path === '/game/rankings') return 'rankings';
   if (path === '/game/alliance') return 'alliance';
   if (path === '/game/alliances') return 'alliances';
@@ -459,8 +458,10 @@ function AccountMenu({ onLogout }: { onLogout: () => void }) {
             <strong>{account.username}</strong>
             {me ? <span className="se-muted">{me.city?.name ?? 'In the game'}</span> : <span className="se-muted">Not in a season</span>}
           </div>
-          {me ? <Link className="se-account__item" to="/game/profile">Your profile</Link> : null}
-          <Link className="se-account__item" to="/account">Account settings</Link>
+           {me ? <Link className="se-account__item" to="/game/profile">Your profile</Link> : null}
+           <Link className="se-account__item" to="/game/supporter">Supporter</Link>
+           <Link className="se-account__item" to="/game/status">Status &amp; Support</Link>
+           <Link className="se-account__item" to="/account">Account settings</Link>
           <button type="button" className="se-account__item se-account__item--out" onClick={onLogout}>Log out</button>
         </div>
       ) : null}
@@ -502,7 +503,6 @@ function Footer() {
             <a href={`${PUBLIC_SITE_ORIGIN}/about`}>About</a>
             <a href={`${PUBLIC_SITE_ORIGIN}/community`}>Community</a>
             <a href={`${PUBLIC_SITE_ORIGIN}/beta`}>Beta</a>
-            <Link to="/game/status">Status</Link>
             <a href={`${PUBLIC_SITE_ORIGIN}/support`}>Support</a>
             <a href={`${PUBLIC_SITE_ORIGIN}/privacy`}>Privacy</a>
             <a href={`${PUBLIC_SITE_ORIGIN}/terms`}>Terms</a>

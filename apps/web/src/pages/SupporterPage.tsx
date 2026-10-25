@@ -96,3 +96,4 @@ export function SupporterPage() {
     </Frame>
   );
 }
+import '../styles/supporter.css';
