@@ -364,10 +364,10 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post('/stores/board/offers/:offerId/buy', { preHandler: fastify.requireAuth }, async (request) => {
     const params = z.object({ offerId: z.string().trim().min(1).max(64) }).safeParse(request.params);
     if (!params.success) throw AppError.notFound('OFFER_NOT_FOUND', 'That offer is gone.');
-    const body = parseBody(z.object({ actionId: z.string().trim().min(1).max(80).optional() }).strict(), request.body ?? {});
+    const body = parseBody(z.object({ actionId: z.string().trim().min(1).max(80).optional(), quantity: z.number().int().min(1).max(1_000_000).optional() }).strict(), request.body ?? {});
     const { round, player } = await requirePlayer(request.auth!.account.id);
     await PlayerStateService.settle(fastify.prisma, player.id, { markActive: true });
-    const filled = await PlayerBoardService.fill(fastify.prisma, round, loadRulesetForRound(round), player.id, params.data.offerId, body.actionId);
+    const filled = await PlayerBoardService.fill(fastify.prisma, round, loadRulesetForRound(round), player.id, params.data.offerId, body.actionId, new Date(), body.quantity);
     await settleAfterParts(round, player.id);
     const sold = await fastify.prisma.playerBoardOffer.findUnique({ where: { id: filled.offerId }, select: { sellerId: true } });
     if (sold) await settleAfterParts(round, sold.sellerId);

@@ -2144,7 +2144,7 @@ model RoundPlayer {
   workshopLastRecipe String?
   hideoutEconomyTelemetry HideoutEconomyTelemetry[]
   playerBoardOffers       PlayerBoardOffer[]       @relation("PlayerBoardSeller")
-  playerBoardPurchases    PlayerBoardOffer[]       @relation("PlayerBoardBuyer")
+  playerBoardPurchases    PlayerBoardFill[]        @relation("PlayerBoardBuyer")
 
   displayName String
 
@@ -6799,12 +6799,12 @@ model PlayerBoardOffer {
   round    Round       @relation(fields: [roundId], references: [id], onDelete: Cascade)
   sellerId String
   seller   RoundPlayer  @relation("PlayerBoardSeller", fields: [sellerId], references: [id], onDelete: Cascade)
-  /// The Board E. Who filled it; set with SOLD.
-  buyerId  String?
-  buyer    RoundPlayer? @relation("PlayerBoardBuyer", fields: [buyerId], references: [id], onDelete: SetNull)
 
   itemKey        String
+  /// Units posted.
   quantity       Int
+  /// Units still for sale and in escrow. Cash offers sell down in part; a barter goes whole.
+  remainingQuantity Int
   /// Cash offers: the price per unit. Barter offers: 0.
   unitPriceCents Int
   /// Book per unit when posted, so the band and fee a listing was checked against stay on record.
@@ -6830,10 +6830,28 @@ model PlayerBoardOffer {
   closedAt   DateTime?
   /// When the escrowed stack went back to the seller. Null while OPEN, SOLD, or EXPIRED and waiting on stash room.
   returnedAt DateTime?
-  /// The Board E. What the seller was paid on the fill, after the deleted tax.
-  proceedsCents Int?
+  fills PlayerBoardFill[]
 
   @@index([roundId, status, itemKey, unitPriceCents])
   @@index([sellerId, status])
+}
+
+/// The Board E. One purchase from an offer: all of it, or part of a cash offer.
+model PlayerBoardFill {
+  id String @id @default(cuid())
+
+  offerId String
+  offer   PlayerBoardOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  buyerId String?
+  buyer   RoundPlayer?     @relation("PlayerBoardBuyer", fields: [buyerId], references: [id], onDelete: SetNull)
+
+  quantity      Int
+  /// Cash the buyer paid: the sticker for a cash offer, the top-up for a barter.
+  paidCents     Int
+  /// Cash the seller received, after the deleted tax. Zero for a barter.
+  proceedsCents Int
+  createdAt     DateTime @default(now())
+
+  @@index([offerId])
   @@index([buyerId])
 }

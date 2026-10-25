@@ -88,6 +88,7 @@ export function offerDto(offer: PlayerBoardOffer, round: Pick<BoardRound, 'pause
     itemKey: offer.itemKey,
     name: itemName(offer.itemKey, ruleset),
     quantity: offer.quantity,
+    remainingQuantity: offer.remainingQuantity,
     priceKind: offer.priceKind,
     unitPriceCents: offer.unitPriceCents,
     ask: askLines(offer, ruleset),
@@ -173,7 +174,7 @@ async function settleSeller(tx: Db, round: BoardRound, sellerId: string, now: Da
   for (const offer of held) {
     if (!(await hasRoom(tx, sellerId, offer.itemKey, ruleset))) continue;
     const claimed = await tx.playerBoardOffer.updateMany({ where: { id: offer.id, status: 'EXPIRED', returnedAt: null }, data: { returnedAt: now } });
-    if (claimed.count === 1) await returnStack(tx, sellerId, offer.itemKey, offer.quantity, ruleset);
+    if (claimed.count === 1) await returnStack(tx, sellerId, offer.itemKey, offer.remainingQuantity, ruleset);
   }
 }
 
@@ -239,6 +240,7 @@ export const PlayerBoardService = {
         sellerId: roundPlayerId,
         itemKey: input.itemKey,
         quantity: input.quantity,
+        remainingQuantity: input.quantity,
         unitPriceCents: price.unitPriceCents,
         bookCents: book,
         ...(barter ? {
@@ -261,7 +263,7 @@ export const PlayerBoardService = {
     });
   },
 
-  /** Take an open offer down. The stack comes back; the fee does not. A closed offer changes nothing. */
+  /** Take an open offer down. What is left of the stack comes back; the fee does not. A closed offer changes nothing. */
   async cancel(prisma: PrismaClient, round: BoardRound, roundPlayerId: string, offerId: string, now = new Date()): Promise<PlayerBoardOfferResult> {
     assertPlayable(round, now);
     return prisma.$transaction(async (tx) => {
@@ -280,19 +282,20 @@ export const PlayerBoardService = {
         data: { status: 'CANCELLED', closedAt: now, returnedAt: now },
       });
       if (closed.count !== 1) throw AppError.conflict('OFFER_NOT_OPEN', 'That offer is already closed.');
-      await returnStack(tx, roundPlayerId, offer.itemKey, offer.quantity, ruleset);
+      await returnStack(tx, roundPlayerId, offer.itemKey, offer.remainingQuantity, ruleset);
       const after = await tx.playerBoardOffer.findUniqueOrThrow({ where: { id: offer.id } });
-      return { offer: offerDto(after, round, now, ruleset), feeCents: 0, returnedQuantity: offer.quantity };
+      return { offer: offerDto(after, round, now, ruleset), feeCents: 0, returnedQuantity: offer.remainingQuantity };
     });
   },
 
   /**
-   * Buy a whole offer in one transaction. Both players are locked in id order, the offer flips
-   * OPEN to SOLD only once, the buyer pays the sticker, the seller gets the share after tax and
-   * the tax leaves the round. A retried request with the same action id returns the first result
-   * and charges nothing more.
+   * Buy from an offer in one transaction: any part of a cash offer (all that is left when
+   * `quantity` is omitted), or a barter whole. Both players are locked in id order, so two buyers
+   * take turns and units are never sold twice. The buyer pays the sticker, the seller gets the
+   * share after tax and the tax leaves the round; the offer closes as SOLD when nothing is left.
+   * A retried request with the same action id returns the first result and charges nothing more.
    */
-  async fill(prisma: PrismaClient, round: BoardRound, ruleset: Ruleset, buyerId: string, offerId: string, actionId?: string, now = new Date()): Promise<PlayerBoardFillResult> {
+  async fill(prisma: PrismaClient, round: BoardRound, ruleset: Ruleset, buyerId: string, offerId: string, actionId?: string, now = new Date(), quantity?: number): Promise<PlayerBoardFillResult> {
     if (!ruleset.playerBoard?.enabled) throw AppError.conflict('BOARD_CLOSED', 'The Board is not open this round.');
     assertPlayable(round, now);
     const target = await prisma.playerBoardOffer.findFirst({ where: { id: offerId, roundId: round.id }, select: { sellerId: true } });
@@ -313,14 +316,22 @@ export const PlayerBoardService = {
       const buyer = await tx.roundPlayer.findUnique({ where: { id: buyerId }, select: { roundId: true, cashCents: true } });
       if (!buyer || buyer.roundId !== round.id) throw AppError.notFound('PLAYER_NOT_FOUND', 'Player not found.');
       const barter = offer.priceKind === 'BARTER';
+      const units = quantity ?? offer.remainingQuantity;
+      if (barter && units !== offer.remainingQuantity) {
+        throw AppError.badRequest('BARTER_IS_WHOLE', 'A trade takes the whole stack.');
+      }
+      if (!Number.isSafeInteger(units) || units < 1) throw AppError.badRequest('INVALID_QUANTITY', 'Buy at least one.');
+      if (units > offer.remainingQuantity) {
+        throw AppError.conflict('NOT_ENOUGH_LEFT', `Only ${offer.remainingQuantity} left on that offer.`);
+      }
       const ask = barter ? jsonObject(offer.askItems as Prisma.JsonValue, {}) : {};
-      const paidCents = barter ? offer.buyerFeeCents ?? 0 : offer.unitPriceCents * offer.quantity;
+      const paidCents = barter ? offer.buyerFeeCents ?? 0 : offer.unitPriceCents * units;
       if (buyer.cashCents < BigInt(paidCents)) {
         throw AppError.badRequest('NOT_ENOUGH_CASH', barter ? `The Board also wants ${dollars(paidCents)} to even out that trade.` : `That offer costs ${dollars(paidCents)}.`);
       }
-      for (const [key, units] of Object.entries(ask)) {
+      for (const [key, wanted] of Object.entries(ask)) {
         const held = await heldUnits(tx, buyerId, key, ruleset);
-        if (held < units) throw AppError.badRequest('NOT_ENOUGH_TO_TRADE', `That trade wants ${units} ${itemName(key, ruleset).toLowerCase()}; you have ${held}.`);
+        if (held < wanted) throw AppError.badRequest('NOT_ENOUGH_TO_TRADE', `That trade wants ${wanted} ${itemName(key, ruleset).toLowerCase()}; you have ${held}.`);
       }
       if (!(await hasRoom(tx, buyerId, offer.itemKey, ruleset))) {
         throw AppError.conflict('STASH_FULL', 'There is no room in the stash for a new part. Upgrade Storage or clear a slot.');
@@ -332,22 +343,25 @@ export const PlayerBoardService = {
       }
 
       const proceedsCents = barter ? 0 : playerBoardSellerProceedsCents(paidCents, ruleset);
-      const sold = await tx.playerBoardOffer.updateMany({
-        where: { id: offer.id, status: 'OPEN' },
-        data: { status: 'SOLD', closedAt: now, buyerId, proceedsCents },
+      const taken = await tx.playerBoardOffer.updateMany({
+        where: { id: offer.id, status: 'OPEN', remainingQuantity: { gte: units } },
+        data: { remainingQuantity: { decrement: units } },
       });
-      if (sold.count !== 1) throw AppError.conflict('OFFER_NOT_OPEN', 'That offer has already closed.');
+      if (taken.count !== 1) throw AppError.conflict('OFFER_NOT_OPEN', 'That offer has already closed.');
+      const remainingQuantity = offer.remainingQuantity - units;
+      if (remainingQuantity === 0) await tx.playerBoardOffer.update({ where: { id: offer.id }, data: { status: 'SOLD', closedAt: now } });
+      await tx.playerBoardFill.create({ data: { offerId: offer.id, buyerId, quantity: units, paidCents, proceedsCents, createdAt: now } });
 
       if (paidCents > 0) await tx.roundPlayer.update({ where: { id: buyerId }, data: { cashCents: buyer.cashCents - BigInt(paidCents) } });
-      for (const [key, units] of Object.entries(ask)) {
-        await moveHeld(tx, buyerId, key, -units, ruleset);
-        await moveHeld(tx, offer.sellerId, key, units, ruleset);
+      for (const [key, wanted] of Object.entries(ask)) {
+        await moveHeld(tx, buyerId, key, -wanted, ruleset);
+        await moveHeld(tx, offer.sellerId, key, wanted, ruleset);
       }
-      await moveHeld(tx, buyerId, offer.itemKey, offer.quantity, ruleset);
+      await moveHeld(tx, buyerId, offer.itemKey, units, ruleset);
       if (proceedsCents > 0) await tx.roundPlayer.update({ where: { id: offer.sellerId }, data: { cashCents: { increment: BigInt(proceedsCents) } } });
-      await moveEscrow(tx, offer.sellerId, offer.itemKey, -offer.quantity);
+      await moveEscrow(tx, offer.sellerId, offer.itemKey, -units);
 
-      const metadata = { offerId: offer.id, itemKey: offer.itemKey, quantity: offer.quantity, unitPriceCents: offer.unitPriceCents, priceKind: offer.priceKind, ...(barter ? { askItems: ask } : {}) };
+      const metadata = { offerId: offer.id, itemKey: offer.itemKey, quantity: units, unitPriceCents: offer.unitPriceCents, priceKind: offer.priceKind, ...(barter ? { askItems: ask } : {}) };
       if (barter) {
         if (paidCents > 0) await EconomyLedgerService.record(tx, buyerId, [{ source: 'PLAYER_BOARD_BARTER_FEE', label: 'Board barter top-up', amountCents: -paidCents, metadata }], now);
       } else {
@@ -359,7 +373,8 @@ export const PlayerBoardService = {
         offerId: offer.id,
         itemKey: offer.itemKey,
         name: itemName(offer.itemKey, ruleset),
-        quantity: offer.quantity,
+        quantity: units,
+        remainingQuantity,
         unitPriceCents: offer.unitPriceCents,
         paidCents,
         gave: askLines(offer, ruleset),
@@ -424,10 +439,10 @@ export const PlayerBoardService = {
         name: itemName(offer.itemKey, ruleset),
         category: kind!,
         rarity: COMPONENTS.find((row) => row.key === offer.itemKey)?.rarity ?? null,
-        quantity: offer.quantity,
+        quantity: offer.remainingQuantity,
         priceKind: offer.priceKind,
         unitPriceCents: offer.unitPriceCents,
-        totalCents: offer.priceKind === 'BARTER' ? offer.buyerFeeCents ?? 0 : offer.unitPriceCents * offer.quantity,
+        totalCents: offer.priceKind === 'BARTER' ? offer.buyerFeeCents ?? 0 : offer.unitPriceCents * offer.remainingQuantity,
         ask: askLines(offer, ruleset),
         sellerName: offer.seller.displayName,
         mine: offer.sellerId === viewerId,

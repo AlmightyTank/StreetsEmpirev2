@@ -509,7 +509,10 @@ export interface PlayerBoardOfferDto {
   id: string;
   itemKey: string;
   name: string;
+  /** Units posted. */
   quantity: number;
+  /** Units not yet sold; a cash offer sells down in part. */
+  remainingQuantity: number;
   priceKind: PlayerBoardPriceKindDto;
   /** Cash offers only; 0 for a barter. */
   unitPriceCents: number;
@@ -554,11 +557,12 @@ export interface PlayerBoardRowDto {
   category: PlayerBoardCategoryDto;
   /** Parts only. */
   rarity: ScavengeRarityDto | null;
+  /** Units still for sale. A cash offer can be bought in part; a barter only whole. */
   quantity: number;
   priceKind: PlayerBoardPriceKindDto;
   /** Cash offers: the price per unit. Barter offers: 0. */
   unitPriceCents: number;
-  /** Cash a buyer pays for the whole offer: the sticker for cash, the Board's top-up for a barter. */
+  /** Cash for everything left: the sticker for cash, the Board's top-up for a barter. */
   totalCents: number;
   /** Barter offers: the goods a buyer hands over. Empty for cash. */
   ask: PlayerBoardAskDto[];
@@ -608,7 +612,10 @@ export interface PlayerBoardFillResult {
   offerId: string;
   itemKey: string;
   name: string;
+  /** Units bought in this fill. */
   quantity: number;
+  /** Units still on the offer afterwards. */
+  remainingQuantity: number;
   unitPriceCents: number;
   /** Cash the buyer paid: the sticker, or a barter's top-up. */
   paidCents: number;

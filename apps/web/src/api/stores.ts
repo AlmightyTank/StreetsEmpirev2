@@ -10,7 +10,7 @@ export const storesApi = {
   salvageTrade: (input: SalvageTradeInput) => api.post<SalvageTradeResult>('/game/stores/salvage/trade', input),
   board: (filter: PlayerBoardFilterDto = 'ALL') => api.get<PlayerBoardDto>(`/game/stores/board?filter=${filter}`),
   boardPost: (input: PostPlayerBoardOfferInput) => api.post<PlayerBoardOfferResult>('/game/stores/board/offers', input),
-  boardBuy: (offerId: string, actionId: string) => api.post<PlayerBoardFillResult>(`/game/stores/board/offers/${encodeURIComponent(offerId)}/buy`, { actionId }),
+  boardBuy: (offerId: string, actionId: string, quantity?: number) => api.post<PlayerBoardFillResult>(`/game/stores/board/offers/${encodeURIComponent(offerId)}/buy`, { actionId, ...(quantity ? { quantity } : {}) }),
   boardCancel: (offerId: string) => api.post<PlayerBoardOfferResult>(`/game/stores/board/offers/${encodeURIComponent(offerId)}/cancel`, {}),
   unlock: (input: WeaponUnlockInput) => api.post<GameActionResult<WeaponUnlockResult>>('/game/stores/unlock', input),
 };

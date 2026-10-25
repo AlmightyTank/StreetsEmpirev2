@@ -49,8 +49,8 @@ describe.runIf(process.env.PLAYER_BOARD_INTEGRATION === '1')('The Board fills wi
   const code = (promise: Promise<unknown>) => promise.then(() => 'OK', (error: { code?: string }) => error.code);
   const post = (unitPriceCents = 550, quantity = 10, itemKey = 'SCRAP_METAL', durationHours = 12, now = new Date()) =>
     PlayerBoardService.post(prisma, round, rules, ids.seller, { itemKey, quantity, unitPriceCents, durationHours }, now);
-  const fill = (offerId: string, buyer = ids.buyer, actionId?: string, now = new Date()) =>
-    PlayerBoardService.fill(prisma, round, rules, buyer, offerId, actionId, now);
+  const fill = (offerId: string, buyer = ids.buyer, actionId?: string, now = new Date(), quantity?: number) =>
+    PlayerBoardService.fill(prisma, round, rules, buyer, offerId, actionId, now, quantity);
   const units = async (key: string) => {
     let total = 0;
     for (const id of Object.values(ids)) {
@@ -107,7 +107,9 @@ describe.runIf(process.env.PLAYER_BOARD_INTEGRATION === '1')('The Board fills wi
     expect((100_001n - buyer.cashCents) - (seller.cashCents - sellerBefore.cashCents)).toBe(325n);
 
     const stored = await prisma.playerBoardOffer.findUniqueOrThrow({ where: { id: offer.id } });
-    expect(stored).toMatchObject({ status: 'SOLD', buyerId: ids.buyer, proceedsCents: 3_728 });
+    expect(stored).toMatchObject({ status: 'SOLD', remainingQuantity: 0 });
+    const fills = await prisma.playerBoardFill.findMany({ where: { offerId: offer.id } });
+    expect(fills.map((f) => [f.buyerId, f.quantity, f.paidCents, f.proceedsCents])).toEqual([[ids.buyer, 7, 4_053, 3_728]]);
     const ledger = await prisma.economyLedgerEntry.findMany({ where: { source: { in: ['PLAYER_BOARD_BUY', 'PLAYER_BOARD_SALE'] }, roundPlayerId: { in: [ids.buyer, ids.seller] } } });
     expect(ledger.map((entry) => [entry.roundPlayerId, entry.source, entry.amountCents]).sort()).toEqual([
       [ids.buyer, 'PLAYER_BOARD_BUY', -4_053n],
@@ -177,6 +179,78 @@ describe.runIf(process.env.PLAYER_BOARD_INTEGRATION === '1')('The Board fills wi
       expect(await worth(ids.seller), `seller at ${price}`).toBeLessThanOrEqual(sellerBefore);
       expect(await worth(ids.buyer), `buyer at ${price}`).toBeLessThanOrEqual(buyerBefore);
     }
+  });
+
+  describe('partial buys', () => {
+    const offerRow = (id: string) => prisma.playerBoardOffer.findUniqueOrThrow({ where: { id } });
+    const part = (offerId: string, quantity: number, buyer = ids.buyer) => fill(offerId, buyer, undefined, new Date(), quantity);
+
+    it('sells 3 of 12, keeps 9 up, and charges only for 3', async () => {
+      const { offer } = await post(550, 12);
+      const sellerCash = (await row(ids.seller)).cashCents;
+      const result = await part(offer.id, 3);
+      expect(result).toMatchObject({ quantity: 3, remainingQuantity: 9, paidCents: 1_650 });
+      expect(await offerRow(offer.id)).toMatchObject({ status: 'OPEN', quantity: 12, remainingQuantity: 9 });
+      expect((await row(ids.buyer)).cashCents).toBe(100_001n - 1_650n);
+      expect((await row(ids.seller)).cashCents - sellerCash).toBe(1_518n); // 92% of $16.50
+      expect((await row(ids.seller)).playerBoardEscrow).toEqual({ SCRAP_METAL: 9 });
+      expect(((await row(ids.buyer)).scavengedComponents as Record<string, number>).SCRAP_METAL).toBe(53);
+      const book = await PlayerBoardService.book(prisma, round, rules, ids.rival, 'PARTS');
+      expect(book.rows.find((r) => r.id === offer.id)).toMatchObject({ quantity: 9, totalCents: 4_950 });
+    });
+
+    it('lets several buyers share an offer, refuses more than is left, and closes it when the last unit sells', async () => {
+      const { offer } = await post(550, 12);
+      await part(offer.id, 8);
+      expect(await code(part(offer.id, 8, ids.rival))).toBe('NOT_ENOUGH_LEFT');
+      expect(await code(part(offer.id, 0, ids.rival))).toBe('INVALID_QUANTITY');
+      const last = await part(offer.id, 4, ids.rival);
+      expect(last.remainingQuantity).toBe(0);
+      expect(await offerRow(offer.id)).toMatchObject({ status: 'SOLD', remainingQuantity: 0 });
+      expect(await code(part(offer.id, 1, ids.rival))).toBe('OFFER_NOT_OPEN');
+      const fills = await prisma.playerBoardFill.findMany({ where: { offerId: offer.id }, orderBy: { createdAt: 'asc' } });
+      expect(fills.map((f) => [f.buyerId, f.quantity])).toEqual([[ids.buyer, 8], [ids.rival, 4]]);
+    });
+
+    it('never sells a unit twice when two buyers race for what is left', async () => {
+      const { offer } = await post(550, 10);
+      const before = await units('SCRAP_METAL');
+      const results = await Promise.all([part(offer.id, 7, ids.buyer), part(offer.id, 7, ids.rival)].map(code));
+      expect(results.sort()).toEqual(['NOT_ENOUGH_LEFT', 'OK']);
+      expect((await offerRow(offer.id)).remainingQuantity).toBe(3);
+      expect(await units('SCRAP_METAL')).toBe(before);
+    });
+
+    it('returns only what is left on cancel or expiry', async () => {
+      const a = await post(550, 12);
+      await part(a.offer.id, 5);
+      const cancelled = await PlayerBoardService.cancel(prisma, round, ids.seller, a.offer.id);
+      expect(cancelled.returnedQuantity).toBe(7);
+      const t0 = new Date();
+      const b = await post(550, 10, 'SCRAP_METAL', 12, t0);
+      await fill(b.offer.id, ids.buyer, undefined, t0, 4);
+      await PlayerBoardService.expireDue(prisma, round, new Date(t0.getTime() + 12 * 3_600_000));
+      expect(((await row(ids.seller)).scavengedComponents as Record<string, number>).SCRAP_METAL).toBe(50 - 5 - 4);
+      expect((await row(ids.seller)).playerBoardEscrow).toEqual({});
+    });
+
+    it('will not split a barter', async () => {
+      await prisma.roundPlayer.update({ where: { id: ids.seller }, data: { scavengedComponents: { SCRAP_METAL: 50, RADIO: 3 } } });
+      const { offer } = await PlayerBoardService.post(prisma, round, rules, ids.seller, { itemKey: 'SCRAP_METAL', quantity: 10, priceKind: 'BARTER', askItems: [{ key: 'RADIO', quantity: 1 }], durationHours: 12 });
+      expect(await code(part(offer.id, 3))).toBe('BARTER_IS_WHOLE');
+      expect(await code(part(offer.id, 10))).toBe('OK');
+    });
+
+    it('raises neither rank on a partial buy', async () => {
+      const { offer } = await post(534, 30);
+      for (const quantity of [1, 7, 22]) {
+        const sellerBefore = await worth(ids.seller);
+        const buyerBefore = await worth(ids.buyer);
+        await part(offer.id, quantity);
+        expect(await worth(ids.seller), `seller x${quantity}`).toBeLessThanOrEqual(sellerBefore);
+        expect(await worth(ids.buyer), `buyer x${quantity}`).toBeLessThanOrEqual(buyerBefore);
+      }
+    });
   });
 
   describe('drugs', () => {

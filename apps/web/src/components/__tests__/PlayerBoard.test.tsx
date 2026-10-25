@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
 import type { PlayerBoardDto } from '@streets/shared';
 import { StoreTabs } from '../StoreTabs.js';
-import { PlayerBoardView, askSummary, boardBarterTopUpCents, boardPostingFeeCents, boardSellerProceedsCents, parseDollarsToCents, type ListForm } from '../PlayerBoard.js';
+import { PlayerBoardView, askSummary, boardBuyUnits, boardBarterTopUpCents, boardPostingFeeCents, boardSellerProceedsCents, parseDollarsToCents, type ListForm } from '../PlayerBoard.js';
 
 const stores = [
   { key: 'CORNER', slug: 'corner', name: 'Corner Store' },
@@ -24,8 +24,9 @@ const askable: PlayerBoardDto['askable'] = [
 const empty: PlayerBoardDto = { filter: 'ALL', rows: [], mine: [], listable: [], openOffers: 0, cashCents: 10_000, holdings: {}, askable, rules };
 const noop = () => undefined;
 const form: ListForm = { key: 'SCRAP_METAL', quantity: '10', mode: 'CASH', price: '5.50', ask: [], hours: 12 };
-const render = (book: PlayerBoardDto, busy = false, current = form) => renderToStaticMarkup(
-  <MemoryRouter><PlayerBoardView book={book} now={NOW} busy={busy} form={current} onFilter={noop} onForm={noop} onPost={noop} onCancel={noop} onBuy={noop} /></MemoryRouter>,
+const render = (book: PlayerBoardDto, busy = false, current = form, buyQuantities: Record<string, string> = {}) => renderToStaticMarkup(
+  <MemoryRouter><PlayerBoardView book={book} now={NOW} busy={busy} form={current} onFilter={noop} onForm={noop} onPost={noop} onCancel={noop}
+    buyQuantities={buyQuantities} onBuyQuantity={noop} onBuy={noop} /></MemoryRouter>,
 );
 
 describe('Stores tab strip', () => {
@@ -72,13 +73,13 @@ describe('The Board view', () => {
     expect(html).toContain('se-board-rarity--uncommon');
     expect(html).toContain('3h 00m');
     // Buy on others' offers only, and a stack you cannot afford says so.
-    expect(html.match(/>Buy</g)).toHaveLength(2);
+    expect(html.match(/>Buy all</g)).toHaveLength(2);
     const poor = render({ ...empty, cashCents: 3_000, rows: [{ id: 'z', itemKey: 'RADIO', name: 'Radio', category: 'PART', rarity: 'UNCOMMON', priceKind: 'CASH', ask: [], quantity: 1, unitPriceCents: 3_334, totalCents: 3_334, sellerName: 'Bo', mine: false, expiresAt: later(1) }] });
     expect(poor).toContain('You need $33.34 on hand.');
   });
 
   it('offers cancel only on open offers and says when a stack is waiting on room', () => {
-    const offer = { itemKey: 'RADIO', name: 'Radio', quantity: 2, priceKind: 'CASH' as const, ask: [], unitPriceCents: 3_400, feeCents: 100, durationHours: 12, postedAt: later(-1) };
+    const offer = { itemKey: 'RADIO', name: 'Radio', quantity: 2, remainingQuantity: 2, priceKind: 'CASH' as const, ask: [], unitPriceCents: 3_400, feeCents: 100, durationHours: 12, postedAt: later(-1) };
     const html = render({
       ...empty,
       openOffers: 1,
@@ -169,6 +170,40 @@ describe('The Board barters', () => {
     expect(boardBarterTopUpCents(8_000, 8_001, rules)).toBeNull();
     expect(boardBarterTopUpCents(250_000, 34_100, rules)).toBe(287_900);
     expect(askSummary([{ name: 'Radio', quantity: 3 }, { name: 'Crack', quantity: 1_000 }])).toBe('3 × Radio + 1,000 × Crack');
+  });
+});
+
+describe('The Board partial buys', () => {
+  const row = { id: 'p', itemKey: 'CRACK', name: 'Crack', category: 'PRODUCT' as const, rarity: null, priceKind: 'CASH' as const, ask: [], quantity: 12, unitPriceCents: 400, totalCents: 4_800, sellerName: 'Rocky', mine: false, expiresAt: later(6) };
+
+  it('lets a buyer take part of a cash offer and prices just that part', () => {
+    const all = render({ ...empty, rows: [row] });
+    expect(all).toContain('placeholder="12"');
+    expect(all).toContain('>Buy all<');
+    const three = render({ ...empty, rows: [row], cashCents: 1_300 }, false, form, { p: '3' });
+    expect(three).toContain('>Buy 3<');
+    expect(three).not.toContain('on hand.');
+    const poor = render({ ...empty, rows: [row], cashCents: 1_100 }, false, form, { p: '3' });
+    expect(poor).toContain('You need $12.00 on hand.');
+    const tooMany = render({ ...empty, rows: [row] }, false, form, { p: '13' });
+    expect(tooMany).toContain('Buy from 1 to 12.');
+  });
+
+  it('never splits a barter, and shows a seller how much of their offer is left', () => {
+    const trade = render({ ...empty, rows: [{ ...row, priceKind: 'BARTER', ask: [{ key: 'RADIO', name: 'Radio', quantity: 1 }], totalCents: 0 }], holdings: { RADIO: 1 } });
+    expect(trade).not.toContain('se-board-buy__qty');
+    const mine = render({ ...empty, openOffers: 1, mine: [{ id: 'm', itemKey: 'CRACK', name: 'Crack', quantity: 12, remainingQuantity: 9, priceKind: 'CASH', ask: [], unitPriceCents: 400, feeCents: 100, durationHours: 12, postedAt: later(-1), expiresAt: later(11), status: 'OPEN', returned: true }] });
+    expect(mine).toContain('9 of 12 left');
+  });
+
+  it('reads the typed amount, defaulting to everything left', () => {
+    expect(boardBuyUnits(row, undefined)).toBe(12);
+    expect(boardBuyUnits(row, '')).toBe(12);
+    expect(boardBuyUnits(row, '3')).toBe(3);
+    expect(boardBuyUnits(row, '0')).toBeNull();
+    expect(boardBuyUnits(row, '2.5')).toBeNull();
+    expect(boardBuyUnits(row, '13')).toBeNull();
+    expect(boardBuyUnits({ ...row, priceKind: 'BARTER' }, '3')).toBe(12);
   });
 });
 

@@ -1930,6 +1930,18 @@
   margin: 0;
 }
 
+.se-board-buy {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.se-board-buy__qty {
+  width: 72px;
+  min-height: 32px;
+  padding: 4px 8px;
+}
+
 .se-board-trade__tag {
   display: inline-block;
   margin-right: 6px;

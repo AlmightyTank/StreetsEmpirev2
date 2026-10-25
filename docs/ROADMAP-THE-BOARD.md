@@ -20,10 +20,10 @@ Same shape as a flea board, cut to this economy.
 
 - Escrow a stack, name a unit price inside the band, and leave it up for 12 hours or 48 hours.
 - Offers for an item sort cheapest first. The seller’s street name is on the row. You cannot buy your own.
-- A buy takes the whole offer. The buyer pays the sticker. The seller receives 92%. The 8% is deleted from the round.
+- **Partial buys (added after slice F).** A buyer can take any amount of a cash offer, say 3 of 12. The rest stays up. The buyer pays the sticker for what they take, the seller receives 92% of it, and the 8% is deleted from the round. A barter still goes as a whole stack.
 - Cancel and expiry return the stack. The posting fee does not come back: 1% of book value, minimum $1.
 - Six open offers per player.
-- Pay on fill. No mail delay, no partial stack, no separate Board reputation.
+- Pay on fill. No mail delay, no separate Board reputation.
 - **Barter (added after slice F, replacing "no barter").** A seller can ask for goods instead of cash. See "Player barter" below.
 
 Parts leave `scavengedComponents`. The stash grid is derived from that balance, so the cell shrinks with the escrow and grows back on cancel. A fill that needs grid space checks free cells first and refuses when they do not fit.
@@ -193,6 +193,15 @@ Mechanics:
 - The fill is refused if the buyer is short of goods or cash, if the buyer has no stash room for the stack, or if the seller has no stash room for a part they asked for.
 
 On the tab, barter rows show "Trade: 2 × Radio + 5 × Scrap metal" with the cash top-up, and the button reads Trade. It is disabled with a reason when the viewer is short of something. The listing form has a Cash or Barter switch, a builder for up to three lines, and a value meter that shows the buyer's top-up. Tests sweep offers against baskets with the real net worth calculator and show neither side's rank rises. Integration tests cover posting, refusals, the swap, item conservation and rank on a live Board round.
+
+### Partial buys
+
+- **Selling down.** An offer keeps `quantity` (units posted) and `remainingQuantity` (units still in escrow and for sale). Each purchase writes a `PlayerBoardFill` row (buyer, quantity, cash paid, seller proceeds), and that table is the record slice H's staff ledger reads.
+- **Fill size.** A fill takes `quantity` units of a cash offer, or everything left when it's omitted. More than is left is refused with `NOT_ENOUGH_LEFT`, and splitting a barter is refused with `BARTER_IS_WHOLE`. The offer closes as `SOLD` when nothing is left.
+- **Concurrency.** Buyers lock the seller, so two buyers take turns. The decrement is also conditional on enough being left, so a unit is never sold twice.
+- **Cancel and expiry** return only what's left.
+- **Rank.** The band is per unit and proceeds round down on each fill, so a partial buy is as rank-fair as a whole one, and the tests check it at 1, 7 and 22 units.
+- **On the tab,** cash rows get a quantity box beside the button, which reads "Buy 3" or "Buy all". Your offers show "9 of 12 left".
 
 F and G both sit on E. Product is the smaller cut, so it goes first. H is last. D lands before E so the tab exists on the round where fills turn on.
 

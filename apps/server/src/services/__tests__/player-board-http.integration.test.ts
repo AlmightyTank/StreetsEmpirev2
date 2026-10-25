@@ -83,6 +83,18 @@ describe.runIf(process.env.PLAYER_BOARD_INTEGRATION === '1')('The Board routes w
     expect((await call(0, 'POST', `/stores/board/offers/${offerId}/cancel`, {})).json().error.code).toBe('OFFER_NOT_OPEN');
   });
 
+  it('buys part of a cash offer over HTTP', async () => {
+    await app.prisma.roundPlayer.update({ where: { id: players[0]!.id }, data: { scavengedComponents: { RADIO: 12 } } });
+    const posted = await call(0, 'POST', '/stores/board/offers', { itemKey: 'RADIO', quantity: 12, unitPriceCents: 3_400, durationHours: 12 });
+    const offerId = (posted.json() as PlayerBoardOfferResult).offer.id;
+    const bought = await call(1, 'POST', `/stores/board/offers/${offerId}/buy`, { actionId: randomUUID(), quantity: 3 });
+    expect(bought.statusCode, bought.body).toBe(200);
+    expect(bought.json()).toMatchObject({ quantity: 3, remainingQuantity: 9, paidCents: 10_200 });
+    const book = (await call(1, 'GET', '/stores/board')).json() as PlayerBoardDto;
+    expect(book.rows.find((r) => r.id === offerId)?.quantity).toBe(9);
+    await call(0, 'POST', `/stores/board/offers/${offerId}/cancel`, {});
+  });
+
   it('posts and takes a barter over HTTP', async () => {
     await app.prisma.roundPlayer.update({ where: { id: players[0]!.id }, data: { scavengedComponents: { RADIO: 2 } } });
     await app.prisma.roundPlayer.update({ where: { id: players[1]!.id }, data: { scavengedComponents: { SCRAP_METAL: 20 } } });

@@ -81,7 +81,17 @@ export interface PlayerBoardViewProps {
   onForm: (form: ListForm) => void;
   onPost: () => void;
   onCancel: (offer: PlayerBoardOfferDto) => void;
-  onBuy: (row: PlayerBoardRowDto) => void;
+  /** How many the viewer wants from each cash offer, by offer id, as typed. Missing means all of it. */
+  buyQuantities: Readonly<Record<string, string>>;
+  onBuyQuantity: (offerId: string, value: string) => void;
+  onBuy: (row: PlayerBoardRowDto, quantity: number) => void;
+}
+
+/** Units the viewer has asked for from an offer: all that is left unless they typed a number. Null when it is not a valid amount. */
+export function boardBuyUnits(row: PlayerBoardRowDto, typed: string | undefined): number | null {
+  if (row.priceKind === 'BARTER' || typed === undefined || typed === '') return row.quantity;
+  const units = Number(typed);
+  return Number.isInteger(units) && units >= 1 && units <= row.quantity ? units : null;
 }
 
 function ItemOptions({ rows }: { rows: ReadonlyArray<{ key: string; name: string; category: 'PART' | 'PRODUCT'; label?: string }> }) {
@@ -213,15 +223,17 @@ function ListPanel({ book, busy, form, onForm, onPost }: Pick<PlayerBoardViewPro
 }
 
 /** Why the viewer cannot take this offer right now, or null when they can. */
-function buyBlocker(row: PlayerBoardRowDto, book: PlayerBoardDto, busy: boolean): string | null {
+function buyBlocker(row: PlayerBoardRowDto, book: PlayerBoardDto, busy: boolean, units: number | null): string | null {
   if (busy) return 'Your last change is still going through.';
-  if (row.totalCents > book.cashCents) return `You need ${formatCentsExact(row.totalCents)} on hand.`;
+  if (units === null) return `Buy from 1 to ${formatNumber(row.quantity)}.`;
+  const cash = row.priceKind === 'BARTER' ? row.totalCents : row.unitPriceCents * units;
+  if (cash > book.cashCents) return `You need ${formatCentsExact(cash)} on hand.`;
   const short = row.ask.find((line) => (book.holdings[line.key] ?? 0) < line.quantity);
   return short ? `You need ${formatNumber(short.quantity)} ${short.name.toLowerCase()} to trade.` : null;
 }
 
 /** The Board tab's content. Pure, so it renders the same in tests as in the game. */
-export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPost, onCancel, onBuy }: PlayerBoardViewProps) {
+export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPost, onCancel, buyQuantities, onBuyQuantity, onBuy }: PlayerBoardViewProps) {
   return (
     <>
       <div className="se-filter-group se-board-filters">
@@ -237,7 +249,7 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
       <section className="se-board-section" aria-labelledby="board-book">
         <div className="se-stores-sectionhead">
           <div><span className="se-eyebrow">City-wide</span><h2 id="board-book">On the Board</h2></div>
-          <p>Cash offers cheapest first, then trades. Every offer goes as a whole stack.</p>
+          <p>Cash offers cheapest first. Buy any amount of a cash offer; a trade takes it all.</p>
         </div>
         {book.rows.length === 0 ? (
           <p className="se-board-empty">Nothing is up right now.</p>
@@ -259,11 +271,22 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
                     </td>
                     <td data-label="Closes">{closesIn(row.expiresAt, now)}</td>
                     <td data-label="">
-                      {row.mine ? null : (
-                        <Button size="sm" variant="primary" disabledReason={buyBlocker(row, book, busy)} onClick={() => onBuy(row)}>
-                          {row.priceKind === 'BARTER' ? 'Trade' : 'Buy'}
-                        </Button>
-                      )}
+                      {row.mine ? null : (() => {
+                        const units = boardBuyUnits(row, buyQuantities[row.id]);
+                        return (
+                          <span className="se-board-buy">
+                            {row.priceKind === 'CASH' && row.quantity > 1 ? (
+                              <input className="se-input se-board-buy__qty" type="number" inputMode="numeric" min={1} max={row.quantity} step={1}
+                                aria-label={`How many ${row.name.toLowerCase()} to buy from ${row.sellerName}`}
+                                placeholder={String(row.quantity)} value={buyQuantities[row.id] ?? ''}
+                                onChange={(event) => onBuyQuantity(row.id, event.target.value)} />
+                            ) : null}
+                            <Button size="sm" variant="primary" disabledReason={buyBlocker(row, book, busy, units)} onClick={() => onBuy(row, units!)}>
+                              {row.priceKind === 'BARTER' ? 'Trade' : units !== null && units < row.quantity ? `Buy ${formatNumber(units)}` : 'Buy all'}
+                            </Button>
+                          </span>
+                        );
+                      })()}
                     </td>
                   </tr>
                 ))}
@@ -288,7 +311,9 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
                 {book.mine.map((offer) => (
                   <tr key={offer.id}>
                     <td data-label="Item">{offer.name}</td>
-                    <td className="se-table__number se-num" data-label="Qty">{formatNumber(offer.quantity)}</td>
+                    <td className="se-table__number se-num" data-label="Qty">
+                      {offer.remainingQuantity < offer.quantity ? `${formatNumber(offer.remainingQuantity)} of ${formatNumber(offer.quantity)} left` : formatNumber(offer.quantity)}
+                    </td>
                     <td className="se-board-trade" data-label="Price">
                       <span>{offer.priceKind === 'BARTER' ? <><span className="se-board-trade__tag">Trade</span> {askSummary(offer.ask)}</> : <><span className="se-num">{formatCentsExact(offer.unitPriceCents)}</span> each</>}</span>
                     </td>
@@ -330,6 +355,7 @@ export function PlayerBoard() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [buyQuantities, setBuyQuantities] = useState<Record<string, string>>({});
   const [form, setForm] = useState<ListForm>({ key: '', quantity: '1', mode: 'CASH', price: '', ask: [], hours: 12 });
   const [now, setNow] = useState(() => Date.now());
 
@@ -387,22 +413,24 @@ export function PlayerBoard() {
     });
   }
 
-  async function buy(row: PlayerBoardRowDto) {
+  async function buy(row: PlayerBoardRowDto, units: number) {
     const barter = row.priceKind === 'BARTER';
+    const cost = row.unitPriceCents * units;
     const ok = await confirmAction(barter ? {
       title: `Trade for ${formatNumber(row.quantity)} × ${row.name}?`,
       body: `You hand ${row.sellerName} ${askSummary(row.ask)}${row.totalCents > 0 ? `, and the Board takes ${formatCentsExact(row.totalCents)} to even out the trade` : ''}.`,
       confirmLabel: 'Trade',
     } : {
-      title: `Buy ${formatNumber(row.quantity)} × ${row.name}?`,
-      body: `You pay ${formatCentsExact(row.totalCents)} to ${row.sellerName} for the whole stack.`,
-      confirmLabel: `Pay ${formatCentsExact(row.totalCents)}`,
+      title: `Buy ${formatNumber(units)} × ${row.name}?`,
+      body: `You pay ${formatCentsExact(cost)} to ${row.sellerName}${units < row.quantity ? `; ${formatNumber(row.quantity - units)} stay on the Board` : ' for everything left'}.`,
+      confirmLabel: `Pay ${formatCentsExact(cost)}`,
     });
     if (!ok) return;
     // One id per click: a retried request after a dropped connection cannot buy twice.
     const actionId = newActionId();
     void change(async () => {
-      const result = await storesApi.boardBuy(row.id, actionId);
+      const result = await storesApi.boardBuy(row.id, actionId, barter ? undefined : units);
+      setBuyQuantities((current) => { const next = { ...current }; delete next[row.id]; return next; });
       const paid = [...(result.gave.length ? [askSummary(result.gave)] : []), ...(result.paidCents > 0 || !result.gave.length ? [formatCentsExact(result.paidCents)] : [])].join(' and ');
       return `Got ${formatNumber(result.quantity)} × ${result.name} from ${result.sellerName} for ${paid}.`;
     });
@@ -434,7 +462,9 @@ export function PlayerBoard() {
         {!book && !closed && !error ? <div className="se-stores-loading" role="status">Loading the Board...</div> : null}
         {book && !closed ? (
           <PlayerBoardView book={book} now={now} busy={busy} form={form}
-            onFilter={setFilter} onForm={setForm} onPost={post} onCancel={cancel} onBuy={(row) => void buy(row)} />
+            onFilter={setFilter} onForm={setForm} onPost={post} onCancel={cancel}
+            buyQuantities={buyQuantities} onBuyQuantity={(id, value) => setBuyQuantities((current) => ({ ...current, [id]: value }))}
+            onBuy={(row, units) => void buy(row, units)} />
         ) : null}
       </div>
     </GameLayout>
