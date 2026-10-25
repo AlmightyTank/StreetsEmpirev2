@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import type {
   HideoutRoomV2Dto,
   HideoutSpecializationResult,
@@ -23,6 +23,7 @@ import { Panel, Row } from '../components/Panel.js';
 import { useGameAction } from '../hooks/useGameAction.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
+import { useOnboarding } from '../stores/onboarding.js';
 import { confirmAction } from '../stores/confirm.js';
 import { formatCountdown, formatDuration, formatWhen } from '../utils/time.js';
 import { ItemLabel, ItemTile } from '../components/ItemTile.js';
@@ -36,6 +37,19 @@ import { WorkshopPanel } from '../components/WorkshopPanel.js';
 import { GameTabs } from '../components/GameUI.js';
 import type { CraftingWorkshopDto } from '@streets/shared';
 import type { ScavengePageDto } from '@streets/shared';
+import {
+  hashForHideoutView,
+  hideoutBuildStatus,
+  hideoutRoomState,
+  hideoutRoomStateLabel,
+  hideoutSuppliesOnPage,
+  hideoutViewFromHash,
+  pickNextHideoutRoom,
+  resolveHideoutSection,
+  resolveSupplyTab,
+  type HideoutSectionId,
+  type HideoutSupplyTab,
+} from './hideout-view.js';
 
 function securityTierLabel(tier: NonNullable<HideoutV2Dto['security']>['reconWarningTier']): string {
   if (tier === 'SOURCE') return 'Named warnings';
@@ -153,33 +167,27 @@ function RoomCard({
     && room.level >= room.specialization.unlockLevel
     && room.specialization.selectedKey === null
   );
-  const requirementsMet = room.nextRequirements.every((requirement) => requirement.met);
-  const state = building
-    ? 'building'
-    : maxed
-    ? 'maxed'
-    : room.canUpgrade
-      ? 'ready'
-      : !affordable
-        ? 'cash'
-        : !requirementsMet || room.lockReason
-          ? 'locked'
-          : 'locked';
-  const stateLabel = state === 'building'
-    ? 'Building'
-    : state === 'maxed'
-    ? 'Max level'
-    : state === 'ready'
-      ? 'Ready'
-      : state === 'cash'
-        ? 'Need cash'
-        : 'Locked';
+  const state = hideoutRoomState({
+    nextCostCents: room.nextCostCents,
+    canUpgrade: room.canUpgrade,
+    cashCents,
+    nextRequirements: room.nextRequirements,
+    nextCostComponents: nextCostComponents,
+    building: Boolean(building),
+  });
+  const stateLabel = hideoutRoomStateLabel(state);
 
   return (
-    <article className={`se-hideout-room se-hideout-room--${state}`} data-room={room.key.toLowerCase()} data-tour={room.key === 'SAFE_ROOM' ? 'upgrade-hideout' : undefined} data-tour-card-anchor={room.key === 'SAFE_ROOM' ? 'upgrade-hideout' : undefined}>
+    <article
+      id={`hideout-room-${room.key.toLowerCase()}`}
+      className={`se-hideout-room se-hideout-room--${state}`}
+      data-room={room.key.toLowerCase()}
+      data-tour={room.key === 'SAFE_ROOM' ? 'upgrade-hideout' : undefined}
+      data-tour-card-anchor={room.key === 'SAFE_ROOM' ? 'upgrade-hideout' : undefined}
+    >
       <div className="se-hideout-room__head">
         <div>
-          <span className="se-hideout-room__kicker">{room.key.replaceAll('_', ' ')}</span>
+          <span className="se-hideout-room__kicker">Level {formatNumber(room.level)} / {formatNumber(room.maxLevel)}</span>
           <h3>{room.name}</h3>
         </div>
         <span className={`se-hideout-status se-hideout-status--${state}`}>{stateLabel}</span>
@@ -187,7 +195,7 @@ function RoomCard({
 
       <p className="se-hideout-room__blurb">{room.blurb}</p>
 
-      <div className="se-hideout-room__levels" role="img" aria-label={`${room.level} of ${room.maxLevel} levels complete`}>
+      <div className="se-hideout-room__levels" style={{ gridTemplateColumns: `repeat(${room.maxLevel}, minmax(0, 1fr))` }} role="img" aria-label={`${room.level} of ${room.maxLevel} levels complete`}>
         {Array.from({ length: room.maxLevel }, (_, index) => (
           <span
             key={index}
@@ -299,12 +307,12 @@ function RoomCard({
       >
         {building
           ? `Building level ${formatNumber(building.level)}`
-          : maxed
+          : state === 'maxed'
           ? 'Fully upgraded'
-          : !affordable
-            ? `Need ${formatCents(room.nextCostCents!)}`
-            : room.canUpgrade
-              ? `Upgrade to level ${formatNumber(room.level + 1)}`
+          : state === 'ready'
+            ? `Upgrade to level ${formatNumber(room.level + 1)}`
+            : state === 'cash'
+              ? `Need ${formatCents(room.nextCostCents!)}`
               : 'Requirements not met'}
       </Button>
     </article>
@@ -362,8 +370,14 @@ function HideoutLook({
 export function HideoutPage() {
   const me = useSession((s) => s.me);
   const location = useLocation();
+  const navigate = useNavigate();
   const tourTarget = (location.state as { tourTarget?: unknown } | null)?.tourTarget;
   const guidedTourScrolled = useRef(false);
+  const tour = useOnboarding((s) => s.state?.tour ?? null);
+  const tourWantsUpgrade = Boolean(
+    tour && tour.active && !tour.dismissed && !tour.complete && tour.step === 'upgrade-hideout',
+  );
+  const [leftTourRooms, setLeftTourRooms] = useState(false);
   const action = useGameAction<HideoutUpgradeResult>();
   const armoryAction = useGameAction<HideoutWeaponPriorityResult>();
   const specializationAction = useGameAction<HideoutSpecializationResult>();
@@ -379,7 +393,9 @@ export function HideoutPage() {
   const [stashBusy, setStashBusy] = useState(false);
   const [scavenging, setScavenging] = useState<ScavengePageDto | null>(null);
   const [workshop, setWorkshop] = useState<CraftingWorkshopDto | null>(null);
-  const [hideoutTab, setHideoutTab] = useState<'stash' | 'scavenging' | 'workshop' | 'generator'>('stash');
+  useEffect(() => {
+    setLeftTourRooms(false);
+  }, [tourWantsUpgrade]);
 
   useEffect(() => {
     if (tourTarget !== 'upgrade-hideout' || guidedTourScrolled.current) return;
@@ -483,7 +499,7 @@ export function HideoutPage() {
   // Each panel below exists only on rulesets that carry it; a section with none of them stays out of the page and the nav.
   const hasSecurity = Boolean(hideout && (hideout.security || hideout.assetProtection || hideout.armory || hideout.infirmary));
   const hasOperations = Boolean(hideout && (hideout.workshop || hideout.garage || hideout.ledger));
-  const nextRoom = [...openRooms].sort((a, b) => a.nextCostCents! - b.nextCostCents!)[0] ?? null;
+  const nextRoom = pickNextHideoutRoom(hideout?.rooms ?? []);
   const buildProgress = hideout && hideout.totalMaxLevel > 0
     ? Math.round((hideout.totalLevel / hideout.totalMaxLevel) * 100)
     : 0;
@@ -504,6 +520,81 @@ export function HideoutPage() {
   const activeThreats = hideout?.security
     ? hideout.security.pendingConvoyThreats + hideout.security.pendingTurfThreats
     : 0;
+  const requested = hideoutViewFromHash(location.hash);
+  const hasSupplies = Boolean(stash || scavenging || workshop || hideout?.generator);
+  const hasLook = Boolean(cosmetics);
+  const section = resolveHideoutSection(requested.section, {
+    hasSecurity,
+    hasOperations,
+    hasSupplies,
+    hasLook,
+  });
+  const activeSection: HideoutSectionId = tourWantsUpgrade && !leftTourRooms ? 'rooms' : section;
+  const supplyAvailable: Record<HideoutSupplyTab, boolean> = {
+    stash: Boolean(stash),
+    scavenging: Boolean(scavenging),
+    workshop: Boolean(workshop),
+    generator: Boolean(hideout?.generator),
+  };
+  const supplyTab = resolveSupplyTab(requested.supply, supplyAvailable);
+  const turnsUsed = action.result
+    ? Math.max(0, action.result.before.turns - action.result.after.turns)
+    : 0;
+
+  useEffect(() => {
+    if (activeSection !== 'rooms' || !requested.roomKey) return;
+    document.getElementById(`hideout-room-${requested.roomKey}`)?.scrollIntoView({ block: 'start' });
+  }, [activeSection, requested.roomKey, hideout]);
+
+  useEffect(() => {
+    if (!tourWantsUpgrade || leftTourRooms) return;
+    document.querySelector('[data-tour="upgrade-hideout"]')?.scrollIntoView({ block: 'center' });
+  }, [tourWantsUpgrade, leftTourRooms, hideout, activeSection]);
+
+  useEffect(() => {
+    const selected = document.querySelector<HTMLElement>('.se-hideout-tabs [role="tab"][aria-selected="true"]');
+    selected?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [activeSection]);
+
+  function openHideoutSection(next: HideoutSectionId, roomKey: string | null = null) {
+    setLeftTourRooms(true);
+    const hash = hashForHideoutView({
+      section: next,
+      supply: next === 'supplies' ? supplyTab : requested.supply,
+      roomKey,
+    });
+    if (location.hash !== hash) navigate({ hash });
+  }
+
+  function openSupply(next: HideoutSupplyTab) {
+    setLeftTourRooms(true);
+    const hash = hashForHideoutView({ section: 'supplies', supply: next, roomKey: null });
+    if (location.hash !== hash) navigate({ hash });
+  }
+
+  const suppliesOnPage = hideoutSuppliesOnPage(Boolean(hideout?.enabled));
+  const suppliesPanel = me && hasSupplies ? (
+    <section id="hideout-resources" className="se-hideout-section se-hideout-resources">
+      {suppliesOnPage ? <p className="se-hideout-inline-note">Stash, caches, crafting, and the generator stay available this round.</p> : null}
+      <GameTabs
+        label="Hideout supplies"
+        activeId={supplyTab}
+        onChange={(id) => openSupply(id as HideoutSupplyTab)}
+        items={[
+          ...(stash ? [{ id: 'stash', label: 'Your stash' }] : []),
+          ...(scavenging ? [{ id: 'scavenging', label: 'Caches and components' }] : []),
+          ...(workshop ? [{ id: 'workshop', label: 'Crafting bench' }] : []),
+          ...(hideout?.generator ? [{ id: 'generator', label: 'Generator' }] : []),
+        ]}
+      />
+      <div className="se-hideout-resources__panel" role="tabpanel" aria-label={`${supplyTab} panel`}>
+        {supplyTab === 'stash' && stash ? <div id="hideout-stash"><StashGrid stash={stash} busy={stashBusy} onSave={(items) => void saveStash(items)} /></div> : null}
+        {supplyTab === 'scavenging' && scavenging ? <ScavengingPanel heading={false} page={scavenging} onChanged={setScavenging} /> : null}
+        {supplyTab === 'workshop' && workshop ? <WorkshopPanel heading={false} workshop={workshop} onChanged={setWorkshop} /> : null}
+        {supplyTab === 'generator' && hideout?.generator ? <GeneratorPanel heading={false} generator={hideout.generator} onChanged={(generator) => setHideout((current) => current ? { ...current, generator } : current)} /> : null}
+      </div>
+    </section>
+  ) : null;
 
   return (
     <GameLayout>
@@ -537,27 +628,23 @@ export function HideoutPage() {
         {cosmeticError ? <Alert>{cosmeticError}</Alert> : null}
         {stashError ? <Alert>{stashError}</Alert> : null}
 
-        {me && (stash || scavenging || workshop || hideout?.generator) ? (
-          <section id="hideout-resources" className="se-hideout-section se-hideout-resources">
-            <SectionHeading eyebrow="Hideout resources" title="Supplies and systems" copy="Move between your stock, scavenged components, crafting bench, and generator." />
-            <GameTabs
-              label="Hideout resource sections"
-              activeId={hideoutTab}
-              onChange={(id) => setHideoutTab(id as typeof hideoutTab)}
-              items={[
-                { id: 'stash', label: 'Your stash', disabled: !stash },
-                { id: 'scavenging', label: 'Caches and components', disabled: !scavenging },
-                { id: 'workshop', label: 'Crafting bench', disabled: !workshop },
-                { id: 'generator', label: 'Generator', disabled: !hideout?.generator },
+        {receipt && action.result ? (
+          <div className="se-store-receipt" aria-live="polite">
+            <ActionResult
+              title={receipt.readyAt ? `${receipt.roomName} construction started` : `${receipt.roomName} upgraded`}
+              subtitle={receipt.readyAt
+                ? `Level ${receipt.levelAfter} is ready ${formatWhen(receipt.readyAt)}`
+                : `Level ${receipt.levelBefore} -> ${receipt.levelAfter}`}
+              result={action.result}
+              onDismiss={action.clear}
+              lines={[
+                { label: 'Paid', delta: -receipt.costCents, money: true },
+                { label: receipt.readyAt ? 'When built' : 'Effect', value: receipt.effect },
+                ...(receipt.buildMinutes ? [{ label: 'Build time', value: formatDuration(receipt.buildMinutes * 60_000) }] : []),
+                { label: 'Turns used', delta: -turnsUsed, remaining: action.result.after.turns },
               ]}
             />
-            <div className="se-hideout-resources__panel" role="tabpanel" aria-label={`${hideoutTab} panel`}>
-              {hideoutTab === 'stash' && me && stash ? <div id="hideout-stash"><StashGrid stash={stash} busy={stashBusy} onSave={(items) => void saveStash(items)} /></div> : null}
-              {hideoutTab === 'scavenging' && scavenging ? <ScavengingPanel page={scavenging} onChanged={setScavenging} /> : null}
-              {hideoutTab === 'workshop' && workshop ? <WorkshopPanel workshop={workshop} onChanged={setWorkshop} /> : null}
-              {hideoutTab === 'generator' && hideout?.generator ? <GeneratorPanel generator={hideout.generator} onChanged={(generator) => setHideout((current) => current ? { ...current, generator } : current)} /> : null}
-            </div>
-          </section>
+          </div>
         ) : null}
 
         {!hideout && !loadError ? (
@@ -570,17 +657,27 @@ export function HideoutPage() {
           </Panel>
         ) : null}
 
+        {suppliesOnPage ? suppliesPanel : null}
+
         {hideout?.enabled && me ? (
           <>
-            <nav className="se-hideout-nav" aria-label="Hideout sections">
-              <a href="#hideout-overview">Overview</a>
-              <a href="#hideout-stash" onClick={() => setHideoutTab('stash')}>Stash</a>
-              <a href="#hideout-look">Look</a>
-              <a href="#hideout-upgrades">Upgrades <span>{formatNumber(readyRooms.length)}</span></a>
-              {hasSecurity ? <a href="#hideout-security">Security</a> : null}
-              {hasOperations ? <a href="#hideout-operations">Operations</a> : null}
-            </nav>
+            <div className="se-hideout-tabs">
+              <GameTabs
+                label="Hideout sections"
+                activeId={activeSection}
+                onChange={(id) => openHideoutSection(id as HideoutSectionId)}
+                items={[
+                  { id: 'overview', label: 'Overview' },
+                  { id: 'rooms', label: readyRooms.length ? `Rooms · ${formatNumber(readyRooms.length)}` : 'Rooms' },
+                  ...(hasSupplies ? [{ id: 'supplies', label: 'Supplies' }] : []),
+                  ...(hasSecurity ? [{ id: 'security', label: activeThreats > 0 ? `Security · ${formatNumber(activeThreats)}` : 'Security' }] : []),
+                  ...(hasOperations ? [{ id: 'operations', label: 'Operations' }] : []),
+                  ...(hasLook ? [{ id: 'look', label: 'Look' }] : []),
+                ]}
+              />
+            </div>
 
+            {activeSection === 'overview' ? (
             <section id="hideout-overview" className="se-hideout-overview">
               <div className="se-hideout-overview__primary">
                 <div className="se-hideout-overview__title">
@@ -588,7 +685,7 @@ export function HideoutPage() {
                     <span className="se-eyebrow">Headquarters snapshot</span>
                     <h2>Operation status</h2>
                   </div>
-                  <span className="se-hideout-chip">Hideout 2.0</span>
+                  <span className="se-hideout-chip">{hideoutBuildStatus(readyRooms.length, openRooms.length)}</span>
                 </div>
 
                 <div className="se-hideout-metrics">
@@ -635,21 +732,39 @@ export function HideoutPage() {
 
               <aside className="se-hideout-priority">
                 <span className="se-eyebrow">Next build target</span>
-                {nextRoom ? (
+                {nextRoom?.build ? (
                   <>
                     <div className="se-hideout-priority__room">
                       <div>
                         <h3>{nextRoom.name}</h3>
-                        <span>Level {formatNumber(nextRoom.level)} → {formatNumber(nextRoom.level + 1)}</span>
+                        <span>Level {formatNumber(nextRoom.build.level)} under construction</span>
+                      </div>
+                    </div>
+                    <BuildCountdown startedAt={nextRoom.build.startedAt} readyAt={nextRoom.build.readyAt} onDone={buildDone} />
+                    <Button type="button" className="se-btn se-btn--primary se-btn--block" onClick={() => openHideoutSection('rooms', nextRoom.key.toLowerCase())}>
+                      View {nextRoom.name}
+                    </Button>
+                  </>
+                ) : nextRoom ? (
+                  <>
+                    <div className="se-hideout-priority__room">
+                      <div>
+                        <h3>{nextRoom.name}</h3>
+                        <span>Level {formatNumber(nextRoom.level)} → {formatNumber(nextRoom.level + 1)}{nextRoom.nextCostTurns ? ` · ${formatNumber(nextRoom.nextCostTurns)} turns` : ''}{buildTimeLabel(nextRoom.nextBuildMinutes) ? ` · ${buildTimeLabel(nextRoom.nextBuildMinutes)}` : ''}</span>
                       </div>
                       <strong>{formatCents(nextRoom.nextCostCents!)}</strong>
                     </div>
                     <p>{nextRoom.nextEffect}</p>
-                    {nextRoom.nextRequirements.length ? (
+                    {nextRoom.nextRequirements.length || (nextRoom.nextCostComponents ?? []).length ? (
                       <div className="se-hideout-priority__reqs">
                         {nextRoom.nextRequirements.map((requirement) => (
                           <span key={requirement.key} className={requirement.met ? 'is-met' : undefined}>
                             {requirement.label} {formatNumber(requirement.current)}/{formatNumber(requirement.required)}
+                          </span>
+                        ))}
+                        {(nextRoom.nextCostComponents ?? []).map((component) => (
+                          <span key={component.key} className={component.met ? 'is-met' : undefined}>
+                            {component.key.replaceAll('_', ' ')} {formatNumber(component.current)}/{formatNumber(component.quantity)}
                           </span>
                         ))}
                       </div>
@@ -679,10 +794,36 @@ export function HideoutPage() {
                   </div>
                 )}
               </aside>
+              <div className="se-hideout-roster" aria-label="Room levels">
+                {hideout.rooms.map((room) => {
+                  const state = hideoutRoomState({
+                    nextCostCents: room.nextCostCents,
+                    canUpgrade: room.canUpgrade,
+                    cashCents: me.resources.cashCents,
+                    building: Boolean(room.build),
+                    nextRequirements: room.nextRequirements,
+                    nextCostComponents: room.nextCostComponents,
+                  });
+                  return (
+                    <button
+                      key={room.key}
+                      type="button"
+                      className={`se-hideout-roster__room se-hideout-roster__room--${state}`}
+                      onClick={() => openHideoutSection('rooms', room.key.toLowerCase())}
+                    >
+                      <span>{room.name}</span>
+                      <strong>{formatNumber(room.level)}/{formatNumber(room.maxLevel)}</strong>
+                      <small>{hideoutRoomStateLabel(state)}</small>
+                    </button>
+                  );
+                })}
+              </div>
             </section>
+            ) : null}
 
-            {cosmetics ? <HideoutLook cosmetics={cosmetics} busy={cosmeticBusy} onSave={(decorationKey, streetSignKey) => void saveCosmetics(decorationKey, streetSignKey)} /> : null}
+            {activeSection === 'look' && cosmetics ? <HideoutLook cosmetics={cosmetics} busy={cosmeticBusy} onSave={(decorationKey, streetSignKey) => void saveCosmetics(decorationKey, streetSignKey)} /> : null}
 
+            {activeSection === 'rooms' ? (
             <section id="hideout-upgrades" className="se-hideout-section">
               <SectionHeading
                 eyebrow="Build"
@@ -709,8 +850,11 @@ export function HideoutPage() {
                 ))}
               </div>
             </section>
+            ) : null}
 
-            {hasSecurity ? (
+            {activeSection === 'supplies' && !suppliesOnPage ? suppliesPanel : null}
+
+            {activeSection === 'security' && hasSecurity ? (
               <section id="hideout-security" className="se-hideout-section">
                 <SectionHeading
                   eyebrow="Protect"
@@ -869,7 +1013,7 @@ export function HideoutPage() {
               </section>
             ) : null}
 
-            {hasOperations ? (
+            {activeSection === 'operations' && hasOperations ? (
               <section id="hideout-operations" className="se-hideout-section">
                 <SectionHeading
                   eyebrow="Run"
@@ -1011,6 +1155,7 @@ export function HideoutPage() {
               </section>
             ) : null}
 
+            {activeSection === 'overview' ? (
             <footer className="se-hideout-season">
               <div>
                 <span className="se-eyebrow">Season rules</span>
@@ -1021,25 +1166,8 @@ export function HideoutPage() {
                 the final build is archived, then the next round starts with a clean headquarters.
               </p>
             </footer>
+            ) : null}
           </>
-        ) : null}
-
-        {receipt && action.result ? (
-          <div className="se-store-receipt" aria-live="polite">
-            <ActionResult
-              title={receipt.readyAt ? `${receipt.roomName} construction started` : `${receipt.roomName} upgraded`}
-              subtitle={receipt.readyAt
-                ? `Level ${receipt.levelAfter} is ready ${formatWhen(receipt.readyAt)}`
-                : `Level ${receipt.levelBefore} -> ${receipt.levelAfter}`}
-              result={action.result}
-              onDismiss={action.clear}
-              lines={[
-                { label: 'Paid', delta: -receipt.costCents, money: true },
-                { label: receipt.readyAt ? 'When built' : 'Effect', value: receipt.effect },
-                ...(receipt.buildMinutes ? [{ label: 'Build time', value: formatDuration(receipt.buildMinutes * 60_000) }] : []),
-              ]}
-            />
-          </div>
         ) : null}
       </div>
     </GameLayout>
