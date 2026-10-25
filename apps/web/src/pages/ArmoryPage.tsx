@@ -85,9 +85,9 @@ function ItemCard({ item, selected, onSelect, looks, onLook, onFeature, featured
   );
 }
 
-export function ArmoryPage() {
+export function ArmoryBoard({ lockedView }: { lockedView?: View }) {
   const [data, setData] = useState<IndividualInventoryDto | null>(null);
-  const [view, setView] = useState<View>('GUN');
+  const [view, setView] = useState<View>(lockedView ?? 'GUN');
   const [search, setSearch] = useState('');
   const [model, setModel] = useState('ALL');
   const [condition, setCondition] = useState('ALL');
@@ -223,11 +223,12 @@ export function ArmoryPage() {
   }
 
   return (
-    <GameLayout>
-      <main className="se-page se-armory-page">
+      <div className="se-armory-page">
+        {lockedView ? null : (
         <header className="se-page__head">
           <div><span className="se-eyebrow">Your equipment</span><h1>Armory &amp; Garage</h1><p>Manage the guns and vehicles your crew owns this round.</p></div>
         </header>
+        )}
         {loadError ? <Alert tone="error">{loadError}</Alert> : null}
         {!data ? <Panel title="Loading inventory" loading><p>Loading the guns and vehicles in this round.</p></Panel> : !data.enabled ? (
           <Panel title="Item inventory unavailable"><p>This round still uses the classic count-based inventory.</p></Panel>
@@ -239,10 +240,10 @@ export function ArmoryPage() {
               {view === 'GUN' ? Object.entries(data.summary.gunsByModel).map(([key, count]) => <div key={key}><span>{GUN_LABEL[key as ArmoryGunModel]}</span><strong>{count.toLocaleString()}</strong></div>) : Object.entries(data.summary.vehiclesByModel).map(([key, count]) => <div key={key}><span>{VEHICLE_LABEL[key as keyof typeof VEHICLE_LABEL]}</span><strong>{count.toLocaleString()}</strong></div>)}
             </section>
 
-            <div className="se-armory-tabs" role="tablist" aria-label="Inventory type">
+            {lockedView ? null : <div className="se-armory-tabs" role="tablist" aria-label="Inventory type">
               <button type="button" role="tab" aria-selected={view === 'GUN'} className={view === 'GUN' ? 'is-active' : ''} onClick={() => { setView('GUN'); setModel('ALL'); setSelected(new Set()); }}>Armory <span>{data.summary.gunCount}</span></button>
               <button type="button" role="tab" aria-selected={view === 'VEHICLE'} className={view === 'VEHICLE' ? 'is-active' : ''} onClick={() => { setView('VEHICLE'); setModel('ALL'); setSelected(new Set()); }}>Garage <span>{data.summary.vehicleCount}</span></button>
-            </div>
+            </div>}
 
             <Panel title={view === 'GUN' ? 'Weapons' : 'Vehicles'} aside={`${visible.length} ${visible.length === 1 ? 'stack' : 'stacks'}`}>
               <div className="se-armory-filters">
@@ -315,6 +316,15 @@ export function ArmoryPage() {
             </Panel>
           </>
         )}
+      </div>
+  );
+}
+
+export function ArmoryPage() {
+  return (
+    <GameLayout>
+      <main className="se-page">
+        <ArmoryBoard />
       </main>
     </GameLayout>
   );

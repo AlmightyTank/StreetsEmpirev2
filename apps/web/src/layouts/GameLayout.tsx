@@ -19,7 +19,6 @@ import { isMobileNavSwipe, isSheetDismissSwipe } from './mobileNavSwipe.js';
 import { useSession } from '../stores/session.js';
 import { PlayerProfileHoverLayer } from '../components/PlayerProfileHoverLayer.js';
 import { JokeDayBanner } from '../components/EasterEggs.js';
-import { CaseStoryAlerts } from '../components/CaseStoryAlerts.js';
 import { AdmissionGate } from '../components/AdmissionGate.js';
 import { AdminWorkspace } from '../components/AdminWorkspace.js';
 import { useStaff } from '../utils/staff.js';
@@ -29,6 +28,7 @@ import { anchorScrollTop, isAnchorReady, planRouteScroll, preservedRouteScrollTa
 import {
   adminSectionsFor,
   isCurrent,
+  navHref,
   filterNavSections,
   useNavBadges,
   useSections,
@@ -39,7 +39,7 @@ import {
   type NavSection,
 } from './gameNav.js';
 
-const NAV_STORAGE_KEY = 'streets.gameNav.sections.v1';
+const NAV_STORAGE_KEY = 'streets.gameNav.sections.v2';
 
 function readNavState(): Record<string, boolean> {
   if (typeof window === 'undefined') return {};
@@ -78,6 +78,7 @@ function Badge({ badge }: { badge: NavBadge | null | undefined }) {
 
 /** Desktop and tablet sidebar. Phones get the tab bar instead. */
 function GameNav({ sections, pathname, badges }: { sections: NavSection[]; pathname: string; badges: Record<string, NavBadge> }) {
+  const hash = useLocation().hash;
   const [expanded, setExpanded] = useState<Record<string, boolean>>(() => readNavState());
   const [query, setQuery] = useState('');
   // An icon rail must always contain every destination: the search field is hidden there.
@@ -101,8 +102,8 @@ function GameNav({ sections, pathname, badges }: { sections: NavSection[]; pathn
       </div>
       {visible.length === 0 ? <p className="se-nav-search__empty">No matching pages.</p> : null}
       {visible.map((section) => {
-        const activeSection = section.pages.some((page) => isCurrent(page, pathname));
-        const sectionOpen = query.trim() ? true : expanded[section.id] ?? (activeSection || Boolean(section.defaultOpen));
+        const activeSection = section.pages.some((page) => isCurrent(page, pathname, hash));
+        const sectionOpen = query.trim() ? true : expanded[section.id] ?? (activeSection || section.defaultOpen !== false);
         const listId = `game-nav-${section.id}`;
         return (
           <div className={`se-nav__section${sectionOpen ? '' : ' se-nav__section--collapsed'}`} key={section.id}>
@@ -111,17 +112,17 @@ function GameNav({ sections, pathname, badges }: { sections: NavSection[]; pathn
               className="se-nav__title"
               aria-expanded={sectionOpen}
               aria-controls={listId}
-              onClick={() => setExpanded((current) => ({ ...current, [section.id]: !(current[section.id] ?? (activeSection || Boolean(section.defaultOpen))) }))}
+              onClick={() => setExpanded((current) => ({ ...current, [section.id]: !(current[section.id] ?? (activeSection || section.defaultOpen !== false)) }))}
             >
               <span>{section.title}</span>
               <span className="se-nav__chevron" aria-hidden="true">{sectionOpen ? '−' : '+'}</span>
             </button>
             <ul id={listId} className="se-nav__list" hidden={!sectionOpen && !rail}>
               {section.pages.map((page) => {
-                const current = isCurrent(page, pathname);
+                const current = isCurrent(page, pathname, hash);
                 return (
                   <li key={page.key}>
-                    <Link to={page.to} aria-current={current ? 'page' : undefined}
+                    <Link to={navHref(page)} aria-current={current ? 'page' : undefined}
                       title={rail ? page.label : undefined}
                       className={`se-nav__link${current ? ' se-nav__link--active' : ''}`}>
                       <NavIcon name={page.icon} />
@@ -196,8 +197,9 @@ function TabBar({ slots, pathname, badges, moreOpen, onMore, onSwipeUp, onEditSl
   const fired = useRef(false);
   const touchStart = useRef<{ identifier: number; x: number; y: number } | null>(null);
   const suppressClickUntil = useRef(0);
+  const hash = useLocation().hash;
   const onBar = new Set(slots.map((page) => page.key));
-  const elsewhere = !slots.some((page) => isCurrent(page, pathname));
+  const elsewhere = !slots.some((page) => isCurrent(page, pathname, hash));
   const hiddenBadges = Object.entries(badges).filter(([key]) => !onBar.has(key));
   const moreBadge = worstBadge(hiddenBadges.map(([, badge]) => badge))
     ?? hiddenBadges.find(([key]) => key === 'console')?.[1]
@@ -259,9 +261,9 @@ function TabBar({ slots, pathname, badges, moreOpen, onMore, onSwipeUp, onEditSl
       onTouchCancel={() => { touchStart.current = null; cancel(); }}
       onClickCapture={handleClickCapture}>
       {slots.map((page, index) => {
-        const current = isCurrent(page, pathname);
+        const current = isCurrent(page, pathname, hash);
         return (
-          <Link key={page.key} to={page.to} aria-current={current ? 'page' : undefined}
+          <Link key={page.key} to={navHref(page)} aria-current={current ? 'page' : undefined}
             className={`se-tabbar__tab${current ? ' se-tabbar__tab--active' : ''}`}
             onPointerDown={() => {
               fired.current = false;
@@ -326,6 +328,7 @@ function MoreSheet({ sections, pathname, badges, slots, editSlot, fromTop, isDef
   const closeButton = useRef<HTMLButtonElement>(null);
   const gripStart = useRef<{ identifier: number; x: number; y: number } | null>(null);
   const suppressGripClickUntil = useRef(0);
+  const hash = useLocation().hash;
   const editing = editSlot !== null;
   const [query, setQuery] = useState('');
   const visible = filterNavSections(sections, query);
@@ -453,7 +456,7 @@ function MoreSheet({ sections, pathname, badges, slots, editSlot, fromTop, isDef
               <h3 className="se-sheet__heading">{section.title}</h3>
               <div className="se-sheet__grid">
                 {section.pages.map((page) => {
-                  const current = isCurrent(page, pathname);
+                  const current = isCurrent(page, pathname, hash);
                   const slot = slotOf.get(page.key);
                   const inner = (
                     <>
@@ -469,7 +472,7 @@ function MoreSheet({ sections, pathname, badges, slots, editSlot, fromTop, isDef
                       {inner}
                     </button>
                   ) : (
-                    <Link key={page.key} to={page.to} onClick={onClose} aria-current={current ? 'page' : undefined}
+                    <Link key={page.key} to={navHref(page)} onClick={onClose} aria-current={current ? 'page' : undefined}
                       className={`se-sheet__tile${current ? ' se-sheet__tile--active' : ''}`}>
                       {inner}
                     </Link>
@@ -771,7 +774,6 @@ function GameLayoutFrame({ children }: { children: ReactNode }) {
         </div>
       ) : null}
       <TrackedQuests />
-      <CaseStoryAlerts />
       <IntroDialog />
       <TourOverlay />
       <BirthdayGift />

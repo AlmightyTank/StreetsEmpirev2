@@ -19,6 +19,10 @@ export interface NavPage {
   icon: IconName;
   /** Other exact routes represented by this one top-level destination. */
   aliases?: string[];
+  /** When set, the link is current only while the location hash matches. */
+  hash?: string;
+  /** Hashes that belong to another link on the same path. */
+  excludeHashes?: readonly string[];
   /** One legacy/detail prefix represented by this destination. */
   prefix?: string;
   /** Extra detail prefixes represented by this destination. */
@@ -41,32 +45,40 @@ export type IconName =
   | 'status' | 'rules' | 'news' | 'fame' | 'account' | 'admin' | 'pass' | 'casino' | 'drop';
 
 /**
- * One destination per gameplay feature, but just six readable groups.
- * Deep links remain the same; the menu hierarchy is presentation-only.
- * The first group is the everyday loop. Advanced systems stay one click away.
+ * One destination per feature a player acts on during a round, in six groups.
+ * Deep links stay valid. Lifetime XP, Roll Call stamps, The Drop, and Supporter
+ * billing are off this menu: the season card, Account, Street Pass, and the
+ * check-in notice still open them. Operations, the Black Book, and individual
+ * crew profiles are off it too. Armory and Garage are Hideout tabs, and every
+ * section starts open so those tabs stay on the sidebar.
  */
 export const SECTIONS: NavSection[] = [
   {
     id: 'command',
     title: 'Command',
+    defaultOpen: true,
     pages: [
       { key: 'dashboard', label: 'Dashboard', short: 'Home', to: '/game', icon: 'dashboard' },
       { key: 'quests', label: 'Quests', to: '/game/quests', icon: 'activity', aliases: ['/game/reputation'] },
       { key: 'scout', label: 'Scout', to: '/game/scout', icon: 'scout' },
       { key: 'produce', label: 'Produce', to: '/game/produce', icon: 'produce' },
       { key: 'raids', label: 'Raids', to: '/game/combat', icon: 'raids' },
-      { key: 'operations', label: 'Operations', short: 'Ops', to: '/game/operations', icon: 'raids' },
-      { key: 'black-book', label: 'Black Book', short: 'Intel', to: '/game/black-book', icon: 'contacts' },
     ],
   },
   {
     id: 'empire',
     title: 'Build Your Empire',
-    defaultOpen: false,
+    defaultOpen: true,
     pages: [
-      { key: 'hideout', label: 'Hideout', to: '/game/hideout', icon: 'hideout' },
-      { key: 'armory', label: 'Armory & Garage', short: 'Armory', to: '/game/armory', icon: 'raids' },
-      { key: 'crew-roster', label: 'Crew Assignments', short: 'Crew', to: '/game/crew', icon: 'contacts' },
+      {
+        key: 'hideout',
+        label: 'Hideout',
+        to: '/game/hideout',
+        icon: 'hideout',
+        excludeHashes: ['#hideout-armory', '#hideout-garage'],
+      },
+      { key: 'armory', label: 'Armory', short: 'Armory', to: '/game/hideout', hash: '#hideout-armory', icon: 'raids' },
+      { key: 'garage', label: 'Garage', short: 'Garage', to: '/game/hideout', hash: '#hideout-garage', icon: 'cities' },
       { key: 'dealers', label: 'Dealer Crews', short: 'Dealers', to: '/game/dealers', icon: 'contacts' },
       { key: 'stores', label: 'Stores', to: '/game/stores', icon: 'stores', prefix: '/game/stores/' },
       { key: 'supply', label: 'Bulk Orders', short: 'Supply', to: '/game/supply', icon: 'stores' },
@@ -78,7 +90,7 @@ export const SECTIONS: NavSection[] = [
   {
     id: 'competition',
     title: 'Competition',
-    defaultOpen: false,
+    defaultOpen: true,
     pages: [
       { key: 'casino', label: 'Casino', to: '/game/casino', icon: 'casino', prefix: '/game/casino/' },
       { key: 'alliance', label: 'Alliance', to: '/game/alliance', icon: 'alliance', aliases: ['/game/alliances'], prefix: '/game/alliances/' },
@@ -89,22 +101,18 @@ export const SECTIONS: NavSection[] = [
   {
     id: 'career',
     title: 'Progress & Rewards',
-    defaultOpen: false,
+    defaultOpen: true,
     pages: [
-      { key: 'xp-progress', label: 'XP Progress', short: 'XP', to: '/game/xp-progress', icon: 'profile' },
       { key: 'skills', label: 'Street Skills', short: 'Skills', to: '/game/skills', icon: 'profile' },
       { key: 'events', label: 'Events', to: '/game/events', icon: 'activity' },
       { key: 'street-pass', label: 'Street Pass', short: 'Pass', to: '/game/street-pass', icon: 'pass' },
-      { key: 'roll-call', label: 'Roll Call', to: '/game/roll-call', icon: 'fame' },
-      { key: 'drop', label: 'The Drop', short: 'Drop', to: '/game/drop', icon: 'drop', prefix: '/game/drop/' },
-      { key: 'supporter', label: 'Supporter', to: '/game/supporter', icon: 'pass' },
       { key: 'profile', label: 'Profile', to: '/game/profile', icon: 'profile' },
     ],
   },
   {
     id: 'community',
     title: 'Messages & News',
-    defaultOpen: false,
+    defaultOpen: true,
     pages: [
       { key: 'console', label: 'Console', to: '/game/console', icon: 'activity', aliases: ['/game/activity'] },
       { key: 'news', label: 'News & Surveys', short: 'News', to: '/game/news', icon: 'news', aliases: ['/game/surveys'] },
@@ -113,7 +121,7 @@ export const SECTIONS: NavSection[] = [
   {
     id: 'support',
     title: 'Help & Settings',
-    defaultOpen: false,
+    defaultOpen: true,
     pages: [
       { key: 'status', label: 'Status & Support', short: 'Status', to: '/game/status', icon: 'status', aliases: ['/game/report-bug'] },
       { key: 'rules', label: 'Rules', to: '/game/rules', icon: 'rules' },
@@ -242,17 +250,15 @@ export function useSections(): NavSection[] {
   const { role } = useStaff();
   const { pathname } = useLocation();
   const hasPass = useSession((s) => Boolean(s.me?.streetPass));
-  const hasDrop = useDropAvailable();
   return useMemo(() => {
-    const hidden = new Set([...(hasPass ? [] : ['street-pass']), ...(hasDrop ? [] : ['drop'])]);
-    const sections = hidden.size
-      ? SECTIONS.map((section) => ({ ...section, pages: section.pages.filter((page) => !hidden.has(page.key)) }))
-      : SECTIONS;
+    const sections = hasPass
+      ? SECTIONS
+      : SECTIONS.map((section) => ({ ...section, pages: section.pages.filter((page) => page.key !== 'street-pass') }));
     const adminSections = pathname.startsWith('/game/admin')
       ? adminOverviewSectionsFor(role)
       : adminSectionsFor(role);
     return [...sections, ...adminSections];
-  }, [role, hasPass, hasDrop, pathname]);
+  }, [role, hasPass, pathname]);
 }
 
 function pathMatches(pathname: string, to: string, aliases: readonly string[] = [], prefix?: string, prefixes: readonly string[] = []): boolean {
@@ -262,8 +268,16 @@ function pathMatches(pathname: string, to: string, aliases: readonly string[] = 
     || prefixes.some((candidate) => pathname.startsWith(candidate));
 }
 
-export function isCurrent(page: NavPage, pathname: string): boolean {
-  return pathMatches(pathname, page.to, page.aliases, page.prefix, page.prefixes);
+export function isCurrent(page: NavPage, pathname: string, hash = ''): boolean {
+  if (!pathMatches(pathname, page.to, page.aliases, page.prefix, page.prefixes)) return false;
+  if (page.hash) return hash === page.hash;
+  if (page.excludeHashes?.includes(hash)) return false;
+  return true;
+}
+
+/** Link target, including a Hideout tab hash when this page is one of those tabs. */
+export function navHref(page: NavPage): string {
+  return page.hash ? `${page.to}${page.hash}` : page.to;
 }
 
 /** Shared desktop/sidebar and mobile-directory search without changing route access. */

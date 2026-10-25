@@ -80,7 +80,7 @@ export function RulesPage() {
                 <a href="#trips"><span>09</span> Boss trips</a>
                 <a href="#turf"><span>10</span> Turf</a>
                 <a href="#business"><span>11</span> Businesses</a>
-                <a href="#law"><span>12</span> The law</a>
+                <a href="#law"><span>12</span> Heat</a>
                 <a href="#factions"><span>13</span> Factions</a>
                 <a href="#rank"><span>14</span> Money & rank</a>
                 <a href="#tour"><span>15</span> Guided walkthrough</a>
@@ -396,33 +396,28 @@ export function RulesPage() {
             </ul>
           </Panel></section>
 
-          <section id="law" className="se-rules__panel se-rules__panel--wide"><Panel title="The law: your Case">
+          <section id="law" className="se-rules__panel se-rules__panel--wide"><Panel title="Heat">
             <ul className="se-list">
-              <li>Heat is the noise; the Case is the memory. Every city&rsquo;s police keep their own Case on you, built from part of the Heat you draw there and from what they see: busts, arrests, road stops, torches, sacks, hijacks and big cash movements. Bribes take Heat off, never the Case.</li>
-              <li>Your Case is private. Only you can see it, on the Case panel, with a receipt for every change. Nothing on a profile, a scout report or a public result shows it, and no other player can add to it.</li>
-              <li>A Case climbs a ladder: Quiet, Noticed, Under Investigation, Warrant, Federal. Nothing on the ladder is rolled, and every rise tells you. Under Investigation shows what the detectives are looking at.</li>
-              <li>At the Warrant stage a warrant names one target, your Hideout, a business or you personally, and gives a warning window before it is served. Move what you can, lawyer up to turn it into a fine, have a District Attorney quash it, or take it. Raids honour Safe Room protection, never take a block, and police losses are capped each day.</li>
-              <li>A Case cools once you have been quiet in that city for a while. Laundering washes it too.</li>
-              <li>Corrupt officials work for a weekly fee: a Captain warns earlier, a District Attorney slows a Case and can quash a warrant, a Judge softens raids and downtime, Customs eases airport checks. Every favour adds exposure; past a line Internal Affairs opens a file and warns you before any sting.</li>
-              <li>Informants sell information, never protection: word on the federal sweep or a city&rsquo;s police.</li>
-              <li>A local Case stays behind when you move house. A Case at the Federal stage follows you, and the move screen tells you before you confirm.</li>
-              <li>Every Case starts at zero each season. Ledger, a retired records sergeant, has Jobs about the law, and a clean record earns titles at the end of a season.</li>
+              <li>Heat is one number for your crew. Risky product raises it, and it cools on the turn clock.</li>
+              <li>Each city sets its own lines. Past the first, Heat cuts the take. Past the next, a Scout or Produce trip can be busted: product seized and a fine. Past the last, an arrest: a bigger seizure, a fine, and time locked up with no game actions.</li>
+              <li>A bribe on the dashboard pays Heat down. It spends cash. The price of a point grows with net worth.</li>
+              <li>The Heat panel on the command center shows where you stand. Scout and Produce warn you when attention is already cutting the take.</li>
             </ul>
           </Panel></section>
           <section id="factions" className="se-rules__panel"><Panel title="Factions">
             <ul className="se-list">
-              <li>Your contacts don&rsquo;t work alone. Most of them belong to an underworld faction: the Kings run the street, the Outfit the guns and protection, Road Saints MC the roads, the Cartel Line the product, and Civic Handshake the officials who take an envelope.</li>
+              <li>Your contacts don&rsquo;t work alone. Most of them belong to an underworld faction: the Kings run the street, the Outfit the guns and protection, Road Saints MC the roads, the Cartel Line the product, and Civic Handshake the precincts.</li>
               <li>A few contacts work for no one: Vic brokers between all of them, Ace runs the casino rooms, and Ledger never took an envelope.</li>
               <li>Factions have rivals. The Jobs page shows who each faction works with and against.</li>
               <li>Your contacts&rsquo; one-time Jobs earn their faction&rsquo;s standing, on top of the contact&rsquo;s own reputation. Standing climbs through Unknown, Known, Trusted, Connected and Inner Circle, starts at zero each season, and only you can see it.</li>
               <li>A Job earns standing only with the faction it works for and any faction it openly helps. Paying one contact never earns their rivals or friends anything, and siding with one contact in a branch earns only that side.</li>
-              <li>Each faction has two Jobs of its own: the first opens at Known, the second at Trusted. Civic Handshake has no contact, so its first Job is open to anyone who puts an official on their payroll.</li>
-              <li>Every daily, weekly, city, Season and alliance contract has a sponsor: the faction of the contact who gives it, or the faction whose lane the work is in. A finished contract pays its sponsor a little standing, shown before you accept it; an expired one pays nothing. Ace&rsquo;s casino work and Ledger&rsquo;s law work have no sponsor.</li>
+              <li>Each faction has two Jobs of its own: the first opens at Known, the second at Trusted. Civic Handshake has no contact of its own.</li>
+              <li>Every daily, weekly, city, Season and alliance contract has a sponsor: the faction of the contact who gives it, or the faction whose lane the work is in. A finished contract pays its sponsor a little standing, shown before you accept it; an expired one pays nothing. Ace&rsquo;s casino work has no sponsor.</li>
               <li>Everyone in a round sees the same boards. When work could go to two factions (Vic&rsquo;s business and airport work, city sales and city trips), it is twice as likely to go to one you are Known with, and a board is never one faction&rsquo;s work alone when it could be otherwise.</li>
               <li>Standing comes only from your own Jobs and contracts: it can&rsquo;t be bought, traded or taken.</li>
-              <li>Standing opens perks, shown on each faction&rsquo;s card on the Jobs page. At Known a faction tells you what it sees in its lane: the Kings, the locals holding blocks where you work; the Outfit, how many rackets run in each city; Road Saints, the hottest roads out of town at your Heat; the Cartel Line, where Pip is short and of what; Civic Handshake, how much exposure each of your officials has left before Internal Affairs.</li>
-              <li>At Trusted it warns you early: the Kings, when your corners are about to run dry or a block&rsquo;s shield is about to drop; the Outfit, where the crackdown lands, a day before the street hears, if you hold anything there; Road Saints, when a run on the road has a hot stretch ahead; the Cartel Line, droughts and Pip running out, up to a day ahead; Civic Handshake, when a Case is a few points short of its next stage. Each warning also reaches your bell once, the first time the faction hears it; you can mute faction warnings there, or have them sent to push and Discord under Account → Alerts.</li>
-              <li>At Connected it shades one thing a little: corners burn 10% less beer and product (Kings), Tommy&rsquo;s guns cost 5% less (Outfit), bodyguard tickets cost 10% less (Road Saints), Pip&rsquo;s product costs 5% less (Cartel Line), and officials&rsquo; favors leave 10% less exposure (Civic Handshake). No perk ever goes over 10%, and none touches combat, turns, casino odds or how a Case is built.</li>
+              <li>Standing opens perks, shown on each faction&rsquo;s card on the Jobs page. At Known a faction tells you what it sees in its lane: the Kings, the locals holding blocks where you work; the Outfit, how many rackets run in each city; Road Saints, the hottest roads out of town at your Heat; the Cartel Line, where Pip is short and of what; Civic Handshake, where Heat stands against this city&rsquo;s lines.</li>
+              <li>At Trusted it warns you early: the Kings, when your corners are about to run dry or a block&rsquo;s shield is about to drop; the Outfit, where the crackdown lands, a day before the street hears, if you hold anything there; Road Saints, when a run on the road has a hot stretch ahead; the Cartel Line, droughts and Pip running out, up to a day ahead; Civic Handshake, when Heat is close to cutting the take, a bust, or an arrest. Each warning also reaches your bell once, the first time the faction hears it; you can mute faction warnings there, or have them sent to push and Discord under Account → Alerts.</li>
+              <li>At Connected it shades one thing a little: corners burn 10% less beer and product (Kings), Tommy&rsquo;s guns cost 5% less (Outfit), bodyguard tickets cost 10% less (Road Saints), and Pip&rsquo;s product costs 5% less (Cartel Line). No perk ever goes over 10%, and none touches combat, turns, or casino odds.</li>
               <li>At the top, rivalries bite. Reaching Inner Circle with a faction locks its rivals&rsquo; Inner Circles for the rest of the season: the Kings and the Outfit lock each other, and Civic Handshake locks both Road Saints and the Cartel Line. Standing with a locked faction keeps counting, one point short. A Job or contract that would do it says so on its card, and asks before you collect. Nothing below Inner Circle ever costs you standing.</li>
               <li>Vic works for nobody, but knows everybody. While you are a stranger to a faction, he can introduce you for a fee (a small share of your net worth), starting you at Known with it.</li>
               <li>Each faction has a short arc: a Job at Connected, then a capstone at Inner Circle that pays standing and a title. Capstones never pay cash or anything that helps in play.</li>

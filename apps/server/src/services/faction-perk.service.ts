@@ -278,9 +278,16 @@ function cartelWarnings(base: Ruleset, player: PerkPlayer, lead: number, now: Da
 
 // --- Civic Handshake ------------------------------------------------------------------
 
+function civicHeatLines(base: Ruleset, player: PerkPlayer): string[] {
+  const city = base.cities?.[player.citySlug];
+  const lines = city?.heat;
+  if (!city || !lines) return [`Heat is ${player.heat.toLocaleString('en-US')}.`];
+  return [`${city.name}: Heat ${player.heat.toLocaleString('en-US')}. The take drops at ${lines.dragStartsAt}, busts start at ${lines.bustStartsAt}, and arrests start at ${lines.arrestStartsAt}.`];
+}
+
 async function civicInformation(db: Db, base: Ruleset, player: PerkPlayer, now: Date): Promise<string[]> {
   const rules = base.law?.officials;
-  if (!rules) return [];
+  if (!rules) return civicHeatLines(base, player);
   const officials = await db.playerOfficial.findMany({ where: { roundPlayerId: player.id, status: 'ACTIVE' }, include: { city: { select: { name: true } } } });
   if (!officials.length) return ['You have nobody on the payroll.'];
   return officials.map((row) => {
@@ -290,9 +297,29 @@ async function civicInformation(db: Db, base: Ruleset, player: PerkPlayer, now: 
   });
 }
 
+function civicHeatWarnings(base: Ruleset, player: PerkPlayer, leadPoints: number, now: Date): FactionWarning[] {
+  const city = base.cities?.[player.citySlug];
+  const lines = city?.heat;
+  if (!city || !lines) return [];
+  const marks = [
+    [lines.dragStartsAt, 'cutting the take'],
+    [lines.bustStartsAt, 'a bust'],
+    [lines.arrestStartsAt, 'an arrest'],
+  ] as const;
+  return marks.flatMap(([at, name]) => {
+    const gap = at - player.heat;
+    if (gap <= 0 || gap > leadPoints) return [];
+    return [{
+      text: `Heat is ${gap.toLocaleString('en-US')} from ${name} in ${city.name}.`,
+      href: '/game#heat',
+      key: `heat:${player.citySlug}:${name}:${day(now)}`,
+    }];
+  });
+}
+
 async function civicWarnings(db: Db, base: Ruleset, player: PerkPlayer, leadPoints: number, now: Date): Promise<FactionWarning[]> {
   const rules = base.law;
-  if (!rules) return [];
+  if (!rules) return civicHeatWarnings(base, player, leadPoints, now);
   const cases = await db.playerCase.findMany({ where: { roundPlayerId: player.id, caseHundredths: { gt: 0 } }, include: { city: { select: { slug: true, name: true } } } });
   const cooling = await caseCooling(db, player.id, base);
   const lines: FactionWarning[] = [];
@@ -363,10 +390,22 @@ export const FactionPerkService = {
       })();
       const early = warningsOpen ? await factionWarnings(db, ruleset, base, player, key, now) : [];
       const nudge = perks.nudges[key];
+      const nudgeApplies = nudge && !(nudge.kind === 'OFFICIAL_EXPOSURE' && !base.law?.officials);
+      const civicHeat = key === 'CIVIC_HANDSHAKE' && !base.law;
       result.set(key, {
-        information: { open: informationOpen, tierName: factionTierName(FACTION_PERK_TIERS.INFORMATION), title: TITLES[key].information, lines: information },
-        warnings: { open: warningsOpen, tierName: factionTierName(FACTION_PERK_TIERS.WARNINGS), title: TITLES[key].warnings, lines: early.map((warning) => warning.text) },
-        nudge: nudge ? {
+        information: {
+          open: informationOpen,
+          tierName: factionTierName(FACTION_PERK_TIERS.INFORMATION),
+          title: civicHeat ? 'Where Heat stands in this city' : TITLES[key].information,
+          lines: information,
+        },
+        warnings: {
+          open: warningsOpen,
+          tierName: factionTierName(FACTION_PERK_TIERS.WARNINGS),
+          title: civicHeat ? 'Heat close to the next police line' : TITLES[key].warnings,
+          lines: early.map((warning) => warning.text),
+        },
+        nudge: nudgeApplies && nudge ? {
           open: factionPerkOpen(tier, 'NUDGE'),
           tierName: factionTierName(FACTION_PERK_TIERS.NUDGE),
           title: NUDGE_TITLES[nudge.kind](nudge.percent),

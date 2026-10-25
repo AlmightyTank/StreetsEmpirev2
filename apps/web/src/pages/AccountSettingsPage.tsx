@@ -32,6 +32,7 @@ import { AvatarPortrait } from '../components/BuiltAvatar.js';
 import { Panel, Row } from '../components/Panel.js';
 import { Shell } from '../layouts/Shell.js';
 import { GameLayout } from '../layouts/GameLayout.js';
+import { useDropAvailable } from '../layouts/gameNav.js';
 import { DEFAULT_PROFILE_SETTINGS, useSession } from '../stores/session.js';
 import { isBoolean, isString, rememberedKey, useRememberedState } from '../utils/remembered.js';
 import { ReplayTutorial } from '../components/onboarding/ReplayTutorial.js';
@@ -123,6 +124,7 @@ export function AccountSettingsPage() {
   const me = useSession((s) => s.me);
   // Players keep the game menu here; an account still verifying or accepting the rules gets the plain shell.
   const canPlay = useSession((s) => Boolean(s.me && !s.account?.verificationRequired && !s.account?.rulesAcceptanceRequired && !s.account?.birthDateRequired));
+  const dropOpen = useDropAvailable();
   const Frame = canPlay ? GameLayout : Shell;
   const round = useSession((s) => s.round);
   const setSessionProfileSettings = useSession((s) => s.setProfileSettings);
@@ -856,6 +858,12 @@ export function AccountSettingsPage() {
           Open supporter page
         </Link>
       </Panel>
+      {dropOpen ? (
+        <Panel title="The Drop">
+          <p>Crew looks and Street Pass skips live in the shop. Nothing there changes how a round plays.</p>
+          <Link className="se-btn se-btn--ghost" to="/game/drop">Open The Drop</Link>
+        </Panel>
+      ) : null}
       </section>
 
       <section id="settings-profile" className="se-settings-section" aria-labelledby="settings-profile-title">
