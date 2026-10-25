@@ -141,9 +141,10 @@ function turfLoot(payload: Record<string, unknown>): string {
 
 function questHref(payload: Record<string, unknown>, tab: 'available' | 'active' | 'completed' = 'active'): string {
   const key = str(payload.questKey);
-  if (!key) return `/game/quests?tab=${tab}`;
+  const view = tab === 'completed' ? 'history' : tab === 'available' ? 'contacts' : 'jobs';
+  if (!key) return `/game/quests?view=${view}`;
   const encoded = encodeURIComponent(key);
-  return `/game/quests?tab=${tab}&focus=${encoded}#quest-${encoded}`;
+  return `/game/quests?view=${view}&focus=${encoded}#quest-${encoded}`;
 }
 
 function questKeys(value: unknown): string[] {
@@ -243,7 +244,7 @@ function testPopupForKey(key: string): Omit<GameEventToast, 'id'> | null {
         title: 'Quest ready to turn in',
         detail: 'First Night Out is complete. Open your contacts to collect payment.',
         tone: 'good',
-        href: '/game/quests?tab=active&focus=FIRST_NIGHT_OUT#quest-FIRST_NIGHT_OUT',
+        href: '/game/quests?view=jobs&focus=FIRST_NIGHT_OUT#quest-FIRST_NIGHT_OUT',
       };
     default:
       return null;
@@ -289,7 +290,7 @@ export function gameEventToastFor(activity: ActivityDto, crackWord: string): Omi
         title: count === 1 ? 'New quest available' : `${count} new quests available`,
         detail: str(p.title) ? `After ${str(p.title)}, new work opened up.` : 'New work opened up.',
         tone: 'info',
-        href: `/game/quests?tab=available&focus=${encoded}#quest-${encoded}`,
+        href: `/game/quests?view=contacts&focus=${encoded}#quest-${encoded}`,
       };
     }
 
@@ -450,10 +451,10 @@ export function gameEventToastFor(activity: ActivityDto, crackWord: string): Omi
 
     case 'LOAN_COLLECTIONS':
       return p.to === 'COLLECTIONS'
-        ? { title: 'Loan shark put you in collections', detail: pieces(`${num(p.missedInstallments)} missed installment${num(p.missedInstallments) === 1 ? '' : 's'}`, detail), tone: 'bad', href: '/game/loans' }
+        ? { title: 'Loan shark put you in collections', detail: pieces(`${num(p.missedInstallments)} missed installment${num(p.missedInstallments) === 1 ? '' : 's'}`, detail), tone: 'bad', href: '/game' }
         : p.to === 'RECOVERING'
-          ? { title: 'Collections cleared', detail: pieces('Stay current to reopen borrowing.', detail), tone: 'warn', href: '/game/loans' }
-          : { title: 'Back in good standing with the loan shark', detail: detail || 'Borrowing is available again.', tone: 'good', href: '/game/loans' };
+          ? { title: 'Collections cleared', detail: pieces('Stay current to reopen borrowing.', detail), tone: 'warn', href: '/game' }
+          : { title: 'Back in good standing with the loan shark', detail: detail || 'Borrowing is available again.', tone: 'good', href: '/game' };
 
     case 'HIDEOUT_BUILD_COMPLETE':
       return {
@@ -504,14 +505,14 @@ export function gameEventToastFor(activity: ActivityDto, crackWord: string): Omi
       return { title: 'The Ring is destroyed', detail: 'Ring-bearer title unlocked.', tone: 'good', href: '/game/combat' };
 
     case 'LOAN_INSTALLMENT_MISSED':
-      return { title: `Missed loan installment ${num(p.sequence) || ''}`.trim(), detail: pieces(str(p.offerName), detail), tone: 'bad', href: '/game/loans' };
+      return { title: `Missed loan installment ${num(p.sequence) || ''}`.trim(), detail: pieces(str(p.offerName), detail), tone: 'bad', href: '/game' };
 
     case 'SUPPLY_LANE_ARRIVED':
       return {
         title: p.outcome === 'CLEAN' ? `${str(p.routeName, 'Lane')} load landed clean` : p.outcome === 'SEIZED' ? `${str(p.routeName, 'Lane')} load seized` : `${str(p.routeName, 'Lane')} load searched`,
         detail: pieces(str(p.product), where(p, ''), detail),
         tone: p.outcome === 'CLEAN' ? 'good' : p.outcome === 'SEIZED' ? 'bad' : 'warn',
-        href: '/game/supply',
+        href: '/game',
       };
 
     case 'FACTION_WARNING':

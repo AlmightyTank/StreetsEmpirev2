@@ -279,3 +279,5 @@ export function TravelPage() {
     </GameLayout>
   );
 }
+import '../styles/travel.css';
+import '../styles/city-blocks.css';

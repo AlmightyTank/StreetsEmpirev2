@@ -19,10 +19,6 @@ import { RunSettleService, runSummary } from './run-settle.service.js';
 import type { RoundPlayerDto } from '@streets/shared';
 import { TurfService } from './turf.service.js';
 import { BusinessService } from './business.service.js';
-import { SupplyPropertySettleService } from './supply-property-settle.service.js';
-import { DealerSalesSettleService } from './dealer-sales-settle.service.js';
-import { SupplyLaneSettleService } from './supply-lane-settle.service.js';
-import { LoanSettleService } from './loan-settle.service.js';
 import { TurfWarSettlementService } from './turf-war-settle.service.js';
 import { HideoutBuildService } from './hideout-build.service.js';
 import { HideoutAlertService } from './hideout-alerts.service.js';
@@ -158,23 +154,6 @@ export const PlayerStateService = {
         businessThugs: businessSettlement.businessThugs,
         businessWhores: businessSettlement.businessWhores,
       };
-    }
-    // 1.6.0-H: lane loads that have landed, searched or not.
-    await SupplyLaneSettleService.settle(tx, roundPlayerId, ruleset, now);
-    // 1.6.0-F: dealer sales pay in, before upkeep comes out.
-    const salesCash = await DealerSalesSettleService.settle(tx, roundPlayerId, ruleset, now);
-    if (salesCash !== null) rest = { ...rest, cashCents: salesCash };
-    // 1.6.0-D: property upkeep that has fallen due comes out of cash.
-    const upkeepCash = await SupplyPropertySettleService.settleUpkeep(tx, roundPlayerId, ruleset, now);
-    if (upkeepCash !== null) rest = { ...rest, cashCents: upkeepCash };
-    // 1.6.5-B: and loan installments that have fallen due, for players who are only looking.
-    // A pause freezes due money; the background dashboard read must not settle loans either.
-    if (!round.pausedAt && await LoanSettleService.settle(tx, roundPlayerId, ruleset, now) !== null) {
-      const loans = await tx.roundPlayer.findUniqueOrThrow({
-        where: { id: roundPlayerId },
-        select: { cashCents: true, loanDebtCents: true, loanFeesAssessedCents: true, loanCollectionState: true, loanRecoveryNeeded: true, loanCollectionsSince: true },
-      });
-      rest = { ...rest, ...loans };
     }
     // 1.3.0-C: a warrant that is due is served here too, so it lands for players who are away.
     if (await LawWarrantService.serveDue(tx, roundPlayerId, now)) {

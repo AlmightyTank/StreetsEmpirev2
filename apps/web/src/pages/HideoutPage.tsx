@@ -370,6 +370,7 @@ export function HideoutPage() {
   const action = useGameAction<HideoutUpgradeResult>();
   const specializationAction = useGameAction<HideoutSpecializationResult>();
   const [hideout, setHideout] = useState<HideoutV2Dto | null>(null);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [travel, setTravel] = useState<TravelDto | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reload, setReload] = useState(0);
@@ -398,7 +399,7 @@ export function HideoutPage() {
 
   useEffect(() => {
     let active = true;
-    hideoutApi.catalog()
+    const catalog = hideoutApi.catalog()
       .then((data) => {
         if (!active) return;
         setHideout(data);
@@ -407,13 +408,17 @@ export function HideoutPage() {
       .catch((caught: unknown) => {
         if (active) setLoadError(caught instanceof ApiError ? caught.message : 'Could not load the hideout.');
       });
-    hideoutApi.cosmetics().then((data) => { if (active) setCosmetics(data); }).catch(() => { if (active) setCosmetics(null); });
-    hideoutApi.scavenging().then((data) => { if (active) setScavenging(data); }).catch(() => { if (active) setScavenging(null); });
-    hideoutApi.workshop().then((data) => { if (active) setWorkshop(data); }).catch(() => { if (active) setWorkshop(null); });
+    const cosmetics = hideoutApi.cosmetics().then((data) => { if (active) setCosmetics(data); }).catch(() => { if (active) setCosmetics(null); });
+    const scavenging = hideoutApi.scavenging().then((data) => { if (active) setScavenging(data); }).catch(() => { if (active) setScavenging(null); });
+    const workshop = hideoutApi.workshop().then((data) => { if (active) setWorkshop(data); }).catch(() => { if (active) setWorkshop(null); });
 
-    api.get<TravelDto>('/game/travel')
+    const travel = api.get<TravelDto>('/game/travel')
       .then((data) => { if (active) setTravel(data); })
       .catch(() => { if (active) setTravel(null); });
+
+    void Promise.all([catalog, cosmetics, scavenging, workshop, travel]).finally(() => {
+      if (active) setInitialLoading(false);
+    });
 
     return () => { active = false; };
   }, [me?.resources.cashCents, me?.resources.condoms, me?.resources.medicine, me?.resources.beer, me?.resources.ammo, me?.resources.vehicleParts, me?.resources.pistols, me?.resources.shotguns, me?.resources.tek9s, me?.resources.ak47s, me?.resources.lowRiders, me?.resources.sedans, me?.resources.vans, reload]);
@@ -557,6 +562,21 @@ export function HideoutPage() {
       </div>
     </section>
   ) : null;
+
+  if (initialLoading) {
+    return (
+      <GameLayout>
+        <div className="se-hideout se-hideout--loading" aria-busy="true">
+          <EmpirePageHeader
+            eyebrow="Your operation · seasonal headquarters"
+            title="Hideout"
+            description="Loading your headquarters and its current systems."
+          />
+          <Panel title="Loading"><p className="se-muted">Checking the locks and opening the rooms...</p></Panel>
+        </div>
+      </GameLayout>
+    );
+  }
 
   return (
     <GameLayout>
@@ -1039,3 +1059,6 @@ export function HideoutPage() {
     </GameLayout>
   );
 }
+import '../styles/hideout.css';
+import '../styles/items.css';
+import '../styles/street-sign-builder.css';

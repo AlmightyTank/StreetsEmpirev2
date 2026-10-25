@@ -7,6 +7,8 @@ import { questsApi } from '../api/quests.js';
 import { Alert } from '../components/Alert.js';
 import { Portrait } from '../components/Portrait.js';
 import { GameLayout } from '../layouts/GameLayout.js';
+import { publishQuestsChanged, trackedFromQuests } from '../quests/questSignals.js';
+import { confirmAction } from '../stores/confirm.js';
 import { useSession } from '../stores/session.js';
 import { contactJobs, contactRoomHref, lockedJobCount } from '../utils/contactRoom.js';
 import { formatWhen } from '../utils/time.js';
@@ -32,7 +34,16 @@ function summaryFor(page: QuestPageDto, contact: QuestContactDto): ContactSummar
   };
 }
 
-function JobDetails({ job, completed = false }: { job: QuestPageDto['quests'][number]; completed?: boolean }) {
+function JobDetails({ job, completed = false, onTrack, tracking = false, onClaim, claiming = false }: {
+  job: QuestPageDto['quests'][number];
+  completed?: boolean;
+  onTrack?: (job: QuestPageDto['quests'][number]) => void;
+  tracking?: boolean;
+  onClaim?: (job: QuestPageDto['quests'][number], branchKey?: string, branchTitle?: string) => void;
+  claiming?: boolean;
+}) {
+  const readyToCollect = !completed && job.status === 'READY_TO_TURN_IN';
+
   return (
     <details className="se-quest-phone__active-job">
       <summary>
@@ -56,7 +67,44 @@ function JobDetails({ job, completed = false }: { job: QuestPageDto['quests'][nu
             <div className="se-quest-phone__job-rewards">{job.rewards.map((reward, index) => <span key={`${reward.kind}:${reward.key ?? index}`}>{reward.label}</span>)}</div>
           </div>
         ) : null}
-        {!completed && job.contactKey ? <Link className="se-btn se-btn--ghost se-btn--sm" to={`${contactRoomHref(job.contactKey)}?job=${encodeURIComponent(job.key)}`}>Open quest questions <span aria-hidden="true">→</span></Link> : null}
+        {!completed && job.contactKey ? (
+          <Link
+            className={`se-btn se-btn--${readyToCollect ? 'primary' : 'ghost'} se-btn--sm`}
+            to={`${contactRoomHref(job.contactKey)}?job=${encodeURIComponent(job.key)}`}
+          >
+            {readyToCollect ? 'Collect payment' : 'Open quest questions'} <span aria-hidden="true">→</span>
+          </Link>
+        ) : null}
+        {readyToCollect && !job.contactKey && onClaim ? (
+          <div className="se-quest-phone__job-actions">
+            {job.branchChoices.length ? job.branchChoices.map((choice) => (
+              <button
+                key={choice.key}
+                type="button"
+                className="se-btn se-btn--primary se-btn--sm"
+                disabled={claiming}
+                onClick={() => onClaim(job, choice.key, choice.title)}
+              >
+                {choice.title}
+              </button>
+            )) : (
+              <button type="button" className="se-btn se-btn--primary se-btn--sm" disabled={claiming} onClick={() => onClaim(job)}>
+                {claiming ? 'Collecting…' : 'Collect payment'}
+              </button>
+            )}
+          </div>
+        ) : null}
+        {!completed && onTrack ? (
+          <button
+            type="button"
+            className="se-btn se-btn--ghost se-btn--sm"
+            aria-pressed={job.isTracked}
+            disabled={tracking}
+            onClick={() => onTrack(job)}
+          >
+            {job.isTracked ? 'Untrack job' : 'Track job'}
+          </button>
+        ) : null}
       </div>
     </details>
   );
@@ -65,6 +113,7 @@ function JobDetails({ job, completed = false }: { job: QuestPageDto['quests'][nu
 /** The phone is the front door for personal work; contracts remain on the old work desk. */
 export function QuestPhonePage() {
   const me = useSession((state) => state.me);
+  const refreshSnapshot = useSession((state) => state.refreshSnapshot);
   const location = useLocation();
   const navigate = useNavigate();
   const [page, setPage] = useState<QuestPageDto | null>(null);
@@ -72,6 +121,8 @@ export function QuestPhonePage() {
   const [loading, setLoading] = useState(true);
   const [history, setHistory] = useState<QuestPageDto['quests'] | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [trackingKey, setTrackingKey] = useState<string | null>(null);
+  const [claimingKey, setClaimingKey] = useState<string | null>(null);
 
   const requestedView = new URLSearchParams(location.search).get('view');
   const view: PhoneView = requestedView === 'jobs' || requestedView === 'history' ? requestedView : 'contacts';
@@ -140,6 +191,51 @@ export function QuestPhonePage() {
   const active = page?.counts.active ?? 0;
   const openContacts = contacts.filter((entry) => entry.ready || entry.active || entry.available).length;
   const activeJobs = page?.quests.filter((quest) => quest.status === 'ACTIVE' || quest.status === 'READY_TO_TURN_IN') ?? [];
+  const trackedJobs = activeJobs.filter((job) => job.isTracked);
+
+  async function toggleTracking(job: QuestPageDto['quests'][number]) {
+    setTrackingKey(job.key);
+    setError(null);
+    try {
+      const next = await questsApi.track(job.key, !job.isTracked);
+      setPage(next);
+      publishQuestsChanged({ scope: 'board', quests: next.quests, tracked: trackedFromQuests(next.quests) });
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'That tracking change did not go through. Try again.');
+    } finally {
+      setTrackingKey(null);
+    }
+  }
+
+  async function claimJob(job: QuestPageDto['quests'][number], branchKey?: string, branchTitle?: string) {
+    const locking = job.factionStandings.filter((standing) => standing.locks?.length);
+    if (locking.length && !(await confirmAction({
+      title: `Join ${locking.map((standing) => standing.factionName).join(' and ')}'s Inner Circle?`,
+      body: locking.map((standing) => `This locks ${standing.locks!.join(' and ')}'s Inner Circle for the rest of the season.`).join(' '),
+      confirmLabel: 'Collect and join',
+    }))) return;
+    if (branchKey && !(await confirmAction({
+      title: `Choose "${branchTitle ?? branchKey}"?`,
+      body: 'This choice is permanent for this round and locks the other follow-up path.',
+      confirmLabel: 'Choose this path',
+    }))) return;
+
+    setClaimingKey(job.key);
+    setError(null);
+    try {
+      const result = await questsApi.claim(job.key, crypto.randomUUID(), branchKey);
+      useSession.getState().applyActionSnapshot(result.after, result.rankChanges);
+      const next = await questsApi.page();
+      setPage(next);
+      publishQuestsChanged({ scope: 'action', quests: next.quests, tracked: trackedFromQuests(next.quests) });
+      setHistory(null);
+      void refreshSnapshot({ background: true });
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'Payment could not be collected.');
+    } finally {
+      setClaimingKey(null);
+    }
+  }
 
   return (
     <GameLayout>
@@ -171,12 +267,30 @@ export function QuestPhonePage() {
           <div className="se-quest-phone__stats" aria-label="Job summary">
             <span><strong>{formatNumber(ready)}</strong><small>ready</small></span>
             <span><strong>{formatNumber(active)}</strong><small>active</small></span>
+            <span><strong>{formatNumber(trackedJobs.length)}</strong><small>tracked</small></span>
             <span><strong>{formatNumber(openContacts)}</strong><small>with work</small></span>
           </div>
         </section>
 
         {error ? <Alert>{error}</Alert> : null}
         {loading && !page ? <p className="se-muted" role="status">Checking the line…</p> : null}
+
+        {page && view === 'contacts' ? (
+          <section className="se-quest-phone__active" aria-labelledby="quest-phone-tracked-title">
+            <div className="se-quest-phone__sectionhead">
+              <div>
+                <span className="se-eyebrow">Keep them close</span>
+                <h2 id="quest-phone-tracked-title">Tracked jobs</h2>
+              </div>
+              <span className="se-quest-phone__sectionmeta">{formatNumber(trackedJobs.length)} saved</span>
+            </div>
+            <div className="se-quest-phone__active-list">
+               {trackedJobs.length ? trackedJobs.map((job) => <JobDetails key={job.key} job={job} onTrack={toggleTracking} tracking={trackingKey === job.key} onClaim={claimJob} claiming={claimingKey === job.key} />) : (
+                <p className="se-quest-phone__empty">No jobs are tracked yet. Open a job below and keep it on your line.</p>
+              )}
+            </div>
+          </section>
+        ) : null}
 
         {page && view === 'contacts' ? (
           <section className="se-quest-phone__contacts" aria-labelledby="quest-phone-contacts-title">
@@ -230,7 +344,7 @@ export function QuestPhonePage() {
               <span className="se-quest-phone__sectionmeta">{formatNumber(activeJobs.length)} active</span>
             </div>
             <div className="se-quest-phone__active-list">
-               {activeJobs.length ? activeJobs.map((job) => <JobDetails key={job.key} job={job} />) : <p className="se-quest-phone__empty">Nothing is active. Call someone when you are ready for more work.</p>}
+                {activeJobs.length ? activeJobs.map((job) => <JobDetails key={job.key} job={job} onTrack={toggleTracking} tracking={trackingKey === job.key} onClaim={claimJob} claiming={claimingKey === job.key} />) : <p className="se-quest-phone__empty">Nothing is active. Call someone when you are ready for more work.</p>}
             </div>
           </section>
         ) : null}
@@ -260,3 +374,5 @@ export function QuestPhonePage() {
     </GameLayout>
   );
 }
+import '../styles/quests.css';
+import '../styles/quest-phone.css';

@@ -1,6 +1,7 @@
 import { classicOgV26I } from '../classic-og-v2.6-i/index.js';
 import { defineQuestCatalog } from '../quest-definitions.js';
 import type { Ruleset } from '../types.js';
+import { contactSideStories } from './contact-side-stories.js';
 
 /** The Board B. One book per rarity; see docs/ROADMAP-THE-BOARD.md for the table. */
 const COMMON = 400;
@@ -39,6 +40,7 @@ const retiredAmmoQuest = classicOgV26JBase.questDefinitions?.ML_M13_DATE_CHANGED
 const currentQuestDefinitions = retiredAmmoQuest
   ? defineQuestCatalog({
       ...classicOgV26JBase.questDefinitions,
+      ...contactSideStories,
       ML_M13_DATE_CHANGED_IN_INK: {
         ...retiredAmmoQuest,
         objectives: retiredAmmoQuest.objectives.filter((objective) => objective.id !== 'crew_ammo'),

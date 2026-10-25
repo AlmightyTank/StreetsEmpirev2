@@ -59,7 +59,7 @@ export function bumpRewardsForCompletedBonuses(
   });
 }
 
-export async function addContactRep(db: Db, roundPlayerId: string, contact: string, amount: number): Promise<number> {
+export async function addContactRep(db: Db, roundPlayerId: string, contact: string, amount: number, questDoneAt?: Date): Promise<number> {
   const current = await db.playerReputation.findUnique({
     where: { roundPlayerId_trader: { roundPlayerId, trader: contact } },
     select: { points: true },
@@ -67,8 +67,8 @@ export async function addContactRep(db: Db, roundPlayerId: string, contact: stri
   const points = Math.min(CONTACT_MAX, Math.max(0, (current?.points ?? 0) + amount));
   await db.playerReputation.upsert({
     where: { roundPlayerId_trader: { roundPlayerId, trader: contact } },
-    create: { roundPlayerId, trader: contact, points },
-    update: { points },
+    create: { roundPlayerId, trader: contact, points, questDoneAt: questDoneAt ?? null },
+    update: { points, ...(questDoneAt ? { questDoneAt } : {}) },
   });
   return points;
 }
@@ -144,7 +144,7 @@ export async function grantRewards(
       if (!reward.key || !ruleset.contacts?.[reward.key as ContactKey]) {
         throw AppError.conflict('QUEST_REWARD_INVALID', 'That quest has an invalid contact reward.');
       }
-      await addContactRep(tx, roundPlayerId, reward.key, reward.amount ?? 0);
+      await addContactRep(tx, roundPlayerId, reward.key, reward.amount ?? 0, now);
     } else if (reward.kind === 'PERMANENT_UNLOCK') {
       if (!reward.key) throw AppError.conflict('QUEST_REWARD_INVALID', 'That quest has an invalid permanent unlock reward.');
       const unlock = await PermanentUnlockService.award(tx, roundPlayerId, ruleset, reward.key, sourceKey, now);

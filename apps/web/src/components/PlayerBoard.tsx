@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   formatCentsExact,
@@ -287,123 +287,127 @@ function buyBlocker(row: PlayerBoardRowDto, book: PlayerBoardDto, busy: boolean,
 export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPost, onCancel, buyQuantities, onBuyQuantity, onBuy, traderStores = [], onTraderBuy }: PlayerBoardViewProps) {
   return (
     <>
-      <div className="se-filter-group se-board-filters">
-        <span className="se-filter-label">Show</span>
-        <div className="se-seg" role="group" aria-label="Board goods">
-          {FILTERS.map(([value, label]) => (
-            <button key={value} type="button" className={`se-seg__btn${book.filter === value ? ' se-seg__btn--on' : ''}`}
-              aria-pressed={book.filter === value} onClick={() => onFilter(value)}>{label}</button>
-          ))}
-        </div>
-      </div>
-
-      <section className="se-board-section" aria-labelledby="board-book">
-        <div className="se-stores-sectionhead">
-          <div><span className="se-eyebrow">City-wide</span><h2 id="board-book">On the Board</h2></div>
-          <p>Cash offers cheapest first, then trades. Take as many as you need from any offer.</p>
-        </div>
-        {book.rows.length === 0 ? (
-          <p className="se-board-empty">Nothing is up right now.</p>
-        ) : (
-          <div className="se-tablewrap">
-            <table className="se-table se-table--cards se-board-book">
-              <thead><tr><th>Item</th><th>Seller</th><th className="se-table__number">Qty</th><th>Price</th><th className="se-table__number">Cash</th><th>Closes</th><th><span className="se-sr-only">Actions</span></th></tr></thead>
-              <tbody>
-                {book.rows.map((row) => (
-                  <tr key={row.id} className={row.mine ? 'se-board-book__mine' : undefined}>
-                    <td data-label="Item"><span className={`se-board-rarity se-board-rarity--${row.category === 'PRODUCT' ? 'product' : row.category === 'KEEPER' ? 'keeper' : (row.rarity ?? 'common').toLowerCase()}`}>{row.name}</span></td>
-                    <td data-label="Seller"><span>{row.sellerName}{row.mine ? <span className="se-board-you"> (you)</span> : null}</span></td>
-                    <td className="se-table__number se-num" data-label="Qty">{formatNumber(row.quantity)}</td>
-                    <td className="se-board-trade" data-label="Price">
-                      <span>{row.priceKind === 'BARTER' ? <><span className="se-board-trade__tag">Trade</span> {askSummary(row.ask)} {lotLabel(row.lotSize)}</> : <><span className="se-num">{formatCentsExact(row.unitPriceCents)}</span> each{boardRowTopUpCents(row, 1, book.rules) > 0 ? <span className="se-board-under"> + Board fee</span> : null}</>}</span>
-                    </td>
-                    <td className="se-table__number se-num" data-label="Cash">
-                      {row.priceKind === 'BARTER' ? (row.totalCents > 0 ? `+ ${formatCentsExact(row.totalCents)}` : 'None') : formatCentsExact(row.totalCents)}
-                    </td>
-                    <td data-label="Closes">{closesIn(row.expiresAt, now)}</td>
-                    <td data-label="">
-                      {row.mine ? null : (() => {
-                        const units = boardBuyUnits(row, buyQuantities[row.id]);
-                        return (
-                          <span className="se-board-buy">
-                            {row.quantity > row.lotSize ? (
-                              <input className="se-input se-board-buy__qty" type="number" inputMode="numeric" min={row.lotSize} max={row.quantity} step={row.lotSize}
-                                aria-label={`How many ${row.name.toLowerCase()} to buy from ${row.sellerName}`}
-                                placeholder={String(boardBuyUnits(row, undefined) ?? 0)} value={buyQuantities[row.id] ?? ''}
-                                onChange={(event) => onBuyQuantity(row.id, event.target.value)} />
-                            ) : null}
-                            <Button size="sm" variant="primary" disabledReason={buyBlocker(row, book, busy, units)} onClick={() => onBuy(row, units!)}>
-                              {`${row.priceKind === 'BARTER' ? 'Trade' : 'Buy'} ${units !== null && units < row.quantity ? formatNumber(units) : 'all'}`}
-                            </Button>
-                          </span>
-                        );
-                      })()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      <section className="se-stores-market se-board-market" aria-label="Board market">
+        <div className="se-stores-market__main">
+          <div className="se-filter-group se-board-filters">
+            <span className="se-filter-label">Show</span>
+            <div className="se-seg" role="group" aria-label="Board goods">
+              {FILTERS.map(([value, label]) => (
+                <button key={value} type="button" className={`se-seg__btn${book.filter === value ? ' se-seg__btn--on' : ''}`}
+                  aria-pressed={book.filter === value} onClick={() => onFilter(value)}>{label}</button>
+              ))}
+            </div>
           </div>
-        )}
-      </section>
 
-      {traderStores.length > 0 ? <section className="se-board-section" aria-labelledby="board-traders">
-        <div className="se-stores-sectionhead">
-          <div><span className="se-eyebrow">Trader shelves</span><h2 id="board-traders">Buy from traders</h2></div>
-          <p>Complete trader purchases without leaving the Board.</p>
-        </div>
-        <div className="se-tablewrap"><table className="se-table se-table--cards"><thead><tr><th>Trader</th><th>Item</th><th>Price</th><th>Stock</th><th /></tr></thead><tbody>
-          {traderStores.flatMap((store) => store.items.filter((item) => item.maxBuy > 0).map((item) => <tr key={`${store.key}:${item.key}`}>
-            <td data-label="Trader">{store.name}</td><td data-label="Item">{item.name}</td><td data-label="Price" className="se-num">{formatCentsExact(item.buyCents)}</td>
-            <td data-label="Stock" className="se-num">{formatNumber(item.maxBuy)}</td><td><Button size="sm" variant="primary" disabledReason={busy || !onTraderBuy ? 'Unavailable' : null} onClick={() => onTraderBuy?.(store, item)}>Buy 1</Button></td>
-          </tr>))}
-        </tbody></table></div>
-      </section> : null}
+          <section className="se-board-section" aria-labelledby="board-book">
+            <div className="se-stores-sectionhead">
+              <div><span className="se-eyebrow">City-wide</span><h2 id="board-book">On the Board</h2></div>
+              <p>Cash offers cheapest first, then trades. Take as many as you need from any offer.</p>
+            </div>
+            {book.rows.length === 0 ? (
+              <p className="se-board-empty">Nothing is up right now.</p>
+            ) : (
+              <div className="se-tablewrap">
+                <table className="se-table se-table--cards se-board-book">
+                  <thead><tr><th>Item</th><th>Seller</th><th className="se-table__number">Qty</th><th>Price</th><th className="se-table__number">Cash</th><th>Closes</th><th><span className="se-sr-only">Actions</span></th></tr></thead>
+                  <tbody>
+                    {book.rows.map((row) => (
+                      <tr key={row.id} className={row.mine ? 'se-board-book__mine' : undefined}>
+                        <td data-label="Item"><span className={`se-board-rarity se-board-rarity--${row.category === 'PRODUCT' ? 'product' : row.category === 'KEEPER' ? 'keeper' : (row.rarity ?? 'common').toLowerCase()}`}>{row.name}</span></td>
+                        <td data-label="Seller"><span>{row.sellerName}{row.mine ? <span className="se-board-you"> (you)</span> : null}</span></td>
+                        <td className="se-table__number se-num" data-label="Qty">{formatNumber(row.quantity)}</td>
+                        <td className="se-board-trade" data-label="Price">
+                          <span>{row.priceKind === 'BARTER' ? <><span className="se-board-trade__tag">Trade</span> {askSummary(row.ask)} {lotLabel(row.lotSize)}</> : <><span className="se-num">{formatCentsExact(row.unitPriceCents)}</span> each{boardRowTopUpCents(row, 1, book.rules) > 0 ? <span className="se-board-under"> + Board fee</span> : null}</>}</span>
+                        </td>
+                        <td className="se-table__number se-num" data-label="Cash">
+                          {row.priceKind === 'BARTER' ? (row.totalCents > 0 ? `+ ${formatCentsExact(row.totalCents)}` : 'None') : formatCentsExact(row.totalCents)}
+                        </td>
+                        <td data-label="Closes">{closesIn(row.expiresAt, now)}</td>
+                        <td data-label="">
+                          {row.mine ? null : (() => {
+                            const units = boardBuyUnits(row, buyQuantities[row.id]);
+                            return (
+                              <span className="se-board-buy">
+                                {row.quantity > row.lotSize ? (
+                                  <input className="se-input se-board-buy__qty" type="number" inputMode="numeric" min={row.lotSize} max={row.quantity} step={row.lotSize}
+                                    aria-label={`How many ${row.name.toLowerCase()} to buy from ${row.sellerName}`}
+                                    placeholder={String(boardBuyUnits(row, undefined) ?? 0)} value={buyQuantities[row.id] ?? ''}
+                                    onChange={(event) => onBuyQuantity(row.id, event.target.value)} />
+                                ) : null}
+                                <Button size="sm" variant="primary" disabledReason={buyBlocker(row, book, busy, units)} onClick={() => onBuy(row, units!)}>
+                                  {`${row.priceKind === 'BARTER' ? 'Trade' : 'Buy'} ${units !== null && units < row.quantity ? formatNumber(units) : 'all'}`}
+                                </Button>
+                              </span>
+                            );
+                          })()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
 
-      <section className="se-board-section" aria-labelledby="board-mine">
-        <div className="se-stores-sectionhead">
-          <div><span className="se-eyebrow">{formatNumber(book.openOffers)} of {formatNumber(book.rules.maxOpenOffers)} up</span><h2 id="board-mine">Your offers</h2></div>
-          <p>Cancel brings the stack home. The posting fee stays spent.</p>
-        </div>
-        {book.mine.length === 0 ? (
-          <p className="se-board-empty">You have not listed anything.</p>
-        ) : (
-          <div className="se-tablewrap">
-            <table className="se-table se-table--cards se-board-mine">
-              <thead><tr><th>Item</th><th className="se-table__number">Qty</th><th>Price</th><th>Status</th><th><span className="se-sr-only">Actions</span></th></tr></thead>
-              <tbody>
-                {book.mine.map((offer) => (
-                  <tr key={offer.id}>
-                    <td data-label="Item">{offer.name}</td>
-                    <td className="se-table__number se-num" data-label="Qty">
-                      {offer.remainingQuantity < offer.quantity ? `${formatNumber(offer.remainingQuantity)} of ${formatNumber(offer.quantity)} left` : formatNumber(offer.quantity)}
-                    </td>
-                    <td className="se-board-trade" data-label="Price">
-                      <span>{offer.priceKind === 'BARTER' ? <><span className="se-board-trade__tag">Trade</span> {askSummary(offer.ask)} {lotLabel(offer.lotSize)}</> : <><span className="se-num">{formatCentsExact(offer.unitPriceCents)}</span> each</>}</span>
-                    </td>
-                    <td data-label="Status">
-                      {offer.status === 'OPEN' ? `Up · ${closesIn(offer.expiresAt, now)}` : STATUS_LABEL[offer.status]}
-                      {offer.returned ? null : ' · waiting on stash room'}
-                    </td>
-                    <td data-label="">
-                      {offer.status === 'OPEN' ? (
-                        <Button size="sm" disabledReason={busy ? 'Your last change is still going through.' : null} onClick={() => onCancel(offer)}>Cancel</Button>
-                      ) : null}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+          {traderStores.length > 0 ? <section className="se-board-section" aria-labelledby="board-traders">
+            <div className="se-stores-sectionhead">
+              <div><span className="se-eyebrow">Trader shelves</span><h2 id="board-traders">Buy from traders</h2></div>
+              <p>Complete trader purchases without leaving the Board.</p>
+            </div>
+            <div className="se-tablewrap"><table className="se-table se-table--cards"><thead><tr><th>Trader</th><th>Item</th><th>Price</th><th>Stock</th><th /></tr></thead><tbody>
+              {traderStores.flatMap((store) => store.items.filter((item) => item.maxBuy > 0).map((item) => <tr key={`${store.key}:${item.key}`}>
+                <td data-label="Trader">{store.name}</td><td data-label="Item">{item.name}</td><td data-label="Price" className="se-num">{formatCentsExact(item.buyCents)}</td>
+                <td data-label="Stock" className="se-num">{formatNumber(item.maxBuy)}</td><td><Button size="sm" variant="primary" disabledReason={busy || !onTraderBuy ? 'Unavailable' : null} onClick={() => onTraderBuy?.(store, item)}>Buy 1</Button></td>
+              </tr>))}
+            </tbody></table></div>
+          </section> : null}
 
-      <section className="se-board-section" aria-labelledby="board-post">
-        <div className="se-stores-sectionhead">
-          <div><span className="se-eyebrow">Sell</span><h2 id="board-post">List goods</h2></div>
-          <p>The stack leaves your stash while it is up.</p>
+          <section className="se-board-section" aria-labelledby="board-mine">
+            <div className="se-stores-sectionhead">
+              <div><span className="se-eyebrow">{formatNumber(book.openOffers)} of {formatNumber(book.rules.maxOpenOffers)} up</span><h2 id="board-mine">Your offers</h2></div>
+              <p>Cancel brings the stack home. The posting fee stays spent.</p>
+            </div>
+            {book.mine.length === 0 ? (
+              <p className="se-board-empty">You have not listed anything.</p>
+            ) : (
+              <div className="se-tablewrap">
+                <table className="se-table se-table--cards se-board-mine">
+                  <thead><tr><th>Item</th><th className="se-table__number">Qty</th><th>Price</th><th>Status</th><th><span className="se-sr-only">Actions</span></th></tr></thead>
+                  <tbody>
+                    {book.mine.map((offer) => (
+                      <tr key={offer.id}>
+                        <td data-label="Item">{offer.name}</td>
+                        <td className="se-table__number se-num" data-label="Qty">
+                          {offer.remainingQuantity < offer.quantity ? `${formatNumber(offer.remainingQuantity)} of ${formatNumber(offer.quantity)} left` : formatNumber(offer.quantity)}
+                        </td>
+                        <td className="se-board-trade" data-label="Price">
+                          <span>{offer.priceKind === 'BARTER' ? <><span className="se-board-trade__tag">Trade</span> {askSummary(offer.ask)} {lotLabel(offer.lotSize)}</> : <><span className="se-num">{formatCentsExact(offer.unitPriceCents)}</span> each</>}</span>
+                        </td>
+                        <td data-label="Status">
+                          {offer.status === 'OPEN' ? `Up · ${closesIn(offer.expiresAt, now)}` : STATUS_LABEL[offer.status]}
+                          {offer.returned ? null : ' · waiting on stash room'}
+                        </td>
+                        <td data-label="">
+                          {offer.status === 'OPEN' ? (
+                            <Button size="sm" disabledReason={busy ? 'Your last change is still going through.' : null} onClick={() => onCancel(offer)}>Cancel</Button>
+                          ) : null}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+
+          <section className="se-board-section" aria-labelledby="board-post">
+            <div className="se-stores-sectionhead">
+              <div><span className="se-eyebrow">Sell</span><h2 id="board-post">List goods</h2></div>
+              <p>The stack leaves your stash while it is up.</p>
+            </div>
+            <ListPanel book={book} busy={busy} form={form} onForm={onForm} onPost={onPost} />
+          </section>
         </div>
-        <ListPanel book={book} busy={busy} form={form} onForm={onForm} onPost={onPost} />
       </section>
     </>
   );
@@ -417,6 +421,7 @@ export function PlayerBoard() {
   const [filter, setFilter] = useState<PlayerBoardFilterDto>('ALL');
   const [closed, setClosed] = useState(false);
   const [locked, setLocked] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [unlockQuest, setUnlockQuest] = useState<{ key: string; title: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -424,10 +429,15 @@ export function PlayerBoard() {
   const [buyQuantities, setBuyQuantities] = useState<Record<string, string>>({});
   const [form, setForm] = useState<ListForm>({ key: '', quantity: '1', mode: 'CASH', price: '', ask: [], lot: '1', hours: 12 });
   const [now, setNow] = useState(() => Date.now());
+  const requestId = useRef(0);
 
   const load = useCallback(async (which: PlayerBoardFilterDto) => {
+    const currentRequest = ++requestId.current;
+    setLoading(true);
+    setError(null);
     try {
       const data = await storesApi.board(which);
+      if (currentRequest !== requestId.current) return;
       setBook(data);
       setClosed(false);
       setLocked(false);
@@ -439,6 +449,7 @@ export function PlayerBoard() {
         return { ...current, key: first?.key ?? '', price: first ? (first.floorCents / 100).toFixed(2) : '', hours: data.rules.listingHours[0] ?? 12 };
       });
     } catch (caught) {
+      if (currentRequest !== requestId.current) return;
       if (caught instanceof ApiError && caught.code === 'BOARD_CLOSED') {
         setBook(null);
         setClosed(true);
@@ -462,6 +473,8 @@ export function PlayerBoard() {
         setLocked(false);
         setError(caught instanceof ApiError ? caught.message : 'Could not load the Board.');
       }
+    } finally {
+      if (currentRequest === requestId.current) setLoading(false);
     }
   }, []);
 
@@ -538,7 +551,7 @@ export function PlayerBoard() {
 
   return (
     <GameLayout>
-      <div className="se-stores">
+      <div className="se-stores se-stores--board" aria-busy={loading}>
         <header className="se-stores-hero se-stores-hero--board">
           <div className="se-stores-hero__copy">
             <span className="se-eyebrow">Player listings{me ? ` · ${me.city.name}` : ''}</span>
@@ -547,7 +560,7 @@ export function PlayerBoard() {
           </div>
         </header>
 
-        <StoreTabs stores={stores} slug="board" board={!closed && !locked} />
+         <StoreTabs stores={stores} slug="board" board />
 
         {closed ? <Alert>That store is not open. <Link to="/game/stores/corner">Visit the Corner Store</Link>.</Alert> : null}
         {locked ? (
@@ -566,7 +579,10 @@ export function PlayerBoard() {
         ) : null}
         {error ? <Alert>{error}</Alert> : null}
         {notice ? <p className="se-salvage-receipt" role="status">{notice}</p> : null}
-        {!book && !closed && !locked && !error ? <div className="se-stores-loading" role="status">Loading the Board...</div> : null}
+         {loading ? <div className="se-stores-loading se-board-loading" role="status" aria-live="polite">
+           <span className="se-board-loading__mark" aria-hidden="true" />
+           <span>Checking the Board...</span>
+         </div> : null}
         {book && !closed ? (
           <PlayerBoardView book={book} now={now} busy={busy} form={form}
             onFilter={setFilter} onForm={setForm} onPost={post} onCancel={cancel}

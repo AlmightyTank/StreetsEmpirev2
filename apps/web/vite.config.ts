@@ -20,4 +20,31 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['@streets/shared'],
   },
+  build: {
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          groups: [
+            {
+              name: 'react-vendor',
+              test: /node_modules[\\/]react(?:$|[\\/])/,
+              priority: 30,
+            },
+            {
+              name: 'router-vendor',
+              test: /node_modules[\\/]react-router(?:$|[\\/])/,
+              priority: 25,
+            },
+            {
+              name: 'common',
+              minShareCount: 2,
+              minSize: 20_000,
+              maxSize: 350_000,
+              priority: 5,
+            },
+          ],
+        },
+      },
+    },
+  },
 });

@@ -202,3 +202,4 @@ export function ContactRoomPage() {
     </GameLayout>
   );
 }
+import '../styles/contact-room.css';

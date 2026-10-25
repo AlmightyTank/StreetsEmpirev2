@@ -858,3 +858,9 @@ export function DashboardPage() {
 
   return <Navigate to="/join" replace />;
 }
+import '../styles/dashboard.css';
+import '../styles/career-story.css';
+import '../styles/dashboard-cinematic.css';
+import '../styles/dashboard-final-polish.css';
+import '../styles/empire-management.css';
+import '../styles/street-sign-backdrops.css';

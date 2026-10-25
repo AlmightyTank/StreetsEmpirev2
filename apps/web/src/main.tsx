@@ -22,59 +22,11 @@ import './styles/experience-shell.css';
 // 4. Theme token/component overrides, then decorative route identity.
 import './styles/site-themes.css';
 import './styles/page-identities.css';
-// 5. Page art and feature-specific composition.
-import './styles/hideout.css';
-import './styles/dashboard.css';
-import './styles/career-story.css';
-import './styles/scout.css';
-import './styles/produce.css';
-import './styles/raids.css';
-import './styles/encounter-cinema.css';
-import './styles/stores.css';
-import './styles/items.css';
-import './styles/street-pass.css';
-import './styles/round-roll-call.css';
-import './styles/supporter.css';
-import './styles/drop.css';
-import './styles/drop-shop.css';
-import './styles/drop-art.css';
-import './styles/drop-shells.css';
-import './styles/birthday.css';
-import './styles/travel.css';
-import './styles/city-blocks.css';
-import './styles/quests.css';
-import './styles/quest-phone.css';
-import './styles/contact-room.css';
-import './styles/events.css';
-import './styles/surveys.css';
-import './styles/rankings.css';
-import './styles/aftermath.css';
-import './styles/players.css';
-import './styles/console.css';
-import './styles/alliance.css';
-import './styles/contacts.css';
-import './styles/profile.css';
-import './styles/street-sign-builder.css';
-import './styles/street-sign-backdrops.css';
-import './styles/street-skills.css';
-import './styles/profile-hover.css';
-import './styles/activity.css';
-import './styles/admin.css';
-import './styles/public-info.css';
-import './styles/account-settings.css';
-import './styles/easter-eggs.css';
-import './styles/action-experience.css';
-import './styles/action-readiness-accessibility.css';
-import './styles/empire-management.css';
-import './styles/economy-experience.css';
-import './styles/career-experience.css';
-import './styles/social-experience.css';
-import './styles/admin-workspace.css';
-import './styles/dashboard-cinematic.css';
-import './styles/dashboard-final-polish.css';
-// 6. Development surfaces (selectors are fully scoped).
+// Feature CSS is imported by the lazy route that owns it so the first page does
+// not download the entire game's stylesheet. Keep only shared shell styles here.
+// Development surfaces (selectors are fully scoped).
 import './styles/ui-gallery.css';
-// 7. Final mobile-only game shell skin, after theme and feature layers.
+// Final mobile-only game shell skin, after theme and feature layers.
 import './styles/mobile-shell-vision.css';
 import { App } from './App.js';
 // Before React mounts: Android can offer the install prompt immediately.

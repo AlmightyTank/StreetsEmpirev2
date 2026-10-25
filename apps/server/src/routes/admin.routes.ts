@@ -54,17 +54,12 @@ import { wakeDiscordBot } from '../services/discord-bot-push.service.js';
 import { SiteBannerService } from '../services/site-banner.service.js';
 import { AdminEconomyService } from '../services/admin-economy.service.js';
 import { AdminPlayerBoardService } from '../services/admin-player-board.service.js';
-import { AdminSupplyService } from '../services/admin-supply.service.js';
-import { AdminSupplyCorrectionService } from '../services/admin-supply-correction.service.js';
-import { AdminLoansService } from '../services/admin-loans.service.js';
-import { AdminLoanCorrectionService } from '../services/admin-loan-correction.service.js';
 import { env } from '../config/env.js';
 import { AdminCasinoService } from '../services/admin-casino.service.js';
 import { AdminSportsbookService } from '../services/admin-sportsbook.service.js';
 import { AdminFactionService } from '../services/admin-faction.service.js';
 import { ADMIN_VEHICLE_MAX, AdminVehicleService } from '../services/admin-vehicle.service.js';
 import { AdminAmmoPartsService } from '../services/admin-ammo-parts.service.js';
-import { AdminArmoryService } from '../services/admin-armory.service.js';
 import { AdminLawService } from '../services/admin-law.service.js';
 import { AdminCareerStoryService } from '../services/admin-career-story.service.js';
 import { AdminTurfService } from '../services/admin-turf.service.js';
@@ -267,21 +262,6 @@ const eventCalendarSchema = z.object({
   endsAt: z.string().datetime().nullable().optional(),
   cancel: z.boolean().optional(),
 }).strict();
-
-// 1.3.0-G: set one city's Case to an exact value, with a reason.
-const supplyAdjustSchema = z.object({
-  target: z.enum(['WAREHOUSE', 'CREW']),
-  targetId: z.string().trim().min(1).max(64),
-  productKey: z.string().trim().toUpperCase().regex(/^[A-Z][A-Z0-9_]{1,31}$/),
-  quantity: z.number().int().min(0).max(10_000_000),
-  reason: z.string().trim().min(3).max(500),
-}).strict();
-
-// 1.6.5-F: one audited loan correction, for a verified error: a late fee, or a missed installment.
-const loanCorrectionSchema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('WAIVE_LATE_FEE'), feeId: z.string().trim().min(1).max(64), reason: z.string().trim().min(3).max(500) }).strict(),
-  z.object({ kind: z.literal('EXCUSE_MISS'), installmentId: z.string().trim().min(1).max(64), reason: z.string().trim().min(3).max(500) }).strict(),
-]);
 
 const lawAdjustSchema = z.object({
   reason,
@@ -1253,18 +1233,6 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     return AdminEconomyService.markets(fastify.prisma, roundId);
   });
 
-  /** 1.6.0-A: read-only supply state and reconciliation across orders, stock, crews, and movements. */
-  fastify.get('/rounds/:roundId/supply', async (request) => {
-    const { roundId } = parseBody(roundParams, request.params);
-    return AdminSupplyService.report(fastify.prisma, roundId);
-  });
-
-  /** 1.6.5-F: read-only loan shark health for a round, every borrower reconciled and exploit-checked. */
-  fastify.get('/rounds/:roundId/loans', async (request) => {
-    const { roundId } = parseBody(roundParams, request.params);
-    return AdminLoansService.report(fastify.prisma, roundId);
-  });
-
   /** The Board H: the staff ledger of posts, fills, cancels and expiries, with an escrow check. */
   fastify.get('/rounds/:roundId/board', async (request) => {
     const { roundId } = parseBody(roundParams, request.params);
@@ -1361,12 +1329,6 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     return AdminAmmoPartsService.report(fastify.prisma, roundId);
   });
 
-  /** 2.5.0-G: read-only individual equipment inspector and item event audit trail. */
-  fastify.get('/players/:roundPlayerId/armory', async (request) => {
-    const { roundPlayerId } = parseBody(playerParams, request.params);
-    return AdminArmoryService.player(fastify.prisma, roundPlayerId);
-  });
-
   /** 1.5.0-E: an audited correction to one vehicle class's home counts. */
   fastify.post('/players/:roundPlayerId/vehicles/adjust', async (request) => {
     const { roundPlayerId } = parseBody(playerParams, request.params);
@@ -1377,26 +1339,6 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/players/:roundPlayerId/law', async (request) => {
     const { roundPlayerId } = parseBody(playerParams, request.params);
     return AdminLawService.player(fastify.prisma, roundPlayerId);
-  });
-
-  /** 1.6.0-I: an audited correction to one warehouse's or crew's stock, written to the movement ledger. */
-  fastify.post('/players/:roundPlayerId/supply/adjust', async (request) => {
-    const { roundPlayerId } = parseBody(playerParams, request.params);
-    const body = parseBody(supplyAdjustSchema, request.body ?? {});
-    return AdminSupplyCorrectionService.adjust(fastify.prisma, request.auth!.account, roundPlayerId, body);
-  });
-
-  /** 1.6.5-F: one player's loans in full: contracts, schedules, payments, fees, journal and ledger. */
-  fastify.get('/players/:roundPlayerId/loans', async (request) => {
-    const { roundPlayerId } = parseBody(playerParams, request.params);
-    return AdminLoansService.player(fastify.prisma, roundPlayerId);
-  });
-
-  /** 1.6.5-F: an audited loan correction: waive one late fee, or excuse one missed installment. */
-  fastify.post('/players/:roundPlayerId/loans/correct', async (request) => {
-    const { roundPlayerId } = parseBody(playerParams, request.params);
-    const body = parseBody(loanCorrectionSchema, request.body ?? {});
-    return AdminLoanCorrectionService.correct(fastify.prisma, request.auth!.account, roundPlayerId, body);
   });
 
   /** 1.3.0-G: an audited correction to one city's Case. */

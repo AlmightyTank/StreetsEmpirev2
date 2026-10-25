@@ -118,7 +118,6 @@ export const SECTIONS: NavSection[] = [
     title: 'Help & Settings',
     defaultOpen: true,
     pages: [
-      { key: 'status', label: 'Status & Support', short: 'Status', to: '/game/status', icon: 'status', aliases: ['/game/report-bug'] },
       { key: 'rules', label: 'Rules', to: '/game/rules', icon: 'rules' },
       { key: 'account', label: 'Account', to: '/account', icon: 'account' },
     ],

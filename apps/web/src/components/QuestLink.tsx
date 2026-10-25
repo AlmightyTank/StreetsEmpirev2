@@ -3,7 +3,7 @@ import type { QuestLinkDto } from '@streets/shared';
 
 /** 1.5.0-E2. The jobs page, opened on one quest's card. */
 export function questHref(questKey: string): string {
-  return `/game/quests?focus=${encodeURIComponent(questKey)}#quest-${encodeURIComponent(questKey)}`;
+  return `/game/quests?view=jobs&focus=${encodeURIComponent(questKey)}#quest-${encodeURIComponent(questKey)}`;
 }
 
 /** 1.5.0-E2. A link straight to the job behind a lock: "“Pack Your Bags” for Wheels". */

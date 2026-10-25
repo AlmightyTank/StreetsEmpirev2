@@ -538,3 +538,4 @@ export function StreetPassPage() {
     </GameLayout>
   );
 }
+import '../styles/street-pass.css';

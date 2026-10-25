@@ -931,3 +931,4 @@ export function ProfilePage() {
     </GameLayout>
   );
 }
+import '../styles/profile.css';
