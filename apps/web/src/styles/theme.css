@@ -11,6 +11,11 @@
  */
 
 :root {
+  /* Bootstrap makes the root scroll smoothly, which turns every programmatic
+     correction (route scroll restore, the quest viewport pin, Virtuoso's
+     window scroll compensation) into an animation the next correction
+     restarts. Code that wants a glide passes `behavior: 'smooth'` itself. */
+  scroll-behavior: auto;
   --se-bg: #07090c;
   --se-panel: #12161c;
   --se-panel-hi: #181d25;
