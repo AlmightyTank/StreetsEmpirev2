@@ -41,6 +41,8 @@ export interface NetWorthInput {
   casinoNetWorthCents?: bigint | number;
   /** 1.6.5-A. What the player owes the loan shark. Comes off net worth at the cash weight. */
   loanDebtCents?: bigint | number;
+  /** The Board B. The stored scavenge part balances; valued at their books only while the Board is enabled. */
+  scavengedComponents?: unknown;
 }
 
 export interface ThugHappinessInput {

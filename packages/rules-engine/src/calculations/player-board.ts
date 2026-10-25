@@ -49,3 +49,27 @@ export function playerBoardSellerProceedsCents(totalCents: number, ruleset: Band
   if (!Number.isSafeInteger(totalCents) || totalCents < 0) throw new Error('A fill total must be whole, non-negative cents.');
   return Number((BigInt(totalCents) * BigInt(100 - board.taxPercent)) / 100n);
 }
+
+/** The Board B. A part's book in cents, or null when the ruleset gives it none and it cannot be listed. */
+export function playerBoardPartBookCents(key: string, ruleset: BandRules): number | null {
+  const books = ruleset.playerBoard?.partBookCents as Readonly<Record<string, number>> | undefined;
+  if (!books || !Object.hasOwn(books, key)) return null;
+  const book = books[key]!;
+  return Number.isSafeInteger(book) && book > 0 ? book : null;
+}
+
+/**
+ * The Board B. Held scavenge parts at book times quantity, only while the Board is enabled. Reads
+ * the stored `scavengedComponents` JSON as is; unknown keys and non-positive or fractional
+ * quantities count nothing.
+ */
+export function playerBoardPartsNetWorthCents(parts: unknown, ruleset: BandRules): bigint {
+  if (!ruleset.playerBoard?.enabled || !parts || typeof parts !== 'object' || Array.isArray(parts)) return 0n;
+  let total = 0n;
+  for (const [key, quantity] of Object.entries(parts)) {
+    const book = playerBoardPartBookCents(key, ruleset);
+    if (book === null || !Number.isSafeInteger(quantity) || (quantity as number) <= 0) continue;
+    total += BigInt(book) * BigInt(quantity as number);
+  }
+  return total;
+}

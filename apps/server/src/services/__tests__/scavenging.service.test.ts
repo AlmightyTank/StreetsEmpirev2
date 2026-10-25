@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { classicOgV26J } from '@streets/rulesets';
 import {
+  COMPONENTS,
   cacheOdds,
   cacheQualityForTurns,
   districtSupplyClue,
@@ -54,4 +56,13 @@ describe('hideout scavenging', () => {
     expect(scavengeFindCount(10)).toBe(5);
   });
 
+});
+
+describe('The Board B part books', () => {
+  it('book exactly the scavenge catalog, at one price per rarity', () => {
+    const books: Readonly<Record<string, number>> = classicOgV26J.playerBoard.partBookCents;
+    const perRarity = { COMMON: 400, UNCOMMON: 2_500, RARE: 8_000, EPIC: 25_000, LEGENDARY: 250_000 };
+    expect(Object.keys(books).sort()).toEqual(COMPONENTS.map((row) => row.key).sort());
+    for (const { key, rarity } of COMPONENTS) expect(books[key], key).toBe(perRarity[rarity]);
+  });
 });

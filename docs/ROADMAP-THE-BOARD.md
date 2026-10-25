@@ -100,6 +100,17 @@ One reviewable PR per slice into `beta`, in order. A through D merge dark. E is 
 
 Slice A shipped as `classic-og-v2.6-j` (2.6.0-J): `playerBoard: { enabled: false, taxPercent: 8 }` and `playerBoardBand`, `isPlayerBoardPriceLegal` and `playerBoardSellerProceedsCents` in `packages/rules-engine/src/calculations/player-board.ts`. Seller proceeds round down, so the deleted tax never rounds away and a fill inside the band holds for every cash balance under the 75% truncation. One cent outside the band raises one side by a fraction of a cent per unit, so the rank tests in `player-board.test.ts` use 100-unit fills to clear that rounding.
 
+Slice B adds `playerBoard.partBookCents` to `classic-og-v2.6-j`, which is still unreleased and dark, with the books from the part table above for all 19 keys. `playerBoardPartBookCents` returns null for any other key, so it cannot be listed. `calculateNetWorthCents` counts held parts from the stored `scavengedComponents` only while `playerBoard.enabled` is true. Flag off is today's rank.
+
+Two things must land before slice E turns the flag on:
+
+- **Server wiring.** The rules engine counts parts only when the caller passes `scavengedComponents`. Every server path that writes `netWorthCents` must select it. The services that change part balances (scavenging, workshop, Salvage Yard, hideout builds, generator) must also recompute `netWorthCents`, because today they do not.
+- **The Salvage Yard breaks the rank rule at these books.** The yard sells commons for $100 and uncommons for $300, and it barters the rest. Two routes raise rank:
+  - Cash alone. A fuel cell or specialist circuitry costs about $2,250 in yard cash, which is about $1,690 of weighted rank, for $2,500 of book.
+  - Barter, once the Board is on. Every yard barter returns more book than it takes. For example, 5 commons plus 20 beer, roughly $24 of book, become an $80 motor assembly. Buying those commons on the Board at the floor is rank-neutral, so cash plus Board plus yard mints rank.
+
+  The highest per-rarity books with no rank-raising yard route are $4 / $20 / $22 / $38 / $114. The books shipped as written by decision. The slice H sim has to resolve this, either by retuning the books or by changing the yard's prices and barters.
+
 F and G both sit on E. Product is the smaller cut, so it goes first. H is last. D lands before E so the tab exists on the round where fills turn on.
 
 What each slice may touch:

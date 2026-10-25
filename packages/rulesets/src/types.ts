@@ -1300,7 +1300,20 @@ export interface PlayerBoardRules {
   readonly enabled: boolean;
   /** Share of a fill deleted from the round, in percent. The seller keeps the rest, rounded down. */
   readonly taxPercent: number;
+  /**
+   * The Board B. Net worth per held scavenge part, in cents, counted only while `enabled`. A key
+   * without a book can never be listed.
+   */
+  readonly partBookCents: { readonly [K in ScavengePartKey]: number };
 }
+
+/** The Board B. Every hideout scavenge part, as stored in `RoundPlayer.scavengedComponents`. */
+export type ScavengePartKey =
+  | 'SCRAP_METAL' | 'WIRING' | 'TOOL_KIT' | 'BOTTLES' | 'LABELS' | 'PACKAGING' | 'LUMBER' | 'FASTENERS' | 'CLOTH'
+  | 'BASIC_MEDICINE' | 'FUEL_CAN' | 'RADIO'
+  | 'MOTOR_ASSEMBLY' | 'REPAIR_SUPPLIES' | 'SPECIALTY_CONTAINER'
+  | 'PRECISION_PARTS' | 'ADVANCED_MEDICAL'
+  | 'HIGH_CAPACITY_FUEL_CELL' | 'SPECIALIST_CIRCUITRY';
 
 /** 2.4.0-B. Versioned catalog data for the ammo and vehicle-parts foundation. */
 export interface AmmoPartsRules {

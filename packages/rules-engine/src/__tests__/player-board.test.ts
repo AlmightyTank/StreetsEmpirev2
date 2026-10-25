@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { classicOgV26I, classicOgV26J, rulesets, type Ruleset } from '@streets/rulesets';
 import { calculateNetWorthCents } from '../calculations/net-worth.js';
-import { isPlayerBoardPriceLegal, playerBoardBand, playerBoardSellerProceedsCents } from '../calculations/player-board.js';
+import {
+  isPlayerBoardPriceLegal,
+  playerBoardBand,
+  playerBoardPartBookCents,
+  playerBoardPartsNetWorthCents,
+  playerBoardSellerProceedsCents,
+} from '../calculations/player-board.js';
 
 const empty = {
   cashCents: 0, whores: 0, thugs: 0, lowRiders: 0, medicine: 0, crack: 0,
@@ -40,7 +46,8 @@ function fill(column: Column, quantity: number, unitPriceCents: number, buyerCas
 describe('The Board A: ruleset', () => {
   it('ships the block switched off on the next ruleset', () => {
     expect(Object.values(rulesets).at(-1)?.meta.id).toBe('classic-og-v2.6-j');
-    expect(rules.playerBoard).toEqual({ enabled: false, taxPercent: 8 });
+    expect(rules.playerBoard.enabled).toBe(false);
+    expect(rules.playerBoard.taxPercent).toBe(8);
   });
 
   it('changes nothing else from 2.6.0-I', () => {
@@ -152,5 +159,51 @@ describe('The Board A: rank', () => {
   it('leaves net worth on a ruleset without the block exactly as 2.6.0-I counts it', () => {
     const player = { ...empty, cashCents: 1_234_567, crack: 40, pistols: 3, lowRiders: 1 };
     expect(calculateNetWorthCents(player, rules)).toBe(calculateNetWorthCents(player, classicOgV26I));
+  });
+});
+
+describe('The Board B: part books', () => {
+  const on = { ...rules, playerBoard: { ...rules.playerBoard, enabled: true } };
+  const books = rules.playerBoard.partBookCents;
+
+  it('books all 19 scavenge keys at one price per rarity', () => {
+    const byBook = (cents: number) => Object.keys(books).filter((key) => books[key as keyof typeof books] === cents);
+    expect(Object.keys(books)).toHaveLength(19);
+    expect(byBook(400)).toEqual(['SCRAP_METAL', 'WIRING', 'TOOL_KIT', 'BOTTLES', 'LABELS', 'PACKAGING', 'LUMBER', 'FASTENERS', 'CLOTH']);
+    expect(byBook(2_500)).toEqual(['BASIC_MEDICINE', 'FUEL_CAN', 'RADIO']);
+    expect(byBook(8_000)).toEqual(['MOTOR_ASSEMBLY', 'REPAIR_SUPPLIES', 'SPECIALTY_CONTAINER']);
+    expect(byBook(25_000)).toEqual(['PRECISION_PARTS', 'ADVANCED_MEDICAL']);
+    expect(byBook(250_000)).toEqual(['HIGH_CAPACITY_FUEL_CELL', 'SPECIALIST_CIRCUITRY']);
+  });
+
+  it('gives every book a legal band, and no book to a key outside the catalog', () => {
+    for (const key of Object.keys(books)) expect(playerBoardBand(playerBoardPartBookCents(key, rules)!, rules), key).not.toBeNull();
+    for (const key of ['AMMO_BOX', 'PISTOL', 'CRACK', 'toString', '__proto__', 'scrap_metal', '']) {
+      expect(playerBoardPartBookCents(key, rules), key).toBeNull();
+    }
+    expect(playerBoardPartBookCents('SCRAP_METAL', classicOgV26I)).toBeNull();
+    const zeroed = { ...rules, playerBoard: { ...rules.playerBoard, partBookCents: { ...books, RADIO: 0 } } };
+    expect(playerBoardPartBookCents('RADIO', zeroed)).toBeNull();
+  });
+
+  it('moves rank by book times quantity while the Board is on', () => {
+    const parts = { SCRAP_METAL: 100, RADIO: 2, SPECIALIST_CIRCUITRY: 1 };
+    const held = { ...empty, cashCents: 123_457, scavengedComponents: parts };
+    const without = { ...empty, cashCents: 123_457 };
+    expect(calculateNetWorthCents(held, on) - calculateNetWorthCents(without, on)).toBe(40_000n + 5_000n + 250_000n);
+    expect(playerBoardPartsNetWorthCents({ PRECISION_PARTS: 3 }, on)).toBe(75_000n);
+  });
+
+  it('counts nothing with the Board off, which is today\'s rank', () => {
+    const held = { ...empty, cashCents: 123_457, crack: 9, scavengedComponents: { SCRAP_METAL: 100, PRECISION_PARTS: 4 } };
+    const without = { ...held, scavengedComponents: undefined };
+    expect(calculateNetWorthCents(held, rules)).toBe(calculateNetWorthCents(without, rules));
+    expect(calculateNetWorthCents(held, rules)).toBe(calculateNetWorthCents(without, classicOgV26I));
+    expect(calculateNetWorthCents(held, classicOgV26I)).toBe(calculateNetWorthCents(without, classicOgV26I));
+  });
+
+  it('ignores stored balances that are not whole positive quantities of a booked key', () => {
+    expect(playerBoardPartsNetWorthCents({ SCRAP_METAL: -5, WIRING: 1.5, TOOL_KIT: '3', LABELS: 0, MYSTERY: 10, CLOTH: 2 }, on)).toBe(800n);
+    for (const junk of [null, undefined, 7, 'SCRAP_METAL', [1, 2], {}]) expect(playerBoardPartsNetWorthCents(junk, on)).toBe(0n);
   });
 });

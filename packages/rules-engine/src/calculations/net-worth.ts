@@ -2,6 +2,7 @@ import { classicOgV01, type Ruleset } from '@streets/rulesets';
 import type { NetWorthInput } from '../types.js';
 import { productNetWorthCents } from './product-economy.js';
 import { weightedDebtCents } from './loans.js';
+import { playerBoardPartsNetWorthCents } from './player-board.js';
 
 /**
  * Section 16. Integer cents only - money never touches a float.
@@ -56,6 +57,8 @@ export function calculateNetWorthCents(
     // 1.2.0-A: casino chips/bankroll are cash-equivalents, so cage transfers cannot mint ranking value.
     casinoCash
     + ammo
+    // The Board B: scavenge parts at their books, only on a round with the Board switched on.
+    + playerBoardPartsNetWorthCents(player.scavengedComponents, ruleset)
   );
   // 1.6.5-A: what is owed comes back off, so borrowing never buys rank. Never below zero.
   const debt = weightedDebtCents(player.loanDebtCents ?? 0, v.cashWeightPercent);
