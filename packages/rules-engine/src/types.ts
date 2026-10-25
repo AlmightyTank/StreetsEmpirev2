@@ -43,7 +43,7 @@ export interface NetWorthInput {
   loanDebtCents?: bigint | number;
   /** The Board B. The stored scavenge part balances; valued at their books only while the Board is enabled. */
   scavengedComponents?: unknown;
-  /** The Board C. Parts escrowed on the seller's offers, by key; still owned, so valued like held parts. */
+  /** The Board C-F. Parts and drugs escrowed on the seller's offers, by key; still owned, so valued at their books. */
   playerBoardEscrow?: unknown;
 }
 

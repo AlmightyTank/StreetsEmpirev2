@@ -1,4 +1,5 @@
 import type { Ruleset } from '@streets/rulesets';
+import { CRACK_PRODUCT, productEconomy } from './product-economy.js';
 
 /** The Board A. Legal unit prices for one book value, in integer cents. */
 export interface PlayerBoardBand {
@@ -114,4 +115,51 @@ export function playerBoardTradeTopUpCents(outputBookCents: number, inputBookCen
   const weight = BigInt(ruleset.economy.netWorth.cashWeightPercent);
   const cents = (shortfall * 100n + weight - 1n) / weight;
   return Number(((cents + 99n) / 100n) * 100n);
+}
+
+/**
+ * The Board F. A drug's book in cents, or null when it cannot be listed. The book is its net
+ * worth value, and the drug is listable only while that equals Pip's buyback.
+ */
+export function playerBoardProductBookCents(key: string, ruleset: BandRules & Pick<Ruleset, 'stores'> & Partial<Pick<Ruleset, 'products'>>): number | null {
+  if (!ruleset.playerBoard?.listableProducts?.includes(key)) return null;
+  let book: number;
+  let buyback: number | null;
+  if (key === CRACK_PRODUCT) {
+    book = ruleset.economy.netWorth.perCrackCents;
+    buyback = ruleset.stores.PIP?.items.CRACK?.sellCents ?? null;
+  } else {
+    const economy = productEconomy(ruleset as Ruleset, key);
+    if (!economy?.pip) return null;
+    book = economy.netWorthCents;
+    buyback = economy.pip.sellCents;
+  }
+  return Number.isSafeInteger(book) && book > 0 && book === buyback ? book : null;
+}
+
+/** The Board F. What a listable item is: a scavenge part, a drug, or nothing the Board takes. */
+export function playerBoardItemKind(key: string, ruleset: Ruleset): 'PART' | 'PRODUCT' | null {
+  if (playerBoardPartBookCents(key, ruleset) !== null) return 'PART';
+  if (playerBoardProductBookCents(key, ruleset) !== null) return 'PRODUCT';
+  return null;
+}
+
+/** The Board F. The book of any listable item, or null for anything the Board does not take. */
+export function playerBoardItemBookCents(key: string, ruleset: Ruleset): number | null {
+  return playerBoardPartBookCents(key, ruleset) ?? playerBoardProductBookCents(key, ruleset);
+}
+
+/**
+ * The Board C-F. Escrowed stacks at their books, only while the Board is enabled. Parts and drugs
+ * both count: an escrowed stack is still the seller's until it sells.
+ */
+export function playerBoardEscrowNetWorthCents(escrow: unknown, ruleset: Ruleset): bigint {
+  if (!ruleset.playerBoard?.enabled || !escrow || typeof escrow !== 'object' || Array.isArray(escrow)) return 0n;
+  let total = 0n;
+  for (const [key, quantity] of Object.entries(escrow)) {
+    const book = playerBoardItemBookCents(key, ruleset);
+    if (book === null || !Number.isSafeInteger(quantity) || (quantity as number) <= 0) continue;
+    total += BigInt(book) * BigInt(quantity as number);
+  }
+  return total;
 }

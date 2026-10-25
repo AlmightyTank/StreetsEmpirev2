@@ -87,7 +87,7 @@ describe.runIf(process.env.PLAYER_BOARD_INTEGRATION === '1')('The Board escrow w
   it('refuses more than you hold, a key outside the catalog, a price outside the band, and an odd length', async () => {
     expect(await code(post({ quantity: 51 }))).toBe('NOT_ENOUGH_TO_LIST');
     expect(await code(post({ itemKey: 'FUEL_CAN', quantity: 1, unitPriceCents: 3_400 }))).toBe('NOT_ENOUGH_TO_LIST');
-    for (const itemKey of ['AMMO_BOX', 'PISTOL', 'CRACK', 'toString', 'scrap_metal']) {
+    for (const itemKey of ['AMMO_BOX', 'PISTOL', 'SPEED', 'toString', 'scrap_metal']) {
       expect(await code(post({ itemKey })), itemKey).toBe('NOT_LISTABLE');
     }
     expect(await code(post({ unitPriceCents: 533 }))).toBe('PRICE_OUTSIDE_BAND');

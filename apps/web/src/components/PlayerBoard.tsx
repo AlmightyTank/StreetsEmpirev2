@@ -38,7 +38,7 @@ export function parseDollarsToCents(value: string): number | null {
   return Number(match[1]) * 100 + Number((match[2] ?? '').padEnd(2, '0'));
 }
 
-const FILTERS: ReadonlyArray<readonly [PlayerBoardFilterDto, string]> = [['ALL', 'All'], ['PARTS', 'Parts']];
+const FILTERS: ReadonlyArray<readonly [PlayerBoardFilterDto, string]> = [['ALL', 'All'], ['PRODUCTS', 'Drugs'], ['PARTS', 'Parts']];
 const STATUS_LABEL: Record<PlayerBoardOfferDto['status'], string> = { OPEN: 'Up', SOLD: 'Sold', CANCELLED: 'Cancelled', EXPIRED: 'Expired' };
 
 function closesIn(iso: string, now: number): string {
@@ -63,7 +63,7 @@ export interface PlayerBoardViewProps {
 function ListPanel({ book, busy, form, onForm, onPost }: Pick<PlayerBoardViewProps, 'book' | 'busy' | 'form' | 'onForm' | 'onPost'>) {
   const part: PlayerBoardListableDto | undefined = book.listable.find((row) => row.key === form.key) ?? book.listable[0];
   if (!part) {
-    return <p className="se-board-empty">You have no parts to list. Scouting turns them up; the Salvage Yard sells the everyday ones.</p>;
+    return <p className="se-board-empty">You have nothing to list. Drugs come from cooking and Pip; parts from scouting and the Salvage Yard.</p>;
   }
   const quantity = Number(form.quantity);
   const price = parseDollarsToCents(form.price);
@@ -78,13 +78,20 @@ function ListPanel({ book, busy, form, onForm, onPost }: Pick<PlayerBoardViewPro
   return (
     <form className="se-board-list" onSubmit={(event) => { event.preventDefault(); if (!reason) onPost(); }}>
       <div className="se-field">
-        <label className="se-label" htmlFor="board-part">Part</label>
+        <label className="se-label" htmlFor="board-part">Item</label>
         <select id="board-part" className="se-input" value={part.key}
           onChange={(event) => {
             const next = book.listable.find((row) => row.key === event.target.value)!;
             onForm({ ...form, key: next.key, quantity: String(Math.min(Number(form.quantity) || 1, next.held)), price: (next.floorCents / 100).toFixed(2) });
           }}>
-          {book.listable.map((row) => <option key={row.key} value={row.key}>{row.name} ({formatNumber(row.held)} held)</option>)}
+          {([['PRODUCT', 'Drugs'], ['PART', 'Parts']] as const).map(([category, label]) => {
+            const rows = book.listable.filter((row) => row.category === category);
+            return rows.length ? (
+              <optgroup key={category} label={label}>
+                {rows.map((row) => <option key={row.key} value={row.key}>{row.name} ({formatNumber(row.held)} held)</option>)}
+              </optgroup>
+            ) : null;
+          })}
         </select>
       </div>
       <div className="se-field">
@@ -144,7 +151,7 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
               <tbody>
                 {book.rows.map((row) => (
                   <tr key={row.id} className={row.mine ? 'se-board-book__mine' : undefined}>
-                    <td data-label="Item"><span className={`se-board-rarity se-board-rarity--${(row.rarity ?? 'common').toLowerCase()}`}>{row.name}</span></td>
+                    <td data-label="Item"><span className={`se-board-rarity se-board-rarity--${row.category === 'PRODUCT' ? 'product' : (row.rarity ?? 'common').toLowerCase()}`}>{row.name}</span></td>
                     <td data-label="Seller"><span>{row.sellerName}{row.mine ? <span className="se-board-you"> (you)</span> : null}</span></td>
                     <td className="se-table__number se-num" data-label="Qty">{formatNumber(row.quantity)}</td>
                     <td className="se-table__number se-num" data-label="Each">{formatCentsExact(row.unitPriceCents)}</td>
@@ -201,7 +208,7 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
 
       <section className="se-board-section" aria-labelledby="board-post">
         <div className="se-stores-sectionhead">
-          <div><span className="se-eyebrow">Sell</span><h2 id="board-post">List parts</h2></div>
+          <div><span className="se-eyebrow">Sell</span><h2 id="board-post">List goods</h2></div>
           <p>The stack leaves your stash while it is up.</p>
         </div>
         <ListPanel book={book} busy={busy} form={form} onForm={onForm} onPost={onPost} />

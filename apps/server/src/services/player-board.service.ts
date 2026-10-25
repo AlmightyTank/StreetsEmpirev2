@@ -1,9 +1,11 @@
 import type { PlayerBoardOffer, Prisma, PrismaClient, Round } from '@prisma/client';
 import {
   isPlayerBoardPriceLegal,
+  loadRuleset,
   playerBoardBand,
+  playerBoardItemBookCents,
+  playerBoardItemKind,
   playerBoardOfferExpiresAt,
-  playerBoardPartBookCents,
   playerBoardPostingFeeCents,
   playerBoardSellerProceedsCents,
   type Ruleset,
@@ -24,11 +26,12 @@ import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { assertNotPaused } from './action.service.js';
 import { EconomyLedgerService } from './economy-ledger.service.js';
 import { IdempotencyService } from './idempotency.service.js';
+import { ProductInventoryService } from './product-inventory.service.js';
 import { COMPONENTS, jsonObject } from './scavenging.service.js';
 
 /**
- * The Board C: escrow. Posting moves a stack of parts out of `scavengedComponents` into
- * `playerBoardEscrow`, opens an offer for it, and charges the posting fee, which never comes back.
+ * The Board C: escrow. Posting moves a stack out of the seller's holdings (parts from
+ * `scavengedComponents`, drugs from product inventory, F) into `playerBoardEscrow`, opens an offer for it, and charges the posting fee, which never comes back.
  * Both balances count toward net worth, so only the fee moves rank. Cancel and expiry return the
  * stack. An expired stack that needs a new stash cell when none is free stays held on the offer
  * (`returnedAt` null) and goes back the next time the seller's offers settle with room.
@@ -36,14 +39,21 @@ import { COMPONENTS, jsonObject } from './scavenging.service.js';
  * after the tax, and deletes the tax from the round.
  */
 
-export type BoardRound = Pick<Round, 'id' | 'name' | 'status' | 'endsAt' | 'pausedAt' | 'pauseReason' | 'pausedMinutesTotal'>;
+export type BoardRound = Pick<Round, 'id' | 'name' | 'status' | 'endsAt' | 'pausedAt' | 'pauseReason' | 'pausedMinutesTotal' | 'rulesetId' | 'rulesetVersion'>;
 
 /** Most recent of the viewer's offers returned by `mine`, open ones included. */
 const MINE_LIMIT = 50;
 /** Open offers the book reads at once: at most six per player, so this covers a busy round. */
 const BOOK_LIMIT = 500;
 
-const componentName = (key: string) => COMPONENTS.find((row) => row.key === key)?.name ?? key;
+/** The round's pinned ruleset, for the paths that move stacks without being handed one. */
+function rulesFor(round: BoardRound): Ruleset {
+  return loadRuleset(round.rulesetId, round.rulesetVersion);
+}
+
+function itemName(key: string, ruleset: Ruleset): string {
+  return COMPONENTS.find((row) => row.key === key)?.name ?? ruleset.products?.[key]?.name ?? key;
+}
 
 function dollars(cents: number): string {
   return `$${(cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -56,11 +66,11 @@ function assertPlayable(round: BoardRound, now: Date): void {
   assertNotPaused(round);
 }
 
-export function offerDto(offer: PlayerBoardOffer, round: Pick<BoardRound, 'pausedAt' | 'pausedMinutesTotal'>, now: Date): PlayerBoardOfferDto {
+export function offerDto(offer: PlayerBoardOffer, round: Pick<BoardRound, 'pausedAt' | 'pausedMinutesTotal'>, now: Date, ruleset: Ruleset): PlayerBoardOfferDto {
   return {
     id: offer.id,
     itemKey: offer.itemKey,
-    name: componentName(offer.itemKey),
+    name: itemName(offer.itemKey, ruleset),
     quantity: offer.quantity,
     unitPriceCents: offer.unitPriceCents,
     feeCents: offer.feeCents,
@@ -85,25 +95,45 @@ async function canReturn(tx: Db, roundPlayerId: string, key: string, components:
   return canFitAdditionalStack(await StashService.page(tx, roundPlayerId), key as StashItemKeyDto);
 }
 
-async function escrowBalances(tx: Db, roundPlayerId: string): Promise<Record<string, number>> {
+function adjustBalance(balances: Record<string, number>, key: string, delta: number): void {
+  balances[key] = (balances[key] ?? 0) + delta;
+  if (balances[key]! <= 0) delete balances[key];
+}
+
+/** Units of an item the player holds: parts on the stash balance, drugs in product inventory. */
+async function heldUnits(tx: Db, roundPlayerId: string, key: string, ruleset: Ruleset): Promise<number> {
+  if (playerBoardItemKind(key, ruleset) === 'PRODUCT') return (await ProductInventoryService.read(tx, roundPlayerId, ruleset))[key] ?? 0;
+  return (await partBalances(tx, roundPlayerId))[key] ?? 0;
+}
+
+/** Whether a stack can land: parts need their stash stack or a free cell; drugs take no cell. */
+async function hasRoom(tx: Db, roundPlayerId: string, key: string, ruleset: Ruleset): Promise<boolean> {
+  if (playerBoardItemKind(key, ruleset) === 'PRODUCT') return true;
+  return canReturn(tx, roundPlayerId, key, await partBalances(tx, roundPlayerId));
+}
+
+/** Add to (or, negative, take from) what the player holds. */
+async function moveHeld(tx: Db, roundPlayerId: string, key: string, delta: number, ruleset: Ruleset): Promise<void> {
+  if (playerBoardItemKind(key, ruleset) === 'PRODUCT') {
+    await ProductInventoryService.adjust(tx, roundPlayerId, ruleset, { [key]: delta });
+    return;
+  }
+  const components = await partBalances(tx, roundPlayerId);
+  adjustBalance(components, key, delta);
+  await tx.roundPlayer.update({ where: { id: roundPlayerId }, data: { scavengedComponents: components as Prisma.InputJsonValue } });
+}
+
+async function moveEscrow(tx: Db, roundPlayerId: string, key: string, delta: number): Promise<void> {
   const player = await tx.roundPlayer.findUniqueOrThrow({ where: { id: roundPlayerId }, select: { playerBoardEscrow: true } });
-  return jsonObject(player.playerBoardEscrow, {});
+  const escrow = jsonObject(player.playerBoardEscrow, {});
+  adjustBalance(escrow, key, delta);
+  await tx.roundPlayer.update({ where: { id: roundPlayerId }, data: { playerBoardEscrow: escrow as Prisma.InputJsonValue } });
 }
 
-function moveUnits(from: Record<string, number>, to: Record<string, number>, key: string, quantity: number): void {
-  from[key] = (from[key] ?? 0) - quantity;
-  if (from[key]! <= 0) delete from[key];
-  to[key] = (to[key] ?? 0) + quantity;
-}
-
-/** Escrow back to the stash. Both balances count toward net worth, so rank does not move. */
-async function returnStack(tx: Db, roundPlayerId: string, key: string, quantity: number, components: Record<string, number>): Promise<void> {
-  const escrow = await escrowBalances(tx, roundPlayerId);
-  moveUnits(escrow, components, key, quantity);
-  await tx.roundPlayer.update({ where: { id: roundPlayerId }, data: {
-    scavengedComponents: components as Prisma.InputJsonValue,
-    playerBoardEscrow: escrow as Prisma.InputJsonValue,
-  } });
+/** Escrow back to the seller. Both count toward net worth at book, so rank does not move. */
+async function returnStack(tx: Db, roundPlayerId: string, key: string, quantity: number, ruleset: Ruleset): Promise<void> {
+  await moveEscrow(tx, roundPlayerId, key, -quantity);
+  await moveHeld(tx, roundPlayerId, key, quantity, ruleset);
 }
 
 /**
@@ -121,11 +151,11 @@ async function settleSeller(tx: Db, round: BoardRound, sellerId: string, now: Da
     orderBy: { postedAt: 'asc' },
   });
   if (held.length === 0) return;
-  const components = await partBalances(tx, sellerId);
+  const ruleset = rulesFor(round);
   for (const offer of held) {
-    if (!(await canReturn(tx, sellerId, offer.itemKey, components))) continue;
+    if (!(await hasRoom(tx, sellerId, offer.itemKey, ruleset))) continue;
     const claimed = await tx.playerBoardOffer.updateMany({ where: { id: offer.id, status: 'EXPIRED', returnedAt: null }, data: { returnedAt: now } });
-    if (claimed.count === 1) await returnStack(tx, sellerId, offer.itemKey, offer.quantity, components);
+    if (claimed.count === 1) await returnStack(tx, sellerId, offer.itemKey, offer.quantity, ruleset);
   }
 }
 
@@ -136,7 +166,7 @@ export const PlayerBoardService = {
     if (!board?.enabled) throw AppError.conflict('BOARD_CLOSED', 'The Board is not open this round.');
     assertPlayable(round, now);
 
-    const book = playerBoardPartBookCents(input.itemKey, ruleset);
+    const book = playerBoardItemBookCents(input.itemKey, ruleset);
     if (book === null) throw AppError.badRequest('NOT_LISTABLE', 'That cannot be listed on the Board.');
     if (!Number.isSafeInteger(input.quantity) || input.quantity < 1) {
       throw AppError.badRequest('INVALID_QUANTITY', 'List at least one.');
@@ -146,7 +176,7 @@ export const PlayerBoardService = {
     }
     if (!isPlayerBoardPriceLegal(input.unitPriceCents, book, ruleset)) {
       const band = playerBoardBand(book, ruleset)!;
-      throw AppError.badRequest('PRICE_OUTSIDE_BAND', `${componentName(input.itemKey)} lists from ${dollars(band.floorCents)} to ${dollars(band.capCents)} each.`);
+      throw AppError.badRequest('PRICE_OUTSIDE_BAND', `${itemName(input.itemKey, ruleset)} lists from ${dollars(band.floorCents)} to ${dollars(band.capCents)} each.`);
     }
     const feeCents = playerBoardPostingFeeCents(book * input.quantity, ruleset);
 
@@ -160,25 +190,17 @@ export const PlayerBoardService = {
       if (openCount >= board.maxOpenOffers) {
         throw AppError.conflict('TOO_MANY_OFFERS', `You can have ${board.maxOpenOffers} offers up at once. Cancel one or wait for it to close.`);
       }
-      const components = await partBalances(tx, roundPlayerId);
-      const held = components[input.itemKey] ?? 0;
+      const held = await heldUnits(tx, roundPlayerId, input.itemKey, ruleset);
       if (held < input.quantity) {
-        throw AppError.badRequest('NOT_ENOUGH_TO_LIST', `You only have ${held} ${componentName(input.itemKey).toLowerCase()}.`);
+        throw AppError.badRequest('NOT_ENOUGH_TO_LIST', `You only have ${held} ${itemName(input.itemKey, ruleset).toLowerCase()}.`);
       }
       if (player.cashCents < BigInt(feeCents)) {
         throw AppError.badRequest('NOT_ENOUGH_CASH', `The posting fee is ${dollars(feeCents)}.`);
       }
 
-      const escrow = await escrowBalances(tx, roundPlayerId);
-      moveUnits(components, escrow, input.itemKey, input.quantity);
-      await tx.roundPlayer.update({
-        where: { id: roundPlayerId },
-        data: {
-          cashCents: player.cashCents - BigInt(feeCents),
-          scavengedComponents: components as Prisma.InputJsonValue,
-          playerBoardEscrow: escrow as Prisma.InputJsonValue,
-        },
-      });
+      await tx.roundPlayer.update({ where: { id: roundPlayerId }, data: { cashCents: player.cashCents - BigInt(feeCents) } });
+      await moveHeld(tx, roundPlayerId, input.itemKey, -input.quantity, ruleset);
+      await moveEscrow(tx, roundPlayerId, input.itemKey, input.quantity);
       const offer = await tx.playerBoardOffer.create({ data: {
         roundId: round.id,
         sellerId: roundPlayerId,
@@ -196,7 +218,7 @@ export const PlayerBoardService = {
         source: 'PLAYER_BOARD_FEE', label: 'Board posting fee', amountCents: -feeCents,
         metadata: { offerId: offer.id, itemKey: input.itemKey, quantity: input.quantity },
       }], now);
-      return { offer: offerDto(offer, round, now), feeCents, returnedQuantity: 0 };
+      return { offer: offerDto(offer, round, now, ruleset), feeCents, returnedQuantity: 0 };
     });
   },
 
@@ -210,8 +232,8 @@ export const PlayerBoardService = {
       if (!offer) throw AppError.notFound('OFFER_NOT_FOUND', 'That offer is not yours.');
       if (offer.status !== 'OPEN') throw AppError.conflict('OFFER_NOT_OPEN', 'That offer is already closed.');
 
-      const components = await partBalances(tx, roundPlayerId);
-      if (!(await canReturn(tx, roundPlayerId, offer.itemKey, components))) {
+      const ruleset = rulesFor(round);
+      if (!(await hasRoom(tx, roundPlayerId, offer.itemKey, ruleset))) {
         throw AppError.conflict('STASH_FULL', 'There is no room in the stash to take that stack back. Clear a slot first.');
       }
       const closed = await tx.playerBoardOffer.updateMany({
@@ -219,9 +241,9 @@ export const PlayerBoardService = {
         data: { status: 'CANCELLED', closedAt: now, returnedAt: now },
       });
       if (closed.count !== 1) throw AppError.conflict('OFFER_NOT_OPEN', 'That offer is already closed.');
-      await returnStack(tx, roundPlayerId, offer.itemKey, offer.quantity, components);
+      await returnStack(tx, roundPlayerId, offer.itemKey, offer.quantity, ruleset);
       const after = await tx.playerBoardOffer.findUniqueOrThrow({ where: { id: offer.id } });
-      return { offer: offerDto(after, round, now), feeCents: 0, returnedQuantity: offer.quantity };
+      return { offer: offerDto(after, round, now, ruleset), feeCents: 0, returnedQuantity: offer.quantity };
     });
   },
 
@@ -249,14 +271,13 @@ export const PlayerBoardService = {
       // Commit the expiry (and the stack going home) before refusing, rather than rolling it back.
       if (offer.status !== 'OPEN') return 'CLOSED';
 
-      const buyer = await tx.roundPlayer.findUnique({ where: { id: buyerId }, select: { roundId: true, cashCents: true, scavengedComponents: true } });
+      const buyer = await tx.roundPlayer.findUnique({ where: { id: buyerId }, select: { roundId: true, cashCents: true } });
       if (!buyer || buyer.roundId !== round.id) throw AppError.notFound('PLAYER_NOT_FOUND', 'Player not found.');
       const paidCents = offer.unitPriceCents * offer.quantity;
       if (buyer.cashCents < BigInt(paidCents)) {
         throw AppError.badRequest('NOT_ENOUGH_CASH', `That offer costs ${dollars(paidCents)}.`);
       }
-      const components = jsonObject(buyer.scavengedComponents, {});
-      if (!(await canReturn(tx, buyerId, offer.itemKey, components))) {
+      if (!(await hasRoom(tx, buyerId, offer.itemKey, ruleset))) {
         throw AppError.conflict('STASH_FULL', 'There is no room in the stash for a new part. Upgrade Storage or clear a slot.');
       }
 
@@ -267,18 +288,10 @@ export const PlayerBoardService = {
       });
       if (sold.count !== 1) throw AppError.conflict('OFFER_NOT_OPEN', 'That offer has already closed.');
 
-      components[offer.itemKey] = (components[offer.itemKey] ?? 0) + offer.quantity;
-      await tx.roundPlayer.update({ where: { id: buyerId }, data: {
-        cashCents: buyer.cashCents - BigInt(paidCents),
-        scavengedComponents: components as Prisma.InputJsonValue,
-      } });
-      const escrow = await escrowBalances(tx, offer.sellerId);
-      escrow[offer.itemKey] = (escrow[offer.itemKey] ?? 0) - offer.quantity;
-      if (escrow[offer.itemKey]! <= 0) delete escrow[offer.itemKey];
-      await tx.roundPlayer.update({ where: { id: offer.sellerId }, data: {
-        cashCents: { increment: BigInt(proceedsCents) },
-        playerBoardEscrow: escrow as Prisma.InputJsonValue,
-      } });
+      await tx.roundPlayer.update({ where: { id: buyerId }, data: { cashCents: buyer.cashCents - BigInt(paidCents) } });
+      await moveHeld(tx, buyerId, offer.itemKey, offer.quantity, ruleset);
+      await tx.roundPlayer.update({ where: { id: offer.sellerId }, data: { cashCents: { increment: BigInt(proceedsCents) } } });
+      await moveEscrow(tx, offer.sellerId, offer.itemKey, -offer.quantity);
 
       const metadata = { offerId: offer.id, itemKey: offer.itemKey, quantity: offer.quantity, unitPriceCents: offer.unitPriceCents };
       await EconomyLedgerService.record(tx, buyerId, [{ source: 'PLAYER_BOARD_BUY', label: 'Board purchase', amountCents: -paidCents, metadata }], now);
@@ -287,7 +300,7 @@ export const PlayerBoardService = {
       const result: PlayerBoardFillResult = {
         offerId: offer.id,
         itemKey: offer.itemKey,
-        name: componentName(offer.itemKey),
+        name: itemName(offer.itemKey, ruleset),
         quantity: offer.quantity,
         unitPriceCents: offer.unitPriceCents,
         paidCents,
@@ -307,12 +320,14 @@ export const PlayerBoardService = {
       await settleSeller(tx, round, roundPlayerId, now);
       return tx.playerBoardOffer.findMany({ where: { roundId: round.id, sellerId: roundPlayerId }, orderBy: { postedAt: 'desc' }, take: MINE_LIMIT });
     });
-    return offers.map((offer) => offerDto(offer, round, now));
+    const ruleset = rulesFor(round);
+    return offers.map((offer) => offerDto(offer, round, now, ruleset));
   },
 
   /**
-   * The Board D read model: every open offer in the round, grouped by item in catalog order and
-   * cheapest first within an item, plus the viewer's own offers and the parts they could list.
+   * The Board D-F read model: every open offer in the round, grouped by item (drugs, then parts,
+   * each in catalog order) and cheapest first within an item, plus the viewer's own offers and
+   * what they could list.
    * Due offers are expired first, so nothing past its time is ever shown.
    */
   async book(prisma: PrismaClient, round: BoardRound, ruleset: Ruleset, viewerId: string, filter: PlayerBoardFilterDto = 'ALL', now = new Date()): Promise<PlayerBoardDto> {
@@ -331,17 +346,22 @@ export const PlayerBoardService = {
     ]);
     if (!viewer) throw AppError.notFound('PLAYER_NOT_FOUND', 'Player not found.');
 
-    const order = new Map(COMPONENTS.map((row, index) => [row.key, index]));
+    // Drugs first in catalog order, then parts in catalog order.
+    const products = Object.entries(ruleset.products ?? {}).sort(([, a], [, b]) => a.sortOrder - b.sortOrder).map(([key]) => key);
+    if (!products.includes('CRACK')) products.unshift('CRACK');
+    const order = new Map([...products, ...COMPONENTS.map((row) => row.key)].map((key, index) => [key, index]));
+    const wanted = (kind: 'PART' | 'PRODUCT' | null) => kind !== null
+      && (filter === 'ALL' || (filter === 'PARTS' && kind === 'PART') || (filter === 'PRODUCTS' && kind === 'PRODUCT'));
     const rows: PlayerBoardRowDto[] = open
-      // Both filters show parts today; product and keeper goods arrive with later slices.
-      .filter((offer) => order.has(offer.itemKey) && (filter === 'ALL' || filter === 'PARTS'))
-      .filter((offer) => playerBoardOfferExpiresAt(offer, round, now).getTime() > now.getTime())
-      .sort((a, b) => order.get(a.itemKey)! - order.get(b.itemKey)!)
-      .map((offer) => ({
+      .map((offer) => ({ offer, kind: playerBoardItemKind(offer.itemKey, ruleset) }))
+      .filter(({ offer, kind }) => wanted(kind) && order.has(offer.itemKey))
+      .filter(({ offer }) => playerBoardOfferExpiresAt(offer, round, now).getTime() > now.getTime())
+      .sort((a, b) => order.get(a.offer.itemKey)! - order.get(b.offer.itemKey)!)
+      .map(({ offer, kind }) => ({
         id: offer.id,
         itemKey: offer.itemKey,
-        name: componentName(offer.itemKey),
-        category: 'PART',
+        name: itemName(offer.itemKey, ruleset),
+        category: kind!,
         rarity: COMPONENTS.find((row) => row.key === offer.itemKey)?.rarity ?? null,
         quantity: offer.quantity,
         unitPriceCents: offer.unitPriceCents,
@@ -351,13 +371,15 @@ export const PlayerBoardService = {
         expiresAt: playerBoardOfferExpiresAt(offer, round, now).toISOString(),
       }));
 
-    const held = jsonObject(viewer.scavengedComponents, {});
-    const listable: PlayerBoardListableDto[] = COMPONENTS.flatMap((row) => {
-      const quantity = held[row.key] ?? 0;
-      const book = playerBoardPartBookCents(row.key, ruleset);
+    const held = { ...jsonObject(viewer.scavengedComponents, {}), ...(await ProductInventoryService.read(prisma, viewerId, ruleset)) };
+    const listable: PlayerBoardListableDto[] = [...order.keys()].flatMap((key) => {
+      const quantity = held[key] ?? 0;
+      const kind = playerBoardItemKind(key, ruleset);
+      const book = playerBoardItemBookCents(key, ruleset);
       const band = book === null ? null : playerBoardBand(book, ruleset);
-      if (!Number.isSafeInteger(quantity) || quantity < 1 || book === null || !band) return [];
-      return [{ key: row.key, name: row.name, rarity: row.rarity, held: quantity, bookCents: book, floorCents: band.floorCents, capCents: band.capCents }];
+      if (!Number.isSafeInteger(quantity) || quantity < 1 || kind === null || book === null || !band) return [];
+      const rarity = COMPONENTS.find((row) => row.key === key)?.rarity ?? null;
+      return [{ key, name: itemName(key, ruleset), category: kind, rarity, held: quantity, bookCents: book, floorCents: band.floorCents, capCents: band.capCents }];
     });
 
     return {

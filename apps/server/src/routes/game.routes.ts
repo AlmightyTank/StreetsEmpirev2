@@ -333,7 +333,7 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
 
   // The Board D: the city-wide book, your offers and what you could list. Hidden while the flag is off.
   fastify.get('/stores/board', { preHandler: fastify.requireAuth }, async (request) => {
-    const query = parseBody(z.object({ filter: z.enum(['ALL', 'PARTS']).default('ALL') }).strict(), request.query ?? {});
+    const query = parseBody(z.object({ filter: z.enum(['ALL', 'PARTS', 'PRODUCTS']).default('ALL') }).strict(), request.query ?? {});
     const { round, player } = await requirePlayer(request.auth!.account.id);
     return PlayerBoardService.book(fastify.prisma, round, loadRulesetForRound(round), player.id, query.filter);
   });

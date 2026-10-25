@@ -2,7 +2,7 @@ import { classicOgV01, type Ruleset } from '@streets/rulesets';
 import type { NetWorthInput } from '../types.js';
 import { productNetWorthCents } from './product-economy.js';
 import { weightedDebtCents } from './loans.js';
-import { playerBoardPartsNetWorthCents } from './player-board.js';
+import { playerBoardEscrowNetWorthCents, playerBoardPartsNetWorthCents } from './player-board.js';
 
 /**
  * Section 16. Integer cents only - money never touches a float.
@@ -53,8 +53,8 @@ export function calculateNetWorthCents(
     + ammo
     // The Board B: scavenge parts at their books, only on a round with the Board switched on.
     + playerBoardPartsNetWorthCents(player.scavengedComponents, ruleset)
-    // The Board C: an escrowed stack is still the seller's until it sells.
-    + playerBoardPartsNetWorthCents(player.playerBoardEscrow, ruleset)
+    // The Board C-F: an escrowed stack, parts or drugs, is still the seller's until it sells.
+    + playerBoardEscrowNetWorthCents(player.playerBoardEscrow, ruleset)
   );
   // 1.6.5-A: what is owed comes back off, so borrowing never buys rank. Never below zero.
   const debt = weightedDebtCents(player.loanDebtCents ?? 0, v.cashWeightPercent);

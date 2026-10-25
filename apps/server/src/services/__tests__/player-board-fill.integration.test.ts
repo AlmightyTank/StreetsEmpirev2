@@ -4,6 +4,7 @@ import { PrismaClient } from '@prisma/client';
 import { classicOgV26J, classicOgV26JBoard, type Ruleset } from '@streets/rulesets';
 import { startingStock } from '@streets/rules-engine';
 import { PlayerBoardService, type BoardRound } from '../player-board.service.js';
+import { ProductInventoryService } from '../product-inventory.service.js';
 import { PlayerStateService } from '../player-state.service.js';
 import { ReputationService } from '../reputation.service.js';
 import { StashService } from '../stash.service.js';
@@ -176,6 +177,80 @@ describe.runIf(process.env.PLAYER_BOARD_INTEGRATION === '1')('The Board fills wi
       expect(await worth(ids.seller), `seller at ${price}`).toBeLessThanOrEqual(sellerBefore);
       expect(await worth(ids.buyer), `buyer at ${price}`).toBeLessThanOrEqual(buyerBefore);
     }
+  });
+
+  describe('drugs', () => {
+    const stock = async (id: string) => ProductInventoryService.read(prisma, id, rules);
+    const drugs = async (key: string) => {
+      let total = 0;
+      for (const id of Object.values(ids)) total += (await stock(id))[key]! + (((await row(id)).playerBoardEscrow as Record<string, number>)[key] ?? 0);
+      return total;
+    };
+    const give = async (id: string, crack: number, weed: number) => {
+      await prisma.roundPlayer.update({ where: { id }, data: { crack } });
+      await prisma.playerProduct.upsert({ where: { roundPlayerId_productKey: { roundPlayerId: id, productKey: 'WEED' } }, create: { roundPlayerId: id, productKey: 'WEED', quantity: weed }, update: { quantity: weed } });
+    };
+
+    beforeEach(async () => {
+      for (const id of Object.values(ids)) await give(id, 200, 100);
+    });
+
+    it('escrows crack from the column and weed from inventory, and cancel puts them back', async () => {
+      const crack = await post(400, 50, 'CRACK');
+      const weed = await post(347, 40, 'WEED');
+      expect((await stock(ids.seller))).toMatchObject({ CRACK: 150, WEED: 60 });
+      expect((await row(ids.seller)).playerBoardEscrow).toEqual({ CRACK: 50, WEED: 40 });
+      await PlayerBoardService.cancel(prisma, round, ids.seller, crack.offer.id);
+      await PlayerBoardService.cancel(prisma, round, ids.seller, weed.offer.id);
+      expect((await stock(ids.seller))).toMatchObject({ CRACK: 200, WEED: 100 });
+      expect((await row(ids.seller)).playerBoardEscrow).toEqual({});
+    });
+
+    it('fills a drug into the buyer\'s inventory with no stash check, and refuses one over the cap', async () => {
+      expect(await code(post(435, 10, 'CRACK'))).toBe('PRICE_OUTSIDE_BAND');
+      expect(await code(post(400, 201, 'CRACK'))).toBe('NOT_ENOUGH_TO_LIST');
+      const { offer } = await post(434, 100, 'CRACK');
+      const before = await drugs('CRACK');
+      vi.spyOn((await import('../stash.service.js')).StashService, 'page').mockRejectedValue(new Error('drugs never touch the stash'));
+      const result = await fill(offer.id);
+      vi.restoreAllMocks();
+      expect(result).toMatchObject({ itemKey: 'CRACK', name: 'Crack', quantity: 100, paidCents: 43_400 });
+      expect((await stock(ids.buyer)).CRACK).toBe(300);
+      expect((await row(ids.buyer)).cashCents).toBe(100_001n - 43_400n);
+      expect((await row(ids.seller)).cashCents).toBe(100_001n - 300n + 39_928n);
+      expect(await drugs('CRACK')).toBe(before);
+    });
+
+    it('shows drugs under the Drugs filter, ahead of parts under All', async () => {
+      await post(550, 5, 'SCRAP_METAL');
+      await post(320, 10, 'WEED');
+      await post(400, 10, 'CRACK');
+      const all = await PlayerBoardService.book(prisma, round, rules, ids.buyer, 'ALL');
+      expect(all.rows.map((r) => [r.itemKey, r.category])).toEqual([['CRACK', 'PRODUCT'], ['WEED', 'PRODUCT'], ['SCRAP_METAL', 'PART']]);
+      expect((await PlayerBoardService.book(prisma, round, rules, ids.buyer, 'PRODUCTS')).rows.map((r) => r.itemKey)).toEqual(['CRACK', 'WEED']);
+      expect((await PlayerBoardService.book(prisma, round, rules, ids.buyer, 'PARTS')).rows.map((r) => r.itemKey)).toEqual(['SCRAP_METAL']);
+      const listable = all.listable.filter((r) => r.category === 'PRODUCT').map((r) => [r.key, r.held, r.floorCents, r.capCents]);
+      expect(listable).toEqual([['CRACK', 200, 400, 434], ['WEED', 100, 320, 347]]);
+    });
+
+    it('hands an expired drug stack home', async () => {
+      const t0 = new Date();
+      await post(320, 30, 'WEED', 12, t0);
+      await PlayerBoardService.expireDue(prisma, round, new Date(t0.getTime() + 12 * 3_600_000));
+      expect((await stock(ids.seller)).WEED).toBe(100);
+      expect((await row(ids.seller)).playerBoardEscrow).toEqual({});
+    });
+
+    it('raises neither rank on a drug fill at the floor or the cap', async () => {
+      for (const [key, price] of [['CRACK', 400], ['CRACK', 434], ['WEED', 320], ['WEED', 347]] as const) {
+        const { offer } = await post(price, 20, key);
+        const sellerBefore = await worth(ids.seller);
+        const buyerBefore = await worth(ids.buyer);
+        await fill(offer.id);
+        expect(await worth(ids.seller), `seller ${key} @${price}`).toBeLessThanOrEqual(sellerBefore);
+        expect(await worth(ids.buyer), `buyer ${key} @${price}`).toBeLessThanOrEqual(buyerBefore);
+      }
+    });
   });
 
   it('keeps every part between the two players and escrow across posts, fills and cancels', async () => {

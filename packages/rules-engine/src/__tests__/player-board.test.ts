@@ -4,9 +4,13 @@ import { calculateNetWorthCents } from '../calculations/net-worth.js';
 import {
   isPlayerBoardPriceLegal,
   playerBoardBand,
+  playerBoardEscrowNetWorthCents,
+  playerBoardItemBookCents,
+  playerBoardItemKind,
   playerBoardOfferExpiresAt,
   playerBoardPartBookCents,
   playerBoardPostingFeeCents,
+  playerBoardProductBookCents,
   playerBoardPartsNetWorthCents,
   playerBoardSellerProceedsCents,
 } from '../calculations/player-board.js';
@@ -261,5 +265,70 @@ describe('The Board C: listing rules', () => {
     // A pause that began after the listing had already run out does not revive it.
     expect(playerBoardOfferExpiresAt(offer, { pausedAt: new Date('2030-01-01T12:30:00Z'), pausedMinutesTotal: 30 }, now).getTime())
       .toBeLessThanOrEqual(now.getTime());
+  });
+});
+
+describe('The Board F: every drug', () => {
+  const catalog = rules.products as unknown as Readonly<Record<string, { economy?: { pip: { sellCents: number } | null; production: { ingredientCentsPerUnit: number } | null } }>>;
+  const on = { ...rules, playerBoard: { ...rules.playerBoard, enabled: true } };
+  const drugs = { CRACK: 300, WEED: 240, ECSTASY: 900, COCAINE: 1_200, METH: 450, HEROIN: 450 } as const;
+
+  it('lists every drug in the catalog, each at its Pip buyback', () => {
+    expect(Object.keys(rules.products ?? {}).sort()).toEqual(Object.keys(drugs).sort());
+    for (const [key, book] of Object.entries(drugs)) {
+      expect(playerBoardProductBookCents(key, rules), key).toBe(book);
+      expect(playerBoardItemKind(key, rules), key).toBe('PRODUCT');
+      expect(playerBoardItemBookCents(key, rules), key).toBe(book);
+      const pip = key === 'CRACK' ? rules.stores.PIP.items.CRACK.sellCents : catalog[key]!.economy!.pip!.sellCents;
+      expect(book, key).toBe(pip);
+    }
+    expect(playerBoardItemKind('SCRAP_METAL', rules)).toBe('PART');
+    expect(playerBoardItemKind('PISTOL', rules)).toBeNull();
+  });
+
+  it('fills crack from $4.00 to $4.34 and refuses a cent over the cap', () => {
+    expect(playerBoardBand(300, rules)).toEqual({ bookCents: 300, floorCents: 400, capCents: 434 });
+    for (const price of [400, 417, 434]) expect(isPlayerBoardPriceLegal(price, 300, rules)).toBe(true);
+    expect(isPlayerBoardPriceLegal(435, 300, rules)).toBe(false);
+    expect(isPlayerBoardPriceLegal(399, 300, rules)).toBe(false);
+  });
+
+  it('never lets cooking to sell beat the ingredients, for any drug', () => {
+    for (const [key, book] of Object.entries(drugs)) {
+      const ingredients = key === 'CRACK' ? rules.production.crack.ingredientCentsPerRock : catalog[key]!.economy!.production!.ingredientCentsPerUnit;
+      const cap = playerBoardBand(book, rules)!.capCents;
+      // The best a cook can do is sell at the cap and keep 92% of it.
+      expect(Math.floor(cap * 0.92), key).toBeLessThan(ingredients);
+      expect(cap, key).toBeLessThan(ingredients);
+    }
+  });
+
+  it('refuses a drug off the allow-list, or one whose book drifts from the Pip buyback', () => {
+    const narrow = { ...rules, playerBoard: { ...rules.playerBoard, listableProducts: ['CRACK'] } };
+    expect(playerBoardProductBookCents('WEED', narrow)).toBeNull();
+    const drifted = { ...rules, economy: { ...rules.economy, netWorth: { ...rules.economy.netWorth, perCrackCents: 299 } } };
+    expect(playerBoardProductBookCents('CRACK', drifted)).toBeNull();
+    expect(playerBoardProductBookCents('NOT_A_DRUG', rules)).toBeNull();
+  });
+
+  it('values escrowed drugs at book with the Board on, and nothing with it off', () => {
+    expect(playerBoardEscrowNetWorthCents({ CRACK: 10, COCAINE: 2, SCRAP_METAL: 5 }, on)).toBe(3_000n + 2_400n + 2_000n);
+    expect(playerBoardEscrowNetWorthCents({ CRACK: 10 }, rules)).toBe(0n);
+  });
+
+  it('leaves both ranks at or under their start for a drug fill anywhere in the band', () => {
+    for (const [key, book] of Object.entries(drugs)) {
+      const band = playerBoardBand(book, on)!;
+      for (const price of [band.floorCents, band.capCents]) for (const cash of [0, 1, 3, 12_345]) {
+        const quantity = 37;
+        const total = price * quantity;
+        const holding = (n: number) => (key === 'CRACK' ? { crack: n } : { products: { [key]: n } });
+        const worth = (p: object) => calculateNetWorthCents({ ...empty, ...p }, on);
+        const buyer = worth({ cashCents: cash, ...holding(quantity) }) - worth({ cashCents: cash + total });
+        const seller = worth({ cashCents: cash + playerBoardSellerProceedsCents(total, on) }) - worth({ cashCents: cash, playerBoardEscrow: { [key]: quantity } });
+        expect(buyer, `${key} buyer @${price}`).toBeLessThanOrEqual(0n);
+        expect(seller, `${key} seller @${price}`).toBeLessThanOrEqual(0n);
+      }
+    }
   });
 });

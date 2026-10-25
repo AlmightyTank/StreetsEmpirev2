@@ -154,6 +154,26 @@ Slice E adds fills through `PlayerBoardService.fill` and `POST /stores/board/off
 - **Refusals change nothing.** These all refuse: your own offer, a closed or expired one, too little cash, and no stash room. An expiry found during a buy is committed (the stack goes home) before the buy is refused.
 - **Rank.** The route re-settles both players, so stored rank is current on both sides straight away. The integration suite shows neither rank rises at the floor, the middle or the cap, and that items across both players plus escrow stay constant.
 
+Slice F lists every drug, not just crack: crack, weed, ecstasy, cocaine, meth and heroin.
+
+- **The allow-list** is `playerBoard.listableProducts` on the 2.6-j block, and the live variant inherits it.
+- **Books.** A drug's book is its net worth value: `perCrackCents` for crack and `economy.netWorthCents` for the others. A drug is listable only while that book equals Pip's buyback, and a test holds all six there.
+
+| Drug | Book | Floor | Cap | Cook cost |
+| --- | ---: | ---: | ---: | ---: |
+| Crack | $3.00 | $4.00 | $4.34 | $5.00 |
+| Weed | $2.40 | $3.20 | $3.47 | $4.20 |
+| Ecstasy | $9.00 | $12.00 | $13.04 | $17.00 |
+| Cocaine | $12.00 | $16.00 | $17.39 | $28.00 |
+| Meth | $4.50 | $6.00 | $6.52 | $8.00 |
+| Heroin | $4.50 | $6.00 | $6.52 | $8.50 |
+
+- **Cooking to sell always loses.** Every cook cost is above its cap, so cooking for the Board never pays.
+- **Storage.** Drugs post from, and fill into, product inventory: the `crack` column and `PlayerProduct` rows, through `ProductInventoryService`. They take no stash cell, so fills and returns skip the stash check.
+- **Escrow** values parts and drugs alike (`playerBoardEscrowNetWorthCents`).
+- **The tab** gains a Drugs filter. The book lists drugs first, then parts.
+- **The rank tests** cover drug fills at the floor and the cap.
+
 F and G both sit on E. Product is the smaller cut, so it goes first. H is last. D lands before E so the tab exists on the round where fills turn on.
 
 What each slice may touch:

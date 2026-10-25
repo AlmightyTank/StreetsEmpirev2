@@ -525,14 +525,17 @@ export interface PlayerBoardOfferResult {
   /** Cancelling: units back in the stash. Posting: always 0. */
   returnedQuantity: number;
 }
-/** The Board D. Which goods the book shows; parts are the only listable goods until product and keeper goods join. */
-export type PlayerBoardFilterDto = 'ALL' | 'PARTS';
+/** The Board D-F. Which goods the book shows. */
+export type PlayerBoardFilterDto = 'ALL' | 'PARTS' | 'PRODUCTS';
+/** The Board F. What kind of good an offer is. */
+export type PlayerBoardCategoryDto = 'PART' | 'PRODUCT';
 /** The Board D. One open offer on the city-wide book. */
 export interface PlayerBoardRowDto {
   id: string;
   itemKey: string;
   name: string;
-  category: 'PART';
+  category: PlayerBoardCategoryDto;
+  /** Parts only. */
   rarity: ScavengeRarityDto | null;
   quantity: number;
   unitPriceCents: number;
@@ -543,11 +546,13 @@ export interface PlayerBoardRowDto {
   mine: boolean;
   expiresAt: string;
 }
-/** The Board D. A part the viewer holds and may list, with its legal unit prices. */
+/** The Board D-F. A part or drug the viewer holds and may list, with its legal unit prices. */
 export interface PlayerBoardListableDto {
   key: string;
   name: string;
-  rarity: ScavengeRarityDto;
+  category: PlayerBoardCategoryDto;
+  /** Parts only. */
+  rarity: ScavengeRarityDto | null;
   held: number;
   bookCents: number;
   floorCents: number;

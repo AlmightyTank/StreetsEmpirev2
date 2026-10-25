@@ -1312,6 +1312,11 @@ export interface PlayerBoardRules {
   readonly maxOpenOffers: number;
   /** The Board C. The listing lengths a seller may choose, in round hours. */
   readonly listingHours: readonly number[];
+  /**
+   * The Board F. Products that may be listed. A product's book is its net worth value, and it is
+   * listable only while that equals Pip's buyback, so the Board never prices it off another number.
+   */
+  readonly listableProducts: readonly string[];
 }
 
 /** The Board B. Every hideout scavenge part, as stored in `RoundPlayer.scavengedComponents`. */

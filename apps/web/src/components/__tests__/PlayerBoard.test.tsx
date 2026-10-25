@@ -43,7 +43,7 @@ describe('The Board view', () => {
     const html = render(empty);
     expect(html).toContain('Nothing is up right now.');
     expect(html).toContain('You have not listed anything.');
-    expect(html).toContain('You have no parts to list.');
+    expect(html).toContain('You have nothing to list.');
     expect(html).not.toContain('<tbody>');
   });
 
@@ -89,7 +89,7 @@ describe('The Board view', () => {
   });
 
   it('prices the listing form with the fee and the seller share the server will use', () => {
-    const listable = [{ key: 'SCRAP_METAL', name: 'Scrap metal', rarity: 'COMMON' as const, held: 30, bookCents: 400, floorCents: 534, capCents: 579 }];
+    const listable = [{ key: 'SCRAP_METAL', name: 'Scrap metal', category: 'PART' as const, rarity: 'COMMON' as const, held: 30, bookCents: 400, floorCents: 534, capCents: 579 }];
     const ok = render({ ...empty, listable });
     expect(ok).toContain('From $5.34 to $5.79.');
     expect(ok).toContain('Posting fee <strong>$1.00</strong>');
@@ -101,6 +101,27 @@ describe('The Board view', () => {
     expect(outside).toContain('Price each from $5.34 to $5.79.');
     const full = render({ ...empty, listable, openOffers: 6 });
     expect(full).toContain('You already have 6 offers up.');
+  });
+});
+
+describe('The Board with drugs', () => {
+  it('offers a Drugs filter, marks drug rows, and groups the listing form', () => {
+    const html = render({
+      ...empty,
+      filter: 'PRODUCTS',
+      rows: [{ id: 'k', itemKey: 'CRACK', name: 'Crack', category: 'PRODUCT', rarity: null, quantity: 100, unitPriceCents: 400, totalCents: 40_000, sellerName: 'Pip2', mine: false, expiresAt: later(5) }],
+      listable: [
+        { key: 'CRACK', name: 'Crack', category: 'PRODUCT', rarity: null, held: 50, bookCents: 300, floorCents: 400, capCents: 434 },
+        { key: 'RADIO', name: 'Radio', category: 'PART', rarity: 'UNCOMMON', held: 2, bookCents: 2_500, floorCents: 3_334, capCents: 3_623 },
+      ],
+    }, false, { key: 'CRACK', quantity: '10', price: '4.00', hours: 12 });
+    expect(html).toMatch(/se-seg__btn--on" aria-pressed="true">Drugs</);
+    expect(html).toContain('se-board-rarity--product');
+    expect(html).toContain('<optgroup label="Drugs">');
+    expect(html).toContain('<optgroup label="Parts">');
+    expect(html.indexOf('optgroup label="Drugs"')).toBeLessThan(html.indexOf('optgroup label="Parts"'));
+    expect(html).toContain('From $4.00 to $4.34.');
+    expect(html).toContain('A sale pays you <strong>$36.80</strong>');
   });
 });
 
