@@ -4,7 +4,7 @@ import { hideoutApi } from '../api/hideout.js';
 import { Button } from './Button.js';
 import { GameTabs } from './GameUI.js';
 
-export function GeneratorPanel({ generator, onChanged }: { generator: HideoutGeneratorDto; onChanged: (value: HideoutGeneratorDto) => void }) {
+export function GeneratorPanel({ generator, onChanged, heading = true }: { generator: HideoutGeneratorDto; onChanged: (value: HideoutGeneratorDto) => void; heading?: boolean }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [upgradeTab, setUpgradeTab] = useState<'CAPACITY' | 'EFFICIENCY'>('CAPACITY');
@@ -19,7 +19,7 @@ export function GeneratorPanel({ generator, onChanged }: { generator: HideoutGen
     return generator.availableComponents.find((item) => item.key === key)?.quantity ?? 0;
   }
   return <section className="se-hideout-section se-generator-section">
-    <div className="se-hideout-sectionhead"><span className="se-eyebrow">Hideout power</span><div><h2>Generator</h2><p>Power is spent in game turns, not real time. Leaving it on without fuel switches it off automatically.</p></div></div>
+    {heading ? <div className="se-hideout-sectionhead"><span className="se-eyebrow">Hideout power</span><div><h2>Generator</h2><p>Power is spent in game turns, not real time. Leaving it on without fuel switches it off automatically.</p></div></div> : <p className="se-hideout-inline-note">Power is spent in game turns, not real time. Leaving it on without fuel switches it off automatically.</p>}
     <div className="se-panel se-generator">
       <div className="se-generator__topline">
         <div className="se-stash__summary se-generator__summary">
