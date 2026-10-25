@@ -353,7 +353,7 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
                   <p className="se-board-empty">{query ? 'No listings match that search.' : 'Nothing is listed in this category yet.'}</p>
                 ) : (
                   <div className="se-tablewrap se-market-tablewrap">
-                    <table className="se-table se-table--cards se-board-book se-market-table">
+                    <table className="se-table se-board-book se-market-table">
                       <thead><tr><th>Item</th><th>Seller</th><th className="se-table__number">Available</th><th>Price / unit</th><th>Ends</th></tr></thead>
                       <tbody>
                         {visibleRows.map((row) => (

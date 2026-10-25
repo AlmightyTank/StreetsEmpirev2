@@ -1861,6 +1861,118 @@
   }
 }
 
+/* Keep the flea market compact on phones instead of inheriting the generic
+   stacked-table treatment used by longer admin and history tables. */
+@media (max-width: 700px) {
+  .se-market-page .se-market-layout { gap: 8px; }
+  .se-market-page .se-market-categories {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 6px;
+    padding: 2px 0 7px;
+    overflow-x: auto;
+    border: 0;
+    border-bottom: 1px solid var(--se-line-soft);
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    scrollbar-width: none;
+  }
+  .se-market-page .se-market-categories::-webkit-scrollbar { display: none; }
+  .se-market-page .se-market-categories > .se-eyebrow { display: none; }
+  .se-market-page .se-market-category {
+    flex: 0 0 auto;
+    min-height: 34px;
+    padding: 0 12px;
+    border: 1px solid var(--se-line);
+    border-radius: 999px;
+    color: var(--se-text-dim);
+    background: var(--se-panel);
+    font-size: 12px;
+    font-weight: 650;
+    white-space: nowrap;
+  }
+  .se-market-page .se-market-category.is-active {
+    border-color: color-mix(in srgb, var(--se-accent) 68%, var(--se-line));
+    color: var(--se-text);
+    background: color-mix(in srgb, var(--se-accent) 13%, var(--se-panel));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--se-accent) 28%, transparent);
+  }
+  .se-market-page .se-market-controls {
+    gap: 8px;
+    margin: 0;
+    padding: 8px 0;
+    border: 0;
+  }
+  .se-market-page .se-market-search .se-input,
+  .se-market-page .se-market-sort .se-input { min-height: 42px; }
+  .se-market-page .se-market-results { overflow: visible; border: 0; background: transparent; box-shadow: none; }
+  .se-market-page .se-market-results__heading { padding: 7px 0 9px; }
+  .se-market-page .se-market-results__heading h2 { font-size: 19px; }
+  .se-market-page .se-market-tablewrap { overflow: visible; }
+  .se-market-page .se-market-table,
+  .se-market-page .se-market-table tbody { display: block; width: 100%; }
+  .se-market-page .se-market-table thead { display: none; }
+  .se-market-page .se-market-table tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0 12px;
+    margin: 0;
+    padding: 10px 12px;
+    border: 1px solid var(--se-line);
+    border-radius: 10px;
+    background: linear-gradient(145deg, color-mix(in srgb, var(--se-panel-hi) 84%, var(--se-panel)), var(--se-panel));
+    box-shadow: var(--se-shadow-soft);
+  }
+  .se-market-page .se-market-table td {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    min-width: 0;
+    width: auto;
+    padding: 5px 0;
+    border: 0;
+    text-align: right;
+    white-space: normal;
+  }
+  .se-market-page .se-market-table td::before {
+    flex: 0 0 auto;
+    color: var(--se-muted);
+    font-size: 9px;
+    font-weight: 750;
+    letter-spacing: .08em;
+    text-align: left;
+    text-transform: uppercase;
+  }
+  .se-market-page .se-market-table td[data-label="Item"] {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+    padding: 0 0 8px;
+    border-bottom: 1px solid var(--se-line-soft);
+    text-align: left;
+  }
+  .se-market-page .se-market-table td[data-label="Item"]::before { content: none; }
+  .se-market-page .se-market-table td[data-label="Seller"] {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+    text-align: left;
+  }
+  .se-market-page .se-market-table td[data-label="Seller"]::before { content: "Seller"; }
+  .se-market-page .se-market-table td[data-label="Available"] { grid-column: 1; }
+  .se-market-page .se-market-table td[data-label="Available"]::before { content: "Qty"; }
+  .se-market-page .se-market-table td[data-label="Price / unit"] { grid-column: 1; justify-content: flex-start; }
+  .se-market-page .se-market-table td[data-label="Price / unit"]::before { content: "Price"; }
+  .se-market-page .se-market-table td[data-label="Ends"] { grid-column: 2; }
+  .se-market-page .se-market-table td[data-label="Ends"]::before { content: "Ends"; }
+  .se-market-page .se-market-rowpick { min-width: 0; }
+  .se-market-page .se-market-rowpick .se-item-label { gap: 9px; }
+  .se-market-page .se-market-rowpick .se-item-tile { width: 36px; height: 36px; }
+  .se-market-page .se-market-rowpick .se-item-label__text { font-size: 13px; }
+  .se-market-page .se-market-inspector { grid-template-columns: 82px minmax(0, 1fr); }
+  .se-market-page .se-market-inspector__body { padding: 9px; }
+}
+
 /* The Board: player listings. Tables and segmented controls come from the shared kit. */
 .se-stores-hero--board .se-stores-hero__copy p {
   max-width: 62ch;
