@@ -60,6 +60,7 @@ import { HideoutService } from '../services/hideout.service.js';
 import { StashService } from '../services/stash.service.js';
 import { ScavengingService } from '../services/scavenging.service.js';
 import { MAX_SALVAGE_TRADE, SalvageYardService } from '../services/salvage-yard.service.js';
+import { PlayerBoardService } from '../services/player-board.service.js';
 import { GeneratorService, type GeneratorUpdate } from '../services/generator.service.js';
 import { WorkshopService } from '../services/workshop.service.js';
 import { HideoutCosmeticService } from '../services/hideout-cosmetic.service.js';
@@ -317,6 +318,32 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
     const { player } = await requirePlayer(request.auth!.account.id);
     await PlayerStateService.settle(fastify.prisma, player.id, { markActive: true });
     return SalvageYardService.trade(fastify.prisma, player.id, body.key, body.quantity);
+  });
+
+  // The Board C: escrow a stack of parts, take it down, and read your own offers. Fills arrive in E.
+  fastify.get('/stores/board/mine', { preHandler: fastify.requireAuth }, async (request) => {
+    const { round, player } = await requirePlayer(request.auth!.account.id);
+    return PlayerBoardService.mine(fastify.prisma, round, player.id);
+  });
+
+  fastify.post('/stores/board/offers', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(z.object({
+      itemKey: z.string().trim().min(1).max(64),
+      quantity: z.number().int().min(1).max(1_000_000),
+      unitPriceCents: z.number().int().min(1).max(2_000_000_000),
+      durationHours: z.number().int().min(1).max(168),
+    }).strict(), request.body);
+    const { round, player } = await requirePlayer(request.auth!.account.id);
+    await PlayerStateService.settle(fastify.prisma, player.id, { markActive: true });
+    return PlayerBoardService.post(fastify.prisma, round, loadRulesetForRound(round), player.id, body);
+  });
+
+  fastify.post('/stores/board/offers/:offerId/cancel', { preHandler: fastify.requireAuth }, async (request) => {
+    const params = z.object({ offerId: z.string().trim().min(1).max(64) }).safeParse(request.params);
+    if (!params.success) throw AppError.badRequest('OFFER_NOT_FOUND', 'That offer is not yours.');
+    const { round, player } = await requirePlayer(request.auth!.account.id);
+    await PlayerStateService.settle(fastify.prisma, player.id, { markActive: true });
+    return PlayerBoardService.cancel(fastify.prisma, round, player.id, params.data.offerId);
   });
 
   fastify.get('/stores', { preHandler: fastify.requireAuth }, async (request) => {

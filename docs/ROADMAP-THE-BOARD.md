@@ -111,6 +111,14 @@ Two things must land before slice E turns the flag on:
 
   The highest per-rarity books with no rank-raising yard route are $4 / $20 / $22 / $38 / $114. The books shipped as written by decision. The slice H sim has to resolve this, either by retuning the books or by changing the yard's prices and barters.
 
+Slice C adds `PlayerBoardOffer` (migration `20261225000000_player_board_offers`) and `PlayerBoardService` with three routes: `POST /stores/board/offers`, `POST /stores/board/offers/:offerId/cancel` and `GET /stores/board/mine`. The listing rules are on the 2.6-j block: six open offers, 12 or 48 hours, and a fee of 1% of book rounded up with a $1 minimum. Posting needs the flag on, so nothing can post on 2.6-j. Notes for the slices that follow:
+
+- **Six offers means six.** The table's "a sixth offer" contradicts "six open offers per player". The cap allows six and refuses the seventh.
+- **Pause.** Each offer stores `Round.pausedMinutesTotal` at posting. Expiry is pushed back by every pause since then, including one still open, so a paused round never eats a listing. Posting and cancelling are refused while paused.
+- **Expiry is lazy.** It runs when the seller posts, cancels or reads their offers, and in `PlayerBoardService.expireDue(round)`. D's book read model must call `expireDue` or filter on the effective expiry.
+- **A stack that needs a new stash cell when none is free is not lost.** Cancel refuses with `STASH_FULL`. Expiry marks the offer `EXPIRED` with `returnedAt` null, and the stack goes back on the next settle that has room. Escrow for E's item count is `OPEN` plus `EXPIRED` with `returnedAt` null. Today a level-0 stash has 60 cells and only 37 distinct stacks exist, so this path cannot trigger yet.
+- **Before E turns the flag on,** escrowed stacks must keep counting toward the seller's net worth at book, the way posted corner guns do (`postedNetWorthCents`). Otherwise posting drops rank and a fill moves value from nowhere.
+
 F and G both sit on E. Product is the smaller cut, so it goes first. H is last. D lands before E so the tab exists on the round where fills turn on.
 
 What each slice may touch:

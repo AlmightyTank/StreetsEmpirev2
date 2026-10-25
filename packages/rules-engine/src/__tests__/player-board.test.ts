@@ -4,7 +4,9 @@ import { calculateNetWorthCents } from '../calculations/net-worth.js';
 import {
   isPlayerBoardPriceLegal,
   playerBoardBand,
+  playerBoardOfferExpiresAt,
   playerBoardPartBookCents,
+  playerBoardPostingFeeCents,
   playerBoardPartsNetWorthCents,
   playerBoardSellerProceedsCents,
 } from '../calculations/player-board.js';
@@ -205,5 +207,34 @@ describe('The Board B: part books', () => {
   it('ignores stored balances that are not whole positive quantities of a booked key', () => {
     expect(playerBoardPartsNetWorthCents({ SCRAP_METAL: -5, WIRING: 1.5, TOOL_KIT: '3', LABELS: 0, MYSTERY: 10, CLOTH: 2 }, on)).toBe(800n);
     for (const junk of [null, undefined, 7, 'SCRAP_METAL', [1, 2], {}]) expect(playerBoardPartsNetWorthCents(junk, on)).toBe(0n);
+  });
+});
+
+describe('The Board C: listing rules', () => {
+  it('ships six offers, 12- or 48-hour listings, and a 1% fee with a $1 floor', () => {
+    expect(rules.playerBoard).toMatchObject({ maxOpenOffers: 6, listingHours: [12, 48], postingFeePercent: 1, postingFeeMinCents: 100 });
+  });
+
+  it('charges 1% of the stack\'s book, rounded up, never under $1', () => {
+    expect(playerBoardPostingFeeCents(0, rules)).toBe(100);
+    expect(playerBoardPostingFeeCents(4_000, rules)).toBe(100); // ten commons
+    expect(playerBoardPostingFeeCents(12_000, rules)).toBe(120);
+    expect(playerBoardPostingFeeCents(12_001, rules)).toBe(121);
+    expect(playerBoardPostingFeeCents(250_000, rules)).toBe(2_500);
+    expect(() => playerBoardPostingFeeCents(-1, rules)).toThrow();
+    expect(() => playerBoardPostingFeeCents(100, classicOgV26I)).toThrow();
+  });
+
+  it('pushes expiry back by every pause since posting, including one still running', () => {
+    const offer = { expiresAt: new Date('2030-01-01T12:00:00Z'), pausedMinutesAtPost: 30 };
+    const now = new Date('2030-01-01T13:00:00Z');
+    expect(playerBoardOfferExpiresAt(offer, { pausedAt: null, pausedMinutesTotal: 30 }, now)).toEqual(offer.expiresAt);
+    expect(playerBoardOfferExpiresAt(offer, { pausedAt: null, pausedMinutesTotal: 90 }, now)).toEqual(new Date('2030-01-01T13:00:00Z'));
+    // A pause open since 11:00 keeps the listing ahead of the clock for as long as it runs.
+    expect(playerBoardOfferExpiresAt(offer, { pausedAt: new Date('2030-01-01T11:00:00Z'), pausedMinutesTotal: 30 }, now))
+      .toEqual(new Date('2030-01-01T14:00:00Z'));
+    // A pause that began after the listing had already run out does not revive it.
+    expect(playerBoardOfferExpiresAt(offer, { pausedAt: new Date('2030-01-01T12:30:00Z'), pausedMinutesTotal: 30 }, now).getTime())
+      .toBeLessThanOrEqual(now.getTime());
   });
 });

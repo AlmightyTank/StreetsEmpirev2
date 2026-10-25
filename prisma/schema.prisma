@@ -1873,6 +1873,7 @@ model Round {
   territoryPowerSelections    TerritoryPowerSelection[]
   territoryAuditEvents        TerritoryAuditEvent[]
   territoryYieldCaches        TerritoryYieldCache[]
+  playerBoardOffers           PlayerBoardOffer[]
   territoryTollPayments       TerritoryTollPayment[]
   territoryYieldDailyLedgers  TerritoryYieldDailyLedger[]
   territoryYieldPlayerDailyLedgers TerritoryYieldPlayerDailyLedger[]
@@ -2140,6 +2141,7 @@ model RoundPlayer {
   workshopSkillXp Int @default(0)
   workshopLastRecipe String?
   hideoutEconomyTelemetry HideoutEconomyTelemetry[]
+  playerBoardOffers       PlayerBoardOffer[]
 
   displayName String
 
@@ -6765,4 +6767,49 @@ model AdminLivingStoryDraft {
 
   @@unique([baseRulesetId, key])
   @@index([baseRulesetId, updatedAt(sort: Desc)])
+}
+
+// ---------------------------------------------------------------------------
+// The Board (player listings)
+// ---------------------------------------------------------------------------
+
+/// The Board C. OPEN holds the stack in escrow. CANCELLED and EXPIRED return it; SOLD arrives with fills.
+enum PlayerBoardOfferStatus {
+  OPEN
+  SOLD
+  CANCELLED
+  EXPIRED
+}
+
+/// The Board C. One posted stack. The parts leave `scavengedComponents` while it is OPEN, and an
+/// EXPIRED offer whose stack found no free stash cell keeps it until one opens (`returnedAt` null).
+model PlayerBoardOffer {
+  id String @id @default(cuid())
+
+  roundId  String
+  round    Round       @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  sellerId String
+  seller   RoundPlayer @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+
+  itemKey        String
+  quantity       Int
+  unitPriceCents Int
+  /// Book per unit when posted, so the band and fee a listing was checked against stay on record.
+  bookCents      Int
+  feeCents       Int
+  durationHours  Int
+
+  /// `Round.pausedMinutesTotal` at posting. Pauses since then push the expiry back.
+  pausedMinutesAtPost Int
+  postedAt            DateTime @default(now())
+  /// Wall-clock expiry before any pause.
+  expiresAt           DateTime
+
+  status     PlayerBoardOfferStatus @default(OPEN)
+  closedAt   DateTime?
+  /// When the escrowed stack went back to the seller. Null while OPEN, SOLD, or EXPIRED and waiting on stash room.
+  returnedAt DateTime?
+
+  @@index([roundId, status, itemKey, unitPriceCents])
+  @@index([sellerId, status])
 }

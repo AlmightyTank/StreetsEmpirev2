@@ -1305,6 +1305,13 @@ export interface PlayerBoardRules {
    * without a book can never be listed.
    */
   readonly partBookCents: { readonly [K in ScavengePartKey]: number };
+  /** The Board C. Kept on cancel and expiry: this percent of the stack's book value, rounded up, never under the minimum. */
+  readonly postingFeePercent: number;
+  readonly postingFeeMinCents: number;
+  /** The Board C. Open offers one player may have at once. */
+  readonly maxOpenOffers: number;
+  /** The Board C. The listing lengths a seller may choose, in round hours. */
+  readonly listingHours: readonly number[];
 }
 
 /** The Board B. Every hideout scavenge part, as stored in `RoundPlayer.scavengedComponents`. */

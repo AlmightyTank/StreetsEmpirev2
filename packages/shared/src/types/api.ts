@@ -493,6 +493,36 @@ export interface SalvageTradeResult {
   spentCents: number;
   gave: Array<{ key: string; name: string; quantity: number }>;
 }
+/** The Board C. One of the viewer's own listings. */
+export type PlayerBoardOfferStatusDto = 'OPEN' | 'SOLD' | 'CANCELLED' | 'EXPIRED';
+export interface PlayerBoardOfferDto {
+  id: string;
+  itemKey: string;
+  name: string;
+  quantity: number;
+  unitPriceCents: number;
+  feeCents: number;
+  durationHours: number;
+  postedAt: string;
+  /** When it stops being open, with pauses since posting already added. */
+  expiresAt: string;
+  status: PlayerBoardOfferStatusDto;
+  /** False only for an expired stack still waiting on a free stash cell. */
+  returned: boolean;
+}
+export interface PostPlayerBoardOfferInput {
+  itemKey: string;
+  quantity: number;
+  unitPriceCents: number;
+  durationHours: number;
+}
+export interface PlayerBoardOfferResult {
+  offer: PlayerBoardOfferDto;
+  /** Posting: the fee charged. Cancelling: always 0. */
+  feeCents: number;
+  /** Cancelling: units back in the stash. Posting: always 0. */
+  returnedQuantity: number;
+}
 export interface OpenScavengeCacheResult {
   cache: ScavengeCacheDto;
   rewards: ScavengeComponentDto[];

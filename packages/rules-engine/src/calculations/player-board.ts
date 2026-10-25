@@ -73,3 +73,30 @@ export function playerBoardPartsNetWorthCents(parts: unknown, ruleset: BandRules
   }
   return total;
 }
+
+/**
+ * The Board C. The posting fee for a stack whose book value is `stackBookCents`: the ruleset's
+ * percent of it, rounded up, and never under the minimum. Kept on cancel and expiry.
+ */
+export function playerBoardPostingFeeCents(stackBookCents: number, ruleset: BandRules): number {
+  const board = ruleset.playerBoard;
+  if (!board) throw new Error('This ruleset has no player board.');
+  if (!Number.isSafeInteger(stackBookCents) || stackBookCents < 0) throw new Error('A stack book must be whole, non-negative cents.');
+  const percent = BigInt(board.postingFeePercent);
+  const fee = Number((BigInt(stackBookCents) * percent + 99n) / 100n);
+  return Math.max(board.postingFeeMinCents, fee);
+}
+
+/**
+ * The Board C. When an offer stops being open, after pushing its wall-clock expiry back by every
+ * round pause since it was posted, including one still running. A paused round never eats a listing.
+ */
+export function playerBoardOfferExpiresAt(
+  offer: { readonly expiresAt: Date; readonly pausedMinutesAtPost: number },
+  round: { readonly pausedAt: Date | null; readonly pausedMinutesTotal: number },
+  now: Date,
+): Date {
+  const completed = Math.max(0, round.pausedMinutesTotal - offer.pausedMinutesAtPost) * 60_000;
+  const open = round.pausedAt ? Math.max(0, now.getTime() - round.pausedAt.getTime()) : 0;
+  return new Date(offer.expiresAt.getTime() + completed + open);
+}
