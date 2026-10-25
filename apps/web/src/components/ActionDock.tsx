@@ -124,7 +124,7 @@ export function ActionDock({
             {expanded ? <div className="se-dock__receipt">{outcome.receipt}</div> : null}
             <div className="se-dock__summary">
               <strong className={`se-dock__title se-dock__title--${outcome.tone ?? 'good'}`}>{outcome.title}</strong>
-              <ul className="se-dock__chips">
+              <ul className={`se-dock__chips${allChips ? ' se-dock__chips--expanded' : ''}`}>
                 {outcome.chips.length ? (
                   visibleChips.map((chip) => (
                     <li key={chip.key} className={`se-dock__chip se-dock__chip--${chip.tone}`}>
@@ -139,7 +139,10 @@ export function ActionDock({
                   <li>
                     <button type="button" className="se-dock__more"
                       aria-expanded={allChips}
-                      onClick={() => setOpenChips(allChips ? null : outcome.id)}>
+                      onClick={() => {
+                        setOpenReceipt(null);
+                        setOpenChips(allChips ? null : outcome.id);
+                      }}>
                       {allChips ? 'Fewer changes' : `+${outcome.chips.length - 3} more`}
                     </button>
                   </li>
@@ -150,7 +153,10 @@ export function ActionDock({
                   type="button"
                   className="se-btn se-btn--ghost se-btn--sm"
                   aria-expanded={expanded}
-                  onClick={() => setOpenReceipt(expanded ? null : outcome.id)}
+                  onClick={() => {
+                    setOpenChips(null);
+                    setOpenReceipt(expanded ? null : outcome.id);
+                  }}
                 >
                   {expanded ? 'Hide receipt' : 'Receipt'}
                 </button>

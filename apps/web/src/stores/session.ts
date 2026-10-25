@@ -182,7 +182,9 @@ export const useSession = create<SessionState>((set, get) => ({
     const settings = await authApi
       .profileSettings()
       .then((r) => r.settings)
-      .catch(() => DEFAULT_PROFILE_SETTINGS);
+      // A transient request failure must not replace a loaded avatar or other
+      // saved cosmetics with the blank defaults in the global shell.
+      .catch(() => get().profileSettings);
     set({ profileSettings: settings });
     return settings;
   },

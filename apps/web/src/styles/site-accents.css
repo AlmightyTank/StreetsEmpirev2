@@ -205,18 +205,18 @@
   --se-accent-hover: #f5eee2;
   --se-accent-rgb: 232, 221, 200;
 }
-.se-profile-accent--asphalt-silver { --se-profile-accent: #a6b2c0; }
-.se-profile-accent--burnt-copper { --se-profile-accent: #d47b4b; }
-.se-profile-accent--smog { --se-profile-accent: #a5b58b; }
-.se-profile-accent--electric-cyan { --se-profile-accent: #36d9ed; }
-.se-profile-accent--plum-smoke { --se-profile-accent: #a47bc7; }
-.se-profile-accent--porcelain { --se-profile-accent: #e8ddc8; }
-.se-swatch--asphalt-silver { --se-swatch: #a6b2c0; }
-.se-swatch--burnt-copper { --se-swatch: #d47b4b; }
-.se-swatch--smog { --se-swatch: #a5b58b; }
-.se-swatch--electric-cyan { --se-swatch: #36d9ed; }
-.se-swatch--plum-smoke { --se-swatch: #a47bc7; }
-.se-swatch--porcelain { --se-swatch: #e8ddc8; }
+.se-profile-accent.se-profile-accent--asphalt-silver { --se-profile-accent: #a6b2c0; }
+.se-profile-accent.se-profile-accent--burnt-copper { --se-profile-accent: #d47b4b; }
+.se-profile-accent.se-profile-accent--smog { --se-profile-accent: #a5b58b; }
+.se-profile-accent.se-profile-accent--electric-cyan { --se-profile-accent: #36d9ed; }
+.se-profile-accent.se-profile-accent--plum-smoke { --se-profile-accent: #a47bc7; }
+.se-profile-accent.se-profile-accent--porcelain { --se-profile-accent: #e8ddc8; }
+.se-swatch.se-swatch--asphalt-silver { --se-swatch: #a6b2c0; }
+.se-swatch.se-swatch--burnt-copper { --se-swatch: #d47b4b; }
+.se-swatch.se-swatch--smog { --se-swatch: #a5b58b; }
+.se-swatch.se-swatch--electric-cyan { --se-swatch: #36d9ed; }
+.se-swatch.se-swatch--plum-smoke { --se-swatch: #a47bc7; }
+.se-swatch.se-swatch--porcelain { --se-swatch: #e8ddc8; }
 .se-profile-hover-card[data-accent="asphalt-silver"] { --se-hover-accent: #c8d1dc; }
 .se-profile-hover-card[data-accent="burnt-copper"] { --se-hover-accent: #e69b70; }
 .se-profile-hover-card[data-accent="smog"] { --se-hover-accent: #c1cea9; }
