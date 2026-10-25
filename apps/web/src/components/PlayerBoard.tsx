@@ -12,6 +12,7 @@ import {
 } from '@streets/shared';
 import { ApiError } from '../api/client.js';
 import { storesApi } from '../api/stores.js';
+import { questsApi } from '../api/quests.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { confirmAction } from '../stores/confirm.js';
 import { useSession } from '../stores/session.js';
@@ -40,6 +41,7 @@ export function parseDollarsToCents(value: string): number | null {
 
 const FILTERS: ReadonlyArray<readonly [PlayerBoardFilterDto, string]> = [['ALL', 'All'], ['PRODUCTS', 'Drugs'], ['KEEPER', 'Guns & cars'], ['PARTS', 'Parts']];
 const STATUS_LABEL: Record<PlayerBoardOfferDto['status'], string> = { OPEN: 'Up', SOLD: 'Sold', CANCELLED: 'Cancelled', EXPIRED: 'Expired' };
+const BOARD_UNLOCK_QUEST_KEYS = ['ML_M09_TWO_BUYERS', 'ML_M10_FAVOR_ALREADY_PAID'] as const;
 
 function closesIn(iso: string, now: number): string {
   const ms = new Date(iso).getTime() - now;
@@ -414,6 +416,8 @@ export function PlayerBoard() {
   const [stores, setStores] = useState<StoreDto[]>([]);
   const [filter, setFilter] = useState<PlayerBoardFilterDto>('ALL');
   const [closed, setClosed] = useState(false);
+  const [locked, setLocked] = useState(false);
+  const [unlockQuest, setUnlockQuest] = useState<{ key: string; title: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -425,14 +429,39 @@ export function PlayerBoard() {
     try {
       const data = await storesApi.board(which);
       setBook(data);
+      setClosed(false);
+      setLocked(false);
+      setUnlockQuest(null);
+      setError(null);
       setForm((current) => {
         if (data.listable.some((row) => row.key === current.key)) return current;
         const first = data.listable[0];
         return { ...current, key: first?.key ?? '', price: first ? (first.floorCents / 100).toFixed(2) : '', hours: data.rules.listingHours[0] ?? 12 };
       });
     } catch (caught) {
-      if (caught instanceof ApiError && caught.code === 'BOARD_CLOSED') setClosed(true);
-      else setError(caught instanceof ApiError ? caught.message : 'Could not load the Board.');
+      if (caught instanceof ApiError && caught.code === 'BOARD_CLOSED') {
+        setBook(null);
+        setClosed(true);
+        setLocked(false);
+        setUnlockQuest(null);
+      } else if (caught instanceof ApiError && caught.code === 'BOARD_LOCKED') {
+        setBook(null);
+        setClosed(false);
+        setLocked(true);
+        setError(null);
+        void questsApi.page().then((questPage) => {
+          const actTwoTraderQuest = (candidate: typeof questPage.quests[number]) => candidate.status !== 'COMPLETED'
+            && (candidate.contactKey === 'VIC' || candidate.contactKey === 'LEDGER')
+            && candidate.story?.chapter.startsWith('Act II');
+          const quest = BOARD_UNLOCK_QUEST_KEYS.map((key) => questPage.quests.find((candidate) => candidate.key === key && actTwoTraderQuest(candidate)))
+            .find((candidate) => candidate !== undefined)
+            ?? questPage.quests.find(actTwoTraderQuest);
+          setUnlockQuest(quest ? { key: quest.key, title: quest.title } : null);
+        }).catch(() => setUnlockQuest(null));
+      } else {
+        setLocked(false);
+        setError(caught instanceof ApiError ? caught.message : 'Could not load the Board.');
+      }
     }
   }, []);
 
@@ -521,9 +550,23 @@ export function PlayerBoard() {
         <StoreTabs stores={stores} slug="board" board={!closed} />
 
         {closed ? <Alert>That store is not open. <Link to="/game/stores/corner">Visit the Corner Store</Link>.</Alert> : null}
+        {locked ? (
+          <Alert tone="info" title="Market access pending" className="se-board-lock">
+            <div className="se-board-lock__content">
+              <span className="se-board-lock__mark" aria-hidden="true">◆</span>
+              <div>
+                <p>Complete the Act II favor in the Missing Line and the Board will open its listings, trades, and selling desk to you.</p>
+                <Link className="se-btn se-btn--primary se-board-lock__action"
+                  to={unlockQuest ? `/game/quests?focus=${encodeURIComponent(unlockQuest.key)}` : '/game/quests#contact-standing'}>
+                  {unlockQuest ? `Open ${unlockQuest.title}` : 'Choose a trader favor'}
+                </Link>
+              </div>
+            </div>
+          </Alert>
+        ) : null}
         {error ? <Alert>{error}</Alert> : null}
         {notice ? <p className="se-salvage-receipt" role="status">{notice}</p> : null}
-        {!book && !closed && !error ? <div className="se-stores-loading" role="status">Loading the Board...</div> : null}
+        {!book && !closed && !locked && !error ? <div className="se-stores-loading" role="status">Loading the Board...</div> : null}
         {book && !closed ? (
           <PlayerBoardView book={book} now={now} busy={busy} form={form}
             onFilter={setFilter} onForm={setForm} onPost={post} onCancel={cancel}

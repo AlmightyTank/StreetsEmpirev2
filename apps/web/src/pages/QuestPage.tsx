@@ -96,7 +96,7 @@ const VirtualizedQuestListContainer = forwardRef<HTMLDivElement, {
   style?: CSSProperties;
   'data-testid': string;
 }>(function VirtualizedQuestListContainer({ children, style, ...props }, ref) {
-  return <div {...props} ref={ref} style={style} className="se-quests-list se-quests-list--virtualized">{children}</div>;
+  return <div {...props} ref={ref} style={{ ...style, paddingTop: 12 }} className="se-quests-list se-quests-list--virtualized">{children}</div>;
 });
 
 function VirtualQuestList({
@@ -900,7 +900,6 @@ export function QuestPage() {
       });
       if (!confirmed) return;
     }
-    const pin = holdViewport(key);
     setBusy(key);
     setError(null);
     setNotice(null);
@@ -939,12 +938,11 @@ export function QuestPage() {
           historyCount: (current.historyCount ?? 0) + 1,
         };
       });
-      void load().finally(() => pin.settle()).then((next) => publishQuestsChanged(next
+      void load().then((next) => publishQuestsChanged(next
         ? { scope: 'action', quests: next.quests, tracked: trackedFromQuests(next.quests) }
         : { scope: 'action' }));
       void refreshSnapshot({ background: true });
     } catch (cause) {
-      pin.settle();
       setError(cause instanceof ApiError ? cause.message : 'Payment could not be collected.');
     } finally {
       setBusy(null);
