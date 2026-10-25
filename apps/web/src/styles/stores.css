@@ -1835,6 +1835,29 @@
   max-width: 62ch;
 }
 
+.se-stores-hero--board {
+  position: relative;
+  overflow: hidden;
+  border-color: color-mix(in srgb, var(--se-accent, #ff4d6d) 34%, var(--se-line));
+  background:
+    radial-gradient(circle at 88% 18%, color-mix(in srgb, var(--se-accent, #ff4d6d) 16%, transparent), transparent 36%),
+    linear-gradient(135deg, color-mix(in srgb, var(--se-panel) 88%, #000), var(--se-panel));
+}
+
+.se-stores-hero--board::after {
+  content: 'OPEN MARKET';
+  position: absolute;
+  right: 24px;
+  bottom: 18px;
+  color: color-mix(in srgb, var(--se-accent, #ff4d6d) 28%, transparent);
+  font-size: clamp(28px, 6vw, 76px);
+  font-weight: 800;
+  letter-spacing: .12em;
+  line-height: 1;
+  pointer-events: none;
+  transform: rotate(-6deg);
+}
+
 .se-board-filters {
   justify-self: start;
 }
@@ -1842,6 +1865,34 @@
 .se-board-section {
   display: grid;
   gap: 10px;
+  padding: 18px;
+  border: 1px solid color-mix(in srgb, var(--se-line) 82%, transparent);
+  border-radius: calc(var(--se-radius, 8px) + 4px);
+  background: color-mix(in srgb, var(--se-panel) 72%, transparent);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 12%);
+}
+
+.se-board-section .se-stores-sectionhead {
+  margin: 0 0 2px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--se-line) 65%, transparent);
+}
+
+.se-board-section .se-stores-sectionhead h2 {
+  letter-spacing: -.02em;
+}
+
+.se-board-section .se-table tbody tr {
+  transition: background-color 140ms ease, transform 140ms ease;
+}
+
+.se-board-section .se-table tbody tr:hover {
+  background: color-mix(in srgb, var(--se-accent, #ff4d6d) 7%, transparent);
+}
+
+.se-board-book td:last-child,
+.se-board-mine td:last-child {
+  white-space: nowrap;
 }
 
 .se-board-empty {
@@ -1856,6 +1907,7 @@
   --se-board-ink: var(--se-text-dim);
   padding-left: 8px;
   box-shadow: inset 3px 0 0 var(--se-board-ink);
+  font-weight: 650;
 }
 
 .se-board-rarity--uncommon { --se-board-ink: var(--se-good); }
@@ -1868,6 +1920,10 @@
   background: color-mix(in srgb, var(--se-good) 8%, transparent);
 }
 
+.se-board-book__mine td:first-child {
+  box-shadow: inset 3px 0 0 var(--se-good);
+}
+
 .se-board-you {
   color: var(--se-text-dim);
 }
@@ -1878,6 +1934,10 @@
   gap: 12px;
   /* Top-aligned so the price hint hangs below its box instead of lifting the whole row. */
   align-items: start;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--se-line) 72%, transparent);
+  border-radius: var(--se-radius, 8px);
+  background: color-mix(in srgb, var(--se-bg, #111) 35%, transparent);
 }
 
 .se-board-list > .se-field {
@@ -1906,6 +1966,7 @@
   border: 1px solid var(--se-line);
   border-radius: var(--se-radius, 8px);
   min-width: 0;
+  background: color-mix(in srgb, var(--se-accent, #ff4d6d) 4%, transparent);
 }
 
 .se-board-ask > legend {
@@ -1946,6 +2007,7 @@
   display: inline-flex;
   gap: 6px;
   align-items: center;
+  justify-content: flex-end;
 }
 
 .se-board-buy__qty {
@@ -1969,6 +2031,7 @@
   font-size: 11px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+  background: color-mix(in srgb, var(--se-accent, #ff4d6d) 9%, transparent);
 }
 
 @media (max-width: 899px) {
@@ -1987,8 +2050,23 @@
 }
 
 @media (max-width: 680px) {
+  .se-stores-hero--board::after {
+    right: -12px;
+    bottom: 10px;
+    font-size: 30px;
+  }
+
+  .se-board-section {
+    padding: 12px;
+  }
+
+  .se-board-section .se-stores-sectionhead {
+    align-items: flex-start;
+  }
+
   .se-board-list {
     grid-template-columns: 1fr;
+    padding: 10px;
   }
 
   .se-board-ask__line {

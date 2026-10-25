@@ -49,7 +49,7 @@ export function playerBoardSellerProceedsCents(totalCents: number, ruleset: Band
   const board = ruleset.playerBoard;
   if (!board) throw new Error('This ruleset has no player board.');
   if (!Number.isSafeInteger(totalCents) || totalCents < 0) throw new Error('A fill total must be whole, non-negative cents.');
-  return Number((BigInt(totalCents) * BigInt(100 - board.taxPercent)) / 100n);
+  return totalCents;
 }
 
 /** The Board B. A part's book in cents, or null when the ruleset gives it none and it cannot be listed. */
@@ -284,7 +284,7 @@ function ceilToDollar(cents: bigint): number {
 export function playerBoardCashListingTaxCents(unitPriceCents: number, bookCents: number, quantity: number, ruleset: BandRules): number {
   const board = ruleset.playerBoard;
   if (!board) return 0;
-  const proceeds = (BigInt(unitPriceCents) * BigInt(quantity) * BigInt(100 - board.taxPercent)) / 100n;
+  const proceeds = BigInt(unitPriceCents) * BigInt(quantity);
   const weight = BigInt(ruleset.economy.netWorth.cashWeightPercent);
   // The cash worth exactly the book given up, rounded down so the tax can only come out larger.
   const breakEven = (BigInt(bookCents) * BigInt(quantity) * 100n) / weight;

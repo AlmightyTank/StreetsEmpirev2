@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
 import type {
   SupplyOrderDto,
   SupplyPickupDispatchResult,
@@ -303,7 +302,7 @@ export function PickupPlanner({ plan, orders, onDone }: { plan: SupplyPickupPlan
               </div>
             ) : null}
           </div>
-          <p className="se-hint">Need more room? Buy, repair or recover vehicles in the <Link className="se-golink" to="/game/travel?tab=garage">Garage</Link>.</p>
+          <p className="se-hint">Need more room? Manage your vehicle fleet from the road map.</p>
 
           <div className="se-supply__quote">
             <Row label="Assigned fleet" value={fleetSize ? `${formatNumber(fleetSize)} vehicle${fleetSize === 1 ? '' : 's'} · ${formatNumber(capacity)} units each trip` : 'None picked'} />

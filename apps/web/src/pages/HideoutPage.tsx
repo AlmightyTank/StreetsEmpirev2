@@ -1,12 +1,10 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import type {
   HideoutRoomV2Dto,
   HideoutSpecializationResult,
   HideoutSpecializationRoomDto,
   HideoutUpgradeResult,
-  HideoutWeaponPriorityDto,
-  HideoutWeaponPriorityResult,
   HideoutV2Dto,
   HideoutCosmeticsDto,
   TravelDto,
@@ -35,7 +33,6 @@ import { ScavengingPanel } from '../components/ScavengingPanel.js';
 import { GeneratorPanel } from '../components/GeneratorPanel.js';
 import { WorkshopPanel } from '../components/WorkshopPanel.js';
 import { GameTabs } from '../components/GameUI.js';
-import { ArmoryBoard } from './ArmoryPage.js';
 import type { CraftingWorkshopDto } from '@streets/shared';
 import type { ScavengePageDto } from '@streets/shared';
 import {
@@ -243,12 +240,6 @@ function RoomCard({
           ))}
         </div>
       ) : null}
-      {!maxed && !building && nextCostComponents.some((component) => !component.met) ? (
-        <p className="se-hideout-room__parts">
-          Short on parts? <Link to="/game/stores/salvage">Get them at the Salvage Yard</Link>.
-        </p>
-      ) : null}
-
       {room.nextRequirements.length ? (
         <div className="se-hideout-room__requirements">
           {room.nextRequirements.map((requirement) => (
@@ -380,7 +371,6 @@ export function HideoutPage() {
   );
   const [leftTourRooms, setLeftTourRooms] = useState(false);
   const action = useGameAction<HideoutUpgradeResult>();
-  const armoryAction = useGameAction<HideoutWeaponPriorityResult>();
   const specializationAction = useGameAction<HideoutSpecializationResult>();
   const [hideout, setHideout] = useState<HideoutV2Dto | null>(null);
   const [travel, setTravel] = useState<TravelDto | null>(null);
@@ -472,11 +462,6 @@ export function HideoutPage() {
     setReload((n) => n + 1);
   }
 
-  async function setWeaponPriority(priority: HideoutWeaponPriorityDto) {
-    await armoryAction.run((actionId) => hideoutApi.setWeaponPriority({ priority, actionId }));
-    setReload((n) => n + 1);
-  }
-
   async function specialize(room: HideoutRoomV2Dto, specialization: string) {
     const choice = room.specialization?.choices.find((candidate) => candidate.key === specialization);
     if (!choice || room.key === 'GARAGE') return;
@@ -509,15 +494,6 @@ export function HideoutPage() {
     ? me.products.reduce((sum, product) => sum + product.quantity, 0)
     : me?.resources.product ?? 0;
   const activeRuns = travel?.runs.length ?? (me?.run ? 1 : 0);
-  const garageRuns = travel?.runs ?? (travel?.run ? [travel.run] : []);
-  const lowRidersAway = garageRuns.reduce((sum, run) => sum + run.lowRiders, 0);
-  const lowRidersHome = travel?.home.lowRiders ?? me?.resources.lowRiders ?? 0;
-  const cargoUsed = garageRuns.reduce(
-    (sum, run) => sum + run.beer + run.cargo.reduce((cargo, row) => cargo + row.quantity, 0),
-    0,
-  );
-  const cargoCapacity = garageRuns.reduce((sum, run) => sum + run.capacity, 0);
-  const escortsAway = garageRuns.reduce((sum, run) => sum + run.escortThugs, 0);
   const activeThreats = hideout?.security
     ? hideout.security.pendingConvoyThreats + hideout.security.pendingTurfThreats
     : 0;
@@ -673,8 +649,6 @@ export function HideoutPage() {
                   ...(hasSupplies ? [{ id: 'supplies', label: 'Supplies' }] : []),
                   ...(hasSecurity ? [{ id: 'security', label: activeThreats > 0 ? `Security · ${formatNumber(activeThreats)}` : 'Security' }] : []),
                   ...(hasOperations ? [{ id: 'operations', label: 'Operations' }] : []),
-                  { id: 'armory', label: 'Armory' },
-                  { id: 'garage', label: 'Garage' },
                   ...(hasLook ? [{ id: 'look', label: 'Look' }] : []),
                 ]}
               />
@@ -714,7 +688,7 @@ export function HideoutPage() {
                   <Metric
                     label="Active runs"
                     value={formatNumber(activeRuns)}
-                    detail={hideout.garage ? `${formatNumber(hideout.garage.runLimit)} slot limit` : undefined}
+                    detail="road operations"
                   />
                   <Metric
                     label="Threats"
@@ -942,44 +916,6 @@ export function HideoutPage() {
                     </Panel>
                   ) : null}
 
-                  {hideout.armory ? (
-                    <Panel title="Armory" aside="Weapon policy" className="se-hideout-panel">
-                      <div className="se-hideout-panelstats">
-                        <Metric label="Weapons home" value={formatNumber(hideout.armory.weapons.total)} />
-                        <Metric label="Armed capacity" value={formatNumber(hideout.armory.armedCapacity)} tone="accent" />
-                        <Metric label="Fit thugs" value={formatNumber(hideout.armory.fitThugs)} />
-                        <Metric label="Unarmed fit" value={formatNumber(hideout.armory.unarmedFitThugs)} tone={hideout.armory.unarmedFitThugs > 0 ? 'warn' : 'good'} />
-                      </div>
-                      <div className="se-rows se-mt">
-                        <Row label={<ItemLabel itemKey="PISTOL" slot>Pistols</ItemLabel>} value={formatNumber(hideout.armory.weapons.pistols)} />
-                        <Row label={<ItemLabel itemKey="SHOTGUN" slot>Shotguns</ItemLabel>} value={formatNumber(hideout.armory.weapons.shotguns)} />
-                        <Row label={<ItemLabel itemKey="TEK9" slot>Tek-9s</ItemLabel>} value={formatNumber(hideout.armory.weapons.tek9s)} />
-                        <Row label={<ItemLabel itemKey="AK47" slot>AK-47s</ItemLabel>} value={formatNumber(hideout.armory.weapons.ak47s)} />
-                      </div>
-                      <div className="se-hideout-policy">
-                        <span className="se-eyebrow">Equip first</span>
-                        <div className="se-hideout-policy__buttons">
-                          {hideout.armory.choices.map((choice) => (
-                            <Button
-                              key={choice.key}
-                              type="button"
-                              className={`se-btn ${hideout.armory!.priority === choice.key ? 'se-btn--primary' : 'se-btn--ghost'}`}
-                              disabledReason={armoryAction.busy
-                                ? 'Saving the Armory policy.'
-                                : hideout.armory!.priority === choice.key
-                                  ? 'This policy is already active.'
-                                  : null}
-                              onClick={() => void setWeaponPriority(choice.key)}
-                            >
-                              {choice.name}
-                            </Button>
-                          ))}
-                        </div>
-                        <p>{hideout.armory.choices.find((choice) => choice.key === hideout.armory!.priority)?.blurb}</p>
-                      </div>
-                      {armoryAction.error ? <Alert tone="error">{armoryAction.error}</Alert> : null}
-                    </Panel>
-                  ) : null}
 
                   {hideout.infirmary ? (
                     <Panel title="Infirmary" aside="Crew recovery" className="se-hideout-panel">
@@ -1016,20 +952,6 @@ export function HideoutPage() {
               </section>
             ) : null}
 
-            {activeSection === 'armory' ? (
-              <section id="hideout-armory" className="se-hideout-section">
-                <SectionHeading eyebrow="Equipment" title="Armory" copy="Guns your crew owns this round." />
-                <ArmoryBoard lockedView="GUN" />
-              </section>
-            ) : null}
-
-            {activeSection === 'garage' ? (
-              <section id="hideout-garage" className="se-hideout-section">
-                <SectionHeading eyebrow="Equipment" title="Garage" copy="Vehicles your crew owns this round." />
-                <ArmoryBoard lockedView="VEHICLE" />
-              </section>
-            ) : null}
-
             {activeSection === 'operations' && hasOperations ? (
               <section id="hideout-operations" className="se-hideout-section">
                 <SectionHeading
@@ -1063,69 +985,6 @@ export function HideoutPage() {
                     </Panel>
                   ) : null}
 
-                  {hideout.garage ? (
-                    <Panel title="Garage" aside="Logistics" className="se-hideout-panel">
-                      <div className="se-hideout-panelstats">
-                        <Metric label="Run slots" value={`${formatNumber(activeRuns)} / ${formatNumber(hideout.garage.runLimit)}`} tone="accent" />
-                        {travel?.vehicleFleet?.length ? travel.vehicleFleet.map((vehicle) => (
-                          <Metric
-                            key={vehicle.classId}
-                            label={`${vehicle.name} fleet`}
-                            art={vehicle.classId}
-                            value={`${formatNumber(vehicle.home)} ready`}
-                            tone={(vehicle.damaged ?? 0) + (vehicle.disabled ?? 0) ? 'warn' : undefined}
-                            detail={(vehicle.damaged ?? 0) + (vehicle.disabled ?? 0)
-                              ? `${formatNumber(vehicle.away)} away · ${formatNumber(vehicle.damaged ?? 0)} damaged · ${formatNumber(vehicle.disabled ?? 0)} disabled`
-                              : `${formatNumber(vehicle.away)} away`}
-                          />
-                        )) : <>
-                          <Metric label="Low-Riders home" art="LOW_RIDER" value={formatNumber(lowRidersHome)} />
-                          <Metric label="Low-Riders away" art="LOW_RIDER" value={formatNumber(lowRidersAway)} />
-                        </>}
-                        <Metric label="Escorts away" value={formatNumber(escortsAway)} />
-                      </div>
-                      {garageRuns.length ? (
-                        <div className="se-rows se-mt">
-                          {garageRuns.map((run, index) => {
-                            const used = run.beer + run.cargo.reduce((sum, row) => sum + row.quantity, 0);
-                            return (
-                              <Row
-                                key={run.id}
-                                label={`Run ${index + 1} · ${run.position.cityName}`}
-                                value={`${formatNumber(run.lowRiders)} cars · ${formatNumber(run.escortThugs)} escorts · ${formatNumber(used)} / ${formatNumber(run.capacity)} cargo`}
-                                strong
-                              />
-                            );
-                          })}
-                        </div>
-                      ) : <p className="se-muted se-mt">No runs are away right now.</p>}
-                      <div className="se-rows se-mt">
-                        <Row
-                          label="Cargo away"
-                          value={garageRuns.length ? `${formatNumber(cargoUsed)} / ${formatNumber(cargoCapacity)}` : 'None'}
-                        />
-                        <Row
-                          label="Move discount"
-                          value={`${formatNumber(hideout.garage.relocationFeeDiscountPercent)}%`}
-                        />
-                        {travel?.relocation ? (
-                          <Row
-                            label="Relocation"
-                            value={travel.relocation.moving
-                              ? `Moving to ${travel.relocation.moving.toName}`
-                              : travel.relocation.garageFeeDiscountPercent > 0
-                                ? `${formatCents(travel.relocation.feeCents)} · save ${formatCents(travel.relocation.garageSavingsCents)}`
-                                : formatCents(travel.relocation.feeCents)}
-                          />
-                        ) : null}
-                      </div>
-                      <div className="se-hideout-note">
-                        {travel?.vehicleFleet?.length
-                          ? <>{travel.vehicleFleet.map((vehicle) => `${vehicle.name}: ${vehicle.description}`).join(' ')} {travel.vehicleService ? <>Repairs and recovery are in the <Link to="/game/travel?tab=garage">Travel garage</Link>.</> : null}</>
-                          : 'Garage bonuses stay logistical. Route time, police risk, and local markets are unchanged.'}
-                      </div>
-                    </Panel>
-                  ) : null}
 
                   {hideout.ledger ? (
                     <Panel title="Back Office" aside="Ledger" className="se-hideout-panel se-hideout-panel--wide">

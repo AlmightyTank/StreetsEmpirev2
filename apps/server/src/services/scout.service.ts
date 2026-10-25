@@ -430,6 +430,13 @@ export const ScoutService = {
                   change: row.change,
                 })),
               } : {}),
+              ...(scavenging.cache ? {
+                cacheFound: {
+                  label: scavenging.cache.label,
+                  quality: scavenging.cache.quality,
+                  districtName: scavenging.cache.districtName,
+                },
+              } : {}),
               whoresLeft: outcome.departures.whores,
               thugsLeft: outcome.departures.thugs,
               infected: outcome.infections.infected,

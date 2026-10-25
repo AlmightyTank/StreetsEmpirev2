@@ -70,6 +70,7 @@ export function resolveHideoutSection(
   section: HideoutSectionId,
   available: { hasSecurity: boolean; hasOperations: boolean; hasSupplies: boolean; hasLook: boolean },
 ): HideoutSectionId {
+  if (section === 'armory' || section === 'garage') return 'overview';
   if (section === 'security' && !available.hasSecurity) return 'overview';
   if (section === 'operations' && !available.hasOperations) return 'overview';
   if (section === 'supplies' && !available.hasSupplies) return 'overview';

@@ -10,7 +10,6 @@ import { ActionResult, type ResultLine } from '../components/ActionResult.js';
 import { Alert } from '../components/Alert.js';
 import { Portrait } from '../components/Portrait.js';
 import { StoreTabs } from '../components/StoreTabs.js';
-import { SalvageYard } from '../components/SalvageYard.js';
 import { PlayerBoard } from '../components/PlayerBoard.js';
 import { contactRoomHref, storeHasContactRoom } from '../utils/contactRoom.js';
 import { Button } from '../components/Button.js';
@@ -402,12 +401,12 @@ const STORE_DETAILS: Record<string, { label: string; lane: string; note: string 
   },
   TOMMY: {
     label: 'Weapons & muscle',
-    lane: 'Armory counter',
+    lane: 'Weapon counter',
     note: 'Crew, pistols, and heavier hardware arrive on Tommy’s own restock schedule.',
   },
   CHARLIE: {
     label: 'Cars & mobility',
-    lane: 'Garage floor',
+    lane: 'Vehicle floor',
     note: 'Low-Riders are built one at a time and determine how many shooters a drive-by can carry.',
   },
   PIP: {
@@ -1045,7 +1044,7 @@ function StoreView({
 
                 {store.key === 'CHARLIE' ? (
                   <div className="se-stores-railcard">
-                    <span className="se-eyebrow">Garage notes</span>
+                    <span className="se-eyebrow">Vehicle notes</span>
                     <p>Each Low-Rider carries {formatNumber(catalog.lowRiderThugCapacity)} shooters for a drive-by. A car comes home if at least one shooter survives.</p>
                     <p>Charlie builds them one at a time, so fleets grow across multiple deliveries.</p>
                   </div>
@@ -1145,7 +1144,7 @@ export function StorePage() {
     setBasket((current) => removeStoreBasketLine(current, key));
   }
 
-  if (slug === 'salvage') return <SalvageYard />;
+  if (slug === 'salvage') return <Navigate to="/game/stores" replace />;
   if (slug === 'board') return <PlayerBoard />;
 
   return (

@@ -511,12 +511,12 @@ export interface PlayerBoardOfferDto {
   name: string;
   /** Units posted. */
   quantity: number;
-  /** Units not yet sold; a cash offer sells down in part. */
+  /** Units not yet sold; barter offers are filled as one fixed basket. */
   remainingQuantity: number;
   priceKind: PlayerBoardPriceKindDto;
   /** Cash offers only; 0 for a barter. */
   unitPriceCents: number;
-  /** Barter offers only: what one lot costs. Empty for cash. */
+  /** Barter offers only: the fixed basket for the whole offer. Empty for cash. */
   ask: PlayerBoardAskDto[];
   /** Units per lot: 1 for cash, and for a barter priced per unit. */
   lotSize: number;
@@ -538,9 +538,9 @@ export interface PostPlayerBoardOfferInput {
   priceKind?: PlayerBoardPriceKindDto;
   /** Cash offers: the price per unit. */
   unitPriceCents?: number;
-  /** Barter offers: what the buyer hands over for every `lotSize` units. */
+  /** Barter offers: the one fixed basket the buyer hands over for the whole offer. */
   askItems?: Array<{ key: string; quantity: number }>;
-  /** Barter offers: units per lot, 1 by default (the ask is per unit). The quantity must divide into lots. */
+  /** @deprecated Barter offers no longer use lots. */
   lotSize?: number;
   durationHours: number;
 }
@@ -611,6 +611,8 @@ export interface PlayerBoardDto {
   askable: Array<{ key: string; name: string; category: PlayerBoardCategoryDto; bookCents: number }>;
   rules: {
     maxOpenOffers: number;
+    startingOpenOffers: number;
+    reputationPoints: number;
     listingHours: number[];
     postingFeePercent: number;
     postingFeeMinCents: number;

@@ -4,8 +4,7 @@ import type { StoreDto } from '@streets/shared';
 const TAB_NAMES: Record<string, string> = { CORNER: 'Corner', TOMMY: 'Tommy’s', CHARLIE: 'Charlie’s', PIP: 'Pip’s' };
 
 /**
- * The shop strip: every ruleset store, then the Salvage Yard for hideout parts, then the Board
- * on rounds that switched player listings on.
+ * The shop strip: every ruleset store, then the Board on rounds that switched player listings on.
  */
 export function StoreTabs({ stores, slug, board = false }: { stores: readonly Pick<StoreDto, 'key' | 'slug' | 'name'>[]; slug: string; board?: boolean }) {
   return (
@@ -16,10 +15,6 @@ export function StoreTabs({ stores, slug, board = false }: { stores: readonly Pi
           {TAB_NAMES[store.key] ?? store.name}
         </NavLink>
       ))}
-      <NavLink to="/game/stores/salvage" replace
-        className={`se-storetabs__tab${slug === 'salvage' ? ' se-storetabs__tab--active' : ''}`}>
-        Salvage Yard
-      </NavLink>
       {board ? (
         <NavLink to="/game/stores/board" replace
           className={`se-storetabs__tab${slug === 'board' ? ' se-storetabs__tab--active' : ''}`}>

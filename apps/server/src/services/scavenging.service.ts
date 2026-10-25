@@ -101,7 +101,7 @@ export function openCache(cache: StoredCache, rng = Math.random): ScavengeCompon
 
 export const ScavengingService = {
   async page(prisma: PrismaClient, roundPlayerId: string): Promise<ScavengePageDto> {
-    const player = await prisma.roundPlayer.findUnique({ where: { id: roundPlayerId }, select: { scavengedComponents: true, scavengedCaches: true } });
+    const player = await prisma.roundPlayer.findUnique({ where: { id: roundPlayerId }, select: { scavengedComponents: true, foundInRaid: true, scavengedCaches: true } });
     if (!player) throw AppError.notFound('PLAYER_NOT_FOUND', 'Player not found.');
     const components = jsonObject(player.scavengedComponents, {});
      return {
@@ -111,14 +111,18 @@ export const ScavengingService = {
        caches: jsonCaches(player.scavengedCaches).filter((cache) => !cache.opened).map(cacheDto),
      };
   },
-  async addFinds(tx: Prisma.TransactionClient, roundPlayerId: string, player: { scavengedComponents: Prisma.JsonValue; scavengedCaches: Prisma.JsonValue }, districtKey: string, districtName: string, turns: number, rng = Math.random): Promise<{ components: ScavengeComponentDto[]; cache: ScavengeCacheDto | null }> {
+  async addFinds(tx: Prisma.TransactionClient, roundPlayerId: string, player: { scavengedComponents: Prisma.JsonValue; foundInRaid: Prisma.JsonValue; scavengedCaches: Prisma.JsonValue }, districtKey: string, districtName: string, turns: number, rng = Math.random): Promise<{ components: ScavengeComponentDto[]; cache: ScavengeCacheDto | null }> {
     const theme = districtSupplyClue(districtKey).theme;
     const pool = eligiblePool(theme);
     const found: Record<string, number> = {};
     const count = scavengeFindCount(turns);
     for (let i = 0; i < count; i += 1) { const item = pool[Math.floor(rng() * pool.length)]; if (item) found[item.key] = (found[item.key] ?? 0) + 1; }
     const components = jsonObject(player.scavengedComponents, {});
-    for (const [key, quantity] of Object.entries(found)) components[key] = (components[key] ?? 0) + quantity;
+    const foundInRaid = jsonObject(player.foundInRaid, {});
+    for (const [key, quantity] of Object.entries(found)) {
+      components[key] = (components[key] ?? 0) + quantity;
+      foundInRaid[key] = (foundInRaid[key] ?? 0) + quantity;
+    }
     const caches = jsonCaches(player.scavengedCaches);
     const cache = turns >= 2 && rng() < Math.min(0.85, 0.2 + turns * 0.04) ? makeCache(districtKey, districtName, turns) : null;
     if (cache) caches.push(cache);
@@ -133,7 +137,7 @@ export const ScavengingService = {
           throw AppError.conflict('STASH_FULL', 'There is no room in the stash for these scavenged components. Upgrade Storage or clear a slot.');
        }
     }
-     await tx.roundPlayer.update({ where: { id: roundPlayerId }, data: { scavengedComponents: components as Prisma.InputJsonValue, scavengedCaches: caches as unknown as Prisma.InputJsonValue } });
+     await tx.roundPlayer.update({ where: { id: roundPlayerId }, data: { scavengedComponents: components as Prisma.InputJsonValue, foundInRaid: foundInRaid as Prisma.InputJsonValue, scavengedCaches: caches as unknown as Prisma.InputJsonValue } });
      for (const [key, quantity] of Object.entries(found)) await recordHideoutEconomy(tx, roundPlayerId, 'COMPONENT_SCAVENGED', { itemKey: key, quantity, payload: { districtKey, turns } });
      if (cache) await recordHideoutEconomy(tx, roundPlayerId, 'CACHE_FOUND', { rarity: cache.quality, payload: { districtKey, turns, cacheId: cache.id } });
     return { components: Object.entries(found).map(([key, quantity]) => componentDto(key, quantity)), cache: cache ? cacheDto(cache) : null };
@@ -141,7 +145,7 @@ export const ScavengingService = {
 
   async open(prisma: PrismaClient, roundPlayerId: string, cacheId: string): Promise<import('@streets/shared').OpenScavengeCacheResult> {
     return prisma.$transaction(async (tx) => {
-      const player = await tx.roundPlayer.findUnique({ where: { id: roundPlayerId }, select: { scavengedComponents: true, scavengedCaches: true } });
+       const player = await tx.roundPlayer.findUnique({ where: { id: roundPlayerId }, select: { scavengedComponents: true, foundInRaid: true, scavengedCaches: true } });
       if (!player) throw AppError.notFound('PLAYER_NOT_FOUND', 'Player not found.');
       const caches = jsonCaches(player.scavengedCaches);
       const cache = caches.find((row) => row.id === cacheId);
@@ -157,12 +161,17 @@ export const ScavengingService = {
       const rewards = openCache(cache);
       cache.opened = true;
       cache.rewards = rewards;
-      const components = jsonObject(player.scavengedComponents, {});
-      for (const reward of rewards) components[reward.key] = (components[reward.key] ?? 0) + reward.quantity;
+       const components = jsonObject(player.scavengedComponents, {});
+       const foundInRaid = jsonObject(player.foundInRaid, {});
+       for (const reward of rewards) {
+         components[reward.key] = (components[reward.key] ?? 0) + reward.quantity;
+         foundInRaid[reward.key] = (foundInRaid[reward.key] ?? 0) + reward.quantity;
+       }
        await tx.roundPlayer.update({
          where: { id: roundPlayerId },
          data: {
-           scavengedComponents: components as Prisma.InputJsonValue,
+            scavengedComponents: components as Prisma.InputJsonValue,
+            foundInRaid: foundInRaid as Prisma.InputJsonValue,
            // A cache is consumed by opening it. The returned cache still
            // carries the reward for the reveal animation, but it no longer
            // remains in the player's pending cache list.

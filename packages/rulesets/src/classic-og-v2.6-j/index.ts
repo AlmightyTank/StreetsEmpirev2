@@ -13,12 +13,33 @@ const LEGENDARY = 250_000;
  * rules, listable drugs and keeper goods are defined, but nothing posts, fills, renders or counts toward rank. Every other rule is
  * 2.6.0-I's.
  */
+const {
+  ammoParts: _retiredAmmoParts,
+  individualItems: _retiredIndividualItems,
+  supplyNetwork: _retiredSupplyNetwork,
+  loanShark: _retiredLoanShark,
+  ...classicOgV26JBase
+} = classicOgV26I;
+
 export const classicOgV26J = {
-  ...classicOgV26I,
+  ...classicOgV26JBase,
   meta: { ...classicOgV26I.meta, id: 'classic-og-v2.6-j', version: '2.6.0-J', name: 'Classic OG - The Board (dark)' },
+  vehicleCatalog: classicOgV26I.vehicleCatalog
+    ? { ...classicOgV26I.vehicleCatalog, service: undefined }
+    : undefined,
+  retiredFeatures: {
+    salvageYard: true,
+    bulkOrders: true,
+    loanShark: true,
+    dealerCrews: true,
+    armory: true,
+    garage: true,
+    ammoParts: true,
+    scavenging: false,
+  },
   playerBoard: {
     enabled: false,
-    taxPercent: 8,
+    taxPercent: 0,
     partBookCents: {
       SCRAP_METAL: COMMON, WIRING: COMMON, TOOL_KIT: COMMON, BOTTLES: COMMON, LABELS: COMMON,
       PACKAGING: COMMON, LUMBER: COMMON, FASTENERS: COMMON, CLOTH: COMMON,
@@ -29,7 +50,9 @@ export const classicOgV26J = {
     },
     postingFeePercent: 1,
     postingFeeMinCents: 100,
-    maxOpenOffers: 6,
+    maxOpenOffers: 10,
+    startingOpenOffers: 3,
+    reputationPerOpenOffer: 1,
     listingHours: [12, 48],
     listableProducts: ['CRACK', 'WEED', 'ECSTASY', 'COCAINE', 'METH', 'HEROIN'],
     maxAskItems: 3,

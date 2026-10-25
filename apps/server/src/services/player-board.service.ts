@@ -2,10 +2,6 @@ import type { PlayerBoardOffer, Prisma, PrismaClient, Round } from '@prisma/clie
 import {
   loadRuleset,
   playerBoardBand,
-  playerBoardBarterFeeCents,
-  playerBoardBarterListingTaxCents,
-  playerBoardCashBuyerFeeCents,
-  playerBoardCashListingTaxCents,
   playerBoardBarterQuote,
   playerBoardItemBookCents,
   playerBoardItemKind,
@@ -128,6 +124,22 @@ function adjustBalance(balances: Record<string, number>, key: string, delta: num
   if (balances[key]! <= 0) delete balances[key];
 }
 
+async function assertBoardUnlocked(prisma: PrismaClient, roundPlayerId: string): Promise<void> {
+  const [unlock, favor] = await Promise.all([
+    prisma.playerUnlock.findUnique({ where: { roundPlayerId_key: { roundPlayerId, key: 'BOARD_ACCESS' } }, select: { id: true } }),
+    prisma.playerReputation.findFirst({ where: { roundPlayerId, questDoneAt: { not: null } }, select: { id: true } }),
+  ]);
+  if (!unlock && !favor) throw AppError.conflict('BOARD_LOCKED', 'Complete a favor for a trader to unlock the Board.');
+}
+
+async function adjustProvenance(tx: Db, roundPlayerId: string, field: 'foundInRaid' | 'playerBoardEscrowFoundInRaid', key: string, delta: number): Promise<void> {
+  const player = await tx.roundPlayer.findUniqueOrThrow({ where: { id: roundPlayerId }, select: { foundInRaid: true, playerBoardEscrowFoundInRaid: true } });
+  const balances = jsonObject(player[field], {});
+  if (delta < 0 && (balances[key] ?? 0) < -delta) throw AppError.conflict('PROVENANCE_ERROR', 'Found-in-raid provenance is inconsistent.');
+  adjustBalance(balances, key, delta);
+  await tx.roundPlayer.update({ where: { id: roundPlayerId }, data: { [field]: balances as Prisma.InputJsonValue } });
+}
+
 /** Units of an item the player holds: parts on the stash balance, drugs in product inventory. */
 async function heldUnits(tx: Db, roundPlayerId: string, key: string, ruleset: Ruleset): Promise<number> {
   const kind = playerBoardItemKind(key, ruleset);
@@ -169,15 +181,19 @@ async function moveHeld(tx: Db, roundPlayerId: string, key: string, delta: numbe
 }
 
 async function moveEscrow(tx: Db, roundPlayerId: string, key: string, delta: number): Promise<void> {
-  const player = await tx.roundPlayer.findUniqueOrThrow({ where: { id: roundPlayerId }, select: { playerBoardEscrow: true } });
+  const player = await tx.roundPlayer.findUniqueOrThrow({ where: { id: roundPlayerId }, select: { playerBoardEscrow: true, playerBoardEscrowFoundInRaid: true } });
   const escrow = jsonObject(player.playerBoardEscrow, {});
   adjustBalance(escrow, key, delta);
   await tx.roundPlayer.update({ where: { id: roundPlayerId }, data: { playerBoardEscrow: escrow as Prisma.InputJsonValue } });
+  if (delta < 0) await adjustProvenance(tx, roundPlayerId, 'playerBoardEscrowFoundInRaid', key, Math.max(delta, -(jsonObject(player.playerBoardEscrowFoundInRaid, {})[key] ?? 0)));
 }
 
 /** Escrow back to the seller. Both count toward net worth at book, so rank does not move. */
 async function returnStack(tx: Db, roundPlayerId: string, key: string, quantity: number, ruleset: Ruleset): Promise<void> {
+  const player = await tx.roundPlayer.findUniqueOrThrow({ where: { id: roundPlayerId }, select: { playerBoardEscrowFoundInRaid: true } });
+  const escrowFir = Math.min(quantity, jsonObject(player.playerBoardEscrowFoundInRaid, {})[key] ?? 0);
   await moveEscrow(tx, roundPlayerId, key, -quantity);
+  if (escrowFir > 0) await adjustProvenance(tx, roundPlayerId, 'foundInRaid', key, escrowFir);
   await moveHeld(tx, roundPlayerId, key, quantity, ruleset);
 }
 
@@ -209,6 +225,7 @@ export const PlayerBoardService = {
   async post(prisma: PrismaClient, round: BoardRound, ruleset: Ruleset, roundPlayerId: string, input: PostPlayerBoardOfferInput, now = new Date()): Promise<PlayerBoardOfferResult> {
     const board = ruleset.playerBoard;
     if (!board?.enabled) throw AppError.conflict('BOARD_CLOSED', 'The Board is not open this round.');
+    await assertBoardUnlocked(prisma, roundPlayerId);
     assertPlayable(round, now);
 
     const book = playerBoardItemBookCents(input.itemKey, ruleset);
@@ -227,11 +244,11 @@ export const PlayerBoardService = {
         if (Object.hasOwn(ask, line.key)) throw AppError.badRequest('INVALID_BARTER', 'List each thing you ask for once.');
         ask[line.key] = line.quantity;
       }
-      const lotSize = input.lotSize ?? 1;
+      // One fixed barter basket covers the complete posted stack.
+      const lotSize = input.quantity;
       const quote = playerBoardBarterQuote(input.itemKey, lotSize, ask, ruleset);
       if ('refusal' in quote) throw AppError.badRequest('INVALID_BARTER', BARTER_REFUSALS[quote.refusal]!);
-      if (input.quantity % lotSize !== 0) throw AppError.badRequest('INVALID_BARTER', `List a whole number of lots of ${lotSize}.`);
-      const listingTaxCents = playerBoardBarterListingTaxCents(quote.lotBookCents, quote.askBookCents, input.quantity / lotSize, ruleset);
+       const listingTaxCents = 0;
       price = { unitPriceCents: 0, listingTaxCents, askItems: ask, askBookCents: quote.askBookCents, lotSize };
     } else {
       // Any price is allowed. Inside the fair range it costs nothing extra; above it the seller
@@ -240,7 +257,7 @@ export const PlayerBoardService = {
       if (!Number.isSafeInteger(unitPriceCents) || unitPriceCents < 1 || !Number.isSafeInteger(unitPriceCents * input.quantity)) {
         throw AppError.badRequest('INVALID_PRICE', 'Set a price of at least one cent each.');
       }
-      price = { unitPriceCents, listingTaxCents: playerBoardCashListingTaxCents(unitPriceCents, book, input.quantity, ruleset) };
+       price = { unitPriceCents, listingTaxCents: 0 };
     }
     const feeCents = playerBoardPostingFeeCents(book * input.quantity, ruleset);
 
@@ -250,9 +267,12 @@ export const PlayerBoardService = {
       if (!player || player.roundId !== round.id) throw AppError.notFound('PLAYER_NOT_FOUND', 'Player not found.');
       await settleSeller(tx, round, roundPlayerId, now);
 
+      const reputation = await tx.playerReputation.aggregate({ where: { roundPlayerId, trader: 'BOARD' }, _sum: { points: true } });
+      const repPoints = Math.max(0, reputation._sum.points ?? 0);
+      const slots = Math.min(board.maxOpenOffers, (board.startingOpenOffers ?? 3) + Math.floor(repPoints / (board.reputationPerOpenOffer ?? 1)));
       const openCount = await tx.playerBoardOffer.count({ where: { roundId: round.id, sellerId: roundPlayerId, status: 'OPEN' } });
-      if (openCount >= board.maxOpenOffers) {
-        throw AppError.conflict('TOO_MANY_OFFERS', `You can have ${board.maxOpenOffers} offers up at once. Cancel one or wait for it to close.`);
+      if (openCount >= slots) {
+        throw AppError.conflict('TOO_MANY_OFFERS', `You can have ${slots} offers up at once. Earn Board reputation to open more slots.`);
       }
       const held = await heldUnits(tx, roundPlayerId, input.itemKey, ruleset);
       if (held < input.quantity) {
@@ -266,7 +286,13 @@ export const PlayerBoardService = {
       }
 
       await tx.roundPlayer.update({ where: { id: roundPlayerId }, data: { cashCents: player.cashCents - BigInt(chargeCents) } });
+      const provenance = await tx.roundPlayer.findUniqueOrThrow({ where: { id: roundPlayerId }, select: { foundInRaid: true } });
+      const foundInRaidQuantity = Math.min(input.quantity, jsonObject(provenance.foundInRaid, {})[input.itemKey] ?? 0);
       await moveHeld(tx, roundPlayerId, input.itemKey, -input.quantity, ruleset);
+      if (foundInRaidQuantity > 0) {
+        await adjustProvenance(tx, roundPlayerId, 'foundInRaid', input.itemKey, -foundInRaidQuantity);
+        await adjustProvenance(tx, roundPlayerId, 'playerBoardEscrowFoundInRaid', input.itemKey, foundInRaidQuantity);
+      }
       await moveEscrow(tx, roundPlayerId, input.itemKey, input.quantity);
       const offer = await tx.playerBoardOffer.create({ data: {
         roundId: round.id,
@@ -332,6 +358,7 @@ export const PlayerBoardService = {
    */
   async fill(prisma: PrismaClient, round: BoardRound, ruleset: Ruleset, buyerId: string, offerId: string, actionId?: string, now = new Date(), quantity?: number): Promise<PlayerBoardFillResult> {
     if (!ruleset.playerBoard?.enabled) throw AppError.conflict('BOARD_CLOSED', 'The Board is not open this round.');
+    await assertBoardUnlocked(prisma, buyerId);
     assertPlayable(round, now);
     const target = await prisma.playerBoardOffer.findFirst({ where: { id: offerId, roundId: round.id }, select: { sellerId: true } });
     if (!target) throw AppError.notFound('OFFER_NOT_FOUND', 'That offer is gone.');
@@ -356,17 +383,17 @@ export const PlayerBoardService = {
       if (units > offer.remainingQuantity) {
         throw AppError.conflict('NOT_ENOUGH_LEFT', `Only ${offer.remainingQuantity} left on that offer.`);
       }
-      if (units % offer.lotSize !== 0) throw AppError.badRequest('BARTER_LOT', `That trade goes in lots of ${offer.lotSize}.`);
-      // A barter's ask is per lot: taking several lots hands over that many times the ask.
-      const lots = units / offer.lotSize;
+      if (barter && (units !== offer.quantity || offer.remainingQuantity !== offer.quantity)) {
+        throw AppError.badRequest('BARTER_WHOLE_OFFER', 'That barter is one fixed basket and must be taken whole.');
+      }
+      if (!barter && units % offer.lotSize !== 0) throw AppError.badRequest('INVALID_QUANTITY', 'That cash offer quantity is invalid.');
+      const lots = barter ? 1 : units / offer.lotSize;
       const ask = barter
         ? Object.fromEntries(Object.entries(jsonObject(offer.askItems as Prisma.JsonValue, {})).map(([key, perLot]) => [key, perLot * lots]))
         : {};
       const stickerCents = barter ? 0 : offer.unitPriceCents * units;
       // A barter's top-up, or the Board fee on a cash price below the fair range: deleted either way.
-      const boardFeeCents = barter
-        ? playerBoardBarterFeeCents(offer.bookCents * offer.lotSize, offer.askBookCents ?? 0, lots, ruleset)
-        : playerBoardCashBuyerFeeCents(offer.unitPriceCents, offer.bookCents, units, ruleset);
+      const boardFeeCents = 0;
       const paidCents = stickerCents + boardFeeCents;
       if (buyer.cashCents < BigInt(paidCents)) {
         throw AppError.badRequest('NOT_ENOUGH_CASH', barter
@@ -436,6 +463,7 @@ export const PlayerBoardService = {
 
   /** The viewer's offers, newest first, after expiring what is due and returning what fits. */
   async mine(prisma: PrismaClient, round: BoardRound, roundPlayerId: string, now = new Date()): Promise<PlayerBoardOfferDto[]> {
+    await assertBoardUnlocked(prisma, roundPlayerId);
     const offers = await prisma.$transaction(async (tx) => {
       await lockRoundPlayer(tx, roundPlayerId);
       await settleSeller(tx, round, roundPlayerId, now);
@@ -454,8 +482,9 @@ export const PlayerBoardService = {
   async book(prisma: PrismaClient, round: BoardRound, ruleset: Ruleset, viewerId: string, filter: PlayerBoardFilterDto = 'ALL', now = new Date()): Promise<PlayerBoardDto> {
     const board = ruleset.playerBoard;
     if (!board?.enabled) throw AppError.notFound('BOARD_CLOSED', 'The Board is not open this round.');
+    await assertBoardUnlocked(prisma, viewerId);
     await PlayerBoardService.expireDue(prisma, round, now);
-    const [open, mine, viewer] = await Promise.all([
+    const [open, mine, viewer, reputation] = await Promise.all([
       prisma.playerBoardOffer.findMany({
         where: { roundId: round.id, status: 'OPEN' },
         include: { seller: { select: { displayName: true } } },
@@ -464,6 +493,7 @@ export const PlayerBoardService = {
       }),
       PlayerBoardService.mine(prisma, round, viewerId, now),
       prisma.roundPlayer.findUnique({ where: { id: viewerId }, select: { scavengedComponents: true, cashCents: true } }),
+      prisma.playerReputation.aggregate({ where: { roundPlayerId: viewerId, trader: 'BOARD' }, _sum: { points: true } }),
     ]);
     if (!viewer) throw AppError.notFound('PLAYER_NOT_FOUND', 'Player not found.');
 
@@ -489,9 +519,7 @@ export const PlayerBoardService = {
         quantity: offer.remainingQuantity,
         priceKind: offer.priceKind,
         unitPriceCents: offer.unitPriceCents,
-        totalCents: offer.priceKind === 'BARTER'
-          ? playerBoardBarterFeeCents(offer.bookCents * offer.lotSize, offer.askBookCents ?? 0, offer.remainingQuantity / offer.lotSize, ruleset)
-          : offer.unitPriceCents * offer.remainingQuantity + playerBoardCashBuyerFeeCents(offer.unitPriceCents, offer.bookCents, offer.remainingQuantity, ruleset),
+        totalCents: offer.priceKind === 'BARTER' ? 0 : offer.unitPriceCents * offer.remainingQuantity,
         ask: askLines(offer, ruleset),
         lotSize: offer.lotSize,
         lotBookCents: offer.bookCents * offer.lotSize,
@@ -506,6 +534,10 @@ export const PlayerBoardService = {
       if (playerBoardItemKind(key, ruleset) === 'KEEPER') keeperHoldings[key] = await keeperHeld(prisma as unknown as Db, viewerId, key, ruleset, now);
     }
     const held = { ...jsonObject(viewer.scavengedComponents, {}), ...(await ProductInventoryService.read(prisma, viewerId, ruleset)), ...keeperHoldings };
+    const reputationPoints = reputation._sum.points ?? 0;
+    const startingOpenOffers = board.startingOpenOffers ?? 3;
+    const reputationPerOpenOffer = board.reputationPerOpenOffer ?? 1;
+    const maxOpenOffers = Math.min(board.maxOpenOffers, startingOpenOffers + Math.floor(reputationPoints / reputationPerOpenOffer));
     const listable: PlayerBoardListableDto[] = [...order.keys()].flatMap((key) => {
       const quantity = held[key] ?? 0;
       const kind = playerBoardItemKind(key, ruleset);
@@ -527,7 +559,9 @@ export const PlayerBoardService = {
       openOffers: mine.filter((offer) => offer.status === 'OPEN').length,
       cashCents: Number(viewer.cashCents),
       rules: {
-        maxOpenOffers: board.maxOpenOffers,
+         maxOpenOffers,
+         startingOpenOffers,
+         reputationPoints,
         listingHours: [...board.listingHours],
         postingFeePercent: board.postingFeePercent,
         postingFeeMinCents: board.postingFeeMinCents,

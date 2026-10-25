@@ -12,7 +12,7 @@ const stores = [
   { key: 'PIP', slug: 'pip', name: 'Pip' },
 ] as const;
 
-const rules: PlayerBoardDto['rules'] = { maxOpenOffers: 6, listingHours: [12, 48], postingFeePercent: 1, postingFeeMinCents: 100, taxPercent: 8, maxAskItems: 3, cashWeightPercent: 75 };
+const rules: PlayerBoardDto['rules'] = { maxOpenOffers: 6, startingOpenOffers: 3, reputationPoints: 0, listingHours: [12, 48], postingFeePercent: 1, postingFeeMinCents: 100, taxPercent: 0, maxAskItems: 3, cashWeightPercent: 75 };
 const NOW = Date.parse('2030-01-01T12:00:00Z');
 const later = (hours: number) => new Date(NOW + hours * 3_600_000).toISOString();
 const askable: PlayerBoardDto['askable'] = [

@@ -50,7 +50,7 @@ export type IconName =
  * billing are off this menu: the season card, Account, Street Pass, and the
  * check-in notice still open them. Operations, the Black Book, and individual
  * crew profiles are off it too. Armory and Garage are Hideout tabs, and every
- * section starts open so those tabs stay on the sidebar.
+ * section starts open.
  */
 export const SECTIONS: NavSection[] = [
   {
@@ -75,14 +75,9 @@ export const SECTIONS: NavSection[] = [
         label: 'Hideout',
         to: '/game/hideout',
         icon: 'hideout',
-        excludeHashes: ['#hideout-armory', '#hideout-garage'],
+        excludeHashes: [],
       },
-      { key: 'armory', label: 'Armory', short: 'Armory', to: '/game/hideout', hash: '#hideout-armory', icon: 'raids' },
-      { key: 'garage', label: 'Garage', short: 'Garage', to: '/game/hideout', hash: '#hideout-garage', icon: 'cities' },
-      { key: 'dealers', label: 'Dealer Crews', short: 'Dealers', to: '/game/dealers', icon: 'contacts' },
       { key: 'stores', label: 'Stores', to: '/game/stores', icon: 'stores', prefix: '/game/stores/' },
-      { key: 'supply', label: 'Bulk Orders', short: 'Supply', to: '/game/supply', icon: 'stores' },
-      { key: 'loans', label: 'Loan Shark', short: 'Loans', to: '/game/loans', icon: 'stores' },
       { key: 'travel', label: 'Travel', to: '/game/travel', icon: 'cities' },
       { key: 'turf', label: 'Turf', to: '/game/turf', icon: 'cities' },
     ],
@@ -162,8 +157,6 @@ export const ADMIN_SECTIONS: NavSection[] = [
     title: 'Admin · Economy',
     pages: [
       { key: 'admin-economy', label: 'Economy', to: '/game/admin/economy', icon: 'admin' },
-      { key: 'admin-supply', label: 'Supply Operations', to: '/game/admin/supply', icon: 'admin' },
-      { key: 'admin-loans', label: 'Loan Shark', short: 'Loans', to: '/game/admin/loans', icon: 'admin' },
       { key: 'admin-casino', label: 'Casino', to: '/game/admin/casino', icon: 'admin' },
       { key: 'admin-drop', label: 'The Drop', to: '/game/admin/drop', icon: 'admin' },
     ],

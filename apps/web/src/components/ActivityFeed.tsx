@@ -200,6 +200,9 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
         ...movements,
         ...(!movements.length ? mixedFinds : []),
         !movements.length && !mixedFinds.length && num(p.crackFound) ? `+${formatNumber(num(p.crackFound))} ${crackWord} found` : null,
+        p.cacheFound && typeof p.cacheFound === 'object' && !Array.isArray(p.cacheFound)
+          ? `Cache found: ${str((p.cacheFound as Record<string, unknown>).label, 'new cache')}`
+          : null,
         num(p.whoresLeft) ? `${num(p.whoresLeft)} whores walked` : null,
         num(p.thugsLeft) ? `${num(p.thugsLeft)} thugs walked` : null,
         p.busted ? `BUSTED, fined ${formatCents(num(p.fineCents))}` : null,

@@ -1310,6 +1310,8 @@ export interface PlayerBoardRules {
   readonly postingFeeMinCents: number;
   /** The Board C. Open offers one player may have at once. */
   readonly maxOpenOffers: number;
+  readonly startingOpenOffers?: number;
+  readonly reputationPerOpenOffer?: number;
   /** The Board C. The listing lengths a seller may choose, in round hours. */
   readonly listingHours: readonly number[];
   /**
@@ -3331,6 +3333,17 @@ export interface Ruleset {
     };
   };
   readonly meta: RulesetMeta;
+  /** Current-release surfaces retired without rewriting historical rounds. */
+  readonly retiredFeatures?: {
+    readonly salvageYard?: boolean;
+    readonly bulkOrders?: boolean;
+    readonly loanShark?: boolean;
+    readonly dealerCrews?: boolean;
+    readonly armory?: boolean;
+    readonly garage?: boolean;
+    readonly ammoParts?: boolean;
+    readonly scavenging?: boolean;
+  };
   /** 2.4.0-B. Absent on rounds pinned before the ammo and parts catalog. */
   readonly ammoParts?: AmmoPartsRules;
   /** The Board A. Absent on rounds pinned before player listings; `enabled` gates every post and fill. */

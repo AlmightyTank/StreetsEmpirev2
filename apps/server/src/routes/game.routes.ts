@@ -125,6 +125,16 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
     return { round, player };
   }
 
+  function assertFeatureAvailable(
+    ruleset: ReturnType<typeof loadRulesetForRound>,
+    feature: keyof NonNullable<ReturnType<typeof loadRulesetForRound>['retiredFeatures']>,
+    label: string,
+  ) {
+    if (ruleset.retiredFeatures?.[feature]) {
+      throw AppError.notFound('FEATURE_RETIRED', `${label} is no longer available.`);
+    }
+  }
+
   /**
    * The Board: parts count toward rank while the Board is on, so a part or cash change made outside
    * the action pipeline refreshes stored net worth and ranks straight away. Rounds without the Board
@@ -318,15 +328,19 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
   // The Salvage Yard: hideout building materials for cash or barter.
   fastify.get('/stores/salvage', { preHandler: fastify.requireAuth }, async (request) => {
     const { round, player } = await requirePlayer(request.auth!.account.id);
+    const ruleset = loadRulesetForRound(round);
+    assertFeatureAvailable(ruleset, 'salvageYard', 'The Salvage Yard');
     await PlayerStateService.settle(fastify.prisma, player.id, { markActive: true });
-    return SalvageYardService.page(fastify.prisma, player.id, loadRulesetForRound(round));
+    return SalvageYardService.page(fastify.prisma, player.id, ruleset);
   });
 
   fastify.post('/stores/salvage/trade', { preHandler: fastify.requireAuth }, async (request) => {
     const body = parseBody(z.object({ key: z.string().trim().min(1).max(64), quantity: z.number().int().min(1).max(MAX_SALVAGE_TRADE) }).strict(), request.body);
     const { round, player } = await requirePlayer(request.auth!.account.id);
+    const ruleset = loadRulesetForRound(round);
+    assertFeatureAvailable(ruleset, 'salvageYard', 'The Salvage Yard');
     await PlayerStateService.settle(fastify.prisma, player.id, { markActive: true });
-    const trade = await SalvageYardService.trade(fastify.prisma, player.id, body.key, body.quantity, new Date(), loadRulesetForRound(round));
+    const trade = await SalvageYardService.trade(fastify.prisma, player.id, body.key, body.quantity, new Date(), ruleset);
     await settleAfterParts(round, player.id);
     return trade;
   });
@@ -429,6 +443,7 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
     // 1.6.0-C: settled first, so a pickup run that is due home has delivered.
     const now = new Date();
     const settled = await PlayerStateService.settle(fastify.prisma, player.id, { markActive: false, now });
+    assertFeatureAvailable(settled.ruleset, 'bulkOrders', 'Bulk Orders');
     const page = await SupplyOrderService.page(fastify.prisma, settled.round, settled.player);
     if (!page.enabled) return { ...page, pickups: null, ledger: null, history: [] };
     const [pickups, ledger, history] = await Promise.all([
@@ -441,32 +456,38 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.post('/supply/pickups', { preHandler: fastify.requireAuth }, async (request) => {
     const { player } = await requirePlayer(request.auth!.account.id);
+    assertFeatureAvailable(loadRulesetForRound(await RoundService.requireCurrent(fastify.prisma)), 'bulkOrders', 'Bulk Orders');
     return SupplyPickupService.dispatch(fastify.prisma, player.id, request.body);
   });
 
   fastify.post('/supply/lanes', { preHandler: fastify.requireAuth }, async (request) => {
     const { player } = await requirePlayer(request.auth!.account.id);
+    assertFeatureAvailable(loadRulesetForRound(await RoundService.requireCurrent(fastify.prisma)), 'bulkOrders', 'Bulk Orders');
     return SupplyLaneService.ship(fastify.prisma, player.id, request.body);
   });
 
   fastify.post('/supply/shipments', { preHandler: fastify.requireAuth }, async (request) => {
     const { player } = await requirePlayer(request.auth!.account.id);
+    assertFeatureAvailable(loadRulesetForRound(await RoundService.requireCurrent(fastify.prisma)), 'bulkOrders', 'Bulk Orders');
     return SupplyPickupService.ship(fastify.prisma, player.id, request.body);
   });
 
   fastify.post('/supply/properties', { preHandler: fastify.requireAuth }, async (request) => {
     const { player } = await requirePlayer(request.auth!.account.id);
+    assertFeatureAvailable(loadRulesetForRound(await RoundService.requireCurrent(fastify.prisma)), 'bulkOrders', 'Bulk Orders');
     return SupplyPropertyService.buy(fastify.prisma, player.id, request.body);
   });
 
   fastify.post('/supply/properties/close', { preHandler: fastify.requireAuth }, async (request) => {
     const { player } = await requirePlayer(request.auth!.account.id);
+    assertFeatureAvailable(loadRulesetForRound(await RoundService.requireCurrent(fastify.prisma)), 'bulkOrders', 'Bulk Orders');
     return SupplyPropertyService.close(fastify.prisma, player.id, request.body);
   });
 
   fastify.post('/supply/orders', { preHandler: fastify.requireAuth }, async (request) => {
     const body = parseBody(supplyOrderSchema, request.body);
     const { player } = await requirePlayer(request.auth!.account.id);
+    assertFeatureAvailable(loadRulesetForRound(await RoundService.requireCurrent(fastify.prisma)), 'bulkOrders', 'Bulk Orders');
     return SupplyOrderService.place(fastify.prisma, player.id, body);
   });
 
@@ -475,12 +496,14 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
     const { player } = await requirePlayer(request.auth!.account.id);
     const now = new Date();
     const settled = await PlayerStateService.settle(fastify.prisma, player.id, { markActive: false, now });
+    assertFeatureAvailable(settled.ruleset, 'loanShark', 'The Loan Shark');
     return LoanSharkService.page(fastify.prisma, settled.ruleset, settled.player, now);
   });
 
   fastify.post('/loans/accept', { preHandler: fastify.requireAuth }, async (request) => {
     const body = parseBody(loanAcceptSchema, request.body);
     const { player } = await requirePlayer(request.auth!.account.id);
+    assertFeatureAvailable(loadRulesetForRound(await RoundService.requireCurrent(fastify.prisma)), 'loanShark', 'The Loan Shark');
     return LoanService.acceptOffer(fastify.prisma, player.id, body);
   });
 
@@ -490,6 +513,7 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
     const { loanId } = parseBody(loanParams, request.params);
     const { amountCents } = parseBody(z.object({ amountCents: z.coerce.number().int().min(0).max(Number.MAX_SAFE_INTEGER) }).strict(), request.query);
     const { player } = await requirePlayer(request.auth!.account.id);
+    assertFeatureAvailable(loadRulesetForRound(await RoundService.requireCurrent(fastify.prisma)), 'loanShark', 'The Loan Shark');
     const now = new Date();
     // Settled first, so anything due is collected and the preview starts where a payment would.
     const settled = await PlayerStateService.settle(fastify.prisma, player.id, { markActive: false, now });
@@ -502,6 +526,7 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
     const { loanId } = parseBody(loanParams, request.params);
     const body = parseBody(loanPaymentSchema, request.body);
     const { player } = await requirePlayer(request.auth!.account.id);
+    assertFeatureAvailable(loadRulesetForRound(await RoundService.requireCurrent(fastify.prisma)), 'loanShark', 'The Loan Shark');
     return LoanService.repay(fastify.prisma, player.id, { loanId, requestKey: body.requestKey, actionId: body.actionId, amountCents: BigInt(body.amountCents) });
   });
 
@@ -646,11 +671,13 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
     const { player } = await requirePlayer(request.auth!.account.id);
     const now = new Date();
     const settled = await PlayerStateService.settle(fastify.prisma, player.id, { markActive: false, now });
+    assertFeatureAvailable(settled.ruleset, 'dealerCrews', 'Dealer Crews');
     return DealerCrewService.page(fastify.prisma, settled.ruleset, settled.player, now);
   });
 
   fastify.post('/dealers', { preHandler: fastify.requireAuth }, async (request) => {
     const { player } = await requirePlayer(request.auth!.account.id);
+    assertFeatureAvailable(loadRulesetForRound(await RoundService.requireCurrent(fastify.prisma)), 'dealerCrews', 'Dealer Crews');
     return DealerCrewService.establish(fastify.prisma, player.id, request.body);
   });
 
@@ -664,6 +691,7 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
       const { crewId } = parseBody(z.object({ crewId: z.string().trim().min(1).max(64) }).strict(), request.params);
       if (path === 'runner-reserve') parseBody(dealerCrewRunnerReserveSchema, request.body);
       const { player } = await requirePlayer(request.auth!.account.id);
+      assertFeatureAvailable(loadRulesetForRound(await RoundService.requireCurrent(fastify.prisma)), 'dealerCrews', 'Dealer Crews');
       return run(fastify.prisma, player.id, crewId, request.body);
     });
   }
@@ -672,6 +700,7 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
     const { crewId } = parseBody(z.object({ crewId: z.string().trim().min(1).max(64) }).strict(), request.params);
     const body = parseBody(dealerStaffAssignSchema, request.body);
     const { player } = await requirePlayer(request.auth!.account.id);
+    assertFeatureAvailable(loadRulesetForRound(await RoundService.requireCurrent(fastify.prisma)), 'dealerCrews', 'Dealer Crews');
     return DealerStaffService.assign(fastify.prisma, player.id, crewId, body);
   });
 
@@ -679,6 +708,7 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
     const { staffId } = parseBody(z.object({ staffId: z.string().trim().min(1).max(64) }).strict(), request.params);
     const body = parseBody(dealerStaffReleaseSchema, request.body);
     const { player } = await requirePlayer(request.auth!.account.id);
+    assertFeatureAvailable(loadRulesetForRound(await RoundService.requireCurrent(fastify.prisma)), 'dealerCrews', 'Dealer Crews');
     return DealerStaffService.release(fastify.prisma, player.id, staffId, body);
   });
 
@@ -710,13 +740,15 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
   });
 
   fastify.get('/hideout/scavenging', { preHandler: fastify.requireAuth }, async (request) => {
-    const { player } = await requirePlayer(request.auth!.account.id);
+    const { round, player } = await requirePlayer(request.auth!.account.id);
+    assertFeatureAvailable(loadRulesetForRound(round), 'scavenging', 'Scavenging');
     return ScavengingService.page(fastify.prisma, player.id);
   });
 
   fastify.post('/hideout/scavenging/:cacheId/open', { preHandler: fastify.requireAuth }, async (request) => {
     const { cacheId } = parseBody(z.object({ cacheId: z.string().trim().min(1).max(64) }).strict(), request.params);
     const { round, player } = await requirePlayer(request.auth!.account.id);
+    assertFeatureAvailable(loadRulesetForRound(round), 'scavenging', 'Scavenging');
     const opened = await ScavengingService.open(fastify.prisma, player.id, cacheId);
     await settleAfterParts(round, player.id);
     return opened;
@@ -753,30 +785,35 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/armory', { preHandler: fastify.requireAuth }, async (request) => {
     const { player } = await requirePlayer(request.auth!.account.id);
     const settled = await PlayerStateService.settle(fastify.prisma, player.id, { markActive: true });
+    assertFeatureAvailable(settled.ruleset, 'armory', 'The Armory');
     return ArmoryService.catalog(fastify.prisma, player.id, request.auth!.account.id, settled.ruleset);
   });
 
   fastify.post('/armory/look', { preHandler: fastify.requireAuth }, async (request) => {
     const body = parseBody(armoryLookActionSchema, request.body);
     const { player } = await requirePlayer(request.auth!.account.id);
+    assertFeatureAvailable(loadRulesetForRound(await RoundService.requireCurrent(fastify.prisma)), 'armory', 'The Armory');
     return ArmoryService.setLook(fastify.prisma, player.id, request.auth!.account.id, body);
   });
 
   fastify.post('/armory/feature', { preHandler: fastify.requireAuth }, async (request) => {
     const body = parseBody(armoryFeatureItemSchema, request.body);
     const { player } = await requirePlayer(request.auth!.account.id);
+    assertFeatureAvailable(loadRulesetForRound(await RoundService.requireCurrent(fastify.prisma)), 'armory', 'The Armory');
     return ArmoryService.feature(fastify.prisma, player.id, request.auth!.account.id, body);
   });
 
   fastify.post('/armory/actions', { preHandler: fastify.requireAuth }, async (request) => {
     const body = parseBody(armoryBulkActionSchema, request.body);
     const { player } = await requirePlayer(request.auth!.account.id);
+    assertFeatureAvailable(loadRulesetForRound(await RoundService.requireCurrent(fastify.prisma)), 'armory', 'The Armory');
     return ArmoryService.update(fastify.prisma, player.id, body);
   });
 
   fastify.post('/armory/mod-actions', { preHandler: fastify.requireAuth }, async (request) => {
     const body = parseBody(armoryModActionSchema, request.body);
     const { player } = await requirePlayer(request.auth!.account.id);
+    assertFeatureAvailable(loadRulesetForRound(await RoundService.requireCurrent(fastify.prisma)), 'armory', 'The Armory');
     return ArmoryService.customize(fastify.prisma, player.id, body);
   });
 

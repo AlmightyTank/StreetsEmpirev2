@@ -91,8 +91,8 @@ function damageText(damage: VehicleDamageDto, home: boolean): string {
     vehicleCountsText(damage.disabled) ? `${vehicleCountsText(damage.disabled)} disabled` : '',
   ].filter(Boolean).join(' · ');
   const one = [...Object.values(damage.damaged), ...Object.values(damage.disabled)].reduce((sum, count) => sum + count, 0) === 1;
-  if (home) return `${parts}. Repair or recover in the Garage tab.`;
-  return one ? `${parts}: it still drives home, then waits on the garage.` : `${parts}: they still drive home, then wait on the garage.`;
+  if (home) return `${parts}. The vehicle remains unavailable until it is recovered.`;
+  return one ? `${parts}: it still drives home, then remains unavailable.` : `${parts}: they still drive home, then remain unavailable.`;
 }
 
 /** Load a run up at home: cars, escorts, cash and cargo, and where it goes. */
@@ -158,7 +158,7 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
     : (data.vehicleFleet ?? []).reduce((sum, vehicle) => sum + (vehicle.runFeeCents ?? 0) * selected[vehicle.classId], 0);
   const owned = home.vehicles ?? { LOW_RIDER: home.lowRiders, SEDAN: 0, VAN: 0 };
   const vehicleSpec = (classId: 'LOW_RIDER' | 'SEDAN' | 'VAN') => data.vehicleFleet?.find((vehicle) => vehicle.classId === classId);
-  // 1.5.0-C: cars waiting on the garage stay home.
+  // Vehicles waiting for recovery stay home.
   const inService = Object.fromEntries((data.vehicleFleet ?? []).map((vehicle) => [vehicle.classId, (vehicle.damaged ?? 0) + (vehicle.disabled ?? 0)]));
   const inServiceCount = Object.values(inService).reduce((sum, count) => sum + count, 0);
   const trouble = vehicleTroubleText(data);
@@ -232,8 +232,8 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
 
         {data.vehicleFleet?.length ? (
           <p className="se-hint se-mt">
-            {inService ? `${vehicleCountsText(inService)} ${inServiceCount === 1 ? 'is' : 'are'} waiting on the garage and cannot go. ` : ''}
-            Buy, repair or recover vehicles in the <Link className="se-golink" to="/game/travel?tab=garage">Garage</Link>.
+            {inService ? `${vehicleCountsText(inService)} ${inServiceCount === 1 ? 'is' : 'are'} unavailable and cannot go. ` : ''}
+            Manage the vehicle fleet from the road map.
           </p>
         ) : owned.LOW_RIDER === 0 ? (
           <p className="se-hint">A run needs at least one Low-Rider. <Link className="se-golink" to="/game/stores/charlie">Buy one from Charlie</Link>.</p>
@@ -1003,7 +1003,7 @@ export function ReceiptPanel({ receipt, products }: { receipt: RunReceiptDto; pr
       <div className="se-rows">
         <Row label="Went to" value={receipt.cities.map((city) => city.name).join(', ') || 'Nowhere'} />
         {receipt.individualVehicles?.length ? <Row label="Vehicles" value={receipt.individualVehicles.map((vehicle) => `${vehicle.name || vehicle.model.replace('_', ' ')} · ${vehicle.condition}% · ${vehicle.status.toLowerCase()}`).join(' / ')} /> : receipt.vehicleLoadout ? <Row label="Vehicles" value={vehicleCountsText(receipt.vehicleLoadout) || 'None'} /> : null}
-        {receipt.vehicleDamage ? <Row label="Garage" value={<span className="se-warn">{damageText(receipt.vehicleDamage, true)}</span>} /> : null}
+        {receipt.vehicleDamage ? <Row label="Vehicle status" value={<span className="se-warn">{damageText(receipt.vehicleDamage, true)}</span>} /> : null}
         <Row label="Cash" value={<span className="se-num">{formatCents(receipt.startCashCents)} → {formatCents(receipt.cashCents)} <span className={cashChange >= 0 ? 'se-good' : 'se-bad'}>({cashChange >= 0 ? '+' : ''}{formatCents(cashChange)})</span></span>} strong />
         {receipt.startBeer > 0 || receipt.beer > 0 ? <Row label="Beer" value={<span className="se-num">{formatNumber(receipt.startBeer)} → {formatNumber(receipt.beer)}</span>} /> : null}
         {moved.map((entry) => (
