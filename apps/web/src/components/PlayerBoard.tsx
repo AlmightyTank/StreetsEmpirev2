@@ -697,7 +697,7 @@ export function PlayerBoard() {
               await api.post('/game/products/trade', { product: product.key, direction: 'buy', quantity, actionId: newActionId() });
               const catalog = await api.get<ProductsDto>('/game/products');
               setPipProducts(catalog.products);
-              return `Bought 1 × ${product.name} from Pip’s Deals on Wheels.`;
+              return `Bought ${formatNumber(quantity)} × ${product.name} from Pip’s Deals on Wheels.`;
             })} />
         ) : null}
       </div>
