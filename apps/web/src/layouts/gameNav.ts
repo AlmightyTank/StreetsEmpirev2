@@ -46,10 +46,9 @@ export type IconName =
 
 /**
  * One destination per feature a player acts on during a round, in six groups.
- * Deep links stay valid. Lifetime XP, Roll Call stamps, The Drop, and Supporter
- * billing are off this menu: the season card, Account, Street Pass, and the
- * check-in notice still open them. Operations, the Black Book, and individual
- * crew profiles are off it too. Armory and Garage are Hideout tabs, and every
+ * Deep links stay valid. The Drop and Supporter billing are off this menu:
+ * Account still opens them. Operations, the Black Book, and individual crew
+ * profiles are off it too. Armory and Garage are Hideout tabs, and every
  * section starts open.
  */
 export const SECTIONS: NavSection[] = [
@@ -99,8 +98,10 @@ export const SECTIONS: NavSection[] = [
     title: 'Progress & Rewards',
     defaultOpen: true,
     pages: [
+      { key: 'xp-progress', label: 'XP', short: 'XP', to: '/game/xp-progress', icon: 'fame' },
       { key: 'skills', label: 'Street Skills', short: 'Skills', to: '/game/skills', icon: 'profile' },
       { key: 'events', label: 'Events', to: '/game/events', icon: 'activity' },
+      { key: 'roll-call', label: 'Roll Call', short: 'Roll Call', to: '/game/roll-call', icon: 'status' },
       { key: 'street-pass', label: 'Street Pass', short: 'Pass', to: '/game/street-pass', icon: 'pass' },
       { key: 'profile', label: 'Profile', to: '/game/profile', icon: 'profile' },
     ],
