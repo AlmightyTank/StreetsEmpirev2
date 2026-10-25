@@ -2524,3 +2524,41 @@
   }
 }
 
+
+
+/* Board trader quantity controls stay compact inside phone cards. */
+.se-market-buy-controls {
+  min-width: 0;
+  flex-wrap: nowrap;
+}
+
+.se-market-buy-controls .se-board-buy__qty {
+  box-sizing: border-box;
+  flex: 0 0 76px;
+  min-width: 0;
+  width: 76px;
+}
+
+@media (max-width: 700px) {
+  .se-table--cards td.se-market-buy-controls {
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  .se-table--cards td.se-market-buy-controls .se-btn {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+    white-space: nowrap;
+  }
+}
+
+/* The listing inspector has no duration indicator beneath its item art. */
+.se-market-inspector__art::before,
+.se-market-inspector__art::after,
+.se-market-inspector__art .se-item-tile::before,
+.se-market-inspector__art .se-item-tile::after {
+  content: none;
+  display: none;
+}
