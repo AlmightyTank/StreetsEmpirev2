@@ -436,7 +436,7 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
                     <div className="se-market-inspector__detail"><span>Available</span><strong>{formatNumber(selectedRow.quantity)}</strong></div>
                     <div className="se-market-inspector__detail"><span>Listing ends</span><strong>{closesIn(selectedRow.expiresAt, now)}</strong></div>
                     {!selectedRow.mine && selectedRow.priceKind === 'CASH' && selectedRow.quantity > selectedRow.lotSize ? (
-                      <label className="se-field se-market-inspector__quantity">
+                      <>\n                      <label className="se-field se-market-inspector__quantity">
                         <span>Quantity to buy · increments of {formatNumber(selectedRow.lotSize)}</span>
                         <input className="se-input" type="number" inputMode="numeric" min={selectedRow.lotSize} max={selectedRow.quantity} step={selectedRow.lotSize}
                           aria-label={`How many ${selectedRow.name.toLowerCase()} to buy from ${selectedRow.sellerName}`}
@@ -444,7 +444,7 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
                           onChange={(event) => onBuyQuantity(selectedRow.id, event.target.value)} />
                       </label>
                       <MarketQuantityAdjusters value={Number(buyQuantities[selectedRow.id] || selectedRow.quantity)} max={selectedRow.quantity} unitStep={selectedRow.lotSize} unitLabel={selectedRow.lotSize > 1 ? 'lots' : 'units'} onChange={(value) => onBuyQuantity(selectedRow.id, String(value))} />
-                    ) : null}
+                      </>\n                    ) : null}
                     {!selectedRow.mine && selectedUnits !== null ? <p className="se-market-inspector__total">You pay <strong>{formatCentsExact(selectedCash)}</strong>{selectedFee > 0 ? ' including Board fee' : ''}</p> : null}
                     {selectedRow.mine ? <p className="se-hint">This is your listing. Manage it under My listings.</p> : (
                       <Button variant="primary" disabledReason={buyBlocker(selectedRow, book, busy, selectedUnits)} onClick={() => onBuy(selectedRow, selectedUnits!)}>
@@ -474,7 +474,7 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
                       <input className="se-input se-board-buy__qty" type="number" inputMode="numeric" min={1} max={max} step={1} aria-label={`Quantity of ${item.name} to buy`} value={traderQuantities[key] ?? '1'} onChange={(event) => onTraderQuantity?.(key, event.target.value)} />
                         <MarketQuantityAdjusters value={quantity} max={max} onChange={(value) => onTraderQuantity?.(key, String(value))} />
                       </div>
-                      <Button size="sm" variant="primary" disabledReason={busy || !onTraderBuy ? 'Unavailable' : !valid ? max < 1 ? 'Not enough cash for one' : `Enter 1 to ${formatNumber(max)}` : null} onClick={() => void confirmTraderPurchase(store.name, item.name, quantity, item.buyCents, () => onTraderBuy?.(store, item, quantity))}>Buy {formatNumber(valid ? quantity : 1)}</Button>
+                      <Button size="sm" variant="primary" disabledReason={busy || !onTraderBuy ? 'Unavailable' : !valid ? max < 1 ? 'Not enough cash for one' : `Enter 1 to ${formatNumber(max)}` : null} onClick={() => void confirmTraderPurchase(store.name, store.key === 'PIP' && item.key === 'CRACK' ? 'Crack' : item.name, quantity, item.buyCents, () => onTraderBuy?.(store, item, quantity))}>Buy {formatNumber(valid ? quantity : 1)}</Button>
                     </td>
                   </tr>;
                 }) )}
@@ -489,7 +489,7 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
                     <td data-label="Stock" className="se-num">{formatNumber(pip.maxBuy)}</td><td data-label="" className="se-market-buy-controls">
                       <div className="se-market-trader-quantity">
                       <input className="se-input se-board-buy__qty" type="number" inputMode="numeric" min={1} max={max} step={1} aria-label={`Quantity of ${product.name} to buy`} value={traderQuantities[key] ?? '1'} onChange={(event) => onTraderQuantity?.(key, event.target.value)} />
-                        <MarketQuantityAdjusters value={product} max={max} onChange={(value) => onTraderQuantity?.(key, String(value))} />
+                        <MarketQuantityAdjusters value={quantity} max={max} onChange={(value) => onTraderQuantity?.(key, String(value))} />
                       </div>
                       <Button size="sm" variant="primary" disabledReason={busy || !onPipBuy ? 'Unavailable' : !valid ? max < 1 ? 'Not enough cash for one' : `Enter 1 to ${formatNumber(max)}` : null} onClick={() => void confirmTraderPurchase('Pip’s Deals on Wheels', product.name, quantity, pip.buyCents, () => onPipBuy?.(product, quantity))}>Buy {formatNumber(valid ? quantity : 1)}</Button>
                     </td>
