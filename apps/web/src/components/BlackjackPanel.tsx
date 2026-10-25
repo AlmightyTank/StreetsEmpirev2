@@ -14,7 +14,6 @@ import { Alert } from './Alert.js';
 import { Button } from './Button.js';
 import { Panel } from './Panel.js';
 import { newActionId } from '../utils/actionId.js';
-import { restoreScrollPosition } from '../utils/scrollPosition.js';
 import { formatWhen } from '../utils/time.js';
 import {
   casinoSoundEnabled,
@@ -171,7 +170,6 @@ export function BlackjackPanel({ casinoPage, onPageChange }: Props) {
   async function deal(event: FormEvent) {
     event.preventDefault();
     if (!selectedTable || !wagerCents) return;
-    const scrollTop = window.scrollY;
     setBusy('deal');
     setError(null);
     setLastHand(null);
@@ -186,7 +184,6 @@ export function BlackjackPanel({ casinoPage, onPageChange }: Props) {
         onPageChange(result.page);
         setState(result.blackjack);
         setLastHand(result.hand);
-        restoreScrollPosition(scrollTop);
       });
       playHandResult(result.hand);
       resetActionIds();
@@ -199,7 +196,6 @@ export function BlackjackPanel({ casinoPage, onPageChange }: Props) {
 
   async function act(kind: 'hit' | 'stand' | 'double' | 'split') {
     if (!shownHand) return;
-    const scrollTop = window.scrollY;
     setBusy(kind);
     setError(null);
     const actionRef = kind === 'hit' ? hitAction
@@ -226,7 +222,6 @@ export function BlackjackPanel({ casinoPage, onPageChange }: Props) {
         onPageChange(result.page);
         setState(result.blackjack);
         setLastHand(result.hand);
-        restoreScrollPosition(scrollTop);
       });
       playHandResult(result.hand);
       actionRef.current = newActionId();

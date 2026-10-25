@@ -26,7 +26,6 @@ import {
 import { useSession } from '../stores/session.js';
 import { newActionId } from '../utils/actionId.js';
 import { formatWhen } from '../utils/time.js';
-import { preserveScrollDuring, restoreScrollPosition } from '../utils/scrollPosition.js';
 import '../styles/casino.css';
 import '../styles/sportsbook.css';
 import '../styles/sportsbook-vision.css';
@@ -409,7 +408,6 @@ export function CasinoPage() {
       return;
     }
 
-    const scrollTop = window.scrollY;
     setBusy('spin');
     setError(null);
     setNotice(null);
@@ -492,7 +490,6 @@ export function CasinoPage() {
       setRevealedReels(99);
     } finally {
       setBusy(null);
-      restoreScrollPosition(scrollTop);
     }
   }
 
@@ -1209,10 +1206,8 @@ export function CasinoPage() {
             <BlackjackPanel
               casinoPage={data}
               onPageChange={(next) => {
-                preserveScrollDuring(() => {
-                  setData(next);
-                  setDisplayedCreditsCents(next.openSession?.bankrollCents ?? null);
-                });
+                setData(next);
+                setDisplayedCreditsCents(next.openSession?.bankrollCents ?? null);
               }}
             />
                 ) : null}
@@ -1221,10 +1216,8 @@ export function CasinoPage() {
             <RoulettePanel
               casinoPage={data}
               onPageChange={(next) => {
-                preserveScrollDuring(() => {
-                  setData(next);
-                  setDisplayedCreditsCents(next.openSession?.bankrollCents ?? null);
-                });
+                setData(next);
+                setDisplayedCreditsCents(next.openSession?.bankrollCents ?? null);
               }}
             />
                 ) : null}
@@ -1233,10 +1226,8 @@ export function CasinoPage() {
             <ScratchCardsPanel
               casinoPage={data}
               onPageChange={(next) => {
-                preserveScrollDuring(() => {
-                  setData(next);
-                  setDisplayedCreditsCents(next.openSession?.bankrollCents ?? null);
-                });
+                setData(next);
+                setDisplayedCreditsCents(next.openSession?.bankrollCents ?? null);
               }}
             />
                 ) : null}
@@ -1245,10 +1236,8 @@ export function CasinoPage() {
             <HorseRacingPanel
               casinoPage={data}
               onPageChange={(next) => {
-                preserveScrollDuring(() => {
-                  setData(next);
-                  setDisplayedCreditsCents(next.openSession?.bankrollCents ?? null);
-                });
+                setData(next);
+                setDisplayedCreditsCents(next.openSession?.bankrollCents ?? null);
               }}
             />
                 ) : null}
@@ -1257,10 +1246,8 @@ export function CasinoPage() {
             <PokerPanel
               casinoPage={data}
               onPageChange={(next) => {
-                preserveScrollDuring(() => {
-                  setData(next);
-                  setDisplayedCreditsCents(next.openSession?.bankrollCents ?? null);
-                });
+                setData(next);
+                setDisplayedCreditsCents(next.openSession?.bankrollCents ?? null);
               }}
             />
                 ) : null}
@@ -1270,10 +1257,8 @@ export function CasinoPage() {
                     bankrollCents={data.openSession?.bankrollCents ?? null}
                     onPlaced={async () => {
                       const next = await casinoApi.page();
-                      preserveScrollDuring(() => {
-                        setData(next);
-                        setDisplayedCreditsCents(next.openSession?.bankrollCents ?? null);
-                      });
+                      setData(next);
+                      setDisplayedCreditsCents(next.openSession?.bankrollCents ?? null);
                       await refreshSnapshot({ background: false });
                     }}
                   />
