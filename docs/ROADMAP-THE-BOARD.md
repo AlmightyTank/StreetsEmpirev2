@@ -226,6 +226,16 @@ A below-range price has to charge the *buyer*, never the seller. Otherwise a sec
 - **On the tab.** The price box shows the fair range and the tax or fee a price would cost. Cheap rows are marked "+ Board fee", and the buy button and confirmation include it.
 - **Tests.** Sweeps cover crack and parts of every rarity, at prices from 1 cent to many times the book, for whole and partial buys and odd cash balances. Neither side's rank rises across posting and selling together.
 
+Slice G lists guns, low-riders and ammo through `playerBoard.listableKeeperGoods`: pistol, shotgun, Tek-9, AK-47, low-rider and ammo.
+
+- **Books.** A gun's or low-rider's book is its net worth value, and it is listable only while that equals the keeper's buyback. Ammo's book is its per-round net worth, 6¢ (a fair range of 8¢).
+- **Left off the Board.** Sedans and vans have no buyback, and vehicle parts have no net worth, so none of them can be priced fairly.
+- **Unlocks.** A buyer needs the keeper's unlock for the shotgun, Tek-9 and AK-47 (`playerBoardKeeperUnlock`). A locked buyer sees the row, marked Locked, and the buy is refused (`WEAPON_LOCKED`). A seller can't ask for a gun in barter without its unlock either.
+- **Daily cap.** In any rolling 24 hours, a buyer takes at most one keeper delivery of each good from the Board (`playerBoardKeeperDailyCap`, read from the shelf's restock): pistol 50, shotgun 5, Tek-9 3, AK-47 2, low-rider 3, ammo 25,000 rounds. A purchase over that is refused (`BOARD_DAILY_LIMIT`). The book reports what is left today, and the buy box defaults to it.
+- **Shelves.** The Board never touches Tommy's or Charlie's stock, and a test holds the shelves unchanged across fills.
+- **Item rows.** On rounds with an armory and garage, guns and cars are individual item rows as well as columns. The Board trades them as interchangeable units, so only clean ones can be listed: full condition, no mods or name, ready (not locked into a fight or out on a run) and not hot. They come off the column and out of the rows together (`board-keeper-goods.ts`). The buyer gets a fresh stack with origin `BOARD`, within their armory or garage capacity, and the armory summary is refreshed.
+- **The tab** gains a Guns & cars filter, and the listing form groups keeper goods.
+
 F and G both sit on E. Product is the smaller cut, so it goes first. H is last. D lands before E so the tab exists on the round where fills turn on.
 
 What each slice may touch:

@@ -12,6 +12,9 @@ import {
   playerBoardEscrowNetWorthCents,
   playerBoardItemBookCents,
   playerBoardItemKind,
+  playerBoardKeeperBookCents,
+  playerBoardKeeperDailyCap,
+  playerBoardKeeperUnlock,
   playerBoardOfferExpiresAt,
   playerBoardPartBookCents,
   playerBoardPostingFeeCents,
@@ -288,7 +291,8 @@ describe('The Board F: every drug', () => {
       expect(book, key).toBe(pip);
     }
     expect(playerBoardItemKind('SCRAP_METAL', rules)).toBe('PART');
-    expect(playerBoardItemKind('PISTOL', rules)).toBeNull();
+    expect(playerBoardItemKind('PISTOL', rules)).toBe('KEEPER');
+    expect(playerBoardItemKind('SEDAN', rules)).toBeNull();
   });
 
   it('fills crack from $4.00 to $4.34 and refuses a cent over the cap', () => {
@@ -359,8 +363,8 @@ describe('The Board: barter', () => {
     expect(refusal('MOTOR_ASSEMBLY', 1, { MOTOR_ASSEMBLY: 1 })).toBe('SAME_ITEM');
     expect(refusal('MOTOR_ASSEMBLY', 1, {})).toBe('EMPTY');
     expect(refusal('MOTOR_ASSEMBLY', 1, { SCRAP_METAL: 1, WIRING: 1, CLOTH: 1, LABELS: 1 })).toBe('TOO_MANY');
-    expect(refusal('MOTOR_ASSEMBLY', 1, { PISTOL: 1 })).toBe('NOT_LISTABLE');
-    expect(refusal('PISTOL', 1, { SCRAP_METAL: 1 })).toBe('NOT_LISTABLE');
+    expect(refusal('MOTOR_ASSEMBLY', 1, { VAN: 1 })).toBe('NOT_LISTABLE');
+    expect(refusal('SEDAN', 1, { SCRAP_METAL: 1 })).toBe('NOT_LISTABLE');
     expect(refusal('MOTOR_ASSEMBLY', 1, { SCRAP_METAL: 0 })).toBe('INVALID_QUANTITY');
     expect(refusal('MOTOR_ASSEMBLY', 0, { SCRAP_METAL: 1 })).toBe('INVALID_QUANTITY');
     expect(refusal('MOTOR_ASSEMBLY', 1.5, { SCRAP_METAL: 1 })).toBe('INVALID_QUANTITY');
@@ -446,6 +450,75 @@ describe('The Board: any price, steeper outside the fair range', () => {
           expect(seller, `${key} seller ${posted}/${bought} @${price}`).toBeLessThanOrEqual(0n);
           expect(buyer, `${key} buyer ${bought} @${price}`).toBeLessThanOrEqual(0n);
         }
+      }
+    }
+  });
+});
+
+describe('The Board G: guns, cars and ammo', () => {
+  const on = { ...rules, playerBoard: { ...rules.playerBoard, enabled: true } } as Ruleset;
+  const goods = {
+    PISTOL: { book: 3_500, unlock: null, cap: 50, floor: 4_667, top: 5_072, shelf: 5_000 },
+    SHOTGUN: { book: 31_500, unlock: 'SHOTGUN', cap: 5, floor: 42_000, top: 45_652, shelf: 45_000 },
+    TEK9: { book: 87_500, unlock: 'TEK9', cap: 3, floor: 116_667, top: 126_811, shelf: 125_000 },
+    AK47: { book: 245_000, unlock: 'AK47', cap: 2, floor: 326_667, top: 355_072, shelf: 350_000 },
+    LOW_RIDER: { book: 300_000, unlock: null, cap: 3, floor: 400_000, top: 434_782, shelf: 500_000 },
+  } as const;
+
+  it('books every gun and the low-rider at its keeper buyback, with the roadmap bands', () => {
+    for (const [key, good] of Object.entries(goods)) {
+      expect(playerBoardKeeperBookCents(key, rules), key).toBe(good.book);
+      expect(playerBoardItemKind(key, rules), key).toBe('KEEPER');
+      expect(playerBoardBand(good.book, rules), key).toEqual({ bookCents: good.book, floorCents: good.floor, capCents: good.top });
+      const shelf = key === 'LOW_RIDER' ? rules.stores.CHARLIE.items.LOW_RIDER.buyCents : rules.stores.TOMMY.items[key as 'PISTOL'].buyCents;
+      expect(shelf, key).toBe(good.shelf);
+    }
+  });
+
+  it('books ammo per round at its net worth, and leaves sedans, vans and vehicle parts off', () => {
+    expect(playerBoardKeeperBookCents('AMMO', rules)).toBe(6);
+    expect(playerBoardBand(6, rules)).toEqual({ bookCents: 6, floorCents: 8, capCents: 8 });
+    for (const key of ['SEDAN', 'VAN', 'PARTS_BOX', 'VEHICLE_PARTS', 'AMMO_BOX', 'THUG']) expect(playerBoardItemKind(key, rules), key).toBeNull();
+  });
+
+  it('needs the keeper unlock for the shotgun, Tek-9 and AK-47 only', () => {
+    for (const [key, good] of Object.entries(goods)) expect(playerBoardKeeperUnlock(key, rules), key).toBe(good.unlock);
+    expect(playerBoardKeeperUnlock('AMMO', rules)).toBeNull();
+    expect(playerBoardKeeperUnlock('SCRAP_METAL', rules)).toBeNull();
+  });
+
+  it('caps a buyer at one keeper delivery a day, read from the ruleset', () => {
+    for (const [key, good] of Object.entries(goods)) expect(playerBoardKeeperDailyCap(key, rules), key).toBe(good.cap);
+    expect(playerBoardKeeperDailyCap('AMMO', rules)).toBe(rules.stores.TOMMY.items.AMMO_BOX.restock!.perInterval);
+    expect(playerBoardKeeperDailyCap('SCRAP_METAL', rules)).toBeNull();
+  });
+
+  it('refuses a keeper good whose book drifts from its buyback, or one off the allow-list', () => {
+    const drifted = { ...rules, economy: { ...rules.economy, netWorth: { ...rules.economy.netWorth, perAk47Cents: 244_999 } } };
+    expect(playerBoardKeeperBookCents('AK47', drifted)).toBeNull();
+    const narrow = { ...rules, playerBoard: { ...rules.playerBoard, listableKeeperGoods: ['PISTOL'] as const } } as unknown as Ruleset;
+    expect(playerBoardKeeperBookCents('AK47', narrow)).toBeNull();
+    expect(playerBoardKeeperBookCents('PISTOL', narrow)).toBe(3_500);
+  });
+
+  it('values escrowed guns, cars and ammo at book', () => {
+    expect(playerBoardEscrowNetWorthCents({ AK47: 1, LOW_RIDER: 2, AMMO: 1_000 }, on)).toBe(245_000n + 600_000n + 6_000n);
+  });
+
+  it('raises neither rank on any keeper-good sale, inside the range or out', () => {
+    const columns = { PISTOL: 'pistols', SHOTGUN: 'shotguns', TEK9: 'tek9s', AK47: 'ak47s', LOW_RIDER: 'lowRiders', AMMO: 'ammo' } as const;
+    const worth = (p: object) => calculateNetWorthCents({ ...empty, ammo: 0, ...p }, on);
+    for (const [key, field] of Object.entries(columns)) {
+      const book = playerBoardKeeperBookCents(key, on)!;
+      const band = playerBoardBand(book, on)!;
+      for (const price of [1, band.floorCents - 1, band.floorCents, band.capCents, band.capCents + 1, book * 4]) for (const [posted, bought] of [[1, 1], [5, 2]] as const) for (const cash of [0, 3, 50_001]) {
+        const tax = playerBoardCashListingTaxCents(price, book, posted, on);
+        const fee = playerBoardCashBuyerFeeCents(price, book, bought, on);
+        const proceeds = playerBoardSellerProceedsCents(price * bought, on);
+        const seller = worth({ cashCents: cash - tax + proceeds, [field]: posted - bought }) - worth({ cashCents: cash, [field]: posted });
+        const buyer = worth({ cashCents: cash, [field]: bought }) - worth({ cashCents: cash + price * bought + fee });
+        expect(seller, `${key} seller ${posted}/${bought} @${price}`).toBeLessThanOrEqual(0n);
+        expect(buyer, `${key} buyer ${bought} @${price}`).toBeLessThanOrEqual(0n);
       }
     }
   });

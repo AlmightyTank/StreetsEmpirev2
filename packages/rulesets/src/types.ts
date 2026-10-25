@@ -1319,7 +1319,16 @@ export interface PlayerBoardRules {
   readonly listableProducts: readonly string[];
   /** The Board. Most different items a barter offer may ask for. */
   readonly maxAskItems: number;
+  /**
+   * The Board G. Keeper goods that may be listed: guns, low-riders and ammo. Each is listable only
+   * while its net worth value equals its keeper's buyback; a buyer needs the keeper's unlock, and
+   * buys at most one keeper delivery of it a day from the Board.
+   */
+  readonly listableKeeperGoods: readonly PlayerBoardKeeperKey[];
 }
+
+/** The Board G. Keeper goods by Board key. */
+export type PlayerBoardKeeperKey = 'PISTOL' | 'SHOTGUN' | 'TEK9' | 'AK47' | 'LOW_RIDER' | 'AMMO';
 
 /** The Board B. Every hideout scavenge part, as stored in `RoundPlayer.scavengedComponents`. */
 export type ScavengePartKey =

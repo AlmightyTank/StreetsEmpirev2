@@ -553,10 +553,10 @@ export interface PlayerBoardOfferResult {
   /** Cancelling: units back in the stash. Posting: always 0. */
   returnedQuantity: number;
 }
-/** The Board D-F. Which goods the book shows. */
-export type PlayerBoardFilterDto = 'ALL' | 'PARTS' | 'PRODUCTS';
-/** The Board F. What kind of good an offer is. */
-export type PlayerBoardCategoryDto = 'PART' | 'PRODUCT';
+/** The Board D-G. Which goods the book shows. */
+export type PlayerBoardFilterDto = 'ALL' | 'PARTS' | 'PRODUCTS' | 'KEEPER';
+/** The Board F-G. What kind of good an offer is: a part, a drug, or a keeper good (guns, low-riders, ammo). */
+export type PlayerBoardCategoryDto = 'PART' | 'PRODUCT' | 'KEEPER';
 /** The Board D. One open offer on the city-wide book. */
 export interface PlayerBoardRowDto {
   id: string;
@@ -579,6 +579,10 @@ export interface PlayerBoardRowDto {
   /** The Board value of one lot (one unit for cash), and of a barter's ask (0 for cash), so the extra on a part-buy can be priced. */
   lotBookCents: number;
   askBookCents: number;
+  /** The Board G. True when the viewer lacks the keeper unlock this good needs; they can read the row but not buy. */
+  locked: boolean;
+  /** The Board G. Units of this keeper good the viewer may still buy today; null for goods without a daily limit. */
+  dailyLeft: number | null;
   sellerName: string;
   /** The viewer's own offer; it can never be bought by them. */
   mine: boolean;

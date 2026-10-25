@@ -38,7 +38,7 @@ export function parseDollarsToCents(value: string): number | null {
   return Number(match[1]) * 100 + Number((match[2] ?? '').padEnd(2, '0'));
 }
 
-const FILTERS: ReadonlyArray<readonly [PlayerBoardFilterDto, string]> = [['ALL', 'All'], ['PRODUCTS', 'Drugs'], ['PARTS', 'Parts']];
+const FILTERS: ReadonlyArray<readonly [PlayerBoardFilterDto, string]> = [['ALL', 'All'], ['PRODUCTS', 'Drugs'], ['KEEPER', 'Guns & cars'], ['PARTS', 'Parts']];
 const STATUS_LABEL: Record<PlayerBoardOfferDto['status'], string> = { OPEN: 'Up', SOLD: 'Sold', CANCELLED: 'Cancelled', EXPIRED: 'Expired' };
 
 function closesIn(iso: string, now: number): string {
@@ -121,15 +121,21 @@ export interface PlayerBoardViewProps {
 
 /** Units the viewer has asked for from an offer: all that is left unless they typed a number. Null when it is not a valid amount. */
 export function boardBuyUnits(row: PlayerBoardRowDto, typed: string | undefined): number | null {
-  if (typed === undefined || typed === '') return row.quantity;
+  if (typed === undefined || typed === '') {
+    // A keeper good defaults to what the viewer may still buy today, in whole lots.
+    if (row.dailyLeft === null) return row.quantity;
+    const most = Math.min(row.quantity, row.dailyLeft);
+    const units = most - (most % row.lotSize);
+    return units >= 1 ? units : null;
+  }
   const units = Number(typed);
   return Number.isInteger(units) && units >= 1 && units <= row.quantity && units % row.lotSize === 0 ? units : null;
 }
 
-function ItemOptions({ rows }: { rows: ReadonlyArray<{ key: string; name: string; category: 'PART' | 'PRODUCT'; label?: string }> }) {
+function ItemOptions({ rows }: { rows: ReadonlyArray<{ key: string; name: string; category: 'PART' | 'PRODUCT' | 'KEEPER'; label?: string }> }) {
   return (
     <>
-      {([['PRODUCT', 'Drugs'], ['PART', 'Parts']] as const).map(([category, label]) => {
+      {([['PRODUCT', 'Drugs'], ['KEEPER', 'Guns, cars & ammo'], ['PART', 'Parts']] as const).map(([category, label]) => {
         const group = rows.filter((row) => row.category === category);
         return group.length ? (
           <optgroup key={category} label={label}>
@@ -276,6 +282,9 @@ function ListPanel({ book, busy, form, onForm, onPost }: Pick<PlayerBoardViewPro
 /** Why the viewer cannot take this offer right now, or null when they can. */
 function buyBlocker(row: PlayerBoardRowDto, book: PlayerBoardDto, busy: boolean, units: number | null): string | null {
   if (busy) return 'Your last change is still going through.';
+  if (row.locked) return `Unlock the ${row.name} first. The Board will not sell it to you before the keeper does.`;
+  if (row.dailyLeft === 0) return `You have bought a full keeper delivery of ${row.name.toLowerCase()} from the Board today.`;
+  if (units !== null && row.dailyLeft !== null && units > row.dailyLeft) return `The Board sells you at most ${formatNumber(row.dailyLeft)} more ${row.name.toLowerCase()} today.`;
   if (units === null) {
     return row.lotSize > 1 ? `Take lots of ${formatNumber(row.lotSize)}, up to ${formatNumber(row.quantity)}.` : `Buy from 1 to ${formatNumber(row.quantity)}.`;
   }
@@ -314,7 +323,7 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
               <tbody>
                 {book.rows.map((row) => (
                   <tr key={row.id} className={row.mine ? 'se-board-book__mine' : undefined}>
-                    <td data-label="Item"><span className={`se-board-rarity se-board-rarity--${row.category === 'PRODUCT' ? 'product' : (row.rarity ?? 'common').toLowerCase()}`}>{row.name}</span></td>
+                    <td data-label="Item"><span className={`se-board-rarity se-board-rarity--${row.category === 'PRODUCT' ? 'product' : row.category === 'KEEPER' ? 'keeper' : (row.rarity ?? 'common').toLowerCase()}`}>{row.name}{row.locked ? <span className="se-board-trade__tag se-board-locked">Locked</span> : null}</span></td>
                     <td data-label="Seller"><span>{row.sellerName}{row.mine ? <span className="se-board-you"> (you)</span> : null}</span></td>
                     <td className="se-table__number se-num" data-label="Qty">{formatNumber(row.quantity)}</td>
                     <td className="se-board-trade" data-label="Price">
@@ -332,7 +341,7 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
                             {row.quantity > row.lotSize ? (
                               <input className="se-input se-board-buy__qty" type="number" inputMode="numeric" min={row.lotSize} max={row.quantity} step={row.lotSize}
                                 aria-label={`How many ${row.name.toLowerCase()} to buy from ${row.sellerName}`}
-                                placeholder={String(row.quantity)} value={buyQuantities[row.id] ?? ''}
+                                placeholder={String(boardBuyUnits(row, undefined) ?? 0)} value={buyQuantities[row.id] ?? ''}
                                 onChange={(event) => onBuyQuantity(row.id, event.target.value)} />
                             ) : null}
                             <Button size="sm" variant="primary" disabledReason={buyBlocker(row, book, busy, units)} onClick={() => onBuy(row, units!)}>

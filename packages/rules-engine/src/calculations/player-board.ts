@@ -1,4 +1,5 @@
-import type { Ruleset } from '@streets/rulesets';
+import type { PlayerBoardKeeperKey, Ruleset, StoreKey, WeaponUnlockKey } from '@streets/rulesets';
+import { ammoNetWorthCentsPerRound } from './net-worth.js';
 import { CRACK_PRODUCT, productEconomy } from './product-economy.js';
 
 /** The Board A. Legal unit prices for one book value, in integer cents. */
@@ -137,16 +138,81 @@ export function playerBoardProductBookCents(key: string, ruleset: BandRules & Pi
   return Number.isSafeInteger(book) && book > 0 && book === buyback ? book : null;
 }
 
-/** The Board F. What a listable item is: a scavenge part, a drug, or nothing the Board takes. */
-export function playerBoardItemKind(key: string, ruleset: Ruleset): 'PART' | 'PRODUCT' | null {
+/** The Board G. Where each keeper good lives: its player column, its keeper's shelf item, and its stash cell. */
+export const PLAYER_BOARD_KEEPER_GOODS: Readonly<Record<PlayerBoardKeeperKey, {
+  readonly field: 'pistols' | 'shotguns' | 'tek9s' | 'ak47s' | 'lowRiders' | 'ammo';
+  readonly store: StoreKey;
+  readonly item: string;
+  readonly stashKey: string;
+  /** Guns and cars are also individual items when the round has an armory and garage. */
+  readonly individual: 'GUN' | 'VEHICLE' | null;
+}>> = {
+  PISTOL: { field: 'pistols', store: 'TOMMY', item: 'PISTOL', stashKey: 'PISTOL', individual: 'GUN' },
+  SHOTGUN: { field: 'shotguns', store: 'TOMMY', item: 'SHOTGUN', stashKey: 'SHOTGUN', individual: 'GUN' },
+  TEK9: { field: 'tek9s', store: 'TOMMY', item: 'TEK9', stashKey: 'TEK9', individual: 'GUN' },
+  AK47: { field: 'ak47s', store: 'TOMMY', item: 'AK47', stashKey: 'AK47', individual: 'GUN' },
+  LOW_RIDER: { field: 'lowRiders', store: 'CHARLIE', item: 'LOW_RIDER', stashKey: 'LOW_RIDER', individual: 'VEHICLE' },
+  AMMO: { field: 'ammo', store: 'TOMMY', item: 'AMMO_BOX', stashKey: 'AMMO_BOX', individual: null },
+};
+
+const KEEPER_NET_WORTH: Readonly<Record<Exclude<PlayerBoardKeeperKey, 'AMMO'>, keyof Ruleset['economy']['netWorth']>> = {
+  PISTOL: 'perPistolCents', SHOTGUN: 'perShotgunCents', TEK9: 'perTek9Cents', AK47: 'perAk47Cents', LOW_RIDER: 'perLowRiderCents',
+};
+
+function keeperItem(key: PlayerBoardKeeperKey, ruleset: Ruleset) {
+  const where = PLAYER_BOARD_KEEPER_GOODS[key];
+  return (ruleset.stores[where.store]?.items as Readonly<Record<string, { sellCents: number | null; unlockKey?: WeaponUnlockKey; restock: { perInterval: number } | null; name: string }>> | undefined)?.[where.item];
+}
+
+function isKeeperKey(key: string): key is PlayerBoardKeeperKey {
+  return Object.hasOwn(PLAYER_BOARD_KEEPER_GOODS, key);
+}
+
+/**
+ * The Board G. A keeper good's book in cents (per round, for ammo), or null when it cannot be
+ * listed. Guns and low-riders are listable while their net worth value equals the keeper's
+ * buyback; ammo while it counts toward net worth at all.
+ */
+export function playerBoardKeeperBookCents(key: string, ruleset: Ruleset): number | null {
+  if (!isKeeperKey(key) || !ruleset.playerBoard?.listableKeeperGoods?.includes(key)) return null;
+  const item = keeperItem(key, ruleset);
+  if (!item) return null;
+  if (key === 'AMMO') {
+    const book = ammoNetWorthCentsPerRound(ruleset);
+    return book > 0 ? book : null;
+  }
+  const book = ruleset.economy.netWorth[KEEPER_NET_WORTH[key]] as number;
+  return Number.isSafeInteger(book) && book > 0 && book === item.sellCents ? book : null;
+}
+
+/** The Board G. The keeper unlock a buyer needs before taking this good, if any. */
+export function playerBoardKeeperUnlock(key: string, ruleset: Ruleset): WeaponUnlockKey | null {
+  return isKeeperKey(key) ? keeperItem(key, ruleset)?.unlockKey ?? null : null;
+}
+
+/** The Board G. Most of a keeper good one buyer may take from the Board in a day: one keeper delivery. */
+export function playerBoardKeeperDailyCap(key: string, ruleset: Ruleset): number | null {
+  if (playerBoardKeeperBookCents(key, ruleset) === null) return null;
+  return keeperItem(key as PlayerBoardKeeperKey, ruleset)?.restock?.perInterval ?? null;
+}
+
+/** The Board G. The keeper's own name for a good ("Pistol", "Low-Rider"); ammo is counted in rounds. */
+export function playerBoardKeeperName(key: string, ruleset: Ruleset): string | null {
+  if (!isKeeperKey(key)) return null;
+  return key === 'AMMO' ? 'Ammo (rounds)' : keeperItem(key, ruleset)?.name ?? null;
+}
+
+/** The Board F-G. What a listable item is: a scavenge part, a drug, a keeper good, or nothing the Board takes. */
+export function playerBoardItemKind(key: string, ruleset: Ruleset): 'PART' | 'PRODUCT' | 'KEEPER' | null {
   if (playerBoardPartBookCents(key, ruleset) !== null) return 'PART';
   if (playerBoardProductBookCents(key, ruleset) !== null) return 'PRODUCT';
+  if (playerBoardKeeperBookCents(key, ruleset) !== null) return 'KEEPER';
   return null;
 }
 
-/** The Board F. The book of any listable item, or null for anything the Board does not take. */
+/** The Board F-G. The book of any listable item, or null for anything the Board does not take. */
 export function playerBoardItemBookCents(key: string, ruleset: Ruleset): number | null {
-  return playerBoardPartBookCents(key, ruleset) ?? playerBoardProductBookCents(key, ruleset);
+  return playerBoardPartBookCents(key, ruleset) ?? playerBoardProductBookCents(key, ruleset) ?? playerBoardKeeperBookCents(key, ruleset);
 }
 
 /**

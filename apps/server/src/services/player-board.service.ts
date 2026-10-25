@@ -9,7 +9,11 @@ import {
   playerBoardBarterQuote,
   playerBoardItemBookCents,
   playerBoardItemKind,
+  playerBoardKeeperDailyCap,
+  playerBoardKeeperName,
+  playerBoardKeeperUnlock,
   playerBoardOfferExpiresAt,
+  PLAYER_BOARD_KEEPER_GOODS,
   playerBoardPostingFeeCents,
   playerBoardSellerProceedsCents,
   type Ruleset,
@@ -31,6 +35,7 @@ import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { assertNotPaused } from './action.service.js';
 import { EconomyLedgerService } from './economy-ledger.service.js';
 import { IdempotencyService } from './idempotency.service.js';
+import { keeperGive, keeperHasStack, keeperHeld, keeperTake } from './board-keeper-goods.js';
 import { ProductInventoryService } from './product-inventory.service.js';
 import { COMPONENTS, jsonObject } from './scavenging.service.js';
 
@@ -58,7 +63,29 @@ function rulesFor(round: BoardRound): Ruleset {
 }
 
 function itemName(key: string, ruleset: Ruleset): string {
-  return COMPONENTS.find((row) => row.key === key)?.name ?? ruleset.products?.[key]?.name ?? key;
+  return COMPONENTS.find((row) => row.key === key)?.name ?? ruleset.products?.[key]?.name ?? playerBoardKeeperName(key, ruleset) ?? key;
+}
+
+const UNLOCK_FIELDS = { SHOTGUN: 'shotgunUnlocked', TEK9: 'tek9Unlocked', AK47: 'ak47Unlocked' } as const;
+const DAY_MS = 86_400_000;
+
+/** Whether the player may take this good: a gun behind a keeper unlock needs that unlock. */
+async function hasUnlock(db: Db | PrismaClient, roundPlayerId: string, key: string, ruleset: Ruleset): Promise<boolean> {
+  const unlock = playerBoardKeeperUnlock(key, ruleset);
+  if (!unlock) return true;
+  const player = await db.roundPlayer.findUniqueOrThrow({ where: { id: roundPlayerId }, select: { shotgunUnlocked: true, tek9Unlocked: true, ak47Unlocked: true } });
+  return player[UNLOCK_FIELDS[unlock]];
+}
+
+/** Units of each keeper good the player has bought from the Board in the last day. */
+async function boughtToday(db: Db | PrismaClient, round: BoardRound, buyerId: string, now: Date): Promise<Record<string, number>> {
+  const fills = await db.playerBoardFill.findMany({
+    where: { buyerId, createdAt: { gt: new Date(now.getTime() - DAY_MS) }, offer: { roundId: round.id, itemKey: { in: Object.keys(PLAYER_BOARD_KEEPER_GOODS) } } },
+    select: { quantity: true, offer: { select: { itemKey: true } } },
+  });
+  const totals: Record<string, number> = {};
+  for (const fill of fills) totals[fill.offer.itemKey] = (totals[fill.offer.itemKey] ?? 0) + fill.quantity;
+  return totals;
 }
 
 /** A barter offer's stored basket as display lines; empty for cash. */
@@ -127,19 +154,36 @@ function adjustBalance(balances: Record<string, number>, key: string, delta: num
 
 /** Units of an item the player holds: parts on the stash balance, drugs in product inventory. */
 async function heldUnits(tx: Db, roundPlayerId: string, key: string, ruleset: Ruleset): Promise<number> {
-  if (playerBoardItemKind(key, ruleset) === 'PRODUCT') return (await ProductInventoryService.read(tx, roundPlayerId, ruleset))[key] ?? 0;
+  const kind = playerBoardItemKind(key, ruleset);
+  if (kind === 'PRODUCT') return (await ProductInventoryService.read(tx, roundPlayerId, ruleset))[key] ?? 0;
+  if (kind === 'KEEPER') return keeperHeld(tx, roundPlayerId, key, ruleset);
   return (await partBalances(tx, roundPlayerId))[key] ?? 0;
 }
 
 /** Whether a stack can land: parts need their stash stack or a free cell; drugs take no cell. */
 async function hasRoom(tx: Db, roundPlayerId: string, key: string, ruleset: Ruleset): Promise<boolean> {
-  if (playerBoardItemKind(key, ruleset) === 'PRODUCT') return true;
+  const kind = playerBoardItemKind(key, ruleset);
+  if (kind === 'PRODUCT') return true;
+  if (kind === 'KEEPER') {
+    if (await keeperHasStack(tx, roundPlayerId, key)) return true;
+    const { StashService, canFitAdditionalStack } = await import('./stash.service.js');
+    return canFitAdditionalStack(await StashService.page(tx, roundPlayerId), PLAYER_BOARD_KEEPER_GOODS[key as keyof typeof PLAYER_BOARD_KEEPER_GOODS].stashKey as StashItemKeyDto);
+  }
   return canReturn(tx, roundPlayerId, key, await partBalances(tx, roundPlayerId));
 }
 
-/** Add to (or, negative, take from) what the player holds. */
-async function moveHeld(tx: Db, roundPlayerId: string, key: string, delta: number, ruleset: Ruleset): Promise<void> {
-  if (playerBoardItemKind(key, ruleset) === 'PRODUCT') {
+/**
+ * Add to (or, negative, take from) what the player holds. `acquired` marks goods a player is taking
+ * in a trade, which must fit their armory or garage; a stack coming home always fits.
+ */
+async function moveHeld(tx: Db, roundPlayerId: string, key: string, delta: number, ruleset: Ruleset, acquired = false): Promise<void> {
+  const kind = playerBoardItemKind(key, ruleset);
+  if (kind === 'KEEPER') {
+    if (delta < 0) await keeperTake(tx, roundPlayerId, key, -delta, ruleset);
+    else await keeperGive(tx, roundPlayerId, key, delta, ruleset, { enforceCap: acquired, summary: acquired ? `Got ${delta} from the Board` : `${delta} back from the Board` });
+    return;
+  }
+  if (kind === 'PRODUCT') {
     await ProductInventoryService.adjust(tx, roundPlayerId, ruleset, { [key]: delta });
     return;
   }
@@ -211,6 +255,11 @@ export const PlayerBoardService = {
       const quote = playerBoardBarterQuote(input.itemKey, lotSize, ask, ruleset);
       if ('refusal' in quote) throw AppError.badRequest('INVALID_BARTER', BARTER_REFUSALS[quote.refusal]!);
       if (input.quantity % lotSize !== 0) throw AppError.badRequest('INVALID_BARTER', `List a whole number of lots of ${lotSize}.`);
+      for (const key of Object.keys(ask)) {
+        if (!(await hasUnlock(prisma, roundPlayerId, key, ruleset))) {
+          throw new AppError(403, 'WEAPON_LOCKED', `You need the ${itemName(key, ruleset)} unlock to take ${itemName(key, ruleset).toLowerCase()}s in trade.`);
+        }
+      }
       const listingTaxCents = playerBoardBarterListingTaxCents(quote.lotBookCents, quote.askBookCents, input.quantity / lotSize, ruleset);
       price = { unitPriceCents: 0, listingTaxCents, askItems: ask, askBookCents: quote.askBookCents, lotSize };
     } else {
@@ -337,6 +386,16 @@ export const PlayerBoardService = {
         throw AppError.conflict('NOT_ENOUGH_LEFT', `Only ${offer.remainingQuantity} left on that offer.`);
       }
       if (units % offer.lotSize !== 0) throw AppError.badRequest('BARTER_LOT', `That trade goes in lots of ${offer.lotSize}.`);
+      if (!(await hasUnlock(tx, buyerId, offer.itemKey, ruleset))) {
+        throw new AppError(403, 'WEAPON_LOCKED', `You need the ${itemName(offer.itemKey, ruleset)} unlock before you can buy one.`);
+      }
+      const dailyCap = playerBoardKeeperDailyCap(offer.itemKey, ruleset);
+      if (dailyCap !== null) {
+        const already = (await boughtToday(tx, round, buyerId, now))[offer.itemKey] ?? 0;
+        if (already + units > dailyCap) {
+          throw AppError.conflict('BOARD_DAILY_LIMIT', `The Board sells you at most ${dailyCap.toLocaleString('en-US')} ${itemName(offer.itemKey, ruleset).toLowerCase()} a day, one keeper delivery; ${Math.max(0, dailyCap - already).toLocaleString('en-US')} left today.`);
+        }
+      }
       // A barter's ask is per lot: taking several lots hands over that many times the ask.
       const lots = units / offer.lotSize;
       const ask = barter
@@ -379,9 +438,9 @@ export const PlayerBoardService = {
       if (paidCents > 0) await tx.roundPlayer.update({ where: { id: buyerId }, data: { cashCents: buyer.cashCents - BigInt(paidCents) } });
       for (const [key, wanted] of Object.entries(ask)) {
         await moveHeld(tx, buyerId, key, -wanted, ruleset);
-        await moveHeld(tx, offer.sellerId, key, wanted, ruleset);
+        await moveHeld(tx, offer.sellerId, key, wanted, ruleset, true);
       }
-      await moveHeld(tx, buyerId, offer.itemKey, units, ruleset);
+      await moveHeld(tx, buyerId, offer.itemKey, units, ruleset, true);
       if (proceedsCents > 0) await tx.roundPlayer.update({ where: { id: offer.sellerId }, data: { cashCents: { increment: BigInt(proceedsCents) } } });
       await moveEscrow(tx, offer.sellerId, offer.itemKey, -units);
 
@@ -447,12 +506,18 @@ export const PlayerBoardService = {
     ]);
     if (!viewer) throw AppError.notFound('PLAYER_NOT_FOUND', 'Player not found.');
 
-    // Drugs first in catalog order, then parts in catalog order.
+    // Drugs, then guns, cars and ammo, then parts, each in catalog order.
     const products = Object.entries(ruleset.products ?? {}).sort(([, a], [, b]) => a.sortOrder - b.sortOrder).map(([key]) => key);
     if (!products.includes('CRACK')) products.unshift('CRACK');
-    const order = new Map([...products, ...COMPONENTS.map((row) => row.key)].map((key, index) => [key, index]));
-    const wanted = (kind: 'PART' | 'PRODUCT' | null) => kind !== null
-      && (filter === 'ALL' || (filter === 'PARTS' && kind === 'PART') || (filter === 'PRODUCTS' && kind === 'PRODUCT'));
+    const order = new Map([...products, ...Object.keys(PLAYER_BOARD_KEEPER_GOODS), ...COMPONENTS.map((row) => row.key)].map((key, index) => [key, index]));
+    const wanted = (kind: 'PART' | 'PRODUCT' | 'KEEPER' | null) => kind !== null
+      && (filter === 'ALL' || (filter === 'PARTS' && kind === 'PART') || (filter === 'PRODUCTS' && kind === 'PRODUCT') || (filter === 'KEEPER' && kind === 'KEEPER'));
+    const [unlocks, bought] = await Promise.all([
+      prisma.roundPlayer.findUniqueOrThrow({ where: { id: viewerId }, select: { shotgunUnlocked: true, tek9Unlocked: true, ak47Unlocked: true } }),
+      boughtToday(prisma, round, viewerId, now),
+    ]);
+    const locked = (key: string) => { const unlock = playerBoardKeeperUnlock(key, ruleset); return unlock ? !unlocks[UNLOCK_FIELDS[unlock]] : false; };
+    const dailyLeft = (key: string) => { const cap = playerBoardKeeperDailyCap(key, ruleset); return cap === null ? null : Math.max(0, cap - (bought[key] ?? 0)); };
     const rows: PlayerBoardRowDto[] = open
       .map((offer) => ({ offer, kind: playerBoardItemKind(offer.itemKey, ruleset) }))
       .filter(({ offer, kind }) => wanted(kind) && order.has(offer.itemKey))
@@ -476,12 +541,18 @@ export const PlayerBoardService = {
         lotSize: offer.lotSize,
         lotBookCents: offer.bookCents * offer.lotSize,
         askBookCents: offer.askBookCents ?? 0,
+        locked: locked(offer.itemKey),
+        dailyLeft: dailyLeft(offer.itemKey),
         sellerName: offer.seller.displayName,
         mine: offer.sellerId === viewerId,
         expiresAt: playerBoardOfferExpiresAt(offer, round, now).toISOString(),
       }));
 
-    const held = { ...jsonObject(viewer.scavengedComponents, {}), ...(await ProductInventoryService.read(prisma, viewerId, ruleset)) };
+    const keeperHoldings: Record<string, number> = {};
+    for (const key of Object.keys(PLAYER_BOARD_KEEPER_GOODS)) {
+      if (playerBoardItemKind(key, ruleset) === 'KEEPER') keeperHoldings[key] = await keeperHeld(prisma as unknown as Db, viewerId, key, ruleset, now);
+    }
+    const held = { ...jsonObject(viewer.scavengedComponents, {}), ...(await ProductInventoryService.read(prisma, viewerId, ruleset)), ...keeperHoldings };
     const listable: PlayerBoardListableDto[] = [...order.keys()].flatMap((key) => {
       const quantity = held[key] ?? 0;
       const kind = playerBoardItemKind(key, ruleset);

@@ -69,8 +69,9 @@ describe.runIf(process.env.PLAYER_BOARD_INTEGRATION === '1')('The Board book wit
     expect(book.mine).toEqual([]);
     expect(book.openOffers).toBe(0);
     expect(book.rules).toEqual({ maxOpenOffers: 6, listingHours: [12, 48], postingFeePercent: 1, postingFeeMinCents: 100, taxPercent: 8, maxAskItems: 3, cashWeightPercent: 75 });
-    // Every new crew starts holding crack, which is listable from slice F.
-    expect(book.listable.map((row) => [row.key, row.held, row.floorCents, row.capCents])).toEqual([
+    // Every new crew starts holding crack (listable from slice F) and a starting kit of keeper goods (slice G).
+    expect(book.listable.filter((row) => row.category === 'KEEPER').every((row) => row.held > 0)).toBe(true);
+    expect(book.listable.filter((row) => row.category !== 'KEEPER').map((row) => [row.key, row.held, row.floorCents, row.capCents])).toEqual([
       ['CRACK', rules.round.startingPlayer.crack, 400, 434],
       ['SCRAP_METAL', 40, 534, 579],
       ['RADIO', 4, 3_334, 3_623],

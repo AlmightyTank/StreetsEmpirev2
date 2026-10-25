@@ -1863,6 +1863,8 @@
 .se-board-rarity--epic { --se-board-ink: #b066ff; }
 .se-board-rarity--legendary { --se-board-ink: #ffc440; }
 .se-board-rarity--product { --se-board-ink: var(--se-accent, #ff4d6d); }
+.se-board-rarity--keeper { --se-board-ink: #c8a46a; }
+.se-board-locked { margin-left: 8px; }
 
 .se-board-book__mine td {
   background: color-mix(in srgb, var(--se-good) 8%, transparent);

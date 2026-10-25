@@ -9,8 +9,8 @@ const EPIC = 25_000;
 const LEGENDARY = 250_000;
 
 /**
- * The Board A-F. Adds the player-listing block, switched off: the band, part books, listing
- * rules and listable drugs are defined, but nothing posts, fills, renders or counts toward rank. Every other rule is
+ * The Board A-G. Adds the player-listing block, switched off: the band, part books, listing
+ * rules, listable drugs and keeper goods are defined, but nothing posts, fills, renders or counts toward rank. Every other rule is
  * 2.6.0-I's.
  */
 export const classicOgV26J = {
@@ -33,6 +33,7 @@ export const classicOgV26J = {
     listingHours: [12, 48],
     listableProducts: ['CRACK', 'WEED', 'ECSTASY', 'COCAINE', 'METH', 'HEROIN'],
     maxAskItems: 3,
+    listableKeeperGoods: ['PISTOL', 'SHOTGUN', 'TEK9', 'AK47', 'LOW_RIDER', 'AMMO'],
   },
 } as const satisfies Ruleset;
 
