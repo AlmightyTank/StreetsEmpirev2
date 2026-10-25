@@ -1474,11 +1474,12 @@
   .se-stores .se-store-shelf .se-panel__body { gap: 6px; padding: 8px; }
   .se-store-shelf__top > .se-item-tile { width: 56px; height: 56px; }
   .se-stores-market__main { display: flex; flex-direction: column; gap: 8px; }
-  .se-stores-shelves,
-  .se-stores-empty { order: 0; }
-  .se-stores-sectionhead,
-  .se-stores-toolbar { order: 2; }
-  .se-stores-access-details { order: 3; }
+  /* Only the shop counter. An unscoped order pushed Salvage Yard headings under the cards. */
+  .se-stores-market__main > .se-stores-shelves,
+  .se-stores-market__main > .se-stores-empty { order: 0; }
+  .se-stores-market__main > .se-stores-sectionhead,
+  .se-stores-market__main > .se-stores-toolbar { order: 2; }
+  .se-stores-market__main > .se-stores-access-details { order: 3; }
   .se-stores .se-store-shelf form > .se-store-actions { order: 1; }
   .se-stores .se-store-shelf form > .se-spend__row,
   .se-stores .se-store-shelf form > .se-economy-quote { order: 2; }
@@ -1504,8 +1505,327 @@
 }
 
 
-/* Salvage Yard: hideout parts for cash or barter. */
-.se-salvage-offer { align-items: flex-start; }
-.se-salvage-offer__price { font-size: 12px; line-height: 1.35; }
-.se-salvage-offer__price .se-eyebrow { margin-right: 4px; }
-.se-salvage-receipt { margin: 0; color: var(--se-text-dim); }
+/* Salvage Yard: hideout parts for cash or barter.
+   The shop tabs were a 4-column grid, so the fifth counter sat on a row by itself.
+   Five equal tabs on a wide screen; on a phone the row wraps 3 then 2, and the
+   last two grow to fill so Salvage Yard is not a stray button. */
+.se-stores .se-storetabs {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.se-stores .se-storetabs__tab {
+  flex: 1 1 0;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  line-height: 1.15;
+  text-wrap: balance;
+}
+
+@media (max-width: 730px) {
+  .se-stores .se-storetabs {
+    display: flex;
+    gap: 6px;
+  }
+
+  .se-stores .se-storetabs__tab {
+    flex: 1 1 calc(33.333% - 6px);
+    min-width: calc(33.333% - 6px);
+    min-height: 44px;
+    padding: 8px 6px;
+    font-size: 10px;
+    letter-spacing: 0.04em;
+  }
+}
+
+.se-stores-hero--salvage {
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 440px);
+}
+
+.se-stores-hero--salvage .se-stores-hero__copy p {
+  max-width: 62ch;
+}
+
+/* Opaque four-up so the store pinstripe does not show through a 3-column readout
+   and leave Ammo alone on a second row. */
+.se-salvage-wallet {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border: 1px solid var(--se-line);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--se-panel);
+}
+
+.se-salvage-wallet > span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 9px 10px;
+  border-right: 1px solid var(--se-line);
+}
+
+.se-salvage-wallet > span:last-child {
+  border-right: 0;
+}
+
+.se-salvage-wallet small {
+  color: var(--se-muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.se-salvage-wallet strong {
+  font-family: var(--se-mono);
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.se-salvage-wallet strong[data-empty='true'] {
+  color: var(--se-muted);
+}
+
+.se-salvage-receipt {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--se-good) 42%, var(--se-line));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--se-good) 10%, var(--se-panel));
+  color: var(--se-text);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.se-salvage-section {
+  display: grid;
+  gap: 10px;
+}
+
+.se-salvage-section--barter {
+  padding-top: 2px;
+}
+
+.se-salvage-offers {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  align-items: stretch;
+}
+
+.se-salvage-offer {
+  --se-salvage-ink: var(--se-text-dim);
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas:
+    "art body"
+    "deal deal";
+  gap: 8px 12px;
+  align-items: start;
+  min-width: 0;
+  padding: 12px;
+  border-radius: 10px;
+  box-shadow: inset 3px 0 0 var(--se-salvage-ink);
+}
+
+/* Same rarity inks as the item tiles. Kept on a custom property so themes can still restyle the card. */
+.se-salvage-offer--uncommon { --se-salvage-ink: var(--se-good); }
+.se-salvage-offer--rare { --se-salvage-ink: #4696ff; }
+.se-salvage-offer--epic { --se-salvage-ink: #b066ff; }
+.se-salvage-offer--legendary { --se-salvage-ink: #ffc440; }
+
+.se-salvage-offer:hover {
+  border-color: color-mix(in srgb, var(--se-salvage-ink) 65%, var(--se-line));
+}
+
+.se-salvage-offer__art {
+  grid-area: art;
+}
+
+.se-salvage-offer__art .se-item-tile {
+  --se-item-cell: 76px;
+  width: 76px;
+  height: 76px;
+  border-radius: 8px;
+}
+
+.se-salvage-offer__body {
+  grid-area: body;
+  display: grid;
+  gap: 4px;
+  align-content: start;
+  min-width: 0;
+}
+
+.se-salvage-offer__title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.se-salvage-offer__title strong {
+  min-width: 0;
+  font-size: 16px;
+  line-height: 1.2;
+}
+
+.se-salvage-offer__rarity {
+  flex: none;
+  color: var(--se-salvage-ink);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.se-salvage-offer__body p {
+  margin: 0;
+  color: var(--se-text-dim);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.se-salvage-offer__owned {
+  color: var(--se-muted);
+  font-size: 11px;
+}
+
+.se-salvage-offer__owned .se-num {
+  color: var(--se-text);
+  font-weight: 700;
+}
+
+.se-salvage-offer__deal {
+  grid-area: deal;
+  display: grid;
+  gap: 8px;
+  align-self: end;
+  width: 100%;
+}
+
+.se-salvage-offer__price {
+  display: grid;
+  grid-template-columns: auto auto auto;
+  justify-content: start;
+  align-items: baseline;
+  column-gap: 8px;
+  row-gap: 2px;
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--se-line);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--se-bg) 78%, transparent);
+}
+
+.se-salvage-offer__price .se-eyebrow {
+  margin: 0;
+}
+
+.se-salvage-offer__price strong {
+  min-width: 0;
+  color: var(--se-text);
+  font-family: var(--se-mono);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.se-salvage-offer--cash .se-salvage-offer__price strong {
+  color: var(--se-accent);
+  font-size: 15px;
+}
+
+.se-salvage-offer--barter .se-salvage-offer__price {
+  grid-template-columns: auto minmax(0, 1fr);
+  border-color: color-mix(in srgb, var(--se-warn) 42%, var(--se-line));
+}
+
+.se-salvage-offer--barter .se-salvage-offer__price .se-eyebrow {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.se-salvage-offer--barter .se-salvage-offer__price small {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: end;
+}
+
+.se-salvage-offer--barter .se-salvage-offer__price strong {
+  grid-column: 1 / -1;
+  grid-row: 2;
+}
+
+.se-salvage-offer__price small {
+  color: var(--se-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.se-salvage-offer__actions {
+  --se-salvage-btn: 42px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.se-salvage-offer__actions :is(.se-why, .se-btn) {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--se-salvage-btn);
+}
+
+@media (max-width: 1100px) {
+  .se-salvage-offers {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .se-salvage-section .se-stores-sectionhead {
+    display: grid;
+    justify-items: start;
+    gap: 4px;
+  }
+
+  .se-salvage-section .se-stores-sectionhead > p {
+    max-width: none;
+    text-align: left;
+  }
+}
+
+@media (max-width: 899px) {
+  .se-stores-hero--salvage {
+    grid-template-columns: 1fr;
+  }
+
+  .se-stores-hero--salvage .se-stores-hero__copy p,
+  .se-salvage-section .se-stores-sectionhead > p {
+    -webkit-line-clamp: 3;
+  }
+}
+
+@media (max-width: 680px) {
+  .se-salvage-offers {
+    grid-template-columns: 1fr;
+  }
+
+  .se-salvage-wallet > span {
+    padding: 8px 6px;
+  }
+
+  .se-salvage-wallet strong {
+    font-size: 13px;
+  }
+
+  .se-salvage-offer__actions {
+    --se-salvage-btn: 44px;
+  }
+}
