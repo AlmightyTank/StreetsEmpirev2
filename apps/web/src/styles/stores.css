@@ -2480,3 +2480,22 @@
     justify-self: start;
   }
 }
+
+
+/* Four available traders fit on one row on phones; five-tab shops keep their
+   existing 3 + 2 layout. */
+@media (max-width: 730px) {
+  .se-stores .se-storetabs--four {
+    flex-wrap: nowrap;
+  }
+
+  .se-stores .se-storetabs--four .se-storetabs__tab {
+    flex: 1 1 0;
+    min-width: 0;
+    padding-inline: 4px;
+    white-space: nowrap;
+    text-wrap: nowrap;
+    font-size: clamp(9px, 2.8vw, 11px);
+    letter-spacing: 0;
+  }
+}
