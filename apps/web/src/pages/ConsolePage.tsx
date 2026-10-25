@@ -1308,3 +1308,4 @@ export function ConsolePage() {
 }
 import '../styles/console.css';
 import '../styles/activity.css';
+import '../styles/social-experience.css';

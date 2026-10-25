@@ -178,3 +178,4 @@ export function EventsPage() {
   </GameLayout>;
 }
 import '../styles/events.css';
+import '../styles/career-experience.css';

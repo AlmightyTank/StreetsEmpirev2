@@ -539,3 +539,4 @@ export function StreetPassPage() {
   );
 }
 import '../styles/street-pass.css';
+import '../styles/career-experience.css';
