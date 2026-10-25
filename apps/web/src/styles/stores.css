@@ -1838,10 +1838,10 @@
 .se-stores-hero--board {
   position: relative;
   overflow: hidden;
-  border-color: color-mix(in srgb, var(--se-accent, #ff4d6d) 34%, var(--se-line));
+  border-color: color-mix(in srgb, var(--se-accent) 34%, var(--se-line));
   background:
-    radial-gradient(circle at 88% 18%, color-mix(in srgb, var(--se-accent, #ff4d6d) 16%, transparent), transparent 36%),
-    linear-gradient(135deg, color-mix(in srgb, var(--se-panel) 88%, #000), var(--se-panel));
+    radial-gradient(circle at 88% 18%, color-mix(in srgb, var(--se-accent) 16%, transparent), transparent 36%),
+    linear-gradient(135deg, color-mix(in srgb, var(--se-panel) 88%, var(--se-overlay-mix)), var(--se-panel));
 }
 
 .se-stores-hero--board::after {
@@ -1849,7 +1849,7 @@
   position: absolute;
   right: 24px;
   bottom: 18px;
-  color: color-mix(in srgb, var(--se-accent, #ff4d6d) 28%, transparent);
+  color: color-mix(in srgb, var(--se-accent) 28%, transparent);
   font-size: clamp(28px, 6vw, 76px);
   font-weight: 800;
   letter-spacing: .12em;
@@ -1869,7 +1869,7 @@
   border: 1px solid color-mix(in srgb, var(--se-line) 82%, transparent);
   border-radius: calc(var(--se-radius, 8px) + 4px);
   background: color-mix(in srgb, var(--se-panel) 72%, transparent);
-  box-shadow: 0 12px 32px rgb(0 0 0 / 12%);
+  box-shadow: var(--se-shadow-soft);
 }
 
 .se-board-section .se-stores-sectionhead {
@@ -1887,7 +1887,7 @@
 }
 
 .se-board-section .se-table tbody tr:hover {
-  background: color-mix(in srgb, var(--se-accent, #ff4d6d) 7%, transparent);
+  background: color-mix(in srgb, var(--se-accent) 7%, transparent);
 }
 
 .se-board-book td:last-child,
@@ -1914,7 +1914,7 @@
 .se-board-rarity--rare { --se-board-ink: #4696ff; }
 .se-board-rarity--epic { --se-board-ink: #b066ff; }
 .se-board-rarity--legendary { --se-board-ink: #ffc440; }
-.se-board-rarity--product { --se-board-ink: var(--se-accent, #ff4d6d); }
+.se-board-rarity--product { --se-board-ink: var(--se-accent); }
 .se-board-rarity--keeper { --se-board-ink: #c8a46a; }
 .se-board-book__mine td {
   background: color-mix(in srgb, var(--se-good) 8%, transparent);
@@ -1937,7 +1937,7 @@
   padding: 14px;
   border: 1px solid color-mix(in srgb, var(--se-line) 72%, transparent);
   border-radius: var(--se-radius, 8px);
-  background: color-mix(in srgb, var(--se-bg, #111) 35%, transparent);
+  background: color-mix(in srgb, var(--se-bg) 35%, transparent);
 }
 
 .se-board-list > .se-field {
@@ -1966,7 +1966,7 @@
   border: 1px solid var(--se-line);
   border-radius: var(--se-radius, 8px);
   min-width: 0;
-  background: color-mix(in srgb, var(--se-accent, #ff4d6d) 4%, transparent);
+  background: color-mix(in srgb, var(--se-accent) 4%, transparent);
 }
 
 .se-board-ask > legend {
@@ -2031,7 +2031,7 @@
   font-size: 11px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  background: color-mix(in srgb, var(--se-accent, #ff4d6d) 9%, transparent);
+  background: color-mix(in srgb, var(--se-accent) 9%, transparent);
 }
 
 @media (max-width: 899px) {
