@@ -436,7 +436,8 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
                     <div className="se-market-inspector__detail"><span>Available</span><strong>{formatNumber(selectedRow.quantity)}</strong></div>
                     <div className="se-market-inspector__detail"><span>Listing ends</span><strong>{closesIn(selectedRow.expiresAt, now)}</strong></div>
                     {!selectedRow.mine && selectedRow.priceKind === 'CASH' && selectedRow.quantity > selectedRow.lotSize ? (
-                      <>\n                      <label className="se-field se-market-inspector__quantity">
+                      <>
+                      <label className="se-field se-market-inspector__quantity">
                         <span>Quantity to buy · increments of {formatNumber(selectedRow.lotSize)}</span>
                         <input className="se-input" type="number" inputMode="numeric" min={selectedRow.lotSize} max={selectedRow.quantity} step={selectedRow.lotSize}
                           aria-label={`How many ${selectedRow.name.toLowerCase()} to buy from ${selectedRow.sellerName}`}
