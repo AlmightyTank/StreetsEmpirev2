@@ -27,7 +27,7 @@ describe.runIf(process.env.ALLIANCE_INTEGRATION === '1')('3.0-B alliance capacit
     } });
     roundId = round.id;
     vi.spyOn(RoundService, 'requireCurrent').mockImplementation(async () => app.prisma.round.findUniqueOrThrow({ where: { id: roundId } }));
-    for (let i = 0; i < 17; i++) {
+    for (let i = 0; i < rules.alliances.maxMembers + 2; i++) {
       const username = `cap_${randomUUID().slice(0, 8)}`;
       const registered = await app.inject({ method: 'POST', url: '/api/auth/register', payload: {
         birthDate: '1990-01-01',
@@ -71,25 +71,23 @@ describe.runIf(process.env.ALLIANCE_INTEGRATION === '1')('3.0-B alliance capacit
     method: 'GET', url: `/api/game${path}`, headers: { cookie: cookies[who]! },
   });
 
-  it('admits exactly one of two simultaneous acceptances for the last of 15 seats', async () => {
-    const founded = await post(0, 'create', { name: 'Fifteen Strong', tag: 'FIFT' });
+  it('admits exactly one of two simultaneous acceptances for the last of 7 seats', async () => {
+    const founded = await post(0, 'create', { name: 'Seven Strong', tag: 'SEVN' });
     expect(founded.statusCode, founded.body).toBe(200);
-    expect(founded.json<MyAllianceDto>().alliance).toMatchObject({ memberCount: 1, maxMembers: 15 });
-    for (let who = 1; who <= 14; who++) {
+    expect(founded.json<MyAllianceDto>().alliance).toMatchObject({ memberCount: 1, maxMembers: 7 });
+    for (let who = 1; who < rules.alliances.maxMembers; who++) {
       const invited = await post(0, 'invite', { targetPublicPimpId: 6000 + who });
       expect(invited.statusCode, invited.body).toBe(200);
-      if (who < 14) {
-        const accepted = await post(who, 'accept', { tag: 'FIFT' });
-        expect(accepted.statusCode, accepted.body).toBe(200);
-      }
+      const accepted = await post(who, 'accept', { tag: 'SEVN' });
+      expect(accepted.statusCode, accepted.body).toBe(200);
     }
-    expect((await post(0, 'invite', { targetPublicPimpId: 6015 })).statusCode).toBe(200);
-    const results = await Promise.all([14, 15].map((who) => post(who, 'accept', { tag: 'FIFT' })));
+    expect((await post(0, 'invite', { targetPublicPimpId: 6007 })).statusCode).toBe(200);
+    const results = await Promise.all([7, 8].map((who) => post(who, 'accept', { tag: 'SEVN' })));
     expect(results.filter((response) => response.statusCode === 200)).toHaveLength(1);
     expect(results.filter((response) => response.statusCode !== 200).map((response) => response.json().error.code)).toEqual(['ALLIANCE_FULL']);
-    const alliance = await app.prisma.alliance.findUniqueOrThrow({ where: { roundId_tagNormalized: { roundId, tagNormalized: 'fift' } } });
-    expect(await app.prisma.roundPlayer.count({ where: { allianceId: alliance.id } })).toBe(15);
-    expect(await app.prisma.roundPlayer.count({ where: { id: { in: [players[14]!, players[15]!] }, allianceId: null } })).toBe(1);
+    const alliance = await app.prisma.alliance.findUniqueOrThrow({ where: { roundId_tagNormalized: { roundId, tagNormalized: 'sevn' } } });
+    expect(await app.prisma.roundPlayer.count({ where: { allianceId: alliance.id } })).toBe(7);
+    expect(await app.prisma.roundPlayer.count({ where: { id: { in: [players[7]!, players[8]!] }, allianceId: null } })).toBe(1);
   });
 
   it('keeps membership singular across competing invitations and serializes leave against kick', async () => {
