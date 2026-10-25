@@ -71,6 +71,7 @@ const StatusPage = lazy(() => import('./pages/StatusPage.js').then(({ StatusPage
 const VerifyEmailPage = lazy(() => import('./pages/VerifyEmailPage.js').then(({ VerifyEmailPage }) => ({ default: VerifyEmailPage })));
 const StorePage = lazy(() => import('./pages/StorePage.js').then(({ StorePage }) => ({ default: StorePage })));
 const StoresIndexPage = lazy(() => import('./pages/StorePage.js').then(({ StoresIndexPage }) => ({ default: StoresIndexPage })));
+const MarketPage = lazy(() => import('./components/PlayerBoard.js').then(({ PlayerBoard }) => ({ default: PlayerBoard })));
 const HoldingsPage = lazy(() => import('./pages/HoldingsPage.js').then(({ HoldingsPage }) => ({ default: HoldingsPage })));
 const TravelPage = lazy(() => import('./pages/TravelPage.js').then(({ TravelPage }) => ({ default: TravelPage })));
 const CasinoPage = lazy(() => import('./pages/CasinoPage.js').then(({ CasinoPage }) => ({ default: CasinoPage })));
@@ -267,6 +268,8 @@ export function App() {
         <Route path="supporter" element={<RequireAccount><SupporterPage /></RequireAccount>} />
         <Route path="insights" element={<Protected><EmpireInsightsPage /></Protected>} />
         <Route path="stores" element={<Protected><LiveRound><StoresIndexPage /></LiveRound></Protected>} />
+        <Route path="market" element={<Protected><LiveRound><MarketPage /></LiveRound></Protected>} />
+        <Route path="stores/board" element={<Navigate to="/game/market" replace />} />
         <Route path="stores/:slug" element={<Protected><LiveRound><StorePage /></LiveRound></Protected>} />
         <Route path="armory" element={<Navigate to="/game/hideout" replace />} />
         <Route path="supply" element={<Navigate to="/game" replace />} />

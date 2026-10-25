@@ -3,9 +3,7 @@ import type { StoreDto } from '@streets/shared';
 
 const TAB_NAMES: Record<string, string> = { CORNER: 'Corner', TOMMY: 'Tommy’s', CHARLIE: 'Charlie’s', PIP: 'Pip’s' };
 
-/**
- * The shop strip: every ruleset store, then the Board on rounds that switched player listings on.
- */
+/** The shop strip for trader stores. The player market has its own game navigation destination. */
 export function StoreTabs({ stores, slug, board = false }: { stores: readonly Pick<StoreDto, 'key' | 'slug' | 'name'>[]; slug: string; board?: boolean }) {
   return (
     <nav className="se-storetabs" aria-label="Stores">

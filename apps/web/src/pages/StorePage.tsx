@@ -10,7 +10,6 @@ import { ActionResult, type ResultLine } from '../components/ActionResult.js';
 import { Alert } from '../components/Alert.js';
 import { Portrait } from '../components/Portrait.js';
 import { StoreTabs } from '../components/StoreTabs.js';
-import { PlayerBoard } from '../components/PlayerBoard.js';
 import { contactRoomHref, storeHasContactRoom } from '../utils/contactRoom.js';
 import { Button } from '../components/Button.js';
 import { EconomyBatchAction, EconomyPendingNotice, EconomyQuote } from '../components/EconomyExperience.js';
@@ -723,7 +722,7 @@ function StoreView({
           </div>
         </header>
 
-        {catalog ? <StoreTabs stores={catalog.stores} slug={slug} board={catalog.playerBoard === true} /> : null}
+        {catalog ? <StoreTabs stores={catalog.stores} slug={slug} /> : null}
 
         {loadError ? (
           <Alert>
@@ -1145,7 +1144,7 @@ export function StorePage() {
   }
 
   if (slug === 'salvage') return <Navigate to="/game/stores" replace />;
-  if (slug === 'board') return <PlayerBoard />;
+  if (slug === 'board') return <Navigate to="/game/market" replace />;
 
   return (
     <StoreView

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   formatCentsExact,
@@ -20,7 +20,7 @@ import { newActionId } from '../utils/actionId.js';
 import { formatDuration } from '../utils/time.js';
 import { Alert } from './Alert.js';
 import { Button } from './Button.js';
-import { StoreTabs } from './StoreTabs.js';
+import { ItemLabel } from './ItemTile.js';
 
 /** The posting fee the server will charge: the ruleset's percent of book, rounded up, never under the minimum. */
 export function boardPostingFeeCents(bookCents: number, quantity: number, rules: PlayerBoardDto['rules']): number {
@@ -42,13 +42,6 @@ export function parseDollarsToCents(value: string): number | null {
 const FILTERS: ReadonlyArray<readonly [PlayerBoardFilterDto, string]> = [['ALL', 'All'], ['PRODUCTS', 'Drugs'], ['KEEPER', 'Guns & cars'], ['PARTS', 'Parts']];
 const STATUS_LABEL: Record<PlayerBoardOfferDto['status'], string> = { OPEN: 'Up', SOLD: 'Sold', CANCELLED: 'Cancelled', EXPIRED: 'Expired' };
 const BOARD_UNLOCK_QUEST_KEYS = ['ML_M09_TWO_BUYERS', 'ML_M10_FAVOR_ALREADY_PAID'] as const;
-const STORE_TAB_FALLBACK = [
-  { key: 'CORNER', slug: 'corner', name: 'Corner' },
-  { key: 'TOMMY', slug: 'tommy', name: 'Tommy’s' },
-  { key: 'CHARLIE', slug: 'charlie', name: 'Charlie’s' },
-  { key: 'PIP', slug: 'pip', name: 'Pip’s' },
-] as const;
-
 function closesIn(iso: string, now: number): string {
   const ms = new Date(iso).getTime() - now;
   return ms > 0 ? formatDuration(ms) : 'closing';
@@ -289,37 +282,75 @@ function buyBlocker(row: PlayerBoardRowDto, book: PlayerBoardDto, busy: boolean,
   return short ? `You need ${formatNumber(short.quantity * lots)} ${short.name.toLowerCase()} to trade.` : null;
 }
 
-/** The Board tab's content. Pure, so it renders the same in tests as in the game. */
+/** The Street Market's player listings and selling desk. */
 export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPost, onCancel, buyQuantities, onBuyQuantity, onBuy, traderStores = [], onTraderBuy }: PlayerBoardViewProps) {
+  const [section, setSection] = useState<'browse' | 'listings' | 'sell'>('browse');
+  const [query, setQuery] = useState('');
+  const [sort, setSort] = useState<'price-low' | 'price-high' | 'quantity' | 'ending'>('price-low');
+  const visibleRows = useMemo(() => {
+    const needle = query.trim().toLocaleLowerCase();
+    return book.rows
+      .filter((row) => !needle || row.name.toLocaleLowerCase().includes(needle) || row.sellerName.toLocaleLowerCase().includes(needle))
+      .sort((a, b) => {
+        const aPrice = a.priceKind === 'BARTER' ? Number.POSITIVE_INFINITY : a.unitPriceCents;
+        const bPrice = b.priceKind === 'BARTER' ? Number.POSITIVE_INFINITY : b.unitPriceCents;
+        if (sort === 'price-high') return bPrice - aPrice;
+        if (sort === 'quantity') return b.quantity - a.quantity;
+        if (sort === 'ending') return new Date(a.expiresAt).getTime() - new Date(b.expiresAt).getTime();
+        return aPrice - bPrice;
+      });
+  }, [book.rows, query, sort]);
   return (
     <>
       <section className="se-stores-market se-board-market" aria-label="Board market">
         <div className="se-stores-market__main">
-          <div className="se-filter-group se-board-filters">
-            <span className="se-filter-label">Show</span>
-            <div className="se-seg" role="group" aria-label="Board goods">
-              {FILTERS.map(([value, label]) => (
-                <button key={value} type="button" className={`se-seg__btn${book.filter === value ? ' se-seg__btn--on' : ''}`}
-                  aria-pressed={book.filter === value} onClick={() => onFilter(value)}>{label}</button>
-              ))}
-            </div>
+          <div className="se-market-tabs" role="group" aria-label="Market sections">
+            {([['browse', 'Browse market'], ['listings', `My listings (${book.mine.length})`], ['sell', 'Sell an item']] as const).map(([key, label]) => (
+              <button key={key} type="button" aria-pressed={section === key}
+                className={`se-market-tabs__tab${section === key ? ' is-active' : ''}`} onClick={() => setSection(key)}>{label}</button>
+            ))}
           </div>
+
+          {section === 'browse' ? <>
+            <div className="se-market-controls">
+              <label className="se-field se-market-search">
+                <span>Search listings</span>
+                <input className="se-input" type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Item or seller" />
+              </label>
+              <label className="se-field se-market-sort">
+                <span>Sort by</span>
+                <select className="se-input" value={sort} onChange={(event) => setSort(event.target.value as typeof sort)}>
+                  <option value="price-low">Lowest price</option><option value="price-high">Highest price</option>
+                  <option value="quantity">Largest stack</option><option value="ending">Ending soon</option>
+                </select>
+              </label>
+            </div>
+
+            <div className="se-filter-group se-board-filters">
+              <span className="se-filter-label">Category</span>
+              <div className="se-seg" role="group" aria-label="Board goods">
+                {FILTERS.map(([value, label]) => (
+                  <button key={value} type="button" className={`se-seg__btn${book.filter === value ? ' se-seg__btn--on' : ''}`}
+                    aria-pressed={book.filter === value} onClick={() => onFilter(value)}>{label}</button>
+                ))}
+              </div>
+            </div>
 
           <section className="se-board-section" aria-labelledby="board-book">
             <div className="se-stores-sectionhead">
-              <div><span className="se-eyebrow">City-wide</span><h2 id="board-book">On the Board</h2></div>
-              <p>Cash offers cheapest first, then trades. Take as many as you need from any offer.</p>
+              <div><span className="se-eyebrow">{formatNumber(visibleRows.length)} active listings</span><h2 id="board-book">Player listings</h2></div>
+              <p>Compare prices, choose a stack, and buy directly from another crew.</p>
             </div>
-            {book.rows.length === 0 ? (
-              <p className="se-board-empty">Nothing is up right now.</p>
+            {visibleRows.length === 0 ? (
+              <p className="se-board-empty">{query ? 'No listings match that search.' : 'Nothing is up right now.'}</p>
             ) : (
               <div className="se-tablewrap">
                 <table className="se-table se-table--cards se-board-book">
                   <thead><tr><th>Item</th><th>Seller</th><th className="se-table__number">Qty</th><th>Price</th><th className="se-table__number">Cash</th><th>Closes</th><th><span className="se-sr-only">Actions</span></th></tr></thead>
                   <tbody>
-                    {book.rows.map((row) => (
+                    {visibleRows.map((row) => (
                       <tr key={row.id} className={row.mine ? 'se-board-book__mine' : undefined}>
-                        <td data-label="Item"><span className={`se-board-rarity se-board-rarity--${row.category === 'PRODUCT' ? 'product' : row.category === 'KEEPER' ? 'keeper' : (row.rarity ?? 'common').toLowerCase()}`}>{row.name}</span></td>
+                        <td data-label="Item"><ItemLabel itemKey={row.itemKey}><span className={`se-board-rarity se-board-rarity--${row.category === 'PRODUCT' ? 'product' : row.category === 'KEEPER' ? 'keeper' : (row.rarity ?? 'common').toLowerCase()}`}>{row.name}</span></ItemLabel></td>
                         <td data-label="Seller"><span>{row.sellerName}{row.mine ? <span className="se-board-you"> (you)</span> : null}</span></td>
                         <td className="se-table__number se-num" data-label="Qty">{formatNumber(row.quantity)}</td>
                         <td className="se-board-trade" data-label="Price">
@@ -367,7 +398,9 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
               </tr>))}
             </tbody></table></div>
           </section> : null}
+          </> : null}
 
+          {section === 'listings' ?
           <section className="se-board-section" aria-labelledby="board-mine">
             <div className="se-stores-sectionhead">
               <div><span className="se-eyebrow">{formatNumber(book.openOffers)} of {formatNumber(book.rules.maxOpenOffers)} up</span><h2 id="board-mine">Your offers</h2></div>
@@ -405,7 +438,9 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
               </div>
             )}
           </section>
+          : null}
 
+          {section === 'sell' ?
           <section className="se-board-section" aria-labelledby="board-post">
             <div className="se-stores-sectionhead">
               <div><span className="se-eyebrow">Sell</span><h2 id="board-post">List goods</h2></div>
@@ -413,13 +448,14 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
             </div>
             <ListPanel book={book} busy={busy} form={form} onForm={onForm} onPost={onPost} />
           </section>
+          : null}
         </div>
       </section>
     </>
   );
 }
 
-/** The Board: the player listings tab on Stores. Rounds without the Board never show it. */
+/** The city-wide player market. Rounds without the Board keep the legacy unavailable state. */
 export function PlayerBoard() {
   const me = useSession((s) => s.me);
   const [book, setBook] = useState<PlayerBoardDto | null>(null);
@@ -557,18 +593,16 @@ export function PlayerBoard() {
 
   return (
     <GameLayout>
-      <div className="se-stores se-stores--board" aria-busy={loading}>
+      <div className="se-stores se-stores--board se-market-page" aria-busy={loading}>
         <header className="se-stores-hero se-stores-hero--board">
           <div className="se-stores-hero__copy">
-            <span className="se-eyebrow">Player listings{me ? ` · ${me.city.name}` : ''}</span>
+            <span className="se-eyebrow">Street Market{me ? ` · ${me.city.name}` : ''}</span>
             <h1>The Board</h1>
-            <p>Stacks other crews have put up. Sellers pay one posting fee and keep the full sale price.</p>
+            <p>Browse the city’s listings, compare prices, and trade with other crews.</p>
           </div>
         </header>
 
-         <StoreTabs stores={stores.length ? stores : STORE_TAB_FALLBACK} slug="board" board />
-
-        {closed ? <Alert>That store is not open. <Link to="/game/stores/corner">Visit the Corner Store</Link>.</Alert> : null}
+        {closed ? <Alert>The Street Market is closed for this round. <Link to="/game/stores">Visit the stores</Link>.</Alert> : null}
         {locked ? (
           <Alert tone="info" title="Market access pending" className="se-board-lock">
             <div className="se-board-lock__content">
