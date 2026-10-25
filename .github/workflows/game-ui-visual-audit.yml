@@ -77,12 +77,14 @@ jobs:
           npx prisma generate
           npx prisma migrate deploy
           npm run db:seed
-      - name: Start isolated API and game web client
+      - name: Build production game client
+        run: npm run build -w @streets/web
+      - name: Start isolated API and production game client
         shell: bash
         run: |
           set -euo pipefail
           npm run dev:server > /tmp/streets-api.log 2>&1 &
-          npm run dev -w @streets/web -- --host 127.0.0.1 > /tmp/streets-web.log 2>&1 &
+          npm run preview -w @streets/web -- --host 127.0.0.1 --port 5173 --strictPort > /tmp/streets-web.log 2>&1 &
           for i in $(seq 1 90); do
             if curl --fail --silent http://127.0.0.1:3001/api/health >/dev/null \
               && curl --fail --silent http://127.0.0.1:5173/login >/dev/null; then
