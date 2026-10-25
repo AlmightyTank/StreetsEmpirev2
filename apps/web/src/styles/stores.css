@@ -1861,9 +1861,9 @@
   }
 }
 
-/* Keep the flea market compact on phones instead of inheriting the generic
-   stacked-table treatment used by longer admin and history tables. */
-@media (max-width: 700px) {
+/* Keep the flea market compact on phones and tablets instead of inheriting
+   the wide table layout used by desktop and reference screens. */
+@media (max-width: 900px) {
   .se-market-page .se-market-layout { gap: 8px; }
   .se-market-page .se-market-categories {
     display: flex;
