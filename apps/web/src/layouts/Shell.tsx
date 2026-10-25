@@ -197,9 +197,9 @@ function HudIcon({ name }: { name: 'cash' | 'turns' | 'heat' | 'worth' | 'ammo' 
       <>
       <LegacyHudIcon name="turns" />
       <svg className="se-statusbar__icon se-statusbar__icon--turns se-statusbar__icon--illustrated" viewBox="0 0 40 40" width="24" height="24" aria-hidden="true" focusable="false">
-        <path d="M23 2 8 22h11l-3 16 17-24H22Z" fill="#2797ff"/>
-        <path d="M23 2 12 21h10l-5 16 16-23H22Z" fill="#75d6ff"/>
-        <path d="M23 4 15 20h8l-4 12 11-17H21Z" fill="#c8f4ff" opacity=".72"/>
+        <path d="M23 2 8 22h11l-3 16 17-24H22Z" fill="currentColor"/>
+        <path d="M23 2 12 21h10l-5 16 16-23H22Z" fill="currentColor" opacity=".68"/>
+        <path d="M23 4 15 20h8l-4 12 11-17H21Z" fill="currentColor" opacity=".4"/>
       </svg>
       </>
     );
