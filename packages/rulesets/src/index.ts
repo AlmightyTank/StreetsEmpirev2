@@ -358,6 +358,7 @@ export * from './living-cases.js';
 export * from './combat-prototype.js';
 export * from './hideout-v2.js';
 export * from './quest-definitions.js';
+export * from './quest-narrative-audit.js';
 export * from './faction-definitions.js';
 export * from './quest-progress.js';
 export * from './story-copy.js';
