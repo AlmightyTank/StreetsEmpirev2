@@ -42,8 +42,6 @@ import './styles/drop-shells.css';
 import './styles/birthday.css';
 import './styles/travel.css';
 import './styles/city-blocks.css';
-import './styles/operations.css';
-import './styles/black-book.css';
 import './styles/quests.css';
 import './styles/contact-room.css';
 import './styles/events.css';

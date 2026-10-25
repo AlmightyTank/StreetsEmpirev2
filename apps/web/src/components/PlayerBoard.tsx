@@ -547,7 +547,7 @@ export function PlayerBoard() {
           </div>
         </header>
 
-        <StoreTabs stores={stores} slug="board" board={!closed} />
+        <StoreTabs stores={stores} slug="board" board={!closed && !locked} />
 
         {closed ? <Alert>That store is not open. <Link to="/game/stores/corner">Visit the Corner Store</Link>.</Alert> : null}
         {locked ? (

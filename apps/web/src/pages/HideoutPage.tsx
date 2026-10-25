@@ -8,8 +8,6 @@ import type {
   HideoutV2Dto,
   HideoutCosmeticsDto,
   TravelDto,
-  StashDto,
-  StashItemDto,
 } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
 import { hideoutApi } from '../api/hideout.js';
@@ -28,7 +26,6 @@ import { ItemLabel, ItemTile } from '../components/ItemTile.js';
 import { hasItemArt } from '../items/itemArt.js';
 import { EmpirePageHeader } from '../components/EmpireManagement.js';
 import { StreetSignDisplay } from '../components/StreetSignBuilder.js';
-import { StashGrid } from '../components/StashGrid.js';
 import { ScavengingPanel } from '../components/ScavengingPanel.js';
 import { GeneratorPanel } from '../components/GeneratorPanel.js';
 import { WorkshopPanel } from '../components/WorkshopPanel.js';
@@ -379,9 +376,6 @@ export function HideoutPage() {
   const [cosmetics, setCosmetics] = useState<HideoutCosmeticsDto | null>(null);
   const [cosmeticBusy, setCosmeticBusy] = useState(false);
   const [cosmeticError, setCosmeticError] = useState<string | null>(null);
-  const [stash, setStash] = useState<StashDto | null>(null);
-  const [stashError, setStashError] = useState<string | null>(null);
-  const [stashBusy, setStashBusy] = useState(false);
   const [scavenging, setScavenging] = useState<ScavengePageDto | null>(null);
   const [workshop, setWorkshop] = useState<CraftingWorkshopDto | null>(null);
   useEffect(() => {
@@ -413,9 +407,6 @@ export function HideoutPage() {
       .catch((caught: unknown) => {
         if (active) setLoadError(caught instanceof ApiError ? caught.message : 'Could not load the hideout.');
       });
-    hideoutApi.stash()
-      .then((data) => { if (active) { setStash(data); setStashError(null); } })
-      .catch((caught: unknown) => { if (active) setStashError(caught instanceof ApiError ? caught.message : 'Could not load the supply stash.'); });
     hideoutApi.cosmetics().then((data) => { if (active) setCosmetics(data); }).catch(() => { if (active) setCosmetics(null); });
     hideoutApi.scavenging().then((data) => { if (active) setScavenging(data); }).catch(() => { if (active) setScavenging(null); });
     hideoutApi.workshop().then((data) => { if (active) setWorkshop(data); }).catch(() => { if (active) setWorkshop(null); });
@@ -426,18 +417,6 @@ export function HideoutPage() {
 
     return () => { active = false; };
   }, [me?.resources.cashCents, me?.resources.condoms, me?.resources.medicine, me?.resources.beer, me?.resources.ammo, me?.resources.vehicleParts, me?.resources.pistols, me?.resources.shotguns, me?.resources.tek9s, me?.resources.ak47s, me?.resources.lowRiders, me?.resources.sedans, me?.resources.vans, reload]);
-
-  async function saveStash(items: Array<Pick<StashItemDto, 'key' | 'x' | 'y'>>) {
-    setStashBusy(true);
-    setStashError(null);
-    try {
-      setStash(await hideoutApi.saveStashLayout({ items }));
-    } catch (caught) {
-      setStashError(caught instanceof ApiError ? caught.message : 'Could not save the stash layout.');
-    } finally {
-      setStashBusy(false);
-    }
-  }
 
   async function saveCosmetics(decorationKey: string | null, streetSignKey: string | null) {
     setCosmeticBusy(true);
@@ -498,17 +477,25 @@ export function HideoutPage() {
     ? hideout.security.pendingConvoyThreats + hideout.security.pendingTurfThreats
     : 0;
   const requested = hideoutViewFromHash(location.hash);
-  const hasSupplies = Boolean(stash || scavenging || workshop || hideout?.generator);
+  const hasSupplies = Boolean(scavenging || workshop || hideout?.generator);
   const hasLook = Boolean(cosmetics);
   const section = resolveHideoutSection(requested.section, {
     hasSecurity,
     hasOperations,
     hasSupplies,
     hasLook,
+    hasScavenging: Boolean(scavenging),
+    hasWorkshop: Boolean(workshop),
+    hasGenerator: Boolean(hideout?.generator),
   });
-  const activeSection: HideoutSectionId = tourWantsUpgrade && !leftTourRooms ? 'rooms' : section;
+  const legacySuppliesSection: HideoutSectionId = scavenging ? 'scavenging' : workshop ? 'workshop' : 'generator';
+  const activeSection: HideoutSectionId = tourWantsUpgrade && !leftTourRooms
+    ? 'rooms'
+    : section === 'supplies' && hideout?.enabled
+      ? legacySuppliesSection
+      : section;
   const supplyAvailable: Record<HideoutSupplyTab, boolean> = {
-    stash: Boolean(stash),
+    stash: false,
     scavenging: Boolean(scavenging),
     workshop: Boolean(workshop),
     generator: Boolean(hideout?.generator),
@@ -558,14 +545,12 @@ export function HideoutPage() {
         activeId={supplyTab}
         onChange={(id) => openSupply(id as HideoutSupplyTab)}
         items={[
-          ...(stash ? [{ id: 'stash', label: 'Your stash' }] : []),
           ...(scavenging ? [{ id: 'scavenging', label: 'Caches and components' }] : []),
           ...(workshop ? [{ id: 'workshop', label: 'Crafting bench' }] : []),
           ...(hideout?.generator ? [{ id: 'generator', label: 'Generator' }] : []),
         ]}
       />
       <div className="se-hideout-resources__panel" role="tabpanel" aria-label={`${supplyTab} panel`}>
-        {supplyTab === 'stash' && stash ? <div id="hideout-stash"><StashGrid stash={stash} busy={stashBusy} onSave={(items) => void saveStash(items)} /></div> : null}
         {supplyTab === 'scavenging' && scavenging ? <ScavengingPanel heading={false} page={scavenging} onChanged={setScavenging} /> : null}
         {supplyTab === 'workshop' && workshop ? <WorkshopPanel heading={false} workshop={workshop} onChanged={setWorkshop} /> : null}
         {supplyTab === 'generator' && hideout?.generator ? <GeneratorPanel heading={false} generator={hideout.generator} onChanged={(generator) => setHideout((current) => current ? { ...current, generator } : current)} /> : null}
@@ -603,7 +588,6 @@ export function HideoutPage() {
         {action.error ? <Alert>{action.error}</Alert> : null}
         {specializationAction.error ? <Alert>{specializationAction.error}</Alert> : null}
         {cosmeticError ? <Alert>{cosmeticError}</Alert> : null}
-        {stashError ? <Alert>{stashError}</Alert> : null}
 
         {receipt && action.result ? (
           <div className="se-store-receipt" aria-live="polite">
@@ -646,7 +630,9 @@ export function HideoutPage() {
                 items={[
                   { id: 'overview', label: 'Overview' },
                   { id: 'rooms', label: readyRooms.length ? `Rooms · ${formatNumber(readyRooms.length)}` : 'Rooms' },
-                  ...(hasSupplies ? [{ id: 'supplies', label: 'Supplies' }] : []),
+                  ...(scavenging ? [{ id: 'scavenging', label: 'Caches' }] : []),
+                  ...(workshop ? [{ id: 'workshop', label: 'Crafting' }] : []),
+                  ...(hideout.generator ? [{ id: 'generator', label: 'Generator' }] : []),
                   ...(hasSecurity ? [{ id: 'security', label: activeThreats > 0 ? `Security · ${formatNumber(activeThreats)}` : 'Security' }] : []),
                   ...(hasOperations ? [{ id: 'operations', label: 'Operations' }] : []),
                   ...(hasLook ? [{ id: 'look', label: 'Look' }] : []),
@@ -830,6 +816,10 @@ export function HideoutPage() {
             ) : null}
 
             {activeSection === 'supplies' && !suppliesOnPage ? suppliesPanel : null}
+
+            {activeSection === 'scavenging' && scavenging ? <ScavengingPanel page={scavenging} onChanged={setScavenging} /> : null}
+            {activeSection === 'workshop' && workshop ? <WorkshopPanel workshop={workshop} onChanged={setWorkshop} /> : null}
+            {activeSection === 'generator' && hideout.generator ? <GeneratorPanel generator={hideout.generator} onChanged={(generator) => setHideout((current) => current ? { ...current, generator } : current)} /> : null}
 
             {activeSection === 'security' && hasSecurity ? (
               <section id="hideout-security" className="se-hideout-section">

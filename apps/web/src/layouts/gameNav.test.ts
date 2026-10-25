@@ -35,7 +35,7 @@ describe('consolidated game navigation', () => {
 
   it('leaves claim boards, the shop, and billing off the play menu', () => {
     const keys = pages.map((item) => item.key);
-    for (const key of ['xp-progress', 'roll-call', 'drop', 'supporter', 'operations', 'black-book', 'crew-roster']) {
+    for (const key of ['xp-progress', 'roll-call', 'drop', 'supporter', 'crew-roster']) {
       expect(keys).not.toContain(key);
     }
     expect(SECTIONS.find((section) => section.id === 'career')!.pages.map((item) => item.key)).toEqual([

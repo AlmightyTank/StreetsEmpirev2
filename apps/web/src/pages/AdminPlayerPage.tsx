@@ -458,7 +458,7 @@ export function AdminPlayerPage() {
       ) : null}
 
       <div className="se-grid se-grid--2 se-mb">
-        <Panel title="Crew and weapons" flush aside={<Link to={`/game/admin/players/${player.roundPlayerId}/armory`}>Inspect item records and history</Link>}>
+        <Panel title="Crew and weapons" flush>
           <div className="se-rows">
             <Row label="Whores" value={formatNumber(player.crew.whores)} />
             <Row label="Thugs" value={`${formatNumber(player.crew.thugs)} (${formatNumber(player.crew.woundedThugs)} wounded)`} />

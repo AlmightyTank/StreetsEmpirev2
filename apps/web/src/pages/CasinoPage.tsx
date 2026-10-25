@@ -7,7 +7,6 @@ import { ApiError } from '../api/client.js';
 import { ActionDock, deltaChip } from '../components/ActionDock.js';
 import { Alert } from '../components/Alert.js';
 import { BlackjackPanel } from '../components/BlackjackPanel.js';
-import { PoolPanel } from '../components/PoolPanel.js';
 import { RoulettePanel } from '../components/RoulettePanel.js';
 import { ScratchCardsPanel } from '../components/ScratchCardsPanel.js';
 import { HorseRacingPanel } from '../components/HorseRacingPanel.js';
@@ -57,7 +56,7 @@ function wait(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
-type CasinoGameKey = 'slots' | 'blackjack' | 'pool' | 'roulette' | 'scratch-cards' | 'horse-racing' | 'poker' | 'sportsbook';
+type CasinoGameKey = 'slots' | 'blackjack' | 'roulette' | 'scratch-cards' | 'horse-racing' | 'poker' | 'sportsbook';
 
 const CASINO_GAMES: readonly {
   key: CasinoGameKey;
@@ -85,15 +84,6 @@ const CASINO_GAMES: readonly {
     live: true,
     title: 'Blackjack',
     description: 'Casino blackjack with table limits, splits and doubles.',
-  },
-  {
-    key: 'pool',
-    label: 'Pool',
-    icon: '🎱',
-    status: 'LIVE',
-    live: true,
-    title: 'Pool',
-    description: 'Eight-ball against house hustlers. Call every shot, press when they get ahead.',
   },
   {
     key: 'roulette',
@@ -124,11 +114,11 @@ const CASINO_GAMES: readonly {
   },
   {
     key: 'poker',
-    label: 'Poker',
+    label: "Texas Hold'em",
     icon: '♣',
     status: 'SOLO',
     live: true,
-    title: 'Solo Poker',
+    title: "Texas Hold'em",
     description: 'Texas Hold’em against two house players. Multiplayer tables are planned for a later slice.',
   },
   {
@@ -198,7 +188,7 @@ function TournamentBoard() {
   };
 
   return (
-    <Panel title="Weekly Poker Circuit" aside="1.2.0-G">
+    <Panel title="Weekly Texas Hold'em Circuit" aside="1.2.0-G">
       <div className="se-casino-tournament">
         <p className="se-muted">Every table starts with the same buy-in for every seat. Weekly standings compare each player’s net result with their total buy-ins, so larger stakes do not automatically score higher. The board adds no prize; table buy-ins and poker winnings still use your casino bankroll.</p>
         {error ? <Alert tone="error">{error}</Alert> : null}
@@ -706,7 +696,7 @@ export function CasinoPage() {
                           {entry.display.tone === 'positive' ? '+' : entry.display.tone === 'negative' ? '−' : ''}
                           {formatCents(entry.display.amountCents)}
                         </strong>
-                        {entry.kind === 'SLOT_SPIN' || entry.kind === 'BLACKJACK' || entry.kind === 'POOL' || entry.kind === 'ROULETTE' || entry.kind === 'SCRATCH_CARD' || entry.kind === 'HORSE_RACE' || entry.kind === 'SPORTSBOOK_BET' || (entry.kind === 'SPORTSBOOK_SETTLEMENT' && entry.sessionChipDeltaCents !== 0) ? (
+                        {entry.kind === 'SLOT_SPIN' || entry.kind === 'BLACKJACK' || entry.kind === 'ROULETTE' || entry.kind === 'SCRATCH_CARD' || entry.kind === 'HORSE_RACE' || entry.kind === 'SPORTSBOOK_BET' || (entry.kind === 'SPORTSBOOK_SETTLEMENT' && entry.sessionChipDeltaCents !== 0) ? (
                           <span>Floor {formatCents(entry.sessionChipsAfterCents)}</span>
                         ) : entry.kind === 'BUY_CHIPS' && entry.sessionChipDeltaCents !== 0 ? (
                           <span>Floor {formatCents(entry.sessionChipsAfterCents)}</span>
@@ -1227,18 +1217,6 @@ export function CasinoPage() {
             />
                 ) : null}
 
-                {activeGame === 'pool' ? (
-            <PoolPanel
-              casinoPage={data}
-              onPageChange={(next) => {
-                preserveScrollDuring(() => {
-                  setData(next);
-                  setDisplayedCreditsCents(next.openSession?.bankrollCents ?? null);
-                });
-              }}
-            />
-                ) : null}
-
                 {activeGame === 'roulette' ? (
             <RoulettePanel
               casinoPage={data}
@@ -1301,7 +1279,7 @@ export function CasinoPage() {
                   />
                 ) : null}
 
-                {activeGame !== 'slots' && activeGame !== 'blackjack' && activeGame !== 'pool' && activeGame !== 'roulette' && activeGame !== 'scratch-cards' && activeGame !== 'horse-racing' && activeGame !== 'poker' && activeGame !== 'sportsbook' ? (() => {
+                {activeGame !== 'slots' && activeGame !== 'blackjack' && activeGame !== 'roulette' && activeGame !== 'scratch-cards' && activeGame !== 'horse-racing' && activeGame !== 'poker' && activeGame !== 'sportsbook' ? (() => {
                   const game = CASINO_GAMES.find((candidate) => candidate.key === activeGame)!;
                   return (
                     <CasinoGamePlaceholder

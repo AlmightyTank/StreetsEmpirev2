@@ -51,7 +51,6 @@ export function routeIdentity(pathname: string): string {
   if (path === '/game/travel') return 'travel';
   if (path === '/game/turf') return 'turf';
   if (path === '/game/operations') return 'operations';
-  if (path === '/game/black-book') return 'black-book';
   if (path === '/game/rankings') return 'rankings';
   if (path === '/game/alliance') return 'alliance';
   if (path === '/game/alliances') return 'alliances';

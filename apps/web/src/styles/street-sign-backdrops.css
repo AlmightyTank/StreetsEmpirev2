@@ -81,15 +81,6 @@
   radial-gradient(ellipse 60% 110% at 50% 0,#c8f06a1f,transparent 70%),
   repeating-linear-gradient(45deg,#ffffff06 0 1px,transparent 1px 7px)}
 
-/* Black Book (contacts): stitched leather, gold page edges and the elastic strap. */
-.se-street-sign-backdrop--black-book::before{background:
-  linear-gradient(90deg,transparent 0 95%,#d9b26a 95% 96%,#7a5a2a 96% 96.4%,#d9b26a 96.4% 97.4%,#7a5a2a 97.4% 97.8%,#d9b26a 97.8%),
-  linear-gradient(90deg,transparent 0 87%,#060504 87% 90%,transparent 90%),
-  radial-gradient(ellipse 50% 80% at 30% 20%,#ffffff12,transparent 70%),
-  radial-gradient(circle,#ffffff09 0 .6px,transparent 1px) 0 0/4px 4px,
-  radial-gradient(circle,#00000030 0 .8px,transparent 1.2px) 2px 2px/5px 5px}
-.se-street-sign-backdrop--black-book::after{inset:6px 7% 6px 6px;border:1.5px dashed #c9a46a99;border-radius:2px}
-
 /* Loan Shark: a fin cutting through dark water. */
 .se-street-sign-backdrop--loan-shark::before{background:
   url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 34'%3E%3Cpath fill='%2318242c' d='M8 30C18 26 24 12 27 0C31 13 38 24 52 30z'/%3E%3Cpath fill='none' stroke='%23cfefff' stroke-opacity='.6' stroke-width='1.2' d='M0 31Q8 28 16 31T32 31T48 31T60 31'/%3E%3C/svg%3E") 80% 100%/auto 70% no-repeat,

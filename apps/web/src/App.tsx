@@ -15,7 +15,6 @@ import { AdminCasinoPage } from './pages/AdminCasinoPage.js';
 import { AdminFactionsPage } from './pages/AdminFactionsPage.js';
 import { AdminCrewPage } from './pages/AdminCrewPage.js';
 import { AdminVehiclesPage } from './pages/AdminVehiclesPage.js';
-import { AdminArmoryPlayerPage } from './pages/AdminArmoryPlayerPage.js';
 import { AdminLawPage } from './pages/AdminLawPage.js';
 import { AdminLawPlayerPage } from './pages/AdminLawPlayerPage.js';
 import { AdminCombatPage } from './pages/AdminCombatPage.js';
@@ -257,7 +256,6 @@ export function App() {
         <Route path="travel" element={<Protected><LiveRound><TravelPage /></LiveRound></Protected>} />
         <Route path="turf" element={<Protected><LiveRound><TurfPage /></LiveRound></Protected>} />
         <Route path="operations" element={<Navigate to="/game" replace />} />
-        <Route path="black-book" element={<Navigate to="/game" replace />} />
         <Route path="blocks" element={<Navigate to="/game/turf" replace />} />
         {/* 0.5.0-A had a Cities page; the road map still lives on Travel. */}
         <Route path="cities" element={<Navigate to="/game/travel" replace />} />
@@ -305,7 +303,6 @@ export function App() {
         <Route path="admin/factions" element={admin(<AdminFactionsPage />)} />
         <Route path="admin/crew" element={admin(<AdminCrewPage />)} />
         <Route path="admin/vehicles" element={admin(<AdminVehiclesPage />)} />
-        <Route path="admin/players/:roundPlayerId/armory" element={admin(<AdminArmoryPlayerPage />)} />
         <Route path="admin/law" element={admin(<AdminLawPage />)} />
         <Route path="admin/players/:roundPlayerId/law" element={admin(<AdminLawPlayerPage />)} />
         <Route path="admin/combat" element={admin(<AdminCombatPage />)} />
