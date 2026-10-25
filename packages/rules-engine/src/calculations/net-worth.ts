@@ -21,13 +21,7 @@ export function calculateNetWorthCents(
   // applied as a ratio rather than a float multiply.
   const cash = (BigInt(player.cashCents) * BigInt(v.cashWeightPercent)) / 100n;
   const casinoCash = (BigInt(player.casinoNetWorthCents ?? 0) * BigInt(v.cashWeightPercent)) / 100n;
-  const ammoPacks = ruleset.stores.TOMMY.items;
-  const ammoSellbackCentsPerRound = ruleset.ammoParts?.enabled
-    ? Math.min(...Object.values(ammoPacks)
-      .filter((item) => item.field === 'ammo' && item.sellCents !== null)
-      .map((item) => Math.floor(item.sellCents! / (item.unitsPerOrder ?? 1))))
-    : 0;
-  const ammo = BigInt(player.ammo ?? 0) * BigInt(Number.isFinite(ammoSellbackCentsPerRound) ? ammoSellbackCentsPerRound : 0);
+  const ammo = BigInt(player.ammo ?? 0) * BigInt(ammoNetWorthCentsPerRound(ruleset));
 
   const assets = (
     cash +
@@ -66,6 +60,15 @@ export function calculateNetWorthCents(
   const debt = weightedDebtCents(player.loanDebtCents ?? 0, v.cashWeightPercent);
   if (debt === 0n) return assets;
   return assets > debt ? assets - debt : 0n;
+}
+
+/** 2.4.0-C. One round of ammo in net worth: the lowest pack sell-back per round, or nothing without the ammo economy. */
+export function ammoNetWorthCentsPerRound(ruleset: Ruleset = classicOgV01): number {
+  if (!ruleset.ammoParts?.enabled) return 0;
+  const perRound = Math.min(...Object.values(ruleset.stores.TOMMY.items)
+    .filter((item) => item.field === 'ammo' && item.sellCents !== null)
+    .map((item) => Math.floor(item.sellCents! / (item.unitsPerOrder ?? 1))));
+  return Number.isFinite(perRound) ? perRound : 0;
 }
 
 /** 1.5.0-C. Every vehicle at home that the garage still has to repair or recover. */

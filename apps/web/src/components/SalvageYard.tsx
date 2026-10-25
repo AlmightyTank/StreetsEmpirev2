@@ -16,6 +16,7 @@ function priceLabel(offer: SalvageOfferDto, quantity = 1): string {
   return [
     ...offer.price.components.map((part) => `${formatNumber(part.quantity * quantity)} ${part.name.toLowerCase()}`),
     ...offer.price.goods.map((good) => `${formatNumber(good.quantity * quantity)} ${good.name.toLowerCase()}`),
+    ...(offer.price.cashCents ? [formatCents(offer.price.cashCents * quantity)] : []),
   ].join(' + ');
 }
 

@@ -467,7 +467,9 @@ export type SalvageGoodDto = 'condoms' | 'medicine' | 'beer' | 'ammo';
 /** What one unit of a Salvage Yard offer costs: cash, or a trade of parts and goods. */
 export type SalvagePriceDto =
   | { kind: 'CASH'; cents: number }
-  | { kind: 'BARTER'; components: Array<{ key: string; name: string; quantity: number }>; goods: Array<{ key: SalvageGoodDto; name: string; quantity: number }> };
+  | { kind: 'BARTER'; components: Array<{ key: string; name: string; quantity: number }>; goods: Array<{ key: SalvageGoodDto; name: string; quantity: number }>;
+    /** The Board. Cash the yard adds to a barter on rounds where parts count toward rank. */
+    cashCents?: number };
 export interface SalvageOfferDto {
   key: string;
   name: string;

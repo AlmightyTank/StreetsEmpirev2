@@ -317,16 +317,16 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
 
   // The Salvage Yard: hideout building materials for cash or barter.
   fastify.get('/stores/salvage', { preHandler: fastify.requireAuth }, async (request) => {
-    const { player } = await requirePlayer(request.auth!.account.id);
+    const { round, player } = await requirePlayer(request.auth!.account.id);
     await PlayerStateService.settle(fastify.prisma, player.id, { markActive: true });
-    return SalvageYardService.page(fastify.prisma, player.id);
+    return SalvageYardService.page(fastify.prisma, player.id, loadRulesetForRound(round));
   });
 
   fastify.post('/stores/salvage/trade', { preHandler: fastify.requireAuth }, async (request) => {
     const body = parseBody(z.object({ key: z.string().trim().min(1).max(64), quantity: z.number().int().min(1).max(MAX_SALVAGE_TRADE) }).strict(), request.body);
     const { round, player } = await requirePlayer(request.auth!.account.id);
     await PlayerStateService.settle(fastify.prisma, player.id, { markActive: true });
-    const trade = await SalvageYardService.trade(fastify.prisma, player.id, body.key, body.quantity);
+    const trade = await SalvageYardService.trade(fastify.prisma, player.id, body.key, body.quantity, new Date(), loadRulesetForRound(round));
     await settleAfterParts(round, player.id);
     return trade;
   });

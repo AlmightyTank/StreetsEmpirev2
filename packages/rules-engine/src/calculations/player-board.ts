@@ -100,3 +100,18 @@ export function playerBoardOfferExpiresAt(
   const open = round.pausedAt ? Math.max(0, now.getTime() - round.pausedAt.getTime()) : 0;
   return new Date(offer.expiresAt.getTime() + completed + open);
 }
+
+/**
+ * The Board. Cash a keeper must add to a trade, while the Board is on, so that what goes in is
+ * worth at least the book of what comes out: rank counts cash at the cash weight, so a shortfall
+ * of D cents needs D / weight of cash. Rounded up to whole dollars, which can only make it safer.
+ * Zero when the trade already pays its way, or on rounds without the Board.
+ */
+export function playerBoardTradeTopUpCents(outputBookCents: number, inputBookCents: number, ruleset: BandRules): number {
+  if (!ruleset.playerBoard?.enabled) return 0;
+  const shortfall = BigInt(outputBookCents) - BigInt(inputBookCents);
+  if (shortfall <= 0n) return 0;
+  const weight = BigInt(ruleset.economy.netWorth.cashWeightPercent);
+  const cents = (shortfall * 100n + weight - 1n) / weight;
+  return Number(((cents + 99n) / 100n) * 100n);
+}

@@ -108,13 +108,28 @@ Parts count toward rank (decided after slice C). Every rank calculation already 
 - **Routes that change parts or cash outside an action re-settle afterwards** when the Board is on: opening a cache, the generator, the Salvage Yard, and Board post and cancel. Rounds without the Board keep settling on the next read, as before.
 - **Escrow lives in `RoundPlayer.playerBoardEscrow`** and counts at book like held parts. Posting moves rank only by the weighted fee, and cancel and expiry move nothing.
 
-One issue is still open before slice E:
+**The Salvage Yard imbalance is fixed.** At the roadmap's books, two yard routes raised rank once parts counted:
 
-- **The Salvage Yard breaks the rank rule at these books.** The yard sells commons for $100 and uncommons for $300, and it barters the rest. Two routes raise rank:
-  - Cash alone. A fuel cell or specialist circuitry costs about $2,250 in yard cash, which is about $1,690 of weighted rank, for $2,500 of book.
-  - Barter, once the Board is on. Every yard barter returns more book than it takes. For example, 5 commons plus 20 beer, roughly $24 of book, become an $80 motor assembly. Buying those commons on the Board at the floor is rank-neutral, so cash plus Board plus yard mints rank.
+- **Cash alone.** A fuel cell or specialist circuitry cost about $2,250 in yard cash, roughly $1,690 of weighted rank, for $2,500 of book.
+- **Barter.** Every barter returned more book than it took. For example, 5 commons plus 20 beer, about $24 of book, became an $80 motor assembly. Buying those inputs on the Board at the floor is rank-neutral, so cash plus Board plus yard minted rank.
 
-  The highest per-rarity books with no rank-raising yard route are $4 / $20 / $22 / $38 / $114. The books shipped as written by decision. The slice H sim has to resolve this, either by retuning the books or by changing the yard's prices and barters.
+The books stay as written. Instead, on a round with the Board on, every yard barter also asks for the cash that covers its shortfall at the cash weight: `playerBoardTradeTopUpCents`, rounded up to whole dollars. The shortfall is the output's book minus the book of the parts and goods handed over, with goods valued as `economy.netWorth` values them.
+
+At these books the top-ups per unit are:
+
+| Part | Top-up |
+| --- | ---: |
+| Motor assembly | $75 |
+| Repair supplies | $52 |
+| Specialty container | $77 |
+| Precision parts | $203 |
+| Advanced medical | $151 |
+| High-capacity fuel cell | $2,854 |
+| Specialist circuitry | $2,879 |
+
+The cash prices for commons ($100) and uncommons ($300) already pay their way, so they don't change. Because the top-ups are derived from the books, retuning the books keeps the yard safe automatically. A test runs every part through `calculateNetWorthCents`, over several quantities and cash remainders, and holds that no yard trade raises rank. Rounds without the Board trade exactly as before.
+
+The cost of the fix is that legendary barters are much dearer on Board rounds, by about $2,850 each. That falls on the hideout builds that need them: generator capacity and the intel room. The slice H sim should check that those builds stay within reach.
 
 Slice C adds `PlayerBoardOffer` (migration `20261225000000_player_board_offers`) and `PlayerBoardService` with three routes: `POST /stores/board/offers`, `POST /stores/board/offers/:offerId/cancel` and `GET /stores/board/mine`. The listing rules are on the 2.6-j block: six open offers, 12 or 48 hours, and a fee of 1% of book rounded up with a $1 minimum. Posting needs the flag on, so nothing can post on 2.6-j. Notes for the slices that follow:
 
@@ -138,8 +153,6 @@ Slice E adds fills through `PlayerBoardService.fill` and `POST /stores/board/off
 - **Retries.** A retried request with the same `actionId` returns the first receipt and charges nothing.
 - **Refusals change nothing.** These all refuse: your own offer, a closed or expired one, too little cash, and no stash room. An expiry found during a buy is committed (the stack goes home) before the buy is refused.
 - **Rank.** The route re-settles both players, so stored rank is current on both sides straight away. The integration suite shows neither rank rises at the floor, the middle or the cap, and that items across both players plus escrow stay constant.
-
-Turning the Board on for a real round now makes the Salvage Yard issue above live. Until the books or the yard are retuned, a round on 2.6.0-J-board can mint rank through yard barters.
 
 F and G both sit on E. Product is the smaller cut, so it goes first. H is last. D lands before E so the tab exists on the round where fills turn on.
 
