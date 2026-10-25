@@ -484,11 +484,14 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
   const refresh = useCallback(async (background = false) => {
     const sequence = ++refreshSequence.current;
     try {
-      const [next, battles] = await Promise.all([combatApi.page(after, background), combatApi.reports(roundId)]);
+      const next = await combatApi.page(after, background);
       if (sequence !== refreshSequence.current) return;
       setPage(next);
-      setReports(battles.reports);
-      setNextBefore(battles.nextBefore);
+      void combatApi.reports(roundId).then((battles) => {
+        if (sequence !== refreshSequence.current) return;
+        setReports(battles.reports);
+        setNextBefore(battles.nextBefore);
+      }).catch(() => undefined);
     } catch (err) {
       if (sequence === refreshSequence.current) setError(err instanceof Error ? err.message : 'Could not get the latest word from the street.');
     }

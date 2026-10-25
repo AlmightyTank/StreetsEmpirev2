@@ -408,15 +408,15 @@ export function HideoutPage() {
       .catch((caught: unknown) => {
         if (active) setLoadError(caught instanceof ApiError ? caught.message : 'Could not load the hideout.');
       });
-    const cosmetics = hideoutApi.cosmetics().then((data) => { if (active) setCosmetics(data); }).catch(() => { if (active) setCosmetics(null); });
-    const scavenging = hideoutApi.scavenging().then((data) => { if (active) setScavenging(data); }).catch(() => { if (active) setScavenging(null); });
-    const workshop = hideoutApi.workshop().then((data) => { if (active) setWorkshop(data); }).catch(() => { if (active) setWorkshop(null); });
+    void hideoutApi.cosmetics().then((data) => { if (active) setCosmetics(data); }).catch(() => { if (active) setCosmetics(null); });
+    void hideoutApi.scavenging().then((data) => { if (active) setScavenging(data); }).catch(() => { if (active) setScavenging(null); });
+    void hideoutApi.workshop().then((data) => { if (active) setWorkshop(data); }).catch(() => { if (active) setWorkshop(null); });
 
-    const travel = api.get<TravelDto>('/game/travel')
+    void api.get<TravelDto>('/game/travel')
       .then((data) => { if (active) setTravel(data); })
       .catch(() => { if (active) setTravel(null); });
 
-    void Promise.all([catalog, cosmetics, scavenging, workshop, travel]).finally(() => {
+    void catalog.finally(() => {
       if (active) setInitialLoading(false);
     });
 

@@ -42,7 +42,7 @@ export interface NavSection {
 export type IconName =
   | 'dashboard' | 'hideout' | 'scout' | 'produce' | 'raids' | 'stores' | 'cities'
   | 'rankings' | 'alliance' | 'contacts' | 'profile' | 'activity'
-  | 'status' | 'rules' | 'news' | 'fame' | 'account' | 'admin' | 'pass' | 'casino' | 'drop';
+  | 'status' | 'rules' | 'news' | 'fame' | 'account' | 'admin' | 'pass' | 'casino' | 'drop' | 'blocks';
 
 /**
  * One destination per feature a player acts on during a round, in six groups.
@@ -79,7 +79,7 @@ export const SECTIONS: NavSection[] = [
       },
       { key: 'stores', label: 'Stores', to: '/game/stores', icon: 'stores', prefix: '/game/stores/' },
       { key: 'travel', label: 'Travel', to: '/game/travel', icon: 'cities' },
-      { key: 'turf', label: 'Turf', to: '/game/turf', icon: 'cities' },
+       { key: 'turf', label: 'Turf', to: '/game/turf', icon: 'blocks' },
     ],
   },
   {

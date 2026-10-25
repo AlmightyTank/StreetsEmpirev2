@@ -318,18 +318,11 @@ export function TurfPage() {
   const [params, setParams] = useSearchParams();
 
   const load = useCallback(() => {
-    Promise.all([
-      api.get<CitiesDto>('/game/cities'),
-      communityApi.rankings(),
-      api.get<TravelDto>('/game/travel'),
-    ]).then(([cityData, rankingData, travelData]) => {
-      setCities(cityData);
-      setRankings(rankingData);
-      setTravel(travelData);
-      setError(null);
-    }).catch((caught: unknown) => {
-      setError(caught instanceof ApiError ? caught.message : 'Could not load turf.');
-    });
+    void api.get<CitiesDto>('/game/cities')
+      .then((cityData) => { setCities(cityData); setError(null); })
+      .catch((caught: unknown) => { setError(caught instanceof ApiError ? caught.message : 'Could not load turf.'); });
+    void communityApi.rankings().then(setRankings).catch(() => undefined);
+    void api.get<TravelDto>('/game/travel').then(setTravel).catch(() => undefined);
   }, []);
 
   useEffect(load, [load, me?.id]);

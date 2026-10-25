@@ -3,6 +3,7 @@ import type { IconName } from '../layouts/gameNav.js';
 /** 24px line icons for the phone tab bar and the More sheet. Stroke takes the text colour. */
 const PATHS: Record<IconName, string> = {
   dashboard: 'M4 4h7v7H4zM13 4h7v4h-7zM13 10h7v10h-7zM4 13h7v7H4z',
+  blocks: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z',
   hideout: 'M3 11 12 4l9 7M5 10v10h14V10M10 20v-6h4v6',
   scout: 'M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21zM12 12.5a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
   produce: 'M9 3h6M10 3v6L4.5 18.5A1.7 1.7 0 0 0 6 21h12a1.7 1.7 0 0 0 1.5-2.5L14 9V3M7 15h10',

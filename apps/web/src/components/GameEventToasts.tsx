@@ -5,6 +5,7 @@ import { describeActivity } from './ActivityFeed.js';
 import { notificationsApi } from '../api/notifications.js';
 import { useSession } from '../stores/session.js';
 import { formatClockTime } from '../utils/time.js';
+import { contactRoomHref } from '../utils/contactRoom.js';
 import { isCinematicEncounterActivity } from './encounterAlertPolicy.js';
 
 type ToastTone = 'info' | 'good' | 'warn' | 'bad';
@@ -143,6 +144,8 @@ function questHref(payload: Record<string, unknown>, tab: 'available' | 'active'
   const key = str(payload.questKey);
   const view = tab === 'completed' ? 'history' : tab === 'available' ? 'contacts' : 'jobs';
   if (!key) return `/game/quests?view=${view}`;
+  const contactKey = str(payload.contactKey);
+  if (contactKey && tab !== 'completed') return `${contactRoomHref(contactKey)}?job=${encodeURIComponent(key)}`;
   const encoded = encodeURIComponent(key);
   return `/game/quests?view=${view}&focus=${encoded}#quest-${encoded}`;
 }
@@ -275,7 +278,7 @@ export function gameEventToastFor(activity: ActivityDto, crackWord: string): Omi
     case 'QUEST_READY':
       return {
         title: `${str(p.title, 'Quest')} is ready to turn in`,
-        detail: 'Collect the reward from the quest board.',
+         detail: 'Open the contact chat to collect your reward.',
         tone: 'good',
         href: questHref(p),
       };

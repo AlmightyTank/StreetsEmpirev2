@@ -786,13 +786,13 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
               <h2>Pressure & progression</h2>
             </div>
             <p>Manage risk, payout, territory, and the upgrades that shape this season.</p>
-          </div>
+           </div>
 
-          <div className="se-dashboard-controlgrid">
-            {holdingsAvailable ? <p><Link className="se-dashboard-holdings-link" to="/game/holdings">View city holdings →</Link></p> : null}
-            <div className="se-dashboard-stack">
-              <HeatPanel />
-            </div>
+           <div className="se-dashboard-controlgrid">
+             <div className="se-dashboard-stack">
+               <HeatPanel />
+               {holdingsAvailable ? <p><Link className="se-dashboard-holdings-link" to="/game/holdings">View city holdings →</Link></p> : null}
+             </div>
 
             <div className="se-dashboard-stack">
               <PayoutControl />
