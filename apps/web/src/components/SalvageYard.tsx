@@ -61,6 +61,7 @@ export function SalvageYard() {
   const me = useSession((s) => s.me);
   const [yard, setYard] = useState<SalvageYardDto | null>(null);
   const [stores, setStores] = useState<StoreDto[]>([]);
+  const [board, setBoard] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [receipt, setReceipt] = useState<SalvageTradeResult | null>(null);
@@ -70,7 +71,7 @@ export function SalvageYard() {
     storesApi.salvage()
       .then((data) => { if (active) setYard(data); })
       .catch((caught: unknown) => { if (active) setError(caught instanceof ApiError ? caught.message : 'Could not load the Salvage Yard.'); });
-    storesApi.catalog().then((data) => { if (active) setStores(data.stores); }).catch(() => undefined);
+    storesApi.catalog().then((data) => { if (active) { setStores(data.stores); setBoard(data.playerBoard === true); } }).catch(() => undefined);
     return () => { active = false; };
   }, []);
 
@@ -114,7 +115,7 @@ export function SalvageYard() {
           ) : null}
         </header>
 
-        <StoreTabs stores={stores} slug="salvage" />
+        <StoreTabs stores={stores} slug="salvage" board={board} />
 
         {error ? <Alert>{error}</Alert> : null}
         {receipt ? (

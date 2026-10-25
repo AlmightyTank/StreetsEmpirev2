@@ -1829,3 +1829,91 @@
     --se-salvage-btn: 44px;
   }
 }
+
+/* The Board: player listings. Tables and segmented controls come from the shared kit. */
+.se-stores-hero--board .se-stores-hero__copy p {
+  max-width: 62ch;
+}
+
+.se-board-filters {
+  justify-self: start;
+}
+
+.se-board-section {
+  display: grid;
+  gap: 10px;
+}
+
+.se-board-empty {
+  margin: 0;
+  padding: 14px 16px;
+  border: 1px dashed var(--se-line);
+  border-radius: var(--se-radius, 8px);
+  color: var(--se-text-dim);
+}
+
+.se-board-rarity {
+  --se-board-ink: var(--se-text-dim);
+  padding-left: 8px;
+  box-shadow: inset 3px 0 0 var(--se-board-ink);
+}
+
+.se-board-rarity--uncommon { --se-board-ink: var(--se-good); }
+.se-board-rarity--rare { --se-board-ink: #4696ff; }
+.se-board-rarity--epic { --se-board-ink: #b066ff; }
+.se-board-rarity--legendary { --se-board-ink: #ffc440; }
+
+.se-board-book__mine td {
+  background: color-mix(in srgb, var(--se-good) 8%, transparent);
+}
+
+.se-board-you {
+  color: var(--se-text-dim);
+}
+
+.se-board-list {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) repeat(2, minmax(0, 1fr)) auto;
+  gap: 12px;
+  /* Top-aligned so the price hint hangs below its box instead of lifting the whole row. */
+  align-items: start;
+}
+
+.se-board-list > .se-field {
+  margin: 0;
+}
+
+.se-board-list__terms {
+  grid-column: 1 / -2;
+  margin: 0;
+  color: var(--se-text-dim);
+  font-size: 13px;
+}
+
+.se-board-list > .se-btn,
+.se-board-list > .se-why {
+  justify-self: end;
+  align-self: center;
+}
+
+@media (max-width: 899px) {
+  .se-board-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .se-board-list__terms {
+    grid-column: 1 / -1;
+  }
+
+  .se-board-list > .se-btn,
+  .se-board-list > .se-why {
+    grid-column: 1 / -1;
+    justify-self: stretch;
+  }
+}
+
+@media (max-width: 680px) {
+  .se-board-list {
+    grid-template-columns: 1fr;
+  }
+}

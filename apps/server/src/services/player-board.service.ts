@@ -7,7 +7,16 @@ import {
   playerBoardPostingFeeCents,
   type Ruleset,
 } from '@streets/rules-engine';
-import type { PlayerBoardOfferDto, PlayerBoardOfferResult, PostPlayerBoardOfferInput, StashItemKeyDto } from '@streets/shared';
+import type {
+  PlayerBoardDto,
+  PlayerBoardFilterDto,
+  PlayerBoardListableDto,
+  PlayerBoardOfferDto,
+  PlayerBoardOfferResult,
+  PlayerBoardRowDto,
+  PostPlayerBoardOfferInput,
+  StashItemKeyDto,
+} from '@streets/shared';
 import { AppError } from '../utils/errors.js';
 import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { assertNotPaused } from './action.service.js';
@@ -27,6 +36,8 @@ export type BoardRound = Pick<Round, 'id' | 'name' | 'status' | 'endsAt' | 'paus
 
 /** Most recent of the viewer's offers returned by `mine`, open ones included. */
 const MINE_LIMIT = 50;
+/** Open offers the book reads at once: at most six per player, so this covers a busy round. */
+const BOOK_LIMIT = 500;
 
 const componentName = (key: string) => COMPONENTS.find((row) => row.key === key)?.name ?? key;
 
@@ -218,6 +229,72 @@ export const PlayerBoardService = {
       return tx.playerBoardOffer.findMany({ where: { roundId: round.id, sellerId: roundPlayerId }, orderBy: { postedAt: 'desc' }, take: MINE_LIMIT });
     });
     return offers.map((offer) => offerDto(offer, round, now));
+  },
+
+  /**
+   * The Board D read model: every open offer in the round, grouped by item in catalog order and
+   * cheapest first within an item, plus the viewer's own offers and the parts they could list.
+   * Due offers are expired first, so nothing past its time is ever shown.
+   */
+  async book(prisma: PrismaClient, round: BoardRound, ruleset: Ruleset, viewerId: string, filter: PlayerBoardFilterDto = 'ALL', now = new Date()): Promise<PlayerBoardDto> {
+    const board = ruleset.playerBoard;
+    if (!board?.enabled) throw AppError.notFound('BOARD_CLOSED', 'The Board is not open this round.');
+    await PlayerBoardService.expireDue(prisma, round, now);
+    const [open, mine, viewer] = await Promise.all([
+      prisma.playerBoardOffer.findMany({
+        where: { roundId: round.id, status: 'OPEN' },
+        include: { seller: { select: { displayName: true } } },
+        orderBy: [{ unitPriceCents: 'asc' }, { postedAt: 'asc' }, { id: 'asc' }],
+        take: BOOK_LIMIT,
+      }),
+      PlayerBoardService.mine(prisma, round, viewerId, now),
+      prisma.roundPlayer.findUnique({ where: { id: viewerId }, select: { scavengedComponents: true } }),
+    ]);
+    if (!viewer) throw AppError.notFound('PLAYER_NOT_FOUND', 'Player not found.');
+
+    const order = new Map(COMPONENTS.map((row, index) => [row.key, index]));
+    const rows: PlayerBoardRowDto[] = open
+      // Both filters show parts today; product and keeper goods arrive with later slices.
+      .filter((offer) => order.has(offer.itemKey) && (filter === 'ALL' || filter === 'PARTS'))
+      .filter((offer) => playerBoardOfferExpiresAt(offer, round, now).getTime() > now.getTime())
+      .sort((a, b) => order.get(a.itemKey)! - order.get(b.itemKey)!)
+      .map((offer) => ({
+        id: offer.id,
+        itemKey: offer.itemKey,
+        name: componentName(offer.itemKey),
+        category: 'PART',
+        rarity: COMPONENTS.find((row) => row.key === offer.itemKey)?.rarity ?? null,
+        quantity: offer.quantity,
+        unitPriceCents: offer.unitPriceCents,
+        totalCents: offer.unitPriceCents * offer.quantity,
+        sellerName: offer.seller.displayName,
+        mine: offer.sellerId === viewerId,
+        expiresAt: playerBoardOfferExpiresAt(offer, round, now).toISOString(),
+      }));
+
+    const held = jsonObject(viewer.scavengedComponents, {});
+    const listable: PlayerBoardListableDto[] = COMPONENTS.flatMap((row) => {
+      const quantity = held[row.key] ?? 0;
+      const book = playerBoardPartBookCents(row.key, ruleset);
+      const band = book === null ? null : playerBoardBand(book, ruleset);
+      if (!Number.isSafeInteger(quantity) || quantity < 1 || book === null || !band) return [];
+      return [{ key: row.key, name: row.name, rarity: row.rarity, held: quantity, bookCents: book, floorCents: band.floorCents, capCents: band.capCents }];
+    });
+
+    return {
+      filter,
+      rows,
+      mine,
+      listable,
+      openOffers: mine.filter((offer) => offer.status === 'OPEN').length,
+      rules: {
+        maxOpenOffers: board.maxOpenOffers,
+        listingHours: [...board.listingHours],
+        postingFeePercent: board.postingFeePercent,
+        postingFeeMinCents: board.postingFeeMinCents,
+        taxPercent: board.taxPercent,
+      },
+    };
   },
 
   /**

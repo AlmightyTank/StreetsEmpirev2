@@ -331,6 +331,13 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
     return trade;
   });
 
+  // The Board D: the city-wide book, your offers and what you could list. Hidden while the flag is off.
+  fastify.get('/stores/board', { preHandler: fastify.requireAuth }, async (request) => {
+    const query = parseBody(z.object({ filter: z.enum(['ALL', 'PARTS']).default('ALL') }).strict(), request.query ?? {});
+    const { round, player } = await requirePlayer(request.auth!.account.id);
+    return PlayerBoardService.book(fastify.prisma, round, loadRulesetForRound(round), player.id, query.filter);
+  });
+
   // The Board C: escrow a stack of parts, take it down, and read your own offers. Fills arrive in E.
   fastify.get('/stores/board/mine', { preHandler: fastify.requireAuth }, async (request) => {
     const { round, player } = await requirePlayer(request.auth!.account.id);
@@ -364,7 +371,7 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/stores', { preHandler: fastify.requireAuth }, async (request) => {
     const { player } = await requirePlayer(request.auth!.account.id);
     const settled = await PlayerStateService.settle(fastify.prisma, player.id, { markActive: true });
-    return StoreService.catalog(
+    const catalog = await StoreService.catalog(
       fastify.prisma,
       player.id,
       settled.ruleset,
@@ -378,6 +385,8 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
         turfBlocksHeld: settled.turf?.blocksHeld ?? 0,
       },
     );
+    // The Board D: the tab exists only on rounds that switched the Board on.
+    return settled.ruleset.playerBoard?.enabled ? { ...catalog, playerBoard: true } : catalog;
   });
 
   fastify.post('/stores/trade', { preHandler: fastify.requireAuth }, async (request) => {

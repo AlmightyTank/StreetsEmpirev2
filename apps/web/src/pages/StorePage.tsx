@@ -11,6 +11,7 @@ import { Alert } from '../components/Alert.js';
 import { Portrait } from '../components/Portrait.js';
 import { StoreTabs } from '../components/StoreTabs.js';
 import { SalvageYard } from '../components/SalvageYard.js';
+import { PlayerBoard } from '../components/PlayerBoard.js';
 import { contactRoomHref, storeHasContactRoom } from '../utils/contactRoom.js';
 import { Button } from '../components/Button.js';
 import { EconomyBatchAction, EconomyPendingNotice, EconomyQuote } from '../components/EconomyExperience.js';
@@ -723,7 +724,7 @@ function StoreView({
           </div>
         </header>
 
-        {catalog ? <StoreTabs stores={catalog.stores} slug={slug} /> : null}
+        {catalog ? <StoreTabs stores={catalog.stores} slug={slug} board={catalog.playerBoard === true} /> : null}
 
         {loadError ? (
           <Alert>
@@ -1145,6 +1146,7 @@ export function StorePage() {
   }
 
   if (slug === 'salvage') return <SalvageYard />;
+  if (slug === 'board') return <PlayerBoard />;
 
   return (
     <StoreView

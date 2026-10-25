@@ -523,6 +523,49 @@ export interface PlayerBoardOfferResult {
   /** Cancelling: units back in the stash. Posting: always 0. */
   returnedQuantity: number;
 }
+/** The Board D. Which goods the book shows; parts are the only listable goods until product and keeper goods join. */
+export type PlayerBoardFilterDto = 'ALL' | 'PARTS';
+/** The Board D. One open offer on the city-wide book. */
+export interface PlayerBoardRowDto {
+  id: string;
+  itemKey: string;
+  name: string;
+  category: 'PART';
+  rarity: ScavengeRarityDto | null;
+  quantity: number;
+  unitPriceCents: number;
+  /** A buy takes the whole offer, so this is what a buyer pays. */
+  totalCents: number;
+  sellerName: string;
+  /** The viewer's own offer; it can never be bought by them. */
+  mine: boolean;
+  expiresAt: string;
+}
+/** The Board D. A part the viewer holds and may list, with its legal unit prices. */
+export interface PlayerBoardListableDto {
+  key: string;
+  name: string;
+  rarity: ScavengeRarityDto;
+  held: number;
+  bookCents: number;
+  floorCents: number;
+  capCents: number;
+}
+export interface PlayerBoardDto {
+  filter: PlayerBoardFilterDto;
+  /** Grouped by item in catalog order; each item's offers cheapest first. */
+  rows: PlayerBoardRowDto[];
+  mine: PlayerBoardOfferDto[];
+  listable: PlayerBoardListableDto[];
+  openOffers: number;
+  rules: {
+    maxOpenOffers: number;
+    listingHours: number[];
+    postingFeePercent: number;
+    postingFeeMinCents: number;
+    taxPercent: number;
+  };
+}
 export interface OpenScavengeCacheResult {
   cache: ScavengeCacheDto;
   rewards: ScavengeComponentDto[];
@@ -2495,6 +2538,8 @@ export interface StoresDto {
   productCounter?: boolean;
   /** 0.8.0-G. Cross-system store context from Hideout, Turf, Travel, and Convoys. */
   integrations?: StoreIntegrationDto;
+  /** The Board D. True only on a round whose ruleset has the Board switched on; the tab is hidden otherwise. */
+  playerBoard?: boolean;
 }
 
 /** 1.5.0-E2. The job behind a lock, for a link straight to it on the jobs page. */

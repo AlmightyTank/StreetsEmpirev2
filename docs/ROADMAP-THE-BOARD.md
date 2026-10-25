@@ -124,6 +124,13 @@ Slice C adds `PlayerBoardOffer` (migration `20261225000000_player_board_offers`)
 - **A stack that needs a new stash cell when none is free is not lost.** Cancel refuses with `STASH_FULL`. Expiry marks the offer `EXPIRED` with `returnedAt` null, and the stack goes back on the next settle that has room. Escrow for E's item count is `OPEN` plus `EXPIRED` with `returnedAt` null. Today a level-0 stash has 60 cells and only 37 distinct stacks exist, so this path cannot trigger yet.
 - **Escrow counts toward rank.** Escrowed stacks are held in `RoundPlayer.playerBoardEscrow` and count at book, the same as held parts. `OPEN` offers plus `EXPIRED` offers with `returnedAt` null always equal that column.
 
+Slice D adds the Board tab at `/game/stores/board`. It is the sixth tab, not the fifth, because the Salvage Yard shipped as the fifth after this roadmap was written.
+
+- **Hidden when off.** `GET /stores` sets `playerBoard: true` only when the round's ruleset has the flag on, and the tab renders only then. `GET /stores/board` answers `BOARD_CLOSED` otherwise, and the page shows the same "store is not open" notice as an unknown shop.
+- **The read model.** `PlayerBoardService.book` runs `expireDue` first, so nothing past its time is ever listed. Offers are grouped by item in catalog order and sorted cheapest first, oldest first on a tie, with seller round names and the viewer's own offers marked.
+- **Filters.** All and Parts return the same rows until slices F and G add product and keeper goods.
+- **On the tab.** It also shows your offers with cancel, and a listing form with the band, the fee and the after-tax payout, all computed the way the server computes them. There is no buy button until slice E.
+
 F and G both sit on E. Product is the smaller cut, so it goes first. H is last. D lands before E so the tab exists on the round where fills turn on.
 
 What each slice may touch:
