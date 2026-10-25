@@ -1,4 +1,6 @@
 import { useState, type CSSProperties, type PointerEvent } from 'react';
+import '../styles/street-sign-builder.css';
+import '../styles/street-sign-backdrops.css';
 import { DEFAULT_STREET_SIGN, STREET_SIGN_BACKDROPS, STREET_SIGN_FONTS, STREET_SIGN_FONT_PACKS, STREET_SIGN_SHADOWS, STREET_SIGN_STREET_TYPES, STREET_SIGN_TAG_MAX, STREET_SIGN_TAG_PLACEMENTS, STREET_SIGN_TAG_SCALES, STREET_SIGN_TEXT_MAX, STREET_SIGN_TREATMENTS, STREET_SIGN_TRIMS, STREET_SIGN_VERSION, streetSignBackdropFor, type StreetSignDesign } from '@streets/shared';
 
 const FONT_LABELS: Record<(typeof STREET_SIGN_FONTS)[number], string> = {
