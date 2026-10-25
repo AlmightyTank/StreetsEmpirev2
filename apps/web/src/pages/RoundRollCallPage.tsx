@@ -13,4 +13,3 @@ export function RoundRollCallPage() {
     </GameLayout>
   );
 }
-import '../styles/round-roll-call.css';
