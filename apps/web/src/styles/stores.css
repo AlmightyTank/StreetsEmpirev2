@@ -2649,3 +2649,37 @@
     width: 100%;
   }
 }
+
+
+/* Street Market quantity buttons use phone-sized tap targets. */
+@media (max-width: 700px) {
+  .se-market-quantity {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    overflow: visible;
+    padding: 4px 0;
+  }
+
+  .se-market-quantity__step {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .se-market-quantity__step button {
+    width: 100%;
+    min-width: 0;
+    min-height: 40px;
+    padding: 4px 2px;
+    font-size: 10px;
+    touch-action: manipulation;
+  }
+}
+
+@media (min-width: 560px) and (max-width: 700px) {
+  .se-market-quantity {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
