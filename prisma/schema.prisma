@@ -2143,7 +2143,8 @@ model RoundPlayer {
   workshopSkillXp Int @default(0)
   workshopLastRecipe String?
   hideoutEconomyTelemetry HideoutEconomyTelemetry[]
-  playerBoardOffers       PlayerBoardOffer[]
+  playerBoardOffers       PlayerBoardOffer[]       @relation("PlayerBoardSeller")
+  playerBoardPurchases    PlayerBoardOffer[]       @relation("PlayerBoardBuyer")
 
   displayName String
 
@@ -6791,7 +6792,10 @@ model PlayerBoardOffer {
   roundId  String
   round    Round       @relation(fields: [roundId], references: [id], onDelete: Cascade)
   sellerId String
-  seller   RoundPlayer @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  seller   RoundPlayer  @relation("PlayerBoardSeller", fields: [sellerId], references: [id], onDelete: Cascade)
+  /// The Board E. Who filled it; set with SOLD.
+  buyerId  String?
+  buyer    RoundPlayer? @relation("PlayerBoardBuyer", fields: [buyerId], references: [id], onDelete: SetNull)
 
   itemKey        String
   quantity       Int
@@ -6811,7 +6815,10 @@ model PlayerBoardOffer {
   closedAt   DateTime?
   /// When the escrowed stack went back to the seller. Null while OPEN, SOLD, or EXPIRED and waiting on stash room.
   returnedAt DateTime?
+  /// The Board E. What the seller was paid on the fill, after the deleted tax.
+  proceedsCents Int?
 
   @@index([roundId, status, itemKey, unitPriceCents])
   @@index([sellerId, status])
+  @@index([buyerId])
 }

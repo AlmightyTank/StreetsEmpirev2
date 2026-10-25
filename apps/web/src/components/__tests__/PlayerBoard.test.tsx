@@ -15,11 +15,11 @@ const stores = [
 const rules: PlayerBoardDto['rules'] = { maxOpenOffers: 6, listingHours: [12, 48], postingFeePercent: 1, postingFeeMinCents: 100, taxPercent: 8 };
 const NOW = Date.parse('2030-01-01T12:00:00Z');
 const later = (hours: number) => new Date(NOW + hours * 3_600_000).toISOString();
-const empty: PlayerBoardDto = { filter: 'ALL', rows: [], mine: [], listable: [], openOffers: 0, rules };
+const empty: PlayerBoardDto = { filter: 'ALL', rows: [], mine: [], listable: [], openOffers: 0, cashCents: 10_000, rules };
 const noop = () => undefined;
 const form = { key: 'SCRAP_METAL', quantity: '10', price: '5.50', hours: 12 };
 const render = (book: PlayerBoardDto, busy = false, current = form) => renderToStaticMarkup(
-  <MemoryRouter><PlayerBoardView book={book} now={NOW} busy={busy} form={current} onFilter={noop} onForm={noop} onPost={noop} onCancel={noop} /></MemoryRouter>,
+  <MemoryRouter><PlayerBoardView book={book} now={NOW} busy={busy} form={current} onFilter={noop} onForm={noop} onPost={noop} onCancel={noop} onBuy={noop} /></MemoryRouter>,
 );
 
 describe('Stores tab strip', () => {
@@ -65,7 +65,10 @@ describe('The Board view', () => {
     expect(html).toContain('(you)');
     expect(html).toContain('se-board-rarity--uncommon');
     expect(html).toContain('3h 00m');
-    expect(html).not.toMatch(/>Buy/);
+    // Buy on others' offers only, and a stack you cannot afford says so.
+    expect(html.match(/>Buy</g)).toHaveLength(2);
+    const poor = render({ ...empty, cashCents: 3_000, rows: [{ id: 'z', itemKey: 'RADIO', name: 'Radio', category: 'PART', rarity: 'UNCOMMON', quantity: 1, unitPriceCents: 3_334, totalCents: 3_334, sellerName: 'Bo', mine: false, expiresAt: later(1) }] });
+    expect(poor).toContain('You need $33.34 on hand.');
   });
 
   it('offers cancel only on open offers and says when a stack is waiting on room', () => {

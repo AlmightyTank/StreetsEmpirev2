@@ -558,6 +558,8 @@ export interface PlayerBoardDto {
   mine: PlayerBoardOfferDto[];
   listable: PlayerBoardListableDto[];
   openOffers: number;
+  /** The viewer's cash, so a buy the server would refuse for money can say so first. */
+  cashCents: number;
   rules: {
     maxOpenOffers: number;
     listingHours: number[];
@@ -565,6 +567,16 @@ export interface PlayerBoardDto {
     postingFeeMinCents: number;
     taxPercent: number;
   };
+}
+/** The Board E. A filled offer, as the buyer sees it. Replaying the same action id returns this again. */
+export interface PlayerBoardFillResult {
+  offerId: string;
+  itemKey: string;
+  name: string;
+  quantity: number;
+  unitPriceCents: number;
+  paidCents: number;
+  sellerName: string;
 }
 export interface OpenScavengeCacheResult {
   cache: ScavengeCacheDto;

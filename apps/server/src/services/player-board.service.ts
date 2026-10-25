@@ -5,11 +5,13 @@ import {
   playerBoardOfferExpiresAt,
   playerBoardPartBookCents,
   playerBoardPostingFeeCents,
+  playerBoardSellerProceedsCents,
   type Ruleset,
 } from '@streets/rules-engine';
 import type {
   PlayerBoardDto,
   PlayerBoardFilterDto,
+  PlayerBoardFillResult,
   PlayerBoardListableDto,
   PlayerBoardOfferDto,
   PlayerBoardOfferResult,
@@ -21,6 +23,7 @@ import { AppError } from '../utils/errors.js';
 import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { assertNotPaused } from './action.service.js';
 import { EconomyLedgerService } from './economy-ledger.service.js';
+import { IdempotencyService } from './idempotency.service.js';
 import { COMPONENTS, jsonObject } from './scavenging.service.js';
 
 /**
@@ -29,7 +32,8 @@ import { COMPONENTS, jsonObject } from './scavenging.service.js';
  * Both balances count toward net worth, so only the fee moves rank. Cancel and expiry return the
  * stack. An expired stack that needs a new stash cell when none is free stays held on the offer
  * (`returnedAt` null) and goes back the next time the seller's offers settle with room.
- * Nothing here fills an offer; that is slice E.
+ * A fill (slice E) moves the whole stack from the seller's escrow to the buyer, pays the seller
+ * after the tax, and deletes the tax from the round.
  */
 
 export type BoardRound = Pick<Round, 'id' | 'name' | 'status' | 'endsAt' | 'pausedAt' | 'pauseReason' | 'pausedMinutesTotal'>;
@@ -221,6 +225,81 @@ export const PlayerBoardService = {
     });
   },
 
+  /**
+   * Buy a whole offer in one transaction. Both players are locked in id order, the offer flips
+   * OPEN to SOLD only once, the buyer pays the sticker, the seller gets the share after tax and
+   * the tax leaves the round. A retried request with the same action id returns the first result
+   * and charges nothing more.
+   */
+  async fill(prisma: PrismaClient, round: BoardRound, ruleset: Ruleset, buyerId: string, offerId: string, actionId?: string, now = new Date()): Promise<PlayerBoardFillResult> {
+    if (!ruleset.playerBoard?.enabled) throw AppError.conflict('BOARD_CLOSED', 'The Board is not open this round.');
+    assertPlayable(round, now);
+    const target = await prisma.playerBoardOffer.findFirst({ where: { id: offerId, roundId: round.id }, select: { sellerId: true } });
+    if (!target) throw AppError.notFound('OFFER_NOT_FOUND', 'That offer is gone.');
+    if (target.sellerId === buyerId) throw AppError.conflict('CANNOT_BUY_OWN', 'You cannot buy your own offer.');
+
+    const outcome = await prisma.$transaction(async (tx): Promise<PlayerBoardFillResult | 'CLOSED'> => {
+      for (const id of [buyerId, target.sellerId].sort()) await lockRoundPlayer(tx, id);
+      if (actionId) {
+        const replay = await IdempotencyService.find<PlayerBoardFillResult>(tx, actionId, buyerId, 'BOARD_BUY');
+        if (replay) return replay;
+      }
+      await settleSeller(tx, round, target.sellerId, now);
+      const offer = await tx.playerBoardOffer.findUniqueOrThrow({ where: { id: offerId }, include: { seller: { select: { displayName: true } } } });
+      // Commit the expiry (and the stack going home) before refusing, rather than rolling it back.
+      if (offer.status !== 'OPEN') return 'CLOSED';
+
+      const buyer = await tx.roundPlayer.findUnique({ where: { id: buyerId }, select: { roundId: true, cashCents: true, scavengedComponents: true } });
+      if (!buyer || buyer.roundId !== round.id) throw AppError.notFound('PLAYER_NOT_FOUND', 'Player not found.');
+      const paidCents = offer.unitPriceCents * offer.quantity;
+      if (buyer.cashCents < BigInt(paidCents)) {
+        throw AppError.badRequest('NOT_ENOUGH_CASH', `That offer costs ${dollars(paidCents)}.`);
+      }
+      const components = jsonObject(buyer.scavengedComponents, {});
+      if (!(await canReturn(tx, buyerId, offer.itemKey, components))) {
+        throw AppError.conflict('STASH_FULL', 'There is no room in the stash for a new part. Upgrade Storage or clear a slot.');
+      }
+
+      const proceedsCents = playerBoardSellerProceedsCents(paidCents, ruleset);
+      const sold = await tx.playerBoardOffer.updateMany({
+        where: { id: offer.id, status: 'OPEN' },
+        data: { status: 'SOLD', closedAt: now, buyerId, proceedsCents },
+      });
+      if (sold.count !== 1) throw AppError.conflict('OFFER_NOT_OPEN', 'That offer has already closed.');
+
+      components[offer.itemKey] = (components[offer.itemKey] ?? 0) + offer.quantity;
+      await tx.roundPlayer.update({ where: { id: buyerId }, data: {
+        cashCents: buyer.cashCents - BigInt(paidCents),
+        scavengedComponents: components as Prisma.InputJsonValue,
+      } });
+      const escrow = await escrowBalances(tx, offer.sellerId);
+      escrow[offer.itemKey] = (escrow[offer.itemKey] ?? 0) - offer.quantity;
+      if (escrow[offer.itemKey]! <= 0) delete escrow[offer.itemKey];
+      await tx.roundPlayer.update({ where: { id: offer.sellerId }, data: {
+        cashCents: { increment: BigInt(proceedsCents) },
+        playerBoardEscrow: escrow as Prisma.InputJsonValue,
+      } });
+
+      const metadata = { offerId: offer.id, itemKey: offer.itemKey, quantity: offer.quantity, unitPriceCents: offer.unitPriceCents };
+      await EconomyLedgerService.record(tx, buyerId, [{ source: 'PLAYER_BOARD_BUY', label: 'Board purchase', amountCents: -paidCents, metadata }], now);
+      await EconomyLedgerService.record(tx, offer.sellerId, [{ source: 'PLAYER_BOARD_SALE', label: 'Board sale', amountCents: proceedsCents, metadata }], now);
+
+      const result: PlayerBoardFillResult = {
+        offerId: offer.id,
+        itemKey: offer.itemKey,
+        name: componentName(offer.itemKey),
+        quantity: offer.quantity,
+        unitPriceCents: offer.unitPriceCents,
+        paidCents,
+        sellerName: offer.seller.displayName,
+      };
+      if (actionId) await IdempotencyService.record(tx, actionId, buyerId, 'BOARD_BUY', result, now);
+      return result;
+    });
+    if (outcome === 'CLOSED') throw AppError.conflict('OFFER_NOT_OPEN', 'That offer has already closed.');
+    return outcome;
+  },
+
   /** The viewer's offers, newest first, after expiring what is due and returning what fits. */
   async mine(prisma: PrismaClient, round: BoardRound, roundPlayerId: string, now = new Date()): Promise<PlayerBoardOfferDto[]> {
     const offers = await prisma.$transaction(async (tx) => {
@@ -248,7 +327,7 @@ export const PlayerBoardService = {
         take: BOOK_LIMIT,
       }),
       PlayerBoardService.mine(prisma, round, viewerId, now),
-      prisma.roundPlayer.findUnique({ where: { id: viewerId }, select: { scavengedComponents: true } }),
+      prisma.roundPlayer.findUnique({ where: { id: viewerId }, select: { scavengedComponents: true, cashCents: true } }),
     ]);
     if (!viewer) throw AppError.notFound('PLAYER_NOT_FOUND', 'Player not found.');
 
@@ -287,6 +366,7 @@ export const PlayerBoardService = {
       mine,
       listable,
       openOffers: mine.filter((offer) => offer.status === 'OPEN').length,
+      cashCents: Number(viewer.cashCents),
       rules: {
         maxOpenOffers: board.maxOpenOffers,
         listingHours: [...board.listingHours],

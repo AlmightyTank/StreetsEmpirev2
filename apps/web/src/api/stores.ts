@@ -1,4 +1,4 @@
-import type { GameActionResult, PlayerBoardDto, PlayerBoardFilterDto, PlayerBoardOfferResult, PostPlayerBoardOfferInput, SalvageTradeInput, SalvageTradeResult, SalvageYardDto, StoresDto, StoreCheckoutInput, StoreCheckoutResult, StoreSpecialOrderInput, StoreSpecialOrderResult, StoreTradeInput, StoreTradeResult, WeaponUnlockInput, WeaponUnlockResult } from '@streets/shared';
+import type { GameActionResult, PlayerBoardDto, PlayerBoardFilterDto, PlayerBoardFillResult, PlayerBoardOfferResult, PostPlayerBoardOfferInput, SalvageTradeInput, SalvageTradeResult, SalvageYardDto, StoresDto, StoreCheckoutInput, StoreCheckoutResult, StoreSpecialOrderInput, StoreSpecialOrderResult, StoreTradeInput, StoreTradeResult, WeaponUnlockInput, WeaponUnlockResult } from '@streets/shared';
 import { api } from './client.js';
 
 export const storesApi = {
@@ -10,6 +10,7 @@ export const storesApi = {
   salvageTrade: (input: SalvageTradeInput) => api.post<SalvageTradeResult>('/game/stores/salvage/trade', input),
   board: (filter: PlayerBoardFilterDto = 'ALL') => api.get<PlayerBoardDto>(`/game/stores/board?filter=${filter}`),
   boardPost: (input: PostPlayerBoardOfferInput) => api.post<PlayerBoardOfferResult>('/game/stores/board/offers', input),
+  boardBuy: (offerId: string, actionId: string) => api.post<PlayerBoardFillResult>(`/game/stores/board/offers/${encodeURIComponent(offerId)}/buy`, { actionId }),
   boardCancel: (offerId: string) => api.post<PlayerBoardOfferResult>(`/game/stores/board/offers/${encodeURIComponent(offerId)}/cancel`, {}),
   unlock: (input: WeaponUnlockInput) => api.post<GameActionResult<WeaponUnlockResult>>('/game/stores/unlock', input),
 };

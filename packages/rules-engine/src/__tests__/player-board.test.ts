@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV26I, classicOgV26J, rulesets, type Ruleset } from '@streets/rulesets';
+import { classicOgV26I, classicOgV26J, classicOgV26JBoard, rulesets, type Ruleset } from '@streets/rulesets';
 import { calculateNetWorthCents } from '../calculations/net-worth.js';
 import {
   isPlayerBoardPriceLegal,
@@ -60,9 +60,26 @@ describe('The Board A: ruleset', () => {
 
   it('is absent from every round pinned before it', () => {
     for (const ruleset of Object.values(rulesets) as Ruleset[]) {
-      if (ruleset.meta.id === rules.meta.id) continue;
+      if (ruleset.meta.id === rules.meta.id || ruleset.meta.id === classicOgV26JBoard.meta.id) continue;
       expect(ruleset.playerBoard, ruleset.meta.id).toBeUndefined();
     }
+  });
+});
+
+describe('The Board E: opt-in ruleset', () => {
+  it('is 2.6.0-J with the Board on, and only that', () => {
+    const { meta: _a, playerBoard: liveBoard, ...live } = classicOgV26JBoard;
+    const { meta: _b, playerBoard: darkBoard, ...dark } = rules;
+    expect(live).toEqual(dark);
+    expect(liveBoard).toEqual({ ...darkBoard, enabled: true });
+    expect(classicOgV26JBoard.meta.id).toBe('classic-og-v2.6-j-board');
+  });
+
+  it('is never the default: new rounds still pin the dark 2.6.0-J', () => {
+    const ids = Object.keys(rulesets);
+    expect(ids.at(-1)).toBe(rules.meta.id);
+    expect(ids.indexOf(classicOgV26JBoard.meta.id)).toBe(ids.length - 2);
+    expect((Object.values(rulesets).at(-1) as Ruleset).playerBoard?.enabled).toBe(false);
   });
 });
 

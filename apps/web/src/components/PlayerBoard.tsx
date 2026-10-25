@@ -7,12 +7,15 @@ import {
   type PlayerBoardFilterDto,
   type PlayerBoardListableDto,
   type PlayerBoardOfferDto,
+  type PlayerBoardRowDto,
   type StoreDto,
 } from '@streets/shared';
 import { ApiError } from '../api/client.js';
 import { storesApi } from '../api/stores.js';
 import { GameLayout } from '../layouts/GameLayout.js';
+import { confirmAction } from '../stores/confirm.js';
 import { useSession } from '../stores/session.js';
+import { newActionId } from '../utils/actionId.js';
 import { formatDuration } from '../utils/time.js';
 import { Alert } from './Alert.js';
 import { Button } from './Button.js';
@@ -54,6 +57,7 @@ export interface PlayerBoardViewProps {
   onForm: (form: ListForm) => void;
   onPost: () => void;
   onCancel: (offer: PlayerBoardOfferDto) => void;
+  onBuy: (row: PlayerBoardRowDto) => void;
 }
 
 function ListPanel({ book, busy, form, onForm, onPost }: Pick<PlayerBoardViewProps, 'book' | 'busy' | 'form' | 'onForm' | 'onPost'>) {
@@ -113,7 +117,7 @@ function ListPanel({ book, busy, form, onForm, onPost }: Pick<PlayerBoardViewPro
 }
 
 /** The Board tab's content. Pure, so it renders the same in tests as in the game. */
-export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPost, onCancel }: PlayerBoardViewProps) {
+export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPost, onCancel, onBuy }: PlayerBoardViewProps) {
   return (
     <>
       <div className="se-filter-group se-board-filters">
@@ -129,14 +133,14 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
       <section className="se-board-section" aria-labelledby="board-book">
         <div className="se-stores-sectionhead">
           <div><span className="se-eyebrow">City-wide</span><h2 id="board-book">On the Board</h2></div>
-          <p>Cheapest first for each item. A buy takes the whole offer.</p>
+          <p>Cheapest first for each item. A buy takes the whole offer and pays on the spot.</p>
         </div>
         {book.rows.length === 0 ? (
           <p className="se-board-empty">Nothing is up right now.</p>
         ) : (
           <div className="se-tablewrap">
             <table className="se-table se-table--cards se-board-book">
-              <thead><tr><th>Item</th><th>Seller</th><th className="se-table__number">Qty</th><th className="se-table__number">Each</th><th className="se-table__number">Total</th><th>Closes</th></tr></thead>
+              <thead><tr><th>Item</th><th>Seller</th><th className="se-table__number">Qty</th><th className="se-table__number">Each</th><th className="se-table__number">Total</th><th>Closes</th><th><span className="se-sr-only">Actions</span></th></tr></thead>
               <tbody>
                 {book.rows.map((row) => (
                   <tr key={row.id} className={row.mine ? 'se-board-book__mine' : undefined}>
@@ -146,6 +150,13 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
                     <td className="se-table__number se-num" data-label="Each">{formatCentsExact(row.unitPriceCents)}</td>
                     <td className="se-table__number se-num" data-label="Total">{formatCentsExact(row.totalCents)}</td>
                     <td data-label="Closes">{closesIn(row.expiresAt, now)}</td>
+                    <td data-label="">
+                      {row.mine ? null : (
+                        <Button size="sm" variant="primary"
+                          disabledReason={busy ? 'Your last change is still going through.' : row.totalCents > book.cashCents ? `You need ${formatCentsExact(row.totalCents)} on hand.` : null}
+                          onClick={() => onBuy(row)}>Buy</Button>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -262,6 +273,21 @@ export function PlayerBoard() {
     });
   }
 
+  async function buy(row: PlayerBoardRowDto) {
+    const ok = await confirmAction({
+      title: `Buy ${formatNumber(row.quantity)} × ${row.name}?`,
+      body: `You pay ${formatCentsExact(row.totalCents)} to ${row.sellerName} for the whole stack.`,
+      confirmLabel: `Pay ${formatCentsExact(row.totalCents)}`,
+    });
+    if (!ok) return;
+    // One id per click: a retried request after a dropped connection cannot buy twice.
+    const actionId = newActionId();
+    void change(async () => {
+      const result = await storesApi.boardBuy(row.id, actionId);
+      return `Bought ${formatNumber(result.quantity)} × ${result.name} from ${result.sellerName} for ${formatCentsExact(result.paidCents)}.`;
+    });
+  }
+
   function cancel(offer: PlayerBoardOfferDto) {
     void change(async () => {
       const result = await storesApi.boardCancel(offer.id);
@@ -288,7 +314,7 @@ export function PlayerBoard() {
         {!book && !closed && !error ? <div className="se-stores-loading" role="status">Loading the Board...</div> : null}
         {book && !closed ? (
           <PlayerBoardView book={book} now={now} busy={busy} form={form}
-            onFilter={setFilter} onForm={setForm} onPost={post} onCancel={cancel} />
+            onFilter={setFilter} onForm={setForm} onPost={post} onCancel={cancel} onBuy={(row) => void buy(row)} />
         ) : null}
       </div>
     </GameLayout>

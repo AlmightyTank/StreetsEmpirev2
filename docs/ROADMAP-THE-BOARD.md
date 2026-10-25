@@ -131,6 +131,16 @@ Slice D adds the Board tab at `/game/stores/board`. It is the sixth tab, not the
 - **Filters.** All and Parts return the same rows until slices F and G add product and keeper goods.
 - **On the tab.** It also shows your offers with cancel, and a listing form with the band, the fee and the after-tax payout, all computed the way the server computes them. There is no buy button until slice E.
 
+Slice E adds fills through `PlayerBoardService.fill` and `POST /stores/board/offers/:offerId/buy`, plus the first enabled ruleset.
+
+- **The ruleset is opt-in.** `classic-og-v2.6-j-board` (2.6.0-J-board) is 2.6.0-J with `playerBoard.enabled` true. It is registered ahead of 2.6.0-J, so 2.6.0-J stays `LATEST_RULESET` and the default for new rounds, and a test holds that. An admin opts a new round in by picking it at scheduling. Making it the default is H's job.
+- **One transaction.** Buyer and seller are locked in id order. The offer flips `OPEN` to `SOLD` with a conditional update, so two devices can never share it. The buyer pays the sticker. The seller gets 92% rounded down as `proceedsCents`, and the rest leaves the round. Both sides get an economy ledger line (`PLAYER_BOARD_BUY` and `PLAYER_BOARD_SALE`).
+- **Retries.** A retried request with the same `actionId` returns the first receipt and charges nothing.
+- **Refusals change nothing.** These all refuse: your own offer, a closed or expired one, too little cash, and no stash room. An expiry found during a buy is committed (the stack goes home) before the buy is refused.
+- **Rank.** The route re-settles both players, so stored rank is current on both sides straight away. The integration suite shows neither rank rises at the floor, the middle or the cap, and that items across both players plus escrow stay constant.
+
+Turning the Board on for a real round now makes the Salvage Yard issue above live. Until the books or the yard are retuned, a round on 2.6.0-J-board can mint rank through yard barters.
+
 F and G both sit on E. Product is the smaller cut, so it goes first. H is last. D lands before E so the tab exists on the round where fills turn on.
 
 What each slice may touch:

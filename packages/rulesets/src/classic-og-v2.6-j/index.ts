@@ -33,3 +33,14 @@ export const classicOgV26J = {
     listingHours: [12, 48],
   },
 } as const satisfies Ruleset;
+
+/**
+ * The Board E. 2.6.0-J with player listings switched on, for a new round an admin opts in. It is
+ * registered ahead of 2.6.0-J, so 2.6.0-J stays the default for new rounds until the Board's
+ * release slice says otherwise.
+ */
+export const classicOgV26JBoard = {
+  ...classicOgV26J,
+  meta: { ...classicOgV26J.meta, id: 'classic-og-v2.6-j-board', version: '2.6.0-J-board', name: 'Classic OG - The Board (live)' },
+  playerBoard: { ...classicOgV26J.playerBoard, enabled: true },
+} as const satisfies Ruleset;

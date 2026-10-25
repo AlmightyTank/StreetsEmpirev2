@@ -21,6 +21,8 @@ CREATE TABLE "PlayerBoardOffer" (
     "status" "PlayerBoardOfferStatus" NOT NULL DEFAULT 'OPEN',
     "closedAt" TIMESTAMP(3),
     "returnedAt" TIMESTAMP(3),
+    "buyerId" TEXT,
+    "proceedsCents" INTEGER,
 
     CONSTRAINT "PlayerBoardOffer_pkey" PRIMARY KEY ("id")
 );
@@ -33,6 +35,12 @@ CREATE INDEX "PlayerBoardOffer_sellerId_status_idx" ON "PlayerBoardOffer"("selle
 
 -- AddForeignKey
 ALTER TABLE "PlayerBoardOffer" ADD CONSTRAINT "PlayerBoardOffer_roundId_fkey" FOREIGN KEY ("roundId") REFERENCES "Round"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- CreateIndex
+CREATE INDEX "PlayerBoardOffer_buyerId_idx" ON "PlayerBoardOffer"("buyerId");
+
+-- AddForeignKey
+ALTER TABLE "PlayerBoardOffer" ADD CONSTRAINT "PlayerBoardOffer_buyerId_fkey" FOREIGN KEY ("buyerId") REFERENCES "RoundPlayer"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "PlayerBoardOffer" ADD CONSTRAINT "PlayerBoardOffer_sellerId_fkey" FOREIGN KEY ("sellerId") REFERENCES "RoundPlayer"("id") ON DELETE CASCADE ON UPDATE CASCADE;
