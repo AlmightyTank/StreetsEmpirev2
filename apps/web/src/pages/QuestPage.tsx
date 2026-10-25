@@ -837,8 +837,17 @@ export function QuestPage() {
     [page, nowMs],
   );
 
-  async function mutate(key: string, action: () => Promise<QuestPageDto>, success?: string, refreshTour = false) {
-    const pin = holdViewport(key);
+  async function mutate(
+    key: string,
+    action: () => Promise<QuestPageDto>,
+    success?: string,
+    refreshTour = false,
+    preserveViewport = false,
+  ) {
+    // Tracking only changes card metadata. Starting the reflow pin for that
+    // action makes Virtuoso and the pin both correct the window while the
+    // board refreshes, which presents as a visible shake.
+    const pin = preserveViewport ? holdViewport(key) : null;
     setBusy(key);
     setError(null);
     setNotice(null);
@@ -857,7 +866,7 @@ export function QuestPage() {
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : 'That job could not be updated.');
     } finally {
-      pin.settle();
+      pin?.settle();
       setBusy(null);
     }
   }
@@ -869,7 +878,7 @@ export function QuestPage() {
       confirmLabel: 'Make this choice',
     });
     if (!confirmed) return;
-    await mutate(key, () => questsApi.respondToScene(key, sceneKey, responseKey), 'Choice made.');
+    await mutate(key, () => questsApi.respondToScene(key, sceneKey, responseKey), 'Choice made.', false, true);
   }
 
   async function claim(key: string, branchKey?: string, branchTitle?: string) {
@@ -1015,7 +1024,7 @@ export function QuestPage() {
       onAccept={(key) => void mutate(key, () => questsApi.accept(key, crypto.randomUUID()), 'Job accepted.', true)}
       onClaim={(key, branchKey, branchTitle) => void claim(key, branchKey, branchTitle)}
       onTrack={(key, tracked) => void mutate(key, () => questsApi.track(key, tracked))}
-      onAbandon={(key) => void mutate(key, () => questsApi.abandon(key), 'Job abandoned.')}
+      onAbandon={(key) => void mutate(key, () => questsApi.abandon(key), 'Job abandoned.', false, true)}
       onRespond={(key, sceneKey, responseKey, responseLabel) => void respondToScene(key, sceneKey, responseKey, responseLabel)}
     />
   ) : null;
