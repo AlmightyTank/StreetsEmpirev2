@@ -73,6 +73,15 @@ export function resolveHideoutSection(
   return section;
 }
 
+/**
+ * Seasonal room tabs own the stash, caches, bench, and generator. A round that
+ * does not use those upgrades still loads that data, so the controls stay on
+ * the page instead of disappearing behind a tab that is not rendered.
+ */
+export function hideoutSuppliesOnPage(hideoutEnabled: boolean): boolean {
+  return !hideoutEnabled;
+}
+
 export function resolveSupplyTab(
   tab: HideoutSupplyTab,
   available: Record<HideoutSupplyTab, boolean>,

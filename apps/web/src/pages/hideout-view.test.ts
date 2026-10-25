@@ -3,6 +3,7 @@ import {
   hashForHideoutView,
   hideoutBuildStatus,
   hideoutRoomState,
+  hideoutSuppliesOnPage,
   hideoutViewFromHash,
   pickNextHideoutRoom,
   resolveHideoutSection,
@@ -50,6 +51,13 @@ describe('resolveHideoutSection', () => {
     expect(resolveHideoutSection('security', { ...open, hasSecurity: false })).toBe('overview');
     expect(resolveHideoutSection('supplies', { ...open, hasSupplies: false })).toBe('overview');
     expect(resolveHideoutSection('rooms', open)).toBe('rooms');
+  });
+});
+
+describe('hideoutSuppliesOnPage', () => {
+  it('keeps supplies on the page when seasonal upgrades are off', () => {
+    expect(hideoutSuppliesOnPage(false)).toBe(true);
+    expect(hideoutSuppliesOnPage(true)).toBe(false);
   });
 });
 

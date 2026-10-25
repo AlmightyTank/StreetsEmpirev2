@@ -42,6 +42,7 @@ import {
   hideoutBuildStatus,
   hideoutRoomState,
   hideoutRoomStateLabel,
+  hideoutSuppliesOnPage,
   hideoutViewFromHash,
   pickNextHideoutRoom,
   resolveHideoutSection,
@@ -571,6 +572,30 @@ export function HideoutPage() {
     if (location.hash !== hash) navigate({ hash });
   }
 
+  const suppliesOnPage = hideoutSuppliesOnPage(Boolean(hideout?.enabled));
+  const suppliesPanel = me && hasSupplies ? (
+    <section id="hideout-resources" className="se-hideout-section se-hideout-resources">
+      {suppliesOnPage ? <p className="se-hideout-inline-note">Stash, caches, crafting, and the generator stay available this round.</p> : null}
+      <GameTabs
+        label="Hideout supplies"
+        activeId={supplyTab}
+        onChange={(id) => openSupply(id as HideoutSupplyTab)}
+        items={[
+          ...(stash ? [{ id: 'stash', label: 'Your stash' }] : []),
+          ...(scavenging ? [{ id: 'scavenging', label: 'Caches and components' }] : []),
+          ...(workshop ? [{ id: 'workshop', label: 'Crafting bench' }] : []),
+          ...(hideout?.generator ? [{ id: 'generator', label: 'Generator' }] : []),
+        ]}
+      />
+      <div className="se-hideout-resources__panel" role="tabpanel" aria-label={`${supplyTab} panel`}>
+        {supplyTab === 'stash' && stash ? <div id="hideout-stash"><StashGrid stash={stash} busy={stashBusy} onSave={(items) => void saveStash(items)} /></div> : null}
+        {supplyTab === 'scavenging' && scavenging ? <ScavengingPanel heading={false} page={scavenging} onChanged={setScavenging} /> : null}
+        {supplyTab === 'workshop' && workshop ? <WorkshopPanel heading={false} workshop={workshop} onChanged={setWorkshop} /> : null}
+        {supplyTab === 'generator' && hideout?.generator ? <GeneratorPanel heading={false} generator={hideout.generator} onChanged={(generator) => setHideout((current) => current ? { ...current, generator } : current)} /> : null}
+      </div>
+    </section>
+  ) : null;
+
   return (
     <GameLayout>
       <div className="se-hideout">
@@ -631,6 +656,8 @@ export function HideoutPage() {
             <p className="se-muted">This round does not use seasonal hideout upgrades.</p>
           </Panel>
         ) : null}
+
+        {suppliesOnPage ? suppliesPanel : null}
 
         {hideout?.enabled && me ? (
           <>
@@ -825,27 +852,7 @@ export function HideoutPage() {
             </section>
             ) : null}
 
-            {activeSection === 'supplies' && hasSupplies ? (
-              <section id="hideout-resources" className="se-hideout-section se-hideout-resources">
-                <GameTabs
-                  label="Hideout supplies"
-                  activeId={supplyTab}
-                  onChange={(id) => openSupply(id as HideoutSupplyTab)}
-                  items={[
-                    ...(stash ? [{ id: 'stash', label: 'Your stash' }] : []),
-                    ...(scavenging ? [{ id: 'scavenging', label: 'Caches and components' }] : []),
-                    ...(workshop ? [{ id: 'workshop', label: 'Crafting bench' }] : []),
-                    ...(hideout.generator ? [{ id: 'generator', label: 'Generator' }] : []),
-                  ]}
-                />
-                <div className="se-hideout-resources__panel" role="tabpanel" aria-label={`${supplyTab} panel`}>
-                  {supplyTab === 'stash' && stash ? <div id="hideout-stash"><StashGrid stash={stash} busy={stashBusy} onSave={(items) => void saveStash(items)} /></div> : null}
-                  {supplyTab === 'scavenging' && scavenging ? <ScavengingPanel heading={false} page={scavenging} onChanged={setScavenging} /> : null}
-                  {supplyTab === 'workshop' && workshop ? <WorkshopPanel heading={false} workshop={workshop} onChanged={setWorkshop} /> : null}
-                  {supplyTab === 'generator' && hideout.generator ? <GeneratorPanel heading={false} generator={hideout.generator} onChanged={(generator) => setHideout((current) => current ? { ...current, generator } : current)} /> : null}
-                </div>
-              </section>
-            ) : null}
+            {activeSection === 'supplies' && !suppliesOnPage ? suppliesPanel : null}
 
             {activeSection === 'security' && hasSecurity ? (
               <section id="hideout-security" className="se-hideout-section">
