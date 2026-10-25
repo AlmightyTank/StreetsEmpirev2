@@ -19,6 +19,9 @@ import './styles/ux.css';
 import './styles/dock.css';
 import './styles/app-shell.css';
 import './styles/experience-shell.css';
+// The encounter alert is mounted globally, including on routes whose feature
+// styles load lazily, so its modal styles must be available in the app shell.
+import './styles/encounter-cinema.css';
 // 4. Theme token/component overrides, then decorative route identity.
 import './styles/site-themes.css';
 import './styles/page-identities.css';
