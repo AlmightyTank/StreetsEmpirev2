@@ -1955,7 +1955,7 @@
 }
 
 .se-board-under {
-  color: var(--se-warn, #f5b041);
+  color: var(--se-warn);
   font-size: 12px;
 }
 
@@ -1980,8 +1980,7 @@
     grid-column: 1 / -1;
   }
 
-  .se-board-list > .se-btn,
-  .se-board-list > .se-why {
+  .se-board-list > :is(.se-btn, .se-why) {
     grid-column: 1 / -1;
     justify-self: stretch;
   }
