@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ADMIN_SECTIONS, adminOverviewSectionsFor, adminSectionsFor, DEFAULT_TABS, filterNavSections, isCurrent, SECTIONS } from './gameNav.js';
+import { ADMIN_SECTIONS, adminOverviewSectionsFor, adminSectionsFor, DEFAULT_TABS, filterNavSections, isCurrent, navHref, SECTIONS } from './gameNav.js';
 
 const pages = SECTIONS.flatMap((section) => section.pages);
 const page = (key: string) => {
@@ -12,14 +12,14 @@ describe('consolidated game navigation', () => {
   it('makes the core loop immediately accessible and gives Quests a primary shortcut', () => {
     expect(SECTIONS[0]).toMatchObject({ id: 'command', title: 'Command' });
     expect(SECTIONS[0]!.pages.map((item) => item.key)).toEqual([
-      'dashboard', 'quests', 'scout', 'produce', 'raids', 'operations', 'black-book',
+      'dashboard', 'quests', 'scout', 'produce', 'raids',
     ]);
     expect(DEFAULT_TABS).toEqual(['dashboard', 'quests', 'scout', 'stores']);
   });
 
   it('does not duplicate or lose a page while reorganizing', () => {
     expect(new Set(pages.map((item) => item.key)).size).toBe(pages.length);
-    expect(new Set(pages.map((item) => item.to)).size).toBe(pages.length);
+    expect(new Set(pages.map((item) => navHref(item))).size).toBe(pages.length);
     expect(SECTIONS.map((section) => section.title)).toEqual([
       'Command', 'Build Your Empire', 'Competition', 'Progress & Rewards', 'Messages & News', 'Help & Settings',
     ]);
@@ -29,21 +29,27 @@ describe('consolidated game navigation', () => {
     expect(filterNavSections(SECTIONS, '  piP  ')).toEqual([]);
     expect(filterNavSections(SECTIONS, ' STORES ').flatMap((section) => section.pages.map((item) => item.key))).toEqual(['stores']);
     expect(filterNavSections(SECTIONS, 'your empire').flatMap((section) => section.pages.map((item) => item.key)))
-      .toEqual(['hideout', 'armory', 'crew-roster', 'dealers', 'stores', 'supply', 'loans', 'travel', 'turf']);
+      .toEqual(['hideout', 'armory', 'garage', 'dealers', 'stores', 'supply', 'loans', 'travel', 'turf']);
     expect(filterNavSections(SECTIONS, '').flatMap((section) => section.pages)).toEqual(pages);
   });
 
   it('leaves claim boards, the shop, and billing off the play menu', () => {
     const keys = pages.map((item) => item.key);
-    for (const key of ['xp-progress', 'roll-call', 'drop', 'supporter']) {
+    for (const key of ['xp-progress', 'roll-call', 'drop', 'supporter', 'operations', 'black-book', 'crew-roster']) {
       expect(keys).not.toContain(key);
     }
     expect(SECTIONS.find((section) => section.id === 'career')!.pages.map((item) => item.key)).toEqual([
       'skills', 'events', 'street-pass', 'profile',
     ]);
     expect(keys).toEqual(expect.arrayContaining([
-      'scout', 'produce', 'raids', 'stores', 'hideout', 'armory', 'travel', 'turf', 'quests', 'casino', 'skills',
+      'scout', 'produce', 'raids', 'stores', 'hideout', 'armory', 'garage', 'travel', 'turf', 'quests', 'casino', 'skills',
     ]));
+    expect(navHref(page('armory'))).toBe('/game/hideout#hideout-armory');
+    expect(navHref(page('garage'))).toBe('/game/hideout#hideout-garage');
+    expect(isCurrent(page('armory'), '/game/hideout', '#hideout-armory')).toBe(true);
+    expect(isCurrent(page('hideout'), '/game/hideout', '#hideout-armory')).toBe(false);
+    expect(isCurrent(page('garage'), '/game/hideout', '#hideout-garage')).toBe(true);
+    expect(isCurrent(page('hideout'), '/game/hideout', '')).toBe(true);
   });
 });
 describe('game navigation route matching', () => {

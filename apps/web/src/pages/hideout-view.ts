@@ -1,5 +1,5 @@
 /** Which Hideout surface is on screen. Hash links from the old anchor nav still resolve. */
-export type HideoutSectionId = 'overview' | 'rooms' | 'supplies' | 'security' | 'operations' | 'look';
+export type HideoutSectionId = 'overview' | 'rooms' | 'supplies' | 'security' | 'operations' | 'armory' | 'garage' | 'look';
 
 export type HideoutSupplyTab = 'stash' | 'scavenging' | 'workshop' | 'generator';
 
@@ -26,6 +26,8 @@ const SECTION_HASH: Record<HideoutSectionId, string> = {
   supplies: '#hideout-stash',
   security: '#hideout-security',
   operations: '#hideout-operations',
+  armory: '#hideout-armory',
+  garage: '#hideout-garage',
   look: '#hideout-look',
 };
 
@@ -49,6 +51,8 @@ export function hideoutViewFromHash(hash: string): HideoutView {
   if (id === 'hideout-look') return { section: 'look', supply: 'stash', roomKey: null };
   if (id === 'hideout-security') return { section: 'security', supply: 'stash', roomKey: null };
   if (id === 'hideout-operations') return { section: 'operations', supply: 'stash', roomKey: null };
+  if (id === 'hideout-armory') return { section: 'armory', supply: 'stash', roomKey: null };
+  if (id === 'hideout-garage') return { section: 'garage', supply: 'stash', roomKey: null };
   if (id === 'hideout-overview') return { section: 'overview', supply: 'stash', roomKey: null };
   const supply = SUPPLY_HASH[id];
   if (supply) return { section: 'supplies', supply, roomKey: null };

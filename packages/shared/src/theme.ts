@@ -67,8 +67,6 @@ export const STREETSEMPIRE_NAV_SECTIONS: ThemeNavSection[] = [
       { key: 'scout', label: 'Scout', to: '/game/scout' },
       { key: 'produce', label: 'Produce', to: '/game/produce' },
       { key: 'raids', label: 'Raids', to: '/game/combat' },
-      { key: 'operations', label: 'Operations', short: 'Ops', to: '/game/operations' },
-      { key: 'black-book', label: 'Black Book', short: 'Intel', to: '/game/black-book' },
     ],
   },
   {
@@ -76,8 +74,8 @@ export const STREETSEMPIRE_NAV_SECTIONS: ThemeNavSection[] = [
     title: 'Build Your Empire',
     pages: [
       { key: 'hideout', label: 'Hideout', to: '/game/hideout' },
-      { key: 'armory', label: 'Armory & Garage', short: 'Armory', to: '/game/armory' },
-      { key: 'crew-roster', label: 'Crew Assignments', short: 'Crew', to: '/game/crew' },
+      { key: 'armory', label: 'Armory', short: 'Armory', to: '/game/hideout#hideout-armory' },
+      { key: 'garage', label: 'Garage', short: 'Garage', to: '/game/hideout#hideout-garage' },
       { key: 'dealers', label: 'Dealer Crews', short: 'Dealers', to: '/game/dealers' },
       { key: 'stores', label: 'Stores', to: '/game/stores' },
       { key: 'supply', label: 'Bulk Orders', short: 'Supply', to: '/game/supply' },

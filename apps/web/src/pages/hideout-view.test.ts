@@ -20,6 +20,8 @@ describe('hideoutViewFromHash', () => {
     expect(hideoutViewFromHash('#hideout-upgrades').section).toBe('rooms');
     expect(hideoutViewFromHash('#hideout-security').section).toBe('security');
     expect(hideoutViewFromHash('#hideout-operations').section).toBe('operations');
+    expect(hideoutViewFromHash('#hideout-armory').section).toBe('armory');
+    expect(hideoutViewFromHash('#hideout-garage').section).toBe('garage');
     expect(hideoutViewFromHash('#hideout-look').section).toBe('look');
     expect(hideoutViewFromHash('#hideout-stash')).toEqual({ section: 'supplies', supply: 'stash', roomKey: null });
     expect(hideoutViewFromHash('#hideout-generator').supply).toBe('generator');
