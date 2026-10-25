@@ -61,7 +61,7 @@ export function CasePanel() {
 
       {error ? <Alert>{error}</Alert> : null}
 
-      {page && page.cases.length ? (
+      {page && page.cases.length > 1 ? (
         <ul className="se-case__cities">
           {page.cases.map((row) => (
             <li key={row.citySlug} className="se-case__city">
@@ -77,15 +77,6 @@ export function CasePanel() {
             </li>
           ))}
         </ul>
-      ) : null}
-
-      {page?.contact ? (
-        <div className="se-case__contact">
-          <span className="se-eyebrow">{page.contact.role}</span>
-          <strong>{page.contact.name}</strong>
-          <p className="se-hint">{page.contact.description}</p>
-          <Link className="se-btn se-btn--ghost" to="/game/quests">See {page.contact.shortName}&rsquo;s jobs</Link>
-        </div>
       ) : null}
 
       {page && page.warrants.length ? (
@@ -139,28 +130,43 @@ export function CasePanel() {
         </>
       ) : null}
 
-      {page?.lawyer ? (
-        <div className="se-case__lawyer se-mt">
-          <span className="se-hint">
-            {page.lawyer.retainedUntil
-              ? `A lawyer is on retainer until ${formatWhen(page.lawyer.retainedUntil)} and can soften the penalties from a served warrant.`
-              : 'No lawyer on retainer. A lawyer can soften the penalties from a served warrant.'}
-          </span>
-          <Button
-            type="button"
-            className="se-btn se-btn--ghost se-btn--sm"
-            disabledReason={retain.busy ? 'Hiring...' : page.lawyer.retainerCents > me.resources.cashCents ? 'You cannot cover the retainer.' : null}
-            onClick={() => void retain.run((actionId) => lawApi.retain(actionId))}
-          >
-            {page.lawyer.retainedUntil ? 'Extend' : 'Retain'} {formatNumber(page.lawyer.days)} days · {formatCents(page.lawyer.retainerCents)}
-          </Button>
-          {retain.error ? <Alert>{retain.error}</Alert> : null}
-        </div>
+      {page?.lawyer?.retainedUntil ? (
+        <p className="se-hint se-mt">A lawyer is on retainer until {formatWhen(page.lawyer.retainedUntil)}.</p>
       ) : null}
 
-      {page?.payroll ? <PayrollSection payroll={page.payroll} cashCents={me.resources.cashCents} /> : null}
-      {page?.informants ? (
-        <InformantSection informants={page.informants} cities={(page.payroll?.cities ?? []).filter((row) => row.slug !== me.city.slug)} cashCents={me.resources.cashCents} />
+      {(page?.contact || page?.lawyer || page?.payroll || page?.informants) ? (
+        <details className="se-case__offices">
+          <summary>Lawyers, payroll, and tips</summary>
+          {page.contact ? (
+            <div className="se-case__contact">
+              <span className="se-eyebrow">{page.contact.role}</span>
+              <strong>{page.contact.name}</strong>
+              <Link className="se-btn se-btn--ghost se-btn--sm" to="/game/quests">See {page.contact.shortName}&rsquo;s jobs</Link>
+            </div>
+          ) : null}
+          {page.lawyer ? (
+            <div className="se-case__lawyer se-mt">
+              <span className="se-hint">
+                {page.lawyer.retainedUntil
+                  ? `Retainer runs until ${formatWhen(page.lawyer.retainedUntil)} and can soften a served warrant.`
+                  : 'A retainer softens the penalties from a served warrant. Hire one when you need it.'}
+              </span>
+              <Button
+                type="button"
+                className="se-btn se-btn--ghost se-btn--sm"
+                disabledReason={retain.busy ? 'Hiring...' : page.lawyer.retainerCents > me.resources.cashCents ? 'You cannot cover the retainer.' : null}
+                onClick={() => void retain.run((actionId) => lawApi.retain(actionId))}
+              >
+                {page.lawyer.retainedUntil ? 'Extend' : 'Retain'} {formatNumber(page.lawyer.days)} days · {formatCents(page.lawyer.retainerCents)}
+              </Button>
+              {retain.error ? <Alert>{retain.error}</Alert> : null}
+            </div>
+          ) : null}
+          {page.payroll ? <PayrollSection payroll={page.payroll} cashCents={me.resources.cashCents} /> : null}
+          {page.informants ? (
+            <InformantSection informants={page.informants} cities={(page.payroll?.cities ?? []).filter((row) => row.slug !== me.city.slug)} cashCents={me.resources.cashCents} />
+          ) : null}
+        </details>
       ) : null}
 
     </Panel>
