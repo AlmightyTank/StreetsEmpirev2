@@ -4,6 +4,9 @@ ALTER TABLE "RoundPlayer" ADD COLUMN "playerBoardEscrow" JSONB NOT NULL DEFAULT 
 -- CreateEnum
 CREATE TYPE "PlayerBoardOfferStatus" AS ENUM ('OPEN', 'SOLD', 'CANCELLED', 'EXPIRED');
 
+-- CreateEnum
+CREATE TYPE "PlayerBoardPriceKind" AS ENUM ('CASH', 'BARTER');
+
 -- CreateTable
 CREATE TABLE "PlayerBoardOffer" (
     "id" TEXT NOT NULL,
@@ -13,6 +16,10 @@ CREATE TABLE "PlayerBoardOffer" (
     "quantity" INTEGER NOT NULL,
     "unitPriceCents" INTEGER NOT NULL,
     "bookCents" INTEGER NOT NULL,
+    "priceKind" "PlayerBoardPriceKind" NOT NULL DEFAULT 'CASH',
+    "askItems" JSONB,
+    "askBookCents" INTEGER,
+    "buyerFeeCents" INTEGER,
     "feeCents" INTEGER NOT NULL,
     "durationHours" INTEGER NOT NULL,
     "pausedMinutesAtPost" INTEGER NOT NULL,

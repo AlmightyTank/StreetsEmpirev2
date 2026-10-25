@@ -6776,6 +6776,12 @@ model AdminLivingStoryDraft {
 // The Board (player listings)
 // ---------------------------------------------------------------------------
 
+/// The Board. How an offer is paid for: cash per unit, or a basket of goods for the whole stack.
+enum PlayerBoardPriceKind {
+  CASH
+  BARTER
+}
+
 /// The Board C. OPEN holds the stack in escrow. CANCELLED and EXPIRED return it; SOLD arrives with fills.
 enum PlayerBoardOfferStatus {
   OPEN
@@ -6799,9 +6805,18 @@ model PlayerBoardOffer {
 
   itemKey        String
   quantity       Int
+  /// Cash offers: the price per unit. Barter offers: 0.
   unitPriceCents Int
   /// Book per unit when posted, so the band and fee a listing was checked against stay on record.
   bookCents      Int
+  /// The Board. CASH sells for a unit price; BARTER asks for `askItems` for the whole stack.
+  priceKind      PlayerBoardPriceKind @default(CASH)
+  /// Barter offers: what the buyer hands over, { itemKey: quantity }.
+  askItems       Json?
+  /// Barter offers: the book of `askItems`, never above the stack's book.
+  askBookCents   Int?
+  /// Barter offers: cash the buyer adds, deleted, so the swap cannot raise the buyer's rank.
+  buyerFeeCents  Int?
   feeCents       Int
   durationHours  Int
 

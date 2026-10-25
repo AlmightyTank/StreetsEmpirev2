@@ -3,6 +3,7 @@ import {
   isPlayerBoardPriceLegal,
   loadRuleset,
   playerBoardBand,
+  playerBoardBarterQuote,
   playerBoardItemBookCents,
   playerBoardItemKind,
   playerBoardOfferExpiresAt,
@@ -11,6 +12,7 @@ import {
   type Ruleset,
 } from '@streets/rules-engine';
 import type {
+  PlayerBoardAskDto,
   PlayerBoardDto,
   PlayerBoardFilterDto,
   PlayerBoardFillResult,
@@ -55,6 +57,20 @@ function itemName(key: string, ruleset: Ruleset): string {
   return COMPONENTS.find((row) => row.key === key)?.name ?? ruleset.products?.[key]?.name ?? key;
 }
 
+/** A barter offer's stored basket as display lines; empty for cash. */
+function askLines(offer: Pick<PlayerBoardOffer, 'askItems'>, ruleset: Ruleset): PlayerBoardAskDto[] {
+  return Object.entries(jsonObject(offer.askItems as Prisma.JsonValue, {})).map(([key, quantity]) => ({ key, name: itemName(key, ruleset), quantity }));
+}
+
+const BARTER_REFUSALS: Record<string, string> = {
+  EMPTY: 'Ask for at least one thing in trade.',
+  TOO_MANY: 'Ask for fewer different things.',
+  INVALID_QUANTITY: 'Ask for whole numbers of each thing.',
+  NOT_LISTABLE: 'The Board does not trade one of those.',
+  SAME_ITEM: 'You cannot ask for the same thing you are offering.',
+  ASKS_TOO_MUCH: 'You are asking for more than your stack is worth on the Board.',
+};
+
 function dollars(cents: number): string {
   return `$${(cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
@@ -72,7 +88,9 @@ export function offerDto(offer: PlayerBoardOffer, round: Pick<BoardRound, 'pause
     itemKey: offer.itemKey,
     name: itemName(offer.itemKey, ruleset),
     quantity: offer.quantity,
+    priceKind: offer.priceKind,
     unitPriceCents: offer.unitPriceCents,
+    ask: askLines(offer, ruleset),
     feeCents: offer.feeCents,
     durationHours: offer.durationHours,
     postedAt: offer.postedAt.toISOString(),
@@ -174,9 +192,24 @@ export const PlayerBoardService = {
     if (!board.listingHours.includes(input.durationHours)) {
       throw AppError.badRequest('INVALID_DURATION', `Listings run for ${board.listingHours.join(' or ')} hours.`);
     }
-    if (!isPlayerBoardPriceLegal(input.unitPriceCents, book, ruleset)) {
-      const band = playerBoardBand(book, ruleset)!;
-      throw AppError.badRequest('PRICE_OUTSIDE_BAND', `${itemName(input.itemKey, ruleset)} lists from ${dollars(band.floorCents)} to ${dollars(band.capCents)} each.`);
+    const barter = input.priceKind === 'BARTER';
+    let price: { unitPriceCents: number; askItems?: Record<string, number>; askBookCents?: number; buyerFeeCents?: number };
+    if (barter) {
+      const ask: Record<string, number> = {};
+      for (const line of input.askItems ?? []) {
+        if (Object.hasOwn(ask, line.key)) throw AppError.badRequest('INVALID_BARTER', 'List each thing you ask for once.');
+        ask[line.key] = line.quantity;
+      }
+      const quote = playerBoardBarterQuote(input.itemKey, input.quantity, ask, ruleset);
+      if ('refusal' in quote) throw AppError.badRequest('INVALID_BARTER', BARTER_REFUSALS[quote.refusal]!);
+      price = { unitPriceCents: 0, askItems: ask, askBookCents: quote.askBookCents, buyerFeeCents: quote.buyerFeeCents };
+    } else {
+      const unitPriceCents = input.unitPriceCents ?? Number.NaN;
+      if (!isPlayerBoardPriceLegal(unitPriceCents, book, ruleset)) {
+        const band = playerBoardBand(book, ruleset)!;
+        throw AppError.badRequest('PRICE_OUTSIDE_BAND', `${itemName(input.itemKey, ruleset)} lists from ${dollars(band.floorCents)} to ${dollars(band.capCents)} each.`);
+      }
+      price = { unitPriceCents };
     }
     const feeCents = playerBoardPostingFeeCents(book * input.quantity, ruleset);
 
@@ -206,8 +239,14 @@ export const PlayerBoardService = {
         sellerId: roundPlayerId,
         itemKey: input.itemKey,
         quantity: input.quantity,
-        unitPriceCents: input.unitPriceCents,
+        unitPriceCents: price.unitPriceCents,
         bookCents: book,
+        ...(barter ? {
+          priceKind: 'BARTER' as const,
+          askItems: price.askItems as Prisma.InputJsonValue,
+          askBookCents: price.askBookCents!,
+          buyerFeeCents: price.buyerFeeCents!,
+        } : {}),
         feeCents,
         durationHours: input.durationHours,
         pausedMinutesAtPost: round.pausedMinutesTotal,
@@ -273,29 +312,48 @@ export const PlayerBoardService = {
 
       const buyer = await tx.roundPlayer.findUnique({ where: { id: buyerId }, select: { roundId: true, cashCents: true } });
       if (!buyer || buyer.roundId !== round.id) throw AppError.notFound('PLAYER_NOT_FOUND', 'Player not found.');
-      const paidCents = offer.unitPriceCents * offer.quantity;
+      const barter = offer.priceKind === 'BARTER';
+      const ask = barter ? jsonObject(offer.askItems as Prisma.JsonValue, {}) : {};
+      const paidCents = barter ? offer.buyerFeeCents ?? 0 : offer.unitPriceCents * offer.quantity;
       if (buyer.cashCents < BigInt(paidCents)) {
-        throw AppError.badRequest('NOT_ENOUGH_CASH', `That offer costs ${dollars(paidCents)}.`);
+        throw AppError.badRequest('NOT_ENOUGH_CASH', barter ? `The Board also wants ${dollars(paidCents)} to even out that trade.` : `That offer costs ${dollars(paidCents)}.`);
+      }
+      for (const [key, units] of Object.entries(ask)) {
+        const held = await heldUnits(tx, buyerId, key, ruleset);
+        if (held < units) throw AppError.badRequest('NOT_ENOUGH_TO_TRADE', `That trade wants ${units} ${itemName(key, ruleset).toLowerCase()}; you have ${held}.`);
       }
       if (!(await hasRoom(tx, buyerId, offer.itemKey, ruleset))) {
         throw AppError.conflict('STASH_FULL', 'There is no room in the stash for a new part. Upgrade Storage or clear a slot.');
       }
+      for (const key of Object.keys(ask)) {
+        if (!(await hasRoom(tx, offer.sellerId, key, ruleset))) {
+          throw AppError.conflict('SELLER_STASH_FULL', 'The seller has no stash room for what they asked for. Try again later.');
+        }
+      }
 
-      const proceedsCents = playerBoardSellerProceedsCents(paidCents, ruleset);
+      const proceedsCents = barter ? 0 : playerBoardSellerProceedsCents(paidCents, ruleset);
       const sold = await tx.playerBoardOffer.updateMany({
         where: { id: offer.id, status: 'OPEN' },
         data: { status: 'SOLD', closedAt: now, buyerId, proceedsCents },
       });
       if (sold.count !== 1) throw AppError.conflict('OFFER_NOT_OPEN', 'That offer has already closed.');
 
-      await tx.roundPlayer.update({ where: { id: buyerId }, data: { cashCents: buyer.cashCents - BigInt(paidCents) } });
+      if (paidCents > 0) await tx.roundPlayer.update({ where: { id: buyerId }, data: { cashCents: buyer.cashCents - BigInt(paidCents) } });
+      for (const [key, units] of Object.entries(ask)) {
+        await moveHeld(tx, buyerId, key, -units, ruleset);
+        await moveHeld(tx, offer.sellerId, key, units, ruleset);
+      }
       await moveHeld(tx, buyerId, offer.itemKey, offer.quantity, ruleset);
-      await tx.roundPlayer.update({ where: { id: offer.sellerId }, data: { cashCents: { increment: BigInt(proceedsCents) } } });
+      if (proceedsCents > 0) await tx.roundPlayer.update({ where: { id: offer.sellerId }, data: { cashCents: { increment: BigInt(proceedsCents) } } });
       await moveEscrow(tx, offer.sellerId, offer.itemKey, -offer.quantity);
 
-      const metadata = { offerId: offer.id, itemKey: offer.itemKey, quantity: offer.quantity, unitPriceCents: offer.unitPriceCents };
-      await EconomyLedgerService.record(tx, buyerId, [{ source: 'PLAYER_BOARD_BUY', label: 'Board purchase', amountCents: -paidCents, metadata }], now);
-      await EconomyLedgerService.record(tx, offer.sellerId, [{ source: 'PLAYER_BOARD_SALE', label: 'Board sale', amountCents: proceedsCents, metadata }], now);
+      const metadata = { offerId: offer.id, itemKey: offer.itemKey, quantity: offer.quantity, unitPriceCents: offer.unitPriceCents, priceKind: offer.priceKind, ...(barter ? { askItems: ask } : {}) };
+      if (barter) {
+        if (paidCents > 0) await EconomyLedgerService.record(tx, buyerId, [{ source: 'PLAYER_BOARD_BARTER_FEE', label: 'Board barter top-up', amountCents: -paidCents, metadata }], now);
+      } else {
+        await EconomyLedgerService.record(tx, buyerId, [{ source: 'PLAYER_BOARD_BUY', label: 'Board purchase', amountCents: -paidCents, metadata }], now);
+        await EconomyLedgerService.record(tx, offer.sellerId, [{ source: 'PLAYER_BOARD_SALE', label: 'Board sale', amountCents: proceedsCents, metadata }], now);
+      }
 
       const result: PlayerBoardFillResult = {
         offerId: offer.id,
@@ -304,6 +362,7 @@ export const PlayerBoardService = {
         quantity: offer.quantity,
         unitPriceCents: offer.unitPriceCents,
         paidCents,
+        gave: askLines(offer, ruleset),
         sellerName: offer.seller.displayName,
       };
       if (actionId) await IdempotencyService.record(tx, actionId, buyerId, 'BOARD_BUY', result, now);
@@ -356,7 +415,9 @@ export const PlayerBoardService = {
       .map((offer) => ({ offer, kind: playerBoardItemKind(offer.itemKey, ruleset) }))
       .filter(({ offer, kind }) => wanted(kind) && order.has(offer.itemKey))
       .filter(({ offer }) => playerBoardOfferExpiresAt(offer, round, now).getTime() > now.getTime())
-      .sort((a, b) => order.get(a.offer.itemKey)! - order.get(b.offer.itemKey)!)
+      // Per item: cash offers cheapest first, then barters oldest first.
+      .sort((a, b) => order.get(a.offer.itemKey)! - order.get(b.offer.itemKey)!
+        || Number(a.offer.priceKind === 'BARTER') - Number(b.offer.priceKind === 'BARTER'))
       .map(({ offer, kind }) => ({
         id: offer.id,
         itemKey: offer.itemKey,
@@ -364,8 +425,10 @@ export const PlayerBoardService = {
         category: kind!,
         rarity: COMPONENTS.find((row) => row.key === offer.itemKey)?.rarity ?? null,
         quantity: offer.quantity,
+        priceKind: offer.priceKind,
         unitPriceCents: offer.unitPriceCents,
-        totalCents: offer.unitPriceCents * offer.quantity,
+        totalCents: offer.priceKind === 'BARTER' ? offer.buyerFeeCents ?? 0 : offer.unitPriceCents * offer.quantity,
+        ask: askLines(offer, ruleset),
         sellerName: offer.seller.displayName,
         mine: offer.sellerId === viewerId,
         expiresAt: playerBoardOfferExpiresAt(offer, round, now).toISOString(),
@@ -382,11 +445,14 @@ export const PlayerBoardService = {
       return [{ key, name: itemName(key, ruleset), category: kind, rarity, held: quantity, bookCents: book, floorCents: band.floorCents, capCents: band.capCents }];
     });
 
+    const keys = [...order.keys()].filter((key) => playerBoardItemKind(key, ruleset) !== null);
     return {
       filter,
       rows,
       mine,
       listable,
+      holdings: Object.fromEntries(keys.map((key) => [key, Number.isSafeInteger(held[key]) ? held[key]! : 0])),
+      askable: keys.map((key) => ({ key, name: itemName(key, ruleset), category: playerBoardItemKind(key, ruleset)!, bookCents: playerBoardItemBookCents(key, ruleset)! })),
       openOffers: mine.filter((offer) => offer.status === 'OPEN').length,
       cashCents: Number(viewer.cashCents),
       rules: {
@@ -395,6 +461,8 @@ export const PlayerBoardService = {
         postingFeePercent: board.postingFeePercent,
         postingFeeMinCents: board.postingFeeMinCents,
         taxPercent: board.taxPercent,
+        maxAskItems: board.maxAskItems,
+        cashWeightPercent: ruleset.economy.netWorth.cashWeightPercent,
       },
     };
   },

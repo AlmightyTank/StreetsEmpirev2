@@ -82,4 +82,18 @@ describe.runIf(process.env.PLAYER_BOARD_INTEGRATION === '1')('The Board routes w
     }
     expect((await call(0, 'POST', `/stores/board/offers/${offerId}/cancel`, {})).json().error.code).toBe('OFFER_NOT_OPEN');
   });
+
+  it('posts and takes a barter over HTTP', async () => {
+    await app.prisma.roundPlayer.update({ where: { id: players[0]!.id }, data: { scavengedComponents: { RADIO: 2 } } });
+    await app.prisma.roundPlayer.update({ where: { id: players[1]!.id }, data: { scavengedComponents: { SCRAP_METAL: 20 } } });
+    const posted = await call(0, 'POST', '/stores/board/offers', { itemKey: 'RADIO', quantity: 1, priceKind: 'BARTER', askItems: [{ key: 'SCRAP_METAL', quantity: 6 }], durationHours: 48 });
+    expect(posted.statusCode, posted.body).toBe(200);
+    const offer = (posted.json() as PlayerBoardOfferResult).offer;
+    expect(offer.ask).toEqual([{ key: 'SCRAP_METAL', name: 'Scrap metal', quantity: 6 }]);
+    const traded = await call(1, 'POST', `/stores/board/offers/${offer.id}/buy`, { actionId: randomUUID() });
+    expect(traded.statusCode, traded.body).toBe(200);
+    expect((traded.json() as PlayerBoardFillResult)).toMatchObject({ paidCents: 200, gave: [{ key: 'SCRAP_METAL', quantity: 6 }] });
+    const buyer = await app.prisma.roundPlayer.findUniqueOrThrow({ where: { id: players[1]!.id }, select: { scavengedComponents: true } });
+    expect(buyer.scavengedComponents).toEqual({ SCRAP_METAL: 14, RADIO: 1 });
+  });
 });

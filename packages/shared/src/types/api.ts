@@ -497,12 +497,24 @@ export interface SalvageTradeResult {
 }
 /** The Board C. One of the viewer's own listings. */
 export type PlayerBoardOfferStatusDto = 'OPEN' | 'SOLD' | 'CANCELLED' | 'EXPIRED';
+/** The Board. A cash offer has a unit price; a barter offer asks for goods for the whole stack. */
+export type PlayerBoardPriceKindDto = 'CASH' | 'BARTER';
+/** One line of goods a barter offer asks for. */
+export interface PlayerBoardAskDto {
+  key: string;
+  name: string;
+  quantity: number;
+}
 export interface PlayerBoardOfferDto {
   id: string;
   itemKey: string;
   name: string;
   quantity: number;
+  priceKind: PlayerBoardPriceKindDto;
+  /** Cash offers only; 0 for a barter. */
   unitPriceCents: number;
+  /** Barter offers only; empty for cash. */
+  ask: PlayerBoardAskDto[];
   feeCents: number;
   durationHours: number;
   postedAt: string;
@@ -515,7 +527,12 @@ export interface PlayerBoardOfferDto {
 export interface PostPlayerBoardOfferInput {
   itemKey: string;
   quantity: number;
-  unitPriceCents: number;
+  /** Defaults to CASH. */
+  priceKind?: PlayerBoardPriceKindDto;
+  /** Cash offers: the price per unit. */
+  unitPriceCents?: number;
+  /** Barter offers: what the buyer must hand over for the whole stack. */
+  askItems?: Array<{ key: string; quantity: number }>;
   durationHours: number;
 }
 export interface PlayerBoardOfferResult {
@@ -538,9 +555,13 @@ export interface PlayerBoardRowDto {
   /** Parts only. */
   rarity: ScavengeRarityDto | null;
   quantity: number;
+  priceKind: PlayerBoardPriceKindDto;
+  /** Cash offers: the price per unit. Barter offers: 0. */
   unitPriceCents: number;
-  /** A buy takes the whole offer, so this is what a buyer pays. */
+  /** Cash a buyer pays for the whole offer: the sticker for cash, the Board's top-up for a barter. */
   totalCents: number;
+  /** Barter offers: the goods a buyer hands over. Empty for cash. */
+  ask: PlayerBoardAskDto[];
   sellerName: string;
   /** The viewer's own offer; it can never be bought by them. */
   mine: boolean;
@@ -567,12 +588,19 @@ export interface PlayerBoardDto {
   openOffers: number;
   /** The viewer's cash, so a buy the server would refuse for money can say so first. */
   cashCents: number;
+  /** What the viewer holds of every listable item, so a barter they cannot cover says so first. */
+  holdings: Record<string, number>;
+  /** Everything a barter may ask for, with its Board value (book). */
+  askable: Array<{ key: string; name: string; category: PlayerBoardCategoryDto; bookCents: number }>;
   rules: {
     maxOpenOffers: number;
     listingHours: number[];
     postingFeePercent: number;
     postingFeeMinCents: number;
     taxPercent: number;
+    maxAskItems: number;
+    /** Rank counts cash at this percent; a barter's top-up is priced against it. */
+    cashWeightPercent: number;
   };
 }
 /** The Board E. A filled offer, as the buyer sees it. Replaying the same action id returns this again. */
@@ -582,7 +610,10 @@ export interface PlayerBoardFillResult {
   name: string;
   quantity: number;
   unitPriceCents: number;
+  /** Cash the buyer paid: the sticker, or a barter's top-up. */
   paidCents: number;
+  /** Barter offers: the goods the buyer handed over. */
+  gave: PlayerBoardAskDto[];
   sellerName: string;
 }
 export interface OpenScavengeCacheResult {

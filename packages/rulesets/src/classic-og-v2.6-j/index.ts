@@ -32,6 +32,7 @@ export const classicOgV26J = {
     maxOpenOffers: 6,
     listingHours: [12, 48],
     listableProducts: ['CRACK', 'WEED', 'ECSTASY', 'COCAINE', 'METH', 'HEROIN'],
+    maxAskItems: 3,
   },
 } as const satisfies Ruleset;
 

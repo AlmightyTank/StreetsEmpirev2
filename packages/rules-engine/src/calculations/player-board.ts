@@ -163,3 +163,45 @@ export function playerBoardEscrowNetWorthCents(escrow: unknown, ruleset: Ruleset
   }
   return total;
 }
+
+export type PlayerBoardBarterRefusal = 'EMPTY' | 'TOO_MANY' | 'INVALID_QUANTITY' | 'NOT_LISTABLE' | 'SAME_ITEM' | 'ASKS_TOO_MUCH';
+
+export interface PlayerBoardBarterQuote {
+  /** Book of the stack on offer. */
+  offerBookCents: number;
+  /** Book of the goods asked for; never above `offerBookCents`. */
+  askBookCents: number;
+  /** Cash the buyer adds, deleted from the round, so taking the stack cannot raise their rank. */
+  buyerFeeCents: number;
+}
+
+/**
+ * The Board. Price a barter: `quantity` of `offerKey` for the goods in `ask`. Rank stays fair on
+ * both sides. The seller may not ask for more book than they give, so the swap never raises the
+ * seller's rank; when they ask for less, the buyer adds the gap in cash at the cash weight
+ * (`playerBoardTradeTopUpCents`), so it never raises the buyer's either. An even swap is free.
+ */
+export function playerBoardBarterQuote(
+  offerKey: string,
+  quantity: number,
+  ask: Readonly<Record<string, number>>,
+  ruleset: Ruleset,
+): PlayerBoardBarterQuote | { refusal: PlayerBoardBarterRefusal } {
+  const entries = Object.entries(ask);
+  if (entries.length === 0) return { refusal: 'EMPTY' };
+  if (entries.length > (ruleset.playerBoard?.maxAskItems ?? 0)) return { refusal: 'TOO_MANY' };
+  const offerBook = playerBoardItemBookCents(offerKey, ruleset);
+  if (offerBook === null) return { refusal: 'NOT_LISTABLE' };
+  if (!Number.isSafeInteger(quantity) || quantity < 1) return { refusal: 'INVALID_QUANTITY' };
+  let askBook = 0;
+  for (const [key, units] of entries) {
+    if (key === offerKey) return { refusal: 'SAME_ITEM' };
+    if (!Number.isSafeInteger(units) || units < 1) return { refusal: 'INVALID_QUANTITY' };
+    const book = playerBoardItemBookCents(key, ruleset);
+    if (book === null) return { refusal: 'NOT_LISTABLE' };
+    askBook += book * units;
+  }
+  const offerBookCents = offerBook * quantity;
+  if (!Number.isSafeInteger(askBook) || askBook > offerBookCents) return { refusal: 'ASKS_TOO_MUCH' };
+  return { offerBookCents, askBookCents: askBook, buyerFeeCents: playerBoardTradeTopUpCents(offerBookCents, askBook, ruleset) };
+}

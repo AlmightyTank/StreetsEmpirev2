@@ -23,7 +23,8 @@ Same shape as a flea board, cut to this economy.
 - A buy takes the whole offer. The buyer pays the sticker. The seller receives 92%. The 8% is deleted from the round.
 - Cancel and expiry return the stack. The posting fee does not come back: 1% of book value, minimum $1.
 - Six open offers per player.
-- Pay on fill. No mail delay, no partial stack, no barter, no separate Board reputation.
+- Pay on fill. No mail delay, no partial stack, no separate Board reputation.
+- **Barter (added after slice F, replacing "no barter").** A seller can ask for goods instead of cash. See "Player barter" below.
 
 Parts leave `scavengedComponents`. The stash grid is derived from that balance, so the cell shrinks with the escrow and grows back on cancel. A fill that needs grid space checks free cells first and refuses when they do not fit.
 
@@ -173,6 +174,25 @@ Slice F lists every drug, not just crack: crack, weed, ecstasy, cocaine, meth an
 - **Escrow** values parts and drugs alike (`playerBoardEscrowNetWorthCents`).
 - **The tab** gains a Drugs filter. The book lists drugs first, then parts.
 - **The rank tests** cover drug fills at the floor and the cap.
+
+### Player barter
+
+The Board is player-to-player for both kinds of price. An offer is either **cash** (a unit price inside the band, as above) or a **barter**: up to `maxAskItems` (3) other listable items, parts or drugs, asked for the whole stack. The buyer must hold the goods, or the cash for a cash offer.
+
+The rule that keeps barter from moving rank:
+
+- **The seller can't gain.** The goods asked for may not be worth more, at book, than the stack offered (`ASKS_TOO_MUCH`). The swap therefore never raises the seller's rank.
+- **The buyer can't gain.** When the stack is worth more than the goods asked for, the buyer also pays the gap to the Board in cash at the cash weight, rounded up to whole dollars (`playerBoardBarterQuote`, built on the same `playerBoardTradeTopUpCents` as the Salvage Yard fix). That cash is deleted from the round, so the swap never raises the buyer's rank either. An even swap costs nothing extra.
+- **No 8% cut.** The posting fee still applies, but barter has no cut, because it isn't needed to keep rank fair.
+
+Mechanics:
+
+- The offer stores `priceKind`, `askItems`, `askBookCents` and `buyerFeeCents`.
+- On a fill, the buyer's goods go straight into the seller's holdings, and the stack goes from escrow to the buyer.
+- The buyer's top-up is booked as `PLAYER_BOARD_BARTER_FEE`.
+- The fill is refused if the buyer is short of goods or cash, if the buyer has no stash room for the stack, or if the seller has no stash room for a part they asked for.
+
+On the tab, barter rows show "Trade: 2 × Radio + 5 × Scrap metal" with the cash top-up, and the button reads Trade. It is disabled with a reason when the viewer is short of something. The listing form has a Cash or Barter switch, a builder for up to three lines, and a value meter that shows the buyer's top-up. Tests sweep offers against baskets with the real net worth calculator and show neither side's rank rises. Integration tests cover posting, refusals, the swap, item conservation and rank on a live Board round.
 
 F and G both sit on E. Product is the smaller cut, so it goes first. H is last. D lands before E so the tab exists on the round where fills turn on.
 

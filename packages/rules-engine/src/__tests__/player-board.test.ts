@@ -4,6 +4,7 @@ import { calculateNetWorthCents } from '../calculations/net-worth.js';
 import {
   isPlayerBoardPriceLegal,
   playerBoardBand,
+  playerBoardBarterQuote,
   playerBoardEscrowNetWorthCents,
   playerBoardItemBookCents,
   playerBoardItemKind,
@@ -329,6 +330,46 @@ describe('The Board F: every drug', () => {
         expect(buyer, `${key} buyer @${price}`).toBeLessThanOrEqual(0n);
         expect(seller, `${key} seller @${price}`).toBeLessThanOrEqual(0n);
       }
+    }
+  });
+});
+
+describe('The Board: barter', () => {
+  const on = { ...rules, playerBoard: { ...rules.playerBoard, enabled: true } } as Ruleset;
+
+  it('prices an even swap free and charges the buyer the gap otherwise', () => {
+    expect(playerBoardBarterQuote('MOTOR_ASSEMBLY', 1, { SCRAP_METAL: 20 }, on)).toEqual({ offerBookCents: 8_000, askBookCents: 8_000, buyerFeeCents: 0 });
+    expect(playerBoardBarterQuote('MOTOR_ASSEMBLY', 1, { RADIO: 2, SCRAP_METAL: 5 }, on)).toEqual({ offerBookCents: 8_000, askBookCents: 7_000, buyerFeeCents: 1_400 });
+    expect(playerBoardBarterQuote('CRACK', 100, { WEED: 50, RADIO: 1 }, on)).toEqual({ offerBookCents: 30_000, askBookCents: 14_500, buyerFeeCents: 20_700 });
+  });
+
+  it('refuses a basket that asks too much, repeats the offer, is empty, too long, or not tradeable', () => {
+    const refusal = (offer: string, quantity: number, ask: Record<string, number>) => (playerBoardBarterQuote(offer, quantity, ask, on) as { refusal?: string }).refusal;
+    expect(refusal('MOTOR_ASSEMBLY', 1, { SCRAP_METAL: 21 })).toBe('ASKS_TOO_MUCH');
+    expect(refusal('MOTOR_ASSEMBLY', 1, { MOTOR_ASSEMBLY: 1 })).toBe('SAME_ITEM');
+    expect(refusal('MOTOR_ASSEMBLY', 1, {})).toBe('EMPTY');
+    expect(refusal('MOTOR_ASSEMBLY', 9, { SCRAP_METAL: 1, WIRING: 1, CLOTH: 1, LABELS: 1 })).toBe('TOO_MANY');
+    expect(refusal('MOTOR_ASSEMBLY', 1, { PISTOL: 1 })).toBe('NOT_LISTABLE');
+    expect(refusal('PISTOL', 1, { SCRAP_METAL: 1 })).toBe('NOT_LISTABLE');
+    expect(refusal('MOTOR_ASSEMBLY', 1, { SCRAP_METAL: 0 })).toBe('INVALID_QUANTITY');
+    expect(refusal('MOTOR_ASSEMBLY', 1.5, { SCRAP_METAL: 1 })).toBe('INVALID_QUANTITY');
+  });
+
+  it('raises neither rank for any legal basket, whatever cash either side holds', () => {
+    const empty2 = { ...empty, ammo: 0 };
+    const hold = (key: string, n: number) => (key === 'CRACK' ? { crack: n } : rules.products?.[key as 'WEED'] ? { products: { [key]: n } } : { scavengedComponents: { [key]: n } });
+    const worth = (p: object) => calculateNetWorthCents({ ...empty2, ...p }, on);
+    const offers: Array<[string, number]> = [['MOTOR_ASSEMBLY', 1], ['CRACK', 100], ['SPECIALIST_CIRCUITRY', 1], ['RADIO', 3]];
+    const asks = ['SCRAP_METAL', 'RADIO', 'WEED', 'COCAINE', 'PRECISION_PARTS'];
+    for (const [offerKey, quantity] of offers) for (const askKey of asks) for (const units of [1, 2, 5, 13, 40]) for (const cash of [0, 1, 3, 9_999]) {
+      if (askKey === offerKey) continue;
+      const quote = playerBoardBarterQuote(offerKey, quantity, { [askKey]: units }, on);
+      if ('refusal' in quote) { expect(quote.refusal).toBe('ASKS_TOO_MUCH'); continue; }
+      const fee = quote.buyerFeeCents;
+      const buyer = worth({ cashCents: cash, ...hold(offerKey, quantity) }) - worth({ cashCents: cash + fee, ...hold(askKey, units) });
+      const seller = worth({ cashCents: cash, ...hold(askKey, units) }) - worth({ cashCents: cash, playerBoardEscrow: { [offerKey]: quantity } });
+      expect(buyer, `buyer ${offerKey}x${quantity} for ${askKey}x${units}`).toBeLessThanOrEqual(0n);
+      expect(seller, `seller ${offerKey}x${quantity} for ${askKey}x${units}`).toBeLessThanOrEqual(0n);
     }
   });
 });

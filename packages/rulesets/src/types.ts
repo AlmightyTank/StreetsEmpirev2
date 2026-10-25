@@ -1317,6 +1317,8 @@ export interface PlayerBoardRules {
    * listable only while that equals Pip's buyback, so the Board never prices it off another number.
    */
   readonly listableProducts: readonly string[];
+  /** The Board. Most different items a barter offer may ask for. */
+  readonly maxAskItems: number;
 }
 
 /** The Board B. Every hideout scavenge part, as stored in `RoundPlayer.scavengedComponents`. */
