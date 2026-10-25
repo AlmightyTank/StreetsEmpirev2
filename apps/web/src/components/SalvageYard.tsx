@@ -21,21 +21,33 @@ function priceLabel(offer: SalvageOfferDto, quantity = 1): string {
 
 function OfferCard({ offer, busy, onTrade }: { offer: SalvageOfferDto; busy: boolean; onTrade: (offer: SalvageOfferDto, quantity: number) => void }) {
   const barter = offer.price.kind === 'BARTER';
+  const rarity = offer.rarity.toLowerCase();
   const short = barter ? 'You do not have enough to trade.' : 'You do not have enough cash.';
+  const waiting = busy ? 'Your last trade is still going through.' : null;
   return (
-    <article className="se-panel se-scavenge-component se-salvage-offer">
-      <ItemTile item={offer.key as ItemArtKey} quantity={offer.owned} label={false} />
-      <div className="se-scavenge-component__copy">
-        <strong>{offer.name}</strong>
-        <small>{offer.rarity.toLowerCase()} · {offer.purpose} · You have {formatNumber(offer.owned)}</small>
-        <span className="se-salvage-offer__price">
-          <span className="se-eyebrow">{barter ? 'Barter' : 'Cash'}</span> {priceLabel(offer)}
-        </span>
-        <div className="se-scavenge-cache__action">
-          <Button className="se-btn se-btn--primary se-btn--sm" disabledReason={busy ? 'Your last trade is still going through.' : offer.maxQuantity < 1 ? short : null} onClick={() => onTrade(offer, 1)}>
+    <article className={`se-panel se-salvage-offer se-salvage-offer--${rarity} se-salvage-offer--${barter ? 'barter' : 'cash'}${offer.maxQuantity < 1 ? ' se-salvage-offer--short' : ''}`}>
+      <div className="se-salvage-offer__art">
+        <ItemTile item={offer.key as ItemArtKey} quantity={offer.owned} label={false} />
+      </div>
+      <div className="se-salvage-offer__body">
+        <div className="se-salvage-offer__title">
+          <strong>{offer.name}</strong>
+          <span className="se-salvage-offer__rarity">{rarity}</span>
+        </div>
+        <p>{offer.purpose}</p>
+        <p className="se-salvage-offer__owned">You have <span className="se-num">{formatNumber(offer.owned)}</span></p>
+      </div>
+      <div className="se-salvage-offer__deal">
+        <p className="se-salvage-offer__price">
+          <span className="se-eyebrow">{barter ? 'Barter' : 'Cash'}</span>
+          <strong>{priceLabel(offer)}</strong>
+          <small>each</small>
+        </p>
+        <div className="se-salvage-offer__actions">
+          <Button variant="primary" size="sm" block disabledReason={waiting ?? (offer.maxQuantity < 1 ? short : null)} onClick={() => onTrade(offer, 1)}>
             {barter ? 'Trade for 1' : 'Buy 1'}
           </Button>
-          <Button className="se-btn se-btn--sm" disabledReason={busy ? 'Your last trade is still going through.' : offer.maxQuantity < 5 ? short : null} onClick={() => onTrade(offer, 5)}>
+          <Button size="sm" block disabledReason={waiting ?? (offer.maxQuantity < 5 ? short : null)} onClick={() => onTrade(offer, 5)}>
             {barter ? 'Trade for 5' : 'Buy 5'}
           </Button>
         </div>
@@ -91,15 +103,13 @@ export function SalvageYard() {
             <p>Parts for hideout upgrades and the crafting bench. Everyday parts are cash. The scarce ones the yard only trades for: bring parts and store goods.</p>
           </div>
           {yard ? (
-            <div className="se-stores-hero__side">
-              <div className="se-stores-hero__readout">
-                {(['beer', 'medicine', 'condoms', 'ammo'] as const).map((good) => (
-                  <span key={good}>
-                    <small>{good}</small>
-                    <strong>{formatNumber(yard.goods[good])}</strong>
-                  </span>
-                ))}
-              </div>
+            <div className="se-salvage-wallet" aria-label="Goods the yard will take in trade">
+              {(['beer', 'medicine', 'condoms', 'ammo'] as const).map((good) => (
+                <span key={good}>
+                  <small>{good}</small>
+                  <strong data-empty={yard.goods[good] === 0 ? 'true' : undefined}>{formatNumber(yard.goods[good])}</strong>
+                </span>
+              ))}
             </div>
           ) : null}
         </header>
@@ -119,21 +129,21 @@ export function SalvageYard() {
 
         {yard ? (
           <>
-            <section className="se-hideout-section">
+            <section className="se-salvage-section">
               <div className="se-stores-sectionhead">
                 <div><span className="se-eyebrow">Cash</span><h2>Everyday parts</h2></div>
                 <p>Common and uncommon parts, straight off the pile.</p>
               </div>
-              <div className="se-grid se-grid--3">
+              <div className="se-salvage-offers">
                 {cashOffers.map((offer) => <OfferCard key={offer.key} offer={offer} busy={busy} onTrade={(o, q) => void trade(o, q)} />)}
               </div>
             </section>
-            <section className="se-hideout-section">
+            <section className="se-salvage-section se-salvage-section--barter">
               <div className="se-stores-sectionhead">
                 <div><span className="se-eyebrow">Barter</span><h2>Scarce parts</h2></div>
                 <p>The yard will not sell these for money. Trade parts and goods for them; everything it asks for can be bought.</p>
               </div>
-              <div className="se-grid se-grid--3">
+              <div className="se-salvage-offers">
                 {barterOffers.map((offer) => <OfferCard key={offer.key} offer={offer} busy={busy} onTrade={(o, q) => void trade(o, q)} />)}
               </div>
             </section>

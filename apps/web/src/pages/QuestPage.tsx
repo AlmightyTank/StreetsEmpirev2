@@ -31,6 +31,7 @@ import { confirmAction } from '../stores/confirm.js';
 import { publishQuestsChanged, trackedFromQuests } from '../quests/questSignals.js';
 import { buildQuestBoard, legacyQuestGroup, type QuestBoardGroupKey } from '../utils/questBoard.js';
 import { rememberedRouteScroll } from '../utils/routeScroll.js';
+import { captureQuestViewport, pinQuestViewport, shouldScrollFocusedQuest } from '../utils/questViewport.js';
 
 const BOARD_QUEST_TYPES = ['ALLIANCE', 'CITY_CONTRACT', 'EVENT', 'SEASON'] as const;
 
@@ -101,10 +102,14 @@ const VirtualizedQuestListContainer = forwardRef<HTMLDivElement, {
 function VirtualQuestList({
   quests,
   focusKey,
+  focusRequestId,
+  handledFocusRequest,
   renderQuest,
 }: {
   quests: PlayerQuestDto[];
   focusKey: string | null;
+  focusRequestId: number;
+  handledFocusRequest: { current: number };
   renderQuest: (quest: PlayerQuestDto) => ReactNode;
 }) {
   const listRef = useRef<VirtuosoHandle>(null);
@@ -119,18 +124,28 @@ function VirtualQuestList({
   }, [quests]);
 
   useEffect(() => {
-    if (!focusKey) return;
+    const questIndex = focusKey ? quests.findIndex((quest) => quest.key === focusKey) : -1;
     // Back/forward already put the window where the player left it.
-    if (navigationType === 'POP' && rememberedRouteScroll(locationKey) !== undefined) return;
-    const questIndex = quests.findIndex((quest) => quest.key === focusKey);
-    if (questIndex >= 0) listRef.current?.scrollToIndex({ index: Math.floor(questIndex / 2), align: 'center' });
-  }, [quests, focusKey, navigationType, locationKey]);
+    if (navigationType === 'POP' && rememberedRouteScroll(locationKey) !== undefined) {
+      handledFocusRequest.current = focusRequestId;
+      return;
+    }
+    if (!shouldScrollFocusedQuest({
+      focusKey,
+      requestId: focusRequestId,
+      handledRequestId: handledFocusRequest.current,
+      questIndex,
+    })) return;
+    handledFocusRequest.current = focusRequestId;
+    listRef.current?.scrollToIndex({ index: Math.floor(questIndex / 2), align: 'center' });
+  }, [quests, focusKey, focusRequestId, handledFocusRequest, navigationType, locationKey]);
 
   return (
     <Virtuoso
       ref={listRef}
       useWindowScroll
       data={rows}
+      computeItemKey={(_index, row) => row.map((quest) => quest.key).join('|')}
       overscan={{ main: 700, reverse: 400 }}
       components={{ List: VirtualizedQuestListContainer }}
       itemContent={(_index, row) => (
@@ -497,7 +512,11 @@ function QuestCard({
         ) : null}
 
         {quest.status === 'READY_TO_TURN_IN' && !quest.branchChoices.length ? (
-          <Button className="se-btn se-btn--primary" disabledReason={busy} onClick={() => onClaim(quest.key)}>
+          <Button
+            className="se-btn se-btn--primary"
+            disabledReason={busy}
+            onClick={() => onClaim(quest.key)}
+          >
             Collect payment
           </Button>
         ) : null}
@@ -568,6 +587,9 @@ export function QuestPage() {
   const [boardFilter, setBoardFilter] = useState<QuestBoardFilter>(() => viewMemory?.boardFilter ?? 'all');
   const [boardSearch, setBoardSearch] = useState(() => viewMemory?.boardSearch ?? '');
   const deferredBoardSearch = useDeferredValue(boardSearch);
+  const handledFocusRequest = useRef(0);
+  const [focusRequestId, setFocusRequestId] = useState(0);
+  const releaseViewportPin = useRef<(() => void) | null>(null);
 
   const loadHistory = useCallback(() => {
     if (historyCache.current) return Promise.resolve(historyCache.current);
@@ -657,6 +679,15 @@ export function QuestPage() {
     void load();
     void communityApi.careerIdentity().then((result) => setCareer(result.career)).catch(() => undefined);
   }, [load]);
+
+  useEffect(() => () => releaseViewportPin.current?.(), []);
+
+  const holdViewport = (questKey: string) => {
+    releaseViewportPin.current?.();
+    const pin = pinQuestViewport(captureQuestViewport(questKey));
+    releaseViewportPin.current = pin.stop;
+    return pin;
+  };
 
   useEffect(() => {
     const refreshWhenVisible = () => {
@@ -776,6 +807,11 @@ export function QuestPage() {
   }, [visibleGroups, boardFilter, deferredBoardSearch, focusKey, page?.historyCount]);
 
   useEffect(() => {
+    handledFocusRequest.current = 0;
+    setFocusRequestId((current) => current + 1);
+  }, [location.key, focusKey]);
+
+  useEffect(() => {
     if (deferredBoardSearch.trim() && (page?.historyCount ?? 0) > 0 && !historyCache.current) {
       void loadHistory();
     }
@@ -802,6 +838,7 @@ export function QuestPage() {
   );
 
   async function mutate(key: string, action: () => Promise<QuestPageDto>, success?: string, refreshTour = false) {
+    const pin = holdViewport(key);
     setBusy(key);
     setError(null);
     setNotice(null);
@@ -820,6 +857,7 @@ export function QuestPage() {
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : 'That job could not be updated.');
     } finally {
+      pin.settle();
       setBusy(null);
     }
   }
@@ -853,6 +891,7 @@ export function QuestPage() {
       });
       if (!confirmed) return;
     }
+    const pin = holdViewport(key);
     setBusy(key);
     setError(null);
     setNotice(null);
@@ -891,11 +930,12 @@ export function QuestPage() {
           historyCount: (current.historyCount ?? 0) + 1,
         };
       });
-      void load().then((next) => publishQuestsChanged(next
+      void load().finally(() => pin.settle()).then((next) => publishQuestsChanged(next
         ? { scope: 'action', quests: next.quests, tracked: trackedFromQuests(next.quests) }
         : { scope: 'action' }));
       void refreshSnapshot({ background: true });
     } catch (cause) {
+      pin.settle();
       setError(cause instanceof ApiError ? cause.message : 'Payment could not be collected.');
     } finally {
       setBusy(null);
@@ -972,7 +1012,7 @@ export function QuestPage() {
       focused={focusKey === quest.key}
       busy={busy ? 'Another job update is still going through.' : null}
       nowMs={nowMs}
-       onAccept={(key) => void mutate(key, () => questsApi.accept(key, crypto.randomUUID()), 'Job accepted.', true)}
+      onAccept={(key) => void mutate(key, () => questsApi.accept(key, crypto.randomUUID()), 'Job accepted.', true)}
       onClaim={(key, branchKey, branchTitle) => void claim(key, branchKey, branchTitle)}
       onTrack={(key, tracked) => void mutate(key, () => questsApi.track(key, tracked))}
       onAbandon={(key) => void mutate(key, () => questsApi.abandon(key), 'Job abandoned.')}
@@ -1116,7 +1156,13 @@ export function QuestPage() {
                         <span className="se-quests-group__chevron" aria-hidden="true">{open ? '−' : '+'}</span>
                       </summary>
                       {open ? group.quests.length ? (
-                        <VirtualQuestList quests={group.quests} focusKey={focusKey} renderQuest={(quest) => renderQuest(quest)} />
+                        <VirtualQuestList
+                          quests={group.quests}
+                          focusKey={focusKey}
+                          focusRequestId={focusRequestId}
+                          handledFocusRequest={handledFocusRequest}
+                          renderQuest={(quest) => renderQuest(quest)}
+                        />
                       ) : group.key === 'history' ? (
                         <div className="se-quests-empty" role={historyLoading ? 'status' : undefined}>
                           <strong>{historyLoading ? 'Loading your quest history…' : historyCache.current ? 'No past jobs to show.' : 'Quest history could not be loaded.'}</strong>

@@ -307,6 +307,7 @@
   margin: 0;
   border-radius: 4px;
   scroll-margin-top: 96px;
+  overflow-anchor: none;
 }
 
 .se-quests .se-quest-card:target {
@@ -1130,6 +1131,7 @@
   display: grid;
   min-width: 0;
   gap: 10px;
+  overflow-anchor: none;
 }
 
 .se-quests-primary > .se-quest-card {
@@ -1270,6 +1272,7 @@
   align-items: start;
   gap: 10px;
   padding-bottom: 10px;
+  overflow-anchor: none;
 }
 
 /* History is often a single completed story card; let it use the full rail
