@@ -20,7 +20,7 @@ import { Panel, Row, Stat } from '../components/Panel.js';
 import { Shell } from '../layouts/Shell.js';
 
 const THEMES = ['none', 'casino-floor', 'federal-case', 'midnight-market'] as const;
-const ACCENTS = ['default', 'gold', 'green', 'blue', 'purple', 'original-neon'] as const;
+const ACCENTS = ['default', 'gold', 'green', 'blue', 'purple', 'original-neon', 'asphalt-silver', 'burnt-copper', 'smog', 'electric-cyan', 'plum-smoke', 'porcelain'] as const;
 
 export function UiGalleryPage() {
   const [theme, setTheme] = useState<(typeof THEMES)[number]>('none');

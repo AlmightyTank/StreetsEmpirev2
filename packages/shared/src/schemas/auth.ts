@@ -226,6 +226,12 @@ export const profileAccentSchema = z.enum([
   'cobalt-blue',
   'bubblegum-pink',
   'mustard-yellow',
+  'asphalt-silver',
+  'burnt-copper',
+  'smog',
+  'electric-cyan',
+  'plum-smoke',
+  'porcelain',
 ]);
 export const CREW_NAME_MIN = 3;
 export const CREW_NAME_MAX = 32;

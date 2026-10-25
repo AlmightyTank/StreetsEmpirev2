@@ -111,6 +111,12 @@ export const PROFILE_ACCENTS: CosmeticOptionDto[] = [
   { key: 'green', label: 'Emerald', description: 'A rich emerald-green profile accent.' },
   { key: 'blue', label: 'Cornflower', description: 'A soft cornflower-blue profile accent.' },
   { key: 'purple', label: 'Orchid', description: 'A vivid orchid-purple profile accent.' },
+  { key: 'asphalt-silver', label: 'Asphalt Silver', description: 'Cool industrial silver with a restrained chrome feel.' },
+  { key: 'burnt-copper', label: 'Burnt Copper', description: 'Worn copper-orange inspired by old street hardware.' },
+  { key: 'smog', label: 'Smog', description: 'A subdued gray-green with a gritty city feel.' },
+  { key: 'electric-cyan', label: 'Electric Cyan', description: 'Bright arcade cyan for a sharp, high-energy look.' },
+  { key: 'plum-smoke', label: 'Plum Smoke', description: 'Smoky deep purple with a late-night feel.' },
+  { key: 'porcelain', label: 'Porcelain', description: 'Warm off-white for a clean, high-contrast look.' },
 ];
 
 export const UI_DENSITIES: CosmeticOptionDto[] = [

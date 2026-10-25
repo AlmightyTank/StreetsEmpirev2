@@ -173,6 +173,63 @@
 .se-profile-hover-card[data-accent="ghost-green"] { --se-hover-accent: #c8f8dc; }
 .se-profile-hover-card[data-accent="candy-red"] { --se-hover-accent: #f06a6a; }
 .se-profile-hover-card[data-accent="heartbreak-rose"] { --se-hover-accent: #ff8299; }
+
+/* Additional free site accents. Keep the shell, profile card, swatch and hover
+   preview on one authored color so the selected accent stays consistent. */
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--asphalt-silver {
+  --se-accent: #a6b2c0;
+  --se-accent-dim: #778391;
+  --se-accent-hover: #c8d1dc;
+  --se-accent-rgb: 166, 178, 192;
+}
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--burnt-copper {
+  --se-accent: #d47b4b;
+  --se-accent-dim: #9f5936;
+  --se-accent-hover: #e69b70;
+  --se-accent-rgb: 212, 123, 75;
+}
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--smog {
+  --se-accent: #a5b58b;
+  --se-accent-dim: #778564;
+  --se-accent-hover: #c1cea9;
+  --se-accent-rgb: 165, 181, 139;
+}
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--electric-cyan {
+  --se-accent: #36d9ed;
+  --se-accent-dim: #2498a8;
+  --se-accent-hover: #78e8f5;
+  --se-accent-rgb: 54, 217, 237;
+}
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--plum-smoke {
+  --se-accent: #a47bc7;
+  --se-accent-dim: #765791;
+  --se-accent-hover: #c2a5dc;
+  --se-accent-rgb: 164, 123, 199;
+}
+:is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--porcelain {
+  --se-accent: #e8ddc8;
+  --se-accent-dim: #b5a98f;
+  --se-accent-hover: #f5eee2;
+  --se-accent-rgb: 232, 221, 200;
+}
+.se-profile-accent--asphalt-silver { --se-profile-accent: #a6b2c0; }
+.se-profile-accent--burnt-copper { --se-profile-accent: #d47b4b; }
+.se-profile-accent--smog { --se-profile-accent: #a5b58b; }
+.se-profile-accent--electric-cyan { --se-profile-accent: #36d9ed; }
+.se-profile-accent--plum-smoke { --se-profile-accent: #a47bc7; }
+.se-profile-accent--porcelain { --se-profile-accent: #e8ddc8; }
+.se-swatch--asphalt-silver { --se-swatch: #a6b2c0; }
+.se-swatch--burnt-copper { --se-swatch: #d47b4b; }
+.se-swatch--smog { --se-swatch: #a5b58b; }
+.se-swatch--electric-cyan { --se-swatch: #36d9ed; }
+.se-swatch--plum-smoke { --se-swatch: #a47bc7; }
+.se-swatch--porcelain { --se-swatch: #e8ddc8; }
+.se-profile-hover-card[data-accent="asphalt-silver"] { --se-hover-accent: #c8d1dc; }
+.se-profile-hover-card[data-accent="burnt-copper"] { --se-hover-accent: #e69b70; }
+.se-profile-hover-card[data-accent="smog"] { --se-hover-accent: #c1cea9; }
+.se-profile-hover-card[data-accent="electric-cyan"] { --se-hover-accent: #78e8f5; }
+.se-profile-hover-card[data-accent="plum-smoke"] { --se-hover-accent: #c2a5dc; }
+.se-profile-hover-card[data-accent="porcelain"] { --se-hover-accent: #f5eee2; }
 :is(.se-app, .se-collection-accent, .se-ui-gallery__preview).se-site-accent--money-green {
   --se-accent: #4caf50;
   --se-accent-dim: #357a38;

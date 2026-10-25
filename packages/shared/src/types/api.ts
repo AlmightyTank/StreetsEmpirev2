@@ -269,7 +269,13 @@ export type ProfileAccent =
   | 'steel-silver'
   | 'cobalt-blue'
   | 'bubblegum-pink'
-  | 'mustard-yellow';
+  | 'mustard-yellow'
+  | 'asphalt-silver'
+  | 'burnt-copper'
+  | 'smog'
+  | 'electric-cyan'
+  | 'plum-smoke'
+  | 'porcelain';
 export type UiDensity = 'comfortable' | 'compact';
 export type MoneyFormat = 'full' | 'compact';
 export type DefaultLanding = 'game' | 'profile' | 'rankings' | 'news';
