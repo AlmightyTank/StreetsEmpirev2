@@ -10,13 +10,11 @@ import { ActionReadiness, OperationDetails } from '../components/ActionReadiness
 import { ActionResult } from '../components/ActionResult.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
-import { CityDistrictMap, type CityDistrictMapEntry } from '../components/CityDistrictMap.js';
 import { DistrictPicker } from '../components/DistrictPicker.js';
 import { Panel, Row } from '../components/Panel.js';
 import { TurnSpend } from '../components/TurnSpend.js';
 import { WorkSupplyPanel, WorkSupplyStockRows } from '../components/WorkSupplyPanel.js';
 import { HeatNotice } from '../components/HeatPanel.js';
-import { EmpireAreaLegend } from '../components/EmpireManagement.js';
 import { useGameAction } from '../hooks/useGameAction.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { scoutReceiptLines } from '../receipts/actionReceipts.js';
@@ -103,20 +101,6 @@ export function ScoutPage() {
   const districtTone = coverageTone(selectedDistrict);
   const chosenTurns = typeof turns === 'number' ? turns : 0;
   const remainingTurns = Math.max(0, available - chosenTurns);
-  const mapDistricts = districts.map((entry): CityDistrictMapEntry => {
-    if (entry.districtAccess?.unlocked === false) {
-      return { district: entry.key, name: entry.name, status: 'locked', statusText: 'Locked', detail: `Unlock with ${entry.districtAccess.unlockName}` };
-    }
-    const exposure = Math.round(entry.exposedFraction * 100);
-    const tone = coverageTone(entry);
-    return {
-      district: entry.key,
-      name: entry.name,
-      status: tone === 'good' ? 'coverage-covered' : tone === 'warn' ? 'coverage-warn' : 'coverage-bad',
-      statusText: exposure === 0 ? 'Covered' : `${exposure}% exposed`,
-      detail: `${100 - exposure}% crew covered`,
-    };
-  });
   const supplyJobs = selectedDistrict
     ? [{ job: selectedDistrict.key, label: selectedDistrict.name }]
     : [];
@@ -370,38 +354,6 @@ export function ScoutPage() {
             {action.busy ? 'Working the block...' : action.result ? 'Send again' : 'Send crew scouting'}
           </Button>
         </ActionDock>
-
-        <details className="se-scout-map-details">
-          <summary>
-            <span><span className="se-eyebrow">City overview · {me.city.name}</span><strong>District map</strong></span>
-            <span>{selectedDistrict?.name ?? 'Choose an area'} · {coveredPercent}% covered</span>
-          </summary>
-          <div className="se-citymap-layout">
-            <CityDistrictMap
-              citySlug={me.city.slug}
-              cityName={me.city.name}
-              districts={mapDistricts}
-              selectedDistrict={district}
-              onSelect={chooseDistrict}
-              disabled={action.busy}
-              disableLocked
-            />
-            <aside className="se-citymap-brief" aria-label="Scout map coverage summary">
-              <div className="se-citymap-brief__control">
-                <span className="se-eyebrow">Current field read</span>
-                <strong>{selectedDistrict?.name ?? 'Pick a district'}</strong>
-                <span>{selectedDistrict ? `${coveredPercent}% crew covered · ${exposurePercent}% exposed` : 'Choose an area to see crew coverage.'}</span>
-              </div>
-              <EmpireAreaLegend label="Scout coverage legend" items={[
-                { key: 'covered', label: 'Covered', tone: 'mine' },
-                { key: 'warn', label: 'Some crew exposed', tone: 'held' },
-                { key: 'bad', label: 'High exposure', tone: 'pressure' },
-                { key: 'locked', label: 'Locked', tone: 'locked' },
-              ]} />
-              <p>Map colors show how your current crew fits this district’s protection rule.</p>
-            </aside>
-          </div>
-        </details>
 
         <HeatNotice />
 

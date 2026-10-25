@@ -15,8 +15,7 @@ import { useCountdown } from '../hooks/useCountdown.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
 import { formatClockTime, formatWhen } from '../utils/time.js';
-import { CityDistrictMap, type CityDistrictMapEntry } from '../components/CityDistrictMap.js';
-import { EmpireAreaLegend, EmpireInspector, EmpireManagementLayout, EmpireRosterCard } from '../components/EmpireManagement.js';
+import { EmpireInspector, EmpireManagementLayout, EmpireRosterCard } from '../components/EmpireManagement.js';
 
 const ORDER: Record<TurfBlockDto['district'], number> = {
   CASINO: 0,
@@ -201,63 +200,6 @@ function CityBlockBoard({ city, onChanged, onSelect, selectedDistrict }: { city:
   );
 }
 
-function CityTurfMap({
-  city,
-  onSelect,
-  selectedDistrict,
-}: {
-  city: CityCharacterDto;
-  onSelect: (district: TurfBlockDto['district']) => void;
-  selectedDistrict: TurfBlockDto['district'] | null;
-}) {
-  const blocks = [...(city.turf?.blocks ?? [])].sort((a, b) => ORDER[a.district] - ORDER[b.district]);
-  const mapDistricts = blocks.map((block): CityDistrictMapEntry => {
-    const locked = block.districtAccess?.unlocked === false;
-    const activePush = Boolean(block.push || block.war);
-    const status = locked ? 'locked' : activePush ? 'pressure' : block.isMine ? 'mine' : block.holder ? 'held' : block.localsReclaimAt ? 'vacant' : 'locals';
-    const owner = locked
-      ? `Unlock with ${block.districtAccess?.unlockName ?? 'a quest'}`
-      : block.holder
-        ? `${block.holder.alliance ? `[${block.holder.alliance.tag}] ` : ''}${block.holder.displayName}`
-        : block.localsReclaimAt ? 'Vacant · locals rebuilding' : 'Locals hold this block';
-    return {
-      district: block.district,
-      name: block.districtName,
-      status,
-      statusText: locked ? 'Locked' : activePush ? 'Conflict' : block.isMine ? 'Your crew' : block.holder ? 'Player-held' : block.localsReclaimAt ? 'Rebuilding' : 'Local control',
-      detail: owner,
-      tag: !locked && !block.isMine ? block.holder?.alliance?.tag ?? null : null,
-      lots: locked ? undefined : block.businesses?.map((lot) => lot.level > 0),
-    };
-  });
-
-  return (
-    <details className="se-cityblocks-mapdetails" open>
-      <summary>
-        <span><span className="se-eyebrow">City overview · {city.name}</span><strong>District map</strong></span>
-        <span>{selectedDistrict ? `Focused: ${blocks.find((block) => block.district === selectedDistrict)?.districtName ?? 'district'}` : 'Five districts · select to focus'}</span>
-      </summary>
-      <div className="se-citymap-layout">
-        <CityDistrictMap citySlug={city.slug} cityName={city.name} districts={mapDistricts} selectedDistrict={selectedDistrict} onSelect={(district) => onSelect(district as TurfBlockDto['district'])} />
-
-        <aside className="se-citymap-brief" aria-label="District map key">
-          <EmpireAreaLegend label="Turf map legend" items={[
-            { key: 'mine', label: 'Your crew', tone: 'mine' }, { key: 'held', label: 'Other crew', tone: 'held' },
-            { key: 'locals', label: 'Locals', tone: 'locals' }, { key: 'vacant', label: 'Rebuilding', tone: 'vacant' },
-            { key: 'pressure', label: 'Active conflict', tone: 'pressure' }, { key: 'locked', label: 'Locked', tone: 'locked' },
-          ]} />
-          {selectedDistrict ? (
-            <Link className="se-citymap-brief__action" to={`/game/turf?city=${encodeURIComponent(city.slug)}&district=${encodeURIComponent(selectedDistrict)}#turf-block-${encodeURIComponent(selectedDistrict)}`}>
-              Jump to district actions <span aria-hidden="true">↓</span>
-            </Link>
-          ) : null}
-          <p>Select a district to open its controls.</p>
-        </aside>
-      </div>
-    </details>
-  );
-}
-
 function turfName(player: { displayName: string; allianceTag: string | null }): string {
   return player.allianceTag ? `[${player.allianceTag}] ${player.displayName}` : player.displayName;
 }
@@ -423,17 +365,6 @@ export function TurfPage() {
                 ) : null}
 
                 <div className="se-cityblocks-command">
-                <CityTurfMap
-                  city={selected}
-                  selectedDistrict={selectedDistrict}
-                  onSelect={(district) => {
-                    const next = new URLSearchParams(params);
-                    next.set('city', selected.slug);
-                    next.set('district', district);
-                    setParams(next, { replace: true, preventScrollReset: true });
-                  }}
-                />
-
                 <section className="se-cityblocks-section">
                   <div className="se-cityblocks-sectionhead">
                     <div>
