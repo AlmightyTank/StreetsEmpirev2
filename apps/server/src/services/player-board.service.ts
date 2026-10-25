@@ -38,8 +38,9 @@ import { COMPONENTS, jsonObject } from './scavenging.service.js';
  * Both balances count toward net worth, so only the fee moves rank. Cancel and expiry return the
  * stack. An expired stack that needs a new stash cell when none is free stays held on the offer
  * (`returnedAt` null) and goes back the next time the seller's offers settle with room.
- * A fill (slice E) moves the whole stack from the seller's escrow to the buyer, pays the seller
- * after the tax, and deletes the tax from the round.
+ * A fill (slice E) moves the units bought (any part of a cash offer, whole lots of a barter)
+ * from the seller's escrow to the buyer, pays the seller after the tax on cash, and deletes the
+ * tax or a barter's top-up from the round.
  */
 
 export type BoardRound = Pick<Round, 'id' | 'name' | 'status' | 'endsAt' | 'pausedAt' | 'pauseReason' | 'pausedMinutesTotal' | 'rulesetId' | 'rulesetVersion'>;

@@ -10,7 +10,7 @@ import { ReputationService } from '../reputation.service.js';
 import { StashService } from '../stash.service.js';
 
 /**
- * The Board E, live, on a round pinned to the opt-in ruleset: a fill moves the whole stack, the
+ * The Board E, live, on a round pinned to the opt-in ruleset: a fill moves the units bought, the
  * buyer pays the sticker, the seller keeps 92% rounded down and the rest leaves the round. The
  * same action cannot fill twice, two buyers cannot share an offer, a sold offer cannot be
  * cancelled, items are conserved and neither side's rank rises.
