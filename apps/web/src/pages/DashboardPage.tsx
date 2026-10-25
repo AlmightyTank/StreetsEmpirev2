@@ -140,7 +140,7 @@ function DashboardAction({
   detail: string;
   meta: string;
   icon: IconName;
-  kind: 'scout' | 'produce' | 'raids' | 'casino' | 'travel' | 'quests';
+  kind: 'scout' | 'produce' | 'raids' | 'stores' | 'travel' | 'quests';
   tone?: 'warn' | 'bad' | 'good';
 }) {
   return (
@@ -616,11 +616,11 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
                   tone={me.resources.woundedThugs > 0 ? 'warn' : undefined}
                 />
                 <DashboardAction
-                  to="/game/casino"
-                  icon="casino" kind="casino"
-                  title="Casino"
-                  detail="Slots, blackjack, roulette, poker and more."
-                  meta="Games"
+                  to="/game/stores"
+                  icon="stores" kind="stores"
+                  title="Stores"
+                  detail="Buy supplies, weapons, crew, and cars."
+                  meta={formatCents(me.resources.cashCents)}
                 />
                 <DashboardAction
                   to="/game/travel"

@@ -32,6 +32,19 @@ describe('consolidated game navigation', () => {
       .toEqual(['hideout', 'armory', 'crew-roster', 'dealers', 'stores', 'supply', 'loans', 'travel', 'turf']);
     expect(filterNavSections(SECTIONS, '').flatMap((section) => section.pages)).toEqual(pages);
   });
+
+  it('leaves claim boards, the shop, and billing off the play menu', () => {
+    const keys = pages.map((item) => item.key);
+    for (const key of ['xp-progress', 'roll-call', 'drop', 'supporter']) {
+      expect(keys).not.toContain(key);
+    }
+    expect(SECTIONS.find((section) => section.id === 'career')!.pages.map((item) => item.key)).toEqual([
+      'skills', 'events', 'street-pass', 'profile',
+    ]);
+    expect(keys).toEqual(expect.arrayContaining([
+      'scout', 'produce', 'raids', 'stores', 'hideout', 'armory', 'travel', 'turf', 'quests', 'casino', 'skills',
+    ]));
+  });
 });
 describe('game navigation route matching', () => {
   it('keeps game-specific nested routes with their destination', () => {

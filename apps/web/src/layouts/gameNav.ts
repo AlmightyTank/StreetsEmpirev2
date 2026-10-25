@@ -41,9 +41,10 @@ export type IconName =
   | 'status' | 'rules' | 'news' | 'fame' | 'account' | 'admin' | 'pass' | 'casino' | 'drop';
 
 /**
- * One destination per gameplay feature, but just six readable groups.
- * Deep links remain the same; the menu hierarchy is presentation-only.
- * The first group is the everyday loop. Advanced systems stay one click away.
+ * One destination per feature a player acts on during a round, in six groups.
+ * Deep links stay valid. Lifetime XP, Roll Call stamps, The Drop, and Supporter
+ * billing are off this menu: the season card, Account, Street Pass, and the
+ * check-in notice still open them. That leaves the menu for the streets.
  */
 export const SECTIONS: NavSection[] = [
   {
@@ -91,13 +92,9 @@ export const SECTIONS: NavSection[] = [
     title: 'Progress & Rewards',
     defaultOpen: false,
     pages: [
-      { key: 'xp-progress', label: 'XP Progress', short: 'XP', to: '/game/xp-progress', icon: 'profile' },
       { key: 'skills', label: 'Street Skills', short: 'Skills', to: '/game/skills', icon: 'profile' },
       { key: 'events', label: 'Events', to: '/game/events', icon: 'activity' },
       { key: 'street-pass', label: 'Street Pass', short: 'Pass', to: '/game/street-pass', icon: 'pass' },
-      { key: 'roll-call', label: 'Roll Call', to: '/game/roll-call', icon: 'fame' },
-      { key: 'drop', label: 'The Drop', short: 'Drop', to: '/game/drop', icon: 'drop', prefix: '/game/drop/' },
-      { key: 'supporter', label: 'Supporter', to: '/game/supporter', icon: 'pass' },
       { key: 'profile', label: 'Profile', to: '/game/profile', icon: 'profile' },
     ],
   },
@@ -242,17 +239,15 @@ export function useSections(): NavSection[] {
   const { role } = useStaff();
   const { pathname } = useLocation();
   const hasPass = useSession((s) => Boolean(s.me?.streetPass));
-  const hasDrop = useDropAvailable();
   return useMemo(() => {
-    const hidden = new Set([...(hasPass ? [] : ['street-pass']), ...(hasDrop ? [] : ['drop'])]);
-    const sections = hidden.size
-      ? SECTIONS.map((section) => ({ ...section, pages: section.pages.filter((page) => !hidden.has(page.key)) }))
-      : SECTIONS;
+    const sections = hasPass
+      ? SECTIONS
+      : SECTIONS.map((section) => ({ ...section, pages: section.pages.filter((page) => page.key !== 'street-pass') }));
     const adminSections = pathname.startsWith('/game/admin')
       ? adminOverviewSectionsFor(role)
       : adminSectionsFor(role);
     return [...sections, ...adminSections];
-  }, [role, hasPass, hasDrop, pathname]);
+  }, [role, hasPass, pathname]);
 }
 
 function pathMatches(pathname: string, to: string, aliases: readonly string[] = [], prefix?: string, prefixes: readonly string[] = []): boolean {

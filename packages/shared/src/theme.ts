@@ -76,6 +76,7 @@ export const STREETSEMPIRE_NAV_SECTIONS: ThemeNavSection[] = [
     title: 'Build Your Empire',
     pages: [
       { key: 'hideout', label: 'Hideout', to: '/game/hideout' },
+      { key: 'armory', label: 'Armory & Garage', short: 'Armory', to: '/game/armory' },
       { key: 'crew-roster', label: 'Crew Assignments', short: 'Crew', to: '/game/crew' },
       { key: 'dealers', label: 'Dealer Crews', short: 'Dealers', to: '/game/dealers' },
       { key: 'stores', label: 'Stores', to: '/game/stores' },
@@ -99,11 +100,9 @@ export const STREETSEMPIRE_NAV_SECTIONS: ThemeNavSection[] = [
     id: 'career',
     title: 'Progress & Rewards',
     pages: [
-      { key: 'xp-progress', label: 'XP Progress', short: 'XP', to: '/game/xp-progress' },
+      { key: 'skills', label: 'Street Skills', short: 'Skills', to: '/game/skills' },
       { key: 'events', label: 'Events', to: '/game/events' },
       { key: 'street-pass', label: 'Street Pass', short: 'Pass', to: '/game/street-pass' },
-      { key: 'roll-call', label: 'Roll Call', to: '/game/roll-call' },
-      { key: 'supporter', label: 'Supporter', to: '/game/supporter' },
       { key: 'profile', label: 'Profile', to: '/game/profile' },
     ],
   },
