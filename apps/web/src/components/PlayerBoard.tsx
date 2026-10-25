@@ -42,6 +42,12 @@ export function parseDollarsToCents(value: string): number | null {
 const FILTERS: ReadonlyArray<readonly [PlayerBoardFilterDto, string]> = [['ALL', 'All'], ['PRODUCTS', 'Drugs'], ['KEEPER', 'Guns & cars'], ['PARTS', 'Parts']];
 const STATUS_LABEL: Record<PlayerBoardOfferDto['status'], string> = { OPEN: 'Up', SOLD: 'Sold', CANCELLED: 'Cancelled', EXPIRED: 'Expired' };
 const BOARD_UNLOCK_QUEST_KEYS = ['ML_M09_TWO_BUYERS', 'ML_M10_FAVOR_ALREADY_PAID'] as const;
+const STORE_TAB_FALLBACK = [
+  { key: 'CORNER', slug: 'corner', name: 'Corner' },
+  { key: 'TOMMY', slug: 'tommy', name: 'Tommy’s' },
+  { key: 'CHARLIE', slug: 'charlie', name: 'Charlie’s' },
+  { key: 'PIP', slug: 'pip', name: 'Pip’s' },
+] as const;
 
 function closesIn(iso: string, now: number): string {
   const ms = new Date(iso).getTime() - now;
@@ -560,7 +566,7 @@ export function PlayerBoard() {
           </div>
         </header>
 
-         <StoreTabs stores={stores} slug="board" board />
+         <StoreTabs stores={stores.length ? stores : STORE_TAB_FALLBACK} slug="board" board />
 
         {closed ? <Alert>That store is not open. <Link to="/game/stores/corner">Visit the Corner Store</Link>.</Alert> : null}
         {locked ? (
