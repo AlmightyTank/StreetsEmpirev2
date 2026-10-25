@@ -2577,3 +2577,75 @@
   --se-board-ink: var(--se-accent);
   color: var(--se-accent);
 }
+
+
+/* Street Market quantity scaling stays compact and scrollable on small screens. */
+.se-market-trader-quantity {
+  display: grid;
+  min-width: 0;
+  flex: 1 1 auto;
+  gap: 5px;
+}
+.se-market-trader-quantity > .se-board-buy__qty {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+}
+.se-market-quantity {
+  display: flex;
+  min-width: 0;
+  max-width: 100%;
+  gap: 4px;
+  overflow-x: auto;
+  padding: 2px 0 4px;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+.se-market-quantity__step {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 2px;
+}
+.se-market-quantity__step button {
+  min-width: 31px;
+  min-height: 27px;
+  padding: 2px 5px;
+  border: 1px solid var(--se-line);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--se-panel-hi) 76%, transparent);
+  color: var(--se-text-dim);
+  font-family: var(--se-mono);
+  font-size: 9px;
+  font-weight: 750;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.se-market-quantity__step button:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--se-accent) 55%, var(--se-line));
+  background: color-mix(in srgb, var(--se-accent) 10%, var(--se-panel));
+  color: var(--se-accent);
+}
+.se-market-quantity__step button:disabled {
+  opacity: .42;
+  cursor: not-allowed;
+}
+.se-market-quantity__step button:focus-visible {
+  outline: 2px solid var(--se-accent);
+  outline-offset: 1px;
+}
+.se-market-inspector__body > .se-market-quantity {
+  margin-top: -5px;
+}
+@media (max-width: 700px) {
+  .se-table--cards td.se-market-buy-controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: stretch;
+  }
+  .se-market-trader-quantity {
+    width: 100%;
+  }
+  .se-table--cards td.se-market-buy-controls > .se-btn {
+    width: 100%;
+  }
+}
