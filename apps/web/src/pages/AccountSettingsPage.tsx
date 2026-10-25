@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 17739)
-Total output lines: 1437
-
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import type {
@@ -546,8 +543,6 @@ export function AccountSettingsPage() {
 
   function previewProfileAccent(profileAccent: ProfileAccent) {
     setCosmetics((current) => ({ ...current, profileAccent }));
-    // The accent is a shell preference as well as a profile cosmetic. Apply it
-    // immediately so the player can see the full-site color while choosing.
     setSessionProfileSettings({ ...useSession.getState().profileSettings, profileAccent });
   }
 
@@ -641,7 +636,238 @@ export function AccountSettingsPage() {
                 hint={usernameChangeHint(usernameStatus)}
               />
               <Button
-                c…2739 tokens truncated…w a round plays.</p>
+                className="se-btn se-btn--primary se-btn--block"
+                disabledReason={busy !== null ? working : usernameStatus && !usernameStatus.canChange ? usernameChangeHint(usernameStatus) : null}
+              >
+                {busy === 'username' ? 'Changing...' : 'Change name'}
+              </Button>
+            </form>
+            {usernameStatus?.reclaim ? (
+              <>
+                <p className="se-hint">
+                  <strong>{usernameStatus.reclaim.username}</strong> is held for you until {formatDate(usernameStatus.reclaim.until)}.
+                  Nobody else can take it, and taking it back is free.
+                </p>
+                <Button
+                  type="button"
+                  className="se-btn se-btn--ghost se-btn--block"
+                  onClick={() => void changeUsername(usernameStatus.reclaim!.username)}
+                  disabledReason={busy !== null ? working : null}
+                >
+                  {`Take back ${usernameStatus.reclaim.username}`}
+                </Button>
+              </>
+            ) : null}
+          </Panel>
+
+          <Panel title="Set a password by email">
+            <p>
+              Signed up with Discord, or forgot your current password? We will email a link to{' '}
+              <strong>{account.email}</strong> to set a new one.
+            </p>
+            <Button type="button" className="se-btn se-btn--ghost se-btn--block" onClick={sendRecovery} disabledReason={busy !== null ? working : null}>
+              {busy === 'recovery' ? 'Sending...' : 'Email me a link'}
+            </Button>
+            <p className="se-hint">
+              Know your password? Use Change password instead. The link works for one hour.
+            </p>
+          </Panel>
+
+          <Panel title="Change password">
+            <form onSubmit={changePassword} noValidate>
+              <Field
+                label="Current password"
+                name="currentPassword"
+                type="password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                autoComplete="current-password"
+                required
+                error={fields.currentPassword}
+              />
+              <Field
+                label="New password"
+                name="password"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                autoComplete="new-password"
+                required
+                minLength={8}
+                error={fields.password}
+                hint="Use at least 8 characters."
+              />
+              <label className="se-checkrow se-checkrow--inline">
+                <input
+                  type="checkbox"
+                  checked={revokeOtherSessionsOnPasswordChange}
+                  onChange={(event) => setRevokeOtherSessionsOnPasswordChange(event.target.checked)}
+                />
+                <span>
+                  <strong>Log out other sessions</strong>
+                  <small>Keep this device signed in and revoke every other browser session.</small>
+                </span>
+              </label>
+              <Button className="se-btn se-btn--primary se-btn--block" disabledReason={busy !== null ? working : null}>
+                {busy === 'password' ? 'Changing...' : 'Change password'}
+              </Button>
+            </form>
+          </Panel>
+
+          <Panel title="Profile shortcuts">
+            <p>Your game profile is where other players see your public record, awards and achievements.</p>
+            <div className="se-actions-row">
+              {me ? <Link className="se-btn se-btn--primary" to="/game/profile">Open public profile</Link> : <Link className="se-btn se-btn--primary" to="/join">Join the round</Link>}
+              <Link className="se-btn se-btn--ghost" to="/game">Back to game</Link>
+            </div>
+          </Panel>
+
+          <Panel title="Account record" flush>
+            <div className="se-rows">
+              <Row label="Created" value={formatDate(account.createdAt)} />
+              <Row label="Last login" value={formatDate(account.lastLoginAt)} />
+            </div>
+          </Panel>
+        </div>
+
+        <div className="se-account-column">
+          <div id="settings-connections" className="se-settings-anchor">
+            <ConnectedAccountsPanel
+              account={account}
+              onConnectionsChanged={() => setConnectionsVersion((current) => current + 1)}
+            />
+          </div>
+
+          <Panel title="Current email verification">
+            <p>
+              Verify your current email before changing it. This proves you control the recovery address already on the account.
+            </p>
+            <Button
+              type="button"
+              className="se-btn se-btn--primary se-btn--block"
+              onClick={verifyCurrentEmail}
+              disabledReason={busy !== null ? working : account.emailVerifiedAt ? 'This address is already verified. Nothing to send.' : null}
+            >
+              {account.emailVerifiedAt ? 'Email verified' : busy === 'verify' ? 'Sending...' : 'Verify current email'}
+            </Button>
+          </Panel>
+
+          <Panel title="Change email">
+            <form onSubmit={requestEmailChange} noValidate>
+              <Field
+                label="New email"
+                name="email"
+                type="email"
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+                autoComplete="email"
+                required
+                error={fields.email}
+                hint={account.emailVerifiedAt ? "A confirmation link will be sent to the new email address." : "Fixes a mistyped address now, and sends the verification link there."}
+              />
+              <Button className="se-btn se-btn--primary se-btn--block" disabledReason={busy !== null ? working : null}>
+                {busy === 'email' ? 'Sending...' : 'Send change confirmation'}
+              </Button>
+            </form>
+          </Panel>
+
+        </div>
+      </div>
+      <div id="settings-alerts" className="se-settings-anchor">
+        <NotificationsPanel refreshKey={connectionsVersion} />
+      </div>
+      </section>
+
+      <section id="settings-security" className="se-settings-section" aria-labelledby="settings-security-title">
+        <header className="se-settings-section__head">
+          <div><span>04</span><h2 id="settings-security-title">Security</h2></div>
+          <p>Protect the account and review every place it is signed in.</p>
+        </header>
+      <TwoFactorPanel focusCodes={searchParams.get('twoFactor') === 'codes'} />
+
+      <Panel title="Login sessions">
+        <div className="se-session-head">
+          <p className="se-hint">These are active browser sessions for this account.</p>
+          <Button
+            type="button"
+            className="se-btn se-btn--ghost se-btn--sm"
+            onClick={revokeOtherSessions}
+            disabledReason={busy !== null ? working : sessions.some((session) => !session.current) ? null : 'This is the only session signed in.'}
+          >
+            {busy === 'sessions' ? 'Working...' : 'Log out other sessions'}
+          </Button>
+        </div>
+
+        {sessions.length ? (
+          <div className="se-session-list">
+            {(() => {
+              const ordered = [...sessions].sort((a, b) => Number(b.current) - Number(a.current));
+              return showAllSessions ? ordered : ordered.slice(0, SESSIONS_SHOWN);
+            })().map((session) => (
+              <div className="se-session-row" key={session.id}>
+                <div>
+                  <strong>
+                    {session.current ? 'This session' : sessionDevice(session)}
+                    {session.current ? <span className="se-tag se-tag--good">Current</span> : null}
+                  </strong>
+                  <small>
+                    Last seen {formatDate(session.lastSeenAt)}
+                    {session.ip ? ` · ${session.ip}` : ''}
+                  </small>
+                  <small>
+                    {session.method === 'DISCORD' ? 'Discord' : session.method === 'APPLE' ? 'Apple' : session.method === 'GOOGLE' ? 'Google' : session.method === 'FACEBOOK' ? 'Facebook' : session.method === 'PLAY_GAMES' ? 'Google Play Games' : 'Password'}{session.twoFactor ? ' + code' : ''}
+                    {' · '}{session.remember ? 'Kept signed in' : 'Until the browser closes'}
+                  </small>
+                  <small>
+                    Signed in {formatDate(session.createdAt)} · Ends {formatDate(session.expiresAt)} if unused
+                    {session.remember ? ` · by ${formatDate(session.endsBy)} at the latest` : ''}
+                  </small>
+                </div>
+                {session.current ? null : (
+                  <Button
+                    type="button"
+                    className="se-btn se-btn--ghost se-btn--sm"
+                    onClick={() => revokeSession(session.id)}
+                    disabledReason={busy !== null ? working : null}
+                  >
+                    Log out
+                  </Button>
+                )}
+              </div>
+            ))}
+            {sessions.length > SESSIONS_SHOWN ? (
+              <button type="button" className="se-btn se-btn--ghost se-btn--sm se-session-more" onClick={() => setShowAllSessions((value) => !value)}>
+                {showAllSessions ? 'Show fewer' : `Show all ${sessions.length} sessions`}
+              </button>
+            ) : null}
+          </div>
+        ) : (
+          <p className="se-muted">Session details are not available right now.</p>
+        )}
+      </Panel>
+      </section>
+
+      <section id="settings-game" className="se-settings-section" aria-labelledby="settings-game-title">
+        <header className="se-settings-section__head">
+          <div><span>05</span><h2 id="settings-game-title">Game</h2></div>
+          <p>Reset guidance and manage the extras that travel with your account.</p>
+        </header>
+      <Panel title="Tutorial">
+        <p>Replay the first-login intro, see every page intro again and bring back the getting-started goals. Every page also has a "How this page works" panel.</p>
+        <ReplayTutorial className="se-btn se-btn--ghost" />
+      </Panel>
+
+      <Panel title="Supporting">
+        <p>
+          Supporter status, rewards, billing, gifts and supporter votes now live on their own page with a full rewards showcase.
+        </p>
+        <Link className="se-btn se-btn--primary" to={`/game/supporter${searchParams.get('supporter') ? `?supporter=${encodeURIComponent(searchParams.get('supporter')!)}` : ''}`}>
+          Open supporter page
+        </Link>
+      </Panel>
+      {dropOpen ? (
+        <Panel title="The Drop">
+          <p>Crew looks and Street Pass skips live in the shop. Nothing there changes how a round plays.</p>
           <Link className="se-btn se-btn--ghost" to="/game/drop">Open The Drop</Link>
         </Panel>
       ) : null}
