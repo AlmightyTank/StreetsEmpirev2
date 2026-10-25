@@ -2570,3 +2570,10 @@
     box-shadow: none;
   }
 }
+
+
+/* Selected market listings use the player's site accent for both the label and its rarity rail. */
+.se-market-page .se-market-rowpick[aria-pressed="true"] .se-board-rarity {
+  --se-board-ink: var(--se-accent);
+  color: var(--se-accent);
+}
