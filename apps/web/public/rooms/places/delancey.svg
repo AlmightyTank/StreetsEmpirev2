@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 480">
+  <!-- Delancey, rebuilt twice: new row houses next to an old scorched wall, warm windows, a stoop with a pot of flowers. -->
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#14101c"/><stop offset="1" stop-color="#2a1a20"/></linearGradient>
+    <pattern id="brick" width="60" height="30" patternUnits="userSpaceOnUse"><rect width="60" height="30" fill="#5a2e22"/><path d="M0 29h60M30 0v15M0 15h60M60 15v15M0 15v15" stroke="#3a1a12" stroke-width="3"/></pattern>
+    <radialGradient id="scorch" cx=".5" cy=".9" r=".7"><stop offset="0" stop-color="#000" stop-opacity=".75"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="1200" height="480" fill="url(#sky)"/>
+  <!-- Old scorched wall, left -->
+  <rect x="0" y="40" width="300" height="380" fill="url(#brick)"/><rect x="0" y="40" width="300" height="380" fill="url(#scorch)"/>
+  <rect x="60" y="110" width="80" height="100" fill="#0a0808"/><rect x="180" y="110" width="80" height="100" fill="#0a0808"/>
+  <text x="150" y="330" text-anchor="middle" font-family="Georgia, serif" font-size="22" fill="#e8d8c8" fill-opacity=".45">DELANCEY ST</text>
+  <!-- New row houses, right two thirds -->
+  <g><rect x="760" y="80" width="200" height="340" fill="#8a6a5a"/><rect x="960" y="100" width="240" height="320" fill="#6a7a8a"/></g>
+  <g fill="#ffd090" fill-opacity=".6"><rect x="790" y="120" width="60" height="80"/><rect x="870" y="120" width="60" height="80"/><rect x="990" y="140" width="60" height="80"/><rect x="1080" y="140" width="60" height="80"/></g>
+  <g stroke="#3a2a22" stroke-width="5"><path d="M820 120v80M790 160h60M900 120v80M870 160h60M1020 140v80M990 180h60M1110 140v80M1080 180h60"/></g>
+  <rect x="820" y="260" width="70" height="140" fill="#2a1a12"/><rect x="1040" y="270" width="70" height="130" fill="#1a2430"/>
+  <g fill="#5a4a42"><rect x="800" y="400" width="110" height="20"/><rect x="1020" y="400" width="110" height="20"/></g>
+  <!-- Flowers on the stoop -->
+  <path d="M920 400l-8-30h40l-8 30z" fill="#a85a3a"/><g fill="#e85a7a"><circle cx="920" cy="366" r="7"/><circle cx="934" cy="360" r="7"/><circle cx="946" cy="368" r="7"/></g><g fill="#5aa05a"><circle cx="928" cy="374" r="5"/><circle cx="940" cy="376" r="5"/></g>
+  <!-- Streetlight, centre-left -->
+  <rect x="340" y="70" width="8" height="350" fill="#1a1820"/><path d="M344 74h50" stroke="#1a1820" stroke-width="6"/><path d="M380 70h36l-6 14h-24z" fill="#3a3640"/>
+  <ellipse cx="398" cy="200" rx="160" ry="160" fill="#ffc890" fill-opacity=".08"/>
+  <!-- Sidewalk -->
+  <rect y="420" width="1200" height="60" fill="#2a2628"/><rect y="416" width="1200" height="6" fill="#5a5250"/>
+</svg>

@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 480">
+  <!-- Mama King's kitchen: rain on the window, the kettle on, the table where business gets done. -->
+  <defs>
+    <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a1a12"/><stop offset=".7" stop-color="#3b2416"/><stop offset="1" stop-color="#24150d"/></linearGradient>
+    <radialGradient id="lamp" cx=".5" cy=".12" r=".6"><stop offset="0" stop-color="#ffbe78" stop-opacity=".55"/><stop offset=".45" stop-color="#e0904a" stop-opacity=".18"/><stop offset="1" stop-color="#e0904a" stop-opacity="0"/></radialGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1b2a3a"/><stop offset="1" stop-color="#0c131c"/></linearGradient>
+    <linearGradient id="table" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6b3f22"/><stop offset="1" stop-color="#3a2010"/></linearGradient>
+    <pattern id="tile" width="40" height="40" patternUnits="userSpaceOnUse"><rect width="40" height="40" fill="#4a2e1c"/><rect x="1" y="1" width="38" height="38" fill="#553522"/><path d="M1 1h38" stroke="#6a452c" stroke-width="2"/></pattern>
+  </defs>
+  <rect width="1200" height="480" fill="url(#wall)"/>
+  <rect y="290" width="1200" height="140" fill="url(#tile)" opacity=".7"/>
+  <!-- Window with rain, left -->
+  <rect x="90" y="70" width="230" height="190" rx="4" fill="#1a0f09"/>
+  <rect x="102" y="82" width="206" height="166" fill="url(#glass)"/>
+  <path d="M205 82v166M102 165h206" stroke="#1a0f09" stroke-width="8"/>
+  <g stroke="#6f8ba8" stroke-opacity=".45" stroke-width="2" stroke-linecap="round">
+    <path d="M120 95l-6 22M150 120l-6 22M182 92l-6 22M240 110l-6 22M280 96l-6 22M132 190l-6 22M170 210l-6 22M226 182l-6 22M268 205l-6 22M296 150l-6 22"/>
+  </g>
+  <path d="M84 62c40 30 40 120 18 210h-20V62z" fill="#7a2f2a"/><path d="M326 62c-40 30-40 120-18 210h20V62z" fill="#7a2f2a"/>
+  <rect x="78" y="56" width="254" height="10" rx="3" fill="#2a1a10"/>
+  <!-- Stove and kettle, left low -->
+  <rect x="40" y="300" width="300" height="130" fill="#2b2b2e"/><rect x="40" y="296" width="300" height="10" fill="#48484c"/>
+  <circle cx="110" cy="360" r="20" fill="#1b1b1d"/><circle cx="270" cy="360" r="20" fill="#1b1b1d"/>
+  <path d="M150 296c0-38 20-56 45-56s45 18 45 56z" fill="#a33b2c"/><path d="M240 262l30-14" stroke="#a33b2c" stroke-width="9" stroke-linecap="round"/>
+  <path d="M168 240c4-20 50-20 54 0" fill="none" stroke="#3a1a12" stroke-width="7"/>
+  <g fill="none" stroke="#e8d8c8" stroke-opacity=".18" stroke-width="6" stroke-linecap="round"><path d="M278 238c-10-16 10-26 0-44s8-28 0-44"/></g>
+  <!-- Shelf with jars, right -->
+  <rect x="860" y="150" width="280" height="10" fill="#5a3620"/><rect x="860" y="250" width="280" height="10" fill="#5a3620"/>
+  <g fill="#c8935a" fill-opacity=".55"><rect x="880" y="104" width="34" height="46" rx="6"/><rect x="926" y="114" width="28" height="36" rx="6"/><rect x="966" y="96" width="40" height="54" rx="8"/><rect x="1030" y="110" width="30" height="40" rx="5"/><rect x="1076" y="100" width="46" height="50" rx="8"/></g>
+  <g fill="#e9e1d4" fill-opacity=".7"><rect x="884" y="216" width="56" height="34" rx="4"/><rect x="954" y="222" width="56" height="28" rx="4"/><path d="M1040 250h70l-8-40h-54z"/></g>
+  <!-- Calendar and photo, right of centre -->
+  <rect x="760" y="110" width="70" height="90" fill="#d9cfbf" fill-opacity=".75"/><rect x="760" y="110" width="70" height="20" fill="#9a2f2a"/>
+  <!-- Pendant lamp over the table -->
+  <path d="M600 0v40" stroke="#1a110b" stroke-width="4"/><path d="M560 40h80l-14 26h-52z" fill="#3a2414"/>
+  <rect width="1200" height="480" fill="url(#lamp)"/>
+  <!-- The table -->
+  <rect y="430" width="1200" height="50" fill="url(#table)"/><rect y="428" width="1200" height="5" fill="#8a5632"/>
+  <path d="M760 430c0-14 14-22 30-22s30 8 30 22z" fill="#ece3d6"/><ellipse cx="790" cy="431" rx="38" ry="5" fill="#d8ccbb"/>
+  <path d="M380 434l90-10 10 14-90 8z" fill="#efe6d2" fill-opacity=".85"/>
+</svg>

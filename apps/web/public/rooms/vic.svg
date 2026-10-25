@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 480">
+  <!-- Vic's booth: tufted leather, low sconces, photographs of people who owed him. -->
+  <defs>
+    <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1e1222"/><stop offset="1" stop-color="#120a16"/></linearGradient>
+    <pattern id="paper" width="60" height="60" patternUnits="userSpaceOnUse"><rect width="60" height="60" fill="#22142a"/><path d="M30 6l12 24-12 24-12-24z" fill="#2c1a36"/></pattern>
+    <radialGradient id="sconce" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ffb8f0" stop-opacity=".45"/><stop offset="1" stop-color="#c878c8" stop-opacity="0"/></radialGradient>
+    <linearGradient id="leather" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7a1f2e"/><stop offset="1" stop-color="#3e0c16"/></linearGradient>
+    <linearGradient id="table" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a1a14"/><stop offset="1" stop-color="#120a08"/></linearGradient>
+  </defs>
+  <rect width="1200" height="480" fill="url(#paper)"/><rect width="1200" height="480" fill="url(#wall)" opacity=".5"/>
+  <!-- Framed photographs -->
+  <g fill="#0e0810" stroke="#b08a4a" stroke-width="6"><rect x="120" y="70" width="100" height="120"/><rect x="250" y="90" width="80" height="80"/><rect x="900" y="70" width="90" height="110"/><rect x="1020" y="90" width="110" height="80"/></g>
+  <g fill="#6a5a6a" fill-opacity=".55"><circle cx="170" cy="118" r="20"/><path d="M136 186c4-30 64-30 68 0z"/><circle cx="290" cy="122" r="16"/><circle cx="945" cy="114" r="18"/><path d="M915 176c4-26 56-26 60 0z"/><circle cx="1060" cy="124" r="14"/><circle cx="1096" cy="124" r="14"/></g>
+  <!-- Sconces -->
+  <ellipse cx="400" cy="140" rx="120" ry="110" fill="url(#sconce)"/><ellipse cx="800" cy="140" rx="120" ry="110" fill="url(#sconce)"/>
+  <path d="M384 128h32l-6 26h-20z" fill="#d8a8d0"/><path d="M784 128h32l-6 26h-20z" fill="#d8a8d0"/><rect x="396" y="154" width="8" height="16" fill="#b08a4a"/><rect x="796" y="154" width="8" height="16" fill="#b08a4a"/>
+  <!-- Booth back, tufted, wrapping the stage -->
+  <path d="M0 230h1200v200H0z" fill="url(#leather)"/>
+  <path d="M0 230c200-26 400-36 600-36s400 10 600 36" fill="none" stroke="#a83a4e" stroke-width="10"/>
+  <g fill="#2a0810" fill-opacity=".7"><circle cx="100" cy="290" r="5"/><circle cx="220" cy="290" r="5"/><circle cx="340" cy="290" r="5"/><circle cx="860" cy="290" r="5"/><circle cx="980" cy="290" r="5"/><circle cx="1100" cy="290" r="5"/><circle cx="160" cy="360" r="5"/><circle cx="280" cy="360" r="5"/><circle cx="920" cy="360" r="5"/><circle cx="1040" cy="360" r="5"/></g>
+  <g fill="none" stroke="#2a0810" stroke-opacity=".5" stroke-width="3"><path d="M100 290l60 70 60-70 60 70 60-70M860 290l60 70 60-70 60 70 60-70"/></g>
+  <!-- Table: glass and ashtray -->
+  <rect y="424" width="1200" height="56" fill="url(#table)"/><rect y="420" width="1200" height="6" fill="#4a2e22"/>
+  <path d="M310 424l-8-60h52l-8 60z" fill="#e8d0f0" fill-opacity=".22" stroke="#e8d0f0" stroke-opacity=".4" stroke-width="2"/><path d="M306 394h44l-3 28h-38z" fill="#c8862a" fill-opacity=".55"/>
+  <ellipse cx="860" cy="420" rx="46" ry="10" fill="#3a3a44"/><ellipse cx="860" cy="416" rx="32" ry="6" fill="#16161c"/><path d="M880 414l40-8" stroke="#ece6dc" stroke-width="5" stroke-linecap="round"/>
+  <path d="M920 406c10-16-8-24 4-40" fill="none" stroke="#d8d0e0" stroke-opacity=".25" stroke-width="4"/>
+</svg>

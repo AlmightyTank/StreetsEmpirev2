@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useSession } from '../stores/session.js';
-import { useOnboarding } from '../stores/onboarding.js';
 import { CONSOLE_UPDATED_EVENT, consoleApi } from '../api/console.js';
 import { SURVEYS_CHANGED_EVENT, surveysApi } from '../api/surveys.js';
 import { formatWhen } from '../utils/time.js';
@@ -219,39 +218,6 @@ export function adminOverviewSectionsFor(role: StaffRole | null): NavSection[] {
   }).filter((section) => section.pages.length > 0);
 }
 
-function pagesByKey(sections: readonly NavSection[]): Map<string, NavPage> {
-  return new Map(sections.flatMap((section) => section.pages.map((page) => [page.key, page] as const)));
-}
-
-function pickPages(pages: ReadonlyMap<string, NavPage>, keys: readonly string[]): NavPage[] {
-  return keys.map((key) => pages.get(key)).filter((page): page is NavPage => Boolean(page));
-}
-
-export function newPlayerSectionsFor(sections: readonly NavSection[]): NavSection[] {
-  const pages = pagesByKey(sections);
-  // Preserve one visible command loop; no duplicate routes or separate rookie-only pages.
-  const groups = [
-    ['new-player-core', 'Start Here', ['dashboard', 'quests', 'scout', 'produce', 'raids', 'operations', 'black-book', 'stores']],
-    ['new-player-empire', 'Build Your Empire', ['hideout', 'armory', 'crew-roster', 'dealers', 'supply', 'loans', 'travel', 'turf']],
-    ['new-player-competition', 'Competition', ['casino', 'alliance', 'players', 'rankings']],
-    ['new-player-career', 'Progress & Rewards', ['xp-progress', 'skills', 'events', 'street-pass', 'roll-call', 'drop', 'supporter', 'profile']],
-    ['new-player-community', 'Messages & News', ['console', 'news']],
-    ['new-player-support', 'Help & Settings', ['status', 'rules', 'account']],
-  ] as const;
-  return groups.map(([id, title, keys], index) => ({
-    id,
-    title,
-    defaultOpen: index === 0,
-    pages: pickPages(pages, keys),
-  })).filter((group) => group.pages.length > 0);
-}
-
-export function useNewPlayerNavModel(): boolean {
-  const me = useSession((s) => s.me);
-  const guide = useOnboarding((s) => s.state?.guide ?? null);
-  return Boolean(me && guide && !guide.complete);
-}
-
 /** The Drop answers 404 while it is off by environment; ask once per page load. */
 let dropAvailability: Promise<boolean> | null = null;
 function dropAvailable(): Promise<boolean> {
@@ -277,18 +243,16 @@ export function useSections(): NavSection[] {
   const { pathname } = useLocation();
   const hasPass = useSession((s) => Boolean(s.me?.streetPass));
   const hasDrop = useDropAvailable();
-  const newPlayerNav = useNewPlayerNavModel();
   return useMemo(() => {
     const hidden = new Set([...(hasPass ? [] : ['street-pass']), ...(hasDrop ? [] : ['drop'])]);
     const sections = hidden.size
       ? SECTIONS.map((section) => ({ ...section, pages: section.pages.filter((page) => !hidden.has(page.key)) }))
       : SECTIONS;
-    const playerSections = newPlayerNav ? newPlayerSectionsFor(sections) : sections;
     const adminSections = pathname.startsWith('/game/admin')
       ? adminOverviewSectionsFor(role)
       : adminSectionsFor(role);
-    return [...playerSections, ...adminSections];
-  }, [role, hasPass, hasDrop, newPlayerNav, pathname]);
+    return [...sections, ...adminSections];
+  }, [role, hasPass, hasDrop, pathname]);
 }
 
 function pathMatches(pathname: string, to: string, aliases: readonly string[] = [], prefix?: string, prefixes: readonly string[] = []): boolean {

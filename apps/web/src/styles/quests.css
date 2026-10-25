@@ -1467,3 +1467,108 @@
   font-size: 10px;
   letter-spacing: .045em;
 }
+
+/* Story campaign scenes: authored moments on the quest card, below the chapter copy. */
+.se-quest-story__quote p + p {
+  margin-top: 6px;
+}
+
+.se-quest-scenes {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.se-quest-scene {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--se-line);
+  background: var(--se-panel);
+}
+
+.se-quest-scene--open {
+  border-color: var(--se-accent-dim);
+  background: var(--se-panel-hi);
+}
+
+.se-quest-scene--locked {
+  opacity: 0.8;
+}
+
+.se-quest-scene__title {
+  margin: 0 0 5px;
+  color: var(--se-text);
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.se-quest-scene__prose p,
+.se-quest-scene__outcome p {
+  margin: 0 0 6px;
+  color: var(--se-text);
+  font-size: 11px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.se-quest-scene__outcome {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--se-line);
+}
+
+.se-quest-scene__outcome p {
+  margin-top: 4px;
+  color: var(--se-text-dim);
+}
+
+.se-quest-scene__responses {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.se-quest-scene__response {
+  flex: 1 1 180px;
+  min-height: 44px;
+  white-space: normal;
+  text-align: left;
+}
+
+@media (max-width: 560px) {
+  .se-quest-scene__response {
+    flex-basis: 100%;
+  }
+}
+
+/* Story campaign Slice J: the story archive. */
+.se-story-archive__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 14px;
+}
+.se-story-archive__entry {
+  display: grid;
+  gap: 4px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--se-line);
+}
+.se-story-archive__entry:last-child { border-bottom: 0; padding-bottom: 0; }
+.se-story-archive__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.se-story-archive__answer { margin: 0; }
+.se-story-archive__closing {
+  margin: 4px 0 0;
+  font-style: italic;
+  opacity: 0.85;
+}

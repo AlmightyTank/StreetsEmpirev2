@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 480">
+  <!-- Blocks' corner: brick, a streetlight, the store awning, a fence with a hole in it. -->
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0c0a14"/><stop offset="1" stop-color="#2a1218"/></linearGradient>
+    <pattern id="brick" width="60" height="30" patternUnits="userSpaceOnUse"><rect width="60" height="30" fill="#4a1e1a"/><path d="M0 29h60M30 0v15M0 15h60M60 15v15M0 15v15" stroke="#2a100e" stroke-width="3"/></pattern>
+    <radialGradient id="light" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ffd08a" stop-opacity=".5"/><stop offset="1" stop-color="#ff7a5a" stop-opacity="0"/></radialGradient>
+    <linearGradient id="walk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a3434"/><stop offset="1" stop-color="#1a1616"/></linearGradient>
+  </defs>
+  <rect width="1200" height="480" fill="url(#sky)"/>
+  <!-- City behind, centre -->
+  <g fill="#120e18"><rect x="430" y="140" width="80" height="260"/><rect x="520" y="90" width="70" height="310"/><rect x="600" y="160" width="90" height="240"/><rect x="700" y="120" width="60" height="280"/></g>
+  <g fill="#ffcf6a" fill-opacity=".35"><rect x="444" y="170" width="10" height="12"/><rect x="480" y="210" width="10" height="12"/><rect x="536" y="120" width="10" height="12"/><rect x="560" y="180" width="10" height="12"/><rect x="620" y="200" width="10" height="12"/><rect x="660" y="250" width="10" height="12"/><rect x="716" y="160" width="10" height="12"/></g>
+  <!-- Brick building, left, with graffiti and awning -->
+  <rect x="0" y="0" width="420" height="420" fill="url(#brick)"/>
+  <g fill="none" stroke-linecap="round" stroke-width="10"><path d="M60 250c20-40 40 40 60 0s40 40 60 0" stroke="#e05a5a" stroke-opacity=".7"/><path d="M200 300c30-30 60 20 90-10" stroke="#5ac8e0" stroke-opacity=".55"/></g>
+  <path d="M0 120h400l20 60H0z" fill="#8a1e22"/><g fill="#e8d8c8" fill-opacity=".85"><path d="M0 180h420v8H0z"/></g>
+  <g fill="#e8d8c8" fill-opacity=".25"><path d="M40 120l-20 60h40l20-60zM140 120l-20 60h40l20-60zM240 120l-20 60h40l20-60zM340 120l-20 60h40l20-60z"/></g>
+  <text x="200" y="100" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-size="34" fill="#ffd08a" fill-opacity=".8">CORNER STORE</text>
+  <!-- Streetlight, right -->
+  <rect x="900" y="40" width="12" height="380" fill="#22202a"/><path d="M906 50h90" stroke="#22202a" stroke-width="10"/><path d="M970 46h50l-6 18h-38z" fill="#3a3640"/>
+  <ellipse cx="995" cy="200" rx="200" ry="200" fill="url(#light)"/>
+  <!-- Chain-link fence with a hole, far right -->
+  <g stroke="#7a7a80" stroke-opacity=".45" stroke-width="2"><path d="M1040 200l160 160M1040 240l120 120M1040 280l80 80M1080 200l120 120M1120 200l80 80M1200 200l-160 160M1160 200l-120 120M1120 200l-80 80M1200 240l-120 120M1200 280l-80 80"/></g>
+  <path d="M1040 196h160M1040 196v224" stroke="#5a5a60" stroke-width="6"/>
+  <ellipse cx="1130" cy="330" rx="34" ry="26" fill="#140e14"/>
+  <!-- Sidewalk and curb -->
+  <rect y="420" width="1200" height="60" fill="url(#walk)"/><rect y="416" width="1200" height="6" fill="#5a5250"/>
+  <g stroke="#120e0e" stroke-width="3"><path d="M200 420v60M480 420v60M760 420v60M1040 420v60"/></g>
+  <ellipse cx="320" cy="452" rx="70" ry="8" fill="#5ac8e0" fill-opacity=".1"/>
+</svg>

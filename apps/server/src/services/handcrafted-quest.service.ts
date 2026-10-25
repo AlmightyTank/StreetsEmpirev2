@@ -6,6 +6,7 @@ import {
   jobFaction,
   type FactionKey,
   type FactionTier,
+  NO_STORY_FACTS,
   type QuestBranchDefinition,
   type QuestDefinition,
   type QuestObjectiveDefinition,
@@ -14,7 +15,9 @@ import {
   questRequiredRecipes,
   type QuestRewardDefinition,
   type QuestType,
+  resolveStoryCopy,
   type Ruleset,
+  type StoryFacts,
 } from '@streets/rulesets';
 import type {
   GameActionResult,
@@ -94,6 +97,7 @@ import {
 } from './seasonal-event.service.js';
 import { CityConditionService } from './city-condition.service.js';
 import { PermanentUnlockService } from './permanent-unlock.service.js';
+import { recordSceneResponse, sceneResponsesFor, storyFactsFor, storyScenesDto, type SceneResponses } from './quest-story-scene.service.js';
 
 const TRACKED_LIMIT = 3;
 /** Shared-board work: not counted as a personal job and not abandonable. Personal jobs have no cap. */
@@ -287,12 +291,15 @@ function branchChoicesDto(row: QuestRow, ruleset: Ruleset): QuestBranchChoiceDto
   }));
 }
 
-function storyDto(row: QuestRow, ruleset: Ruleset): QuestStoryDto | undefined {
+function storyDto(row: QuestRow, ruleset: Ruleset, sceneResponses?: SceneResponses, storyFacts: StoryFacts = NO_STORY_FACTS): QuestStoryDto | undefined {
   const definition = ruleset.questDefinitions?.[row.questDefinition.key];
   if (!definition?.story) return undefined;
+  const { scenes: _scenes, ...story } = resolveStoryCopy(definition.story, storyFacts);
+  const scenes = storyScenesDto(definition, row, sceneResponses?.get(row.id));
   return {
-    ...definition.story,
+    ...story,
     speaker: contactFor(ruleset, definition.contactKey)?.shortName ?? 'StreetsEmpire',
+    ...(scenes ? { scenes } : {}),
   };
 }
 
@@ -367,6 +374,10 @@ interface QuestContext {
   joinedAt?: Date;
   now?: Date;
   actionCounts?: Readonly<Record<string, number>>;
+  /** Story campaign: recorded scene responses, by player quest id then scene key. */
+  sceneResponses?: SceneResponses;
+  /** Story campaign: the earlier outcomes story lines depend on. */
+  storyFacts?: StoryFacts;
 }
 
 interface QuestGateContext {
@@ -471,7 +482,7 @@ function questDto(row: QuestRow, ruleset: Ruleset, context: QuestContext, commun
     finishedBonuses,
   );
   const availability = availabilityJson(row.questDefinition.availability);
-  const story = storyDto(row, ruleset);
+  const story = storyDto(row, ruleset, context.sceneResponses, context.storyFacts);
   return {
     key: row.questDefinition.key,
     attempt: row.attempt,
@@ -1016,6 +1027,7 @@ async function startQuest(db: Db, roundPlayerId: string, row: QuestRow, ruleset:
   // QuestProgressService so recording it cannot recursively advance quests.
   await createPlayerActivity(db, roundPlayerId, 'QUEST_ACCEPTED', {
     questKey: row.questDefinition.key,
+    title: cityContractState(row.rewardState)?.title ?? row.questDefinition.title,
   });
 }
 
@@ -1093,7 +1105,11 @@ export const HandcraftedQuestService = {
       include: { questDefinition: true },
       orderBy: [{ createdAt: 'asc' }],
     });
-    const context: QuestContext = { points: {}, netWorthCents: 0n, completed: new Set(), reps: {} };
+    const context: QuestContext = {
+      points: {}, netWorthCents: 0n, completed: new Set(), reps: {},
+      sceneResponses: await sceneResponsesFor(prisma, rows, ruleset),
+      storyFacts: await storyFactsFor(prisma, roundPlayerId, ruleset),
+    };
     return { quests: rows.map((row) => questDto(row, ruleset, context)) };
   },
 
@@ -1214,6 +1230,8 @@ export const HandcraftedQuestService = {
         completed: completedQuestKeys,
         reps,
         ...gate,
+        sceneResponses: await sceneResponsesFor(tx, rows, ruleset),
+        storyFacts: await storyFactsFor(tx, roundPlayerId, ruleset),
       };
       // 1.4.0-D: what standing opens with each faction, and what it says right now.
       const factions = ruleset.factions ? Object.values(ruleset.factions).flatMap((faction) => faction ? [{
@@ -1426,6 +1444,21 @@ export const HandcraftedQuestService = {
     return this.page(prisma, roundPlayerId, ruleset);
   },
 
+  /** Story campaign: record the player's response in one of an active job's scenes, then return the board. */
+  async respondToScene(
+    prisma: PrismaClient,
+    roundPlayerId: string,
+    ruleset: Ruleset,
+    input: { questKey: string; sceneKey: string; responseKey: string },
+  ): Promise<QuestPageDto> {
+    await syncDefinitions(prisma, ruleset);
+    await prisma.$transaction(async (tx) => {
+      await lockRoundPlayer(tx, roundPlayerId);
+      await recordSceneResponse(tx, roundPlayerId, ruleset, input, new Date());
+    });
+    return this.page(prisma, roundPlayerId, ruleset, { skipSync: true });
+  },
+
   async abandon(prisma: PrismaClient, roundPlayerId: string, ruleset: Ruleset, key: string): Promise<QuestPageDto> {
     await syncDefinitions(prisma, ruleset);
     await prisma.$transaction(async (tx) => {
@@ -1446,6 +1479,8 @@ export const HandcraftedQuestService = {
         );
       }
       await tx.questProgressReceipt.deleteMany({ where: { playerQuestId: row.id } });
+      // A fresh start on the same attempt plays its scenes again too.
+      await tx.questSceneResponse.deleteMany({ where: { playerQuestId: row.id } });
       const preserveOffer = preservesGeneratedOffer(row, ruleset);
       await tx.playerQuest.update({
         where: { id: row.id },
@@ -1623,12 +1658,13 @@ export const HandcraftedQuestService = {
         }
         const newlyAvailable = await refreshAvailability(tx, roundPlayerId, ruleset, now, { kind: 'claim', questKey: key });
         const dtoRewards = visibleRewards(questRewards).map((reward) => rewardDto(reward, ruleset));
+        const questTitle = cityContractState(row.rewardState)?.title ?? row.questDefinition.title;
 
         return {
           next,
           result: {
             questKey: key,
-            title: cityContractState(row.rewardState)?.title ?? row.questDefinition.title,
+            title: questTitle,
             chosenBranch: selectedBranch?.key ?? row.chosenBranch,
             rewards: dtoRewards,
             reputationChanges,
@@ -1636,16 +1672,17 @@ export const HandcraftedQuestService = {
             standingChanges,
             ...(feeCents > 0n ? { feeCents: Number(feeCents) } : {}),
           },
-          // The fee is its own ledger line; whatever else the claim paid keeps the usual one.
-          ...(feeCents > 0n ? { ledger: [
-            { source: 'QUEST_FEE', label: `${row.questDefinition.title} · fee`, amountCents: -feeCents },
-            ...EconomyLedgerService.defaultForAction('QUEST_CLAIM', current.cashCents - feeCents, next.cashCents),
-          ] } : {}),
+          // The fee is its own ledger line; whatever else the claim paid is booked under the job's name.
+          ledger: [
+            ...(feeCents > 0n ? [{ source: 'QUEST_FEE', label: `${questTitle} · fee`, amountCents: -feeCents }] : []),
+            ...EconomyLedgerService.defaultForAction('QUEST_CLAIM', current.cashCents - feeCents, next.cashCents)
+              .map((entry) => ({ ...entry, label: `${questTitle} · payout` })),
+          ],
           activity: {
             type: 'QUEST_CLAIMED',
             payload: inputJson({
               questKey: key,
-              title: cityContractState(row.rewardState)?.title ?? row.questDefinition.title,
+              title: questTitle,
               contactKey: row.questDefinition.contactKey,
               chosenBranch: selectedBranch?.key ?? row.chosenBranch,
               rewards: dtoRewards.map((reward) => reward.label),

@@ -59,16 +59,30 @@ export function captureQuestViewport(questKey: string): QuestViewportAnchor {
 
 const SCROLL_KEYS = new Set(['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' ']);
 
+/** The pin stays up for the whole request. `settleAt` starts only after the board update lands. */
+export function pinStillHolding(now: number, settleAt: number | null): boolean {
+  return settleAt === null || now < settleAt;
+}
+
+export interface QuestViewportPin {
+  /** Stop immediately. Player scrolling and leaving the page use this. */
+  stop: () => void;
+  /** The quest update has been applied. Keep correcting while the board reflows. */
+  settle: () => void;
+}
+
 /**
  * Virtuoso lists on this page share the window scroller. Accepting or
  * collecting a job changes several of them at once, and each one compensates
- * scroll on its own. Hold the pre-action anchor until that settles.
+ * scroll on its own. Hold the pre-action anchor until the caller says the
+ * update has landed, then briefly after that so the reflow can finish.
  */
-export function pinQuestViewport(anchor: QuestViewportAnchor, durationMs = 4000): () => void {
-  if (typeof window === 'undefined') return () => undefined;
-  const started = performance.now();
+export function pinQuestViewport(anchor: QuestViewportAnchor, settleMs = 800): QuestViewportPin {
+  const noop: QuestViewportPin = { stop: () => undefined, settle: () => undefined };
+  if (typeof window === 'undefined') return noop;
   let frame = 0;
   let stopped = false;
+  let settleAt: number | null = null;
   const stop = () => {
     if (stopped) return;
     stopped = true;
@@ -77,6 +91,10 @@ export function pinQuestViewport(anchor: QuestViewportAnchor, durationMs = 4000)
     window.removeEventListener('touchstart', stop, true);
     window.removeEventListener('pointerdown', stop, true);
     window.removeEventListener('keydown', onKey, true);
+  };
+  const settle = () => {
+    if (stopped || settleAt !== null) return;
+    settleAt = performance.now() + settleMs;
   };
   const onKey = (event: KeyboardEvent) => {
     if (SCROLL_KEYS.has(event.key)) stop();
@@ -89,15 +107,18 @@ export function pinQuestViewport(anchor: QuestViewportAnchor, durationMs = 4000)
     if (Math.abs(window.scrollY - top) > 1) {
       window.scrollTo({ top, left: window.scrollX, behavior: 'auto' });
     }
-    if (performance.now() - started < durationMs) frame = window.requestAnimationFrame(restore);
-    else stop();
+    if (!pinStillHolding(performance.now(), settleAt)) {
+      stop();
+      return;
+    }
+    frame = window.requestAnimationFrame(restore);
   };
   window.addEventListener('wheel', stop, { capture: true, passive: true });
   window.addEventListener('touchstart', stop, { capture: true, passive: true });
   window.addEventListener('pointerdown', stop, true);
   window.addEventListener('keydown', onKey, true);
   frame = window.requestAnimationFrame(restore);
-  return stop;
+  return { stop, settle };
 }
 
 /** Deep links scroll once. Later board updates must not scroll back to them. */

@@ -24,6 +24,8 @@ import { DealerSalesSettleService } from './dealer-sales-settle.service.js';
 import { SupplyLaneSettleService } from './supply-lane-settle.service.js';
 import { LoanSettleService } from './loan-settle.service.js';
 import { TurfWarSettlementService } from './turf-war-settle.service.js';
+import { HideoutBuildService } from './hideout-build.service.js';
+import { HideoutAlertService } from './hideout-alerts.service.js';
 import { pokerCommittedCents, poolCommittedCents } from './casino-poker-committed.js';
 import { LawWarrantService } from './law-warrant.service.js';
 
@@ -111,6 +113,8 @@ export const PlayerStateService = {
     await ConvoyService.credit(tx, roundPlayerId, now);
     // 0.6.0-C: and turf-war squads/help are back or posted after the landing.
     await TurfWarSettlementService.credit(tx, roundPlayerId, now);
+    // Hideout construction that has finished lands before the player is read.
+    await HideoutBuildService.settle(tx, roundPlayerId, now);
 
     const player = await tx.roundPlayer.findUnique({
       where: { id: roundPlayerId },
@@ -293,6 +297,9 @@ export const PlayerStateService = {
         awayHours: ruleset.turns.awayBonus.afterHours,
       });
     }
+
+    // Bell notices for a room that is now ready to build and for new cosmetics.
+    if (round.status === 'ACTIVE') await HideoutAlertService.afterSettle(tx, settled, ruleset);
 
     const run = await runSummary(tx, roundPlayerId, ruleset, now);
     const move = await tx.relocation.findFirst({ where: { roundPlayerId, arrivedAt: null }, select: { toCity: true, arrivesAt: true } });

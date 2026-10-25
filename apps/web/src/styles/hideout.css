@@ -604,6 +604,7 @@
 }
 
 .se-hideout-room {
+  scroll-margin-top: 360px;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -627,6 +628,7 @@
 .se-hideout-room--ready::before { background: var(--se-accent); }
 .se-hideout-room--maxed::before { background: var(--se-good); }
 .se-hideout-room--cash::before { background: var(--se-warn); }
+.se-hideout-room--building::before { background: var(--se-accent); }
 
 .se-hideout-room__head {
   display: flex;
@@ -679,6 +681,46 @@
   border-color: rgba(255, 121, 26, 0.28);
   color: var(--se-warn);
 }
+
+.se-hideout-status--building {
+  border-color: var(--se-accent-dim);
+  color: var(--se-accent);
+}
+
+.se-hideout-build {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--se-accent-dim);
+  border-radius: 2px;
+}
+
+.se-hideout-build__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-family: var(--se-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.se-hideout-build__head span { color: var(--se-muted); }
+
+.se-hideout-build__bar {
+  height: 5px;
+  border-radius: 1px;
+  background: var(--se-line);
+  overflow: hidden;
+}
+
+.se-hideout-build__bar span {
+  display: block;
+  height: 100%;
+  background: var(--se-accent);
+  transition: width 1s linear;
+}
+
+.se-hideout-build small { color: var(--se-muted); }
 
 .se-hideout-room__blurb {
   min-height: 40px;
@@ -1024,8 +1066,25 @@
   padding-right: 34px;
 }
 
-.se-hideout-metric--art:has(.se-item-tile--wide) .se-hideout-metric__label {
+.se-hideout-metric--art:has(.se-item-tile--wide) .se-hideout-metric__label,
+.se-hideout-metric--art:has(.se-item-tile--wide) .se-hideout-metric__value {
   padding-right: 64px;
+}
+
+/* Back Office ledger: amount on top, timestamp underneath, never wrapped mid-date. */
+.se-hideout-ledger__value {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.se-hideout-ledger__when {
+  color: var(--se-muted);
+  font-size: 11px;
+  font-weight: 500;
 }
 
 .se-stash {
@@ -1171,3 +1230,5 @@
   .se-generator__actions { align-items: stretch; flex-direction: column; }
   .se-generator__actions > button { width: 100%; }
 }
+
+.se-hideout-room__parts { margin: 0; color: var(--se-muted); font-size: 12px; }

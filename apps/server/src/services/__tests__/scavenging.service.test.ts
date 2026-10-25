@@ -7,6 +7,7 @@ import {
   makeCache,
   openCache,
   rollRarity,
+  scavengeFindCount,
 } from '../scavenging.service.js';
 
 describe('hideout scavenging', () => {
@@ -44,4 +45,13 @@ describe('hideout scavenging', () => {
     expect(cache.eligiblePool.some((item) => item.key === firstReward.key)).toBe(true);
     expect(firstReward.quantity).toBeGreaterThan(0);
   });
+
+  it('brings home at least one component per scouting trip', () => {
+    expect(scavengeFindCount(0)).toBe(0);
+    expect(scavengeFindCount(1)).toBe(1);
+    expect(scavengeFindCount(2)).toBe(1);
+    expect(scavengeFindCount(3)).toBe(2);
+    expect(scavengeFindCount(10)).toBe(5);
+  });
+
 });

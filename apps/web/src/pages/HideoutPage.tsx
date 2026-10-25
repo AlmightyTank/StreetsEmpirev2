@@ -1,5 +1,5 @@
-import { useEffect, useState, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import type {
   HideoutRoomV2Dto,
   HideoutSpecializationResult,
@@ -24,7 +24,7 @@ import { useGameAction } from '../hooks/useGameAction.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
 import { confirmAction } from '../stores/confirm.js';
-import { formatWhen } from '../utils/time.js';
+import { formatCountdown, formatDuration, formatWhen } from '../utils/time.js';
 import { ItemLabel, ItemTile } from '../components/ItemTile.js';
 import { hasItemArt } from '../items/itemArt.js';
 import { EmpirePageHeader } from '../components/EmpireManagement.js';
@@ -88,6 +88,40 @@ function SectionHeading({
   );
 }
 
+/** "30m build" / "instant" for a room's next level. */
+function buildTimeLabel(minutes: number | null | undefined): string | null {
+  if (minutes === null || minutes === undefined) return null;
+  return minutes > 0 ? `${formatDuration(minutes * 60_000)} build` : 'instant build';
+}
+
+/** Ticks once a second until the build is ready, then asks the page to refresh once. */
+function BuildCountdown({ startedAt, readyAt, onDone }: { startedAt: string; readyAt: string; onDone: () => void }) {
+  const [now, setNow] = useState(() => Date.now());
+  const end = new Date(readyAt).getTime();
+  const start = new Date(startedAt).getTime();
+  const done = now >= end;
+  useEffect(() => {
+    if (done) {
+      // The server lands the level on its next settle; give the clock a moment of slack.
+      const timer = window.setTimeout(onDone, 1500);
+      return () => window.clearTimeout(timer);
+    }
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [done, onDone]);
+  const percent = end > start ? Math.min(100, Math.max(0, ((now - start) / (end - start)) * 100)) : 100;
+  return (
+    <div className="se-hideout-build" role="status">
+      <div className="se-hideout-build__head">
+        <span>Under construction</span>
+        <strong>{done ? 'Finishing up…' : `Ready in ${formatCountdown(end - now)}`}</strong>
+      </div>
+      <div className="se-hideout-build__bar" aria-hidden="true"><span style={{ width: `${percent}%` }} /></div>
+      <small>Done {formatWhen(readyAt)}</small>
+    </div>
+  );
+}
+
 function RoomCard({
   room,
   cashCents,
@@ -95,6 +129,7 @@ function RoomCard({
   specializing,
   onUpgrade,
   onSpecialize,
+  onBuildDone,
 }: {
   room: HideoutRoomV2Dto;
   cashCents: number;
@@ -103,8 +138,11 @@ function RoomCard({
   specializing: boolean;
   onUpgrade: (room: HideoutRoomV2Dto) => void;
   onSpecialize: (room: HideoutRoomV2Dto, key: string) => void;
+  onBuildDone: () => void;
 }) {
   const maxed = room.nextCostCents === null;
+  const building = room.build ?? null;
+  const buildTime = buildTimeLabel(room.nextBuildMinutes);
   const nextCostComponents = room.nextCostComponents ?? [];
   const affordable = !maxed && cashCents >= room.nextCostCents!;
   const selectedSpecialization = room.specialization?.selectedKey
@@ -116,7 +154,9 @@ function RoomCard({
     && room.specialization.selectedKey === null
   );
   const requirementsMet = room.nextRequirements.every((requirement) => requirement.met);
-  const state = maxed
+  const state = building
+    ? 'building'
+    : maxed
     ? 'maxed'
     : room.canUpgrade
       ? 'ready'
@@ -125,7 +165,9 @@ function RoomCard({
         : !requirementsMet || room.lockReason
           ? 'locked'
           : 'locked';
-  const stateLabel = state === 'maxed'
+  const stateLabel = state === 'building'
+    ? 'Building'
+    : state === 'maxed'
     ? 'Max level'
     : state === 'ready'
       ? 'Ready'
@@ -134,7 +176,7 @@ function RoomCard({
         : 'Locked';
 
   return (
-    <article className={`se-hideout-room se-hideout-room--${state}`} data-room={room.key.toLowerCase()}>
+    <article className={`se-hideout-room se-hideout-room--${state}`} data-room={room.key.toLowerCase()} data-tour={room.key === 'SAFE_ROOM' ? 'upgrade-hideout' : undefined} data-tour-card-anchor={room.key === 'SAFE_ROOM' ? 'upgrade-hideout' : undefined}>
       <div className="se-hideout-room__head">
         <div>
           <span className="se-hideout-room__kicker">{room.key.replaceAll('_', ' ')}</span>
@@ -168,7 +210,7 @@ function RoomCard({
           </div>
           <div className="se-hideout-room__price">
             <span>Cost</span>
-            <strong>{formatCents(room.nextCostCents!)} · {formatNumber(room.nextCostTurns!)} turns</strong>
+            <strong>{formatCents(room.nextCostCents!)} · {formatNumber(room.nextCostTurns!)} turns{buildTime ? ` · ${buildTime}` : ''}</strong>
           </div>
         </div>
       ) : (
@@ -180,7 +222,9 @@ function RoomCard({
         </div>
       )}
 
-      {!maxed && nextCostComponents.length ? (
+      {building ? <BuildCountdown startedAt={building.startedAt} readyAt={building.readyAt} onDone={onBuildDone} /> : null}
+
+      {!maxed && !building && nextCostComponents.length ? (
         <div className="se-hideout-room__requirements">
           {nextCostComponents.map((component) => (
             <div key={component.key} className={component.met ? 'is-met' : undefined}>
@@ -189,6 +233,11 @@ function RoomCard({
             </div>
           ))}
         </div>
+      ) : null}
+      {!maxed && !building && nextCostComponents.some((component) => !component.met) ? (
+        <p className="se-hideout-room__parts">
+          Short on parts? <Link to="/game/stores/salvage">Get them at the Salvage Yard</Link>.
+        </p>
       ) : null}
 
       {room.nextRequirements.length ? (
@@ -240,7 +289,6 @@ function RoomCard({
       <Button
         type="button"
         className="se-btn se-btn--primary se-btn--block"
-        data-tour="upgrade-hideout"
         disabledReason={blocked
           ?? (maxed ? 'This room is fully upgraded for this season.' : null)
           ?? room.lockReason
@@ -249,7 +297,9 @@ function RoomCard({
             : null)}
         onClick={() => onUpgrade(room)}
       >
-        {maxed
+        {building
+          ? `Building level ${formatNumber(building.level)}`
+          : maxed
           ? 'Fully upgraded'
           : !affordable
             ? `Need ${formatCents(room.nextCostCents!)}`
@@ -311,6 +361,9 @@ function HideoutLook({
 /** Shows the current headquarters state and controls for seasonal room upgrades. */
 export function HideoutPage() {
   const me = useSession((s) => s.me);
+  const location = useLocation();
+  const tourTarget = (location.state as { tourTarget?: unknown } | null)?.tourTarget;
+  const guidedTourScrolled = useRef(false);
   const action = useGameAction<HideoutUpgradeResult>();
   const armoryAction = useGameAction<HideoutWeaponPriorityResult>();
   const specializationAction = useGameAction<HideoutSpecializationResult>();
@@ -327,6 +380,20 @@ export function HideoutPage() {
   const [scavenging, setScavenging] = useState<ScavengePageDto | null>(null);
   const [workshop, setWorkshop] = useState<CraftingWorkshopDto | null>(null);
   const [hideoutTab, setHideoutTab] = useState<'stash' | 'scavenging' | 'workshop' | 'generator'>('stash');
+
+  useEffect(() => {
+    if (tourTarget !== 'upgrade-hideout' || guidedTourScrolled.current) return;
+    const frame = window.requestAnimationFrame(() => {
+      const target = document.querySelector('[data-tour="upgrade-hideout"]');
+      if (!target) return;
+      guidedTourScrolled.current = true;
+      target.scrollIntoView({
+        block: 'start',
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+      });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [tourTarget]);
 
   useEffect(() => {
     let active = true;
@@ -376,6 +443,12 @@ export function HideoutPage() {
       setCosmeticBusy(false);
     }
   }
+
+  // A finished build changes levels, effects and what is ready next: refresh both.
+  const buildDone = useCallback(() => {
+    setReload((n) => n + 1);
+    void useSession.getState().refreshSnapshot({ background: true });
+  }, []);
 
   async function upgrade(room: HideoutRoomV2Dto) {
     await action.run((actionId) => hideoutApi.upgrade({ room: room.key, actionId }));
@@ -631,6 +704,7 @@ export function HideoutPage() {
                     specializing={specializationAction.busy}
                     onUpgrade={(next) => void upgrade(next)}
                     onSpecialize={(next, key) => void specialize(next, key)}
+                    onBuildDone={buildDone}
                   />
                 ))}
               </div>
@@ -837,11 +911,11 @@ export function HideoutPage() {
                             key={vehicle.classId}
                             label={`${vehicle.name} fleet`}
                             art={vehicle.classId}
-                            value={`${formatNumber(vehicle.home)} ready · ${formatNumber(vehicle.away)} away`}
+                            value={`${formatNumber(vehicle.home)} ready`}
                             tone={(vehicle.damaged ?? 0) + (vehicle.disabled ?? 0) ? 'warn' : undefined}
                             detail={(vehicle.damaged ?? 0) + (vehicle.disabled ?? 0)
-                              ? `${formatNumber(vehicle.damaged ?? 0)} damaged · ${formatNumber(vehicle.disabled ?? 0)} disabled`
-                              : undefined}
+                              ? `${formatNumber(vehicle.away)} away · ${formatNumber(vehicle.damaged ?? 0)} damaged · ${formatNumber(vehicle.disabled ?? 0)} disabled`
+                              : `${formatNumber(vehicle.away)} away`}
                           />
                         )) : <>
                           <Metric label="Low-Riders home" art="LOW_RIDER" value={formatNumber(lowRidersHome)} />
@@ -915,7 +989,12 @@ export function HideoutPage() {
                             <Row
                               key={entry.id}
                               label={entry.label}
-                              value={`${entry.amountCents >= 0 ? '+' : '−'}${formatCents(Math.abs(entry.amountCents))} · ${formatWhen(entry.createdAt)}`}
+                              value={(
+                                <span className="se-hideout-ledger__value">
+                                  <span>{`${entry.amountCents >= 0 ? '+' : '−'}${formatCents(Math.abs(entry.amountCents))}`}</span>
+                                  <span className="se-hideout-ledger__when">{formatWhen(entry.createdAt)}</span>
+                                </span>
+                              )}
                               strong={entry.category === 'INCOME'}
                             />
                           ))}
@@ -948,14 +1027,16 @@ export function HideoutPage() {
         {receipt && action.result ? (
           <div className="se-store-receipt" aria-live="polite">
             <ActionResult
-              title={`${receipt.roomName} upgraded`}
-              subtitle={`Level ${receipt.levelBefore} -> ${receipt.levelAfter}`}
+              title={receipt.readyAt ? `${receipt.roomName} construction started` : `${receipt.roomName} upgraded`}
+              subtitle={receipt.readyAt
+                ? `Level ${receipt.levelAfter} is ready ${formatWhen(receipt.readyAt)}`
+                : `Level ${receipt.levelBefore} -> ${receipt.levelAfter}`}
               result={action.result}
               onDismiss={action.clear}
               lines={[
                 { label: 'Paid', delta: -receipt.costCents, money: true },
-                { label: 'Effect', value: receipt.effect },
-                { label: 'Turns used', value: '0' },
+                { label: receipt.readyAt ? 'When built' : 'Effect', value: receipt.effect },
+                ...(receipt.buildMinutes ? [{ label: 'Build time', value: formatDuration(receipt.buildMinutes * 60_000) }] : []),
               ]}
             />
           </div>

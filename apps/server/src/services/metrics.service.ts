@@ -14,7 +14,17 @@
 export const LATENCY_BUCKETS_MS = [5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000] as const;
 
 export type RequestArea = 'game' | 'auth' | 'admin' | 'public' | 'health' | 'other';
-export type OnboardingMetric = 'tour_offered' | 'tour_started' | 'tour_skipped' | 'step_blocked' | 'step_completed' | 'chapter_graduated';
+export type OnboardingMetric =
+  | 'tour_offered'
+  | 'tour_started'
+  | 'tour_returned'
+  | 'tour_skipped'
+  | 'step_blocked'
+  | 'step_completed'
+  | 'tour_first_action'
+  | 'tour_first_reward'
+  | 'chapter_graduated'
+  | 'tour_completed';
 
 interface Minute {
   at: number;

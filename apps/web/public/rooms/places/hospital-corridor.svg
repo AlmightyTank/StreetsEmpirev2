@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 480">
+  <!-- The hospital at shift change: a corridor of tube lights, a nurses' station, a vending machine, a clock past six. -->
+  <defs>
+    <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1e2a2a"/><stop offset="1" stop-color="#121a1a"/></linearGradient>
+    <radialGradient id="tube" cx=".5" cy=".02" r=".6"><stop offset="0" stop-color="#e8fff8" stop-opacity=".42"/><stop offset=".5" stop-color="#a0d0c8" stop-opacity=".1"/><stop offset="1" stop-color="#a0d0c8" stop-opacity="0"/></radialGradient>
+    <linearGradient id="hall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a3838"/><stop offset="1" stop-color="#3a4a4a"/></linearGradient>
+  </defs>
+  <rect width="1200" height="480" fill="url(#wall)"/>
+  <!-- Corridor receding through the middle -->
+  <path d="M470 120h260v260H470z" fill="#0e1414"/>
+  <path d="M0 0l470 120M1200 0L730 120M0 420l470-40M1200 420l-470-40" stroke="#2a3a3a" stroke-width="3"/>
+  <path d="M470 380h260l470 40H0z" fill="url(#hall)"/>
+  <g fill="#e8fff8" fill-opacity=".8"><rect x="560" y="126" width="80" height="4"/><rect x="540" y="96" width="120" height="6"/></g>
+  <!-- Handrail stripe -->
+  <path d="M0 250l470 30M1200 250l-470 30" stroke="#5a9a8a" stroke-width="8"/>
+  <!-- Nurses' station, left -->
+  <path d="M30 300h300v120H30z" fill="#c8d8d4"/><rect x="30" y="292" width="300" height="12" fill="#e8f0ee"/>
+  <rect x="80" y="240" width="90" height="56" fill="#101818" stroke="#2a3a3a" stroke-width="4"/><rect x="88" y="248" width="74" height="40" fill="#5ad0b0" fill-opacity=".35"/>
+  <path d="M200 292l40-30h70v30z" fill="#e8e0c8" fill-opacity=".8"/>
+  <!-- Vending machine and clock, right -->
+  <rect x="980" y="170" width="150" height="250" rx="6" fill="#a83a2a"/><rect x="996" y="190" width="94" height="170" fill="#1a1414"/>
+  <g fill="#e8d870" fill-opacity=".7"><rect x="1004" y="200" width="22" height="30"/><rect x="1034" y="200" width="22" height="30"/><rect x="1064" y="200" width="22" height="30"/><rect x="1004" y="246" width="22" height="30"/><rect x="1034" y="246" width="22" height="30"/><rect x="1064" y="246" width="22" height="30"/></g>
+  <circle cx="860" cy="110" r="30" fill="#f4f4ee" stroke="#2a3a3a" stroke-width="5"/><path d="M860 110v22M860 110l-6-18" stroke="#121a1a" stroke-width="3" stroke-linecap="round"/>
+  <rect width="1200" height="480" fill="url(#tube)"/>
+  <!-- Floor -->
+  <rect y="420" width="1200" height="60" fill="#3a4a48"/><rect y="416" width="1200" height="6" fill="#5a6a68"/>
+  <ellipse cx="600" cy="446" rx="200" ry="8" fill="#e8fff8" fill-opacity=".06"/>
+</svg>

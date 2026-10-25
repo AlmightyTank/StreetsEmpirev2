@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 480">
+  <!-- Tommy's gun cage: chain-link walls, long guns on a rack, numbered crates, the tally book on the bench. -->
+  <defs>
+    <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1e1f18"/><stop offset="1" stop-color="#12130e"/></linearGradient>
+    <radialGradient id="bulb" cx=".5" cy=".06" r=".55"><stop offset="0" stop-color="#fff2b0" stop-opacity=".45"/><stop offset="1" stop-color="#c8c060" stop-opacity="0"/></radialGradient>
+    <pattern id="mesh" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M0 0l24 24M24 0L0 24" stroke="#7a7a70" stroke-opacity=".35" stroke-width="2"/></pattern>
+  </defs>
+  <rect width="1200" height="480" fill="url(#wall)"/>
+  <!-- Rack of long guns, left -->
+  <rect x="50" y="90" width="340" height="16" fill="#4a3a24"/><rect x="50" y="300" width="340" height="16" fill="#4a3a24"/>
+  <g fill="#2a2a26" stroke="#0e0e0c" stroke-width="2"><path d="M80 106h14v190h-14zM140 106h14v190h-14zM200 106h14v190h-14zM260 106h14v190h-14zM320 106h14v190h-14z"/></g>
+  <g fill="#5a3a22"><path d="M74 230h26l4 66h-34zM134 230h26l4 66h-34zM194 230h26l4 66h-34zM254 230h26l4 66h-34z"/></g>
+  <!-- Chain-link cage wall over everything left -->
+  <rect x="30" y="40" width="380" height="380" fill="url(#mesh)"/><rect x="30" y="40" width="380" height="380" fill="none" stroke="#5a5a52" stroke-width="8"/>
+  <!-- Numbered crates, right -->
+  <g stroke="#2a2216" stroke-width="4"><rect x="840" y="260" width="150" height="100" fill="#4f5a32"/><rect x="1000" y="260" width="160" height="100" fill="#4f5a32"/><rect x="900" y="160" width="170" height="100" fill="#5a6438"/></g>
+  <g font-family="Courier New, monospace" font-weight="700" font-size="22" fill="#e8e0b0" fill-opacity=".75"><text x="860" y="318">LOT 114</text><text x="1020" y="318">LOT 117</text><text x="920" y="218">LOT 112</text></g>
+  <!-- Bulb -->
+  <path d="M600 0v42" stroke="#0e0e0c" stroke-width="3"/><ellipse cx="600" cy="60" rx="12" ry="15" fill="#fff6c8"/>
+  <rect width="1200" height="480" fill="url(#bulb)"/>
+  <!-- Bench with the tally book -->
+  <rect y="420" width="1200" height="60" fill="#3a3020"/><rect y="416" width="1200" height="6" fill="#6a5a3a"/>
+  <path d="M640 426l80-14 80 14z" fill="#c8b07a"/><path d="M720 412v14" stroke="#8a7a50" stroke-width="2"/>
+  <path d="M380 418h80v6h-80z" fill="#a83a2a"/>
+</svg>

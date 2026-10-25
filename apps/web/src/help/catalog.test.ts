@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { ONBOARDING_GUIDE_STEPS, ONBOARDING_PAGE_KEYS } from '@streets/shared';
+import { ONBOARDING_PAGE_KEYS } from '@streets/shared';
 import { TOUR_STEP_KEYS } from '@streets/shared';
-import { GUIDE_STEPS, INTRO_CARDS, PAGE_HELP, PAGE_INTROS, TOUR_STEPS, pageHelpFor, pageIntroFor } from './catalog.js';
+import { INTRO_CARDS, PAGE_HELP, PAGE_INTROS, TOUR_STEPS, pageHelpFor, pageIntroFor } from './catalog.js';
 
 const rulesPage = readFileSync(new URL('../pages/RulesPage.tsx', import.meta.url), 'utf8');
 
@@ -40,10 +40,6 @@ describe('1.0.0-B help catalog', () => {
     }
   });
 
-  it('has copy for every getting-started goal', () => {
-    for (const key of ONBOARDING_GUIDE_STEPS) expect(GUIDE_STEPS[key]?.title, key).toBeTruthy();
-  });
-
   it('has a tour tooltip on a real route for every walkthrough step', () => {
     expect([...TOUR_STEP_KEYS]).toEqual(Object.keys(TOUR_STEPS));
     for (const key of TOUR_STEP_KEYS) {
@@ -72,10 +68,8 @@ describe('1.0.0-B help catalog', () => {
       // Each store lives at /game/stores/:slug on the same page.
       const route = path.startsWith('/game/stores/') ? '/game/stores' : path;
       const source = sources[route] ?? '';
-      // Panels take the anchor as a `tourTarget` prop. Quest actions pass the
-      // same target through a `data-tour` expression on the button itself.
+      // Panels take the anchor as a `tourTarget` prop, so it can appear as a string literal.
       const anchored = source.includes(`data-tour="${copy.target}"`)
-        || (source.includes('data-tour=') && source.includes(`'${copy.target}'`))
         || (source.includes('tourTarget') && source.includes(`'${copy.target}'`));
       expect(anchored, `${key} anchor in ${copy.to}`).toBe(true);
     }

@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 480">
+  <!-- Mr. Hales's stairwell: a narrow tenement stair, a bulb on the landing, mail slots, a door ajar. -->
+  <defs>
+    <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a2a22"/><stop offset="1" stop-color="#16160f"/></linearGradient>
+    <radialGradient id="bulb" cx=".5" cy=".06" r=".5"><stop offset="0" stop-color="#fff0b0" stop-opacity=".45"/><stop offset=".5" stop-color="#c8b060" stop-opacity=".1"/><stop offset="1" stop-color="#c8b060" stop-opacity="0"/></radialGradient>
+    <linearGradient id="door" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#4a2a1e"/><stop offset="1" stop-color="#2a160e"/></linearGradient>
+  </defs>
+  <rect width="1200" height="480" fill="url(#wall)"/>
+  <rect y="240" width="1200" height="180" fill="#2a3a30" fill-opacity=".55"/><rect y="236" width="1200" height="6" fill="#3a4a3e"/>
+  <!-- Stairs rising left -->
+  <g fill="#3a3228" stroke="#1a160e" stroke-width="3"><path d="M0 420h80v-40h70v-40h70v-40h70v-40h70v-40h70v-40h40v280H0z"/></g>
+  <path d="M0 380l450-280" stroke="#6a4a30" stroke-width="10" stroke-linecap="round"/>
+  <g stroke="#4a3424" stroke-width="5"><path d="M60 344v-36M140 294v-36M220 245v-36M300 195v-36M380 145v-36"/></g>
+  <!-- Mail slots -->
+  <rect x="620" y="250" width="150" height="110" fill="#5a5040" stroke="#2a2418" stroke-width="5"/>
+  <g fill="#2a2418"><rect x="636" y="266" width="36" height="10"/><rect x="680" y="266" width="36" height="10"/><rect x="724" y="266" width="36" height="10"/><rect x="636" y="296" width="36" height="10"/><rect x="680" y="296" width="36" height="10"/><rect x="724" y="296" width="36" height="10"/><rect x="636" y="326" width="36" height="10"/><rect x="680" y="326" width="36" height="10"/><rect x="724" y="326" width="36" height="10"/></g>
+  <path d="M684 262l26 6-4 10-26-6z" fill="#e8e0c8"/>
+  <!-- Door ajar, right -->
+  <rect x="900" y="80" width="200" height="340" fill="#120e0a" stroke="#2a1e14" stroke-width="10"/>
+  <path d="M905 85l130 20v315l-130-5z" fill="url(#door)"/><circle cx="1015" cy="260" r="7" fill="#c8a040"/>
+  <path d="M1035 105l60-15v330l-60 0z" fill="#ffd890" fill-opacity=".12"/>
+  <text x="970" y="150" font-family="Georgia, serif" font-size="26" fill="#c8a040" fill-opacity=".8">3B</text>
+  <!-- Landing bulb -->
+  <path d="M600 0v40" stroke="#0e0e0a" stroke-width="3"/><ellipse cx="600" cy="54" rx="11" ry="14" fill="#fff4c0"/>
+  <rect width="1200" height="480" fill="url(#bulb)"/>
+  <!-- Landing floor -->
+  <rect y="420" width="1200" height="60" fill="#2a241a"/><rect y="416" width="1200" height="6" fill="#5a4a34"/>
+  <g fill="#3a3024"><rect x="0" y="440" width="1200" height="3"/></g>
+</svg>

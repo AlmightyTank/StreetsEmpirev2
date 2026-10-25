@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 480">
+  <!-- The curb outside Mama's: a streetlight, her stoop and railing, a car just pulled in with its lights still on. -->
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0c0c16"/><stop offset="1" stop-color="#1e1620"/></linearGradient>
+    <radialGradient id="street" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ffd8a0" stop-opacity=".45"/><stop offset="1" stop-color="#ffb070" stop-opacity="0"/></radialGradient>
+    <radialGradient id="beam" cx="0" cy=".5" r="1"><stop offset="0" stop-color="#fff4d0" stop-opacity=".4"/><stop offset="1" stop-color="#fff4d0" stop-opacity="0"/></radialGradient>
+    <pattern id="brick" width="60" height="30" patternUnits="userSpaceOnUse"><rect width="60" height="30" fill="#3a2420"/><path d="M0 29h60M30 0v15M0 15h60M60 15v15M0 15v15" stroke="#22140f" stroke-width="3"/></pattern>
+  </defs>
+  <rect width="1200" height="480" fill="url(#sky)"/>
+  <!-- Mama's building, left: stoop and lit window -->
+  <rect x="0" y="0" width="420" height="420" fill="url(#brick)"/>
+  <rect x="80" y="70" width="110" height="130" fill="#ffc878" fill-opacity=".45" stroke="#1a100c" stroke-width="10"/><path d="M135 70v130M80 135h110" stroke="#1a100c" stroke-width="6"/>
+  <rect x="250" y="140" width="110" height="200" fill="#2a1a12" stroke="#1a100c" stroke-width="8"/>
+  <g fill="#4a3a32"><rect x="220" y="340" width="170" height="20"/><rect x="200" y="360" width="210" height="20"/><rect x="180" y="380" width="250" height="40"/></g>
+  <path d="M190 380l40-60M420 380l-30-60" stroke="#1a1a1a" stroke-width="5"/>
+  <!-- Streetlight, centre-right -->
+  <rect x="760" y="60" width="10" height="360" fill="#1a1820"/><path d="M766 64h-70" stroke="#1a1820" stroke-width="8"/><path d="M680 60h40l-6 16h-28z" fill="#3a3640"/>
+  <ellipse cx="700" cy="180" rx="220" ry="200" fill="url(#street)"/>
+  <!-- Car at the curb, right, headlights on -->
+  <path d="M860 360c10-50 40-70 110-74h120c40 0 70 30 110 40v74H860z" fill="#2a2a34"/><path d="M930 300l30-40h140l40 40z" fill="#16161c"/>
+  <g fill="#0a0a0c"><circle cx="930" cy="404" r="26"/><circle cx="1130" cy="404" r="26"/></g>
+  <rect x="852" y="340" width="20" height="14" fill="#fff4d0"/><path d="M852 346L560 300v120z" fill="url(#beam)"/>
+  <!-- Sidewalk and curb -->
+  <rect y="420" width="1200" height="60" fill="#2a2628"/><rect y="416" width="1200" height="6" fill="#5a5250"/>
+  <g stroke="#14100e" stroke-width="3"><path d="M300 420v60M600 420v60M900 420v60"/></g>
+</svg>

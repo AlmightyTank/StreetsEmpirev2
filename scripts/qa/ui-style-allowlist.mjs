@@ -13,6 +13,7 @@ export const APPROVED_ART_FILES = [
   { pattern: /^dashboard-(?:cinematic|final-polish)\.css$/, reason: 'Command Center illustration and cinematic treatment.' },
   { pattern: /^easter-eggs\.css$/, reason: 'Optional decorative effects.' },
   { pattern: /^encounter-cinema\.css$/, reason: 'Full-screen encounter artwork.' },
+  { pattern: /^contact-room\.css$/, reason: 'Contact room scene: each contact’s painted room, lamp glow, desk edge and per-contact tint (--room-tint), which also colours that room’s dialogue accents.' },
   { pattern: /^page-identities\.css$/, reason: 'Decorative route identity art tokens and motifs.' },
   { pattern: /^profile(?:-hover)?\.css$/, reason: 'Player-owned frames, cosmetics and profile previews.' },
   { pattern: /^site-themes\.css$/, reason: 'Premium theme token definitions and decorative effects.' },

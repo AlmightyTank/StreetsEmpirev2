@@ -8,6 +8,7 @@ import {
   questAbandonSchema,
   questAutoAcceptSchema,
   questClaimSchema,
+  questSceneResponseSchema,
   questTrackSchema,
   randomEncounterChoiceSchema,
   scoutSchema,
@@ -58,6 +59,7 @@ import { StoreService } from '../services/store.service.js';
 import { HideoutService } from '../services/hideout.service.js';
 import { StashService } from '../services/stash.service.js';
 import { ScavengingService } from '../services/scavenging.service.js';
+import { MAX_SALVAGE_TRADE, SalvageYardService } from '../services/salvage-yard.service.js';
 import { GeneratorService, type GeneratorUpdate } from '../services/generator.service.js';
 import { WorkshopService } from '../services/workshop.service.js';
 import { HideoutCosmeticService } from '../services/hideout-cosmetic.service.js';
@@ -301,6 +303,20 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/districts', { preHandler: fastify.requireAuth }, async (request) => {
     const { round, player } = await requirePlayer(request.auth!.account.id);
     return ScoutService.districts(fastify.prisma, player.id, loadRulesetForRound(round), player, player.city.slug);
+  });
+
+  // The Salvage Yard: hideout building materials for cash or barter.
+  fastify.get('/stores/salvage', { preHandler: fastify.requireAuth }, async (request) => {
+    const { player } = await requirePlayer(request.auth!.account.id);
+    await PlayerStateService.settle(fastify.prisma, player.id, { markActive: true });
+    return SalvageYardService.page(fastify.prisma, player.id);
+  });
+
+  fastify.post('/stores/salvage/trade', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(z.object({ key: z.string().trim().min(1).max(64), quantity: z.number().int().min(1).max(MAX_SALVAGE_TRADE) }).strict(), request.body);
+    const { player } = await requirePlayer(request.auth!.account.id);
+    await PlayerStateService.settle(fastify.prisma, player.id, { markActive: true });
+    return SalvageYardService.trade(fastify.prisma, player.id, body.key, body.quantity);
   });
 
   fastify.get('/stores', { preHandler: fastify.requireAuth }, async (request) => {
@@ -758,6 +774,17 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
     const { round, player } = await requirePlayer(request.auth!.account.id);
     const key = String((request.params as { key: string }).key).trim().toUpperCase();
     return HandcraftedQuestService.track(fastify.prisma, player.id, loadRulesetForRound(round), key, body.tracked);
+  });
+
+  fastify.post('/quests/:key/scenes/:sceneKey', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(questSceneResponseSchema, request.body);
+    const { round, player } = await requirePlayer(request.auth!.account.id);
+    const params = request.params as { key: string; sceneKey: string };
+    return HandcraftedQuestService.respondToScene(fastify.prisma, player.id, loadRulesetForRound(round), {
+      questKey: String(params.key).trim().toUpperCase(),
+      sceneKey: String(params.sceneKey).trim().toLowerCase(),
+      responseKey: body.responseKey,
+    });
   });
 
   fastify.post('/quests/:key/claim', { preHandler: fastify.requireAuth }, async (request) => {

@@ -112,10 +112,9 @@ describe.runIf(enabled)('1.0.0-H Season One on a scratch database', () => {
       const snapshot = await me(who);
       players.set(who, { accountId: account.id, publicPimpId: snapshot.player.publicPimpId, roundPlayerId: snapshot.player.id });
     }
-    // Learn the game: the intro, the rules and the getting-started guide.
+    // Learn the game: the intro and the rules.
     await ok('ann', 'POST', '/game/onboarding', { action: 'complete-intro' });
-    const onboarding = await ok<{ guide: { steps: unknown[] } }>('ann', 'GET', '/game/onboarding');
-    expect(onboarding.guide.steps.length).toBeGreaterThan(0);
+    await ok('ann', 'GET', '/game/onboarding');
     await ok(null, 'GET', '/rounds/current/status');
   });
 

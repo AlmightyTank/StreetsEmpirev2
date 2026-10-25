@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 480">
+  <!-- Pip's counter: stocked shelves, a buzzing sign, the scale that never lies. -->
+  <defs>
+    <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#14201a"/><stop offset="1" stop-color="#0c1410"/></linearGradient>
+    <radialGradient id="tube" cx=".5" cy="0" r=".7"><stop offset="0" stop-color="#c8ffd8" stop-opacity=".35"/><stop offset=".5" stop-color="#6ec88c" stop-opacity=".1"/><stop offset="1" stop-color="#6ec88c" stop-opacity="0"/></radialGradient>
+    <radialGradient id="neon" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ff5a8a" stop-opacity=".45"/><stop offset="1" stop-color="#ff5a8a" stop-opacity="0"/></radialGradient>
+    <linearGradient id="counter" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3d4a44"/><stop offset="1" stop-color="#1c2420"/></linearGradient>
+  </defs>
+  <rect width="1200" height="480" fill="url(#wall)"/>
+  <!-- Shelving, left -->
+  <g fill="#2c3a33"><rect x="40" y="60" width="330" height="10"/><rect x="40" y="160" width="330" height="10"/><rect x="40" y="260" width="330" height="10"/><rect x="40" y="360" width="330" height="10"/><rect x="40" y="60" width="10" height="320"/><rect x="360" y="60" width="10" height="320"/></g>
+  <g fill-opacity=".8">
+    <rect x="62" y="104" width="40" height="56" rx="4" fill="#5aa57a"/><rect x="110" y="114" width="40" height="46" rx="4" fill="#d8c35a"/><rect x="158" y="98" width="40" height="62" rx="4" fill="#5aa57a"/><rect x="206" y="118" width="60" height="42" rx="4" fill="#c86a4a"/><rect x="276" y="106" width="40" height="54" rx="4" fill="#8a9fd0"/>
+    <path d="M62 260v-40l20-14h40l20 14v40z" fill="#c9c2a8"/><path d="M152 260v-40l20-14h40l20 14v40z" fill="#c9c2a8"/><rect x="250" y="212" width="90" height="48" rx="6" fill="#5aa57a"/>
+    <rect x="62" y="318" width="120" height="42" rx="4" fill="#3d6b52"/><rect x="194" y="306" width="60" height="54" rx="4" fill="#d8c35a"/><rect x="264" y="322" width="80" height="38" rx="4" fill="#c86a4a"/>
+  </g>
+  <!-- Neon OPEN sign, right -->
+  <ellipse cx="1000" cy="130" rx="190" ry="110" fill="url(#neon)"/>
+  <rect x="900" y="90" width="200" height="80" rx="12" fill="none" stroke="#3a1a22" stroke-width="6"/>
+  <text x="1000" y="146" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-size="44" font-weight="900" fill="none" stroke="#ff7aa0" stroke-width="3" letter-spacing="6">OPEN</text>
+  <!-- Price board -->
+  <rect x="860" y="220" width="280" height="150" rx="6" fill="#101614" stroke="#2c3a33" stroke-width="6"/>
+  <g stroke="#e6e6d8" stroke-opacity=".5" stroke-width="5" stroke-linecap="round"><path d="M884 250h120M1060 250h50M884 286h90M1060 286h50M884 322h140M1060 322h50"/></g>
+  <!-- Fluorescent tube -->
+  <rect x="470" y="14" width="260" height="10" rx="5" fill="#e8fff0"/>
+  <rect width="1200" height="480" fill="url(#tube)"/>
+  <!-- The counter -->
+  <rect y="410" width="1200" height="70" fill="url(#counter)"/><rect y="406" width="1200" height="6" fill="#6f8579"/>
+  <!-- Scale, left of centre; register, right -->
+  <path d="M300 406h120l-10-14h-100z" fill="#9aa39e"/><rect x="352" y="356" width="16" height="38" fill="#7d8681"/><ellipse cx="360" cy="352" rx="56" ry="9" fill="#b9c2bd"/>
+  <path d="M780 406l14-70h130l14 70z" fill="#2a302d"/><rect x="800" y="306" width="120" height="34" rx="4" fill="#202624"/><rect x="814" y="314" width="70" height="18" fill="#7fe0a0" fill-opacity=".65"/>
+  <g fill="#4a524e"><rect x="806" y="352" width="22" height="12" rx="2"/><rect x="836" y="352" width="22" height="12" rx="2"/><rect x="866" y="352" width="22" height="12" rx="2"/><rect x="896" y="352" width="22" height="12" rx="2"/><rect x="806" y="372" width="22" height="12" rx="2"/><rect x="836" y="372" width="22" height="12" rx="2"/><rect x="866" y="372" width="22" height="12" rx="2"/><rect x="896" y="372" width="22" height="12" rx="2"/></g>
+</svg>

@@ -20,10 +20,6 @@ export const ONBOARDING_PAGE_KEYS = [
 ] as const;
 export type OnboardingPageKey = (typeof ONBOARDING_PAGE_KEYS)[number];
 
-/** Instructional goals, not quests: nothing is rewarded, and they can be dismissed. */
-export const ONBOARDING_GUIDE_STEPS = ['meet_contact', 'open_front', 'face_encounter', 'choose_career'] as const;
-export type OnboardingGuideStepKey = (typeof ONBOARDING_GUIDE_STEPS)[number];
-
 /**
  * Guided walkthrough: the ordered core-loop tour. Progress is derived from
  * real ledger-backed play (never clicks); rewards come from the mapped quest
@@ -31,14 +27,18 @@ export type OnboardingGuideStepKey = (typeof ONBOARDING_GUIDE_STEPS)[number];
  */
 export const TOUR_STEP_KEYS = [
   'build-street-sign',
-  'accept-quest',
-  'scout',
-  'complete-quest',
-  'shop-supplies',
+  'scout-streets',
+  'earn-first-payout',
+  'buy-condoms',
+  'buy-beer',
+  'buy-medicine',
+  'buy-pistols',
+  'buy-ammo-crate',
   'grow-crew',
   'produce',
   'upgrade-hideout',
-  'recon-raid',
+  'recon-rival',
+  'first-raid',
 ] as const;
 export type TourStepKey = (typeof TOUR_STEP_KEYS)[number];
 
@@ -51,11 +51,6 @@ export interface OnboardingStateDto {
   };
   seenPages: OnboardingPageKey[];
   /** Null outside a season the account has joined. */
-  guide: {
-    dismissed: boolean;
-    complete: boolean;
-    steps: Array<{ key: OnboardingGuideStepKey; done: boolean }>;
-  } | null;
   /** Null outside a season the account has joined. */
   tour: {
     /** True when the tour offer should be shown (new players only). */
@@ -78,8 +73,6 @@ export const onboardingActionSchema = z.discriminatedUnion('action', [
   /** Replay: the intro opens again and every page intro shows again. */
   z.object({ action: z.literal('replay') }).strict(),
   z.object({ action: z.literal('see-page'), page: z.enum(ONBOARDING_PAGE_KEYS) }).strict(),
-  z.object({ action: z.literal('dismiss-guide') }).strict(),
-  z.object({ action: z.literal('restore-guide') }).strict(),
   z.object({ action: z.literal('start-tour') }).strict(),
   z.object({ action: z.literal('advance-tour'), step: z.enum(TOUR_STEP_KEYS) }).strict(),
   z.object({ action: z.literal('dismiss-tour') }).strict(),

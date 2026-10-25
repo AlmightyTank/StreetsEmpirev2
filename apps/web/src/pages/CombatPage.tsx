@@ -1000,7 +1000,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
               </div>
             </div>
 
-            <aside id="intel" className="se-raids-plan__intel">
+            <aside id="intel" className="se-raids-plan__intel" data-tour="combat-intel" data-tour-card-anchor="combat-intel">
               <div className="se-raids-sectionhead">
                 <div>
                   <span className="se-eyebrow">Target intel</span>
@@ -1027,7 +1027,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
                       <Button
                         type="button"
                         className="se-btn se-btn--sm"
-                        data-tour="recon-raid"
+                        data-tour="recon-rival"
                         disabledReason={
                           busy
                             ? 'Your last hit is still going through.'
@@ -1052,6 +1052,7 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
 
           <ActionDock
             label="Send the crew"
+            tourTarget={'first-raid'}
             onSubmit={(event) => void submit(event)}
             outcome={latest ? {
               id: latest.id,

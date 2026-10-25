@@ -1,0 +1,373 @@
+/*
+ * The contact room: a visit with one contact, laid out like a dialogue scene. Each contact has a
+ * painted room (public/rooms/*.svg, Slice R2) over the stage; underneath it, and in its place if it
+ * fails to load, the CSS backdrop (wall, lamp glow, desk) tinted per contact.
+ */
+.se-room {
+  --room-tint: 214, 163, 92;
+  --room-art: none;
+  /*
+   * The stage: the part of the room that belongs to the person you are talking to. It keeps a
+   * fixed share of the screen height, the portrait always fits inside it, and the dialogue may
+   * only overlap its bottom edge (the desk), never the face.
+   */
+  --room-stage: clamp(220px, 44vh, 420px);
+  --room-overlap: 28px;
+  position: relative;
+  display: grid;
+  overflow: hidden;
+  border: 1px solid var(--se-line);
+  background: #07070a;
+  isolation: isolate;
+}
+
+.se-room[data-contact='mama_king'] { --room-tint: 236, 160, 96; --room-art: url('/rooms/mama-king.svg'); }
+.se-room[data-contact='pip'] { --room-tint: 110, 200, 140; --room-art: url('/rooms/pip.svg'); }
+.se-room[data-contact='tommy'] { --room-tint: 190, 200, 120; --room-art: url('/rooms/tommy.svg'); }
+.se-room[data-contact='wheels'] { --room-tint: 120, 170, 230; --room-art: url('/rooms/wheels.svg'); }
+.se-room[data-contact='vic'] { --room-tint: 200, 120, 200; --room-art: url('/rooms/vic.svg'); }
+.se-room[data-contact='blocks'] { --room-tint: 230, 90, 90; --room-art: url('/rooms/blocks.svg'); }
+.se-room[data-contact='ledger'] { --room-tint: 240, 220, 150; --room-art: url('/rooms/ledger.svg'); }
+.se-room[data-contact='ace'] { --room-tint: 240, 190, 80; --room-art: url('/rooms/ace.svg'); }
+.se-room[data-contact='commissioner'] { --room-tint: 150, 180, 220; --room-art: url('/rooms/commissioner.svg'); }
+.se-room[data-contact='mara_venn'] { --room-tint: 170, 190, 200; --room-art: url('/rooms/mara-venn.svg'); }
+
+.se-room__scene {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(ellipse 45% 38% at 50% 8%, rgba(var(--room-tint), 0.28), transparent 70%),
+    radial-gradient(ellipse 30% 22% at 82% 62%, rgba(var(--room-tint), 0.16), transparent 70%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0 2px, transparent 2px 100%) 0 0 / 100% 64px,
+    linear-gradient(180deg, #17171c 0, #0e0e12 var(--room-stage), #2a1b12 var(--room-stage), #1a110b 100%);
+}
+
+/*
+ * The painted room fills the stage and stands on the desk edge. A light veil keeps the contact
+ * the brightest thing in it; the tint glow above still shows through.
+ */
+.se-room__scene::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: var(--room-stage);
+  background:
+    radial-gradient(ellipse 34% 60% at 50% 48%, rgba(0, 0, 0, 0.32), transparent 75%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.35)),
+    var(--room-art) 50% 100% / cover no-repeat;
+  transition: background-image 0.4s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .se-room__scene::before {
+    transition: none;
+  }
+}
+
+/* The desk edge the contact leans over. */
+.se-room__scene::after {
+  content: '';
+  position: absolute;
+  inset: var(--room-stage) 0 auto;
+  height: 6px;
+  background: linear-gradient(90deg, transparent, rgba(var(--room-tint), 0.35), transparent);
+  box-shadow: 0 0 40px rgba(var(--room-tint), 0.25);
+}
+
+.se-room__figure {
+  position: absolute;
+  left: 50%;
+  top: 14px;
+  height: calc(var(--room-stage) - 14px);
+  aspect-ratio: 1;
+  transform: translateX(-50%);
+  object-fit: cover;
+  filter: saturate(0.9) contrast(1.05) drop-shadow(0 18px 40px rgba(0, 0, 0, 0.6));
+  -webkit-mask-image: radial-gradient(circle at 50% 45%, #000 52%, transparent 72%);
+  mask-image: radial-gradient(circle at 50% 45%, #000 52%, transparent 72%);
+}
+
+/* A contact without portrait art is a figure in shadow: head and shoulders against the lamp. */
+.se-room__figure--silhouette {
+  display: block;
+  background:
+    radial-gradient(ellipse 15% 18% at 50% 33%, #050507 0 98%, transparent 100%),
+    linear-gradient(#050507, #050507) 50% 52% / 13% 16% no-repeat,
+    radial-gradient(ellipse 40% 30% at 50% 86%, #050507 0 98%, transparent 100%),
+    radial-gradient(circle at 50% 40%, rgba(var(--room-tint), 0.22), transparent 62%);
+}
+
+.se-room__front {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: calc(var(--room-stage) - var(--room-overlap)) 16px 16px;
+}
+
+.se-room__leave {
+  position: absolute;
+  top: 14px;
+  left: 16px;
+  color: var(--se-text-dim);
+  font-size: 12px;
+  text-decoration: none;
+}
+
+/* Where the contact is right now: their own room, or the place a job has taken them. */
+.se-room__place {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  z-index: 1;
+  max-width: 45%;
+  margin: 0;
+  padding: 3px 9px;
+  border-left: 2px solid rgb(var(--room-tint));
+  background: rgba(4, 4, 6, 0.6);
+  color: var(--se-text);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.se-room__leave:hover,
+.se-room__leave:focus-visible {
+  color: var(--se-text);
+}
+
+.se-room .se-alert {
+  width: min(100%, 780px);
+  margin: 0 auto;
+}
+
+.se-room__dialogue {
+  width: min(100%, 780px);
+  margin: 0 auto;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(4, 4, 6, 0.9);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(3px);
+}
+
+.se-room__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.se-room__head h1 {
+  margin: 0;
+  color: var(--se-text);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.se-room__role {
+  color: var(--se-muted);
+  font-size: 11px;
+}
+
+.se-room__history-toggle {
+  margin-left: auto;
+  border: 0;
+  background: none;
+  color: var(--se-text-dim);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.se-room__history-toggle:hover,
+.se-room__history-toggle:focus-visible {
+  color: var(--se-text);
+}
+
+.se-room__history {
+  display: grid;
+  gap: 10px;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.se-room__history article strong {
+  color: var(--se-text);
+  font-size: 12px;
+}
+
+.se-room__history p {
+  margin: 3px 0 0;
+  color: var(--se-text-dim);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.se-room__history .se-room__choice {
+  color: rgb(var(--room-tint));
+}
+
+.se-room__line {
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.se-room__line p {
+  margin: 0 0 8px;
+  color: var(--se-text);
+  font-size: 14px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.se-room__line p:last-child {
+  margin-bottom: 0;
+}
+
+.se-room__job {
+  padding: 8px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.se-room__job .se-hint,
+.se-room__hint {
+  margin: 4px 0 0;
+}
+
+.se-room__hint {
+  padding: 0 14px 8px;
+  color: var(--se-text-dim);
+  font-size: 12px;
+}
+
+.se-room__objectives {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.se-room__objectives li {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--se-text-dim);
+  font-size: 12px;
+}
+
+.se-room__objectives li.is-done {
+  color: rgb(var(--room-tint));
+}
+
+.se-room__options {
+  margin: 0;
+  padding: 6px 0;
+  list-style: none;
+}
+
+.se-room__option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 40px;
+  padding: 7px 14px;
+  border: 0;
+  background: none;
+  color: var(--se-text);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.se-room__option:hover:not(:disabled),
+.se-room__option:focus-visible {
+  background: rgba(var(--room-tint), 0.12);
+  outline: none;
+}
+
+.se-room__option:focus-visible {
+  box-shadow: inset 2px 0 0 rgb(var(--room-tint));
+}
+
+.se-room__option:disabled {
+  color: var(--se-muted);
+  cursor: progress;
+}
+
+.se-room__option-icon {
+  width: 18px;
+  color: rgb(var(--room-tint));
+  text-align: center;
+}
+
+.se-room__option-label {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+.se-room__option-label small {
+  color: var(--se-muted);
+  font-size: 11px;
+}
+
+.se-room__option kbd {
+  color: var(--se-muted);
+  font: inherit;
+  font-size: 11px;
+}
+
+@media (max-width: 720px) {
+  /* Same stage on a phone, sized for a short, narrow screen. */
+  .se-room {
+    --room-stage: clamp(170px, 30vh, 240px);
+    --room-overlap: 16px;
+  }
+
+  .se-room__front {
+    padding-right: 10px;
+    padding-left: 10px;
+  }
+
+  .se-room__leave {
+    left: 10px;
+  }
+
+  .se-room__place {
+    right: 10px;
+    max-width: 55%;
+    font-size: 11px;
+  }
+
+  .se-room__role {
+    display: none;
+  }
+
+  .se-room__head h1,
+  .se-room__history-toggle {
+    white-space: nowrap;
+  }
+
+  .se-room__option kbd {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .se-room__dialogue {
+    animation: se-room-in 180ms ease-out;
+  }
+
+  @keyframes se-room-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: none; }
+  }
+}
