@@ -9,7 +9,7 @@
  * See scripts/ops/bump-version.mjs. Deploy patch notes use this version in
  * their title.
  */
-export const APP_VERSION = '2.7.18';
+export const APP_VERSION = '2.7.19';
 
 export const APP_ENVIRONMENTS = ['production', 'beta', 'development', 'test'] as const;
 export type AppEnvironment = (typeof APP_ENVIRONMENTS)[number];
