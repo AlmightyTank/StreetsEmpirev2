@@ -3,6 +3,7 @@ import {
   isPlayerBoardPriceLegal,
   loadRuleset,
   playerBoardBand,
+  playerBoardBarterFeeCents,
   playerBoardBarterQuote,
   playerBoardItemBookCents,
   playerBoardItemKind,
@@ -68,7 +69,7 @@ const BARTER_REFUSALS: Record<string, string> = {
   INVALID_QUANTITY: 'Ask for whole numbers of each thing.',
   NOT_LISTABLE: 'The Board does not trade one of those.',
   SAME_ITEM: 'You cannot ask for the same thing you are offering.',
-  ASKS_TOO_MUCH: 'You are asking for more than your stack is worth on the Board.',
+  ASKS_TOO_MUCH: 'You are asking for more than that many are worth on the Board.',
 };
 
 function dollars(cents: number): string {
@@ -92,6 +93,7 @@ export function offerDto(offer: PlayerBoardOffer, round: Pick<BoardRound, 'pause
     priceKind: offer.priceKind,
     unitPriceCents: offer.unitPriceCents,
     ask: askLines(offer, ruleset),
+    lotSize: offer.lotSize,
     feeCents: offer.feeCents,
     durationHours: offer.durationHours,
     postedAt: offer.postedAt.toISOString(),
@@ -194,16 +196,18 @@ export const PlayerBoardService = {
       throw AppError.badRequest('INVALID_DURATION', `Listings run for ${board.listingHours.join(' or ')} hours.`);
     }
     const barter = input.priceKind === 'BARTER';
-    let price: { unitPriceCents: number; askItems?: Record<string, number>; askBookCents?: number; buyerFeeCents?: number };
+    let price: { unitPriceCents: number; askItems?: Record<string, number>; askBookCents?: number; lotSize?: number };
     if (barter) {
       const ask: Record<string, number> = {};
       for (const line of input.askItems ?? []) {
         if (Object.hasOwn(ask, line.key)) throw AppError.badRequest('INVALID_BARTER', 'List each thing you ask for once.');
         ask[line.key] = line.quantity;
       }
-      const quote = playerBoardBarterQuote(input.itemKey, input.quantity, ask, ruleset);
+      const lotSize = input.lotSize ?? 1;
+      const quote = playerBoardBarterQuote(input.itemKey, lotSize, ask, ruleset);
       if ('refusal' in quote) throw AppError.badRequest('INVALID_BARTER', BARTER_REFUSALS[quote.refusal]!);
-      price = { unitPriceCents: 0, askItems: ask, askBookCents: quote.askBookCents, buyerFeeCents: quote.buyerFeeCents };
+      if (input.quantity % lotSize !== 0) throw AppError.badRequest('INVALID_BARTER', `List a whole number of lots of ${lotSize}.`);
+      price = { unitPriceCents: 0, askItems: ask, askBookCents: quote.askBookCents, lotSize };
     } else {
       const unitPriceCents = input.unitPriceCents ?? Number.NaN;
       if (!isPlayerBoardPriceLegal(unitPriceCents, book, ruleset)) {
@@ -247,7 +251,7 @@ export const PlayerBoardService = {
           priceKind: 'BARTER' as const,
           askItems: price.askItems as Prisma.InputJsonValue,
           askBookCents: price.askBookCents!,
-          buyerFeeCents: price.buyerFeeCents!,
+          lotSize: price.lotSize!,
         } : {}),
         feeCents,
         durationHours: input.durationHours,
@@ -317,15 +321,19 @@ export const PlayerBoardService = {
       if (!buyer || buyer.roundId !== round.id) throw AppError.notFound('PLAYER_NOT_FOUND', 'Player not found.');
       const barter = offer.priceKind === 'BARTER';
       const units = quantity ?? offer.remainingQuantity;
-      if (barter && units !== offer.remainingQuantity) {
-        throw AppError.badRequest('BARTER_IS_WHOLE', 'A trade takes the whole stack.');
-      }
       if (!Number.isSafeInteger(units) || units < 1) throw AppError.badRequest('INVALID_QUANTITY', 'Buy at least one.');
       if (units > offer.remainingQuantity) {
         throw AppError.conflict('NOT_ENOUGH_LEFT', `Only ${offer.remainingQuantity} left on that offer.`);
       }
-      const ask = barter ? jsonObject(offer.askItems as Prisma.JsonValue, {}) : {};
-      const paidCents = barter ? offer.buyerFeeCents ?? 0 : offer.unitPriceCents * units;
+      if (units % offer.lotSize !== 0) throw AppError.badRequest('BARTER_LOT', `That trade goes in lots of ${offer.lotSize}.`);
+      // A barter's ask is per lot: taking several lots hands over that many times the ask.
+      const lots = units / offer.lotSize;
+      const ask = barter
+        ? Object.fromEntries(Object.entries(jsonObject(offer.askItems as Prisma.JsonValue, {})).map(([key, perLot]) => [key, perLot * lots]))
+        : {};
+      const paidCents = barter
+        ? playerBoardBarterFeeCents(offer.bookCents * offer.lotSize, offer.askBookCents ?? 0, lots, ruleset)
+        : offer.unitPriceCents * units;
       if (buyer.cashCents < BigInt(paidCents)) {
         throw AppError.badRequest('NOT_ENOUGH_CASH', barter ? `The Board also wants ${dollars(paidCents)} to even out that trade.` : `That offer costs ${dollars(paidCents)}.`);
       }
@@ -377,7 +385,7 @@ export const PlayerBoardService = {
         remainingQuantity,
         unitPriceCents: offer.unitPriceCents,
         paidCents,
-        gave: askLines(offer, ruleset),
+        gave: Object.entries(ask).map(([key, given]) => ({ key, name: itemName(key, ruleset), quantity: given })),
         sellerName: offer.seller.displayName,
       };
       if (actionId) await IdempotencyService.record(tx, actionId, buyerId, 'BOARD_BUY', result, now);
@@ -442,8 +450,13 @@ export const PlayerBoardService = {
         quantity: offer.remainingQuantity,
         priceKind: offer.priceKind,
         unitPriceCents: offer.unitPriceCents,
-        totalCents: offer.priceKind === 'BARTER' ? offer.buyerFeeCents ?? 0 : offer.unitPriceCents * offer.remainingQuantity,
+        totalCents: offer.priceKind === 'BARTER'
+          ? playerBoardBarterFeeCents(offer.bookCents * offer.lotSize, offer.askBookCents ?? 0, offer.remainingQuantity / offer.lotSize, ruleset)
+          : offer.unitPriceCents * offer.remainingQuantity,
         ask: askLines(offer, ruleset),
+        lotSize: offer.lotSize,
+        lotBookCents: offer.priceKind === 'BARTER' ? offer.bookCents * offer.lotSize : 0,
+        askBookCents: offer.askBookCents ?? 0,
         sellerName: offer.seller.displayName,
         mine: offer.sellerId === viewerId,
         expiresAt: playerBoardOfferExpiresAt(offer, round, now).toISOString(),

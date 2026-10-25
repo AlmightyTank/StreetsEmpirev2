@@ -6811,12 +6811,13 @@ model PlayerBoardOffer {
   bookCents      Int
   /// The Board. CASH sells for a unit price; BARTER asks for `askItems` for the whole stack.
   priceKind      PlayerBoardPriceKind @default(CASH)
-  /// Barter offers: what the buyer hands over, { itemKey: quantity }.
+  /// Barter offers: units sold per lot. Buyers take whole lots; cash offers are always 1.
+  lotSize        Int                  @default(1)
+  /// Barter offers: what the buyer hands over for each lot, { itemKey: quantity }.
   askItems       Json?
-  /// Barter offers: the book of `askItems`, never above the stack's book.
+  /// Barter offers: the book of one lot's `askItems`, never above the lot's book. The buyer's
+  /// cash top-up is priced from it on each fill.
   askBookCents   Int?
-  /// Barter offers: cash the buyer adds, deleted, so the swap cannot raise the buyer's rank.
-  buyerFeeCents  Int?
   feeCents       Int
   durationHours  Int
 

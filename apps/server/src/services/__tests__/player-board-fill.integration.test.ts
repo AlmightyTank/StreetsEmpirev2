@@ -234,11 +234,25 @@ describe.runIf(process.env.PLAYER_BOARD_INTEGRATION === '1')('The Board fills wi
       expect((await row(ids.seller)).playerBoardEscrow).toEqual({});
     });
 
-    it('will not split a barter', async () => {
-      await prisma.roundPlayer.update({ where: { id: ids.seller }, data: { scavengedComponents: { SCRAP_METAL: 50, RADIO: 3 } } });
-      const { offer } = await PlayerBoardService.post(prisma, round, rules, ids.seller, { itemKey: 'SCRAP_METAL', quantity: 10, priceKind: 'BARTER', askItems: [{ key: 'RADIO', quantity: 1 }], durationHours: 12 });
-      expect(await code(part(offer.id, 3))).toBe('BARTER_IS_WHOLE');
-      expect(await code(part(offer.id, 10))).toBe('OK');
+    it('splits a barter by unit: buying 2 hands over twice the ask, with the top-up priced on those 2', async () => {
+      await prisma.roundPlayer.update({ where: { id: ids.seller }, data: { scavengedComponents: { MOTOR_ASSEMBLY: 4 } } });
+      const { offer } = await PlayerBoardService.post(prisma, round, rules, ids.seller, { itemKey: 'MOTOR_ASSEMBLY', quantity: 4, priceKind: 'BARTER', askItems: [{ key: 'RADIO', quantity: 1 }, { key: 'SCRAP_METAL', quantity: 5 }], durationHours: 12 });
+      await prisma.roundPlayer.update({ where: { id: ids.buyer }, data: { scavengedComponents: { RADIO: 3, SCRAP_METAL: 50 } } });
+      const result = await part(offer.id, 2);
+      // Two motors are $160 of book against 2 radios + 10 scrap ($90): a $70 gap is $93.34 of cash, up to $94.
+      expect(result).toMatchObject({ quantity: 2, remainingQuantity: 2, paidCents: 9_400, gave: [{ key: 'RADIO', quantity: 2 }, { key: 'SCRAP_METAL', quantity: 10 }] });
+      expect((await row(ids.buyer)).scavengedComponents).toEqual({ RADIO: 1, SCRAP_METAL: 40, MOTOR_ASSEMBLY: 2 });
+      expect((await row(ids.seller)).scavengedComponents).toEqual({ RADIO: 2, SCRAP_METAL: 10 });
+      expect(await code(part(offer.id, 2))).toBe('NOT_ENOUGH_TO_TRADE');
+      expect((await offerRow(offer.id)).remainingQuantity).toBe(2);
+    });
+
+    it('takes a lotted barter only in whole lots', async () => {
+      await prisma.roundPlayer.update({ where: { id: ids.seller }, data: { crack: 100 } });
+      const { offer } = await PlayerBoardService.post(prisma, round, rules, ids.seller, { itemKey: 'CRACK', quantity: 20, priceKind: 'BARTER', lotSize: 10, askItems: [{ key: 'RADIO', quantity: 1 }], durationHours: 12 });
+      expect(await code(part(offer.id, 5))).toBe('BARTER_LOT');
+      const result = await part(offer.id, 10);
+      expect(result).toMatchObject({ quantity: 10, remainingQuantity: 10, paidCents: 700, gave: [{ key: 'RADIO', quantity: 1 }] }); // $30 vs $25: $5 gap is $6.67, up to $7
     });
 
     it('raises neither rank on a partial buy', async () => {
@@ -343,7 +357,7 @@ describe.runIf(process.env.PLAYER_BOARD_INTEGRATION === '1')('The Board fills wi
       const { offer } = await barter([{ key: 'RADIO', quantity: 2 }, { key: 'SCRAP_METAL', quantity: 5 }]);
       expect(offer).toMatchObject({ priceKind: 'BARTER', unitPriceCents: 0, ask: [{ key: 'RADIO', name: 'Radio', quantity: 2 }, { key: 'SCRAP_METAL', name: 'Scrap metal', quantity: 5 }] });
       const stored = await prisma.playerBoardOffer.findUniqueOrThrow({ where: { id: offer.id } });
-      expect(stored).toMatchObject({ priceKind: 'BARTER', askBookCents: 7_000, buyerFeeCents: 1_400, askItems: { RADIO: 2, SCRAP_METAL: 5 } });
+      expect(stored).toMatchObject({ priceKind: 'BARTER', lotSize: 1, askBookCents: 7_000, askItems: { RADIO: 2, SCRAP_METAL: 5 } });
       const book = await PlayerBoardService.book(prisma, round, rules, ids.buyer, 'PARTS');
       expect(book.rows.find((r) => r.id === offer.id)).toMatchObject({ priceKind: 'BARTER', totalCents: 1_400, ask: [{ key: 'RADIO', quantity: 2 }, { key: 'SCRAP_METAL', quantity: 5 }] });
       expect(book.holdings).toMatchObject({ RADIO: 3, SCRAP_METAL: 50 });
@@ -380,8 +394,11 @@ describe.runIf(process.env.PLAYER_BOARD_INTEGRATION === '1')('The Board fills wi
 
     it('trades drugs for parts, and an even swap costs nothing', async () => {
       await prisma.roundPlayer.update({ where: { id: ids.seller }, data: { crack: 100 } });
-      const { offer } = await PlayerBoardService.post(prisma, round, rules, ids.seller, { itemKey: 'CRACK', quantity: 40, priceKind: 'BARTER', askItems: [{ key: 'SCRAP_METAL', quantity: 30 }], durationHours: 12 });
-      expect((await prisma.playerBoardOffer.findUniqueOrThrow({ where: { id: offer.id } })).buyerFeeCents).toBe(0);
+      // Crack is worth less than any part, so it trades in lots: every 4 crack ($12) for 3 scrap ($12).
+      expect(await code(PlayerBoardService.post(prisma, round, rules, ids.seller, { itemKey: 'CRACK', quantity: 40, priceKind: 'BARTER', askItems: [{ key: 'SCRAP_METAL', quantity: 1 }], durationHours: 12 }))).toBe('INVALID_BARTER');
+      expect(await code(PlayerBoardService.post(prisma, round, rules, ids.seller, { itemKey: 'CRACK', quantity: 42, priceKind: 'BARTER', lotSize: 4, askItems: [{ key: 'SCRAP_METAL', quantity: 3 }], durationHours: 12 }))).toBe('INVALID_BARTER');
+      const { offer } = await PlayerBoardService.post(prisma, round, rules, ids.seller, { itemKey: 'CRACK', quantity: 40, priceKind: 'BARTER', lotSize: 4, askItems: [{ key: 'SCRAP_METAL', quantity: 3 }], durationHours: 12 });
+      expect(offer).toMatchObject({ lotSize: 4, ask: [{ key: 'SCRAP_METAL', quantity: 3 }] });
       const buyerCrack = (await ProductInventoryService.read(prisma, ids.buyer, rules)).CRACK!;
       await fill(offer.id);
       expect((await ProductInventoryService.read(prisma, ids.buyer, rules)).CRACK).toBe(buyerCrack + 40);

@@ -20,7 +20,7 @@ Same shape as a flea board, cut to this economy.
 
 - Escrow a stack, name a unit price inside the band, and leave it up for 12 hours or 48 hours.
 - Offers for an item sort cheapest first. The seller’s street name is on the row. You cannot buy your own.
-- **Partial buys (added after slice F).** A buyer can take any amount of a cash offer, say 3 of 12. The rest stays up. The buyer pays the sticker for what they take, the seller receives 92% of it, and the 8% is deleted from the round. A barter still goes as a whole stack.
+- **Partial buys (added after slice F).** A buyer can take any amount of an offer, say 3 of 12, and the rest stays up. On cash, the buyer pays the sticker for what they take, the seller receives 92% of it, and the 8% is deleted from the round. On a barter, the buyer hands over the per-unit (or per-lot) ask that many times.
 - Cancel and expiry return the stack. The posting fee does not come back: 1% of book value, minimum $1.
 - Six open offers per player.
 - Pay on fill. No mail delay, no separate Board reputation.
@@ -177,17 +177,17 @@ Slice F lists every drug, not just crack: crack, weed, ecstasy, cocaine, meth an
 
 ### Player barter
 
-The Board is player-to-player for both kinds of price. An offer is either **cash** (a unit price inside the band, as above) or a **barter**: up to `maxAskItems` (3) other listable items, parts or drugs, asked for the whole stack. The buyer must hold the goods, or the cash for a cash offer.
+The Board is player-to-player for both kinds of price. An offer is either **cash** (a unit price inside the band, as above) or a **barter**: up to `maxAskItems` (3) other listable items, parts or drugs, asked **per unit**, or per lot of `lotSize` units for goods worth less than anything you could ask for (for example, every 10 crack for 1 radio). A buyer takes any number of units, or whole lots, and hands over the ask that many times. The buyer must hold the goods, or the cash for a cash offer.
 
 The rule that keeps barter from moving rank:
 
-- **The seller can't gain.** The goods asked for may not be worth more, at book, than the stack offered (`ASKS_TOO_MUCH`). The swap therefore never raises the seller's rank.
-- **The buyer can't gain.** When the stack is worth more than the goods asked for, the buyer also pays the gap to the Board in cash at the cash weight, rounded up to whole dollars (`playerBoardBarterQuote`, built on the same `playerBoardTradeTopUpCents` as the Salvage Yard fix). That cash is deleted from the round, so the swap never raises the buyer's rank either. An even swap costs nothing extra.
+- **The seller can't gain.** One lot's ask may not be worth more, at book, than the lot (`ASKS_TOO_MUCH`). No fill therefore raises the seller's rank.
+- **The buyer can't gain.** When the units taken are worth more than the goods handed over, the buyer also pays the gap to the Board in cash at the cash weight, rounded up to whole dollars (`playerBoardBarterFeeCents`, built on the same `playerBoardTradeTopUpCents` as the Salvage Yard fix). It is priced on what each fill takes, all together, never per lot. That cash is deleted from the round, so no fill raises the buyer's rank either. An even swap costs nothing extra.
 - **No 8% cut.** The posting fee still applies, but barter has no cut, because it isn't needed to keep rank fair.
 
 Mechanics:
 
-- The offer stores `priceKind`, `askItems`, `askBookCents` and `buyerFeeCents`.
+- The offer stores `priceKind`, `lotSize`, `askItems` (per lot) and `askBookCents` (per lot). A listing must be a whole number of lots, and a fill takes whole lots (`BARTER_LOT`).
 - On a fill, the buyer's goods go straight into the seller's holdings, and the stack goes from escrow to the buyer.
 - The buyer's top-up is booked as `PLAYER_BOARD_BARTER_FEE`.
 - The fill is refused if the buyer is short of goods or cash, if the buyer has no stash room for the stack, or if the seller has no stash room for a part they asked for.
@@ -197,7 +197,7 @@ On the tab, barter rows show "Trade: 2 × Radio + 5 × Scrap metal" with the cas
 ### Partial buys
 
 - **Selling down.** An offer keeps `quantity` (units posted) and `remainingQuantity` (units still in escrow and for sale). Each purchase writes a `PlayerBoardFill` row (buyer, quantity, cash paid, seller proceeds), and that table is the record slice H's staff ledger reads.
-- **Fill size.** A fill takes `quantity` units of a cash offer, or everything left when it's omitted. More than is left is refused with `NOT_ENOUGH_LEFT`, and splitting a barter is refused with `BARTER_IS_WHOLE`. The offer closes as `SOLD` when nothing is left.
+- **Fill size.** A fill takes `quantity` units of a cash offer, or whole lots of a barter, or everything left when it's omitted. More than is left is refused with `NOT_ENOUGH_LEFT`. The offer closes as `SOLD` when nothing is left.
 - **Concurrency.** Buyers lock the seller, so two buyers take turns. The decrement is also conditional on enough being left, so a unit is never sold twice.
 - **Cancel and expiry** return only what's left.
 - **Rank.** The band is per unit and proceeds round down on each fill, so a partial buy is as rank-fair as a whole one, and the tests check it at 1, 7 and 22 units.

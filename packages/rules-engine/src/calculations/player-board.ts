@@ -167,32 +167,30 @@ export function playerBoardEscrowNetWorthCents(escrow: unknown, ruleset: Ruleset
 export type PlayerBoardBarterRefusal = 'EMPTY' | 'TOO_MANY' | 'INVALID_QUANTITY' | 'NOT_LISTABLE' | 'SAME_ITEM' | 'ASKS_TOO_MUCH';
 
 export interface PlayerBoardBarterQuote {
-  /** Book of the stack on offer. */
-  offerBookCents: number;
-  /** Book of the goods asked for; never above `offerBookCents`. */
+  /** Book of one lot of the item on offer. */
+  lotBookCents: number;
+  /** Book of the goods asked for one lot; never above `lotBookCents`. */
   askBookCents: number;
-  /** Cash the buyer adds, deleted from the round, so taking the stack cannot raise their rank. */
-  buyerFeeCents: number;
 }
 
 /**
- * The Board. Price a barter: `quantity` of `offerKey` for the goods in `ask`. Rank stays fair on
- * both sides. The seller may not ask for more book than they give, so the swap never raises the
- * seller's rank; when they ask for less, the buyer adds the gap in cash at the cash weight
- * (`playerBoardTradeTopUpCents`), so it never raises the buyer's either. An even swap is free.
+ * The Board. Validate a barter: `ask` is what the buyer hands over for every `lotSize` units of
+ * `offerKey` (1 by default, so the ask is per unit). The seller may not ask for more book than a
+ * lot is worth, so no fill raises the seller's rank; the buyer's cash top-up for whatever they
+ * take comes from `playerBoardBarterFeeCents`.
  */
 export function playerBoardBarterQuote(
   offerKey: string,
-  quantity: number,
+  lotSize: number,
   ask: Readonly<Record<string, number>>,
   ruleset: Ruleset,
 ): PlayerBoardBarterQuote | { refusal: PlayerBoardBarterRefusal } {
   const entries = Object.entries(ask);
   if (entries.length === 0) return { refusal: 'EMPTY' };
   if (entries.length > (ruleset.playerBoard?.maxAskItems ?? 0)) return { refusal: 'TOO_MANY' };
-  const offerBook = playerBoardItemBookCents(offerKey, ruleset);
-  if (offerBook === null) return { refusal: 'NOT_LISTABLE' };
-  if (!Number.isSafeInteger(quantity) || quantity < 1) return { refusal: 'INVALID_QUANTITY' };
+  const unitBook = playerBoardItemBookCents(offerKey, ruleset);
+  if (unitBook === null) return { refusal: 'NOT_LISTABLE' };
+  if (!Number.isSafeInteger(lotSize) || lotSize < 1) return { refusal: 'INVALID_QUANTITY' };
   let askBook = 0;
   for (const [key, units] of entries) {
     if (key === offerKey) return { refusal: 'SAME_ITEM' };
@@ -201,7 +199,16 @@ export function playerBoardBarterQuote(
     if (book === null) return { refusal: 'NOT_LISTABLE' };
     askBook += book * units;
   }
-  const offerBookCents = offerBook * quantity;
-  if (!Number.isSafeInteger(askBook) || askBook > offerBookCents) return { refusal: 'ASKS_TOO_MUCH' };
-  return { offerBookCents, askBookCents: askBook, buyerFeeCents: playerBoardTradeTopUpCents(offerBookCents, askBook, ruleset) };
+  const lotBookCents = unitBook * lotSize;
+  if (!Number.isSafeInteger(askBook) || askBook > lotBookCents) return { refusal: 'ASKS_TOO_MUCH' };
+  return { lotBookCents, askBookCents: askBook };
+}
+
+/**
+ * The Board. Cash a barter buyer adds for `lots` lots: the gap between the lots' book and the
+ * goods handed over, at the cash weight, rounded up to whole dollars and deleted from the round,
+ * so taking them cannot raise the buyer's rank. Priced on what this fill takes, never per lot.
+ */
+export function playerBoardBarterFeeCents(lotBookCents: number, askBookCents: number, lots: number, ruleset: Ruleset): number {
+  return playerBoardTradeTopUpCents(lotBookCents * lots, askBookCents * lots, ruleset);
 }

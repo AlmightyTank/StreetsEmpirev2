@@ -58,6 +58,17 @@ export function boardBarterTopUpCents(offerBookCents: number, askBookCents: numb
   return Math.ceil(Math.ceil((gap * 100) / rules.cashWeightPercent) / 100) * 100;
 }
 
+/** What a barter's price line says about its lot: "each", or "per 10". */
+export function lotLabel(lotSize: number): string {
+  return lotSize === 1 ? 'each' : `per ${formatNumber(lotSize)}`;
+}
+
+/** The barter top-up for taking `units` of a row, priced together as the server does. */
+export function boardRowTopUpCents(row: PlayerBoardRowDto, units: number, rules: PlayerBoardDto['rules']): number {
+  const lots = units / row.lotSize;
+  return boardBarterTopUpCents(row.lotBookCents * lots, row.askBookCents * lots, rules) ?? 0;
+}
+
 /** "2 × Radio + 1 × Cloth". */
 export function askSummary(ask: ReadonlyArray<{ name: string; quantity: number }>): string {
   return ask.map((line) => `${formatNumber(line.quantity)} × ${line.name}`).join(' + ');
@@ -69,6 +80,8 @@ export interface ListForm {
   mode: 'CASH' | 'BARTER';
   price: string;
   ask: Array<{ key: string; quantity: string }>;
+  /** Barter: units the ask buys, as typed. 1 means the ask is per unit. */
+  lot: string;
   hours: number;
 }
 
@@ -89,9 +102,9 @@ export interface PlayerBoardViewProps {
 
 /** Units the viewer has asked for from an offer: all that is left unless they typed a number. Null when it is not a valid amount. */
 export function boardBuyUnits(row: PlayerBoardRowDto, typed: string | undefined): number | null {
-  if (row.priceKind === 'BARTER' || typed === undefined || typed === '') return row.quantity;
+  if (typed === undefined || typed === '') return row.quantity;
   const units = Number(typed);
-  return Number.isInteger(units) && units >= 1 && units <= row.quantity ? units : null;
+  return Number.isInteger(units) && units >= 1 && units <= row.quantity && units % row.lotSize === 0 ? units : null;
 }
 
 function ItemOptions({ rows }: { rows: ReadonlyArray<{ key: string; name: string; category: 'PART' | 'PRODUCT'; label?: string }> }) {
@@ -127,15 +140,21 @@ function ListPanel({ book, busy, form, onForm, onPost }: Pick<PlayerBoardViewPro
   const askLines = form.ask.map((line) => ({ ...line, item: askable.find((row) => row.key === line.key), units: Number(line.quantity) }));
   const askLinesOk = askLines.length > 0 && askLines.every((line) => line.item && Number.isInteger(line.units) && line.units >= 1)
     && new Set(askLines.map((line) => line.key)).size === askLines.length;
-  const offerBook = quantityOk ? part.bookCents * quantity : 0;
+  const lot = Number(form.lot || '1');
+  const lotOk = Number.isInteger(lot) && lot >= 1;
+  const lots = lotOk && quantityOk && quantity % lot === 0 ? quantity / lot : null;
+  const lotBook = lotOk ? part.bookCents * lot : 0;
   const askBook = askLines.reduce((sum, line) => sum + (line.item?.bookCents ?? 0) * (Number.isInteger(line.units) ? Math.max(0, line.units) : 0), 0);
-  const topUp = quantityOk && askLinesOk ? boardBarterTopUpCents(offerBook, askBook, book.rules) : null;
+  const fair = askLinesOk && lotOk && askBook <= lotBook;
+  const topUp = fair && lots !== null ? boardBarterTopUpCents(lotBook * lots, askBook * lots, book.rules) : null;
 
   const reason = full ? `You already have ${book.rules.maxOpenOffers} offers up.`
     : !quantityOk ? `List from 1 to ${formatNumber(part.held)}.`
       : barter
         ? !askLinesOk ? 'Ask for whole numbers of different things.'
-          : topUp === null ? `Ask for no more than ${formatCentsExact(offerBook)} of Board value.` : busy ? 'Your last change is still going through.' : null
+          : !lotOk ? 'Price a whole number of units at a time.'
+            : !fair ? `Ask for no more than ${formatCentsExact(lotBook)} of Board value ${lotLabel(lot)}.`
+              : lots === null ? `List a whole number of lots of ${formatNumber(lot)}.` : busy ? 'Your last change is still going through.' : null
         : !priceOk ? `Price each from ${formatCentsExact(part.floorCents)} to ${formatCentsExact(part.capCents)}.`
           : busy ? 'Your last change is still going through.' : null;
 
@@ -184,7 +203,13 @@ function ListPanel({ book, busy, form, onForm, onPost }: Pick<PlayerBoardViewPro
 
       {barter ? (
         <fieldset className="se-board-ask">
-          <legend className="se-label">Ask in trade for the whole stack</legend>
+          <legend className="se-label">Ask in trade</legend>
+          <div className="se-board-ask__lot">
+            <label htmlFor="board-lot">For every</label>
+            <input id="board-lot" className="se-input" type="number" inputMode="numeric" min={1} step={1} value={form.lot}
+              onChange={(event) => onForm({ ...form, lot: event.target.value })} />
+            <span>{part.name.toLowerCase()}, the buyer hands over:</span>
+          </div>
           {form.ask.map((line, index) => (
             <div className="se-board-ask__line" key={index}>
               <select className="se-input" aria-label={`Trade item ${index + 1}`} value={line.key} onChange={(event) => setAsk(index, { key: event.target.value })}>
@@ -199,8 +224,9 @@ function ListPanel({ book, busy, form, onForm, onPost }: Pick<PlayerBoardViewPro
             <Button size="sm" onClick={() => onForm({ ...form, ask: [...form.ask, { key: firstFree.key, quantity: '1' }] })}>Add an item</Button>
           ) : null}
           <p className="se-hint">
-            Asking {formatCentsExact(askBook)} of {formatCentsExact(offerBook)} Board value.
-            {topUp === null && askLinesOk ? ' That is more than your stack is worth.' : topUp ? ` The buyer adds ${formatCentsExact(topUp)} to the Board to even it out.` : topUp === 0 ? ' An even swap.' : ''}
+            Asking {formatCentsExact(askBook)} of {formatCentsExact(lotBook)} Board value {lotLabel(lotOk ? lot : 1)}.
+            {askLinesOk && lotOk && !fair ? ' That is more than they are worth.' : topUp ? ` Buying all of them, the buyer adds ${formatCentsExact(topUp)} to the Board to even it out.` : topUp === 0 ? ' An even swap.' : ''}
+            {' '}Buyers can take any number of {lotOk && lot > 1 ? `lots of ${formatNumber(lot)}` : 'them'}.
           </p>
         </fieldset>
       ) : (
@@ -215,7 +241,7 @@ function ListPanel({ book, busy, form, onForm, onPost }: Pick<PlayerBoardViewPro
       <p className="se-board-list__terms">
         {fee !== null ? <>Posting fee <strong>{formatCentsExact(fee)}</strong>, kept even if it does not sell. </> : null}
         {!barter && quantityOk && priceOk ? <>A sale pays you <strong>{formatCentsExact(boardSellerProceedsCents(price! * quantity, book.rules))}</strong> after the {book.rules.taxPercent}% cut.</> : null}
-        {barter && askLinesOk && topUp !== null ? <>A trade hands you <strong>{askSummary(askLines.map((line) => ({ name: line.item!.name, quantity: line.units })))}</strong>.</> : null}
+        {barter && topUp !== null && lots !== null ? <>Selling all of it hands you <strong>{askSummary(askLines.map((line) => ({ name: line.item!.name, quantity: line.units * lots })))}</strong>.</> : null}
       </p>
       <Button type="submit" variant="primary" disabledReason={reason}>Post offer</Button>
     </form>
@@ -225,11 +251,14 @@ function ListPanel({ book, busy, form, onForm, onPost }: Pick<PlayerBoardViewPro
 /** Why the viewer cannot take this offer right now, or null when they can. */
 function buyBlocker(row: PlayerBoardRowDto, book: PlayerBoardDto, busy: boolean, units: number | null): string | null {
   if (busy) return 'Your last change is still going through.';
-  if (units === null) return `Buy from 1 to ${formatNumber(row.quantity)}.`;
-  const cash = row.priceKind === 'BARTER' ? row.totalCents : row.unitPriceCents * units;
+  if (units === null) {
+    return row.lotSize > 1 ? `Take lots of ${formatNumber(row.lotSize)}, up to ${formatNumber(row.quantity)}.` : `Buy from 1 to ${formatNumber(row.quantity)}.`;
+  }
+  const cash = row.priceKind === 'BARTER' ? boardRowTopUpCents(row, units, book.rules) : row.unitPriceCents * units;
   if (cash > book.cashCents) return `You need ${formatCentsExact(cash)} on hand.`;
-  const short = row.ask.find((line) => (book.holdings[line.key] ?? 0) < line.quantity);
-  return short ? `You need ${formatNumber(short.quantity)} ${short.name.toLowerCase()} to trade.` : null;
+  const lots = units / row.lotSize;
+  const short = row.ask.find((line) => (book.holdings[line.key] ?? 0) < line.quantity * lots);
+  return short ? `You need ${formatNumber(short.quantity * lots)} ${short.name.toLowerCase()} to trade.` : null;
 }
 
 /** The Board tab's content. Pure, so it renders the same in tests as in the game. */
@@ -249,7 +278,7 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
       <section className="se-board-section" aria-labelledby="board-book">
         <div className="se-stores-sectionhead">
           <div><span className="se-eyebrow">City-wide</span><h2 id="board-book">On the Board</h2></div>
-          <p>Cash offers cheapest first. Buy any amount of a cash offer; a trade takes it all.</p>
+          <p>Cash offers cheapest first, then trades. Take as many as you need from any offer.</p>
         </div>
         {book.rows.length === 0 ? (
           <p className="se-board-empty">Nothing is up right now.</p>
@@ -264,7 +293,7 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
                     <td data-label="Seller"><span>{row.sellerName}{row.mine ? <span className="se-board-you"> (you)</span> : null}</span></td>
                     <td className="se-table__number se-num" data-label="Qty">{formatNumber(row.quantity)}</td>
                     <td className="se-board-trade" data-label="Price">
-                      <span>{row.priceKind === 'BARTER' ? <><span className="se-board-trade__tag">Trade</span> {askSummary(row.ask)}</> : <><span className="se-num">{formatCentsExact(row.unitPriceCents)}</span> each</>}</span>
+                      <span>{row.priceKind === 'BARTER' ? <><span className="se-board-trade__tag">Trade</span> {askSummary(row.ask)} {lotLabel(row.lotSize)}</> : <><span className="se-num">{formatCentsExact(row.unitPriceCents)}</span> each</>}</span>
                     </td>
                     <td className="se-table__number se-num" data-label="Cash">
                       {row.priceKind === 'BARTER' ? (row.totalCents > 0 ? `+ ${formatCentsExact(row.totalCents)}` : 'None') : formatCentsExact(row.totalCents)}
@@ -275,14 +304,14 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
                         const units = boardBuyUnits(row, buyQuantities[row.id]);
                         return (
                           <span className="se-board-buy">
-                            {row.priceKind === 'CASH' && row.quantity > 1 ? (
-                              <input className="se-input se-board-buy__qty" type="number" inputMode="numeric" min={1} max={row.quantity} step={1}
+                            {row.quantity > row.lotSize ? (
+                              <input className="se-input se-board-buy__qty" type="number" inputMode="numeric" min={row.lotSize} max={row.quantity} step={row.lotSize}
                                 aria-label={`How many ${row.name.toLowerCase()} to buy from ${row.sellerName}`}
                                 placeholder={String(row.quantity)} value={buyQuantities[row.id] ?? ''}
                                 onChange={(event) => onBuyQuantity(row.id, event.target.value)} />
                             ) : null}
                             <Button size="sm" variant="primary" disabledReason={buyBlocker(row, book, busy, units)} onClick={() => onBuy(row, units!)}>
-                              {row.priceKind === 'BARTER' ? 'Trade' : units !== null && units < row.quantity ? `Buy ${formatNumber(units)}` : 'Buy all'}
+                              {`${row.priceKind === 'BARTER' ? 'Trade' : 'Buy'} ${units !== null && units < row.quantity ? formatNumber(units) : 'all'}`}
                             </Button>
                           </span>
                         );
@@ -315,7 +344,7 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
                       {offer.remainingQuantity < offer.quantity ? `${formatNumber(offer.remainingQuantity)} of ${formatNumber(offer.quantity)} left` : formatNumber(offer.quantity)}
                     </td>
                     <td className="se-board-trade" data-label="Price">
-                      <span>{offer.priceKind === 'BARTER' ? <><span className="se-board-trade__tag">Trade</span> {askSummary(offer.ask)}</> : <><span className="se-num">{formatCentsExact(offer.unitPriceCents)}</span> each</>}</span>
+                      <span>{offer.priceKind === 'BARTER' ? <><span className="se-board-trade__tag">Trade</span> {askSummary(offer.ask)} {lotLabel(offer.lotSize)}</> : <><span className="se-num">{formatCentsExact(offer.unitPriceCents)}</span> each</>}</span>
                     </td>
                     <td data-label="Status">
                       {offer.status === 'OPEN' ? `Up · ${closesIn(offer.expiresAt, now)}` : STATUS_LABEL[offer.status]}
@@ -356,7 +385,7 @@ export function PlayerBoard() {
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [buyQuantities, setBuyQuantities] = useState<Record<string, string>>({});
-  const [form, setForm] = useState<ListForm>({ key: '', quantity: '1', mode: 'CASH', price: '', ask: [], hours: 12 });
+  const [form, setForm] = useState<ListForm>({ key: '', quantity: '1', mode: 'CASH', price: '', ask: [], lot: '1', hours: 12 });
   const [now, setNow] = useState(() => Date.now());
 
   const load = useCallback(async (which: PlayerBoardFilterDto) => {
@@ -406,9 +435,9 @@ export function PlayerBoard() {
     if (!barter && price === null) return;
     void change(async () => {
       const result = await storesApi.boardPost(barter
-        ? { itemKey: form.key, quantity: Number(form.quantity), priceKind: 'BARTER', askItems: form.ask.map((line) => ({ key: line.key, quantity: Number(line.quantity) })), durationHours: form.hours }
+        ? { itemKey: form.key, quantity: Number(form.quantity), priceKind: 'BARTER', lotSize: Number(form.lot || '1'), askItems: form.ask.map((line) => ({ key: line.key, quantity: Number(line.quantity) })), durationHours: form.hours }
         : { itemKey: form.key, quantity: Number(form.quantity), priceKind: 'CASH', unitPriceCents: price!, durationHours: form.hours });
-      const terms = barter ? `for ${askSummary(result.offer.ask)}` : `at ${formatCentsExact(result.offer.unitPriceCents)} each`;
+      const terms = barter ? `for ${askSummary(result.offer.ask)} ${lotLabel(result.offer.lotSize)}` : `at ${formatCentsExact(result.offer.unitPriceCents)} each`;
       return `Posted ${formatNumber(result.offer.quantity)} × ${result.offer.name} ${terms}. Fee ${formatCentsExact(result.feeCents)}.`;
     });
   }
@@ -416,9 +445,11 @@ export function PlayerBoard() {
   async function buy(row: PlayerBoardRowDto, units: number) {
     const barter = row.priceKind === 'BARTER';
     const cost = row.unitPriceCents * units;
+    const lots = units / row.lotSize;
+    const topUp = barter ? boardRowTopUpCents(row, units, book!.rules) : 0;
     const ok = await confirmAction(barter ? {
-      title: `Trade for ${formatNumber(row.quantity)} × ${row.name}?`,
-      body: `You hand ${row.sellerName} ${askSummary(row.ask)}${row.totalCents > 0 ? `, and the Board takes ${formatCentsExact(row.totalCents)} to even out the trade` : ''}.`,
+      title: `Trade for ${formatNumber(units)} × ${row.name}?`,
+      body: `You hand ${row.sellerName} ${askSummary(row.ask.map((line) => ({ ...line, quantity: line.quantity * lots })))}${topUp > 0 ? `, and the Board takes ${formatCentsExact(topUp)} to even out the trade` : ''}.`,
       confirmLabel: 'Trade',
     } : {
       title: `Buy ${formatNumber(units)} × ${row.name}?`,
@@ -429,7 +460,7 @@ export function PlayerBoard() {
     // One id per click: a retried request after a dropped connection cannot buy twice.
     const actionId = newActionId();
     void change(async () => {
-      const result = await storesApi.boardBuy(row.id, actionId, barter ? undefined : units);
+      const result = await storesApi.boardBuy(row.id, actionId, units);
       setBuyQuantities((current) => { const next = { ...current }; delete next[row.id]; return next; });
       const paid = [...(result.gave.length ? [askSummary(result.gave)] : []), ...(result.paidCents > 0 || !result.gave.length ? [formatCentsExact(result.paidCents)] : [])].join(' and ');
       return `Got ${formatNumber(result.quantity)} × ${result.name} from ${result.sellerName} for ${paid}.`;

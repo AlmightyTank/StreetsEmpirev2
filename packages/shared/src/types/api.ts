@@ -516,8 +516,10 @@ export interface PlayerBoardOfferDto {
   priceKind: PlayerBoardPriceKindDto;
   /** Cash offers only; 0 for a barter. */
   unitPriceCents: number;
-  /** Barter offers only; empty for cash. */
+  /** Barter offers only: what one lot costs. Empty for cash. */
   ask: PlayerBoardAskDto[];
+  /** Units per lot: 1 for cash, and for a barter priced per unit. */
+  lotSize: number;
   feeCents: number;
   durationHours: number;
   postedAt: string;
@@ -534,8 +536,10 @@ export interface PostPlayerBoardOfferInput {
   priceKind?: PlayerBoardPriceKindDto;
   /** Cash offers: the price per unit. */
   unitPriceCents?: number;
-  /** Barter offers: what the buyer must hand over for the whole stack. */
+  /** Barter offers: what the buyer hands over for every `lotSize` units. */
   askItems?: Array<{ key: string; quantity: number }>;
+  /** Barter offers: units per lot, 1 by default (the ask is per unit). The quantity must divide into lots. */
+  lotSize?: number;
   durationHours: number;
 }
 export interface PlayerBoardOfferResult {
@@ -564,8 +568,13 @@ export interface PlayerBoardRowDto {
   unitPriceCents: number;
   /** Cash for everything left: the sticker for cash, the Board's top-up for a barter. */
   totalCents: number;
-  /** Barter offers: the goods a buyer hands over. Empty for cash. */
+  /** Barter offers: the goods a buyer hands over for each lot. Empty for cash. */
   ask: PlayerBoardAskDto[];
+  /** Units per lot; buyers take whole lots. 1 for cash. */
+  lotSize: number;
+  /** Barter offers: the Board value of one lot and of its ask, so a part-buy's top-up can be priced. 0 for cash. */
+  lotBookCents: number;
+  askBookCents: number;
   sellerName: string;
   /** The viewer's own offer; it can never be bought by them. */
   mine: boolean;

@@ -1914,6 +1914,18 @@
   margin: 0;
 }
 
+.se-board-ask__lot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  color: var(--se-text-dim);
+}
+
+.se-board-ask__lot .se-input {
+  width: 84px;
+}
+
 .se-board-ask__line {
   display: grid;
   grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto;

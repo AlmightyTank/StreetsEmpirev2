@@ -351,6 +351,7 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
       priceKind: z.enum(['CASH', 'BARTER']).default('CASH'),
       unitPriceCents: z.number().int().min(1).max(2_000_000_000).optional(),
       askItems: z.array(z.object({ key: z.string().trim().min(1).max(64), quantity: z.number().int().min(1).max(1_000_000) }).strict()).max(10).optional(),
+      lotSize: z.number().int().min(1).max(1_000_000).optional(),
       durationHours: z.number().int().min(1).max(168),
     }).strict(), request.body);
     const { round, player } = await requirePlayer(request.auth!.account.id);
