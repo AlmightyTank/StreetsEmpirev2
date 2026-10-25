@@ -2562,3 +2562,11 @@
   content: none;
   display: none;
 }
+
+
+/* Keep the selected offer accent from extending below its thumbnail in phone cards. */
+@media (max-width: 700px) {
+  .se-market-page .se-market-table .se-market-listing--selected td:first-child {
+    box-shadow: none;
+  }
+}
