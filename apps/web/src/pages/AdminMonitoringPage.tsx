@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import '../styles/admin.css';
 import type { MonitoringSnapshotDto, MonitoringWindowDto } from '@streets/shared';
 import { formatNumber } from '@streets/shared';
 import { adminApi } from '../api/admin.js';

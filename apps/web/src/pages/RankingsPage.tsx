@@ -443,3 +443,4 @@ export function RankingsPage() {
 }
 import '../styles/rankings.css';
 import '../styles/social-experience.css';
+import '../styles/aftermath.css';

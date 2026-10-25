@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import '../styles/admin.css';
 import { Link } from 'react-router-dom';
 import type { AdminQuestContentDto, AdminRoundsDto } from '@streets/shared';
 import { formatNumber } from '@streets/shared';

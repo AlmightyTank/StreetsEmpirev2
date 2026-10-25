@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import '../styles/admin.css';
 import { Link } from 'react-router-dom';
 import {
   BUG_REPORT_CATEGORY_LABELS,

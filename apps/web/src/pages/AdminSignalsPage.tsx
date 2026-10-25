@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import '../styles/admin.css';
 import { Link } from 'react-router-dom';
 import type { AdminSignal, AdminSignalClusterDto, AdminSignalsDto, AdminSignalTransferDto } from '@streets/shared';
 import { formatCents } from '@streets/shared';

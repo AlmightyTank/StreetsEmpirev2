@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import '../styles/admin.css';
 import type { SupporterBenefitsDto, SupporterPollsDto, SupporterStatusDto } from '@streets/shared';
 import { ApiError } from '../api/client.js';
 import { supporterApi } from '../api/supporter.js';

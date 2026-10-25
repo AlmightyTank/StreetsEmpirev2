@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import '../styles/drop.css';
 import type {
   AdminCrownWalletDto,
   AdminDropDashboardDto,

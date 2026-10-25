@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import '../styles/admin.css';
 import { Link, useParams } from 'react-router-dom';
 import { ADMIN_GRANT_CAPS, ADMIN_PRODUCT_GRANT_CAP, type AdminCrewPlayerDto, type AdminGrantItem, type AdminPlayerDto, type AdminPlayerStoresDto, type AdminQuestContentDto, type AdminVoidBattleResultDto, type BattleReportDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';

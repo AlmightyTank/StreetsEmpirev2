@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import '../styles/public-info.css';
 import { Link } from 'react-router-dom';
 import type { HallOfFameDto, HallOfFameRoundDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
@@ -11,6 +12,7 @@ import { formatDate } from '../utils/time.js';
 import { AllianceTag } from '../components/AllianceTag.js';
 import { roundAftermathPublicEnabled } from '../config/features.js';
 
+import '../styles/aftermath.css';
 function medal(rank: number): string {
   if (rank === 1) return '1st';
   if (rank === 2) return '2nd';

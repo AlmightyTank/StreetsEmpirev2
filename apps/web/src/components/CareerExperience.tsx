@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
+import '../styles/career-experience.css';
 
 export type CareerDestinationKey = 'xp' | 'pass' | 'roll-call' | 'events' | 'profile';
 

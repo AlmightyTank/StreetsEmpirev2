@@ -8,6 +8,7 @@ import { Alert } from '../components/Alert.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { formatDate } from '../utils/time.js';
 
+import '../styles/aftermath.css';
 const PAGE_SIZE = 25;
 
 function reportStatusLabel(status: RoundAftermathArchiveDto['rounds'][number]['reportStatus']): string {

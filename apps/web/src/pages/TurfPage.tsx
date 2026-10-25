@@ -16,6 +16,8 @@ import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
 import { formatClockTime, formatWhen } from '../utils/time.js';
 import { EmpireInspector, EmpireManagementLayout, EmpireRosterCard } from '../components/EmpireManagement.js';
+import '../styles/empire-management.css';
+import '../styles/city-blocks.css';
 
 const ORDER: Record<TurfBlockDto['district'], number> = {
   CASINO: 0,

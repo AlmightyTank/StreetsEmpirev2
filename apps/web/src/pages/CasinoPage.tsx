@@ -1300,7 +1300,3 @@ export function CasinoPage() {
     </GameLayout>
   );
 }
-import '../styles/casino.css';
-import '../styles/casino-experience.css';
-import '../styles/sportsbook.css';
-import '../styles/sportsbook-vision.css';

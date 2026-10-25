@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import '../styles/admin.css';
 import type { AdminRulesetOptionDto, AdminRulesetViewDto } from '@streets/shared';
 import { formatNumber } from '@streets/shared';
 import { adminApi } from '../api/admin.js';

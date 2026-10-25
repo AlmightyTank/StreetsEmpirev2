@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import '../styles/admin.css';
 import { Link } from 'react-router-dom';
 import type { AdminMarketsDto, AdminPlayerBoardDto, AdminShipmentsDto, AdminSuspiciousDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';

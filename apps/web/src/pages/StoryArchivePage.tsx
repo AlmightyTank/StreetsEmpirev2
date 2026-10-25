@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import '../styles/quests.css';
 import { Link, Navigate } from 'react-router-dom';
 import { formatNumber } from '@streets/shared';
 import { questsApi } from '../api/quests.js';

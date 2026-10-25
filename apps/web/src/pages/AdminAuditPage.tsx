@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import '../styles/admin.css';
 import { useSearchParams } from 'react-router-dom';
 import type { AdminAuditEntryDto, AdminAuditFilters, AdminAuditRetentionDto } from '@streets/shared';
 import { AUDIT_EXPORT_MAX_ROWS, formatNumber } from '@streets/shared';

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { KONAMI_CODE, easterEggDay, type ClientEasterEggId, type EasterEggDay } from '@streets/shared';
+import '../styles/easter-eggs.css';
 import { easterEggsApi, type EasterEggFoundDto } from '../api/easterEggs.js';
 import { useSession } from '../stores/session.js';
 import { showGameToast } from './GameEventToasts.js';

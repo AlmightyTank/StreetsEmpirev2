@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import '../styles/economy-experience.css';
 import { Link } from 'react-router-dom';
 import { holdingsApi, type HoldingCity } from '../api/holdings.js';
 import { Alert } from '../components/Alert.js';

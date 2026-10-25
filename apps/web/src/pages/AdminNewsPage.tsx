@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import '../styles/admin.css';
 import { markdownToPlainText, type AdminNewsDto, type AdminNewsPostDto, type AdminSiteBannersDto, type SiteBannerTone } from '@streets/shared';
 import { adminApi } from '../api/admin.js';
 import { ApiError } from '../api/client.js';
