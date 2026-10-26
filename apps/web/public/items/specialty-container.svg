@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <filter id="s" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="2.5" flood-color="#000" flood-opacity=".6"/></filter>
+    <linearGradient id="tank" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#2c4a5c"/><stop offset=".3" stop-color="#7fb2cc"/><stop offset=".6" stop-color="#3f6a80"/><stop offset="1" stop-color="#14262f"/></linearGradient>
+    <linearGradient id="br" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe08a"/><stop offset=".45" stop-color="#c8962e"/><stop offset="1" stop-color="#6a4810"/></linearGradient>
+    <linearGradient id="st" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#5b6168"/><stop offset=".4" stop-color="#e8edf2"/><stop offset=".7" stop-color="#a7adb4"/><stop offset="1" stop-color="#4b5058"/></linearGradient>
+    <linearGradient id="yl" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8a6a08"/><stop offset=".35" stop-color="#ffd84a"/><stop offset="1" stop-color="#9a7410"/></linearGradient>
+    <pattern id="hz" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(42)"><rect width="7" height="14" fill="#15171b"/></pattern>
+  </defs>
+  <g filter="url(#s)" stroke="#0e1519" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M46 14 H82 V21 H46 Z" fill="url(#br)" stroke="#3e2a06"/>
+    <path d="M58 21 H70 V30 H58 Z" fill="url(#st)"/>
+    <path d="M70 24 H84 V30 H70 Z" fill="url(#st)"/>
+    <path d="M80 22 H87 V32 H80 Z" fill="url(#br)" stroke="#3e2a06"/>
+    <path d="M54 30 H74 V36 H54 Z" fill="url(#br)" stroke="#3e2a06"/>
+    <path d="M36 52 Q36 32 64 30 Q92 32 92 52 V102 Q92 110 84 110 H44 Q36 110 36 102 Z" fill="url(#tank)"/>
+    <path d="M32 104 H96 V112 Q96 116 92 116 H36 Q32 116 32 112 Z" fill="#3a4047"/>
+  </g>
+  <!-- hazard band -->
+  <g stroke="#0e1519" stroke-width="1.5">
+    <rect x="36" y="66" width="56" height="22" fill="url(#yl)"/>
+    <rect x="36" y="66" width="56" height="22" fill="url(#hz)" stroke="none"/>
+    <path d="M36 66 H92 M36 88 H92" fill="none"/>
+  </g>
+  <g fill="none" stroke-linecap="round">
+    <path d="M40 50 Q40 38 56 34" stroke="#fff" stroke-opacity=".6" stroke-width="2"/>
+    <path d="M41 44 V104" stroke="#cfe9f5" stroke-opacity=".4" stroke-width="2.6"/>
+    <path d="M38 107 H90" stroke="#fff" stroke-opacity=".2" stroke-width="1.4"/>
+    <path d="M36 106 H92" stroke="#0a1014" stroke-opacity=".5" stroke-width="1.2"/>
+    <path d="M48 16.5 H80" stroke="#fff6c8" stroke-opacity=".85" stroke-width="1.2"/>
+    <path d="M34 106 H94" stroke="#fff" stroke-opacity=".25" stroke-width="1.2"/>
+  </g>
+</svg>

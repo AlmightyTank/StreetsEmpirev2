@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <filter id="s" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="2.5" flood-color="#000" flood-opacity=".6"/></filter>
+    <linearGradient id="br" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe9a0"/><stop offset=".45" stop-color="#c8962e"/><stop offset="1" stop-color="#6a4810"/></linearGradient>
+    <linearGradient id="st" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#eef2f6"/><stop offset=".45" stop-color="#9aa2ac"/><stop offset="1" stop-color="#3e434a"/></linearGradient>
+    <radialGradient id="tape" cx=".38" cy=".32" r=".8"><stop offset="0" stop-color="#e4e8ec"/><stop offset=".55" stop-color="#9ba3ab"/><stop offset="1" stop-color="#4a5159"/></radialGradient>
+    <linearGradient id="core" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e0bf84"/><stop offset="1" stop-color="#8a6a38"/></linearGradient>
+  </defs>
+  <!-- wrench, lying behind the tape -->
+  <g transform="translate(58 60) rotate(35)" filter="url(#s)" stroke="#3e2a06" stroke-width="1.6" stroke-linejoin="round">
+    <path d="M-24 -6 H34 Q40 -6 40 0 Q40 6 34 6 H-24 Z" fill="url(#br)"/>
+    <circle cx="36" cy="0" r="10" fill="url(#br)"/>
+    <circle cx="36" cy="0" r="4.4" fill="#1c1f24"/>
+    <path d="M-49.75 -6 L-40 -6 L-40 6 L-49.75 6 A15 15 0 1 0 -49.75 -6 Z" fill="url(#br)"/>
+  </g>
+  <g transform="translate(58 60) rotate(35)" fill="none" stroke-linecap="round">
+    <path d="M-36 -13 A14 14 0 0 1 -24 -10" stroke="#fff6c8" stroke-opacity=".85" stroke-width="1.5"/>
+    <path d="M-20 -3.8 H30" stroke="#fff6c8" stroke-opacity=".8" stroke-width="1.5"/>
+    <path d="M-20 3.8 H30" stroke="#4a3208" stroke-opacity=".4" stroke-width="1.2"/>
+  </g>
+  <!-- roll of duct tape -->
+  <g filter="url(#s)" stroke="#16191d" stroke-width="1.6" stroke-linejoin="round">
+    <path d="M70 118 C86 116 100 118 112 112 L110 104 C100 108 86 106 72 108 Z" fill="#aeb6bd"/>
+    <circle cx="86" cy="90" r="26" fill="url(#tape)"/>
+    <circle cx="86" cy="90" r="13" fill="url(#core)" stroke="#3e2a0c"/>
+    <circle cx="86" cy="90" r="9" fill="#1c1f24"/>
+  </g>
+  <g fill="none" stroke-linecap="round">
+    <circle cx="86" cy="90" r="21" stroke="#16191d" stroke-opacity=".28" stroke-width="1.2"/>
+    <circle cx="86" cy="90" r="17" stroke="#16191d" stroke-opacity=".2" stroke-width="1"/>
+    <path d="M64 80 A23 23 0 0 1 80 66" stroke="#fff" stroke-opacity=".8" stroke-width="1.8"/>
+    <path d="M77 82 A10 10 0 0 1 84 78" stroke="#fff6c8" stroke-opacity=".7" stroke-width="1.2"/>
+    <path d="M72 112 C86 110 100 112 108 108" stroke="#fff" stroke-opacity=".6" stroke-width="1.2"/>
+  </g>
+</svg>
