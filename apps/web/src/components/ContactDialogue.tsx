@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { formatNumber, type PlayerQuestDto, type QuestContactDto } from '@streets/shared';
+import { QuestLink, questHref } from './QuestLink.js';
 import {
   contactJobs,
   greetingFor,
@@ -65,6 +66,17 @@ function lastOutcome(quest: PlayerQuestDto): string | null {
   return answered.at(-1)?.response?.outcome ?? null;
 }
 
+function prerequisiteStatus(quest: PlayerQuestDto): string {
+  switch (quest.status) {
+    case 'AVAILABLE': return 'Available now';
+    case 'ACTIVE': return 'In progress';
+    case 'READY_TO_TURN_IN': return 'Ready to collect';
+    case 'COMPLETED': return 'Completed';
+    case 'LOCKED': return 'Locked';
+    default: return 'Not available';
+  }
+}
+
 /** A visit with one contact: what they say, and the player's answers as numbered options. */
 export function ContactDialogue({
   contact,
@@ -100,48 +112,93 @@ export function ContactDialogue({
   if (view.kind === 'job' && job) {
     const scene = openScene(job);
     const outcome = lastOutcome(job);
-    line = job.status === 'READY_TO_TURN_IN' && outcome ? `${outcome}\n\n${jobLine(job)}` : jobLine(job);
-    extra = (
-      <div className="se-room__job">
-        <span className="se-eyebrow">{job.story?.chapter ? `${job.story.chapter} · ` : ''}{job.title} · {jobStatusLabel(job)}</span>
-        {job.status !== 'AVAILABLE' ? (
-          <ul className="se-room__objectives">
-            {job.objectives.filter((objective) => !objective.bonus).map((objective) => (
-              <li key={objective.id} className={objective.completed ? 'is-done' : undefined}>
-                {objective.description} <span className="se-num">{formatNumber(objective.current)} / {formatNumber(objective.target)}</span>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-        {job.rewards.length ? <p className="se-hint">Pays {job.rewards.map((reward) => reward.label).join(' · ')}</p> : null}
-      </div>
-    );
-    if (job.status === 'AVAILABLE') {
+    if (job.status === 'LOCKED') {
+      line = 'I can’t put you on this job yet. Here’s what needs to happen first.';
+      extra = (
+        <div className="se-room__job">
+          <span className="se-eyebrow">{job.title} · Locked</span>
+          <p className="se-hint">{job.description}</p>
+          {job.requires?.length ? (
+            <div className="se-room__requirements">
+              <span className="se-eyebrow">Still required</span>
+              <ul>
+                {job.requires.map((requirement, index) => {
+                  const prerequisite = requirement.questKey ? quests.find((entry) => entry.key === requirement.questKey) : undefined;
+                  return (
+                    <li key={`${requirement.questKey ?? requirement.label}:${index}`}>
+                      {prerequisite ? (
+                        <>
+                          <QuestLink quest={{ key: prerequisite.key, title: prerequisite.title, giverName: prerequisite.contactName }} />
+                          <span className="se-room__requirement-status">{prerequisiteStatus(prerequisite)}</span>
+                        </>
+                      ) : requirement.label}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ) : <p className="se-room__hint">The next step has not been posted yet. Check back after more of your current work.</p>}
+        </div>
+      );
       options = [
-        { key: 'accept', icon: '✓', label: 'I’ll take it.', onSelect: () => handlers.onAccept(job.key) },
-        back('Not right now.', { kind: 'work' }),
-      ];
-    } else if (scene) {
-      options = [
-        ...scene.responses.map((response): Option => ({
-          key: 'response:' + response.key, icon: '›', label: response.label,
-          onSelect: () => handlers.onRespond(job.key, scene.key, response.key, response.label),
-        })),
-        back('Let me think about it.', { kind: 'work' }),
-      ];
-    } else if (job.status === 'READY_TO_TURN_IN') {
-      options = [
-        ...(job.branchChoices.length
-          ? job.branchChoices.map((choice): Option => ({
-              key: 'branch:' + choice.key, icon: '⚖', label: choice.title, detail: choice.description,
-              onSelect: () => handlers.onClaim(job.key, choice.key, choice.title),
-            }))
-          : [{ key: 'claim', icon: '$', label: 'It’s done. (Collect payment)', onSelect: () => handlers.onClaim(job.key) }]),
-        back('Later.', { kind: 'work' }),
+        ...(job.requires ?? []).flatMap((requirement): Option[] => {
+          if (!requirement.questKey) return [];
+          const prerequisite = quests.find((entry) => entry.key === requirement.questKey);
+          if (!prerequisite) return [];
+          return [{
+            key: 'prerequisite:' + prerequisite.key,
+            icon: '↖',
+            label: `Open ${prerequisite.title}`,
+            detail: prerequisiteStatus(prerequisite),
+            to: questHref(prerequisite.key),
+          }];
+        }),
+        back('Back to this contact’s work.', { kind: 'work' }),
       ];
     } else {
-      options = [back('I’m on it.', { kind: 'work' })];
-      if (job.story?.actionHint) extra = <>{extra}<p className="se-room__hint">{job.story.actionHint}</p></>;
+      line = job.status === 'READY_TO_TURN_IN' && outcome ? `${outcome}\n\n${jobLine(job)}` : jobLine(job);
+      extra = (
+        <div className="se-room__job">
+          <span className="se-eyebrow">{job.story?.chapter ? `${job.story.chapter} · ` : ''}{job.title} · {jobStatusLabel(job)}</span>
+          {job.status !== 'AVAILABLE' ? (
+            <ul className="se-room__objectives">
+              {job.objectives.filter((objective) => !objective.bonus).map((objective) => (
+                <li key={objective.id} className={objective.completed ? 'is-done' : undefined}>
+                  {objective.description} <span className="se-num">{formatNumber(objective.current)} / {formatNumber(objective.target)}</span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {job.rewards.length ? <p className="se-hint">Pays {job.rewards.map((reward) => reward.label).join(' · ')}</p> : null}
+        </div>
+      );
+      if (job.status === 'AVAILABLE') {
+        options = [
+          { key: 'accept', icon: '✓', label: 'I’ll take it.', onSelect: () => handlers.onAccept(job.key) },
+          back('Not right now.', { kind: 'work' }),
+        ];
+      } else if (scene) {
+        options = [
+          ...scene.responses.map((response): Option => ({
+            key: 'response:' + response.key, icon: '›', label: response.label,
+            onSelect: () => handlers.onRespond(job.key, scene.key, response.key, response.label),
+          })),
+          back('Let me think about it.', { kind: 'work' }),
+        ];
+      } else if (job.status === 'READY_TO_TURN_IN') {
+        options = [
+          ...(job.branchChoices.length
+            ? job.branchChoices.map((choice): Option => ({
+                key: 'branch:' + choice.key, icon: '⚖', label: choice.title, detail: choice.description,
+                onSelect: () => handlers.onClaim(job.key, choice.key, choice.title),
+              }))
+            : [{ key: 'claim', icon: '$', label: 'It’s done. (Collect payment)', onSelect: () => handlers.onClaim(job.key) }]),
+          back('Later.', { kind: 'work' }),
+        ];
+      } else {
+        options = [back('I’m on it.', { kind: 'work' })];
+        if (job.story?.actionHint) extra = <>{extra}<p className="se-room__hint">{job.story.actionHint}</p></>;
+      }
     }
   } else if (view.kind === 'work' || view.kind === 'job') {
     line = jobs.length
