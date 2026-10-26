@@ -8,6 +8,7 @@ import { Panel } from './Panel.js';
 import { CasinoBetControl } from './CasinoExperience.js';
 import { casinoSoundEnabled, playCasinoSound, setCasinoSoundEnabled } from '../lib/casinoAudio.js';
 import { newActionId } from '../utils/actionId.js';
+import { CASINO_RECEIPT_LABELS } from '../receipts/casinoReceiptChips.js';
 
 type Props = { casinoPage: CasinoPageDto; onPageChange: (page: CasinoPageDto) => void };
 const wait = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms));
@@ -15,6 +16,11 @@ const dollars = (value: string) => {
   const number = Number(value);
   return Number.isFinite(number) && number > 0 ? Math.round(number * 100) : null;
 };
+
+function signedMoney(value: number): string {
+  if (value === 0) return '$0.00';
+  return `${value > 0 ? '+' : '−'}${formatCents(Math.abs(value))}`;
+}
 
 const RACE_DURATION_MS = 3600;
 // The runner column ends just before the placement marker. A small overrun lets
@@ -214,7 +220,8 @@ export function HorseRacingPanel({ casinoPage, onPageChange }: Props) {
         </div>
         {race && !racing ? <div className={`se-horse-racing__result${race.returnCents > 0 ? ' is-win' : ' is-loss'}`}>
           <span>Official: {race.finishOrder.slice(0, 3).map((key) => (state.horses.find((item) => item.key === key)?.name ?? key)).join(' · ')}</span>
-          <strong>{race.returnCents > 0 ? `Your ${race.horseName} ticket paid ${formatCents(race.returnCents)}` : `${race.horseName} finished #${race.finishOrder.indexOf(race.horseKey) + 1}`}</strong>
+          <strong>{race.horseName} finished #{race.finishOrder.indexOf(race.horseKey) + 1}</strong>
+          <span>{CASINO_RECEIPT_LABELS.wager} {formatCents(race.wagerCents)} · {CASINO_RECEIPT_LABELS.returned} {formatCents(race.returnCents)} · {CASINO_RECEIPT_LABELS.net} {signedMoney(race.netCents)}</span>
         </div> : null}
         <div className="se-horse-racing__bet">
           <CasinoBetControl id="horse-wager" label="Win bet" ariaLabel="Horse race wager" value={wager} disabled={racing} onChange={(value) => { setWager(value); actionId.current = newActionId(); }} onDecrease={() => setWager(String(Math.max(state.minBetCents, (wagerCents ?? state.minBetCents) - state.betStepCents) / 100))} onIncrease={() => setWager(String(Math.min(state.maxBetCents, (wagerCents ?? state.minBetCents) + state.betStepCents) / 100))} onMax={() => setWager(String(Math.floor(Math.min(state.maxBetCents, bankroll) / state.betStepCents) * state.betStepCents / 100))} />

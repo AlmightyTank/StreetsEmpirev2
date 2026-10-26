@@ -8,7 +8,8 @@ import {
 } from '@streets/shared';
 import { casinoApi } from '../api/casino.js';
 import { ApiError } from '../api/client.js';
-import { ActionDock, deltaChip } from './ActionDock.js';
+import { ActionDock } from './ActionDock.js';
+import { CASINO_RECEIPT_LABELS, blackjackReceiptChips } from '../receipts/casinoReceiptChips.js';
 import { CasinoBetControl } from './CasinoExperience.js';
 import { Alert } from './Alert.js';
 import { Button } from './Button.js';
@@ -399,28 +400,18 @@ export function BlackjackPanel({ casinoPage, onPageChange }: Props) {
                       ? 'Lost ' + signedMoney(settledHand.netCents)
                       : 'Push',
                   tone: settledHand.netCents >= 0 ? 'good' : 'bad',
-                  chips: [
-                    { key: 'dealer', label: 'Dealer', text: settledHand.dealerTotal === null ? '—' : String(settledHand.dealerTotal), tone: 'muted' as const },
-                    ...settledHand.playerHands.map((hand) => ({
-                      key: 'hand' + hand.index,
-                      label: settledHand.playerHands.length > 1 ? 'Hand ' + (hand.index + 1) : 'You',
-                      text: hand.total + (hand.outcome ? ' ' + blackjackOutcomeLabel(hand.outcome).toLowerCase() : ''),
-                      tone: hand.outcome === 'WIN' || hand.outcome === 'BLACKJACK' ? 'good' as const : hand.outcome === 'PUSH' ? 'muted' as const : 'bad' as const,
-                    })),
-                    deltaChip('Net', settledHand.netCents, { money: true }),
-                    { key: 'bankroll', label: 'Floor', text: formatCents(settledHand.bankrollAfterCents), tone: 'muted' as const },
-                  ],
+                  chips: blackjackReceiptChips(settledHand),
                   receipt: (
                     <div className="se-rows">
                       <div className="se-row"><span className="se-row__label">{settledHand.tableName}</span><span className="se-row__value">Dealer {settledHand.dealerTotal ?? '—'}{settledHand.dealerSoft ? ' soft' : ''}</span></div>
                       {settledHand.playerHands.map((hand) => (
                         <div className="se-row" key={hand.index}>
                           <span className="se-row__label">{settledHand.playerHands.length > 1 ? 'Hand ' + (hand.index + 1) : 'Your hand'} · {hand.total}{hand.soft ? ' soft' : ''} · {blackjackOutcomeLabel(hand.outcome)}</span>
-                          <span className="se-row__value">{formatCents(hand.wagerCents)} → {formatCents(hand.returnCents)}</span>
+                          <span className="se-row__value">Wager {formatCents(hand.wagerCents)} → returned {formatCents(hand.returnCents)}</span>
                         </div>
                       ))}
-                      <div className="se-row se-row--strong"><span className="se-row__label">Net</span><span className={'se-row__value ' + (settledHand.netCents > 0 ? 'se-good' : settledHand.netCents < 0 ? 'se-bad' : '')}>{signedMoney(settledHand.netCents)}</span></div>
-                      <div className="se-row"><span className="se-row__label">Floor bankroll</span><span className="se-row__value">{formatCents(settledHand.bankrollAfterCents)}</span></div>
+                      <div className="se-row se-row--strong"><span className="se-row__label">{CASINO_RECEIPT_LABELS.net}</span><span className={'se-row__value ' + (settledHand.netCents > 0 ? 'se-good' : settledHand.netCents < 0 ? 'se-bad' : '')}>{signedMoney(settledHand.netCents)}</span></div>
+                      <div className="se-row"><span className="se-row__label">{CASINO_RECEIPT_LABELS.bankroll}</span><span className="se-row__value">{formatCents(settledHand.bankrollAfterCents)}</span></div>
                     </div>
                   ),
                   onDismiss: () => setLastHand(null),

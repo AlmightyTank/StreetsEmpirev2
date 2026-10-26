@@ -1,10 +1,13 @@
+Warning: truncated output (original token count: 17066)
+Total output lines: 1282
+
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react';
 import { isString, rememberedKey, useRememberedState } from '../utils/remembered.js';
 import { Link, Navigate, useParams } from 'react-router-dom';
-import { formatCents, type CasinoPageDto, type CasinoSlotSpinDto, type CasinoTournamentPageDto } from '@streets/shared';
+import { formatCents, formatNumber, type CasinoPageDto, type CasinoSlotSpinDto, type CasinoTournamentPageDto } from '@streets/shared';
 import { casinoApi } from '../api/casino.js';
 import { ApiError } from '../api/client.js';
-import { ActionDock, deltaChip } from '../components/ActionDock.js';
+import { ActionDock } from '../components/ActionDock.js';
 import { Alert } from '../components/Alert.js';
 import { BlackjackPanel } from '../components/BlackjackPanel.js';
 import { RoulettePanel } from '../components/RoulettePanel.js';
@@ -14,6 +17,7 @@ import { PokerPanel } from '../components/PokerPanel.js';
 import { CasinoStatusPanel } from '../components/CasinoStatusPanel.js';
 import { CasinoBankrollSummary, CasinoBetControl, CasinoGameSelector } from '../components/CasinoExperience.js';
 import { SportsbookPanel } from '../components/SportsbookPanel.js';
+import { CASINO_RECEIPT_LABELS, slotReceiptChips } from '../receipts/casinoReceiptChips.js';
 import { Button } from '../components/Button.js';
 import { LevelLockNotice } from '../components/LevelLockNotice.js';
 import { Panel, Row } from '../components/Panel.js';
@@ -564,340 +568,7 @@ export function CasinoPage() {
                     </Button>
                   ) : (
                     <form className="se-casino-wallet__start" onSubmit={(event) => { event.preventDefault(); void quickStart(); }}>
-                      <label className="se-casino-wallet__amount">
-                        <span aria-hidden="true">$</span>
-                        <input
-                          className="se-input"
-                          inputMode="decimal"
-                          aria-label="Bankroll in dollars"
-                          value={sessionAmount}
-                          onChange={(event) => {
-                            setSessionAmount(event.target.value);
-                            openAction.current = newActionId();
-                            buyAction.current = newActionId();
-                          }}
-                        />
-                      </label>
-                      <Button className="se-btn se-btn--primary" type="submit" disabledReason={busy !== null ? 'Another casino action is running.' : null}>
-                        {busy === 'buy' ? 'Buying chips...' : busy === 'open' ? 'Opening...' : 'Get on the floor'}
-                      </Button>
-                    </form>
-                  )}
-                  {venue ? (
-                    <details className="se-casino-wallet__cashier">
-                      <summary>Cashier</summary>
-                      <form className="se-casino__form" onSubmit={submitBuy}>
-                        <label>
-                          <span>Exchange amount ($)</span>
-                          <input className="se-input" inputMode="decimal" value={cashierAmount} onChange={(event) => {
-                            setCashierAmount(event.target.value);
-                            buyAction.current = newActionId();
-                            redeemAction.current = newActionId();
-                          }} />
-                        </label>
-                        <div className="se-casino__actions">
-                          <Button className="se-btn" type="submit" disabled={busy !== null}>{busy === 'buy' ? 'Buying...' : 'Buy chips'}</Button>
-                          <Button className="se-btn se-btn--ghost" type="button" disabled={busy !== null} onClick={() => void exchange('redeem')}>
-                            {busy === 'redeem' ? 'Cashing out...' : 'Redeem chips'}
-                          </Button>
-                        </div>
-                        {data.limits ? (
-                          <p className="se-hint">
-                            Cage {formatCents(data.limits.cashierMinCents)} – {formatCents(data.limits.cashierMaxCents)} · sessions {formatCents(data.limits.sessionMinCents)} – {formatCents(data.limits.sessionMaxCents)}.
-                            {session ? ' Cashing out returns the floor bankroll to ' + session.cityName + '’s chips.' : ' Get on the floor buys only the chips you are missing.'}
-                          </p>
-                        ) : null}
-                      </form>
-                    </details>
-                  ) : null}
-                </>
-              }
-              note={session && (!venue || session.venueName !== venue.name)
-                ? <>Your open session is at {session.venueName}, {session.cityName}.</>
-                : undefined}
-            />
-
-            {!activeGame ? (
-              <>
-                <section className="se-casino-lobby" aria-label="Casino games">
-                  {CASINO_GAMES.map((game) => (
-                    <Link key={game.key} to={'/game/casino/' + game.key} className={'se-casino-gamecard se-casino-gamecard--' + game.key}>
-                      <span className="se-casino-gamecard__icon" aria-hidden="true">{game.icon}</span>
-                      <span className="se-casino-gamecard__copy">
-                        <strong>{game.title}</strong>
-                        <small>{game.description}</small>
-                      </span>
-                      <span className="se-casino-gamecard__meta">
-                        {game.key === 'slots' && data.freeSpinBonus ? (
-                          <em className="se-casino-gamecard__badge">Free spins waiting</em>
-                        ) : (
-                          <em className={'se-casino-gamecard__status' + (game.live ? ' is-live' : '')}>{game.status}</em>
-                        )}
-                        <span className="se-casino-gamecard__play">Play &rarr;</span>
-                      </span>
-                    </Link>
-                  ))}
-                </section>
-
-                <CasinoStatusPanel
-                  page={data}
-                  busy={busy !== null}
-                  onPage={async (next, success) => {
-                    setData(next);
-                    setDisplayedCreditsCents(next.openSession?.bankrollCents ?? null);
-                    setError(null);
-                    setNotice(success);
-                    await refreshSnapshot({ background: false });
-                  }}
-                  onError={(message) => {
-                    setNotice(null);
-                    setError(message);
-                  }}
-                />
-
-                <TournamentBoard />
-
-            <Panel title="Casino destinations" aside={String(data.venues.length) + ' cities'}>
-              <div className="se-casino__venues">
-                {data.venues.map((venue) => (
-                  <article
-                    key={venue.citySlug}
-                    className={'se-casino__venue' + (venue.here ? ' is-here' : '') + (venue.identity ? ' se-casino__venue--' + venue.identity.accent.toLowerCase() : '')}
-                  >
-                    <span className="se-eyebrow">{venue.cityName}{venue.here ? ' · you are here' : ''}{data.status?.homeRoomCitySlug === venue.citySlug ? ' · your room' : ''}</span>
-                    <h3>{venue.name}</h3>
-                    <p>{venue.identity?.tagline ?? venue.blurb}</p>
-                    {venue.vipRoom ? <small className="se-casino__venue-vip">VIP: {venue.vipRoom.name} · {venue.vipRoom.minTierName}+</small> : null}
-                    <strong>{formatCents(venue.walletChipsCents)} in chips</strong>
-                  </article>
-                ))}
-              </div>
-            </Panel>
-
-            <Panel title="Casino history" aside="Last 25">
-              {data.recentLedger.length ? (
-                <div className="se-casino__ledger">
-                  {data.recentLedger.map((entry) => (
-                    <article key={entry.id} className={'se-casino__ledgerrow is-' + entry.display.tone}>
-                      <div className="se-casino__ledger-main">
-                        <div className="se-casino__ledger-title">
-                          <strong>{entry.display.title}</strong>
-                          <span>{entry.venueName} · {entry.cityName}</span>
-                        </div>
-                        <p>{entry.display.detail}</p>
-                        <time dateTime={entry.createdAt}>{formatWhen(entry.createdAt)}</time>
-                      </div>
-                      <div className="se-casino__ledger-amount">
-                        <small>{entry.display.amountLabel}</small>
-                        <strong>
-                          {entry.display.tone === 'positive' ? '+' : entry.display.tone === 'negative' ? '−' : ''}
-                          {formatCents(entry.display.amountCents)}
-                        </strong>
-                        {entry.kind === 'SLOT_SPIN' || entry.kind === 'BLACKJACK' || entry.kind === 'ROULETTE' || entry.kind === 'SCRATCH_CARD' || entry.kind === 'HORSE_RACE' || entry.kind === 'SPORTSBOOK_BET' || (entry.kind === 'SPORTSBOOK_SETTLEMENT' && entry.sessionChipDeltaCents !== 0) ? (
-                          <span>Floor {formatCents(entry.sessionChipsAfterCents)}</span>
-                        ) : entry.kind === 'BUY_CHIPS' && entry.sessionChipDeltaCents !== 0 ? (
-                          <span>Floor {formatCents(entry.sessionChipsAfterCents)}</span>
-                        ) : entry.kind === 'BUY_CHIPS' || entry.kind === 'REDEEM_CHIPS' ? (
-                          <span>Wallet {formatCents(entry.walletChipsAfterCents)}</span>
-                        ) : (
-                          <span>{entry.kind === 'SESSION_OPEN' ? 'Floor ' + formatCents(entry.sessionChipsAfterCents) : 'Wallet ' + formatCents(entry.walletChipsAfterCents)}</span>
-                        )}
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              ) : <p className="se-muted">Your casino history is empty. Buy chips or play a game and it will show up here.</p>}
-            </Panel>
-              </>
-            ) : (
-            <section className="se-casino-floor se-casino-table" aria-label={activeInfo!.title}>
-              <div className="se-casino-game-stage" id={'casino-game-panel-' + activeGame}>
-                {activeGame === 'slots' ? (
-            <Panel title="Slots" aside="Casino-style paylines">
-              {data.slotMachines.length ? (
-                <div className="se-slots">
-                  <div className="se-casino-picker" role="group" aria-label="Slot machines">
-                    {data.slotMachines.map((machine) => (
-                      <button
-                        key={machine.key}
-                        type="button"
-                        disabled={busy !== null || data.freeSpinBonus !== null}
-                        aria-pressed={selectedMachineKey === machine.key}
-                        className={'se-casino-picker__opt' + (selectedMachineKey === machine.key ? ' is-selected' : '') + (machine.availableHere ? '' : ' is-away')}
-                        title={machine.availableHere ? undefined : 'Not in this room'}
-                        onClick={() => {
-                          setSelectedMachineKey(machine.key);
-                          setSlotBetPerLine(String(machine.minBetPerLineCents / 100));
-                          setSelectedPaylineKeys(machine.paylines.map((line) => line.key));
-                          setLastSpin(null);
-                          setDisplayedWinCents(0);
-                          spinAction.current = newActionId();
-                        }}
-                      >
-                        <strong>{machine.name}</strong>
-                        <small>{machine.reels}×{machine.rows} · {machine.paylines.length} lines{machine.availableHere ? '' : ' · not here'}</small>
-                      </button>
-                    ))}
-                  </div>
-
-                  {(() => {
-                    const machine = data.slotMachines.find((candidate) => candidate.key === selectedMachineKey);
-                    if (!machine) return null;
-                    const result = lastSpin?.machineKey === machine.key ? lastSpin : null;
-                    const bonus = data.freeSpinBonus;
-                    const bonusActive = Boolean(bonus && bonus.machineKey === machine.key);
-                    const selectedLines = bonusActive ? bonus!.activePaylineKeys : selectedPaylineKeys;
-                    const lineBetCents = bonusActive ? bonus!.betPerLineCents : dollarsToCents(slotBetPerLine);
-                    const totalWagerCents = lineBetCents ? lineBetCents * selectedLines.length : 0;
-                    const sessionHere = Boolean(data.openSession && data.currentVenue && data.openSession.citySlug === data.currentVenue.citySlug);
-                    const bonusHere = !bonusActive || data.currentVenue?.citySlug === bonus!.citySlug;
-                    const lineBetValid = Boolean(
-                      lineBetCents
-                      && lineBetCents >= machine.minBetPerLineCents
-                      && lineBetCents <= machine.maxBetPerLineCents
-                      && lineBetCents % machine.betStepCents === 0
-                    );
-                    const disabledReason = !machine.availableHere
-                      ? 'Travel to a casino that carries this machine.'
-                      : !bonusHere
-                        ? 'Return to ' + bonus!.cityName + ' to use these free spins.'
-                        : !data.openSession
-                          ? 'Open a session bankroll first.'
-                          : !sessionHere
-                            ? 'Your open bankroll belongs to another casino.'
-                            : !selectedLines.length
-                              ? 'Select at least one payline.'
-                              : !lineBetValid
-                                ? 'Use one of this machine\'s posted line-bet increments.'
-                                : !bonusActive && data.openSession && totalWagerCents > data.openSession.bankrollCents
-                                  ? 'There are not enough credits in this bankroll for that spin.'
-                                  : busy !== null
-                                    ? 'Another casino action is running.'
-                                    : null;
-
-                    const outcomeVisible = Boolean(result && revealedReels >= machine.reels);
-                    const currentWin = outcomeVisible && result?.winningLines.length
-                      ? result.winningLines[activeWinLineIndex % result.winningLines.length]!
-                      : null;
-                    const winningPositions = new Set(
-                      currentWin?.positions.map((position) => position.reel + ':' + position.row) ?? [],
-                    );
-                    const winningLineKeys = new Set(outcomeVisible ? result?.winningLines.map((win) => win.paylineKey) ?? [] : []);
-                    const activeWinKey = currentWin?.paylineKey ?? null;
-                    const baseGrid = result?.grid ?? Array.from({ length: machine.rows }, () =>
-                      Array.from({ length: machine.reels }, () => ({ key: 'READY', glyph: '?', label: 'ready' })),
-                    );
-                    const cabinetTone = machine.key.toLowerCase().replaceAll('_', '-');
-
-                    const setLineBet = (nextCents: number) => {
-                      const bounded = Math.max(machine.minBetPerLineCents, Math.min(machine.maxBetPerLineCents, nextCents));
-                      setSlotBetPerLine(String(bounded / 100));
-                      setLastSpin(null);
-                      setDisplayedWinCents(0);
-                      spinAction.current = newActionId();
-                    };
-                    const setPaylines = (nextKeys: string[]) => {
-                      setSelectedPaylineKeys(nextKeys);
-                      setLastSpin(null);
-                      setDisplayedWinCents(0);
-                      spinAction.current = newActionId();
-                    };
-                    const setPaylineCount = (nextCount: number) => {
-                      const bounded = Math.max(1, Math.min(machine.paylines.length, nextCount));
-                      setPaylines(machine.paylines.slice(0, bounded).map((line) => line.key));
-                    };
-
-                    return (
-                      <div className={'se-slots__stage se-slots__stage--' + cabinetTone}>
-                        <div className="se-slots__copy">
-                          <div className="se-slots__title-row">
-                            <div>
-                              <h3>{machine.name}</h3>
-                              <p>{machine.blurb}</p>
-                            </div>
-                            <button
-                              type="button"
-                              className="se-btn se-btn--ghost se-slots__sound"
-                              aria-pressed={soundEnabled}
-                              onClick={() => {
-                                const next = !soundEnabled;
-                                setSoundEnabledState(next);
-                                setCasinoSoundEnabled(next);
-                                if (next) playCasinoSound('REEL_STOP', true);
-                              }}
-                            >
-                              {soundEnabled ? 'Sound on' : 'Muted'}
-                            </button>
-                          </div>
-                          <details className="se-slots__rules">
-                            <summary>How it pays</summary>
-                            <p className="se-hint">
-                              {machine.reels} reels × {machine.rows} rows · wins run left-to-right from reel 1 · 3+ matching symbols
-                            </p>
-                            <p className="se-hint">
-                              Line bet {formatCents(machine.minBetPerLineCents)} – {formatCents(machine.maxBetPerLineCents)}
-                              {' · '}step {formatCents(machine.betStepCents)}
-                              {' · '}free-spin feature included
-                            </p>
-                            {machine.freeSpins ? (
-                              <p className="se-hint">
-                                Paid spins can randomly award {machine.freeSpins.possibleAwards.join('/')} free spins. The machine, lines and line bet stay locked for the bonus.
-                              </p>
-                            ) : null}
-                          </details>
-                          {machine.progressive ? (
-                            <p className="se-slots__jackpot">
-                              Progressive <strong>{formatCents(machine.progressive.poolCents)}</strong>
-                              {' · '}qualifies at {formatCents(machine.progressive.eligibleBetPerLineCents)} per line
-                              {machine.progressive.requiresAllPaylines ? ' with every line active' : ''}
-                            </p>
-                          ) : null}
-                        </div>
-
-                        {bonusActive ? (
-                          <div className="se-slots__bonus-banner" role="status">
-                            <span>{bonus!.presentationLabel}</span>
-                            <strong>{bonus!.remainingSpins} FREE SPIN{bonus!.remainingSpins === 1 ? '' : 'S'} LEFT</strong>
-                            <small>
-                              {bonus!.activePaylineKeys.length} lines × {formatCents(bonus!.betPerLineCents)}
-                              {' · '}casino covers {formatCents(bonus!.activePaylineKeys.length * bonus!.betPerLineCents)} each spin
-                            </small>
-                          </div>
-                        ) : null}
-
-                        <div
-                          className={
-                            'se-slots__cabinet is-' + cabinetTone
-                            + (busy === 'spin' ? ' is-spinning' : '')
-                            + (busy === 'spin' && result?.nearMiss && revealedReels === result.nearMiss.reel ? ' is-anticipating' : '')
-                            + (outcomeVisible && result ? ' is-' + result.winTier.toLowerCase() : '')
-                          }
-                          style={{ '--se-slot-reels': machine.reels } as CSSProperties}
-                        >
-                          <div className="se-slots__cabinet-marquee">
-                            <span className="se-slots__cabinet-brand">STREETS <strong>EMPIRE</strong></span>
-                            <strong className="se-slots__cabinet-name">{machine.name}</strong>
-                            <span className="se-slots__cabinet-prize">
-                              {machine.progressive
-                                ? 'JACKPOT ' + formatCents(machine.progressive.poolCents)
-                                : 'LUCKY 7S · GOOD FORTUNE'}
-                            </span>
-                          </div>
-                          <div
-                            className={'se-slots__reels' + (busy === 'spin' ? ' is-spinning' : '')}
-                            style={{ gridTemplateColumns: `repeat(${machine.reels}, minmax(0, 1fr))` }}
-                            aria-live="polite"
-                            aria-label={machine.reels + ' reel by ' + machine.rows + ' row slot result'}
-                          >
-                            {currentWin ? (
-                              <svg
-                                className="se-slots__line-overlay"
-                                viewBox={`0 0 ${machine.reels * 100} ${machine.rows * 100}`}
-                                preserveAspectRatio="none"
-                                aria-hidden="true"
-                              >
-                                {(() => {
-                                  const line = machine.paylines.find((candidate) => candidate.key === currentWin.paylineKey);
+                      <label className="se-casino-wallet__amou…5066 tokens truncated…             const line = machine.paylines.find((candidate) => candidate.key === currentWin.paylineKey);
                                   if (!line) return null;
                                   const points = line.rows
                                     .map((row, reel) => (reel * 100 + 50) + ',' + (row * 100 + 50))
@@ -988,19 +659,12 @@ export function CasinoPage() {
                                   ? result.freeSpinsAwarded + ' free spin' + (result.freeSpinsAwarded === 1 ? '' : 's')
                                   : result.nearMiss ? 'So close' : 'No win',
                             tone: result.payoutCents > 0 || result.freeSpinsAwarded > 0 ? 'good' : 'bad',
-                            chips: [
-                              result.isFreeSpin
-                                ? { key: 'stake', label: 'Free spin', text: result.freeSpinsRemainingAfter + ' left', tone: 'muted' as const }
-                                : deltaChip('Stake', -result.chargedWagerCents, { money: true }),
-                              ...(result.payoutCents > 0 ? [deltaChip('Paid', result.payoutCents, { money: true })] : []),
-                              ...(result.winningLines.length ? [{ key: 'lines', label: 'Lines hit', text: String(result.winningLines.length), tone: 'good' as const }] : []),
-                              ...(result.freeSpinsAwarded > 0 ? [deltaChip('Free spins', result.freeSpinsAwarded)] : []),
-                              ...(result.nearMiss && result.payoutCents === 0 ? [{ key: 'near', label: 'Near miss', text: result.nearMiss.symbolLabel, tone: 'muted' as const }] : []),
-                              { key: 'floor', label: 'Floor', text: formatCents(result.bankrollAfterCents), tone: 'muted' as const },
-                            ],
+                            chips: slotReceiptChips(result),
                             receipt: (
                               <div className="se-rows">
-                                <div className="se-row"><span className="se-row__label">Spin</span><span className="se-row__value">{result.activePaylineKeys.length} lines × {formatCents(result.betPerLineCents)}{result.isFreeSpin ? ' · free' : ''}</span></div>
+                                <div className="se-row"><span className="se-row__label">{CASINO_RECEIPT_LABELS.wager}</span><span className="se-row__value">{formatNumber(result.activePaylineKeys.length)} paylines × {formatCents(result.betPerLineCents)}{result.isFreeSpin ? ' · comped' : ` · ${formatCents(result.chargedWagerCents)} charged`}</span></div>
+                                <div className="se-row"><span className="se-row__label">{CASINO_RECEIPT_LABELS.returned}</span><span className="se-row__value">{formatCents(result.payoutCents)}</span></div>
+                                <div className="se-row"><span className="se-row__label">{CASINO_RECEIPT_LABELS.winningLines}</span><span className="se-row__value">{formatNumber(result.winningLines.length)}</span></div>
                                 {result.winningLines.map((win) => (
                                   <div className="se-row" key={win.paylineKey}>
                                     <span className="se-row__label">{win.paylineName} · {win.matchCount}× {win.symbolLabel}</span>
@@ -1009,8 +673,8 @@ export function CasinoPage() {
                                 ))}
                                 {result.jackpotAwardCents > 0 ? <div className="se-row"><span className="se-row__label">Progressive jackpot</span><span className="se-row__value se-good">+{formatCents(result.jackpotAwardCents)}</span></div> : null}
                                 {result.nearMiss ? <div className="se-row"><span className="se-row__label">Near miss</span><span className="se-row__value">{result.nearMiss.symbolLabel} one stop off the line</span></div> : null}
-                                <div className="se-row se-row--strong"><span className="se-row__label">Net</span><span className={'se-row__value ' + (result.netCents >= 0 ? 'se-good' : 'se-bad')}>{result.netCents >= 0 ? '+' : '−'}{formatCents(Math.abs(result.netCents))}</span></div>
-                                <div className="se-row"><span className="se-row__label">Floor bankroll</span><span className="se-row__value">{formatCents(result.bankrollAfterCents)}</span></div>
+                                <div className="se-row se-row--strong"><span className="se-row__label">{CASINO_RECEIPT_LABELS.net}</span><span className={'se-row__value ' + (result.netCents >= 0 ? 'se-good' : 'se-bad')}>{result.netCents >= 0 ? '+' : '−'}{formatCents(Math.abs(result.netCents))}</span></div>
+                                <div className="se-row"><span className="se-row__label">{CASINO_RECEIPT_LABELS.bankroll}</span><span className="se-row__value">{formatCents(result.bankrollAfterCents)}</span></div>
                               </div>
                             ),
                             onDismiss: () => {
@@ -1169,12 +833,13 @@ export function CasinoPage() {
 
                         {outcomeVisible && result ? (
                           <div className={'se-slots__result is-' + result.winTier.toLowerCase()}>
-                            <Row label={result.isFreeSpin ? 'Nominal wager' : 'Wager'} value={formatCents(result.wagerCents)} />
-                            {result.isFreeSpin ? <Row label="Charged" value="$0.00 · casino covered it" strong /> : null}
+                            <Row label={result.isFreeSpin ? 'Nominal wager' : CASINO_RECEIPT_LABELS.wager} value={formatCents(result.wagerCents)} />
+                            {result.isFreeSpin ? <Row label="Wager charged" value="$0.00 · covered by the casino" strong /> : null}
                             <Row label="Lines played" value={String(result.activePaylineKeys.length)} />
-                            <Row label="Payout" value={formatCents(displayedWinCents || result.payoutCents)} strong />
-                            <Row label="Net" value={signedMoney(result.netCents)} />
-                            <Row label="Bankroll after" value={formatCents(result.bankrollAfterCents)} />
+                            <Row label={CASINO_RECEIPT_LABELS.winningLines} value={formatNumber(result.winningLines.length)} />
+                            <Row label={CASINO_RECEIPT_LABELS.returned} value={formatCents(displayedWinCents || result.payoutCents)} strong />
+                            <Row label={CASINO_RECEIPT_LABELS.net} value={signedMoney(result.netCents)} />
+                            <Row label={CASINO_RECEIPT_LABELS.bankroll} value={formatCents(result.bankrollAfterCents)} />
                             {result.freeSpinsAwarded > 0 ? <Row label="Bonus awarded" value={result.freeSpinsAwarded + ' free spin' + (result.freeSpinsAwarded === 1 ? '' : 's')} strong /> : null}
                             {result.freeSpinsRemainingAfter > 0 && result.isFreeSpin ? <Row label="Free spins left" value={String(result.freeSpinsRemainingAfter)} strong /> : null}
                             {result.jackpotAwardCents > 0 ? <Row label="Progressive jackpot" value={'+' + formatCents(result.jackpotAwardCents)} strong /> : null}
