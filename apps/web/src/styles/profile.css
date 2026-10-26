@@ -1240,6 +1240,7 @@
   height: 100%;
   overflow: visible;
   border-radius: inherit;
+  isolation: isolate;
 }
 
 .se-avatar-portrait__face {
@@ -1257,12 +1258,29 @@
   background: color-mix(in srgb, var(--se-accent) 18%, #111722);
 }
 
+/* Keep the portrait crop tied to the measured opening in the frame artwork. */
+.se-avatar-portrait[data-avatar-opening-shape="circle"] .se-avatar-portrait__face {
+  border-radius: 50%;
+  clip-path: circle(50% at 50% 50%);
+}
+
+.se-avatar-portrait[data-avatar-opening-shape="square"] .se-avatar-portrait__face {
+  border-radius: 2px;
+  clip-path: inset(0 round 2px);
+}
+
+.se-avatar-portrait[data-avatar-opening-shape="rectangle"] .se-avatar-portrait__face {
+  border-radius: 2px;
+  clip-path: inset(0 round 2px);
+}
+
 .se-avatar-portrait__face > img,
 .se-avatar-portrait__face > .se-built-avatar {
   display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
+  border-radius: inherit;
 }
 
 .se-avatar-portrait__back {
