@@ -176,7 +176,7 @@ export const TurfActionService = {
           result: { district: key, districtName, won, squad: input.thugs, localsThugs: locals, cornerThugs: won ? input.thugs : 0, turnsUsed: ruleset.turf!.corner.postTurnCost,
             ...(ammoRules ? { ammoSpentRounds } : {}), ...(individual?.receipts.length ? { individualGuns: individual.receipts } : {}) },
           activity: { type: 'TURF_CLAIM', payload: {
-            district: key, districtName, won, thugs: input.thugs, locals,
+            district: key, districtName, city: player.city.slug, won, thugs: input.thugs, locals,
             attackerStrength: Math.round(attackerStrength * 10) / 10, defenderStrength: Math.round(defenderStrength * 10) / 10,
             ...(standDown ? { favorKey: standDown.key } : {}),
           } },
@@ -214,12 +214,13 @@ export const TurfActionService = {
 
         const existingGuns = gunsFromTurf(fresh);
         const cornerThugs = fresh.cornerThugs + input.thugs;
+        const districtName = localDistrictName(ruleset, player.city.slug, key);
         await tx.turf.update({ where: { id: fresh.id }, data: { cornerThugs, ...turfGunData(addCornerGuns(existingGuns, guns)), upkeepAt: now } });
         const moved = nextWithPostedGuns(current, guns, 1, ruleset);
         return {
           next: { ...moved, turns: current.turns - ruleset.turf!.corner.postTurnCost, postedThugs: current.postedThugs + input.thugs },
-          result: { district: key, districtName: localDistrictName(ruleset, player.city.slug, key), posted: input.thugs, cornerThugs, turnsUsed: ruleset.turf!.corner.postTurnCost },
-          activity: { type: 'TURF_POST', payload: { district: key, thugs: input.thugs, cornerThugs } },
+          result: { district: key, districtName, posted: input.thugs, cornerThugs, turnsUsed: ruleset.turf!.corner.postTurnCost },
+          activity: { type: 'TURF_POST', payload: { district: key, districtName, city: player.city.slug, thugs: input.thugs, cornerThugs } },
         };
       },
     });
@@ -246,6 +247,7 @@ export const TurfActionService = {
         const crewThugs = await totalCrewThugs(tx, roundPlayerId, current.thugs);
         const cornerThugs = fresh.cornerThugs - input.thugs;
         const released = cornerThugs === 0;
+        const districtName = localDistrictName(ruleset, player.city.slug, key);
         if (!released) {
           const minimum = cornerMinimumFor(ruleset, key, crewThugs);
           if (cornerThugs < minimum) throw AppError.conflict('TURF_CORNER_MINIMUM', `Leave at least ${minimum} on the corner, or pull the whole crew.`);
@@ -275,8 +277,8 @@ export const TurfActionService = {
         const moved = nextWithPostedGuns(current, returned, -1, ruleset);
         return {
           next: { ...moved, turns: current.turns - ruleset.turf!.corner.pullTurnCost, postedThugs: Math.max(0, current.postedThugs - input.thugs) },
-          result: { district: key, districtName: localDistrictName(ruleset, player.city.slug, key), pulled: input.thugs, cornerThugs, released, turnsUsed: ruleset.turf!.corner.pullTurnCost },
-          activity: { type: 'TURF_PULL', payload: { district: key, thugs: input.thugs, cornerThugs, released } },
+          result: { district: key, districtName, pulled: input.thugs, cornerThugs, released, turnsUsed: ruleset.turf!.corner.pullTurnCost },
+          activity: { type: 'TURF_PULL', payload: { district: key, districtName, city: player.city.slug, thugs: input.thugs, cornerThugs, released } },
         };
       },
     });

@@ -73,6 +73,13 @@ function productMovementSummary(value: unknown): string[] {
   });
 }
 
+function turfDistrict(p: Record<string, unknown>): string {
+  const named = str(p.districtName);
+  if (named) return named;
+  const key = str(p.district, 'your block');
+  return key.replace(/[_-]+/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
 const AFTERMATH_REWARD_LABELS: Record<string, string> = {
   NATIONAL_TOP_10: 'national top 10',
   WEALTH_KING: 'Wealth King',
@@ -548,6 +555,39 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
           changeSummary(p.changes),
         ].filter(Boolean).join(' · '),
       };
+
+    case 'TURF_CLAIM': {
+      const district = turfDistrict(p);
+      const won = p.won === true;
+      return {
+        text: won
+          ? `You took ${district} with ${formatNumber(num(p.thugs))} ${num(p.thugs) === 1 ? 'thug' : 'thugs'}.`
+          : `Your crew couldn't take ${district}.`,
+        detail: won
+          ? [num(p.locals) ? `Beat ${formatNumber(num(p.locals))} local ${num(p.locals) === 1 ? 'thug' : 'thugs'}` : '', p.favorKey ? 'A favor cleared local resistance' : ''].filter(Boolean).join(' · ')
+          : num(p.locals) ? `${formatNumber(num(p.locals))} local ${num(p.locals) === 1 ? 'thug held' : 'thugs held'} the block` : 'The block remains under local control',
+      };
+    }
+
+    case 'TURF_POST':
+      return {
+        text: `Posted ${formatNumber(num(p.thugs))} ${num(p.thugs) === 1 ? 'thug' : 'thugs'} on ${turfDistrict(p)}.`,
+        detail: `${formatNumber(num(p.cornerThugs))} ${num(p.cornerThugs) === 1 ? 'thug' : 'thugs'} now hold the corner`,
+      };
+
+    case 'TURF_PULL': {
+      const pulled = num(p.thugs);
+      const district = turfDistrict(p);
+      return p.released === true
+        ? {
+            text: `You pulled the crew off ${district}.`,
+            detail: `${formatNumber(pulled)} ${pulled === 1 ? 'thug returned' : 'thugs returned'} home · the block is open to claim`,
+          }
+        : {
+            text: `Pulled ${formatNumber(pulled)} ${pulled === 1 ? 'thug' : 'thugs'} off ${district}.`,
+            detail: `${formatNumber(num(p.cornerThugs))} ${num(p.cornerThugs) === 1 ? 'thug remains' : 'thugs remain'} on the corner`,
+          };
+    }
 
     // 0.9.0-G clock events. None of them names who is pushing or tailing: the game never says.
     case 'TURF_PUSH_INCOMING':
