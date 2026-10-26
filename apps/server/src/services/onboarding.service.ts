@@ -3,7 +3,6 @@ import { loadRulesetForRound, type Ruleset } from '@streets/rules-engine';
 import {
   ACTIVITY_EXPERIENCE,
   ONBOARDING_PAGE_KEYS,
-  TOUR_STEP_KEYS,
   readStreetSignDesign,
   type OnboardingActionInput,
   type OnboardingPageKey,
@@ -200,10 +199,19 @@ export const OnboardingService = {
     if (round && player) {
       const ruleset = loadRulesetForRound(round);
       const tourProgressMap = await tourProgress(prisma, player, ruleset, Boolean(streetSign));
-      const tourSteps = TOUR_STEP_KEYS.map((key) => ({ key, done: tourProgressMap[key] }));
+      // Keep the opening walkthrough focused on identity, a first result, and
+      // one operation decision. The remaining lessons stay available in their
+      // own page guides and never hold the opening loop hostage.
+      const coreTourStepKeys: readonly TourStepKey[] = [
+        'build-street-sign',
+        'scout-streets',
+        'earn-first-payout',
+        'grow-crew',
+      ];
+      const tourSteps = coreTourStepKeys.map((key) => ({ key, done: tourProgressMap[key] }));
       const tourComplete = tourSteps.every((step) => step.done);
       const firstOpen = tourSteps.find((step) => !step.done)?.key ?? null;
-      const hinted = (TOUR_STEP_KEYS as readonly string[]).includes(value.tourStep ?? '')
+      const hinted = coreTourStepKeys.includes(value.tourStep as TourStepKey)
         ? (value.tourStep as TourStepKey)
         : null;
       // Keep an explicit display hint even when its action is complete so the
@@ -219,7 +227,7 @@ export const OnboardingService = {
         complete: tourComplete,
         step: hintedOpen ?? firstOpen,
         steps: tourSteps,
-        signRecap: streetSign && value.signRecapDismissedRoundId !== round.id ? streetSign : null,
+        signRecap: tourComplete && streetSign && value.signRecapDismissedRoundId !== round.id ? streetSign : null,
       };
     }
 
