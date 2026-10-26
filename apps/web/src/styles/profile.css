@@ -1244,7 +1244,7 @@
 
 .se-avatar-portrait__face {
   position: absolute;
-  z-index: 3;
+  z-index: 2;
   top: var(--se-avatar-opening-top, 28%);
   left: var(--se-avatar-opening-left, 28%);
   display: grid;
@@ -1253,6 +1253,7 @@
   width: var(--se-avatar-opening-width, 44%);
   height: var(--se-avatar-opening-height, 44%);
   border-radius: var(--se-avatar-opening-radius, 50%);
+  clip-path: inset(0 round var(--se-avatar-opening-radius, 50%));
   background: color-mix(in srgb, var(--se-accent) 18%, #111722);
 }
 
@@ -1278,7 +1279,7 @@
 
 .se-avatar-portrait__art {
   position: absolute !important;
-  z-index: 2 !important;
+  z-index: 1 !important;
   inset: 0;
   display: block;
   width: 100% !important;

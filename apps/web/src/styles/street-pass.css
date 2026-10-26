@@ -1701,6 +1701,8 @@
 
 /* Render the real equipped frame here so the preview never uses a separate crop. */
 .se-pass-theme-preview__frame-stage > .se-avatar-portrait {
+  position: relative;
+  isolation: isolate;
   width: 100%;
   height: 100%;
 }
