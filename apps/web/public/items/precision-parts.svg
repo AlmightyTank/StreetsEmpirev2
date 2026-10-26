@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <filter id="s" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="2.5" flood-color="#000" flood-opacity=".6"/></filter>
+    <linearGradient id="st" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#eef2f6"/><stop offset=".45" stop-color="#9aa2ac"/><stop offset="1" stop-color="#3e434a"/></linearGradient>
+    <linearGradient id="br" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe9a0"/><stop offset=".45" stop-color="#c8962e"/><stop offset="1" stop-color="#6a4810"/></linearGradient>
+    <linearGradient id="ring" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c9d1d8"/><stop offset="1" stop-color="#4a5058"/></linearGradient>
+  </defs>
+  <g filter="url(#s)" stroke="#16181c" stroke-width="1.6" stroke-linejoin="round">
+    <path d="M67.61 53.88L73.81 54.78L73.81 61.22L67.61 62.12A22 22 0 0 1 66.78 65.24L71.70 69.12L68.48 74.69L62.65 72.38A22 22 0 0 1 60.38 74.65L62.69 80.48L57.12 83.70L53.24 78.78A22 22 0 0 1 50.12 79.61L49.22 85.81L42.78 85.81L41.88 79.61A22 22 0 0 1 38.76 78.78L34.88 83.70L29.31 80.48L31.62 74.65A22 22 0 0 1 29.35 72.38L23.52 74.69L20.30 69.12L25.22 65.24A22 22 0 0 1 24.39 62.12L18.19 61.22L18.19 54.78L24.39 53.88A22 22 0 0 1 25.22 50.76L20.30 46.88L23.52 41.31L29.35 43.62A22 22 0 0 1 31.62 41.35L29.31 35.52L34.88 32.30L38.76 37.22A22 22 0 0 1 41.88 36.39L42.78 30.19L49.22 30.19L50.12 36.39A22 22 0 0 1 53.24 37.22L57.12 32.30L62.69 35.52L60.38 41.35A22 22 0 0 1 62.65 43.62L68.48 41.31L71.70 46.88L66.78 50.76A22 22 0 0 1 67.61 53.88ZM38 58a8 8 0 1 0 16 0a8 8 0 1 0 -16 0Z" fill="url(#st)" fill-rule="evenodd"/>
+    <path d="M97.74 79.85L103.31 81.49L102.28 87.66L96.48 87.40A14.5 14.5 0 0 1 94.55 90.48L97.33 95.58L92.24 99.22L88.32 94.92A14.5 14.5 0 0 1 84.78 95.74L83.14 101.32L76.97 100.28L77.23 94.48A14.5 14.5 0 0 1 74.15 92.55L69.05 95.33L65.42 90.24L69.71 86.32A14.5 14.5 0 0 1 68.89 82.78L63.31 81.14L64.35 74.97L70.15 75.23A14.5 14.5 0 0 1 72.08 72.15L69.30 67.05L74.39 63.42L78.31 67.71A14.5 14.5 0 0 1 81.85 66.89L83.49 61.32L89.66 62.35L89.40 68.15A14.5 14.5 0 0 1 92.48 70.08L97.58 67.30L101.21 72.39L96.92 76.31A14.5 14.5 0 0 1 97.74 79.85ZM77.31411623088275 81.31644762626101a6 6 0 1 0 12 0a6 6 0 1 0 -12 0Z" fill="url(#br)" fill-rule="evenodd" stroke="#3e2a06"/>
+    <g transform="translate(32 100)">
+      <circle r="14" fill="url(#ring)"/>
+      <circle r="8.5" fill="#1c1f24"/>
+      <circle r="5.2" fill="url(#st)"/>
+      <circle r="2" fill="#1c1f24"/>
+    </g>
+  </g>
+  <g fill="none" stroke-linecap="round">
+    <circle cx="46" cy="58" r="14" stroke="#16181c" stroke-opacity=".35" stroke-width="1.4"/>
+    <circle cx="46" cy="58" r="17.5" stroke="#16181c" stroke-opacity=".25" stroke-width="1"/>
+    <path d="M25 50 A22.5 22.5 0 0 1 38 37" stroke="#fff" stroke-opacity=".75" stroke-width="1.6"/>
+    <circle cx="83.31" cy="81.32" r="10" stroke="#4a3208" stroke-opacity=".5" stroke-width="1.2"/>
+    <path d="M71.31 76.32 A13 13 0 0 1 78.31 69.32" stroke="#fff6c8" stroke-opacity=".85" stroke-width="1.5"/>
+    <path d="M22 96 A11 11 0 0 1 30 88" stroke="#fff" stroke-opacity=".7" stroke-width="1.4"/>
+  </g>
+  <!-- ball bearing balls -->
+  <g transform="translate(32 100)" fill="url(#st)" stroke="#16181c" stroke-width=".8">
+    <circle cx="0" cy="-7" r="1.5"/><circle cx="6.1" cy="3.5" r="1.5"/><circle cx="-6.1" cy="3.5" r="1.5"/>
+  </g>
+  <!-- loose gold pin -->
+  <g filter="url(#s)" stroke="#3e2a06" stroke-width="1.3" stroke-linejoin="round">
+    <g transform="translate(96 108) rotate(-20)">
+      <path d="M-14 -4 H12 L16 0 L12 4 H-14 Z" fill="url(#br)"/>
+      <path d="M-14 -6 H-10 V6 H-14 Z" fill="url(#br)"/>
+    </g>
+  </g>
+  <path d="M82 104 L106 97" stroke="#fff6c8" stroke-opacity=".75" stroke-width="1.2" stroke-linecap="round"/>
+</svg>
