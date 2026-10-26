@@ -101,6 +101,7 @@ export function HorseRacingPanel({ casinoPage, onPageChange }: Props) {
     const field = Array.from({ length: horseCount }, (_, index) => {
       const rank = rankOf.get(state?.horses[index]?.key ?? '') ?? index;
       return {
+        rank,
         // The final coordinates are the same ones used by the settled result.
         // All runners keep moving through the wire and finish at slightly
         // different distances, so crossing never freezes a horse in place.
@@ -146,7 +147,7 @@ export function HorseRacingPanel({ casinoPage, onPageChange }: Props) {
           const paceDrift = runner.speed * raceProgress;
           const stretch = Math.max(0, Math.min(1, (raceProgress - LATE_RACE_START) / (1 - LATE_RACE_START)));
           const stretchEase = stretch * stretch * (3 - 2 * stretch);
-          const rankOffset = (2.5 - rank) * FINISH_POSITION_GAP;
+          const rankOffset = (2.5 - runner.rank) * FINISH_POSITION_GAP;
           return Math.max(START_PROGRESS, Math.min(FIRST_FINISH_POSITION, trackProgress + (swing + paceDrift) * envelope + rankOffset * stretchEase));
         });
 
