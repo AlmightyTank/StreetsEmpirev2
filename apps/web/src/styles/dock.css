@@ -175,11 +175,12 @@
 .se-dock__chip {
   display: inline-flex;
   gap: 5px;
-  align-items: baseline;
+  align-items: center;
   padding: 2px 7px;
   border: 1px solid var(--se-line);
   border-radius: 999px;
   font-size: 10px;
+  line-height: 1.2;
 }
 
 .se-dock__chip span {
