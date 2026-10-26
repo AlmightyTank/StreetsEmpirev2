@@ -18,8 +18,17 @@ export function isRetiredStoryJob(definition: QuestDefinition): boolean {
 
 /** Where each permanent unlock is earned now. */
 export const CAMPAIGN_UNLOCKS: Readonly<Record<string, readonly string[]>> = {
-  ML_M03_OTHER_DOOR: ['PRODUCT_WEED_RECIPE'],
-  ML_M06_PIPS_COUNT: ['PRODUCT_ECSTASY_ACCESS', 'PRODUCT_ECSTASY_RECIPE'],
+  // The first two story chapters are the crew's first real step into the
+  // better rooms. Keep the district doors on the same early/mid campaign
+  // cadence as the retired Mama jobs that originally opened them.
+  ML_M03_OTHER_DOOR: ['PRODUCT_WEED_RECIPE', 'DISTRICT_NIGHTCLUB_ACCESS'],
+  ML_M06_PIPS_COUNT: ['PRODUCT_ECSTASY_ACCESS', 'PRODUCT_ECSTASY_RECIPE', 'DISTRICT_CASINO_ACCESS'],
+  // Wheels' first route opens the crew's basic transport; the later route
+  // chapter continues the ladder with Vans.
+  ML_M07_NORTH_ROAD: ['VEHICLE_SEDAN_ACCESS'],
+  // Tommy's armory side story is the replacement for the retired weapon jobs.
+  ML_S07_OTHER_SERIAL: ['WEAPON_SHOTGUN_ACCESS'],
+  ML_S08_LAST_SHIFT: ['WEAPON_TEK9_ACCESS'],
   ML_M13_DATE_CHANGED_IN_INK: ['WEAPON_AK47_ACCESS'],
   ML_M16_MILE_MARKER_NINE: ['VEHICLE_VAN_ACCESS'],
   ML_M19_HONEST_SCALE: ['PRODUCT_COCAINE_RECIPE', 'PRODUCT_HEROIN_RECIPE'],

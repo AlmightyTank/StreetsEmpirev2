@@ -36,7 +36,7 @@ export type FeedConfig = { configured: boolean; pollMinutes: number; apiKey?: st
 
 const feedKeys = (config: FeedConfig): SportsbookProviderKeys => {
   const keys = config.keys ?? { [SPORTSBOOK_PROVIDER_ID]: config.apiKey ?? '' };
-  return Object.entries(keys).some(([id, key]) => id !== 'espn' && Boolean(key)) ? { ...keys, espn: 'public' } : keys;
+  return keys;
 };
 
 const isoOrNull = (date: Date | null | undefined) => date?.toISOString() ?? null;

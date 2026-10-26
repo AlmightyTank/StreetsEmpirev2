@@ -63,12 +63,12 @@ const stopTurfWars = startPoller('Turf wars', 60_000, async () => {
   await RoundService.settleTurfClock(app.prisma, new Date());
 }, (message, error) => app.log.error(error, message));
 
-// 1.8.0-A/C: player requests read the shared pregame cache and never call a provider. Provider
+// 1.8.0-A/C: player requests read the shared pregame cache and never call a provider. The
+// StreetsEmpire Sports Network is the sole provider and generates the fictional slate locally.
 // snapshots are persisted in .runtime/sportsbook-odds.json with a hard 30-minute normal
-// refresh window. A 15-minute scheduler tick can recover failed leagues from another provider;
-// the database lease and per-provider cooldowns bound provider usage.
+// refresh window. The database lease and provider cooldown bound feed usage.
 const stopSportsbook = startPoller('Sportsbook odds cache', 15 * 60_000, async () => {
-  const result = await refreshSportsbookCache(app.prisma, { ...env.sportsbook.keys, espn: 'public', internal: 'internal' }, new Date(), {
+  const result = await refreshSportsbookCache(app.prisma, env.sportsbook.keys, new Date(), {
     normalIntervalMs: env.SPORTSBOOK_POLL_MINUTES * 60_000,
   });
   if (result.errors.length || result.warnings.length) app.log.warn({ sportsbook: result }, 'Sportsbook feed run finished with issues');

@@ -21,7 +21,7 @@ const FEED_LABEL: Record<SportsbookFeedStatus, string> = {
   FRESH: 'Fresh', STALE: 'Stale — betting paused', WAITING: 'Waiting for first snapshot', OFF: 'Off — no provider key',
 };
 
-const isOddsProvider = (provider: AdminSportsbookDto['providers'][number]) => provider.id !== 'espn';
+const isOddsProvider = (_provider: AdminSportsbookDto['providers'][number]) => true;
 
 const ago = (iso: string | null) => (iso ? formatAgo(iso) : 'never');
 
@@ -36,7 +36,7 @@ export function AdminSportsbookPanel() {
   const [busy, setBusy] = useState<string | null>(null);
   const [reason, setReason] = useState('');
   const [checkLeague, setCheckLeague] = useState<SportsbookLeagueKey>('NBA');
-  const [checkProvider, setCheckProvider] = useState('therundown');
+  const [checkProvider, setCheckProvider] = useState('internal');
   const [check, setCheck] = useState<AdminSportsbookProviderCheckDto | null>(null);
   const [checking, setChecking] = useState(false);
 

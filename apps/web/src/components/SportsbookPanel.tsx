@@ -140,7 +140,7 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
 
   useEffect(() => {
     void refresh();
-    // This reads StreetsEmpire's database cache; it never polls TheRundown from a player page.
+    // This reads StreetsEmpire's database cache; player pages never poll the feed directly.
     const refreshWhenVisible = () => { if (!document.hidden) void refresh(); };
     const timer = window.setInterval(refreshWhenVisible, 60_000);
     document.addEventListener('visibilitychange', refreshWhenVisible);
