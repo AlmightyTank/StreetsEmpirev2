@@ -18,17 +18,17 @@ export function TourOffer({ tour: tourOverride }: { tour?: OnboardingStateDto['t
     return (
       <section className="se-tour-offer se-tour-offer--recap" aria-labelledby="se-sign-recap-title" data-testid="walkthrough-complete">
         <div>
-          <p className="se-eyebrow">Walkthrough complete · Your first permanent upgrade</p>
-          <h2 id="se-sign-recap-title">You’re on the map</h2>
-          <p>Mama says: “You’ve got a street to call your own. This sign is your crew’s permanent mark—not a turf claim.”</p>
+          <p className="se-eyebrow">Opening loop complete · Your next move</p>
+          <h2 id="se-sign-recap-title">Your crew is on the map</h2>
+          <p>Mama says: “You made your first move and grew the crew. Your progress is saved—build the operation at your own pace.”</p>
           <StreetSignDisplay design={tour.signRecap} compact />
           <div className="se-tour-offer__handoff">
-            <strong>Next system: Turf</strong>
-            <span>Rivals are watching. Build enough power to take your first piece of turf.</span>
+            <strong>Next up: Build your operation</strong>
+            <span>Pick up useful supplies, then explore production when you’re ready.</span>
           </div>
         </div>
         <div className="se-tour__actions">
-          <button type="button" className="se-btn se-btn--primary se-btn--sm" onClick={() => navigate('/game/turf')}>See turf</button>
+          <button type="button" className="se-btn se-btn--primary se-btn--sm" onClick={() => navigate('/game/stores/corner')}>Visit the store</button>
           <button type="button" className="se-btn se-btn--ghost se-btn--sm" onClick={() => void act({ action: 'dismiss-sign-recap' })}>Keep going</button>
           <button type="button" className="se-btn se-btn--ghost se-btn--sm" onClick={() => navigate('/account', { state: { tourTarget: 'build-street-sign' } })}>Edit sign</button>
         </div>
@@ -41,9 +41,9 @@ export function TourOffer({ tour: tourOverride }: { tour?: OnboardingStateDto['t
     return (
       <section className="se-tour-offer" aria-labelledby="se-tour-offer-title" data-testid="tour-offer">
         <div>
-       <p className="se-eyebrow">Guided walkthrough · 9 steps</p>
-          <h2 id="se-tour-offer-title">Make your mark, then learn the loop</h2>
-           <p>Start with your crew’s street sign, earn your first payout, then learn supplies, crew, production, the hideout and combat. The sign is cosmetic; it does not claim turf.</p>
+          <p className="se-eyebrow">Guided walkthrough · 4 steps</p>
+          <h2 id="se-tour-offer-title">Make your first move</h2>
+          <p>Set your crew’s identity, scout once, see what the work paid, then grow your crew. You can skip the guide; your progress saves if you leave.</p>
         </div>
         <div className="se-tour__actions">
           <button type="button" className="se-btn se-btn--primary se-btn--sm" onClick={() => void act({ action: 'start-tour' })}>
@@ -67,6 +67,7 @@ export function TourOffer({ tour: tourOverride }: { tour?: OnboardingStateDto['t
         <p className="se-eyebrow">{copy.chapter} · Step {done + 1} of {tour.steps.length}</p>
         <h2 id="se-tour-offer-title">Next step: {copy.title}</h2>
         <p className="se-tour-offer__mentor">{copy.mentor} says: {copy.detail}</p>
+        <p className="se-hint">Your place is saved. Come back when you’re ready, including after turns refill.</p>
         <div
           className="se-tour-offer__progress"
           role="progressbar"
