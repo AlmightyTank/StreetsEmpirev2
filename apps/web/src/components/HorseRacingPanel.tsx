@@ -22,7 +22,9 @@ function signedMoney(value: number): string {
   return `${value > 0 ? '+' : '−'}${formatCents(Math.abs(value))}`;
 }
 
-const RACE_DURATION_MS = 6400;
+const RACE_DURATION_MS = 7200;
+const GATE_ENTRY_END = 0.085;
+const LATE_RACE_START = 0.74;
 const START_PROGRESS = 0.035;
 const FINISH_LINE_RATIO = 0.76;
 
@@ -97,16 +99,20 @@ export function HorseRacingPanel({ casinoPage, onPageChange }: Props) {
     const field = Array.from({ length: horseCount }, (_, index) => {
       const rank = rankOf.get(state?.horses[index]?.key ?? '') ?? index;
       return {
-        // Each runner has a separate wire time. The last runner keeps the full
-        // replay playing while the winner crosses first.
-        finishAt: 0.80 + rank * 0.035,
-        finishPosition: FINISH_LINE_RATIO + 0.18 - rank * 0.024,
-        pace: 0.9 + Math.random() * 0.22,
+        // Keep the field bunched until late, then reveal the official order as
+        // each runner gets its own wire time and space beyond the finish line.
+        finishAt: 0.835 + rank * 0.025,
+        finishPosition: 0.94 - rank * 0.022,
+        pace: 0.9 + Math.random() * 0.2,
         phase: Math.random() * Math.PI * 2,
+        phaseTwo: Math.random() * Math.PI * 2,
+        speed: (Math.random() - 0.5) * 0.025,
       };
     });
 
-    const startingPositions = new Array(horseCount).fill(START_PROGRESS);
+    // The track clips the runner at its left edge, so -0.12 stages every horse
+    // just outside the visible track before the field enters together.
+    const startingPositions = new Array(horseCount).fill(-0.12);
     positionsRef.current = startingPositions;
     setPositions(startingPositions);
     setRaceProgress(0);
@@ -121,13 +127,31 @@ export function HorseRacingPanel({ casinoPage, onPageChange }: Props) {
 
         const newPositions = field.map((runner) => {
           if (rawProgress >= runner.finishAt) return runner.finishPosition;
-          const legProgress = Math.min(rawProgress / runner.finishAt, 1);
-          const stride = Math.pow(legProgress, runner.pace);
-          // Small pace swings let the field bunch and pass during the replay;
-          // the server's official order still decides who reaches the wire first.
-          const surge = Math.sin(legProgress * Math.PI * 3 + runner.phase) * 0.035 * Math.sin(Math.PI * legProgress);
-          const progress = Math.max(0, Math.min(0.985, stride + surge));
-          return START_PROGRESS + (runner.finishPosition - START_PROGRESS) * progress;
+          if (rawProgress < GATE_ENTRY_END) {
+            // All runners break together and enter from off the left side.
+            const entry = rawProgress / GATE_ENTRY_END;
+            return -0.12 + (START_PROGRESS + 0.12) * (entry * entry * (3 - 2 * entry));
+          }
+
+          const packProgress = Math.min((rawProgress - GATE_ENTRY_END) / (LATE_RACE_START - GATE_ENTRY_END), 1);
+          const trackProgress = START_PROGRESS + packProgress * 0.68;
+          if (rawProgress < LATE_RACE_START) {
+            // Shared forward motion plus overlapping pace waves. Horses can
+            // pass and fall back, but no early movement gives away the result.
+            const envelope = Math.sin(Math.PI * packProgress);
+            const swing = Math.sin(packProgress * Math.PI * 4.5 + runner.phase) * 0.035
+              + Math.sin(packProgress * Math.PI * 8 + runner.phaseTwo) * 0.018;
+            const paceDrift = runner.speed * packProgress;
+            return Math.max(START_PROGRESS, Math.min(0.77, trackProgress + (swing + paceDrift) * envelope));
+          }
+
+          // Only in the closing stretch do the runners spread into their
+          // authoritative finish order. Ease each one through the wire at its
+          // own time so the photo finish reads clearly.
+          const lateProgress = Math.max(0, Math.min(1, (rawProgress - LATE_RACE_START) / (runner.finishAt - LATE_RACE_START)));
+          const eased = lateProgress * lateProgress * (3 - 2 * lateProgress);
+          const lateSwing = Math.sin(rawProgress * Math.PI * 18 + runner.phase) * 0.009 * (1 - eased);
+          return 0.715 + (runner.finishPosition - 0.715) * eased + lateSwing;
         });
 
         positionsRef.current = newPositions;
