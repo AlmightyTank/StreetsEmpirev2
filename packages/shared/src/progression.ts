@@ -173,7 +173,7 @@ export function turnExperienceFor(turnsBefore: number, turns: number): number {
  * every `majorEvery`, with no top level. Paid outside the per-round earn cap.
  * Pace from `npm run qa:account-xp`.
  */
-export const EXPERIENCE_LEVEL_CROWNS = { firstLevel: 2, firstCrowns: 20, every: 5, crowns: 20, majorEvery: 25, majorCrowns: 75 } as const;
+export const EXPERIENCE_LEVEL_CROWNS = { firstLevel: 2, firstCrowns: 150, every: 5, crowns: 20, majorEvery: 25, majorCrowns: 75 } as const;
 
 export function experienceCrownsForLevel(level: number): number {
   const { firstLevel, firstCrowns, every, crowns, majorEvery, majorCrowns } = EXPERIENCE_LEVEL_CROWNS;
