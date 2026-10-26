@@ -57,12 +57,11 @@ export const ITEM_ART = {
   AMMO_BOX: { name: 'Ammo Box', shortName: 'Ammo Box', category: 'SUPPLY', rarity: 'COMMON', file: 'ammo.svg', cells: ONE },
   AMMO_CASE: { name: 'Ammo Case', shortName: 'Ammo Case', category: 'SUPPLY', rarity: 'UNCOMMON', file: 'ammo.svg', cells: ONE },
   AMMO_CRATE: { name: 'Ammo Crate', shortName: 'Ammo Crate', category: 'SUPPLY', rarity: 'RARE', file: 'ammo.svg', cells: ONE },
-  PARTS_BOX: { name: 'Parts Box', shortName: 'Parts Box', category: 'SUPPLY', rarity: 'COMMON', file: 'parts-box.svg', cells: ONE },
-  PARTS_CRATE: { name: 'Parts Crate', shortName: 'Parts Crate', category: 'SUPPLY', rarity: 'UNCOMMON', file: 'parts-crate.svg', cells: ONE },
-  PARTS_PALLET: { name: 'Parts Pallet', shortName: 'Pallet', category: 'SUPPLY', rarity: 'RARE', file: 'parts-pallet.svg', cells: ONE },
+  PARTS_BOX: { name: 'Parts Box', shortName: 'Parts Box', category: 'SUPPLY', rarity: 'COMMON', file: 'parts.svg', cells: ONE },
+  PARTS_CRATE: { name: 'Parts Crate', shortName: 'Parts Crate', category: 'SUPPLY', rarity: 'UNCOMMON', file: 'parts.svg', cells: ONE },
+  PARTS_PALLET: { name: 'Parts Pallet', shortName: 'Pallet', category: 'SUPPLY', rarity: 'RARE', file: 'parts.svg', cells: ONE },
 
-  // Hideout scavenging components. Each has its own art; the three package
-  // sizes of parts (box, crate, pallet) step up in size and rarity.
+  // Hideout scavenging components. Each has its own art.
   SCRAP_METAL: { name: 'Scrap metal', shortName: 'Scrap', category: 'SUPPLY', rarity: 'COMMON', file: 'scrap-metal.svg', cells: ONE },
   WIRING: { name: 'Wiring', shortName: 'Wiring', category: 'SUPPLY', rarity: 'COMMON', file: 'wiring.svg', cells: ONE },
   TOOL_KIT: { name: 'Tool kit', shortName: 'Tool kit', category: 'SUPPLY', rarity: 'COMMON', file: 'tool-kit.svg', cells: ONE },
