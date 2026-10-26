@@ -111,9 +111,22 @@
 .se-quest-phone__unlock-status { flex: 0 0 auto; padding: 4px 7px; border: 1px solid var(--se-line); border-radius: 999px; color: var(--se-text-dim); font-size: 10px; font-weight: 700; }
 .se-quest-phone__unlock.is-open .se-quest-phone__unlock-status { border-color: color-mix(in srgb, var(--se-good) 55%, var(--se-line)); color: var(--se-good); }
 .se-quest-phone__unlock > p { margin: 8px 0; color: var(--se-text-dim); font-size: 12px; line-height: 1.45; }
-.se-quest-phone__unlock-route { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; padding-top: 8px; border-top: 1px solid var(--se-line); font-size: 12px; }
+.se-quest-phone__unlock-route { display: grid; gap: 6px; padding-top: 8px; border-top: 1px solid var(--se-line); font-size: 12px; }
 .se-quest-phone__unlock-route > span { color: var(--se-muted); }
 .se-quest-phone__unlock-prereq { margin-bottom: 0 !important; }
+.se-quest-phone__trail-list,
+.se-quest-phone__trail-detail ul { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.se-quest-phone__trail-node { min-width: 0; }
+.se-quest-phone__trail-toggle { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; min-height: 44px; padding: 7px 10px; border: 1px solid var(--se-line); border-radius: 7px; background: color-mix(in srgb, var(--se-panel) 82%, var(--se-accent) 18%); color: var(--se-text); font: inherit; text-align: left; cursor: pointer; }
+.se-quest-phone__trail-toggle:hover,
+.se-quest-phone__trail-toggle:focus-visible { border-color: var(--se-accent); outline: none; }
+.se-quest-phone__trail-toggle > span:first-child { display: grid; min-width: 0; gap: 2px; }
+.se-quest-phone__trail-toggle strong { overflow-wrap: anywhere; }
+.se-quest-phone__trail-toggle small { color: var(--se-muted); font-size: 10px; }
+.se-quest-phone__trail-detail { display: grid; gap: 7px; margin: 6px 0 0 10px; padding: 8px 0 3px 10px; border-left: 2px solid color-mix(in srgb, var(--se-accent) 52%, var(--se-line)); color: var(--se-text-dim); font-size: 12px; }
+.se-quest-phone__trail-detail p { margin: 0; }
+.se-quest-phone__trail-detail > ul { margin-top: 2px; }
+.se-quest-phone__trail-detail > .se-btn { justify-self: start; }
 
 @media (max-width: 700px) {
   .se-quest-phone { padding-top: 0; }

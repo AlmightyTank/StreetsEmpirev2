@@ -6,7 +6,7 @@ import { ApiError } from '../api/client.js';
 import { questsApi } from '../api/quests.js';
 import { Alert } from '../components/Alert.js';
 import { Portrait } from '../components/Portrait.js';
-import { QuestLink } from '../components/QuestLink.js';
+import { questHref } from '../components/QuestLink.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { publishQuestsChanged, trackedFromQuests } from '../quests/questSignals.js';
 import { confirmAction } from '../stores/confirm.js';
@@ -33,6 +33,81 @@ function summaryFor(page: QuestPageDto, contact: QuestContactDto): ContactSummar
     available: jobs.filter((job) => job.status === 'AVAILABLE').length,
     locked: lockedJobCount(page.quests, contact.key),
   };
+}
+
+type QuestTrailJob = QuestPageDto['quests'][number];
+
+function questProgressLabel(status: QuestTrailJob['status']): string {
+  switch (status) {
+    case 'AVAILABLE': return 'Available now';
+    case 'ACTIVE': return 'In progress';
+    case 'READY_TO_TURN_IN': return 'Ready to collect';
+    case 'COMPLETED': return 'Completed';
+    case 'LOCKED': return 'Locked';
+    default: return 'Not available';
+  }
+}
+
+function QuestTrailNode({ quest, quests, expandedQuestKeys, onToggle, ancestors = [] }: {
+  quest: QuestTrailJob;
+  quests: QuestTrailJob[];
+  expandedQuestKeys: ReadonlySet<string>;
+  onToggle: (questKey: string) => void;
+  ancestors?: readonly string[];
+}) {
+  const expanded = expandedQuestKeys.has(quest.key);
+  const requirements = quest.requires ?? [];
+  const cyclic = ancestors.includes(quest.key);
+  const nextAncestors = [...ancestors, quest.key];
+
+  return (
+    <li className="se-quest-phone__trail-node">
+      <button
+        type="button"
+        className="se-quest-phone__trail-toggle"
+        aria-expanded={expanded}
+        onClick={() => onToggle(quest.key)}
+      >
+        <span><strong>{quest.title}</strong><small>{questProgressLabel(quest.status)}</small></span>
+        <span aria-hidden="true">{expanded ? '−' : '+'}</span>
+      </button>
+      {expanded ? (
+        <div className="se-quest-phone__trail-detail">
+          {cyclic ? <p>This quest loops back to an earlier requirement.</p> : quest.status === 'LOCKED' && requirements.length ? (
+            <>
+              <span className="se-eyebrow">To open this quest</span>
+              <ul>
+                {requirements.map((requirement, index) => {
+                  const prerequisite = requirement.questKey ? quests.find((entry) => entry.key === requirement.questKey) : undefined;
+                  return prerequisite ? (
+                    <QuestTrailNode
+                      key={`${prerequisite.key}:${index}`}
+                      quest={prerequisite}
+                      quests={quests}
+                      expandedQuestKeys={expandedQuestKeys}
+                      onToggle={onToggle}
+                      ancestors={nextAncestors}
+                    />
+                  ) : <li key={`${requirement.questKey ?? requirement.label}:${index}`}>{requirement.label}</li>;
+                })}
+              </ul>
+            </>
+          ) : quest.status === 'LOCKED' ? (
+            <p>No earlier quest is listed for this job yet.</p>
+          ) : quest.status === 'COMPLETED' ? (
+            <p>This job is complete.</p>
+          ) : (
+            <>
+              <p>{quest.status === 'AVAILABLE' ? 'This job is available now.' : quest.status === 'READY_TO_TURN_IN' ? 'Collect this job to receive its unlock.' : 'Continue this job to reach the unlock.'}</p>
+              <Link className="se-btn se-btn--ghost se-btn--sm" to={questHref(quest.key)}>
+                {quest.status === 'AVAILABLE' ? 'Open this job' : 'Continue this job'} <span aria-hidden="true">→</span>
+              </Link>
+            </>
+          )}
+        </div>
+      ) : null}
+    </li>
+  );
 }
 
 function JobDetails({ job, completed = false, onTrack, tracking = false, onClaim, claiming = false }: {
@@ -125,6 +200,7 @@ export function QuestPhonePage() {
   const [trackingKey, setTrackingKey] = useState<string | null>(null);
   const [claimingKey, setClaimingKey] = useState<string | null>(null);
   const [unlockSearch, setUnlockSearch] = useState('');
+  const [expandedQuestKeys, setExpandedQuestKeys] = useState<Set<string>>(() => new Set());
 
   const requestedView = new URLSearchParams(location.search).get('view');
   const view: PhoneView = requestedView === 'jobs' || requestedView === 'history' || requestedView === 'unlocks' ? requestedView : 'contacts';
@@ -194,6 +270,14 @@ export function QuestPhonePage() {
   const openContacts = contacts.filter((entry) => entry.ready || entry.active || entry.available).length;
   const activeJobs = page?.quests.filter((quest) => quest.status === 'ACTIVE' || quest.status === 'READY_TO_TURN_IN') ?? [];
   const trackedJobs = activeJobs.filter((job) => job.isTracked);
+  function toggleQuestTrail(questKey: string) {
+    setExpandedQuestKeys((current) => {
+      const next = new Set(current);
+      if (next.has(questKey)) next.delete(questKey);
+      else next.add(questKey);
+      return next;
+    });
+  }
   const filteredUnlocks = (page?.questUnlocks ?? []).filter((unlock) => {
     const query = unlockSearch.trim().toLocaleLowerCase();
     return !query || [unlock.name, unlock.description, unlock.category, unlock.quest.title, unlock.quest.giverName ?? '']
@@ -396,24 +480,19 @@ export function QuestPhonePage() {
                     <p>{unlock.description}</p>
                     <div className="se-quest-phone__unlock-route">
                       <span>{unlock.unlocked ? 'Opened by' : 'Unlock quest'}</span>
-                      <strong><QuestLink quest={unlock.quest} /></strong>
+                      {quest ? (
+                        <ul className="se-quest-phone__trail-list">
+                          <QuestTrailNode
+                            quest={quest}
+                            quests={page.quests}
+                            expandedQuestKeys={expandedQuestKeys}
+                            onToggle={toggleQuestTrail}
+                          />
+                        </ul>
+                      ) : <strong>{unlock.quest.title}{unlock.quest.giverName ? ` for ${unlock.quest.giverName}` : ''}</strong>}
                     </div>
-                    {!unlock.unlocked && unlock.requires.length ? (
-                      <p className="se-quest-phone__unlock-prereq">
-                        Before this opens: {unlock.requires.map((requirement, index) => {
-                          const prerequisiteQuest = requirement.questKey ? page.quests.find((job) => job.key === requirement.questKey) : undefined;
-                          return (
-                            <span key={`${requirement.questKey ?? requirement.label}:${index}`}>
-                              {index ? ' · ' : ''}{prerequisiteQuest
-                                ? <QuestLink quest={{ key: prerequisiteQuest.key, title: prerequisiteQuest.title, giverName: prerequisiteQuest.contactName }} />
-                                : requirement.label}
-                            </span>
-                          );
-                        })}
-                      </p>
-                    ) : null}
-                    {!unlock.unlocked && !unlock.requires.length && quest?.status === 'LOCKED' ? (
-                      <p className="se-quest-phone__unlock-prereq">This job has not opened yet. Check its conversation for the next step.</p>
+                    {!unlock.unlocked && !quest && unlock.requires.length ? (
+                      <p className="se-quest-phone__unlock-prereq">This job is locked. Earlier requirements: {unlock.requires.map((requirement) => requirement.label).join(' · ')}</p>
                     ) : null}
                   </article>
                 );
