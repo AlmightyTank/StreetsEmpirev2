@@ -15,6 +15,7 @@
 
 | Level | XP | Reward | Hardcore | Active | Casual | Weekends only |
 | --- | --- | --- | --- | --- | --- | --- |
+| 2 | 100 | "Corner Rookie" + 20 Crowns | S1 d0.0 | S1 d0.0 | S1 d0.0 | S1 d0.0 |
 | 5 | 700 | "On the Rise" + 20 Crowns | S1 d0.4 | S1 d0.7 | S1 d1.0 | S1 d5.7 |
 | 10 | 2,700 | "Known Face" + 20 Crowns | S1 d1.6 | S1 d2.6 | S1 d5.5 | S1 d12.5 |
 | 15 | 5,950 | 20 Crowns | S1 d3.7 | S1 d5.9 | S1 d12.2 | S1 d20.0 |
@@ -33,14 +34,14 @@
 
 ## Level Crowns per season
 
-Play already pays up to 500 Crowns a round. Level Crowns sit outside that cap and pay once per account: 310 by level 50, then more every 5 levels with no top.
+Play already pays up to 500 Crowns a round. Level Crowns sit outside that cap and pay once per account: 20 at level 2, then 330 by level 50 and more every 5 levels with no top.
 
 | Player | S1 | S2 | S3 | S4 |
 | --- | --- | --- | --- | --- |
-| Hardcore | 215 | 135 | 115 | 60 |
-| Active | 195 | 115 | 40 | 40 |
-| Casual | 155 | 40 | 20 | 95 |
-| Weekends only | 80 | 75 | 40 | 20 |
+| Hardcore | 235 | 135 | 115 | 60 |
+| Active | 215 | 115 | 40 | 40 |
+| Casual | 175 | 40 | 20 | 95 |
+| Weekends only | 100 | 75 | 40 | 20 |
 
 ## Trust gates for a brand-new account
 
