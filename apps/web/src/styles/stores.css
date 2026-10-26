@@ -2193,6 +2193,11 @@
 .se-market-rowpick[aria-pressed="true"] .se-board-rarity { color: var(--se-accent); }
 .se-market-row-note { color: var(--se-muted); font-size: 10px; }
 .se-market-inspector { overflow: hidden; }
+.se-market-inspector > .se-board-empty {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 20px;
+}
 .se-market-inspector__art {
   display: grid;
   min-height: 142px;
