@@ -27,6 +27,8 @@ const GATE_ENTRY_END = 0.085;
 const LATE_RACE_START = 0.74;
 const START_PROGRESS = 0.035;
 const FINISH_LINE_RATIO = 0.76;
+const FIRST_FINISH_POSITION = FINISH_LINE_RATIO + 0.20;
+const FINISH_POSITION_GAP = 0.034;
 
 interface RunnerStyle extends CSSProperties {
   '--runner-color': string;
@@ -102,7 +104,7 @@ export function HorseRacingPanel({ casinoPage, onPageChange }: Props) {
         // The final coordinates are the same ones used by the settled result.
         // All runners keep moving through the wire and finish at slightly
         // different distances, so crossing never freezes a horse in place.
-        finishPosition: FINISH_LINE_RATIO + 0.18 - rank * 0.024,
+        finishPosition: FIRST_FINISH_POSITION - rank * FINISH_POSITION_GAP,
         phase: Math.random() * Math.PI * 2,
         phaseTwo: Math.random() * Math.PI * 2,
         speed: (Math.random() - 0.5) * 0.025,
@@ -227,7 +229,7 @@ export function HorseRacingPanel({ casinoPage, onPageChange }: Props) {
               // Keep the official finish order visible after the animation. Previously
               // every settled runner used `1`, which stacked all six horses on the
               // finish marker and made the winner look corrupted.
-              const pos = racing ? (positions[index] ?? START_PROGRESS) : (race ? FINISH_LINE_RATIO + 0.18 - (rank ?? index) * 0.024 : START_PROGRESS);
+              const pos = racing ? (positions[index] ?? START_PROGRESS) : (race ? FIRST_FINISH_POSITION - (rank ?? index) * FINISH_POSITION_GAP : START_PROGRESS);
               const winner = race && runner.key === officialWinnerKey;
               const leading = racing && index === leaderIndex;
               const style: RunnerStyle = {
