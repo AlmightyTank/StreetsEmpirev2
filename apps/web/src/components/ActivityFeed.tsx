@@ -534,6 +534,14 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
         detail: `${activity.type === 'STORE_BUY' ? '-' : '+'}${formatCents(num(p.totalCents))}`,
       };
 
+    case 'PLAYER_BOARD_SALE':
+      return {
+        text: `${str(p.buyer, 'A player')} bought ${formatNumber(num(p.quantity))} ${str(p.item, 'items')} from your Street Market listing.`,
+        detail: num(p.proceedsCents) > 0
+          ? `+${formatCents(num(p.proceedsCents))}`
+          : Array.isArray(p.barterItems) ? `Barter received: ${(p.barterItems as Array<Record<string, unknown>>).map((item) => `${formatNumber(num(item.quantity))} ${str(item.name, 'item')}`).join(', ')}` : 'Your listing was filled.',
+      };
+
     case 'WEAPON_UNLOCK': {
       const weapon = str(p.weapon);
       const purchaseName = weapon ? `${weapon} purchases` : 'Tommy’s locked weapon purchases';
@@ -893,7 +901,7 @@ export type ActivityGroup = 'combat' | 'street' | 'market' | 'progress' | 'trave
 
 export function activityGroup(type: ActivityDto['type']): ActivityGroup {
   if (type.startsWith('RAID_') || type.startsWith('DRIVE_BY_') || type.startsWith('COMBAT_') || type === 'BATTLE_VOIDED') return 'combat';
-  if (type.startsWith('STORE_') || type.startsWith('CASINO_') || type.startsWith('SPORTSBOOK_')) return 'market';
+  if (type.startsWith('STORE_') || type.startsWith('CASINO_') || type.startsWith('SPORTSBOOK_') || type === 'PLAYER_BOARD_SALE') return 'market';
   if (type.startsWith('QUEST_') || type.startsWith('FAVOR_') || type === 'HIDEOUT_UPGRADE' || type === 'WEAPON_UNLOCK') return 'progress';
   if (type.startsWith('RUN_') || type.startsWith('RELOCATION_') || type === 'RELOCATED' || type.startsWith('CONVOY_') || type.startsWith('TRIP_') || type.startsWith('BOSS_') || type.startsWith('SIT_DOWN') || type === 'OUTPOST_VISIT') return 'travel';
   if (type.startsWith('TURF_') || type.startsWith('BUSINESS_')) return 'turf';

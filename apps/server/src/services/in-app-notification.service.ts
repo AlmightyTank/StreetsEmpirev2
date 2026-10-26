@@ -28,6 +28,15 @@ const ALWAYS_NOTIFIABLE = new Set<ActivityType>([
   'DRIVE_BY_DEFENSE',
   'CONVOY_DEFENSE',
   'TURF_PUSH_DEFENSE',
+  'BLOCK_WAR_FIGHT',
+  'BLOCK_WAR_ENDED',
+  'BLOCK_WAR_CALL',
+  'BOSS_HIT_ATTACK',
+  'BOSS_HIT_DEFENSE',
+  'TRIP_RETURNED',
+  'RELOCATED',
+  'SIT_DOWN_AGREED',
+  'PLAYER_BOARD_SALE',
   'RUN_RETURNED',
   'RUN_INCIDENT',
   'CONVOY_BACKUP',
@@ -88,6 +97,10 @@ function objectPayload(payload: Prisma.InputJsonValue): Record<string, unknown> 
 export function shouldCreateInAppNotification(type: ActivityType, payload: Prisma.InputJsonValue): boolean {
   if (ALWAYS_NOTIFIABLE.has(type)) return true;
   const p = objectPayload(payload);
+  if (type === 'BLOCK_WAR_DECLARED') return p.role === 'defender' || p.assault === true;
+  // A boss-hit backup is first logged when the ally sends the crew. Only the
+  // later resolved receipt is an away-time outcome worth putting in the bell.
+  if (type === 'BOSS_HIT_BACKUP') return p.resolved === true;
   if (type === 'QUEST_CLAIMED') return Array.isArray(p.newlyAvailable) && p.newlyAvailable.length > 0;
   if (type === 'SCOUT' || type === 'PRODUCE_CRACK') return p.busted === true;
   return false;

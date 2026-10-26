@@ -31,6 +31,7 @@ import { EconomyLedgerService } from './economy-ledger.service.js';
 import { IdempotencyService } from './idempotency.service.js';
 import { keeperGive, keeperHasStack, keeperHeld, keeperTake } from './board-keeper-goods.js';
 import { ProductInventoryService } from './product-inventory.service.js';
+import { ActivityService } from './activity.service.js';
 import { COMPONENTS, jsonObject } from './scavenging.service.js';
 
 /**
@@ -375,7 +376,7 @@ export const PlayerBoardService = {
       // Commit the expiry (and the stack going home) before refusing, rather than rolling it back.
       if (offer.status !== 'OPEN') return 'CLOSED';
 
-      const buyer = await tx.roundPlayer.findUnique({ where: { id: buyerId }, select: { roundId: true, cashCents: true } });
+      const buyer = await tx.roundPlayer.findUnique({ where: { id: buyerId }, select: { roundId: true, cashCents: true, displayName: true } });
       if (!buyer || buyer.roundId !== round.id) throw AppError.notFound('PLAYER_NOT_FOUND', 'Player not found.');
       const barter = offer.priceKind === 'BARTER';
       const units = quantity ?? offer.remainingQuantity;
@@ -442,6 +443,17 @@ export const PlayerBoardService = {
         ], now);
         await EconomyLedgerService.record(tx, offer.sellerId, [{ source: 'PLAYER_BOARD_SALE', label: 'Board sale', amountCents: proceedsCents, metadata }], now);
       }
+
+      await ActivityService.log(tx, offer.sellerId, 'PLAYER_BOARD_SALE', {
+        offerId: offer.id,
+        buyer: buyer.displayName,
+        item: itemName(offer.itemKey, ruleset),
+        itemKey: offer.itemKey,
+        quantity: units,
+        proceedsCents,
+        priceKind: offer.priceKind,
+        barterItems: Object.entries(ask).map(([key, wanted]) => ({ name: itemName(key, ruleset), quantity: wanted })),
+      });
 
       const result: PlayerBoardFillResult = {
         offerId: offer.id,

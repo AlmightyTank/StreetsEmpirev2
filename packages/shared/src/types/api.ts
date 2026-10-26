@@ -62,6 +62,7 @@ export type ActivityType =
   | 'BOSS_HIT_ATTACK'
   | 'BOSS_HIT_DEFENSE'
   | 'BOSS_HIT_BACKUP'
+  | 'PLAYER_BOARD_SALE'
   | 'OUTPOST_VISIT'
   | 'SIT_DOWN'
   | 'SIT_DOWN_AGREED'

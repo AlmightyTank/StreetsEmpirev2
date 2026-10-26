@@ -387,16 +387,26 @@ export const BossTripSettleService = {
     // Trips D2: thugs sent to an ally's boss come home once the hit has landed or missed.
     const backups = await tx.bossHitBackup.findMany({
       where: { playerId, creditedAt: null, hit: { status: { in: ['LANDED', 'ESCAPED'] } } },
-      include: { hit: { select: { result: true } } },
+      include: { hit: { select: { result: true, city: true, owner: { select: { displayName: true } } } } },
     });
     if (backups.length) {
-      const sender = await tx.roundPlayer.findUniqueOrThrow({ where: { id: playerId }, select: { busyThugs: true } });
+      const sender = await tx.roundPlayer.findUniqueOrThrow({ where: { id: playerId }, select: { busyThugs: true, round: true } });
+      const ruleset = loadRulesetForRound(sender.round);
       let busy = sender.busyThugs;
       for (const backup of backups) {
         busy = Math.max(0, busy - backup.thugs);
         const outcome = backup.hit.result as unknown as BossHitOutcome | null;
         if (backup.wounded > 0) await CombatRecoveryService.add(tx, playerId, null, backup.wounded, outcome?.recoverAt ? new Date(outcome.recoverAt) : now);
         await tx.bossHitBackup.update({ where: { id: backup.id }, data: { creditedAt: now } });
+        await ActivityService.log(tx, playerId, 'BOSS_HIT_BACKUP', json({
+          resolved: true,
+          owner: backup.hit.owner.displayName,
+          cityName: cityName(ruleset, backup.hit.city),
+          escaped: outcome?.escaped === true,
+          held: outcome?.held === true,
+          wounds: backup.wounded,
+          cashCents: 0,
+        }));
       }
       await tx.roundPlayer.update({ where: { id: playerId }, data: { busyThugs: busy } });
     }

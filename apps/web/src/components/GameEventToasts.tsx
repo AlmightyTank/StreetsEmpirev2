@@ -336,6 +336,22 @@ export function gameEventToastFor(activity: ActivityDto, crackWord: string): Omi
       };
     }
 
+    case 'PLAYER_BOARD_SALE':
+      return {
+        title: `${formatNumber(num(p.quantity))} ${str(p.item, 'items')} sold on the Street Market`,
+        detail: pieces(str(p.buyer) ? `Bought by ${str(p.buyer)}.` : '', num(p.proceedsCents) > 0 ? `${formatCents(num(p.proceedsCents))} credited` : 'Your barter was completed.'),
+        tone: 'good',
+        href: '/game/market',
+      };
+
+    case 'SIT_DOWN_AGREED':
+      return {
+        title: `${str(p.with, 'Your contact')} agreed to a sit-down`,
+        detail: pieces(str(p.cityName) ? `In ${str(p.cityName)}.` : '', clock(p.truceUntil) ? `Truce holds until ${clock(p.truceUntil)}.` : 'A truce is now in effect.'),
+        tone: 'good',
+        href: '/game/travel',
+      };
+
     case 'ADMIN_GRANT':
       return {
         title: 'Admin make-good received',
@@ -438,6 +454,81 @@ export function gameEventToastFor(activity: ActivityDto, crackWord: string): Omi
         detail: pieces(clock(p.landsAt) ? `Hit lands ${clock(p.landsAt)}` : 'The hit is coming soon.', 'Open Travel to react.'),
         tone: 'bad',
         href: '/game/travel',
+      };
+
+    case 'RELOCATED':
+      return {
+        title: 'Your move is complete',
+        detail: 'You reached your destination. Your new city’s rules apply now.',
+        tone: 'good',
+        href: '/game/travel',
+      };
+
+    case 'TRIP_RETURNED':
+      return {
+        title: `The boss is back from ${str(p.cityName, 'the trip')}`,
+        detail: pieces(`${formatCents(num(p.bankrollCents))} bankroll returned`, num(p.woundedBodyguards) ? `${formatCount(num(p.woundedBodyguards), 'bodyguard')} wounded` : ''),
+        tone: 'good',
+        href: '/game/travel',
+      };
+
+    case 'BOSS_HIT_ATTACK':
+      return {
+        title: p.escaped ? `${str(p.owner, 'The boss')} was gone before your crew arrived` : p.held ? `${str(p.owner, 'The boss')}'s guards held your crew off` : `Your crew hit ${str(p.owner, 'the visiting boss')}`,
+        detail: pieces(num(p.cashCents) > 0 ? `${formatCents(num(p.cashCents))} brought home` : '', num(p.wounds) ? `${formatCount(num(p.wounds), 'wound')}` : ''),
+        tone: p.escaped || p.held ? 'warn' : 'good',
+        href: '/game/activity',
+      };
+
+    case 'BOSS_HIT_DEFENSE':
+      return {
+        title: p.escaped ? `You got away in ${str(p.cityName, 'town')}` : p.held ? `Your bodyguards stopped ${str(p.attacker, 'the crew')}` : `${str(p.attacker, 'A crew')} hit you in ${str(p.cityName, 'town')}`,
+        detail: pieces(num(p.cashCents) < 0 ? `${formatCents(Math.abs(num(p.cashCents)))} taken` : '', num(p.wounds) ? `${formatCount(num(p.wounds), 'wound')}` : '', p.held ? 'Your trip continues.' : p.escaped ? 'Your trip home continues.' : 'You are laid up and on the next flight home.'),
+        tone: p.escaped || p.held ? 'warn' : 'bad',
+        href: '/game/activity',
+      };
+
+    case 'BOSS_HIT_BACKUP':
+      if (p.resolved !== true) return null;
+      return {
+        title: p.escaped ? `${str(p.owner, 'Your ally')} escaped the hit` : p.held ? `Your backup helped stop a hit on ${str(p.owner, 'your ally')}` : `Your backup returned from ${str(p.owner, 'an ally')}'s boss hit`,
+        detail: pieces(str(p.cityName), num(p.wounds) ? `${formatCount(num(p.wounds), 'wound')}` : '', p.held ? 'The visiting boss held the block.' : p.escaped ? 'The hit did not land.' : 'The hit landed.'),
+        tone: p.held || p.escaped ? 'warn' : 'good',
+        href: '/game/travel',
+      };
+
+    case 'BLOCK_WAR_FIGHT':
+      return {
+        title: p.kind === 'BREAK' ? 'Block war: siege break resolved' : p.kind === 'ASSAULT' ? 'Block war: assault resolved' : 'Block war: opening fight resolved',
+        detail: pieces(p.attackerWon ? 'Attackers won this fight.' : 'Defenders held this fight.', `${formatCount(num(p.attackers), 'attacker')} vs ${formatCount(num(p.defenders), 'defender')}`, woundSummary(num(p.attackerWounds), num(p.defenderWounds), num(p.cornerWounds))),
+        tone: p.attackerWon ? 'warn' : 'good',
+        href: '/game/turf',
+      };
+
+    case 'BLOCK_WAR_DECLARED':
+      if (p.role === 'attacker' && p.assault !== true) return null;
+      return {
+        title: p.assault ? 'Block war assault is coming' : 'A block war was declared on your turf',
+        detail: pieces(detail, 'Open Turf to review the fight and call for help.'),
+        tone: 'bad',
+        href: '/game/turf',
+      };
+
+    case 'BLOCK_WAR_ENDED':
+      return {
+        title: p.winner === 'ATTACKER' ? (p.goal === 'SACK' ? 'Block war ended: block sacked' : 'Block war ended: block taken') : p.winner === 'DEFENDER' ? 'Block war ended: block held' : 'Block war ended',
+        detail: pieces(str(p.reason) ? `Reason: ${str(p.reason).toLowerCase()}.` : '', num(p.lootCents) > 0 ? `${formatCents(num(p.lootCents))} in spoils` : ''),
+        tone: p.winner === 'ATTACKER' ? 'good' : p.winner === 'DEFENDER' ? 'warn' : 'info',
+        href: '/game/turf',
+      };
+
+    case 'BLOCK_WAR_CALL':
+      if (p.answered) return null;
+      return {
+        title: 'An ally needs help in a block war',
+        detail: pieces(str(p.districtName, str(p.district, 'A block')), str(p.caller) ? `Called by ${str(p.caller)}.` : '', clock(p.until) ? `Open until ${clock(p.until)}.` : ''),
+        tone: 'warn',
+        href: '/game/turf',
       };
 
     case 'REVENGE_EXPIRING':
