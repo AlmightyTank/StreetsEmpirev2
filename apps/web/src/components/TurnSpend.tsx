@@ -1,7 +1,6 @@
 import { useId } from 'react';
 import { formatNumber } from '@streets/shared';
-import { storeBulkHelpers } from '@streets/rulesets';
-import { QuantitySteps } from './QuantitySteps.js';
+import { QuantityStepper } from './QuantityStepper.js';
 
 /**
  * Sections 25 and 28. Choose how many turns to burn.
@@ -14,7 +13,6 @@ export function TurnSpend({
   onChange,
   available,
   disabled,
-  disabledReason,
 }: {
   value: number | '';
   onChange: (value: number | '') => void;
@@ -48,16 +46,7 @@ export function TurnSpend({
             onChange(raw === '' ? '' : Math.max(0, Math.floor(Number(raw) || 0)));
           }}
         />
-
-        <QuantitySteps
-          value={value}
-          onChange={onChange}
-          max={available}
-          steps={storeBulkHelpers}
-          disabled={disabled}
-          disabledReason={disabledReason ?? null}
-          emptyReason="You have no turns left. They come back over time."
-        />
+        <QuantityStepper value={value} onChange={onChange} min={1} max={available} disabled={disabled} unitLabel="turns" showMax />
       </div>
 
       {tooMany ? (

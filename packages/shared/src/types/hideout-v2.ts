@@ -37,7 +37,20 @@ export interface HideoutRoomV2Dto extends HideoutRoomDto {
   nextRequirements: HideoutRequirementDto[];
   nextCostTurns?: number | null;
   nextCostComponents?: Array<{ key: string; quantity: number; current: number; met: boolean }>;
+  /** Real-time construction the next level takes once it is paid for; 0 is instant. */
+  nextBuildMinutes?: number | null;
+  /** This room's level under construction, if any. */
+  build?: { level: number; startedAt: string; readyAt: string } | null;
   specialization: HideoutSpecializationDto | null;
+}
+
+/** The one room the crew is building right now. */
+export interface HideoutConstructionDto {
+  room: HideoutRoomV2Dto['key'];
+  roomName: string;
+  level: number;
+  startedAt: string;
+  readyAt: string;
 }
 
 export interface HideoutProtectedProductDto {
@@ -240,6 +253,8 @@ export interface HideoutV2Dto extends Omit<HideoutDto, 'rooms'> {
   /** 1 means the original cash-only contract; 2 enables 0.7 progression metadata. */
   rulesVersion: 1 | 2;
   rooms: HideoutRoomV2Dto[];
+  /** The build in progress, if any. Only one room is built at a time. */
+  construction?: HideoutConstructionDto | null;
   /** Present only on rulesets with the 0.7-B asset protection model. */
   assetProtection?: HideoutAssetProtectionDto;
   /** Present only on rulesets with the 0.7-C Lookouts/security model. */

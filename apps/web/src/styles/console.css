@@ -660,6 +660,11 @@
 .se-console-more { position: relative; min-width: 0; }
 .se-console-more > summary { list-style: none; display: flex; }
 .se-console-more > summary::-webkit-details-marker { display: none; }
+/* Author display:grid beats the closed-<details> UA hide, so the menu was
+   painted even while More was shut and hung off the left edge of the phone. */
+.se-console-more:not([open]) > .se-console-more__menu {
+  display: none;
+}
 .se-console-more__menu {
   position: absolute;
   z-index: 20;
@@ -672,6 +677,17 @@
   border-radius: 6px;
   background: var(--se-panel-hi);
   box-shadow: 0 12px 28px rgba(0,0,0,.38);
+}
+@media (max-width: 480px) {
+  /* More sits in the left column, just above the tab bar. A downward menu
+     lands underneath that bar, so open upward and stay inside the screen. */
+  .se-console-more__menu {
+    top: auto;
+    bottom: calc(100% + 5px);
+    left: 0;
+    right: auto;
+    max-width: min(240px, calc(100vw - 24px));
+  }
 }
 .se-console-more__menu button {
   display: flex;

@@ -168,16 +168,17 @@ export function turnExperienceFor(turnsBefore: number, turns: number): number {
 }
 
 /**
- * Crowns paid once per account when it reaches a level: a small payout every
- * `every` levels and a bigger one every `majorEvery`, with no top level. Paid
- * outside the per-round earn cap, since each one can only ever land once.
+ * Crowns paid once per account when it reaches a level: a starter payout at
+ * `firstLevel`, then a small payout every `every` levels and a bigger one
+ * every `majorEvery`, with no top level. Paid outside the per-round earn cap.
  * Pace from `npm run qa:account-xp`.
  */
-export const EXPERIENCE_LEVEL_CROWNS = { every: 5, crowns: 20, majorEvery: 25, majorCrowns: 75 } as const;
+export const EXPERIENCE_LEVEL_CROWNS = { firstLevel: 2, firstCrowns: 150, every: 5, crowns: 20, majorEvery: 25, majorCrowns: 75 } as const;
 
 export function experienceCrownsForLevel(level: number): number {
-  const { every, crowns, majorEvery, majorCrowns } = EXPERIENCE_LEVEL_CROWNS;
-  if (!Number.isInteger(level) || level < every) return 0;
+  const { firstLevel, firstCrowns, every, crowns, majorEvery, majorCrowns } = EXPERIENCE_LEVEL_CROWNS;
+  if (!Number.isInteger(level) || level < firstLevel) return 0;
+  if (level === firstLevel) return firstCrowns;
   if (level % majorEvery === 0) return majorCrowns;
   return level % every === 0 ? crowns : 0;
 }
@@ -186,6 +187,9 @@ export function experienceCrownsForLevel(level: number): number {
 export function experienceCrownMilestones(fromLevel: number, toLevel: number): { level: number; crowns: number }[] {
   const { every } = EXPERIENCE_LEVEL_CROWNS;
   const out: { level: number; crowns: number }[] = [];
+  if (fromLevel < EXPERIENCE_LEVEL_CROWNS.firstLevel && toLevel >= EXPERIENCE_LEVEL_CROWNS.firstLevel) {
+    out.push({ level: EXPERIENCE_LEVEL_CROWNS.firstLevel, crowns: experienceCrownsForLevel(EXPERIENCE_LEVEL_CROWNS.firstLevel) });
+  }
   for (let level = (Math.floor(Math.max(0, fromLevel) / every) + 1) * every; level <= toLevel; level += every) {
     out.push({ level, crowns: experienceCrownsForLevel(level) });
   }

@@ -90,3 +90,4 @@ export function AllianceDetailPage() {
     </GameLayout>
   );
 }
+import '../styles/alliance.css';

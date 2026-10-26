@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { rememberedKey, useRememberedState } from '../utils/remembered.js';
-import { Link, Navigate, NavLink, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { formatCents, formatNumber, type ProductsDto, type StoreCheckoutLineInput, type StoreCheckoutResult, type StoreDto, type StoreItemDto, type StoreMarketContextDto, type StoreRestockDto, type StoresDto, type StoreSpecialOrderResult, type StoreTradeInput, type StoreTradeResult } from '@streets/shared';
+import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { formatCents, formatNumber, type ProductsDto, type StoreCheckoutLineInput, type StoreCheckoutResult, type StoreItemDto, type StoreMarketContextDto, type StoreRestockDto, type StoresDto, type StoreSpecialOrderResult, type StoreTradeInput, type StoreTradeResult } from '@streets/shared';
 import { api, ApiError } from '../api/client.js';
 import { onQuestsChanged } from '../quests/questSignals.js';
 import { storesApi } from '../api/stores.js';
@@ -9,6 +9,8 @@ import { ActionDock, resultChips } from '../components/ActionDock.js';
 import { ActionResult, type ResultLine } from '../components/ActionResult.js';
 import { Alert } from '../components/Alert.js';
 import { Portrait } from '../components/Portrait.js';
+import { StoreTabs } from '../components/StoreTabs.js';
+import { contactRoomHref, storeHasContactRoom } from '../utils/contactRoom.js';
 import { Button } from '../components/Button.js';
 import { EconomyBatchAction, EconomyPendingNotice, EconomyQuote } from '../components/EconomyExperience.js';
 import { Panel } from '../components/Panel.js';
@@ -17,7 +19,7 @@ import { ProductAccessTable } from '../components/ProductAccess.js';
 import { matchesStoreShelf, type StoreShelfFilter } from '../utils/storeShelfDisplay.js';
 import { QuestLockNote } from '../components/QuestLink.js';
 import { ShelfArt } from '../components/ItemTile.js';
-import { QuantitySteps } from '../components/QuantitySteps.js';
+import { QuantityStepper } from '../components/QuantityStepper.js';
 import { useCountdown } from '../hooks/useCountdown.js';
 import { useGameAction } from '../hooks/useGameAction.js';
 import { GameLayout } from '../layouts/GameLayout.js';
@@ -33,11 +35,11 @@ type StoreCommand = { kind: 'trade'; order: Order } | { kind: 'checkout'; lines:
 type PendingStoreCommand = { actionId: string; command: StoreCommand };
 
 const STOCK_UP_GUIDE = [
-  { id: 'condoms', slug: 'corner', store: 'CORNER', field: 'condoms', quantity: 1_000 },
-  { id: 'beer', slug: 'corner', store: 'CORNER', field: 'beer', quantity: 1_000 },
-  { id: 'medicine', slug: 'corner', store: 'CORNER', field: 'medicine', quantity: 15 },
-  { id: 'pistols', slug: 'tommy', store: 'TOMMY', field: 'pistols', quantity: 5 },
-  { id: 'ammo-crate', slug: 'tommy', store: 'TOMMY', item: 'AMMO_CRATE', quantity: 1 },
+  { id: 'condoms', step: 'buy-condoms', target: 'shop-buy-condoms', slug: 'corner', store: 'CORNER', field: 'condoms', quantity: 1_000 },
+  { id: 'beer', step: 'buy-beer', target: 'shop-buy-beer', slug: 'corner', store: 'CORNER', field: 'beer', quantity: 1_000 },
+  { id: 'medicine', step: 'buy-medicine', target: 'shop-buy-medicine', slug: 'corner', store: 'CORNER', field: 'medicine', quantity: 15 },
+  { id: 'pistols', step: 'buy-pistols', target: 'shop-buy-pistols', slug: 'tommy', store: 'TOMMY', field: 'pistols', quantity: 5 },
+  { id: 'ammo-crate', step: 'buy-ammo-crate', target: 'shop-buy-ammo-crate', slug: 'tommy', store: 'TOMMY', item: 'AMMO_CRATE', quantity: 1 },
 ] as const;
 
 type StockUpGuideItem = (typeof STOCK_UP_GUIDE)[number];
@@ -152,7 +154,7 @@ function relationshipSummary(input: {
   return parts.join(' · ');
 }
 
-function StoreItem({ item, store, storeName, keeper, owned, cashCents, bulkHelpers, blocked, basket, onTrade, onSpecialOrder, onAddToBasket, onRestock, tourTarget, tourQuantity }: {
+function StoreItem({ item, store, storeName, keeper, owned, cashCents, blocked, basket, onTrade, onSpecialOrder, onAddToBasket, onRestock, tourTarget, tourQuantity, tourRequirement }: {
   item: StoreItemDto; store: string; storeName: string; keeper: string; owned: number; cashCents: number;
   /** Why the whole shelf is off, or null when it is open for business. */
   bulkHelpers: number[]; blocked: string | null;
@@ -163,6 +165,7 @@ function StoreItem({ item, store, storeName, keeper, owned, cashCents, bulkHelpe
   onRestock: () => void;
   tourTarget?: string;
   tourQuantity?: number;
+  tourRequirement?: number;
 }) {
   const [quantity, setQuantity] = useState<number | ''>(tourQuantity ?? 1);
   const [direction, setDirection] = useState<'buy' | 'sell'>('buy');
@@ -177,9 +180,10 @@ function StoreItem({ item, store, storeName, keeper, owned, cashCents, bulkHelpe
   const purchaseLocked = buying && locked;
   const unitCents = buying ? item.buyCents : item.sellCents;
   const unitsPerOrder = item.unitsPerOrder ?? 1;
-  const max = buying
+  const purchaseMax = buying
     ? Math.min(item.maxBuy, item.buyCents > 0 ? Math.floor(cashCents / item.buyCents) : item.maxBuy)
     : Math.floor(owned / unitsPerOrder);
+  const max = buying && tourQuantity !== undefined ? Math.min(purchaseMax, tourQuantity) : purchaseMax;
   const shelfOrders = item.restock ? Math.floor(item.restock.stock / unitsPerOrder) : null;
   const soldOut = buying && shelfOrders === 0;
   const specialOrder = unitsPerOrder === 1 ? item.restock?.specialOrder ?? null : null;
@@ -233,14 +237,23 @@ function StoreItem({ item, store, storeName, keeper, owned, cashCents, bulkHelpe
         ? `${formatNumber(shelfOrders ?? 0)} packs in stock`
         : `${formatNumber(item.restock.stock)} / ${formatNumber(item.restock.cap)} in stock`
     : 'Always available';
+  const tourUnit = item.inventoryUnitLabel ?? item.name;
+  const tourRemaining = tourRequirement === undefined ? 0 : Math.max(0, tourRequirement - owned);
+  const tourRequirementLabel = tourRequirement === undefined ? null : `${formatNumber(tourRequirement)} ${tourUnit}`;
 
   return (
     <Panel
       title={item.name}
       className={`se-store-shelf${locked ? ' se-store-shelf--locked' : ''}${soldOut ? ' se-store-shelf--soldout' : ''}`}
       tourTarget={tourTarget}
-      aside={<span className={`se-store-shelf__status${soldOut ? ' se-store-shelf__status--warn' : locked ? ' se-store-shelf__status--locked' : ''}`}>{locked ? `Buy locked · ${stockLabel}` : stockLabel}</span>}
+      aside={<span className={`se-store-shelf__status${soldOut ? ' se-store-shelf__status--warn' : locked ? ' se-store-shelf__status--locked' : ''}`}>{locked ? `Buy locked · ${stockLabel}` : `Shelf stock · ${stockLabel}`}</span>}
     >
+      {tourRequirementLabel ? (
+        <div className="se-store-shelf__walkthrough" role="status">
+          <strong>Walkthrough target</strong>
+          <span>Have {tourRequirementLabel} total. You have {formatNumber(owned)} {tourUnit}. Buy {formatNumber(tourRemaining)} more.</span>
+        </div>
+      ) : null}
       <div className="se-store-shelf__top">
         <ShelfArt itemKey={item.key} locked={locked} soldOut={soldOut} />
         <div className="se-store-prices">
@@ -275,17 +288,8 @@ function StoreItem({ item, store, storeName, keeper, owned, cashCents, bulkHelpe
               onChange={(e) => setQuantity(e.target.value === '' ? '' : Number(e.target.value))} />
           </div>
         </div>
-        <div className="se-spend__row">
-          <QuantitySteps
-            value={quantity}
-            onChange={setQuantity}
-            max={max}
-            steps={bulkHelpers}
-            disabled={blocked !== null || purchaseLocked}
-            disabledReason={blocked ?? (purchaseLocked ? `Complete the required job before buying ${item.name}.` : null)}
-            emptyReason={emptyReason}
-          />
-        </div>
+        <QuantityStepper value={quantity} onChange={setQuantity} min={1} max={max}
+          disabled={blocked !== null || purchaseLocked} unitLabel={item.name.toLowerCase()} showMax />
         <EconomyQuote
           eyebrow="Trade quote"
           title={quantity === '' ? item.name : `${formatNumber(quantity)} × ${item.name}`}
@@ -366,7 +370,7 @@ function StoreItem({ item, store, storeName, keeper, owned, cashCents, bulkHelpe
             ) : (
               <p className="se-hint">
                 {keeper} has not opened this to you yet. Access is earned through
-                {' '}<Link to="/game/quests">underworld jobs</Link>, not passive reputation.
+                {' '}<Link to="/game/quests">underworld contacts</Link>, not passive reputation.
               </p>
             )}
           </div>
@@ -378,7 +382,6 @@ function StoreItem({ item, store, storeName, keeper, owned, cashCents, bulkHelpe
 }
 
 /** Short names for the store tabs; the page title keeps the full one. */
-const TAB_NAMES: Record<string, string> = { CORNER: 'Corner', TOMMY: 'Tommy’s', CHARLIE: 'Charlie’s', PIP: 'Pip’s' };
 
 const STORE_DETAILS: Record<string, { label: string; lane: string; note: string }> = {
   CORNER: {
@@ -388,12 +391,12 @@ const STORE_DETAILS: Record<string, { label: string; lane: string; note: string 
   },
   TOMMY: {
     label: 'Weapons & muscle',
-    lane: 'Armory counter',
+    lane: 'Weapon counter',
     note: 'Crew, pistols, and heavier hardware arrive on Tommy’s own restock schedule.',
   },
   CHARLIE: {
     label: 'Cars & mobility',
-    lane: 'Garage floor',
+    lane: 'Vehicle floor',
     note: 'Low-Riders are built one at a time and determine how many shooters a drive-by can carry.',
   },
   PIP: {
@@ -431,19 +434,6 @@ export function StoresIndexPage() {
   return <Navigate to={`/game/stores/${encodeURIComponent(slug)}`} replace />;
 }
 
-function StoreTabs({ stores, slug }: { stores: StoreDto[]; slug: string }) {
-  return (
-    <nav className="se-storetabs" aria-label="Stores">
-      {stores.map((store) => (
-        <NavLink key={store.slug} to={`/game/stores/${store.slug}`} replace
-          className={`se-storetabs__tab${store.slug === slug ? ' se-storetabs__tab--active' : ''}`}>
-          {TAB_NAMES[store.key] ?? store.name}
-        </NavLink>
-      ))}
-    </nav>
-  );
-}
-
 function StoreView({
   slug,
   basket,
@@ -461,6 +451,7 @@ function StoreView({
 }) {
   const me = useSession((s) => s.me);
   const tour = useOnboarding((s) => s.state?.tour ?? null);
+  const advanceTour = useOnboarding((s) => s.act);
   const location = useLocation();
   const navigate = useNavigate();
   const action = useGameAction<StoreTradeResult | StoreCheckoutResult | StoreSpecialOrderResult>();
@@ -476,10 +467,10 @@ function StoreView({
   );
   // 0.4.0-D: Pip deals every product. Other stores never ask.
   const [products, setProducts] = useState<ProductsDto | null>(null);
-  const guidedStock = Boolean(tour?.active && !tour.dismissed && !tour.complete && tour.step === 'shop-supplies');
+  const guidedStock = Boolean(tour?.active && !tour.dismissed && !tour.complete && STOCK_UP_GUIDE.some((item) => item.step === tour.step));
   const tourItemId = new URLSearchParams(location.search).get('tourItem');
   const guidedItem = guidedStock
-    ? STOCK_UP_GUIDE.find((item) => item.id === tourItemId) ?? STOCK_UP_GUIDE[0]
+    ? STOCK_UP_GUIDE.find((item) => item.step === tour?.step) ?? STOCK_UP_GUIDE.find((item) => item.id === tourItemId) ?? STOCK_UP_GUIDE[0]
     : null;
   const loadProducts = useCallback(() => {
     if (slug !== 'pip') return;
@@ -573,8 +564,11 @@ function StoreView({
               : false;
           if (purchased) {
             const next = STOCK_UP_GUIDE[STOCK_UP_GUIDE.findIndex((item) => item.id === guidedItem.id) + 1];
+            // These five prompts share one server-validated supply milestone;
+            // advance only the display hint until the final purchase completes it.
+            await advanceTour({ action: 'advance-tour', step: next?.step ?? 'grow-crew' });
             if (next) {
-              navigate(`/game/stores/${next.slug}?tourItem=${next.id}`, { replace: true, state: { tourTarget: 'shop-supplies' } });
+              navigate(`/game/stores/${next.slug}?tourItem=${next.id}`, { replace: true, state: { tourTarget: next.target } });
             }
           }
         }
@@ -695,6 +689,9 @@ function StoreView({
             <span className="se-eyebrow">{details?.label ?? 'Street market'} · {me.city.name}</span>
             <h1>{store?.name ?? 'Stores'}</h1>
             <p>{store?.blurb ?? 'Loading the shelves and today’s prices.'}</p>
+            {store && storeHasContactRoom(store.key) ? (
+              <Link className="se-btn se-stores-hero__visit" to={contactRoomHref(store.key)}>Visit {store.keeper}</Link>
+            ) : null}
           </div>
 
           <div className="se-stores-hero__side">
@@ -831,8 +828,9 @@ function StoreView({
                       bulkHelpers={catalog.bulkHelpers}
                       blocked={counterBlock}
                       basket={basket}
-                      tourTarget={guidedStock && guidedItem && store.key === guidedItem.store && stockUpItemMatches(item, guidedItem) ? 'shop-supplies' : undefined}
-                      tourQuantity={guidedStock && guidedItem && store.key === guidedItem.store && stockUpItemMatches(item, guidedItem) ? guidedItem.quantity : undefined}
+                       tourTarget={guidedStock && guidedItem && store.key === guidedItem.store && stockUpItemMatches(item, guidedItem) ? guidedItem.target : undefined}
+                        tourQuantity={guidedStock && guidedItem && store.key === guidedItem.store && stockUpItemMatches(item, guidedItem) ? Math.max(1, guidedItem.quantity - item.owned) : undefined}
+                        tourRequirement={guidedStock && guidedItem && store.key === guidedItem.store && stockUpItemMatches(item, guidedItem) ? guidedItem.quantity * (item.unitsPerOrder ?? 1) : undefined}
                       onTrade={(order) => execute({ kind: 'trade', order })}
                       onSpecialOrder={(sourceStore, sourceItem) => execute({ kind: 'specialOrder', store: sourceStore, item: sourceItem })}
                       onAddToBasket={onAddToBasket}
@@ -1014,7 +1012,7 @@ function StoreView({
                     </div>
                     <div>
                       <strong>Jobs unlock access</strong>
-                      <span>Permanent purchase access and favors live on the <Link to="/game/quests">Quests page</Link>.</span>
+                      <span>Permanent purchase access and favors live on your <Link to="/game/quests">contact line</Link>.</span>
                     </div>
                   </div>
                 </div>
@@ -1030,13 +1028,13 @@ function StoreView({
                   <div className="se-stores-railcard">
                     <span className="se-eyebrow">Tommy&rsquo;s rack</span>
                     <p>Thugs protect the crew and fight in raids or drive-bys. Guns and muscle arrive on Tommy&rsquo;s schedule; the heavier the hardware, the longer the wait.</p>
-                    <p>Weapon access comes from underworld jobs. Once a rack opens for the round, losing cash, crew, or reputation does not take it back.</p>
+                      <p>Weapon access comes from underworld contacts. Once a rack opens for the round, losing cash, crew, or reputation does not take it back.</p>
                   </div>
                 ) : null}
 
                 {store.key === 'CHARLIE' ? (
                   <div className="se-stores-railcard">
-                    <span className="se-eyebrow">Garage notes</span>
+                    <span className="se-eyebrow">Vehicle notes</span>
                     <p>Each Low-Rider carries {formatNumber(catalog.lowRiderThugCapacity)} shooters for a drive-by. A car comes home if at least one shooter survives.</p>
                     <p>Charlie builds them one at a time, so fleets grow across multiple deliveries.</p>
                   </div>
@@ -1136,6 +1134,9 @@ export function StorePage() {
     setBasket((current) => removeStoreBasketLine(current, key));
   }
 
+  if (slug === 'salvage') return <Navigate to="/game/stores" replace />;
+  if (slug === 'board') return <Navigate to="/game/market" replace />;
+
   return (
     <StoreView
       key={slug}
@@ -1148,3 +1149,6 @@ export function StorePage() {
     />
   );
 }
+import '../styles/stores.css';
+import '../styles/items.css';
+import '../styles/economy-experience.css';

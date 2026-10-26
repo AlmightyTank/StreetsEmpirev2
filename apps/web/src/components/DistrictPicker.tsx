@@ -71,7 +71,7 @@ export function DistrictPicker({
                     View “{district.districtAccess!.unlockQuest!.title}”
                   </Link>
                 ) : (
-                  <Link to="/game/quests">See available quests</Link>
+                  <Link to="/game/quests">Call your contacts</Link>
                 )}
               </LockedChoiceOverlay>
             ) : null}

@@ -170,6 +170,7 @@ export function AvatarPortrait({ imageUrl, avatar, fallback, frameKey, live }: {
     <span
       className={`se-avatar-portrait${frameArt ? ' se-avatar-portrait--art' : ' se-avatar-frame'}`}
       data-avatar-frame={frameKey}
+      data-avatar-opening-shape={avatarFrameSpec(frameKey)?.opening.shape ?? 'circle'}
       style={avatarFrameOpeningStyle(frameKey)}
     >
       <span className="se-avatar-portrait__face">

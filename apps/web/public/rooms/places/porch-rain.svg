@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 480">
+  <!-- Mama's porch on a rain night: the avenue's signs blurred behind the rail, the porch light above. -->
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0c0e16"/><stop offset="1" stop-color="#2a141a"/></linearGradient>
+    <radialGradient id="porch" cx=".5" cy=".05" r=".55"><stop offset="0" stop-color="#ffc888" stop-opacity=".5"/><stop offset=".5" stop-color="#e09050" stop-opacity=".12"/><stop offset="1" stop-color="#e09050" stop-opacity="0"/></radialGradient>
+    <radialGradient id="sign" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ff4a4a" stop-opacity=".45"/><stop offset="1" stop-color="#ff4a4a" stop-opacity="0"/></radialGradient>
+    <linearGradient id="boards" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4a3022"/><stop offset="1" stop-color="#22140c"/></linearGradient>
+  </defs>
+  <rect width="1200" height="480" fill="url(#sky)"/>
+  <!-- The avenue: blurred red signs and dark windows -->
+  <ellipse cx="180" cy="230" rx="140" ry="90" fill="url(#sign)"/><ellipse cx="1010" cy="200" rx="160" ry="100" fill="url(#sign)"/>
+  <g fill="#120c12"><rect x="40" y="150" width="220" height="200"/><rect x="900" y="130" width="260" height="220"/></g>
+  <g fill="#ff6a5a" fill-opacity=".7"><rect x="80" y="180" width="140" height="22" rx="4"/><rect x="950" y="160" width="170" height="24" rx="4"/></g>
+  <g fill="#ffcf6a" fill-opacity=".3"><rect x="70" y="240" width="20" height="26"/><rect x="130" y="240" width="20" height="26"/><rect x="190" y="290" width="20" height="26"/><rect x="940" y="230" width="20" height="26"/><rect x="1040" y="280" width="20" height="26"/><rect x="1100" y="230" width="20" height="26"/></g>
+  <!-- Porch posts and roof edge -->
+  <rect x="0" y="0" width="1200" height="34" fill="#1a100c"/><rect x="0" y="30" width="1200" height="8" fill="#3a2418"/>
+  <rect x="300" y="38" width="22" height="352" fill="#2e1d14"/><rect x="878" y="38" width="22" height="352" fill="#2e1d14"/>
+  <!-- Porch light -->
+  <rect x="588" y="38" width="24" height="14" fill="#2a2a2a"/><ellipse cx="600" cy="62" rx="16" ry="12" fill="#ffe0a8"/>
+  <rect width="1200" height="480" fill="url(#porch)"/>
+  <!-- Rain -->
+  <g stroke="#8aa0c0" stroke-opacity=".35" stroke-width="2" stroke-linecap="round">
+    <path d="M40 60l-10 30M110 120l-10 30M160 40l-10 30M230 300l-10 30M260 90l-10 30M70 340l-10 30M940 70l-10 30M990 290l-10 30M1050 50l-10 30M1110 140l-10 30M1160 300l-10 30M1020 360l-10 30M140 210l-10 30M1180 60l-10 30"/>
+  </g>
+  <!-- Railing -->
+  <rect x="0" y="330" width="300" height="10" fill="#3a2418"/><rect x="900" y="330" width="300" height="10" fill="#3a2418"/>
+  <g fill="#2e1d14"><rect x="30" y="340" width="10" height="80"/><rect x="90" y="340" width="10" height="80"/><rect x="150" y="340" width="10" height="80"/><rect x="210" y="340" width="10" height="80"/><rect x="270" y="340" width="10" height="80"/><rect x="930" y="340" width="10" height="80"/><rect x="990" y="340" width="10" height="80"/><rect x="1050" y="340" width="10" height="80"/><rect x="1110" y="340" width="10" height="80"/><rect x="1170" y="340" width="10" height="80"/></g>
+  <!-- Porch boards -->
+  <rect y="420" width="1200" height="60" fill="url(#boards)"/><rect y="416" width="1200" height="6" fill="#6a4630"/>
+  <g stroke="#1a0e08" stroke-width="2"><path d="M0 440h1200M0 460h1200"/></g>
+  <ellipse cx="760" cy="440" rx="80" ry="6" fill="#8aa0c0" fill-opacity=".15"/>
+</svg>

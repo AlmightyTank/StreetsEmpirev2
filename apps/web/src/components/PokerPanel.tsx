@@ -54,6 +54,7 @@ export function PokerPanel({ casinoPage, onPageChange }: Props) {
   const [state, setState] = useState<CasinoPokerStateDto | null>(null);
   const [lastHand, setLastHand] = useState<CasinoPokerHandDto | null>(null);
   const [buyIn, setBuyIn] = useState('100');
+  const [blindLevel, setBlindLevel] = useState<'LOW' | 'MEDIUM' | 'HIGH'>('LOW');
   const [busy, setBusy] = useState(false);
   const [soundEnabled, setSoundEnabledState] = useState(() => casinoSoundEnabled());
   const [tablePulse, setTablePulse] = useState<'action' | 'win' | 'loss' | null>(null);
@@ -106,9 +107,10 @@ export function PokerPanel({ casinoPage, onPageChange }: Props) {
     void casinoApi.poker().then((next) => {
       setState(next);
       setLastHand(next.activeHand ?? next.history[0] ?? null);
+      setBlindLevel(next.activeHand?.blindLevel ?? next.history[0]?.blindLevel ?? 'LOW');
       if (!activeTableId) setActiveTableId(next.tables.find((t) => t.seats.some((s) => s.isYou))?.id ?? null);
       setError(null);
-    }).catch((caught: unknown) => setError(caught instanceof ApiError ? caught.message : 'Could not open the Poker table.'));
+    }).catch((caught: unknown) => setError(caught instanceof ApiError ? caught.message : "Could not open the Texas Hold'em table."));
   }, [casinoPage.currentCitySlug, casinoPage.openSession?.id]);
 
   useEffect(() => {
@@ -124,7 +126,7 @@ export function PokerPanel({ casinoPage, onPageChange }: Props) {
         if (caught instanceof ApiError && caught.status === 404) {
           setActiveTableId(null); setTableView(null); setError(null);
           void casinoApi.poker().then(setState).catch(() => undefined);
-        } else setError(caught instanceof ApiError ? caught.message : 'Could not reconnect to that Poker table.');
+        } else setError(caught instanceof ApiError ? caught.message : "Could not reconnect to that Texas Hold'em table.");
       }
     };
     void refresh();
@@ -180,11 +182,11 @@ export function PokerPanel({ casinoPage, onPageChange }: Props) {
     setBusy(true); setError(null); setNotice(null);
     playCasinoSound('CHIP_PLACE', soundEnabled);
     try {
-      const result = await casinoApi.pokerDeal({ buyInCents: amount, actionId: newActionId() });
+      const result = await casinoApi.pokerDeal({ buyInCents: amount, blindLevel, actionId: newActionId() });
       await cardTimeline(4);
       setState(result.poker); setLastHand(result.hand); onPageChange(result.page);
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : 'Could not deal this Poker hand.');
+      setError(caught instanceof ApiError ? caught.message : "Could not deal this Texas Hold'em hand.");
     } finally { setBusy(false); }
   }
 
@@ -206,7 +208,7 @@ export function PokerPanel({ casinoPage, onPageChange }: Props) {
         playPokerResult(result.hand.outcome);
       }
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : 'That Poker action could not be completed.');
+      setError(caught instanceof ApiError ? caught.message : "That Texas Hold'em action could not be completed.");
     } finally { setBusy(false); }
   }
 
@@ -247,7 +249,7 @@ export function PokerPanel({ casinoPage, onPageChange }: Props) {
     setBusy(true); setError(null);
     playPokerAction(action);
     try { const result = await casinoApi.pokerTableAction(id, { action, actionId: newActionId() }); setTableView(result.table); onPageChange(result.page); if (result.table.hand?.outcome) setNotice(result.table.hand.outcome); }
-    catch (caught) { setError(caught instanceof ApiError ? caught.message : 'That Poker action could not be completed.'); }
+    catch (caught) { setError(caught instanceof ApiError ? caught.message : "That Texas Hold'em action could not be completed."); }
     finally { setBusy(false); }
   }
   async function skipIdle(id: string) {
@@ -265,12 +267,12 @@ export function PokerPanel({ casinoPage, onPageChange }: Props) {
     {error ? <Alert tone="error">{error}</Alert> : null}
     {notice ? <Alert tone="success">{notice}</Alert> : null}
     {!state ? <p className="se-muted">Opening the poker room...</p> : null}
-    {state && !state.enabled ? <Alert tone="info">Poker is not enabled in this casino round.</Alert> : null}
+    {state && !state.enabled ? <Alert tone="info">Texas Hold'em is not enabled in this casino round.</Alert> : null}
     {!casinoPage.openSession ? <p>Open a casino bankroll before sitting at the card table.</p> : null}
     {state?.enabled ? (
       <div className="se-poker-split">
         <div className="se-poker-toolbar">
-          <span>{busy ? 'TABLE ACTION' : tableView?.hand?.myTurn ? 'YOUR TURN' : active ? active.street : 'POKER ROOM'}</span>
+          <span>{busy ? 'TABLE ACTION' : tableView?.hand?.myTurn ? 'YOUR TURN' : active ? active.street : "TEXAS HOLD'EM ROOM"}</span>
           <button
             type="button"
             className="se-btn se-btn--ghost"
@@ -289,13 +291,17 @@ export function PokerPanel({ casinoPage, onPageChange }: Props) {
           <div className="se-poker-box__head">
             <div>
               <span className="se-eyebrow">House table</span>
-              <h3>Solo Poker</h3>
+              <h3>Texas Hold'em</h3>
             </div>
-            <small>Against Mack and Rico</small>
+            <label className="se-poker-blinds">Blind level
+              <select value={blindLevel} onChange={(event) => setBlindLevel(event.target.value as 'LOW' | 'MEDIUM' | 'HIGH')} disabled={busy || Boolean(active)}>
+                {(state.blindLevels ?? []).map((level) => <option value={level.key} key={level.key}>{level.label} · {formatCents(level.smallBlindCents)}/{formatCents(level.bigBlindCents)}</option>)}
+              </select>
+            </label>
           </div>
 
           {hand ? <div className="se-poker-table">
-            <div className="se-poker-table__meta"><span>{hand.street === 'SHOWDOWN' ? 'SHOWDOWN' : hand.street}</span><strong>Pot {formatCents(hand.potCents)}</strong></div>
+            <div className="se-poker-table__meta"><span>{hand.blindLevel} · {formatCents(hand.smallBlindCents)}/{formatCents(hand.bigBlindCents)} blinds · {hand.street === 'SHOWDOWN' ? 'SHOWDOWN' : hand.street}</span><strong>Pot {formatCents(hand.potCents)}</strong></div>
             <div className="se-poker-table__board" aria-label="Community cards">
               {Array.from({ length: 5 }, (_, i) => <PlayingCard key={cardKey(hand.board[i], i)} card={hand.board[i]} delay={i * 65} />)}
             </div>
@@ -315,7 +321,7 @@ export function PokerPanel({ casinoPage, onPageChange }: Props) {
                   ? <Button className="se-btn se-btn--ghost" disabled={busy} onClick={() => void act('CHECK')}>Check</Button>
                   : <Button className="se-btn se-btn--ghost" disabled={busy || !human || human.stackCents === 0} onClick={() => void act('CALL')}>{human && human.stackCents < active.amountToCallCents ? `All-in call ${formatCents(human.stackCents)}` : 'Call'}</Button>}
                 <Button className="se-btn se-btn--ghost" disabled={busy || !human || human.stackCents === 0} onClick={() => void act('ALL_IN')}>All in</Button>
-                <Button className="se-btn se-btn--primary" disabled={busy || !human || human.stackCents < active.amountToCallCents + (state.raiseCents ?? 200)} onClick={() => void act('RAISE')}>Raise {formatCents(state.raiseCents ?? 200)}</Button>
+                <Button className="se-btn se-btn--primary" disabled={busy || !human || human.stackCents < active.amountToCallCents + active.raiseCents} onClick={() => void act('RAISE')}>Raise {formatCents(active.raiseCents)}</Button>
               </div>
             </div> : <div className="se-poker-actions"><span>{pokerOutcome(hand.outcome, hand.rakeCents)}</span>
               <label>Buy-in ($)<input inputMode="decimal" value={buyIn} onChange={(event) => setBuyIn(event.target.value)} disabled={busy} /></label>
@@ -324,7 +330,7 @@ export function PokerPanel({ casinoPage, onPageChange }: Props) {
           </div> : <div className="se-poker-lobby">
             <p>Play a hand of Texas Hold’em against Mack and Rico. Your hole cards stay private; bot cards are revealed only at showdown.</p>
             <label>Buy-in ($)<input inputMode="decimal" value={buyIn} onChange={(event) => setBuyIn(event.target.value)} disabled={busy} /></label>
-            <small>Buy-in: {formatCents(state.minBuyInCents)}–{formatCents(state.maxBuyInCents)}. Blinds: {formatCents(state.smallBlindCents)} / {formatCents(state.bigBlindCents)}; the button moves every hand, so you post them in turn. Flopped pots take {(state.rakeBps / 100).toFixed(2)}% house rake, capped at {formatCents(state.rakeCapCents)}. Your remaining stack returns to the casino bankroll when the hand ends.</small>
+            <small>Buy-in: {formatCents(state.minBuyInCents)}–{formatCents(state.maxBuyInCents)}. Blinds follow your selected level, and the button rotates each hand. Flopped pots take {(state.rakeBps / 100).toFixed(2)}% house rake, capped at {formatCents(state.rakeCapCents)}. Your remaining stack returns to the casino bankroll when the hand ends.</small>
             <Button className="se-btn se-btn--primary" disabled={!canDeal || busy} onClick={() => void deal()}>{busy ? 'Dealing...' : 'Sit down and deal'}</Button>
           </div>}
         </section>

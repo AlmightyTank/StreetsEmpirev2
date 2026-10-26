@@ -31,8 +31,8 @@ import { CRACK, ProductInventoryService, productKeys } from './product-inventory
 /**
  * Jobs a round has: every district, the Produce shift, (0.4.0-C) the thugs cooking, and
  * (0.4.0-E) the squad sent into a fight and the crew defending, (0.5.0-E) a run's
- * escorts, who burn from the run's trunk, and (0.6.0-B) corner crews. Fight jobs are opt-in:
- * with no saved policy they burn nothing.
+ * escorts, who burn from the run's trunk, and (0.6.0-B) corner crews. All fight
+ * jobs default to Crack; players can still replace or clear that policy.
  */
 export function workSupplyJobs(ruleset: Ruleset): Array<{ key: string; name: string; role: WorkSupplyRole; optIn: boolean }> {
   return [
@@ -132,7 +132,12 @@ export const WorkSupplyService = {
         pip: key === CRACK || (economyOn && Boolean(productEconomy(ruleset, key)?.pip)),
         cookable: key === CRACK || (economyOn && cookable.has(key)),
       })),
-      jobs: workSupplyJobs(ruleset).map((job) => ({ ...job, policy: policies.get(job.key) ?? defaultWorkSupplyPolicy(), isDefault: !policies.has(job.key), active: !job.optIn || policies.has(job.key) })),
+      jobs: workSupplyJobs(ruleset).map((job) => ({
+        ...job,
+        policy: policies.get(job.key) ?? defaultWorkSupplyPolicy(),
+        isDefault: !policies.has(job.key),
+        active: !job.optIn || policies.has(job.key) || job.role === 'fighters',
+      })),
     };
   },
 
@@ -155,7 +160,7 @@ export const WorkSupplyService = {
     return WorkSupplyService.overview(prisma, roundPlayerId);
   },
 
-  /** Forget a job's policy: districts go back to crack only, fight jobs stop burning anything. */
+  /** Forget a job's policy: districts and fight jobs go back to Crack. */
   async clearPolicy(prisma: PrismaClient, roundPlayerId: string, job: string): Promise<WorkSupplyDto> {
     const player = await prisma.roundPlayer.findUniqueOrThrow({ where: { id: roundPlayerId }, include: { round: true } });
     const ruleset = loadRulesetForRound(player.round);

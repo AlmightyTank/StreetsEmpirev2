@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import '../styles/admin.css';
 import { Link, useParams } from 'react-router-dom';
 import { ADMIN_GRANT_CAPS, ADMIN_PRODUCT_GRANT_CAP, type AdminCrewPlayerDto, type AdminGrantItem, type AdminPlayerDto, type AdminPlayerStoresDto, type AdminQuestContentDto, type AdminVoidBattleResultDto, type BattleReportDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
@@ -458,7 +459,7 @@ export function AdminPlayerPage() {
       ) : null}
 
       <div className="se-grid se-grid--2 se-mb">
-        <Panel title="Crew and weapons" flush aside={<Link to={`/game/admin/players/${player.roundPlayerId}/armory`}>Inspect item records and history</Link>}>
+        <Panel title="Crew and weapons" flush>
           <div className="se-rows">
             <Row label="Whores" value={formatNumber(player.crew.whores)} />
             <Row label="Thugs" value={`${formatNumber(player.crew.thugs)} (${formatNumber(player.crew.woundedThugs)} wounded)`} />

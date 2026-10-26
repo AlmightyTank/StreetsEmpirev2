@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 480">
+  <!-- Tommy's back room: a bare bulb, a pegboard of outlines, crates nobody asks about. -->
+  <defs>
+    <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#22231c"/><stop offset="1" stop-color="#141510"/></linearGradient>
+    <radialGradient id="bulb" cx=".5" cy=".08" r=".62"><stop offset="0" stop-color="#fff2b0" stop-opacity=".5"/><stop offset=".4" stop-color="#c8c060" stop-opacity=".14"/><stop offset="1" stop-color="#c8c060" stop-opacity="0"/></radialGradient>
+    <pattern id="block" width="120" height="60" patternUnits="userSpaceOnUse"><rect width="120" height="60" fill="#262720"/><path d="M0 59h120M60 0v30M0 30h120M120 30v30M0 30v30" stroke="#1a1b15" stroke-width="3"/></pattern>
+    <pattern id="peg" width="24" height="24" patternUnits="userSpaceOnUse"><rect width="24" height="24" fill="#5a4a32"/><circle cx="12" cy="12" r="2.5" fill="#2a2216"/></pattern>
+    <linearGradient id="table" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4a3e2a"/><stop offset="1" stop-color="#241e14"/></linearGradient>
+  </defs>
+  <rect width="1200" height="480" fill="url(#block)"/><rect width="1200" height="480" fill="url(#wall)" opacity=".55"/>
+  <!-- Pegboard with tool outlines, left -->
+  <rect x="60" y="60" width="320" height="230" fill="url(#peg)"/><rect x="60" y="60" width="320" height="230" fill="none" stroke="#2a2216" stroke-width="8"/>
+  <g fill="none" stroke="#e8e0c0" stroke-opacity=".55" stroke-width="4" stroke-linejoin="round">
+    <path d="M90 110h120v18h-70l-8 30h-22l6-30h-26z"/>
+    <path d="M90 190h170v14h-60l-10 34h-20l8-34h-88z"/>
+    <path d="M240 96h110v22h-110z M262 118v40"/>
+    <path d="M280 190l60 70M340 190l-60 70"/>
+  </g>
+  <!-- Stacked crates, right -->
+  <g stroke="#2a2216" stroke-width="4">
+    <rect x="860" y="250" width="160" height="110" fill="#6b5634"/><rect x="1030" y="250" width="140" height="110" fill="#5e4b2c"/><rect x="920" y="150" width="170" height="100" fill="#735c37"/>
+  </g>
+  <g fill="#1f1a10" fill-opacity=".7" font-family="Courier New, monospace" font-weight="700" font-size="22"><text x="884" y="312">FRAGILE</text><text x="950" y="206">PARTS</text><text x="1048" y="312">7.62</text></g>
+  <path d="M860 305h160M1030 305h140M920 200h170" stroke="#3e3220" stroke-width="3"/>
+  <!-- Bare bulb on a cord -->
+  <path d="M600 0v46" stroke="#111" stroke-width="3"/><rect x="592" y="44" width="16" height="12" fill="#5a5a50"/><ellipse cx="600" cy="68" rx="13" ry="16" fill="#fff6c8"/>
+  <rect width="1200" height="480" fill="url(#bulb)"/>
+  <!-- Work table with ammo boxes -->
+  <rect y="420" width="1200" height="60" fill="url(#table)"/><rect y="416" width="1200" height="6" fill="#6a5a3a"/>
+  <g><rect x="250" y="376" width="96" height="44" fill="#4f5a32"/><rect x="250" y="376" width="96" height="8" fill="#3c4526"/><rect x="290" y="368" width="16" height="10" fill="#2a2f1c"/><text x="262" y="408" font-family="Courier New, monospace" font-size="14" font-weight="700" fill="#d8d0a0" fill-opacity=".7">AMMO</text></g>
+  <g><rect x="360" y="388" width="80" height="32" fill="#4f5a32"/><rect x="360" y="388" width="80" height="6" fill="#3c4526"/></g>
+  <path d="M800 414l140-6 4 8-140 6z" fill="#2c2c2c"/><path d="M820 406l30-1v-14h-14z" fill="#2c2c2c"/>
+</svg>

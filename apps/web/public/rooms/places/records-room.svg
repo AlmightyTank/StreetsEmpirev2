@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 480">
+  <!-- The precinct records room: steel stacks of case boxes, a caged lamp, a long reading table. -->
+  <defs>
+    <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1c2020"/><stop offset="1" stop-color="#101212"/></linearGradient>
+    <radialGradient id="lamp" cx=".5" cy=".05" r=".55"><stop offset="0" stop-color="#f4f0c8" stop-opacity=".42"/><stop offset=".5" stop-color="#c8c090" stop-opacity=".1"/><stop offset="1" stop-color="#c8c090" stop-opacity="0"/></radialGradient>
+    <linearGradient id="table" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4a4a40"/><stop offset="1" stop-color="#22221c"/></linearGradient>
+  </defs>
+  <rect width="1200" height="480" fill="url(#wall)"/>
+  <!-- Steel shelving with boxes, both sides -->
+  <g fill="#3a4040"><rect x="30" y="40" width="10" height="380"/><rect x="380" y="40" width="10" height="380"/><rect x="30" y="120" width="360" height="8"/><rect x="30" y="210" width="360" height="8"/><rect x="30" y="300" width="360" height="8"/><rect x="810" y="40" width="10" height="380"/><rect x="1160" y="40" width="10" height="380"/><rect x="810" y="120" width="360" height="8"/><rect x="810" y="210" width="360" height="8"/><rect x="810" y="300" width="360" height="8"/></g>
+  <g fill="#8a7a58" stroke="#4a3e28" stroke-width="2">
+    <rect x="50" y="66" width="70" height="54"/><rect x="126" y="66" width="70" height="54"/><rect x="202" y="72" width="70" height="48"/><rect x="290" y="66" width="70" height="54"/>
+    <rect x="50" y="156" width="70" height="54"/><rect x="140" y="156" width="70" height="54"/><rect x="216" y="160" width="70" height="50"/>
+    <rect x="70" y="246" width="70" height="54"/><rect x="146" y="246" width="70" height="54"/><rect x="290" y="250" width="70" height="50"/>
+    <rect x="830" y="66" width="70" height="54"/><rect x="906" y="66" width="70" height="54"/><rect x="1000" y="72" width="70" height="48"/><rect x="1076" y="66" width="70" height="54"/>
+    <rect x="830" y="156" width="70" height="54"/><rect x="930" y="160" width="70" height="50"/><rect x="1076" y="156" width="70" height="54"/>
+    <rect x="850" y="246" width="70" height="54"/><rect x="926" y="246" width="70" height="54"/><rect x="1002" y="250" width="70" height="50"/>
+  </g>
+  <g fill="#e8e0c8" fill-opacity=".75"><rect x="66" y="84" width="38" height="14"/><rect x="142" y="84" width="38" height="14"/><rect x="306" y="84" width="38" height="14"/><rect x="66" y="174" width="38" height="14"/><rect x="156" y="174" width="38" height="14"/><rect x="86" y="264" width="38" height="14"/><rect x="846" y="84" width="38" height="14"/><rect x="922" y="84" width="38" height="14"/><rect x="1092" y="84" width="38" height="14"/><rect x="846" y="174" width="38" height="14"/><rect x="866" y="264" width="38" height="14"/><rect x="942" y="264" width="38" height="14"/></g>
+  <!-- Caged lamp -->
+  <path d="M600 0v40" stroke="#0a0c0c" stroke-width="3"/><path d="M578 40h44l-6 26h-32z" fill="#2a3030"/><ellipse cx="600" cy="70" rx="12" ry="9" fill="#fff8d8"/>
+  <g stroke="#2a3030" stroke-width="2" fill="none"><path d="M586 66c0 12 28 12 28 0M590 62v14M610 62v14"/></g>
+  <rect width="1200" height="480" fill="url(#lamp)"/>
+  <!-- Reading table with files -->
+  <rect y="420" width="1200" height="60" fill="url(#table)"/><rect y="416" width="1200" height="6" fill="#6a6a5a"/>
+  <path d="M380 424l110-14 14 14-110 14z" fill="#c8b07a"/><path d="M396 420l90-11" stroke="#8a7a50" stroke-width="2"/>
+  <path d="M720 418h120v10h-120z" fill="#e8e0c8" fill-opacity=".8"/><path d="M726 412h110v8h-110z" fill="#d8d0b8" fill-opacity=".8"/>
+</svg>

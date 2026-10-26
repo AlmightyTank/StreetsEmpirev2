@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 480">
+  <!-- Every chair out: a long table under two lamps, mismatched borrowed chairs, cups and papers laid flat. -->
+  <defs>
+    <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a1c14"/><stop offset="1" stop-color="#180f0a"/></linearGradient>
+    <radialGradient id="lampA" cx=".3" cy=".08" r=".45"><stop offset="0" stop-color="#ffd8a0" stop-opacity=".42"/><stop offset="1" stop-color="#e0a060" stop-opacity="0"/></radialGradient>
+    <radialGradient id="lampB" cx=".7" cy=".08" r=".45"><stop offset="0" stop-color="#ffd8a0" stop-opacity=".42"/><stop offset="1" stop-color="#e0a060" stop-opacity="0"/></radialGradient>
+    <linearGradient id="table" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6a4426"/><stop offset="1" stop-color="#3a2212"/></linearGradient>
+  </defs>
+  <rect width="1200" height="480" fill="url(#wall)"/>
+  <!-- Wainscot and a framed photo of the block -->
+  <rect y="280" width="1200" height="140" fill="#3a2418"/><rect y="276" width="1200" height="6" fill="#5a3a24"/>
+  <rect x="520" y="100" width="160" height="100" fill="#14100c" stroke="#b08a4a" stroke-width="6"/>
+  <g fill="#3a3028"><rect x="534" y="150" width="30" height="40"/><rect x="570" y="132" width="34" height="58"/><rect x="610" y="146" width="28" height="44"/><rect x="644" y="138" width="24" height="52"/></g>
+  <!-- Chair backs along the far side: all different -->
+  <g stroke="#120a06" stroke-width="3">
+    <rect x="60" y="250" width="100" height="120" fill="#5a3a24"/><rect x="200" y="240" width="90" height="130" rx="40" fill="#7a2a2a"/><rect x="330" y="260" width="96" height="110" fill="#3a5a6a"/>
+    <rect x="770" y="250" width="96" height="120" fill="#c8b890"/><rect x="900" y="236" width="100" height="134" rx="12" fill="#5a3a24"/><rect x="1040" y="256" width="96" height="114" fill="#3a6a3a"/>
+  </g>
+  <g fill="#120a06" fill-opacity=".45"><rect x="76" y="270" width="68" height="10"/><rect x="346" y="280" width="64" height="10"/><rect x="786" y="270" width="64" height="10"/><rect x="1056" y="276" width="64" height="10"/></g>
+  <!-- Two pendant lamps -->
+  <path d="M360 0v40M840 0v40" stroke="#120a06" stroke-width="3"/><path d="M326 40h68l-12 20h-44zM806 40h68l-12 20h-44z" fill="#3a2414"/>
+  <rect width="1200" height="480" fill="url(#lampA)"/><rect width="1200" height="480" fill="url(#lampB)"/>
+  <!-- The table, laid -->
+  <rect y="410" width="1200" height="70" fill="url(#table)"/><rect y="406" width="1200" height="6" fill="#8a5a34"/>
+  <g fill="#ece4d6"><path d="M120 406c0-12 12-18 24-18s24 6 24 18z"/><path d="M300 406c0-12 12-18 24-18s24 6 24 18z"/><path d="M860 406c0-12 12-18 24-18s24 6 24 18z"/><path d="M1040 406c0-12 12-18 24-18s24 6 24 18z"/></g>
+  <g fill="#efe6d2" fill-opacity=".85"><path d="M420 414l100-8 6 10-100 8z"/><path d="M700 412l90 4-4 10-90-4z"/></g>
+  <path d="M560 406c0-26 20-40 40-40s40 14 40 40z" fill="#a33b2c"/>
+</svg>

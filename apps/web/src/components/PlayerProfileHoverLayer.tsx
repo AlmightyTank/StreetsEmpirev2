@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation } from 'react-router-dom';
+import '../styles/profile-hover.css';
 import type { PublicPlayerProfileDto } from '@streets/shared';
 import { CREW_COSMETIC_KEYS, formatCents, formatNumber, SIGNATURE_CARD_FRAME_KEY } from '@streets/shared';
 import { communityApi } from '../api/community.js';

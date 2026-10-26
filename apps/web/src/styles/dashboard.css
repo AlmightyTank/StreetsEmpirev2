@@ -533,6 +533,20 @@
   text-align: right;
 }
 
+/* Management sections use the same editorial header rhythm as the dashboard
+ * overview instead of looking like a second card nested inside the fold. */
+.se-dashboard-command .se-dashboard-sectiontitle,
+.se-dashboard-fold--wide > .se-dashboard-section > .se-dashboard-sectiontitle {
+  min-width: 0;
+  padding: 2px 0 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--se-line) 72%, transparent);
+}
+
+.se-dashboard-command .se-dashboard-sectiontitle h2,
+.se-dashboard-fold--wide > .se-dashboard-section > .se-dashboard-sectiontitle h2 {
+  font-size: 20px;
+}
+
 .se-dashboard-coregrid,
 .se-dashboard-controlgrid {
   display: grid;

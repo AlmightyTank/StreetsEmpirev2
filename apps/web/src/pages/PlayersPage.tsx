@@ -331,3 +331,6 @@ export function PlayersPage() {
     </GameLayout>
   );
 }
+import '../styles/players.css';
+import '../styles/contacts.css';
+import '../styles/social-experience.css';

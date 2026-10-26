@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 480">
+  <!-- Mara Venn's room: bare walls, one lamp, two chairs, a table with nothing on it but a folder. -->
+  <defs>
+    <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1e2326"/><stop offset="1" stop-color="#121618"/></linearGradient>
+    <radialGradient id="lamp" cx=".5" cy=".1" r=".55"><stop offset="0" stop-color="#eef6fa" stop-opacity=".4"/><stop offset=".5" stop-color="#aabecc" stop-opacity=".1"/><stop offset="1" stop-color="#aabecc" stop-opacity="0"/></radialGradient>
+    <linearGradient id="dawn" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a3a4e"/><stop offset=".7" stop-color="#8a7a6e"/><stop offset="1" stop-color="#c8a07a"/></linearGradient>
+    <linearGradient id="table" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a3e40"/><stop offset="1" stop-color="#1c1e20"/></linearGradient>
+  </defs>
+  <rect width="1200" height="480" fill="url(#wall)"/>
+  <g stroke="#262c30" stroke-width="2"><path d="M200 0v420M400 0v420M800 0v420M1000 0v420"/></g>
+  <!-- High window, dawn, right -->
+  <rect x="860" y="70" width="240" height="120" fill="url(#dawn)" fill-opacity=".85"/>
+  <path d="M980 70v120M860 130h240" stroke="#14181a" stroke-width="8"/><rect x="852" y="62" width="256" height="136" fill="none" stroke="#14181a" stroke-width="10"/>
+  <path d="M860 190l-120 230h300l60-230z" fill="#c8a07a" fill-opacity=".06"/>
+  <!-- Empty chair, left -->
+  <g fill="#2a2e30" stroke="#0e1012" stroke-width="3"><rect x="150" y="200" width="16" height="220"/><rect x="290" y="200" width="16" height="220"/><rect x="150" y="200" width="156" height="20"/><rect x="150" y="250" width="156" height="14"/><rect x="140" y="320" width="176" height="18"/><rect x="306" y="338" width="14" height="82"/></g>
+  <!-- Coat on a hook -->
+  <circle cx="460" cy="120" r="6" fill="#5a6064"/><path d="M460 126c-30 10-40 80-34 150h68c6-70-4-140-34-150z" fill="#24282a"/>
+  <!-- Single lamp -->
+  <path d="M600 0v54" stroke="#0e1012" stroke-width="3"/><path d="M566 54h68l-10 18h-48z" fill="#3a4044"/>
+  <rect width="1200" height="480" fill="url(#lamp)"/>
+  <!-- Table: a folder and two cups of water -->
+  <rect y="424" width="1200" height="56" fill="url(#table)"/><rect y="420" width="1200" height="5" fill="#5a6064"/>
+  <path d="M700 430l130-6 6 12-130 6z" fill="#c8b48a"/><path d="M700 430l130-6" stroke="#a8946a" stroke-width="2"/>
+  <path d="M380 422l-4-36h34l-4 36z" fill="#e8f0f4" fill-opacity=".2" stroke="#e8f0f4" stroke-opacity=".4" stroke-width="2"/>
+  <path d="M460 422l-4-36h34l-4 36z" fill="#e8f0f4" fill-opacity=".2" stroke="#e8f0f4" stroke-opacity=".4" stroke-width="2"/>
+</svg>

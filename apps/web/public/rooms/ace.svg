@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 480">
+  <!-- Ace's casino floor: a chandelier, slot machines blinking, green felt and chips. -->
+  <defs>
+    <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1c1408"/><stop offset="1" stop-color="#0c0904"/></linearGradient>
+    <radialGradient id="glow" cx=".5" cy=".1" r=".6"><stop offset="0" stop-color="#ffe0a0" stop-opacity=".45"/><stop offset=".5" stop-color="#f0be50" stop-opacity=".12"/><stop offset="1" stop-color="#f0be50" stop-opacity="0"/></radialGradient>
+    <linearGradient id="felt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1e6a3a"/><stop offset="1" stop-color="#0c3a1e"/></linearGradient>
+    <linearGradient id="slot" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4a1a2a"/><stop offset="1" stop-color="#22080e"/></linearGradient>
+    <pattern id="carpet" width="40" height="40" patternUnits="userSpaceOnUse"><rect width="40" height="40" fill="#2a1408"/><circle cx="20" cy="20" r="6" fill="#3a1e0c"/></pattern>
+  </defs>
+  <rect width="1200" height="480" fill="url(#wall)"/>
+  <g stroke="#b08a3a" stroke-opacity=".25" stroke-width="3"><path d="M0 60h1200M0 66h1200"/></g>
+  <!-- Slot machines, left and right -->
+  <g>
+    <rect x="40" y="150" width="110" height="270" rx="14" fill="url(#slot)"/><rect x="170" y="150" width="110" height="270" rx="14" fill="url(#slot)"/><rect x="300" y="170" width="100" height="250" rx="14" fill="url(#slot)"/>
+    <rect x="920" y="150" width="110" height="270" rx="14" fill="url(#slot)"/><rect x="1050" y="150" width="110" height="270" rx="14" fill="url(#slot)"/>
+  </g>
+  <g fill="#ffd060"><rect x="56" y="170" width="78" height="22" rx="4"/><rect x="186" y="170" width="78" height="22" rx="4"/><rect x="314" y="190" width="72" height="22" rx="4"/><rect x="936" y="170" width="78" height="22" rx="4"/><rect x="1066" y="170" width="78" height="22" rx="4"/></g>
+  <g fill="#f4ecd8"><rect x="56" y="220" width="78" height="56" rx="4"/><rect x="186" y="220" width="78" height="56" rx="4"/><rect x="314" y="236" width="72" height="52" rx="4"/><rect x="936" y="220" width="78" height="56" rx="4"/><rect x="1066" y="220" width="78" height="56" rx="4"/></g>
+  <g font-family="Arial Black, Arial, sans-serif" font-size="19" fill="#c8202a"><text x="62" y="258">7 7 7</text><text x="192" y="258">7 ★ 7</text><text x="318" y="272">★ 7 ★</text><text x="942" y="258">7 7 ★</text><text x="1072" y="258">★ ★ 7</text></g>
+  <g fill="#ffd060" fill-opacity=".8"><circle cx="70" cy="300" r="5"/><circle cx="95" cy="300" r="5"/><circle cx="120" cy="300" r="5"/><circle cx="200" cy="300" r="5"/><circle cx="225" cy="300" r="5"/><circle cx="250" cy="300" r="5"/><circle cx="950" cy="300" r="5"/><circle cx="975" cy="300" r="5"/><circle cx="1000" cy="300" r="5"/><circle cx="1080" cy="300" r="5"/><circle cx="1105" cy="300" r="5"/><circle cx="1130" cy="300" r="5"/></g>
+  <!-- Chandelier -->
+  <path d="M600 0v40" stroke="#b08a3a" stroke-width="4"/>
+  <path d="M520 70c20 26 140 26 160 0" fill="none" stroke="#e0b860" stroke-width="5"/><path d="M548 54c16 20 88 20 104 0" fill="none" stroke="#e0b860" stroke-width="4"/>
+  <g fill="#fff4d0"><circle cx="520" cy="66" r="7"/><circle cx="560" cy="84" r="7"/><circle cx="600" cy="90" r="7"/><circle cx="640" cy="84" r="7"/><circle cx="680" cy="66" r="7"/><circle cx="600" cy="44" r="8"/></g>
+  <g fill="#e8f0ff" fill-opacity=".7"><path d="M556 92l4 16 4-16zM596 98l4 18 4-18zM636 92l4 16 4-16z"/></g>
+  <rect width="1200" height="480" fill="url(#glow)"/>
+  <!-- Felt table edge and chips -->
+  <rect y="420" width="1200" height="60" fill="url(#felt)"/><rect y="414" width="1200" height="10" fill="#4a2a10"/>
+  <g><ellipse cx="330" cy="440" rx="24" ry="7" fill="#c8202a"/><ellipse cx="330" cy="434" rx="24" ry="7" fill="#e8e0d0"/><ellipse cx="330" cy="428" rx="24" ry="7" fill="#c8202a"/><ellipse cx="380" cy="442" rx="24" ry="7" fill="#203a8a"/><ellipse cx="380" cy="436" rx="24" ry="7" fill="#203a8a"/></g>
+  <g fill="#f4ecd8" stroke="#22080e" stroke-width="2"><rect x="820" y="426" width="44" height="28" rx="3" transform="rotate(-8 842 440)"/><rect x="862" y="428" width="44" height="28" rx="3" transform="rotate(6 884 442)"/></g>
+  <text x="836" y="448" font-family="Georgia, serif" font-size="18" fill="#c8202a" transform="rotate(-8 842 440)">A♥</text>
+</svg>

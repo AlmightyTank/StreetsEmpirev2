@@ -92,6 +92,7 @@ export const casinoHorseRaceBetSchema = z.object({
 
 export const casinoPokerStartSchema = z.object({
   buyInCents: casinoAmountCents,
+  blindLevel: z.enum(['LOW', 'MEDIUM', 'HIGH']).optional(),
   actionId: actionIdSchema,
 }).strict();
 

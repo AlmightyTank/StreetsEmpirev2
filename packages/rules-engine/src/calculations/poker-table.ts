@@ -171,6 +171,7 @@ export function choosePokerBotAction(context: PokerBotContext): PokerBotAction {
   const pot = potCents ?? amountToCall * 2;
   const pressure = amountToCall > 0 ? Math.min(0.3, amountToCall / Math.max(1, pot + amountToCall)) : 0;
   if (amountToCall > 0 && strength + random * 0.18 < 0.34 + pressure) return 'FOLD';
-  if (canRaise && strength + random * 0.22 > 0.75) return 'RAISE';
+  const raiseThreshold = amountToCall > 0 ? 0.82 + pressure * 0.15 : 0.70;
+  if (canRaise && strength + random * 0.22 > raiseThreshold) return 'RAISE';
   return amountToCall === 0 ? 'CHECK' : 'CALL';
 }

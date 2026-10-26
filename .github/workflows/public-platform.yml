@@ -24,6 +24,11 @@ on:
         description: Optional commit SHA from the selected branch; blank uses its current tip
         type: string
         required: false
+      full_tests:
+        description: Run the complete Vitest regression suite instead of the reduced smoke suite
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -116,13 +121,19 @@ jobs:
       - name: Verify browser install names for live and beta
         run: npm run qa:pwa
 
-      - name: Run unit tests
+      - name: Run reduced smoke tests
+        if: inputs.full_tests != true
         run: npm test
+
+      - name: Run complete Vitest regression suite
+        if: inputs.full_tests == true
+        run: npm run test:full
 
       - name: Simulate 2.1.0-G crew anti-farm balance and legacy ruleset isolation
         run: npm run qa:crew-release
 
       - name: Run public release integration
+        if: inputs.full_tests == true
         env:
           RELEASE_INTEGRATION: "1"
         run: npx vitest run apps/server/src/services/__tests__/release.integration.test.ts

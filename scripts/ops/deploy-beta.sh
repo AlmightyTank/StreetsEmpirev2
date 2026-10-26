@@ -57,18 +57,19 @@ else
 fi
 
 step "Installing dependencies"
-if [ -d "$APP_DIR/node_modules" ]; then
-  unwritable_dependency_dir="$(find "$APP_DIR/node_modules" -type d ! -writable -print -quit 2>/dev/null || true)"
+while IFS= read -r -d '' dependency_dir; do
+  unwritable_dependency_dir="$(find "$dependency_dir" -type d ! -writable -print -quit 2>/dev/null || true)"
   if [ -n "$unwritable_dependency_dir" ]; then
     step "Moving aside dependencies owned by another user"
-    # npm ci deletes node_modules. Preserve the old tree where the deploy user
-    # can rename it but cannot unlink its root-owned contents, then install a
-    # clean tree without requiring sudo. The saved tree is outside Git and can
-    # be removed by an administrator after the deployment is confirmed.
-    stale_node_modules="$APP_DIR/.node_modules-stale-$(date -u +%Y%m%dT%H%M%S)-$$"
-    mv "$APP_DIR/node_modules" "$stale_node_modules"
+    # npm ci deletes every workspace node_modules tree. Check each workspace,
+    # not just the root: Vite's cache commonly lives at apps/web/node_modules
+    # and can be left root-owned by a manual build.
+    # Preserve the old tree where an administrator can remove it after the
+    # deployment is confirmed, then install a clean tree.
+    stale_node_modules="${dependency_dir}.stale-$(date -u +%Y%m%dT%H%M%S)-$$"
+    $SUDO mv "$dependency_dir" "$stale_node_modules"
   fi
-fi
+done < <(find "$APP_DIR" -mindepth 1 -maxdepth 4 -type d -name node_modules -print0 2>/dev/null)
 npm ci
 
 step "Generating Prisma client"

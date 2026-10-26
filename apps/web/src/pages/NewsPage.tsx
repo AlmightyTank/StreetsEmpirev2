@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import '../styles/public-info.css';
 import { Link } from 'react-router-dom';
 import type { GameNewsDto } from '@streets/shared';
 import { roundsApi } from '../api/rounds.js';

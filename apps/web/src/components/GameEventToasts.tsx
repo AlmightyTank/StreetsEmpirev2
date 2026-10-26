@@ -5,6 +5,7 @@ import { describeActivity } from './ActivityFeed.js';
 import { notificationsApi } from '../api/notifications.js';
 import { useSession } from '../stores/session.js';
 import { formatClockTime } from '../utils/time.js';
+import { contactRoomHref } from '../utils/contactRoom.js';
 import { isCinematicEncounterActivity } from './encounterAlertPolicy.js';
 
 type ToastTone = 'info' | 'good' | 'warn' | 'bad';
@@ -141,9 +142,12 @@ function turfLoot(payload: Record<string, unknown>): string {
 
 function questHref(payload: Record<string, unknown>, tab: 'available' | 'active' | 'completed' = 'active'): string {
   const key = str(payload.questKey);
-  if (!key) return `/game/quests?tab=${tab}`;
+  const view = tab === 'completed' ? 'history' : tab === 'available' ? 'contacts' : 'jobs';
+  if (!key) return `/game/quests?view=${view}`;
+  const contactKey = str(payload.contactKey);
+  if (contactKey && tab !== 'completed') return `${contactRoomHref(contactKey)}?job=${encodeURIComponent(key)}`;
   const encoded = encodeURIComponent(key);
-  return `/game/quests?tab=${tab}&focus=${encoded}#quest-${encoded}`;
+  return `/game/quests?view=${view}&focus=${encoded}#quest-${encoded}`;
 }
 
 function questKeys(value: unknown): string[] {
@@ -241,9 +245,9 @@ function testPopupForKey(key: string): Omit<GameEventToast, 'id'> | null {
     case 'quest':
       return {
         title: 'Quest ready to turn in',
-        detail: 'First Night Out is complete. Return to Quests to collect payment.',
+        detail: 'First Night Out is complete. Open your contacts to collect payment.',
         tone: 'good',
-        href: '/game/quests?tab=active&focus=FIRST_NIGHT_OUT#quest-FIRST_NIGHT_OUT',
+        href: '/game/quests?view=jobs&focus=FIRST_NIGHT_OUT#quest-FIRST_NIGHT_OUT',
       };
     default:
       return null;
@@ -266,7 +270,7 @@ export function gameEventToastFor(activity: ActivityDto, crackWord: string): Omi
     case 'QUEST_OBJECTIVE_COMPLETE':
       return {
         title: p.bonus ? `Bonus done: ${str(p.title, 'quest')}` : `Objective done: ${str(p.title, 'quest')}`,
-        detail: pieces(str(p.objective), 'Open Quests to check the next step.') || detail,
+        detail: pieces(str(p.objective), 'Open your contacts to check the next step.') || detail,
         tone: 'good',
         href: questHref(p),
       };
@@ -274,7 +278,7 @@ export function gameEventToastFor(activity: ActivityDto, crackWord: string): Omi
     case 'QUEST_READY':
       return {
         title: `${str(p.title, 'Quest')} is ready to turn in`,
-        detail: 'Collect the reward from the quest board.',
+         detail: 'Open the contact chat to collect your reward.',
         tone: 'good',
         href: questHref(p),
       };
@@ -289,7 +293,7 @@ export function gameEventToastFor(activity: ActivityDto, crackWord: string): Omi
         title: count === 1 ? 'New quest available' : `${count} new quests available`,
         detail: str(p.title) ? `After ${str(p.title)}, new work opened up.` : 'New work opened up.',
         tone: 'info',
-        href: `/game/quests?tab=available&focus=${encoded}#quest-${encoded}`,
+        href: `/game/quests?view=contacts&focus=${encoded}#quest-${encoded}`,
       };
     }
 
@@ -331,6 +335,22 @@ export function gameEventToastFor(activity: ActivityDto, crackWord: string): Omi
         href: '/game/casino/sportsbook',
       };
     }
+
+    case 'PLAYER_BOARD_SALE':
+      return {
+        title: `${formatNumber(num(p.quantity))} ${str(p.item, 'items')} sold on the Street Market`,
+        detail: pieces(str(p.buyer) ? `Bought by ${str(p.buyer)}.` : '', num(p.proceedsCents) > 0 ? `${formatCents(num(p.proceedsCents))} credited` : 'Your barter was completed.'),
+        tone: 'good',
+        href: '/game/market',
+      };
+
+    case 'SIT_DOWN_AGREED':
+      return {
+        title: `${str(p.with, 'Your contact')} agreed to a sit-down`,
+        detail: pieces(str(p.cityName) ? `In ${str(p.cityName)}.` : '', clock(p.truceUntil) ? `Truce holds until ${clock(p.truceUntil)}.` : 'A truce is now in effect.'),
+        tone: 'good',
+        href: '/game/travel',
+      };
 
     case 'ADMIN_GRANT':
       return {
@@ -436,6 +456,81 @@ export function gameEventToastFor(activity: ActivityDto, crackWord: string): Omi
         href: '/game/travel',
       };
 
+    case 'RELOCATED':
+      return {
+        title: 'Your move is complete',
+        detail: 'You reached your destination. Your new city’s rules apply now.',
+        tone: 'good',
+        href: '/game/travel',
+      };
+
+    case 'TRIP_RETURNED':
+      return {
+        title: `The boss is back from ${str(p.cityName, 'the trip')}`,
+        detail: pieces(`${formatCents(num(p.bankrollCents))} bankroll returned`, num(p.woundedBodyguards) ? `${formatCount(num(p.woundedBodyguards), 'bodyguard')} wounded` : ''),
+        tone: 'good',
+        href: '/game/travel',
+      };
+
+    case 'BOSS_HIT_ATTACK':
+      return {
+        title: p.escaped ? `${str(p.owner, 'The boss')} was gone before your crew arrived` : p.held ? `${str(p.owner, 'The boss')}'s guards held your crew off` : `Your crew hit ${str(p.owner, 'the visiting boss')}`,
+        detail: pieces(num(p.cashCents) > 0 ? `${formatCents(num(p.cashCents))} brought home` : '', num(p.wounds) ? `${formatCount(num(p.wounds), 'wound')}` : ''),
+        tone: p.escaped || p.held ? 'warn' : 'good',
+        href: '/game/activity',
+      };
+
+    case 'BOSS_HIT_DEFENSE':
+      return {
+        title: p.escaped ? `You got away in ${str(p.cityName, 'town')}` : p.held ? `Your bodyguards stopped ${str(p.attacker, 'the crew')}` : `${str(p.attacker, 'A crew')} hit you in ${str(p.cityName, 'town')}`,
+        detail: pieces(num(p.cashCents) < 0 ? `${formatCents(Math.abs(num(p.cashCents)))} taken` : '', num(p.wounds) ? `${formatCount(num(p.wounds), 'wound')}` : '', p.held ? 'Your trip continues.' : p.escaped ? 'Your trip home continues.' : 'You are laid up and on the next flight home.'),
+        tone: p.escaped || p.held ? 'warn' : 'bad',
+        href: '/game/activity',
+      };
+
+    case 'BOSS_HIT_BACKUP':
+      if (p.resolved !== true) return null;
+      return {
+        title: p.escaped ? `${str(p.owner, 'Your ally')} escaped the hit` : p.held ? `Your backup helped stop a hit on ${str(p.owner, 'your ally')}` : `Your backup returned from ${str(p.owner, 'an ally')}'s boss hit`,
+        detail: pieces(str(p.cityName), num(p.wounds) ? `${formatCount(num(p.wounds), 'wound')}` : '', p.held ? 'The visiting boss held the block.' : p.escaped ? 'The hit did not land.' : 'The hit landed.'),
+        tone: p.held || p.escaped ? 'warn' : 'good',
+        href: '/game/travel',
+      };
+
+    case 'BLOCK_WAR_FIGHT':
+      return {
+        title: p.kind === 'BREAK' ? 'Block war: siege break resolved' : p.kind === 'ASSAULT' ? 'Block war: assault resolved' : 'Block war: opening fight resolved',
+        detail: pieces(p.attackerWon ? 'Attackers won this fight.' : 'Defenders held this fight.', `${formatCount(num(p.attackers), 'attacker')} vs ${formatCount(num(p.defenders), 'defender')}`, woundSummary(num(p.attackerWounds), num(p.defenderWounds), num(p.cornerWounds))),
+        tone: p.attackerWon ? 'warn' : 'good',
+        href: '/game/turf',
+      };
+
+    case 'BLOCK_WAR_DECLARED':
+      if (p.role === 'attacker' && p.assault !== true) return null;
+      return {
+        title: p.assault ? 'Block war assault is coming' : 'A block war was declared on your turf',
+        detail: pieces(detail, 'Open Turf to review the fight and call for help.'),
+        tone: 'bad',
+        href: '/game/turf',
+      };
+
+    case 'BLOCK_WAR_ENDED':
+      return {
+        title: p.winner === 'ATTACKER' ? (p.goal === 'SACK' ? 'Block war ended: block sacked' : 'Block war ended: block taken') : p.winner === 'DEFENDER' ? 'Block war ended: block held' : 'Block war ended',
+        detail: pieces(str(p.reason) ? `Reason: ${str(p.reason).toLowerCase()}.` : '', num(p.lootCents) > 0 ? `${formatCents(num(p.lootCents))} in spoils` : ''),
+        tone: p.winner === 'ATTACKER' ? 'good' : p.winner === 'DEFENDER' ? 'warn' : 'info',
+        href: '/game/turf',
+      };
+
+    case 'BLOCK_WAR_CALL':
+      if (p.answered) return null;
+      return {
+        title: 'An ally needs help in a block war',
+        detail: pieces(str(p.districtName, str(p.district, 'A block')), str(p.caller) ? `Called by ${str(p.caller)}.` : '', clock(p.until) ? `Open until ${clock(p.until)}.` : ''),
+        tone: 'warn',
+        href: '/game/turf',
+      };
+
     case 'REVENGE_EXPIRING':
       return { title: `Revenge window closing${str(p.attacker) ? `: ${str(p.attacker)}` : ''}`, detail: pieces(clock(p.expiresAt) ? `Closes ${clock(p.expiresAt)}` : '', 'Use it before the street forgets.'), tone: 'warn', href: '/game/combat' };
 
@@ -450,10 +545,39 @@ export function gameEventToastFor(activity: ActivityDto, crackWord: string): Omi
 
     case 'LOAN_COLLECTIONS':
       return p.to === 'COLLECTIONS'
-        ? { title: 'Loan shark put you in collections', detail: pieces(`${num(p.missedInstallments)} missed installment${num(p.missedInstallments) === 1 ? '' : 's'}`, detail), tone: 'bad', href: '/game/loans' }
+        ? { title: 'Loan shark put you in collections', detail: pieces(`${num(p.missedInstallments)} missed installment${num(p.missedInstallments) === 1 ? '' : 's'}`, detail), tone: 'bad', href: '/game' }
         : p.to === 'RECOVERING'
-          ? { title: 'Collections cleared', detail: pieces('Stay current to reopen borrowing.', detail), tone: 'warn', href: '/game/loans' }
-          : { title: 'Back in good standing with the loan shark', detail: detail || 'Borrowing is available again.', tone: 'good', href: '/game/loans' };
+          ? { title: 'Collections cleared', detail: pieces('Stay current to reopen borrowing.', detail), tone: 'warn', href: '/game' }
+          : { title: 'Back in good standing with the loan shark', detail: detail || 'Borrowing is available again.', tone: 'good', href: '/game' };
+
+    case 'HIDEOUT_BUILD_COMPLETE':
+      return {
+        title: `${str(p.name, 'Hideout room')} level ${num(p.level)} built`,
+        detail: 'Construction finished. The new level is active.',
+        tone: 'good',
+        href: '/game/hideout',
+      };
+
+    case 'HIDEOUT_ROOM_READY': {
+      const rooms = Array.isArray(p.rooms) ? p.rooms as Array<Record<string, unknown>> : [];
+      return {
+        title: rooms.length === 1 ? `${str(rooms[0]!.name, 'A room')} is ready to build` : `${rooms.length} hideout rooms ready to build`,
+        detail: rooms.map((room) => `${str(room.name)} → level ${num(room.level)}`).join(' · ') || detail,
+        tone: 'good',
+        href: '/game/hideout#hideout-upgrades',
+      };
+    }
+
+    case 'COSMETIC_UNLOCKED': {
+      const items = Array.isArray(p.items) ? p.items as Array<Record<string, unknown>> : [];
+      const hideoutOnly = items.length > 0 && items.every((item) => item.kind === 'HIDEOUT_DECOR' || item.kind === 'STREET_SIGN');
+      return {
+        title: items.length === 1 ? `Unlocked: ${str(items[0]!.title, 'a new look')}` : `${items.length} new cosmetics unlocked`,
+        detail: `${items.map((item) => str(item.title)).filter(Boolean).slice(0, 3).join(' · ')}. ${hideoutOnly ? 'Set it in your Hideout.' : 'Equip from Account settings.'}`,
+        tone: 'good',
+        href: hideoutOnly ? '/game/hideout' : '/account',
+      };
+    }
 
     case 'EASTER_EGG_FOUND':
       return {
@@ -475,14 +599,14 @@ export function gameEventToastFor(activity: ActivityDto, crackWord: string): Omi
       return { title: 'The Ring is destroyed', detail: 'Ring-bearer title unlocked.', tone: 'good', href: '/game/combat' };
 
     case 'LOAN_INSTALLMENT_MISSED':
-      return { title: `Missed loan installment ${num(p.sequence) || ''}`.trim(), detail: pieces(str(p.offerName), detail), tone: 'bad', href: '/game/loans' };
+      return { title: `Missed loan installment ${num(p.sequence) || ''}`.trim(), detail: pieces(str(p.offerName), detail), tone: 'bad', href: '/game' };
 
     case 'SUPPLY_LANE_ARRIVED':
       return {
         title: p.outcome === 'CLEAN' ? `${str(p.routeName, 'Lane')} load landed clean` : p.outcome === 'SEIZED' ? `${str(p.routeName, 'Lane')} load seized` : `${str(p.routeName, 'Lane')} load searched`,
         detail: pieces(str(p.product), where(p, ''), detail),
         tone: p.outcome === 'CLEAN' ? 'good' : p.outcome === 'SEIZED' ? 'bad' : 'warn',
-        href: '/game/supply',
+        href: '/game',
       };
 
     case 'FACTION_WARNING':

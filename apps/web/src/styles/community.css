@@ -733,7 +733,10 @@
 
 /* 1.3.0-A Case */
 .se-case__cities { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 10px; }
-.se-case__contact { display: grid; gap: .35rem; justify-items: start; margin-top: .9rem; padding-top: .75rem; border-top: 1px solid var(--se-border); }
+.se-case__offices { margin-top: .85rem; border-top: 1px solid var(--se-border); }
+.se-case__offices > summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; font-weight: 600; }
+.se-case__offices > summary:focus-visible { outline: 2px solid var(--se-accent, currentColor); outline-offset: 2px; }
+.se-case__contact { display: grid; gap: .35rem; justify-items: start; margin-top: .75rem; }
 .se-case__contact .se-hint { margin: 0; }
 .se-case__city { display: grid; gap: 4px; }
 .se-case__cityhead { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; font-size: 14px; }

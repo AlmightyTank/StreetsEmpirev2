@@ -8,7 +8,8 @@ import {
 } from '@streets/shared';
 import { casinoApi } from '../api/casino.js';
 import { ApiError } from '../api/client.js';
-import { ActionDock, deltaChip } from './ActionDock.js';
+import { ActionDock } from './ActionDock.js';
+import { CASINO_RECEIPT_LABELS, rouletteReceiptChips } from '../receipts/casinoReceiptChips.js';
 import { Alert } from './Alert.js';
 import { Button } from './Button.js';
 import { Panel } from './Panel.js';
@@ -565,18 +566,15 @@ export function RoulettePanel({ casinoPage, onPageChange }: Props) {
                       ? lastSpin.pocket + ' hit · lost ' + formatCents(Math.abs(lastSpin.netCents))
                       : lastSpin.pocket + ' hit · push',
                   tone: lastSpin.netCents >= 0 ? 'good' : 'bad',
-                  chips: [
-                    { key: 'pocket', label: 'Pocket', text: lastSpin.pocket, tone: 'muted' as const },
-                    deltaChip('Net', lastSpin.netCents, { money: true }),
-                    { key: 'floor', label: 'Floor', text: formatCents(lastSpin.bankrollAfterCents), tone: 'muted' as const },
-                  ],
+                  chips: rouletteReceiptChips(lastSpin),
                   receipt: (
                     <div className="se-rows">
                       <div className="se-row"><span className="se-row__label">Wheel</span><span className="se-row__value">{lastSpin.tableName}</span></div>
                       <div className="se-row"><span className="se-row__label">Pocket</span><span className="se-row__value">{lastSpin.pocket} · {lastSpin.color.toLowerCase()}</span></div>
-                      <div className="se-row"><span className="se-row__label">Positions</span><span className="se-row__value">{lastSpin.bets.length}</span></div>
-                      <div className="se-row se-row--strong"><span className="se-row__label">Net</span><span className={'se-row__value ' + (lastSpin.netCents >= 0 ? 'se-good' : 'se-bad')}>{signedMoney(lastSpin.netCents)}</span></div>
-                      <div className="se-row"><span className="se-row__label">Floor bankroll</span><span className="se-row__value">{formatCents(lastSpin.bankrollAfterCents)}</span></div>
+                      <div className="se-row"><span className="se-row__label">{CASINO_RECEIPT_LABELS.wager}</span><span className="se-row__value">{formatCents(lastSpin.wagerCents)} across {lastSpin.bets.length} position{lastSpin.bets.length === 1 ? '' : 's'}</span></div>
+                      <div className="se-row"><span className="se-row__label">{CASINO_RECEIPT_LABELS.returned}</span><span className="se-row__value">{formatCents(lastSpin.returnCents)}</span></div>
+                      <div className="se-row se-row--strong"><span className="se-row__label">{CASINO_RECEIPT_LABELS.net}</span><span className={'se-row__value ' + (lastSpin.netCents >= 0 ? 'se-good' : 'se-bad')}>{signedMoney(lastSpin.netCents)}</span></div>
+                      <div className="se-row"><span className="se-row__label">{CASINO_RECEIPT_LABELS.bankroll}</span><span className="se-row__value">{formatCents(lastSpin.bankrollAfterCents)}</span></div>
                     </div>
                   ),
                   onDismiss: () => {

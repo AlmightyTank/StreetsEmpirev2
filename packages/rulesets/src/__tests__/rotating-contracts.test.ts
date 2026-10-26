@@ -19,7 +19,7 @@ describe('v2.4 rotating contracts', () => {
       expect(quest.story?.inProgress.length).toBeGreaterThan(20);
       expect(quest.story?.ready.length).toBeGreaterThan(20);
       expect(quest.story?.completed.length).toBeGreaterThan(20);
-      expect(quest.story?.lesson.length).toBeGreaterThan(20);
+      expect(quest.story?.lesson?.length).toBeGreaterThan(20);
       expect(quest.story?.actionHint.length).toBeGreaterThan(20);
     }
   });

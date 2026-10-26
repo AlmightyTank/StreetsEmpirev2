@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import '../styles/surveys.css';
+import '../styles/admin.css';
 import type {
   AdminSurveyDefinitionInput,
   AdminSurveyDetailDto,

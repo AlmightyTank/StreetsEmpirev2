@@ -881,3 +881,4 @@ export function RoundAftermathPage() {
     </GameLayout>
   );
 }
+import '../styles/aftermath.css';

@@ -32,6 +32,7 @@ import { AvatarPortrait } from '../components/BuiltAvatar.js';
 import { Panel, Row } from '../components/Panel.js';
 import { Shell } from '../layouts/Shell.js';
 import { GameLayout } from '../layouts/GameLayout.js';
+import { useDropAvailable } from '../layouts/gameNav.js';
 import { DEFAULT_PROFILE_SETTINGS, useSession } from '../stores/session.js';
 import { isBoolean, isString, rememberedKey, useRememberedState } from '../utils/remembered.js';
 import { ReplayTutorial } from '../components/onboarding/ReplayTutorial.js';
@@ -123,6 +124,7 @@ export function AccountSettingsPage() {
   const me = useSession((s) => s.me);
   // Players keep the game menu here; an account still verifying or accepting the rules gets the plain shell.
   const canPlay = useSession((s) => Boolean(s.me && !s.account?.verificationRequired && !s.account?.rulesAcceptanceRequired && !s.account?.birthDateRequired));
+  const dropOpen = useDropAvailable();
   const Frame = canPlay ? GameLayout : Shell;
   const round = useSession((s) => s.round);
   const setSessionProfileSettings = useSession((s) => s.setProfileSettings);
@@ -169,6 +171,7 @@ export function AccountSettingsPage() {
       .then((response) => {
         if (!active) return;
         setProfileSettings(response);
+        setSessionProfileSettings(response.settings);
         // An unsaved draft left on the page wins over the saved server copy.
         setCosmetics(response.settings);
         setAvatarMode(avatarModeOf(response.settings));
@@ -263,7 +266,9 @@ export function AccountSettingsPage() {
       if (!target) return;
       guidedTourScrolled.current = true;
       target.scrollIntoView({
-        block: 'center',
+        // Keep the whole naming/sign workspace in the interaction viewport and
+        // leave room above it for the anchored walkthrough card.
+        block: 'start',
         behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
       });
     });
@@ -527,12 +532,18 @@ export function AccountSettingsPage() {
     if (!profileSettings) return;
     const saved = profileSettings.settings;
     setCosmetics(saved);
+    setSessionProfileSettings({ ...useSession.getState().profileSettings, profileAccent: saved.profileAccent });
     setAvatarMode(avatarModeOf(saved));
     setImageDraft(saved.profileImageUrl ?? '');
     setAvatarDraft(readAvatarParts(saved.profileAvatar) ?? DEFAULT_AVATAR_PARTS.boy);
     setFields({});
     setMessage('Draft reset to your last saved profile.');
     setTone('info');
+  }
+
+  function previewProfileAccent(profileAccent: ProfileAccent) {
+    setCosmetics((current) => ({ ...current, profileAccent }));
+    setSessionProfileSettings({ ...useSession.getState().profileSettings, profileAccent });
   }
 
   return (
@@ -854,6 +865,12 @@ export function AccountSettingsPage() {
           Open supporter page
         </Link>
       </Panel>
+      {dropOpen ? (
+        <Panel title="The Drop">
+          <p>Crew looks and Street Pass skips live in the shop. Nothing there changes how a round plays.</p>
+          <Link className="se-btn se-btn--ghost" to="/game/drop">Open The Drop</Link>
+        </Panel>
+      ) : null}
       </section>
 
       <section id="settings-profile" className="se-settings-section" aria-labelledby="settings-profile-title">
@@ -896,21 +913,32 @@ export function AccountSettingsPage() {
             </div>
             <div className="se-account-cosmetics">
               <div>
-                <div className="se-field">
-                  <label className="se-label" htmlFor="crew-name">Crew name</label>
-                  <input
-                    id="crew-name"
-                    className="se-input"
-                    value={cosmetics.crewName ?? ''}
-                    maxLength={CREW_NAME_MAX}
-                    placeholder="No crew name"
-                    autoComplete="off"
-                    onChange={(event) => setCosmetics((current) => ({
-                      ...current,
-                      crewName: event.target.value,
-                    }))}
+                <div data-tour="build-street-sign">
+                  <div className="se-field">
+                    <label className="se-label" htmlFor="crew-name" data-tour-card-anchor="crew-name">Crew name</label>
+                    <input
+                      id="crew-name"
+                      className="se-input"
+                      value={cosmetics.crewName ?? ''}
+                      maxLength={CREW_NAME_MAX}
+                      placeholder="Name your crew"
+                      autoComplete="off"
+                      onChange={(event) => setCosmetics((current) => ({
+                        ...current,
+                        crewName: event.target.value,
+                      }))}
+                    />
+                    {fields.crewName ? <p className="se-error" role="alert">{fields.crewName}</p> : <p className="se-hint">This name is printed on your sign and shown on your profile.</p>}
+                  </div>
+
+                  <StreetSignBuilder
+                    value={cosmetics.streetSign}
+                    crewName={cosmetics.crewName}
+                    savedValue={profileSettings?.settings.streetSign ?? null}
+                    unlockedFontPacks={profileSettings?.options.streetSignFontPacks ?? []}
+                    ownedBackdrops={profileSettings?.options.streetSignBackdrops ?? []}
+                    onChange={(streetSign) => setCosmetics((current) => ({ ...current, streetSign }))}
                   />
-                  {fields.crewName ? <p className="se-error" role="alert">{fields.crewName}</p> : <p className="se-hint">Shown on your profile and searchable in the Players directory. It carries across seasons; leave it blank for none.</p>}
                 </div>
 
                 <div className="se-field">
@@ -931,15 +959,6 @@ export function AccountSettingsPage() {
                     ? <p className="se-error" role="alert">{fields.profileBio}</p>
                     : <p className="se-hint">Plain text only. Shown on your public profile. {formatNumber((cosmetics.profileBio ?? '').length)} / {formatNumber(PROFILE_BIO_MAX)}</p>}
                 </div>
-
-                <StreetSignBuilder
-                  value={cosmetics.streetSign}
-                  crewName={cosmetics.crewName}
-                  savedValue={profileSettings?.settings.streetSign ?? null}
-                  unlockedFontPacks={profileSettings?.options.streetSignFontPacks ?? []}
-                  ownedBackdrops={profileSettings?.options.streetSignBackdrops ?? []}
-                  onChange={(streetSign) => setCosmetics((current) => ({ ...current, streetSign }))}
-                />
 
                 <div className="se-field">
                   <span className="se-label" id="avatar-mode-label">Avatar</span>
@@ -1053,14 +1072,14 @@ export function AccountSettingsPage() {
                         className={`se-swatch se-swatch--${option.key}${cosmetics.profileAccent === option.key ? ' se-swatch--on' : ''}`}
                         aria-pressed={cosmetics.profileAccent === option.key}
                         title={option.description ?? option.label}
-                        onClick={() => setCosmetics((current) => ({ ...current, profileAccent: option.key as ProfileAccent }))}
+                        onClick={() => previewProfileAccent(option.key as ProfileAccent)}
                       >
                         <span aria-hidden="true" />
                         {option.label}
                       </button>
                     ))}
                   </div>
-                  {fields.profileAccent ? <p className="se-error" role="alert">{fields.profileAccent}</p> : <p className="se-hint">Sets the color shown on your profile card, profile page, and player-facing highlights.</p>}
+                  {fields.profileAccent ? <p className="se-error" role="alert">{fields.profileAccent}</p> : <p className="se-hint">Previews this color across the site and on your profile. Save changes to keep it.</p>}
                 </div>
 
                 <div className="se-field">
@@ -1410,3 +1429,7 @@ export function AccountSettingsPage() {
     </Frame>
   );
 }
+import '../styles/account-settings.css';
+import '../styles/profile.css';
+import '../styles/street-sign-builder.css';
+import '../styles/street-sign-backdrops.css';

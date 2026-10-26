@@ -11,13 +11,9 @@
 .se-statusbar__icon--illustrated { display: none; }
 
 @media (max-width: 899px) {
-  /* Default house chrome uses the mockup's electric blue; player-chosen
-     accents and earned site themes retain their own lighting. */
+  /* Mobile shell lighting follows the player's selected site accent. */
   .se-app--tabbar {
     --se-shell-electric: var(--se-accent);
-  }
-  .se-app--tabbar.se-site-theme--none.se-site-accent--default {
-    --se-shell-electric: #328dff;
   }
 
   .se-app--tabbar.se-site-theme--none {

@@ -8,7 +8,7 @@ Make multi-city holdings work together: hold a city, connect it to logistics, co
 
 ## Locked rules
 
-- One existing **alliance** grows to at most **15 members** on 3.0-pinned rounds. There is no separate org, alliance merger, or three-sect roster. Older rounds retain their own membership cap, 24-hour leave cooldown and combat rules.
+- One existing **alliance** grows to at most **7 members** on 3.0-pinned rounds. There is no separate org, alliance merger, or three-sect roster. Older rounds retain their own membership cap, 24-hour leave cooldown and combat rules.
 - Existing alliance **city control is three of five blocks**. For a zone, count each alliance's controlled cities there. The alliance with strictly more than every rival controls the zone; **one city can be enough**, while a tie or no controlled cities means no controller.
 - **Zone map:** Northeast = New York City, Boston, Philadelphia; Midwest = Chicago, Detroit, Toronto; South = Tulsa, Dallas, Atlanta, Miami Beach, Monterrey; West = Seattle, San Francisco, Los Angeles, Las Vegas. Toronto and Monterrey are gameplay assignments beyond the U.S. regional map. San Francisco already replaces Beverly Hills in the `1.8-s` seed; rounds pinned before that replacement retain Beverly Hills. Mexico City remains supplier-only in 3.0 and does not count.
 - Alliance pacts enable cooperation **without an attack ban**. An attack between pact allies resolves normally and automatically ends the pact. Both sides see a "pact broken" record; cooperative access and pending backup close immediately, without undoing settled actions. Same-alliance friendly-fire rules stay intact.
@@ -21,7 +21,7 @@ Make multi-city holdings work together: hold a city, connect it to logistics, co
 | Slice | Outcome | Gate |
 | --- | --- | --- |
 | **3.0-A — Foundation** | Audit real catalogs/control/buffs; per-city holding read-model and reconcile; identity-default 3.0 ruleset. | Existing ownership/counts unchanged; pre-3.0 rounds isolated. |
-| **3.0-B — Alliance cohesion** | Single 15-member alliance, ally pacts and break-on-attack, interstate contracts, alliance UI. | Last-seat races, pact betrayal, idempotent payouts, legacy membership/combat tests. |
+| **3.0-B — Alliance cohesion** | Single 7-member alliance, ally pacts and break-on-attack, interstate contracts, alliance UI. | Last-seat races, pact betrayal, idempotent payouts, legacy membership/combat tests. |
 | **3.0-C — Logistics** | One quote for pickups, shipments and lanes; Regional Courier evaluated only in simulation. | Capacity/stock/room conservation, clear refusals, no settlement fork or must-pick lane. |
 | **3.0-D — Map** | Four playable additions: Toronto, Boston, Philadelphia and Monterrey; existing San Francisco stays in the West; complete city content and zone assignments; small block-holding dealer bonus. | Each addition offers a distinct sim-proven strategy; rounds pinned before the San Francisco replacement retain Beverly Hills and its routes; Mexico City remains supplier-only. |
 | **3.0-E — Law** | City evidence plus alliance investigation, bounded raids/bribes, cross-city case view. | No double-write or farm loop; pressure and costs remain legible. |

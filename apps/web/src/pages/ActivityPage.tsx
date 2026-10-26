@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import '../styles/activity.css';
 import { Navigate } from 'react-router-dom';
 import type { ActivityDto } from '@streets/shared';
 import { formatNumber } from '@streets/shared';

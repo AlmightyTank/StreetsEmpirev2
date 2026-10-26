@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { app, BrowserWindow, Menu, dialog, shell, session, ipcMain, WebContentsView } = require('electron');
 const { DiscordPresence } = require('./discord-ipc.cjs');
-const { GAME_ORIGINS, trustedNavigation, externalLink, presenceForUrl } = require('./activity.cjs');
+const { GAME_ORIGINS, trustedNavigation, externalLink, discordAppLink, presenceForUrl } = require('./activity.cjs');
 const {
   DESKTOP_BETA_RELEASE_URL,
   TABS,
@@ -158,7 +158,7 @@ function navigateSafely(event, legacyUrl) {
   const rawUrl = typeof event.url === 'string' ? event.url : legacyUrl;
   if (trustedNavigation(rawUrl)) return;
   event.preventDefault();
-  if (externalLink(rawUrl)) void shell.openExternal(rawUrl);
+  if (discordAppLink(rawUrl) || externalLink(rawUrl)) void shell.openExternal(rawUrl);
 }
 
 function makeGameView(environment) {
@@ -211,7 +211,7 @@ function makeGameView(environment) {
   });
   view.webContents.setWindowOpenHandler(({ url }) => {
     if (trustedNavigation(url)) void view.webContents.loadURL(url);
-    else if (externalLink(url)) void shell.openExternal(url);
+    else if (discordAppLink(url) || externalLink(url)) void shell.openExternal(url);
     return { action: 'deny' };
   });
   return view;

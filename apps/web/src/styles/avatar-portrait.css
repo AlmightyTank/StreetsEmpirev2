@@ -1,0 +1,115 @@
+/* Shared portrait and frame layout used by the shell and profile surfaces. */
+.se-built-avatar {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+}
+
+.se-avatar-portrait {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  border-radius: inherit;
+  isolation: isolate;
+}
+
+.se-avatar-portrait__face {
+  position: absolute;
+  z-index: 2;
+  top: var(--se-avatar-opening-top, 28%);
+  left: var(--se-avatar-opening-left, 28%);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  width: var(--se-avatar-opening-width, 44%);
+  height: var(--se-avatar-opening-height, 44%);
+  border-radius: var(--se-avatar-opening-radius, 50%);
+  clip-path: inset(0 round var(--se-avatar-opening-radius, 50%));
+  background: color-mix(in srgb, var(--se-accent) 18%, #111722);
+}
+
+/* Keep the portrait crop tied to the measured opening in the frame artwork. */
+.se-avatar-portrait[data-avatar-opening-shape="circle"] .se-avatar-portrait__face {
+  border-radius: 50%;
+  clip-path: circle(50% at 50% 50%);
+}
+
+.se-avatar-portrait[data-avatar-opening-shape="square"] .se-avatar-portrait__face {
+  border-radius: 2px;
+  clip-path: inset(0 round 2px);
+}
+
+.se-avatar-portrait[data-avatar-opening-shape="rectangle"] .se-avatar-portrait__face {
+  border-radius: 2px;
+  clip-path: inset(0 round 2px);
+}
+
+.se-avatar-portrait__face > img,
+.se-avatar-portrait__face > .se-built-avatar {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+}
+
+.se-avatar-portrait__back {
+  position: absolute !important;
+  z-index: 1 !important;
+  inset: 0;
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none;
+  object-fit: contain !important;
+  pointer-events: none;
+}
+
+.se-avatar-portrait__art {
+  position: absolute !important;
+  z-index: 1 !important;
+  inset: 0;
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none;
+  object-fit: contain !important;
+  pointer-events: none;
+}
+
+.se-avatar-frame {
+  --se-avatar-frame-color: var(--se-accent);
+  position: relative;
+  isolation: isolate;
+}
+
+.se-avatar-portrait.se-avatar-frame .se-avatar-portrait__face {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.se-avatar-frame::after {
+  content: '';
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.92),
+    inset 0 0 0 3px var(--se-avatar-frame-color),
+    inset 0 0 9px color-mix(in srgb, var(--se-avatar-frame-color) 62%, transparent);
+  pointer-events: none;
+}
+
+.se-avatar-frame[data-avatar-frame="ghost-frame"] { --se-avatar-frame-color: #a78bfa; }
+.se-avatar-frame[data-avatar-frame="top-shelf-frame"] { --se-avatar-frame-color: #2dd4bf; }
+.se-avatar-frame[data-avatar-frame="full-rack-frame"] { --se-avatar-frame-color: #f43f5e; }
+.se-avatar-frame[data-avatar-frame="open-road-frame"] { --se-avatar-frame-color: #38bdf8; }
+.se-avatar-frame[data-avatar-frame="clean-slate-frame"] { --se-avatar-frame-color: #a5f3fc; }
+.se-avatar-frame[data-avatar-frame="corner-boss-frame"] { --se-avatar-frame-color: #f59e0b; }
+.se-avatar-frame[data-avatar-frame="velvet-rope-frame"] { --se-avatar-frame-color: #e0607e; }
+.se-avatar-frame[data-avatar-frame="case-file-frame"] { --se-avatar-frame-color: #d6b578; }

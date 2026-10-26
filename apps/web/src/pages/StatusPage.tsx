@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import '../styles/public-info.css';
 import { Link, Navigate } from 'react-router-dom';
 import type { AdminSeasonChecklistDto, AdminSeasonChecklistItemDto, GameStatusDto } from '@streets/shared';
 import { formatNumber } from '@streets/shared';

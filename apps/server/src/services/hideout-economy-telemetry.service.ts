@@ -8,7 +8,8 @@ export type HideoutEconomyEvent =
   | 'STASH_FULL'
   | 'FUEL_USED'
   | 'RECIPE_COMPLETED'
-  | 'COMPONENT_SPENT';
+  | 'COMPONENT_SPENT'
+  | 'COMPONENT_BOUGHT';
 
 export async function recordHideoutEconomy(
   db: Db,

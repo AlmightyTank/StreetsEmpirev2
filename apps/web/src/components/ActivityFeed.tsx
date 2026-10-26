@@ -73,6 +73,13 @@ function productMovementSummary(value: unknown): string[] {
   });
 }
 
+function turfDistrict(p: Record<string, unknown>): string {
+  const named = str(p.districtName);
+  if (named) return named;
+  const key = str(p.district, 'your block');
+  return key.replace(/[_-]+/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
 const AFTERMATH_REWARD_LABELS: Record<string, string> = {
   NATIONAL_TOP_10: 'national top 10',
   WEALTH_KING: 'Wealth King',
@@ -200,6 +207,9 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
         ...movements,
         ...(!movements.length ? mixedFinds : []),
         !movements.length && !mixedFinds.length && num(p.crackFound) ? `+${formatNumber(num(p.crackFound))} ${crackWord} found` : null,
+        p.cacheFound && typeof p.cacheFound === 'object' && !Array.isArray(p.cacheFound)
+          ? `Cache found: ${str((p.cacheFound as Record<string, unknown>).label, 'new cache')}`
+          : null,
         num(p.whoresLeft) ? `${num(p.whoresLeft)} whores walked` : null,
         num(p.thugsLeft) ? `${num(p.thugsLeft)} thugs walked` : null,
         p.busted ? `BUSTED, fined ${formatCents(num(p.fineCents))}` : null,
@@ -478,8 +488,18 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
     case 'QUEST_READY':
       return {
         text: `Job complete: ${str(p.title, 'a quest')}.`,
-        detail: 'Return to Quests to collect payment.',
+        detail: 'Open your contacts to collect payment.',
       };
+
+    case 'QUEST_STORY_SCENE':
+      return {
+        text: `Made your choice in ${str(p.title, 'a job')}.`,
+        detail: str(p.sceneTitle) || undefined,
+      };
+
+    case 'QUEST_ACCEPTED':
+      // Older rows only stored the quest key; fall back to a plain sentence.
+      return { text: str(p.title) ? `Took the job: ${str(p.title)}.` : 'Took on a new job.' };
 
     case 'QUEST_CLAIMED':
       return {
@@ -514,6 +534,14 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
         detail: `${activity.type === 'STORE_BUY' ? '-' : '+'}${formatCents(num(p.totalCents))}`,
       };
 
+    case 'PLAYER_BOARD_SALE':
+      return {
+        text: `${str(p.buyer, 'A player')} bought ${formatNumber(num(p.quantity))} ${str(p.item, 'items')} from your Street Market listing.`,
+        detail: num(p.proceedsCents) > 0
+          ? `+${formatCents(num(p.proceedsCents))}`
+          : Array.isArray(p.barterItems) ? `Barter received: ${(p.barterItems as Array<Record<string, unknown>>).map((item) => `${formatNumber(num(item.quantity))} ${str(item.name, 'item')}`).join(', ')}` : 'Your listing was filled.',
+      };
+
     case 'WEAPON_UNLOCK': {
       const weapon = str(p.weapon);
       const purchaseName = weapon ? `${weapon} purchases` : 'Tommy’s locked weapon purchases';
@@ -535,6 +563,39 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
           changeSummary(p.changes),
         ].filter(Boolean).join(' · '),
       };
+
+    case 'TURF_CLAIM': {
+      const district = turfDistrict(p);
+      const won = p.won === true;
+      return {
+        text: won
+          ? `You took ${district} with ${formatNumber(num(p.thugs))} ${num(p.thugs) === 1 ? 'thug' : 'thugs'}.`
+          : `Your crew couldn't take ${district}.`,
+        detail: won
+          ? [num(p.locals) ? `Beat ${formatNumber(num(p.locals))} local ${num(p.locals) === 1 ? 'thug' : 'thugs'}` : '', p.favorKey ? 'A favor cleared local resistance' : ''].filter(Boolean).join(' · ')
+          : num(p.locals) ? `${formatNumber(num(p.locals))} local ${num(p.locals) === 1 ? 'thug held' : 'thugs held'} the block` : 'The block remains under local control',
+      };
+    }
+
+    case 'TURF_POST':
+      return {
+        text: `Posted ${formatNumber(num(p.thugs))} ${num(p.thugs) === 1 ? 'thug' : 'thugs'} on ${turfDistrict(p)}.`,
+        detail: `${formatNumber(num(p.cornerThugs))} ${num(p.cornerThugs) === 1 ? 'thug' : 'thugs'} now hold the corner`,
+      };
+
+    case 'TURF_PULL': {
+      const pulled = num(p.thugs);
+      const district = turfDistrict(p);
+      return p.released === true
+        ? {
+            text: `You pulled the crew off ${district}.`,
+            detail: `${formatNumber(pulled)} ${pulled === 1 ? 'thug returned' : 'thugs returned'} home · the block is open to claim`,
+          }
+        : {
+            text: `Pulled ${formatNumber(pulled)} ${pulled === 1 ? 'thug' : 'thugs'} off ${district}.`,
+            detail: `${formatNumber(num(p.cornerThugs))} ${num(p.cornerThugs) === 1 ? 'thug remains' : 'thugs remain'} on the corner`,
+          };
+    }
 
     // 0.9.0-G clock events. None of them names who is pushing or tailing: the game never says.
     case 'TURF_PUSH_INCOMING':
@@ -634,6 +695,30 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
           waived ? `${formatCents(waived)} unearned fee waived` : null,
           `you owe ${formatCents(num(p.debtAfterCents))}`,
         ].filter(Boolean).join(' · '),
+      };
+    }
+
+    case 'HIDEOUT_BUILD_COMPLETE':
+      return {
+        text: `${str(p.name, 'A hideout room')} level ${num(p.level)} is built.`,
+        detail: 'Construction finished and the new level is active.',
+      };
+
+    case 'HIDEOUT_ROOM_READY': {
+      const rooms = Array.isArray(p.rooms) ? p.rooms as Array<Record<string, unknown>> : [];
+      return {
+        text: rooms.length === 1
+          ? `${str(rooms[0]!.name, 'A hideout room')} level ${num(rooms[0]!.level)} is ready to build.`
+          : `${rooms.length} hideout rooms are ready to build.`,
+        detail: rooms.map((room) => `${str(room.name)} → level ${num(room.level)}`).join(' · '),
+      };
+    }
+
+    case 'COSMETIC_UNLOCKED': {
+      const items = Array.isArray(p.items) ? p.items as Array<Record<string, unknown>> : [];
+      return {
+        text: items.length === 1 ? `New cosmetic unlocked: ${str(items[0]!.title, 'a new look')}.` : `${items.length} new cosmetics unlocked.`,
+        detail: items.map((item) => str(item.title)).filter(Boolean).join(' · '),
       };
     }
 
@@ -797,7 +882,10 @@ export function describeActivity(activity: ActivityDto, crackWord: string): { te
         detail: str(p.category),
       };
     default:
-      return { text: String(activity.type).replace(/_/g, ' ').toLowerCase() };
+      {
+        const words = String(activity.type).replace(/_/g, ' ').toLowerCase();
+        return { text: `${words.charAt(0).toUpperCase()}${words.slice(1)}.` };
+      }
   }
 }
 
@@ -813,7 +901,7 @@ export type ActivityGroup = 'combat' | 'street' | 'market' | 'progress' | 'trave
 
 export function activityGroup(type: ActivityDto['type']): ActivityGroup {
   if (type.startsWith('RAID_') || type.startsWith('DRIVE_BY_') || type.startsWith('COMBAT_') || type === 'BATTLE_VOIDED') return 'combat';
-  if (type.startsWith('STORE_') || type.startsWith('CASINO_') || type.startsWith('SPORTSBOOK_')) return 'market';
+  if (type.startsWith('STORE_') || type.startsWith('CASINO_') || type.startsWith('SPORTSBOOK_') || type === 'PLAYER_BOARD_SALE') return 'market';
   if (type.startsWith('QUEST_') || type.startsWith('FAVOR_') || type === 'HIDEOUT_UPGRADE' || type === 'WEAPON_UNLOCK') return 'progress';
   if (type.startsWith('RUN_') || type.startsWith('RELOCATION_') || type === 'RELOCATED' || type.startsWith('CONVOY_') || type.startsWith('TRIP_') || type.startsWith('BOSS_') || type.startsWith('SIT_DOWN') || type === 'OUTPOST_VISIT') return 'travel';
   if (type.startsWith('TURF_') || type.startsWith('BUSINESS_')) return 'turf';
@@ -857,6 +945,7 @@ function activityTypeLabel(type: ActivityDto['type']): string {
     LAW_CORRUPTION: 'Corruption',
     HIDEOUT_UPGRADE: 'Hideout',
     QUEST_OBJECTIVE_COMPLETE: 'Quest objective',
+    QUEST_ACCEPTED: 'Quest accepted',
     QUEST_READY: 'Quest ready',
     QUEST_CLAIMED: 'Quest claimed',
     STREET_PASS_CLAIMED: 'Street Pass',
@@ -923,6 +1012,9 @@ function activityTypeLabel(type: ActivityDto['type']): string {
     LOAN_INSTALLMENT_MISSED: 'Missed installment',
     LOAN_COLLECTIONS: 'Collections',
     EASTER_EGG_FOUND: 'Easter egg',
+    HIDEOUT_BUILD_COMPLETE: 'Construction done',
+    HIDEOUT_ROOM_READY: 'Ready to build',
+    COSMETIC_UNLOCKED: 'New cosmetic',
     RING_SURFACED: 'The Ring',
     RING_STOLEN: 'The Ring',
     RING_DESTROYED: 'The Ring',

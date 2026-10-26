@@ -132,6 +132,7 @@ describe.runIf(process.env.REPUTATION_INTEGRATION === '1')('handcrafted quest AP
       where: { roundPlayerId_trader: { roundPlayerId: playerId, trader: 'MAMA_KING' } },
     });
     expect(mama.points).toBe(5);
+    expect(mama.questDoneAt).toBeNull();
 
     const page = (await get('/api/game/quests')).json();
     expect(page.counts.completed).toBe(1);

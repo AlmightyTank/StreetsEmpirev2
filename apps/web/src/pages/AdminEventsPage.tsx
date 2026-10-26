@@ -1,4 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import '../styles/events.css';
+import '../styles/action-experience.css';
+import '../styles/admin.css';
 import type { AdminEventOccurrenceDto, AdminEventPreviewDto, AdminEventReleaseReportDto } from '@streets/shared';
 import { adminApi } from '../api/admin.js';
 import { ApiError } from '../api/client.js';

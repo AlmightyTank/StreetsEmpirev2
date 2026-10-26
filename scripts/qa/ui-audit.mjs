@@ -315,7 +315,7 @@ async function responsiveLayoutCheck(page) {
     const tabbar = document.querySelector('.se-tabbar');
     const tabbarBox = tabbar && visible(tabbar) ? tabbar.getBoundingClientRect() : null;
     const sticky = [];
-    for (const element of document.querySelectorAll('.se-dock, .se-action-footer--sticky')) {
+    for (const element of document.querySelectorAll('.se-dock, .se-action-footer--sticky, .se-cosmetics-savebar')) {
       if (!visible(element)) continue;
       const returnY = window.scrollY;
       element.scrollIntoView({ block: 'end' });

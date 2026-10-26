@@ -1,4 +1,4 @@
-import type { OnboardingGuideStepKey, OnboardingPageKey, TourStepKey } from '@streets/shared';
+import type { OnboardingPageKey, TourStepKey } from '@streets/shared';
 
 /**
  * 1.0.0-B. Every word of onboarding and page help lives here, so the tutorial,
@@ -235,19 +235,6 @@ export function pageHelpFor(pathname: string): PageHelp | null {
   return PAGE_HELP[key] ?? null;
 }
 
-export interface GuideStepCopy {
-  title: string;
-  detail: string;
-  to: string;
-}
-
-export const GUIDE_STEPS: Record<OnboardingGuideStepKey, GuideStepCopy> = {
-  meet_contact: { title: 'Meet your first contact', detail: 'Scout one district for Mama King.', to: '/game/scout' },
-  open_front: { title: 'Open your first front', detail: 'Turn street money into a business the city can see.', to: '/game/businesses' },
-  face_encounter: { title: 'Make a street decision', detail: 'Resolve one pending encounter and own the consequence.', to: '/game' },
-  choose_career: { title: 'Choose what they call you', detail: 'Pick a cosmetic career identity for your first chapter.', to: '/game#origin-career' },
-};
-
 export interface TourStepCopy {
   title: string;
   detail: string;
@@ -261,15 +248,24 @@ export interface TourStepCopy {
   chapter: string;
 }
 
-/** Guided walkthrough: one tooltip per core-loop step, in tour order. */
+/**
+ * Guided walkthrough: one tooltip per early-game teaching step, in tour order.
+ *
+ * This is deliberately not a quest. It teaches the player's first operating
+ * rhythm through real actions; story quests remain owned by the Jobs system.
+ */
 export const TOUR_STEPS: Record<TourStepKey, TourStepCopy> = {
-  'build-street-sign': { title: 'Build your street sign', detail: 'Give your crew a street to call its own. Save a custom metal sign; it is identity, not a turf claim.', to: '/account#settings-profile', target: 'build-street-sign', mentor: 'Mama', chapter: 'Make your mark' },
-  'accept-quest': { title: 'Take your first job', detail: 'Jobs pay for real work. Accept one to start the tour.', to: '/game/quests', target: 'accept-quest', mentor: 'Mama', chapter: 'Learn the streets' },
-  scout: { title: 'Work the block', detail: 'Send the crew scouting to earn cash.', to: '/game/scout', target: 'scout', mentor: 'Mama', chapter: 'Learn the streets' },
-  'complete-quest': { title: 'Collect your payment', detail: 'After scouting, come back here and collect the payment for your first job.', to: '/game/quests', target: 'complete-quest', mentor: 'Mama', chapter: 'Learn the streets' },
-  'shop-supplies': { title: 'Stock up', detail: 'You start with $20,000, 100 crack, 250 condoms, 10 beer, 5 medicine, 10 pistols, 100 bullets, and 50 parts—but no car. Buy 1,000 condoms, 1,000 beer, 15 medicine, 5 pistols, and an Ammo Crate · 10,000 rounds. I’ll take you shelf by shelf.', to: '/game/stores/corner?tourItem=condoms', target: 'shop-supplies', mentor: 'Pip', chapter: 'Build your operation' },
-  'grow-crew': { title: 'Grow the crew', detail: 'You begin with 10 thugs and 1 worker. Thugs protect the street and carry the guns; workers earn. Scout again until a thug joins, or hire muscle at the store.', to: '/game/scout', target: 'scout', mentor: 'Tommy', chapter: 'Build your operation' },
-  produce: { title: 'Cook your first batch', detail: 'Producing beats buying. Start a batch.', to: '/game/produce', target: 'produce', mentor: 'Pip', chapter: 'Grow your foundation' },
+  'build-street-sign': { title: 'Name your crew and build your sign', detail: 'Give the crew a name, tune the sign until it feels like yours, then save it. This is identity, not a turf claim.', to: '/account#settings-profile', target: 'build-street-sign', mentor: 'Mama', chapter: 'Make your mark' },
+  'scout-streets': { title: 'Scout the streets', detail: 'Choose a district, set the trip, and send the crew out. This is how your operation gets moving.', to: '/game/scout', target: 'scout-plan', mentor: 'Mama', chapter: 'Learn the streets' },
+  'earn-first-payout': { title: 'Collect your first payout', detail: 'Check the result of your street work and see the cash come home. That take is what funds your next move.', to: '/game/scout', target: 'scout-result', mentor: 'Mama', chapter: 'Learn the streets' },
+  'buy-condoms': { title: 'Buy 1,000 condoms', detail: 'Buy exactly the condoms you need for the opening stock. I’ll keep this step focused on this shelf.', to: '/game/stores/corner?tourItem=condoms', target: 'shop-buy-condoms', mentor: 'Pip', chapter: 'Build your operation' },
+  'buy-beer': { title: 'Buy 1,000 beer', detail: 'Add 1,000 beer to the stockpile—no need to buy more for the walkthrough.', to: '/game/stores/corner?tourItem=beer', target: 'shop-buy-beer', mentor: 'Pip', chapter: 'Build your operation' },
+  'buy-medicine': { title: 'Buy 15 medicine', detail: 'Pick up 15 medicine for the crew. The guided quantity is only the amount needed for this step.', to: '/game/stores/corner?tourItem=medicine', target: 'shop-buy-medicine', mentor: 'Pip', chapter: 'Build your operation' },
+  'buy-pistols': { title: 'Buy 5 pistols', detail: 'Buy 5 pistols for the operation. Keep the order to the walkthrough amount for now.', to: '/game/stores/tommy?tourItem=pistols', target: 'shop-buy-pistols', mentor: 'Pip', chapter: 'Build your operation' },
+  'buy-ammo-crate': { title: 'Buy an Ammo Crate', detail: 'Finish the supply run with one Ammo Crate—10,000 rounds—then we move on.', to: '/game/stores/tommy?tourItem=ammo-crate', target: 'shop-buy-ammo-crate', mentor: 'Pip', chapter: 'Build your operation' },
+  'grow-crew': { title: 'Grow the crew', detail: 'You begin with 10 thugs and 1 worker. Thugs protect the street and carry the guns; workers earn. Scout again until a thug joins, or hire muscle at the store.', to: '/game/scout', target: 'scout-plan', mentor: 'Tommy', chapter: 'Build your operation' },
+  produce: { title: 'Cook your first batch', detail: 'Producing beats buying. Start a batch.', to: '/game/produce', target: 'produce-plan', mentor: 'Pip', chapter: 'Grow your foundation' },
   'upgrade-hideout': { title: 'Build the base', detail: 'Upgrade the Safe Room or Workshop once.', to: '/game/hideout', target: 'upgrade-hideout', mentor: 'Mama', chapter: 'Grow your foundation' },
-  'recon-raid': { title: 'Take a shot', detail: 'Recon the practice crew, then launch one raid. You always win, and the dummy disappears afterward.', to: '/game/combat', target: 'recon-raid', mentor: 'Tommy', chapter: 'Taking control' },
+  'recon-rival': { title: 'Read the rival', detail: 'Recon a nearby crew before you make a move. Information tells you whether the risk is worth it.', to: '/game/combat', target: 'combat-intel', mentor: 'Tommy', chapter: 'Taking control' },
+  'first-raid': { title: 'Make your first move', detail: 'Use the recon report to choose your first strategic move, then resolve a raid. Win or lose, you learn that every action changes who is watching you.', to: '/game/combat', target: 'first-raid', mentor: 'Tommy', chapter: 'Taking control' },
 };

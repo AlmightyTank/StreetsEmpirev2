@@ -326,7 +326,7 @@
 .se-dashboard .se-dashboard-action--produce { --se-dash-tint: 91, 165, 255; }
 .se-dashboard .se-dashboard-action--raids { --se-dash-tint: 240, 96, 100; }
 .se-dashboard .se-dashboard-action--travel { --se-dash-tint: 187, 134, 255; }
-.se-dashboard .se-dashboard-action--casino { --se-dash-tint: 239, 190, 87; }
+.se-dashboard .se-dashboard-action--stores { --se-dash-tint: 239, 190, 87; }
 .se-dashboard .se-dashboard-action--quests { --se-dash-tint: 114, 200, 205; }
 .se-dashboard .se-dashboard-quick .se-dashboard-action__icon {
   display: grid;

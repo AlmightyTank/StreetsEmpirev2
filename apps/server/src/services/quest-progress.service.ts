@@ -226,6 +226,36 @@ async function playerState(db: Db, roundPlayerId: string): Promise<QuestDataObje
   };
 }
 
+function jsonObject(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
+
+/**
+ * A store checkout is one activity in the feed, but for quests it is the trades it holds:
+ * each basket line counts exactly as if it had been bought or sold on its own, under its own
+ * direction and with its own receipt. Null for anything that is not a basket.
+ */
+export function storeBasketSignals(activity: {
+  id: string;
+  type: ActivityType;
+  payload: Prisma.JsonValue;
+  createdAt: Date;
+}): QuestProgressSignal[] | null {
+  if (activity.type !== 'STORE_BUY' && activity.type !== 'STORE_SELL') return null;
+  const payload = jsonObject(activity.payload);
+  if (!payload || !Array.isArray(payload.lines)) return null;
+  return payload.lines.flatMap((raw, index): QuestProgressSignal[] => {
+    const line = jsonObject(raw);
+    if (!line || (line.direction !== 'buy' && line.direction !== 'sell')) return [];
+    return [{
+      sourceKey: `activity:${activity.id}:line:${index}`,
+      type: line.direction === 'buy' ? 'STORE_BUY' : 'STORE_SELL',
+      payload: { ...(typeof payload.city === 'string' ? { city: payload.city } : {}), ...line } as QuestDataValue,
+      at: activity.createdAt,
+    }];
+  });
+}
+
 async function lockPlayerQuest(db: Db, id: string): Promise<void> {
   await db.$queryRaw`SELECT id FROM "PlayerQuest" WHERE id = ${id} FOR UPDATE`;
 }
@@ -241,6 +271,15 @@ export const QuestProgressService = {
       createdAt: Date;
     },
   ): Promise<QuestProgressResult> {
+    const lines = storeBasketSignals(activity);
+    if (lines) {
+      const total: QuestProgressResult = { considered: 0, matched: 0, advanced: 0, readied: 0, reopened: 0, expired: 0, duplicate: 0 };
+      for (const signal of lines) {
+        const result = await this.emit(db, activity.roundPlayerId, signal);
+        for (const key of Object.keys(total) as (keyof QuestProgressResult)[]) total[key] += result[key];
+      }
+      return total;
+    }
     return this.emit(db, activity.roundPlayerId, {
       sourceKey: `activity:${activity.id}`,
       type: activity.type,

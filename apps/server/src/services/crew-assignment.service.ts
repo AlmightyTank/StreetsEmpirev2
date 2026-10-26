@@ -399,7 +399,7 @@ export const CrewAssignmentService = {
             from: null, to: fresh.id, dealerThugs: next.dealerThugs, postedThugs: next.postedThugs, availableThugs: fitThugs(next), turnsUsed: ruleset.turf!.corner.postTurnCost,
             message: `${input.memberIds.length} thug${input.memberIds.length === 1 ? '' : 's'} posted to ${localDistrictName(ruleset, player.city.slug, key)}.`,
           }),
-          activity: { type: 'TURF_POST', payload: { district: key, thugs: input.memberIds.length, cornerThugs } },
+          activity: { type: 'TURF_POST', payload: { district: key, districtName: localDistrictName(ruleset, player.city.slug, key), city: player.city.slug, thugs: input.memberIds.length, cornerThugs } },
           ledger: [],
         };
       },
@@ -463,7 +463,7 @@ export const CrewAssignmentService = {
             from: fresh.id, to: null, dealerThugs: next.dealerThugs, postedThugs: next.postedThugs, availableThugs: fitThugs(next), turnsUsed: ruleset.turf!.corner.pullTurnCost,
             message: `${input.memberIds.length} thug${input.memberIds.length === 1 ? '' : 's'} returned from ${localDistrictName(ruleset, fresh.city.slug, key)}.`,
           }),
-          activity: { type: 'TURF_PULL', payload: { district: key, thugs: input.memberIds.length, cornerThugs, released } },
+          activity: { type: 'TURF_PULL', payload: { district: key, districtName: localDistrictName(ruleset, fresh.city.slug, key), city: fresh.city.slug, thugs: input.memberIds.length, cornerThugs, released } },
           ledger: [],
         };
       },

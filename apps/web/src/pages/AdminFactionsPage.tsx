@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import '../styles/admin.css';
 import { Link } from 'react-router-dom';
 import type { AdminFactionRoundDto } from '@streets/shared';
 import { formatNumber } from '@streets/shared';

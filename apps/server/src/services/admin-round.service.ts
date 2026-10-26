@@ -15,6 +15,7 @@ import { AppError } from '../utils/errors.js';
 import { AdminAuditService, type AuditActor } from './admin-audit.service.js';
 import { AdminRulesetService } from './admin-ruleset.service.js';
 import { RoundService, seasonCloseTransaction } from './round.service.js';
+import { StoryCampaignCarryService } from './story-campaign-carry.service.js';
 import { TurfService } from './turf.service.js';
 
 const DAY_MS = 86_400_000;
@@ -583,7 +584,8 @@ export const AdminRoundService = {
   /**
    * Move an unfinished round onto another ruleset without starting a new one.
    * Anything rulesetChangeWarnings finds has to be confirmed first. Street Pass
-   * edits move over when they fit the new track, and new turf and lots are laid out.
+   * edits move over when they fit the new track, new turf and lots are laid out, and each crew's
+   * place in The Missing Line moves with it.
    */
   async changeRuleset(
     prisma: PrismaClient,
@@ -593,6 +595,7 @@ export const AdminRoundService = {
   ): Promise<AdminRoundDto> {
     const to = Object.hasOwn(rulesets, input.rulesetId) ? rulesets[input.rulesetId]! : undefined;
     if (!to) throw AppError.badRequest('UNKNOWN_RULESET', 'Pick a ruleset from the list.', { rulesetId: 'Unknown ruleset.' });
+    await StoryCampaignCarryService.prepare(prisma, to);
     const round = await prisma.$transaction(async (tx) => {
       await lockRound(tx, roundId);
       const before = await tx.round.findUnique({ where: { id: roundId } });
@@ -617,13 +620,14 @@ export const AdminRoundService = {
         },
       });
       await TurfService.ensureRound(tx, updated.id, to);
+      const storyRowsCarried = await StoryCampaignCarryService.carry(tx, updated.id, pinnedRuleset(before), to);
       await AdminAuditService.record(tx, actor, {
         action: 'round.ruleset.change',
         targetType: 'round',
         targetId: before.id,
         reason: input.reason,
         before,
-        after: { ...updated, confirmedWarnings: warnings.map((warning) => warning.code) },
+        after: { ...updated, confirmedWarnings: warnings.map((warning) => warning.code), storyRowsCarried },
       });
       return updated;
     }, LIFECYCLE_TRANSACTION);

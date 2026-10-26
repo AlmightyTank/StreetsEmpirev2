@@ -3,7 +3,7 @@ import type { QuestLinkDto } from '@streets/shared';
 
 /** 1.5.0-E2. The jobs page, opened on one quest's card. */
 export function questHref(questKey: string): string {
-  return `/game/quests?focus=${encodeURIComponent(questKey)}#quest-${encodeURIComponent(questKey)}`;
+  return `/game/quests?view=jobs&focus=${encodeURIComponent(questKey)}#quest-${encodeURIComponent(questKey)}`;
 }
 
 /** 1.5.0-E2. A link straight to the job behind a lock: "“Pack Your Bags” for Wheels". */
@@ -23,7 +23,7 @@ export function QuestLink({ quest }: { quest: QuestLinkDto }) {
 export function QuestLockNote({ unlockName, quest, after }: { unlockName: string; quest: QuestLinkDto | null | undefined; after?: string }) {
   return (
     <p className="se-hint">
-      {quest ? <>Finish <QuestLink quest={quest} /> to unlock {unlockName}.</> : <>Earn {unlockName} through <Link className="se-golink" to="/game/quests">underworld jobs</Link>.</>}
+      {quest ? <>Finish <QuestLink quest={quest} /> to unlock {unlockName}.</> : <>Earn {unlockName} through <Link className="se-golink" to="/game/quests">underworld contacts</Link>.</>}
       {after ? ` ${after}` : ''}
     </p>
   );

@@ -55,7 +55,7 @@ export function DashboardStorySpotlight() {
     : null;
 
   const questUrl = featured
-    ? `/game/quests?focus=${encodeURIComponent(featured.key)}#quest-${encodeURIComponent(featured.key)}`
+    ? `/game/quests?view=jobs&focus=${encodeURIComponent(featured.key)}#quest-${encodeURIComponent(featured.key)}`
     : '/game/quests';
 
   return (
@@ -65,7 +65,7 @@ export function DashboardStorySpotlight() {
           <span className="se-eyebrow">Pick up where you left off</span>
           <h2 id="dashboard-story-title"><span className="se-dashboard-story__glyph" aria-hidden="true"><NavIcon name="rules" /></span> Main story</h2>
         </div>
-        {readyCount > 0 ? <Link className="se-dashboard-story__ready" to="/game/quests?tab=ready">{formatNumber(readyCount)} ready to collect</Link> : null}
+        {readyCount > 0 ? <Link className="se-dashboard-story__ready" to="/game/quests?view=jobs">{formatNumber(readyCount)} ready to collect</Link> : null}
       </div>
       {featured ? (
         <>
@@ -99,8 +99,8 @@ export function DashboardStorySpotlight() {
         </>
       ) : (
         <div className="se-dashboard-story__fallback">
-          <p>{!quests && !failed ? 'Checking your next chapter…' : failed ? 'Your story is still available on the Quests page.' : 'Your current story is complete. Find other contracts and rewards.'}</p>
-          <Link className="se-btn se-btn--primary" to="/game/quests">Open quests</Link>
+          <p>{!quests && !failed ? 'Checking your next chapter…' : failed ? 'Your story is still available through your contacts.' : 'Your current story is complete. Call someone else and find more work.'}</p>
+          <Link className="se-btn se-btn--primary" to="/game/quests">Open contacts</Link>
         </div>
       )}
     </section>

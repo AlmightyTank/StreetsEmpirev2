@@ -76,6 +76,7 @@ export function ActionDock({
   onSubmit,
   outcome,
   children,
+  tourTarget,
 }: {
   label: string;
   onSubmit: (event: FormEvent) => void;
@@ -90,6 +91,7 @@ export function ActionDock({
     onDismiss: () => void;
   } | null;
   children: ReactNode;
+  tourTarget?: string;
 }) {
   const [openReceipt, setOpenReceipt] = useState<unknown>(null);
   const [openChips, setOpenChips] = useState<unknown>(null);
@@ -99,7 +101,7 @@ export function ActionDock({
   const visibleChips = outcome ? (allChips ? outcome.chips : outcome.chips.slice(0, 3)) : [];
 
   return (
-    <form className={`se-dock${minimized ? ' se-dock--minimized' : ''}`} aria-label={label} onSubmit={onSubmit}>
+    <form className={`se-dock${minimized ? ' se-dock--minimized' : ''}`} aria-label={label} onSubmit={onSubmit} data-tour={tourTarget} data-tour-card-anchor={tourTarget}>
       <div className="se-dock__toolbar">
         <span className="se-dock__minimized-label">{minimized ? label : ''}</span>
         <button
@@ -122,7 +124,7 @@ export function ActionDock({
             {expanded ? <div className="se-dock__receipt">{outcome.receipt}</div> : null}
             <div className="se-dock__summary">
               <strong className={`se-dock__title se-dock__title--${outcome.tone ?? 'good'}`}>{outcome.title}</strong>
-              <ul className="se-dock__chips">
+              <ul className={`se-dock__chips${allChips ? ' se-dock__chips--expanded' : ''}`}>
                 {outcome.chips.length ? (
                   visibleChips.map((chip) => (
                     <li key={chip.key} className={`se-dock__chip se-dock__chip--${chip.tone}`}>
@@ -137,7 +139,10 @@ export function ActionDock({
                   <li>
                     <button type="button" className="se-dock__more"
                       aria-expanded={allChips}
-                      onClick={() => setOpenChips(allChips ? null : outcome.id)}>
+                      onClick={() => {
+                        setOpenReceipt(null);
+                        setOpenChips(allChips ? null : outcome.id);
+                      }}>
                       {allChips ? 'Fewer changes' : `+${outcome.chips.length - 3} more`}
                     </button>
                   </li>
@@ -148,7 +153,10 @@ export function ActionDock({
                   type="button"
                   className="se-btn se-btn--ghost se-btn--sm"
                   aria-expanded={expanded}
-                  onClick={() => setOpenReceipt(expanded ? null : outcome.id)}
+                  onClick={() => {
+                    setOpenChips(null);
+                    setOpenReceipt(expanded ? null : outcome.id);
+                  }}
                 >
                   {expanded ? 'Hide receipt' : 'Receipt'}
                 </button>

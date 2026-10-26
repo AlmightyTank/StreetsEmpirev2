@@ -537,6 +537,10 @@ export const questClaimSchema = z.object({
   actionId: actionIdSchema,
   branchKey: z.string().trim().toUpperCase().regex(/^[A-Z][A-Z0-9_]{1,63}$/, 'Invalid branch.').optional(),
 }).strict();
+/** Story campaign: the response a player picks in a quest's scene. */
+export const questSceneResponseSchema = z.object({
+  responseKey: z.string().trim().regex(/^[a-z][a-z0-9_]{0,63}$/, 'Invalid response.'),
+}).strict();
 export const questTrackSchema = z.object({ tracked: z.boolean() }).strict();
 /** Start daily, weekly and city board work automatically. */
 export const questAutoAcceptSchema = z.object({ enabled: z.boolean() }).strict();

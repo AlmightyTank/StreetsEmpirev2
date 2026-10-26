@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <filter id="s" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="2.5" flood-color="#000" flood-opacity=".6"/></filter>
+    <radialGradient id="skin" cx=".42" cy=".35" r=".75"><stop offset="0" stop-color="#d9a982"/><stop offset=".7" stop-color="#b47e58"/><stop offset="1" stop-color="#7e5236"/></radialGradient>
+    <linearGradient id="shade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".45"/></linearGradient>
+    <linearGradient id="silver" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".5" stop-color="#c4ccd4"/><stop offset="1" stop-color="#6a7480"/></linearGradient>
+    <radialGradient id="blush"><stop offset="0" stop-color="#c8606a" stop-opacity=".35"/><stop offset="1" stop-color="#c8606a" stop-opacity="0"/></radialGradient>
+    <linearGradient id="suit" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4a5560"/><stop offset="1" stop-color="#1e252c"/></linearGradient>
+    <linearGradient id="silk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f4efe6"/><stop offset="1" stop-color="#c9c0b0"/></linearGradient>
+    <linearGradient id="hair" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a2226"/><stop offset="1" stop-color="#0e0a0c"/></linearGradient>
+  </defs>
+  <g filter="url(#s)" stroke="#07100a" stroke-width="1.6" stroke-linejoin="round">
+    <!-- Hair gathered into a bun at the back, just showing past her right side -->
+    <ellipse cx="85" cy="44" rx="9" ry="10" fill="url(#hair)"/>
+    <!-- Silk blouse, high neck -->
+    <path d="M48 86 L80 86 L84 126 H44 Z" fill="url(#silk)"/>
+    <!-- Tailored jacket with sharp lapels -->
+    <path d="M8 126 Q10 98 32 90 L52 85 L60 126 Z" fill="url(#suit)"/>
+    <path d="M120 126 Q118 98 96 90 L76 85 L68 126 Z" fill="url(#suit)"/>
+    <path d="M52 85 L44 96 L54 100 L50 108 L60 126 Z" fill="#323b44"/>
+    <path d="M76 85 L84 96 L74 100 L78 108 L68 126 Z" fill="#323b44"/>
+    <!-- Neck and blouse collar -->
+    <path d="M57 70 H71 V88 Q64 92 57 88 Z" fill="url(#skin)"/>
+    <path d="M54 86 Q64 92 74 86 L74 91 Q64 97 54 91 Z" fill="url(#silk)"/>
+    <!-- Ears -->
+    <path d="M46 54 Q41 52 42 59 Q43 66 47 66 Z M82 54 Q87 52 86 59 Q85 66 81 66 Z" fill="url(#skin)"/>
+    <!-- Face: narrower jaw -->
+    <path d="M46 52 Q46 32 64 32 Q82 32 82 52 Q82 65 76 72 Q70 79 64 79 Q58 79 52 72 Q46 65 46 52 Z" fill="url(#skin)"/>
+    <!-- Hair swept back from a side part, down over the ears -->
+    <path d="M44 56 Q40 30 62 27 Q86 26 85 50 Q84 56 82 58 Q82 44 76 38 Q66 34 56 38 Q48 42 47 58 Z" fill="url(#hair)"/>
+  </g>
+  <path d="M8 126 Q10 98 32 90 L52 85 L60 126 Z M120 126 Q118 98 96 90 L76 85 L68 126 Z" fill="url(#shade)"/>
+  <!-- Silver streak from the part -->
+  <path d="M58 29 Q50 33 47 46" stroke="#d8dde2" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+  <path d="M62 28 Q72 27 78 32" stroke="#ffffff" stroke-opacity=".3" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+  <!-- Level brows -->
+  <path d="M50 47.5 Q55 45.6 61 47 M78 47.5 Q73 45.6 67 47" fill="none" stroke="#1a1214" stroke-width="2" stroke-linecap="round"/>
+  <!-- Eyes, steady and a little hooded -->
+  <path d="M51 54 Q56 51.6 61 54 Q56 56 51 54 Z" fill="#fbf6ee" stroke="#07100a" stroke-width="1"/>
+  <circle cx="56" cy="54" r="2.1" fill="#3e5560"/>
+  <circle cx="56" cy="54" r="1" fill="#0b0b0b"/>
+  <circle cx="56.8" cy="53.1" r=".6" fill="#fff"/>
+  <path d="M50.5 53.6 Q56 51 61.5 53.6" fill="none" stroke="#0b0604" stroke-width="1.8" stroke-linecap="round"/>
+  <path d="M67 54 Q72 51.6 77 54 Q72 56 67 54 Z" fill="#fbf6ee" stroke="#07100a" stroke-width="1"/>
+  <circle cx="72" cy="54" r="2.1" fill="#3e5560"/>
+  <circle cx="72" cy="54" r="1" fill="#0b0b0b"/>
+  <circle cx="72.8" cy="53.1" r=".6" fill="#fff"/>
+  <path d="M66.5 53.6 Q72 51 77.5 53.6" fill="none" stroke="#0b0604" stroke-width="1.8" stroke-linecap="round"/>
+  <circle cx="53" cy="63" r="4" fill="url(#blush)"/><circle cx="75" cy="63" r="4" fill="url(#blush)"/>
+  <path d="M62.5 60.5 Q64 63 65.5 60.5" stroke="#7e5236" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+  <!-- A closed, measured half smile -->
+  <path d="M58.5 69 Q61 70 64 69.6 Q68 69.2 70 67.6" fill="none" stroke="#6a2a2e" stroke-width="1.8" stroke-linecap="round"/>
+  <!-- Pearl earrings -->
+  <circle cx="44" cy="66" r="1.8" fill="#f4f2ec" stroke="#6a6a6a" stroke-width=".6"/><circle cx="84" cy="66" r="1.8" fill="#f4f2ec" stroke="#6a6a6a" stroke-width=".6"/>
+  <!-- Fountain pen in the breast pocket -->
+  <g filter="url(#s)"><rect x="92" y="94" width="3.6" height="16" rx="1.6" fill="#101418" stroke="#000" stroke-width=".6"/><path d="M95.2 95 V104" stroke="url(#silver)" stroke-width="1.2"/></g>
+  <path d="M89 108 H99" stroke="#5a6672" stroke-width="1.2" stroke-linecap="round"/>
+  <!-- Silver pin: a closed book -->
+  <g filter="url(#s)"><path d="M30 100 H40 Q42 100 42 102 V110 H32 Q30 110 30 108 Z" fill="url(#silver)" stroke="#2a3038" stroke-width="1"/><path d="M33 103 H39 M33 106 H39" stroke="#4a5460" stroke-width=".8"/></g>
+</svg>

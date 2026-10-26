@@ -13,6 +13,11 @@ export const questsApi = {
     api.put<QuestPageDto>('/game/quests/auto-accept', { enabled }),
   track: (key: string, tracked: boolean) =>
     api.post<QuestPageDto>('/game/quests/' + encodeURIComponent(key) + '/track', { tracked }),
+  respondToScene: (key: string, sceneKey: string, responseKey: string) =>
+    api.post<QuestPageDto>(
+      '/game/quests/' + encodeURIComponent(key) + '/scenes/' + encodeURIComponent(sceneKey),
+      { responseKey },
+    ),
   claim: (key: string, actionId: string, branchKey?: string) =>
     api.post<QuestClaimResponse>(
       '/game/quests/' + encodeURIComponent(key) + '/claim',

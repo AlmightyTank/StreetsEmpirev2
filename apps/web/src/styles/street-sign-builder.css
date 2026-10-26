@@ -205,6 +205,21 @@
     gap: 8px;
     padding: 8px;
   }
+
+  /* Six 40px swatches beside an 86px color input overflow a 390px page.
+     Stack the letter-color control and let the swatches wrap. */
+  .se-street-sign-builder__colors {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .se-street-sign-builder__swatches {
+    flex-wrap: wrap;
+  }
+
+  .se-street-sign-builder__color {
+    width: 88px;
+    max-width: 100%;
+  }
 }
 /* The builder preview tag can be repositioned directly with pointer input. */
 .se-street-sign-preview .se-street-sign-preview__tag {

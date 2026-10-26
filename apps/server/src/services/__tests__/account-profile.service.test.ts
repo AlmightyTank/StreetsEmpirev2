@@ -41,9 +41,10 @@ function prismaFor(isAdmin: boolean, unlocks: UnlockRow[] = []): PrismaClient {
       // Beta-tester awards look the account up when BETA_TESTER_DISCORD_LINKED is on in .env.
       findFirst: async () => null,
     },
-    accountProfile: {
-      findUnique: async () => profile,
-      upsert: async (args: { create: AccountProfile; update: AccountProfile }) => {
+      accountProfile: {
+        findUnique: async () => profile,
+        findFirst: async () => null,
+        upsert: async (args: { create: AccountProfile; update: AccountProfile }) => {
         // Like Prisma: update merges onto the saved row, and DbNull is stored as a plain null.
         profile = Object.fromEntries(Object.entries(profile ? { ...profile, ...args.update } : { ...args.create })
           .map(([key, value]) => [key, (value as unknown) === Prisma.DbNull ? null : value])) as AccountProfile;

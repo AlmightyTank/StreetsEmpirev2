@@ -27,7 +27,23 @@ const ACTION_LABELS: Readonly<Record<string, string>> = {
   STREET_PASS_CLAIM: 'Street Pass',
   SURVEY_COMPLETE: 'Survey reward',
   RING_DESTROY: 'Ring destroyed',
+  QUEST_CLAIM: 'Job payout',
 };
+
+/** Sentence-case fallback for an action key with no curated label: QUEST_CLAIM → "Quest claim". */
+function humanizeAction(action: string): string {
+  const words = action.replaceAll('_', ' ').toLowerCase();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+/**
+ * Older rows stored the raw lower-case fallback ("quest claim"). Show those
+ * with the curated label, or at least in sentence case.
+ */
+function displayLabel(source: string, label: string): string {
+  if (label !== source.replaceAll('_', ' ').toLowerCase()) return label;
+  return ACTION_LABELS[source] ?? humanizeAction(source);
+}
 
 function toBigInt(value: bigint | number): bigint {
   return typeof value === 'bigint' ? value : BigInt(Math.trunc(value));
@@ -44,7 +60,7 @@ export const EconomyLedgerService = {
     if (amountCents === 0n) return [];
     return [{
       source: action,
-      label: ACTION_LABELS[action] ?? action.replaceAll('_', ' ').toLowerCase(),
+      label: ACTION_LABELS[action] ?? humanizeAction(action),
       amountCents,
     }];
   },
@@ -137,7 +153,7 @@ export const EconomyLedgerService = {
           id: row.id,
           category: row.amountCents > 0n ? 'INCOME' as const : 'EXPENSE' as const,
           source: row.source,
-          label: row.label,
+          label: displayLabel(row.source, row.label),
           amountCents: Number(row.amountCents),
           createdAt: row.createdAt.toISOString(),
         })),

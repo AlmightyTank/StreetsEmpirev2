@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { formatCents, formatNumber, type PlayerQuestDto } from '@streets/shared';
 import { loadTrackedQuests, onQuestsChanged, peekTrackedQuests, trackedFromQuests } from '../quests/questSignals.js';
+import { contactRoomHref } from '../utils/contactRoom.js';
 
 function primaryProgress(quest: PlayerQuestDto): string {
   const objective = quest.objectives.find((item) => !item.bonus && !item.completed)
@@ -38,10 +39,12 @@ export function TrackedQuests() {
 
   return (
     <div className="se-tracked-quests" aria-label="Tracked quests">
-      <Link to="/game/quests?tab=active" className="se-tracked-quests__head">Tracked jobs</Link>
+      <Link to="/game/quests?view=jobs" className="se-tracked-quests__head">Tracked jobs</Link>
       <div className="se-tracked-quests__list">
         {quests.map((quest) => (
-          <Link key={quest.key} to={{ pathname: '/game/quests', search: '?tab=active', hash: `#quest-${encodeURIComponent(quest.key)}` }} className={'se-tracked-quest' + (quest.status === 'READY_TO_TURN_IN' ? ' se-tracked-quest--ready' : '')}>
+          <Link key={quest.key} to={quest.contactKey
+            ? `${contactRoomHref(quest.contactKey)}?job=${encodeURIComponent(quest.key)}`
+            : { pathname: '/game/quests', search: '?view=jobs', hash: `#quest-${encodeURIComponent(quest.key)}` }} className={'se-tracked-quest' + (quest.status === 'READY_TO_TURN_IN' ? ' se-tracked-quest--ready' : '')}>
             <span className="se-tracked-quest__name">{quest.title}</span>
             <span className="se-tracked-quest__progress">
               {quest.status === 'READY_TO_TURN_IN' ? 'Collect' : primaryProgress(quest)}

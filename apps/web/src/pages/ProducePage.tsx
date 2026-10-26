@@ -1,6 +1,6 @@
-import { useEffect, type FormEvent } from 'react';
+import { useEffect, useRef, type FormEvent } from 'react';
 import { isString, isTurns, rememberedKey, useRememberedState } from '../utils/remembered.js';
-import { Link, Navigate } from 'react-router-dom';
+import { Link, Navigate, useLocation } from 'react-router-dom';
 import type { ProduceCrackResult, ProductsDto, ProductTypeDto } from '@streets/shared';
 import { formatCents, formatCentsExact, formatNumber } from '@streets/shared';
 import { QuestLink } from '../components/QuestLink.js';
@@ -27,7 +27,7 @@ import { hasItemArt } from '../items/itemArt.js';
 type Profile = { key: ProductTypeDto; name: string; role: string; identity: string | null };
 
 /** What a round without a product economy cooks: crack, as it always has. */
-const CRACK_ONLY: Profile[] = [{ key: 'CRACK', name: 'Product', role: 'The one product this round. Cheap to cook and in every job.', identity: null }];
+const CRACK_ONLY: Profile[] = [{ key: 'CRACK', name: 'Drugs', role: 'The only drug in this round. Cheap to cook and in every job.', identity: null }];
 
 /** 0.4.0-D. The catalog's cookable products, from the round's recipes. Locked recipes are listed apart. */
 function recipeProfiles(data: ProductsDto | null): Profile[] {
@@ -38,6 +38,12 @@ function recipeProfiles(data: ProductsDto | null): Profile[] {
     role: recipeNumbers(product.recipe!),
     identity: recipeIdentity(product.recipe!),
   }));
+}
+
+function currentDrugProfiles(currentDrugs: Array<{ key: string; name: string }> | null): Profile[] {
+  return currentDrugs?.length
+    ? currentDrugs.map((drug) => ({ key: drug.key, name: drug.name, role: 'Current drug', identity: null }))
+    : CRACK_ONLY;
 }
 
 function ProduceMetric({
@@ -62,6 +68,9 @@ function ProduceMetric({
 
 export function ProducePage() {
   const me = useSession((s) => s.me);
+  const location = useLocation();
+  const tourTarget = (location.state as { tourTarget?: unknown } | null)?.tourTarget;
+  const guidedTourScrolled = useRef(false);
   const action = useGameAction<ProduceCrackResult>();
 
   const [turns, setTurns] = useRememberedState<number | ''>(rememberedKey('produce.turns', me?.id), 10, { accept: isTurns });
@@ -69,7 +78,7 @@ export function ProducePage() {
   // Quest Recipe Unlocks D: reloads when a job is claimed, so a new recipe shows up at once.
   const { catalog } = useProductsCatalog();
 
-  const PRODUCT_PROFILES = recipeProfiles(catalog);
+  const PRODUCT_PROFILES = catalog ? recipeProfiles(catalog) : currentDrugProfiles(me?.products ?? null);
   const lockedRecipes = splitRecipes(catalog).locked;
 
   // A remembered product this round no longer cooks falls back to the first one on offer.
@@ -79,6 +88,20 @@ export function ProducePage() {
     }
   }, [catalog, PRODUCT_PROFILES, productType, setProductType]);
 
+  useEffect(() => {
+    if (tourTarget !== 'produce-plan' || guidedTourScrolled.current) return;
+    const frame = window.requestAnimationFrame(() => {
+      const target = document.querySelector('[data-tour="produce-plan"]');
+      if (!target) return;
+      guidedTourScrolled.current = true;
+      target.scrollIntoView({
+        block: 'start',
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+      });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [tourTarget]);
+
   if (!me) return <Navigate to="/join" replace />;
 
   const available = me.turns.turns;
@@ -86,7 +109,7 @@ export function ProducePage() {
   const selectedProfile = PRODUCT_PROFILES.find((profile) => profile.key === productType) ?? PRODUCT_PROFILES[0]!;
   const selectedProduct = catalog?.products.find((product) => product.key === selectedProfile.key) ?? null;
   const recipe = selectedProduct?.recipe ?? null;
-  const currentStock = selectedProduct?.quantity ?? me.resources.product;
+  const currentStock = selectedProduct?.quantity ?? me.products?.find((product) => product.key === selectedProfile.key)?.quantity ?? me.resources.product;
   const chosenTurns = typeof turns === 'number' ? turns : 0;
   const remainingTurns = Math.max(0, available - chosenTurns);
   const producedName = action.result?.result.productName ?? selectedProfile.name;
@@ -124,7 +147,7 @@ export function ProducePage() {
         <header className="se-produce-hero">
           <div className="se-produce-hero__copy">
             <span className="se-eyebrow">Production floor · {me.city.name}</span>
-            <h1>Produce product</h1>
+            <h1>Produce drugs</h1>
 
           </div>
         </header>
@@ -138,7 +161,7 @@ export function ProducePage() {
             { key: 'turns', label: 'Turns available', value: formatNumber(available) },
             { key: 'cooks', label: 'Fit cooks', value: formatNumber(me.resources.fitThugs), tone: hasFitThugs ? 'good' : 'bad' },
             { key: 'recipe', label: 'Selected recipe', value: selectedProfile.name, hint: 'Quest-unlocked recipe' },
-            { key: 'stock', label: 'Product in stock', value: formatNumber(currentStock) },
+            { key: 'stock', label: 'Drugs in stock', value: formatNumber(currentStock) },
           ]}
         />
         {!hasFitThugs ? (
@@ -148,7 +171,7 @@ export function ProducePage() {
           </Alert>
         ) : null}
 
-        <div className="se-produce-plan">
+        <div className="se-produce-plan" data-tour="produce-plan" data-tour-card-anchor="produce-plan">
           <section className="se-produce-plan__main">
             <div className="se-produce-sectionhead">
               <div>
@@ -313,7 +336,7 @@ export function ProducePage() {
                   : null
             }
           />
-          <Button className="se-btn se-btn--primary" disabledReason={produceBlock} data-tour="produce">
+          <Button className="se-btn se-btn--primary" disabledReason={produceBlock}>
             {action.busy ? 'Producing...' : action.result ? 'Cook again' : `Start ${selectedProfile.name} batch`}
           </Button>
         </ActionDock>
@@ -427,3 +450,6 @@ export function ProducePage() {
     </GameLayout>
   );
 }
+import '../styles/produce.css';
+import '../styles/action-experience.css';
+import '../styles/action-readiness-accessibility.css';

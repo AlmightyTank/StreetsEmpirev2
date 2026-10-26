@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { classicOgV26J } from '@streets/rulesets';
 import {
+  COMPONENTS,
   cacheOdds,
   cacheQualityForTurns,
   districtSupplyClue,
@@ -7,6 +9,7 @@ import {
   makeCache,
   openCache,
   rollRarity,
+  scavengeFindCount,
 } from '../scavenging.service.js';
 
 describe('hideout scavenging', () => {
@@ -43,5 +46,23 @@ describe('hideout scavenging', () => {
     const firstReward = reward[0]!;
     expect(cache.eligiblePool.some((item) => item.key === firstReward.key)).toBe(true);
     expect(firstReward.quantity).toBeGreaterThan(0);
+  });
+
+  it('brings home at least one component per scouting trip', () => {
+    expect(scavengeFindCount(0)).toBe(0);
+    expect(scavengeFindCount(1)).toBe(1);
+    expect(scavengeFindCount(2)).toBe(1);
+    expect(scavengeFindCount(3)).toBe(2);
+    expect(scavengeFindCount(10)).toBe(5);
+  });
+
+});
+
+describe('The Board B part books', () => {
+  it('book exactly the scavenge catalog, at one price per rarity', () => {
+    const books: Readonly<Record<string, number>> = classicOgV26J.playerBoard.partBookCents;
+    const perRarity = { COMMON: 400, UNCOMMON: 2_500, RARE: 8_000, EPIC: 25_000, LEGENDARY: 250_000 };
+    expect(Object.keys(books).sort()).toEqual(COMPONENTS.map((row) => row.key).sort());
+    for (const { key, rarity } of COMPONENTS) expect(books[key], key).toBe(perRarity[rarity]);
   });
 });

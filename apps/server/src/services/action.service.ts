@@ -34,11 +34,8 @@ import { BossTripSettleService } from './boss-trip-settle.service.js';
 import { RunSettleService } from './run-settle.service.js';
 import { TurfService } from './turf.service.js';
 import { BusinessService } from './business.service.js';
-import { SupplyPropertySettleService } from './supply-property-settle.service.js';
-import { DealerSalesSettleService } from './dealer-sales-settle.service.js';
-import { SupplyLaneSettleService } from './supply-lane-settle.service.js';
-import { LoanSettleService } from './loan-settle.service.js';
 import { TurfWarSettlementService } from './turf-war-settle.service.js';
+import { HideoutBuildService } from './hideout-build.service.js';
 import { QuestProgressService } from './quest-progress.service.js';
 import { EconomyLedgerService, type EconomyLedgerWrite } from './economy-ledger.service.js';
 import { StreetPassCredService } from './street-pass-cred.service.js';
@@ -46,8 +43,6 @@ import { consumeGeneratorFuel } from './generator.service.js';
 import { recordHideoutEconomy } from './hideout-economy-telemetry.service.js';
 import { LawService, type CaseEvidence } from './law.service.js';
 import { LawWarrantService } from './law-warrant.service.js';
-import { CrewRosterService } from './crew-roster.service.js';
-import { CrewStaffingOrderService } from './crew-staffing-order.service.js';
 import { fitThugs } from './crew-availability.js';
 import { coolHeat, PlayerSkillService, type SkillEffects, type SkillXpAward } from './player-skill.service.js';
 
@@ -165,6 +160,11 @@ export interface PlayerState {
   hideoutBackOfficeLevel: number;
   hideoutGarageLevel: number;
   hideoutStorageLevel?: number;
+  /** The room under construction, if any; its level lands when the build is ready. */
+  hideoutBuildRoom?: string | null;
+  hideoutBuildLevel?: number | null;
+  hideoutBuildStartedAt?: Date | null;
+  hideoutBuildReadyAt?: Date | null;
   hideoutWeaponPriority: string;
   hideoutSafeRoomSpecialization: string | null;
   hideoutLookoutsSpecialization: string | null;
@@ -193,6 +193,8 @@ export interface PlayerState {
   generatorCapacityLevel?: number;
   generatorEfficiencyLevel?: number;
   scavengedComponents?: Prisma.InputJsonValue;
+  /** The Board C. Read-only here: only the Board service moves parts in and out of escrow. */
+  playerBoardEscrow?: Prisma.InputJsonValue;
 }
 
 export interface ActionContext {
@@ -336,6 +338,10 @@ export function toState(player: RoundPlayer): PlayerState {
     hideoutBackOfficeLevel: player.hideoutBackOfficeLevel,
     hideoutGarageLevel: player.hideoutGarageLevel,
     hideoutStorageLevel: player.hideoutStorageLevel,
+    hideoutBuildRoom: player.hideoutBuildRoom,
+    hideoutBuildLevel: player.hideoutBuildLevel,
+    hideoutBuildStartedAt: player.hideoutBuildStartedAt,
+    hideoutBuildReadyAt: player.hideoutBuildReadyAt,
     hideoutWeaponPriority: player.hideoutWeaponPriority,
     hideoutSafeRoomSpecialization: player.hideoutSafeRoomSpecialization,
     hideoutLookoutsSpecialization: player.hideoutLookoutsSpecialization,
@@ -356,6 +362,7 @@ export function toState(player: RoundPlayer): PlayerState {
     generatorCapacityLevel: player.generatorCapacityLevel,
     generatorEfficiencyLevel: player.generatorEfficiencyLevel,
     scavengedComponents: player.scavengedComponents as Prisma.InputJsonValue,
+    playerBoardEscrow: player.playerBoardEscrow as Prisma.InputJsonValue,
   };
 }
 
@@ -472,6 +479,8 @@ export const ActionService = {
       await ConvoyService.credit(tx, roundPlayerId, now);
       // 0.6.0-C: turf squads and allied backup return before another action reads them.
       await TurfWarSettlementService.credit(tx, roundPlayerId, now);
+      // Hideout construction that has finished lands before the player is read.
+      await HideoutBuildService.settle(tx, roundPlayerId, now);
 
       const loaded = await tx.roundPlayer.findUnique({
         where: { id: roundPlayerId },
@@ -504,18 +513,10 @@ export const ActionService = {
       const turfSettlement = await TurfService.settlePlayer(tx, roundPlayerId, ruleset, now);
       // 1.1.0-B: and business supply, income and any staff coming home from a lost block.
       const businessSettlement = await BusinessService.settlePlayer(tx, roundPlayerId, ruleset, now);
-      // 1.6.0-H: lane loads that have landed are in storage before anything reads it.
-      await SupplyLaneSettleService.settle(tx, roundPlayerId, ruleset, now);
-      // 1.6.0-F: dealer sales first, so their takings can meet the upkeep after.
-      const salesCash = await DealerSalesSettleService.settle(tx, roundPlayerId, ruleset, now);
-      // 1.6.0-D: and property upkeep that has fallen due.
-      const upkeepCash = await SupplyPropertySettleService.settleUpkeep(tx, roundPlayerId, ruleset, now);
-      // 1.6.5-A: installments that have fallen due on the server clock, after the day's takings.
-      const loanCash = await LoanSettleService.settle(tx, roundPlayerId, ruleset, now);
       // 1.3.0-C: and any warrant that is due is served before the action reads the player. A
       // personal warrant's lock-up takes hold from the next action.
       const warrantServed = await LawWarrantService.serveDue(tx, roundPlayerId, now);
-      if (turfSettlement || businessSettlement || warrantServed || salesCash !== null || upkeepCash !== null || loanCash !== null) {
+      if (turfSettlement || businessSettlement || warrantServed) {
         player = await tx.roundPlayer.findUniqueOrThrow({
           where: { id: roundPlayerId },
           include: { city: true },
@@ -585,14 +586,14 @@ export const ActionService = {
         turns: Math.max(0, current.turns - executed.turns),
         now,
       }, trigger) : undefined;
-      const staffing = await CrewStaffingOrderService.apply(tx, {
-        roundPlayerId,
-        ruleset,
-        now,
-        state: actionEncounter?.next ?? executed,
-        player,
-      });
-      const next = staffing.next;
+      let next = actionEncounter?.next ?? executed;
+      // Scouting finds and workshop ingredients are written by their own services mid-action. Unless
+      // the action handed back a new balance itself (a hideout build), re-read the stored one so the
+      // whole-state write below does not put the old balance back, and net worth counts the new one.
+      if (next.scavengedComponents === current.scavengedComponents) {
+        const stored = await tx.roundPlayer.findUniqueOrThrow({ where: { id: roundPlayerId }, select: { scavengedComponents: true } });
+        next = { ...next, scavengedComponents: stored.scavengedComponents as Prisma.InputJsonValue };
+      }
       assertPlayerState(next, ruleset, 'after');
       assertLoanDebtChange(current.loanDebtCents, next.loanDebtCents, ruleset);
 
@@ -656,9 +657,6 @@ export const ActionService = {
             : {}),
         },
       });
-
-      // 1.7.0-A: the crew's members follow the counts the action just wrote.
-      await CrewRosterService.sync(tx, roundPlayerId, ruleset, now, next);
 
       // Street Pass: turns spent on this action earn Cred, up to the daily cap.
       const turnsSpent = Math.max(0, current.turns - next.turns);
@@ -765,7 +763,6 @@ export const ActionService = {
         result: outcome.result,
         ...(skills.receipts().length ? { modifiers: skills.receipts() } : {}),
         ...(actionEncounter?.encounter ? { encounter: actionEncounter.encounter } : {}),
-        ...(staffing.fills.length ? { staffingOrders: staffing.fills } : {}),
         rankChanges,
       };
 

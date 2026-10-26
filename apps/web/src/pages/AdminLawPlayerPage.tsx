@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import '../styles/admin.css';
 import { Link, useParams } from 'react-router-dom';
 import type { AdminLawPlayerDto } from '@streets/shared';
 import { adminApi } from '../api/admin.js';

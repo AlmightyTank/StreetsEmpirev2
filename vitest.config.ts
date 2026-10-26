@@ -9,6 +9,20 @@ const root = import.meta.dirname;
 const integrationRequested = Object.entries(process.env).some(
   ([name, value]) => name.endsWith('_INTEGRATION') && value === '1',
 );
+const fullTestSuite =
+  process.env.FULL_TESTS === '1' ||
+  process.env.npm_lifecycle_event === 'test:full' ||
+  process.env.npm_lifecycle_event === 'test:full:watch';
+
+// Keep the default feedback loop short. The full suite remains available through `npm run
+// test:full` for release work and focused investigations.
+const smokeTests = [
+  'packages/rules-engine/src/__tests__/actions.test.ts',
+  'packages/rules-engine/src/__tests__/combat.test.ts',
+  'packages/rules-engine/src/__tests__/turns.test.ts',
+  'packages/shared/src/__tests__/theme.test.ts',
+  'apps/web/src/utils/__tests__/time.test.ts',
+];
 
 export default defineConfig({
   resolve: {
@@ -22,7 +36,9 @@ export default defineConfig({
     },
   },
   test: {
-    include: ['packages/**/*.test.{ts,tsx}', 'apps/**/src/**/*.test.{ts,tsx}'],
+    include: fullTestSuite
+      ? ['packages/**/*.test.{ts,tsx}', 'apps/**/src/**/*.test.{ts,tsx}']
+      : smokeTests,
     exclude: integrationRequested
       ? configDefaults.exclude
       : [...configDefaults.exclude, '**/*.integration.test.{ts,tsx}'],

@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 480">
+  <!-- Pip's stockroom: the back table where the second book lives, the old scale, sacks and sealed bags on wire racks. -->
+  <defs>
+    <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#16201a"/><stop offset="1" stop-color="#0c140f"/></linearGradient>
+    <radialGradient id="lamp" cx=".5" cy=".85" r=".5"><stop offset="0" stop-color="#e8ffd8" stop-opacity=".45"/><stop offset="1" stop-color="#90c890" stop-opacity="0"/></radialGradient>
+    <linearGradient id="table" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4a3a28"/><stop offset="1" stop-color="#241a10"/></linearGradient>
+  </defs>
+  <rect width="1200" height="480" fill="url(#wall)"/>
+  <!-- Wire racks, left -->
+  <g stroke="#5a6a60" stroke-width="4"><path d="M40 60v360M380 60v360M40 140h340M40 240h340M40 340h340"/></g>
+  <g fill="#c9c2a8" fill-opacity=".85"><path d="M60 140v-46l16-10h44l16 10v46z"/><path d="M150 140v-40l16-10h44l16 10v40z"/><path d="M250 140v-50l16-10h44l16 10v50z"/></g>
+  <g fill-opacity=".85"><rect x="60" y="200" width="60" height="40" rx="5" fill="#5aa57a"/><rect x="130" y="196" width="60" height="44" rx="5" fill="#5aa57a"/><rect x="220" y="204" width="60" height="36" rx="5" fill="#d8c35a"/><rect x="290" y="200" width="70" height="40" rx="5" fill="#c86a4a"/><rect x="70" y="296" width="100" height="44" rx="5" fill="#3d6b52"/><rect x="190" y="300" width="80" height="40" rx="5" fill="#d8c35a"/></g>
+  <!-- Wall calendar of weights, right -->
+  <rect x="860" y="70" width="280" height="200" fill="#e8e6d8" fill-opacity=".8" stroke="#2a3a30" stroke-width="6"/>
+  <g stroke="#2a3a30" stroke-opacity=".55" stroke-width="2"><path d="M860 110h280M860 150h280M860 190h280M860 230h280M930 70v200M1000 70v200M1070 70v200"/></g>
+  <g fill="#a83a2a" fill-opacity=".7"><circle cx="965" cy="130" r="8"/><circle cx="1035" cy="210" r="8"/></g>
+  <!-- Desk lamp light pooling on the table -->
+  <rect width="1200" height="480" fill="url(#lamp)"/>
+  <path d="M760 420l6-30h50l6 30z" fill="#2e6a4a"/><path d="M790 390l-30-60" stroke="#2e6a4a" stroke-width="6"/>
+  <!-- The table: two books open, the old scale -->
+  <rect y="420" width="1200" height="60" fill="url(#table)"/><rect y="416" width="1200" height="6" fill="#6a5438"/>
+  <path d="M380 426l90-16 90 16z" fill="#ece4cc"/><path d="M470 410v16" stroke="#a89a7a" stroke-width="2"/>
+  <path d="M580 426l70-12 70 12z" fill="#d8c8a0"/><path d="M650 414v12" stroke="#a89a7a" stroke-width="2"/>
+  <ellipse cx="960" cy="414" rx="60" ry="8" fill="#9aa39e"/><rect x="952" y="380" width="16" height="32" fill="#7d8681"/><ellipse cx="960" cy="378" rx="44" ry="7" fill="#b9c2bd"/>
+</svg>

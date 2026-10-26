@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import '../styles/easter-eggs.css';
 import { Link } from 'react-router-dom';
 import { easterEggsApi } from '../api/easterEggs.js';
 import { InfoLayout } from '../layouts/InfoLayout.js';

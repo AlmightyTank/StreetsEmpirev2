@@ -5,7 +5,7 @@ import { Button } from './Button.js';
 import { ItemTile } from './ItemTile.js';
 import { type ItemArtKey } from '../items/itemArt.js';
 
-export function WorkshopPanel({ workshop, onChanged }: { workshop: CraftingWorkshopDto; onChanged: (value: CraftingWorkshopDto) => void }) {
+export function WorkshopPanel({ workshop, onChanged, heading = true }: { workshop: CraftingWorkshopDto; onChanged: (value: CraftingWorkshopDto) => void; heading?: boolean }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -23,13 +23,13 @@ export function WorkshopPanel({ workshop, onChanged }: { workshop: CraftingWorks
   }
 
   return <section className="se-hideout-section se-workshop-section">
-    <div className="se-hideout-sectionhead">
+    {heading ? <div className="se-hideout-sectionhead">
       <span className="se-eyebrow">Hideout workshop</span>
       <div>
         <h2>Crafting bench</h2>
         <p>Review every input, turn cost, power requirement, and output before committing. Repeating one recipe trains more slowly.</p>
       </div>
-    </div>
+    </div> : <p className="se-hideout-inline-note">Review every input, turn cost, power requirement, and output before committing. Repeating one recipe trains more slowly.</p>}
     <div className="se-panel se-workshop">
       <div className="se-stash__summary se-workshop__summary"><strong>Workshop skill {formatNumber(workshop.skill)}</strong><span>{formatNumber(workshop.skillXp)} XP · level {formatNumber(workshop.level)}</span></div>
       {error ? <p className="se-error" role="alert">{error}</p> : null}

@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 480">
+  <!-- The north road at night: two lanes to the horizon, the mile marker, a truck's lights far off. -->
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#080c18"/><stop offset=".7" stop-color="#16203a"/><stop offset="1" stop-color="#2a2a40"/></linearGradient>
+    <radialGradient id="moon" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#dce8ff" stop-opacity=".45"/><stop offset="1" stop-color="#dce8ff" stop-opacity="0"/></radialGradient>
+    <linearGradient id="road" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1a1c22"/><stop offset="1" stop-color="#2c2e36"/></linearGradient>
+    <radialGradient id="head" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fff2c0" stop-opacity=".6"/><stop offset="1" stop-color="#fff2c0" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="1200" height="480" fill="url(#sky)"/>
+  <g fill="#fff" fill-opacity=".6"><circle cx="90" cy="50" r="1.5"/><circle cx="220" cy="90" r="1.2"/><circle cx="340" cy="40" r="1.4"/><circle cx="860" cy="70" r="1.3"/><circle cx="980" cy="30" r="1.5"/><circle cx="1120" cy="100" r="1.2"/><circle cx="1060" cy="160" r="1"/><circle cx="160" cy="150" r="1"/></g>
+  <ellipse cx="1010" cy="90" rx="90" ry="90" fill="url(#moon)"/><circle cx="1010" cy="90" r="22" fill="#e8eef8"/>
+  <!-- Treeline and hills -->
+  <path d="M0 300c120-30 220-10 340-30s200 10 260 0 240-40 360-20 160 20 240 10V420H0z" fill="#0a0e14"/>
+  <g fill="#080a10"><path d="M40 300l18-60 18 60zM90 296l22-74 22 74zM150 292l16-50 16 50zM980 286l20-66 20 66zM1040 290l24-80 24 80zM1110 294l18-56 18 56z"/></g>
+  <!-- Road to the horizon -->
+  <path d="M560 300h80l560 120H0z" fill="url(#road)"/>
+  <g fill="#e8d870" fill-opacity=".7"><path d="M596 306h8l2 12h-12zM592 334h16l4 20h-24zM584 376h32l6 30h-44z"/></g>
+  <path d="M560 300L0 420M640 300l560 120" stroke="#c8c8c8" stroke-opacity=".35" stroke-width="3"/>
+  <!-- Far headlights -->
+  <ellipse cx="590" cy="302" rx="22" ry="8" fill="url(#head)"/><circle cx="584" cy="302" r="2" fill="#fff8d8"/><circle cx="596" cy="302" r="2" fill="#fff8d8"/>
+  <!-- Mile marker, right -->
+  <rect x="880" y="250" width="8" height="150" fill="#9aa0a8"/><rect x="852" y="214" width="64" height="80" rx="4" fill="#2a6a3a" stroke="#e8eef8" stroke-width="3"/>
+  <text x="884" y="244" text-anchor="middle" font-family="Arial, sans-serif" font-weight="700" font-size="14" fill="#e8eef8">MILE</text>
+  <text x="884" y="282" text-anchor="middle" font-family="Arial, sans-serif" font-weight="700" font-size="32" fill="#e8eef8">9</text>
+  <!-- Guard rail, left -->
+  <path d="M0 380l300-48" stroke="#8a9098" stroke-width="8"/><g fill="#6a7078"><rect x="40" y="370" width="6" height="40"/><rect x="140" y="354" width="6" height="40"/><rect x="240" y="338" width="6" height="40"/></g>
+  <!-- Shoulder gravel -->
+  <rect y="420" width="1200" height="60" fill="#22201e"/><rect y="416" width="1200" height="6" fill="#3a3632"/>
+</svg>

@@ -3,6 +3,7 @@ import type { IconName } from '../layouts/gameNav.js';
 /** 24px line icons for the phone tab bar and the More sheet. Stroke takes the text colour. */
 const PATHS: Record<IconName, string> = {
   dashboard: 'M4 4h7v7H4zM13 4h7v4h-7zM13 10h7v10h-7zM4 13h7v7H4z',
+  blocks: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z',
   hideout: 'M3 11 12 4l9 7M5 10v10h14V10M10 20v-6h4v6',
   scout: 'M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21zM12 12.5a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
   produce: 'M9 3h6M10 3v6L4.5 18.5A1.7 1.7 0 0 0 6 21h12a1.7 1.7 0 0 0 1.5-2.5L14 9V3M7 15h10',
@@ -21,6 +22,7 @@ const PATHS: Record<IconName, string> = {
   fame: 'M8 4h8v5a4 4 0 0 1-8 0zM8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8 21h8M9 17h6v4H9z',
   account: 'M12 3a2 2 0 0 1 2 2v1.1a7.8 7.8 0 0 1 1.8.8l.8-.8a2 2 0 0 1 2.8 2.8l-.8.8a7.8 7.8 0 0 1 .8 1.8H20a2 2 0 0 1 0 4h-1.1a7.8 7.8 0 0 1-.8 1.8l.8.8a2 2 0 0 1-2.8 2.8l-.8-.8a7.8 7.8 0 0 1-1.8.8V20a2 2 0 0 1-4 0v-1.1a7.8 7.8 0 0 1-1.8-.8l-.8.8a2 2 0 0 1-2.8-2.8l.8-.8a7.8 7.8 0 0 1-.8-1.8H4a2 2 0 0 1 0-4h1.1a7.8 7.8 0 0 1 .8-1.8l-.8-.8a2 2 0 0 1 2.8-2.8l.8.8a7.8 7.8 0 0 1 1.8-.8V5a2 2 0 0 1 2-2zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
   drop: 'M3 8l4.5 4L12 5l4.5 7L21 8l-2 10H5L3 8zM5 21h14',
+  market: 'M3 7h18M5 7l1.5-3h11L19 7M5 7v13h14V7M9 11h6M9 15h6',
   pass: 'M4 7.5A2.5 2.5 0 0 0 6.5 5h11A2.5 2.5 0 0 0 20 7.5v2a2.5 2.5 0 0 0 0 5v2a2.5 2.5 0 0 0-2.5 2.5h-11A2.5 2.5 0 0 0 4 16.5v-2a2.5 2.5 0 0 0 0-5zM14 5v2.5M14 10.8v2.4M14 16.5V19',
   admin: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 13a7.5 7.5 0 0 0 0-2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-1.7-1L15 3.5h-4l-.3 2.5a7 7 0 0 0-1.7 1l-2.4-1-2 3.4 2 1.6a7.5 7.5 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 1.7 1l.3 2.5h4l.3-2.5a7 7 0 0 0 1.7-1l2.4 1 2-3.4z',
 };

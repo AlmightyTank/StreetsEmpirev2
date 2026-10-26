@@ -30,6 +30,11 @@ function externalLink(rawUrl) {
   }
 }
 
+/** Discord may hand OAuth approval to its installed desktop client. */
+function discordAppLink(rawUrl) {
+  return typeof rawUrl === 'string' && /^discord:\/\//i.test(rawUrl);
+}
+
 /** Coarse page-only labels: never read or publish hidden game state. */
 function presenceForUrl(rawUrl) {
   let url;
@@ -57,4 +62,4 @@ function presenceForUrl(rawUrl) {
   return { details: 'Playing StreetsEmpire', state };
 }
 
-module.exports = { GAME_ORIGINS, trustedNavigation, externalLink, presenceForUrl };
+module.exports = { GAME_ORIGINS, trustedNavigation, externalLink, discordAppLink, presenceForUrl };

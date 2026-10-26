@@ -51,7 +51,6 @@ export function routeIdentity(pathname: string): string {
   if (path === '/game/travel') return 'travel';
   if (path === '/game/turf') return 'turf';
   if (path === '/game/operations') return 'operations';
-  if (path === '/game/black-book') return 'black-book';
   if (path === '/game/rankings') return 'rankings';
   if (path === '/game/alliance') return 'alliance';
   if (path === '/game/alliances') return 'alliances';
@@ -198,9 +197,9 @@ function HudIcon({ name }: { name: 'cash' | 'turns' | 'heat' | 'worth' | 'ammo' 
       <>
       <LegacyHudIcon name="turns" />
       <svg className="se-statusbar__icon se-statusbar__icon--turns se-statusbar__icon--illustrated" viewBox="0 0 40 40" width="24" height="24" aria-hidden="true" focusable="false">
-        <path d="M23 2 8 22h11l-3 16 17-24H22Z" fill="#2797ff"/>
-        <path d="M23 2 12 21h10l-5 16 16-23H22Z" fill="#75d6ff"/>
-        <path d="M23 4 15 20h8l-4 12 11-17H21Z" fill="#c8f4ff" opacity=".72"/>
+        <path d="M23 2 8 22h11l-3 16 17-24H22Z" fill="currentColor"/>
+        <path d="M23 2 12 21h10l-5 16 16-23H22Z" fill="currentColor" opacity=".68"/>
+        <path d="M23 4 15 20h8l-4 12 11-17H21Z" fill="currentColor" opacity=".4"/>
       </svg>
       </>
     );
@@ -459,8 +458,10 @@ function AccountMenu({ onLogout }: { onLogout: () => void }) {
             <strong>{account.username}</strong>
             {me ? <span className="se-muted">{me.city?.name ?? 'In the game'}</span> : <span className="se-muted">Not in a season</span>}
           </div>
-          {me ? <Link className="se-account__item" to="/game/profile">Your profile</Link> : null}
-          <Link className="se-account__item" to="/account">Account settings</Link>
+           {me ? <Link className="se-account__item" to="/game/profile">Your profile</Link> : null}
+           <Link className="se-account__item" to="/game/supporter">Supporter</Link>
+           <Link className="se-account__item" to="/game/status">Status &amp; Support</Link>
+           <Link className="se-account__item" to="/account">Account settings</Link>
           <button type="button" className="se-account__item se-account__item--out" onClick={onLogout}>Log out</button>
         </div>
       ) : null}
@@ -502,7 +503,6 @@ function Footer() {
             <a href={`${PUBLIC_SITE_ORIGIN}/about`}>About</a>
             <a href={`${PUBLIC_SITE_ORIGIN}/community`}>Community</a>
             <a href={`${PUBLIC_SITE_ORIGIN}/beta`}>Beta</a>
-            <Link to="/game/status">Status</Link>
             <a href={`${PUBLIC_SITE_ORIGIN}/support`}>Support</a>
             <a href={`${PUBLIC_SITE_ORIGIN}/privacy`}>Privacy</a>
             <a href={`${PUBLIC_SITE_ORIGIN}/terms`}>Terms</a>

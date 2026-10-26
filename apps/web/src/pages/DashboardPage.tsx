@@ -7,7 +7,6 @@ import { ActivityFeed } from '../components/ActivityFeed.js';
 import { NavIcon } from '../components/NavIcon.js';
 import type { IconName } from '../layouts/gameNav.js';
 import { DashboardStorySpotlight } from '../components/DashboardStorySpotlight.js';
-import { DashboardCaseSpotlight } from '../components/DashboardCaseSpotlight.js';
 import { ItemTile } from '../components/ItemTile.js';
 import { hasItemArt } from '../items/itemArt.js';
 import { Alert } from '../components/Alert.js';
@@ -19,7 +18,6 @@ import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
 import { roundAftermathPublicEnabled } from '../config/features.js';
 import { HeatPanel, heatTone } from '../components/HeatPanel.js';
-import { CasePanel } from '../components/CasePanel.js';
 import { PendingEncountersPanel } from '../components/PendingEncountersPanel.js';
 import { formatClockTime, formatDate, formatDuration, formatWhen } from '../utils/time.js';
 import { dashboardAttentionState, dashboardDisclosureForHash } from '../utils/dashboardAttention.js';
@@ -140,7 +138,7 @@ function DashboardAction({
   detail: string;
   meta: string;
   icon: IconName;
-  kind: 'scout' | 'produce' | 'raids' | 'casino' | 'travel' | 'quests';
+  kind: 'scout' | 'produce' | 'raids' | 'stores' | 'travel' | 'quests';
   tone?: 'warn' | 'bad' | 'good';
 }) {
   return (
@@ -437,7 +435,7 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
             <span>National rank</span><strong>{me.rank.national === null ? '—' : `#${formatNumber(me.rank.national)}`}</strong>
             <small><RankMovement movement={me.rank.nationalMovement} /></small>
           </Link>
-          <Link className="se-dashboard-snapshot__tile" to="/game/crew">
+          <Link className="se-dashboard-snapshot__tile" to="/game#crew-health">
             <span className="se-dashboard-snapshot__icon" aria-hidden="true"><NavIcon name="contacts" /></span>
             <span>Fit crew</span><strong>{formatNumber(me.resources.fitThugs)}</strong>
             <small>{formatNumber(me.resources.thugs)} total thugs · {formatNumber(me.resources.woundedThugs)} wounded</small>
@@ -457,7 +455,6 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
         </div>
         <section className="se-dashboard-overview" aria-label="Main story and important alerts">
           <DashboardStorySpotlight />
-          <DashboardCaseSpotlight />
           <div className={`se-dashboard-command__attention${attentionCount ? ' se-dashboard-command__attention--alerts' : ''}${criticalAttention ? ' se-dashboard-command__attention--urgent' : ''}`}>
             <div className="se-dashboard-sectionhead">
               <div>
@@ -616,11 +613,11 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
                   tone={me.resources.woundedThugs > 0 ? 'warn' : undefined}
                 />
                 <DashboardAction
-                  to="/game/casino"
-                  icon="casino" kind="casino"
-                  title="Casino"
-                  detail="Slots, blackjack, roulette, poker and more."
-                  meta="Games"
+                  to="/game/stores"
+                  icon="stores" kind="stores"
+                  title="Stores"
+                  detail="Buy supplies, weapons, crew, and cars."
+                  meta={formatCents(me.resources.cashCents)}
                 />
                 <DashboardAction
                   to="/game/travel"
@@ -671,7 +668,7 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
           <div className="se-dashboard-command__column se-dashboard-command__column--left">
           <details id="crew-inventory" className="se-dashboard-fold" open={showCrewDetails} onToggle={(event) => setShowCrewDetails(event.currentTarget.open)}>
             <summary className="se-dashboard-fold__summary">
-              <span><strong>Crew, supplies & arsenal</strong><small>Personnel readiness, stock, weapons and assignments</small></span>
+              <span><strong>Crew, supplies, arsenal, happiness &amp; product stock</strong><small>Personnel readiness, supplies, weapons, morale and stored product</small></span>
               <span aria-hidden="true">+</span>
             </summary>
           <section className="se-dashboard-section se-dashboard-section--divided">
@@ -779,7 +776,7 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
         <details className="se-dashboard-fold se-dashboard-fold--wide" open={showPressureDetails}
           onToggle={(event) => setShowPressureDetails(event.currentTarget.open)}>
           <summary className="se-dashboard-fold__summary">
-            <span><strong>Pressure, payout & progression</strong><small>Heat, cases, payout, turf earnings and Hideout upgrades</small></span>
+            <span><strong>Pressure, payout & progression</strong><small>Heat, payout, turf earnings and Hideout upgrades</small></span>
             <span aria-hidden="true">+</span>
           </summary>
         <section className="se-dashboard-section">
@@ -789,14 +786,13 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
               <h2>Pressure & progression</h2>
             </div>
             <p>Manage risk, payout, territory, and the upgrades that shape this season.</p>
-          </div>
+           </div>
 
-          <div className="se-dashboard-controlgrid">
-            {holdingsAvailable ? <p><Link className="se-dashboard-holdings-link" to="/game/holdings">View city holdings →</Link></p> : null}
-            <div className="se-dashboard-stack">
-              <HeatPanel />
-              <CasePanel />
-            </div>
+           <div className="se-dashboard-controlgrid">
+             <div className="se-dashboard-stack">
+               <HeatPanel />
+               {holdingsAvailable ? <p><Link className="se-dashboard-holdings-link" to="/game/holdings">View city holdings →</Link></p> : null}
+             </div>
 
             <div className="se-dashboard-stack">
               <PayoutControl />
@@ -862,3 +858,9 @@ export function DashboardPage() {
 
   return <Navigate to="/join" replace />;
 }
+import '../styles/dashboard.css';
+import '../styles/career-story.css';
+import '../styles/dashboard-cinematic.css';
+import '../styles/dashboard-final-polish.css';
+import '../styles/empire-management.css';
+import '../styles/street-sign-backdrops.css';

@@ -593,3 +593,4 @@ export function SurveysPage() {
     </GameLayout>
   );
 }
+import '../styles/surveys.css';

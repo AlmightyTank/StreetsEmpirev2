@@ -1701,6 +1701,8 @@
 
 /* Render the real equipped frame here so the preview never uses a separate crop. */
 .se-pass-theme-preview__frame-stage > .se-avatar-portrait {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
 }
@@ -2041,4 +2043,10 @@ img.se-pass-theme-preview__frame-avatar {
 .se-level-lock__list {
   margin: 6px 0;
   padding-left: 18px;
+}
+
+/* A real tap target on phones: at least 44px tall, 24px with a mouse. */
+.se-pass-hero__skip { display: inline-flex; align-items: center; min-height: 24px; margin-top: 4px; color: var(--se-accent); font-size: var(--se-type-sm); font-weight: 600; }
+@media (pointer: coarse) {
+  .se-pass-hero__skip { min-height: 44px; }
 }

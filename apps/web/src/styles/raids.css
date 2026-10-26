@@ -124,6 +124,7 @@
 
 .se-raids-plan__main,
 .se-raids-plan__intel {
+  scroll-margin-top: 360px;
   min-width: 0;
   border: 1px solid var(--se-line);
   border-radius: 4px;
@@ -142,6 +143,10 @@
   display: grid;
   gap: 12px;
   padding: 16px;
+}
+
+.se-dock[data-tour="first-raid"] {
+  scroll-margin-top: 360px;
 }
 
 .se-raids-section,

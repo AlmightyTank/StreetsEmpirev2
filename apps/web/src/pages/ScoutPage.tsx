@@ -1,6 +1,6 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { isString, isTurns, rememberedKey, useRememberedState } from '../utils/remembered.js';
-import { Link, Navigate, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useLocation, useSearchParams } from 'react-router-dom';
 import type { DistrictDto, RandomEncounterChoiceResult, ScoutResult } from '@streets/shared';
 import { formatNumber } from '@streets/shared';
 import { EncounterEggNote } from '../components/EasterEggs.js';
@@ -10,14 +10,11 @@ import { ActionReadiness, OperationDetails } from '../components/ActionReadiness
 import { ActionResult } from '../components/ActionResult.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
-import { CityDistrictMap, type CityDistrictMapEntry } from '../components/CityDistrictMap.js';
 import { DistrictPicker } from '../components/DistrictPicker.js';
 import { Panel, Row } from '../components/Panel.js';
 import { TurnSpend } from '../components/TurnSpend.js';
 import { WorkSupplyPanel, WorkSupplyStockRows } from '../components/WorkSupplyPanel.js';
 import { HeatNotice } from '../components/HeatPanel.js';
-import { CrewTeamPicker } from '../components/CrewTeamPicker.js';
-import { EmpireAreaLegend } from '../components/EmpireManagement.js';
 import { useGameAction } from '../hooks/useGameAction.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { scoutReceiptLines } from '../receipts/actionReceipts.js';
@@ -44,10 +41,6 @@ function ScoutMetric({
   );
 }
 
-function isIdList(value: unknown): value is string[] {
-  return Array.isArray(value) && value.length <= 5 && value.every((entry) => typeof entry === 'string');
-}
-
 function coverageTone(district: DistrictDto | undefined): 'good' | 'warn' | 'bad' {
   if (!district || district.exposedFraction <= 0) return 'good';
   return district.exposedFraction < 0.35 ? 'warn' : 'bad';
@@ -55,7 +48,10 @@ function coverageTone(district: DistrictDto | undefined): 'good' | 'warn' | 'bad
 
 export function ScoutPage() {
   const me = useSession((s) => s.me);
+  const location = useLocation();
   const [searchParams] = useSearchParams();
+  const tourTarget = (location.state as { tourTarget?: unknown } | null)?.tourTarget;
+  const guidedTourScrolled = useRef(false);
   const requestedDistrict = searchParams.get('district') ?? '';
   const action = useGameAction<ScoutResult>();
   const encounterAction = useGameAction<RandomEncounterChoiceResult>();
@@ -65,13 +61,6 @@ export function ScoutPage() {
   const [district, setDistrict] = useRememberedState<string>(rememberedKey('scout.district', me?.id), '', { accept: isString });
   const [turns, setTurns] = useRememberedState<number | ''>(rememberedKey('scout.turns', me?.id), 13, { accept: isTurns });
   const [loadError, setLoadError] = useState<string | null>(null);
-  // Lena stays picked between visits (per player); stale ids simply match nothing.
-  const [scoutTeam, setScoutTeam] = useRememberedState<string[]>(rememberedKey('scout.team', me?.id), [], { accept: isIdList });
-
-  // Refetched whenever the crew changes, because the visible coverage on offer
-  // depends on how many people and armed fit thugs the player has available.
-  const crewSize = me ? me.resources.whores + me.resources.fitThugs : 0;
-
   useEffect(() => {
     actionsApi
       .districts()
@@ -80,31 +69,38 @@ export function ScoutPage() {
         setDistrict((current) => resolveScoutDistrict(response.districts, requestedDistrict, current));
       })
       .catch(() => setLoadError('Could not load the districts. Try again in a moment.'));
-  }, [crewSize, requestedDistrict]);
+  }, [requestedDistrict]);
+
+  useEffect(() => {
+    if (tourTarget !== 'scout-plan' || guidedTourScrolled.current) return;
+    const frame = window.requestAnimationFrame(() => {
+      const target = document.querySelector('[data-tour="scout-plan"]');
+      if (!target) return;
+      guidedTourScrolled.current = true;
+      target.scrollIntoView({
+        block: 'start',
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+      });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [tourTarget]);
+
+  const available = me?.turns.turns ?? 0;
+  useEffect(() => {
+    if (tourTarget !== 'scout-plan' || available < 1) return;
+    // The first street read should use the full 13-turn trip whenever the
+    // player has enough turns; never push the control beyond what is available.
+    setTurns((current) => Math.min(available, Math.max(13, typeof current === 'number' ? current : 13)));
+  }, [available, setTurns, tourTarget]);
 
   if (!me) return <Navigate to="/join" replace />;
 
-  const available = me.turns.turns;
   const selectedDistrict = districts.find((row) => row.key === district && isScoutDistrictUnlocked(row));
   const exposurePercent = selectedDistrict ? Math.round(selectedDistrict.exposedFraction * 100) : 0;
   const coveredPercent = 100 - exposurePercent;
   const districtTone = coverageTone(selectedDistrict);
   const chosenTurns = typeof turns === 'number' ? turns : 0;
   const remainingTurns = Math.max(0, available - chosenTurns);
-  const mapDistricts = districts.map((entry): CityDistrictMapEntry => {
-    if (entry.districtAccess?.unlocked === false) {
-      return { district: entry.key, name: entry.name, status: 'locked', statusText: 'Locked', detail: `Unlock with ${entry.districtAccess.unlockName}` };
-    }
-    const exposure = Math.round(entry.exposedFraction * 100);
-    const tone = coverageTone(entry);
-    return {
-      district: entry.key,
-      name: entry.name,
-      status: tone === 'good' ? 'coverage-covered' : tone === 'warn' ? 'coverage-warn' : 'coverage-bad',
-      statusText: exposure === 0 ? 'Covered' : `${exposure}% exposed`,
-      detail: `${100 - exposure}% crew covered`,
-    };
-  });
   const supplyJobs = selectedDistrict
     ? [{ job: selectedDistrict.key, label: selectedDistrict.name }]
     : [];
@@ -149,7 +145,7 @@ export function ScoutPage() {
     const grantStorageKey = accessKey ? `se-territory-grant-${accessKey}` : null;
     const territoryAccessGrantId = grantStorageKey ? sessionStorage.getItem(grantStorageKey) ?? undefined : undefined;
     await action.run(async (actionId) => {
-      const result = await actionsApi.scout({ district, turns, ...(scoutTeam.length ? { crewMemberIds: scoutTeam } : {}), ...(territoryAccessGrantId ? { territoryAccessGrantId } : {}), actionId });
+      const result = await actionsApi.scout({ district, turns, ...(territoryAccessGrantId ? { territoryAccessGrantId } : {}), actionId });
       if (territoryAccessGrantId && grantStorageKey) sessionStorage.removeItem(grantStorageKey);
       return result;
     });
@@ -187,7 +183,7 @@ export function ScoutPage() {
 
 
 
-        <div className="se-scout-plan">
+        <div className="se-scout-plan" data-tour="scout-plan" data-tour-card-anchor="scout-plan">
           <section className="se-scout-plan__main">
             <div className="se-scout-sectionhead">
               <div>
@@ -207,7 +203,6 @@ export function ScoutPage() {
               onChange={chooseDistrict}
               disabled={action.busy}
             />
-            <CrewTeamPicker role="WORKER" specialty="SCOUT" selectedIds={scoutTeam} onChange={setScoutTeam} disabled={action.busy} refreshKey={action.result} />
           </section>
 
           <aside className="se-scout-plan__intel">
@@ -296,12 +291,14 @@ export function ScoutPage() {
             chips: resultChips(action.result, receiptLines!),
             receipt: (
               <>
-                <ActionResult
-                  title="Scouting Results"
-                  subtitle={action.result.result.district.name}
-                  result={action.result}
-                  lines={receiptLines!}
-                />
+                <div data-tour="scout-result">
+                  <ActionResult
+                    title="Scouting Results"
+                    subtitle={action.result.result.district.name}
+                    result={action.result}
+                    lines={receiptLines!}
+                  />
+                </div>
                 {pendingEncounter ? (
                   <Panel title={pendingEncounter.title} className="se-scout-panel">
                     <p className="se-scout-copy">{pendingEncounter.text}</p>
@@ -357,38 +354,6 @@ export function ScoutPage() {
             {action.busy ? 'Working the block...' : action.result ? 'Send again' : 'Send crew scouting'}
           </Button>
         </ActionDock>
-
-        <details className="se-scout-map-details">
-          <summary>
-            <span><span className="se-eyebrow">City overview · {me.city.name}</span><strong>District map</strong></span>
-            <span>{selectedDistrict?.name ?? 'Choose an area'} · {coveredPercent}% covered</span>
-          </summary>
-          <div className="se-citymap-layout">
-            <CityDistrictMap
-              citySlug={me.city.slug}
-              cityName={me.city.name}
-              districts={mapDistricts}
-              selectedDistrict={district}
-              onSelect={chooseDistrict}
-              disabled={action.busy}
-              disableLocked
-            />
-            <aside className="se-citymap-brief" aria-label="Scout map coverage summary">
-              <div className="se-citymap-brief__control">
-                <span className="se-eyebrow">Current field read</span>
-                <strong>{selectedDistrict?.name ?? 'Pick a district'}</strong>
-                <span>{selectedDistrict ? `${coveredPercent}% crew covered · ${exposurePercent}% exposed` : 'Choose an area to see crew coverage.'}</span>
-              </div>
-              <EmpireAreaLegend label="Scout coverage legend" items={[
-                { key: 'covered', label: 'Covered', tone: 'mine' },
-                { key: 'warn', label: 'Some crew exposed', tone: 'held' },
-                { key: 'bad', label: 'High exposure', tone: 'pressure' },
-                { key: 'locked', label: 'Locked', tone: 'locked' },
-              ]} />
-              <p>Map colors show how your current crew fits this district’s protection rule.</p>
-            </aside>
-          </div>
-        </details>
 
         <HeatNotice />
 
@@ -496,3 +461,6 @@ export function ScoutPage() {
     </GameLayout>
   );
 }
+import '../styles/scout.css';
+import '../styles/action-experience.css';
+import '../styles/action-readiness-accessibility.css';

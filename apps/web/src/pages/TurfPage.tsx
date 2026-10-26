@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useSearchParams } from 'react-router-dom';
-import type { CitiesDto, CityCharacterDto, CrewMemberDto, RankingsDto, TravelDto, TurfBlockDto } from '@streets/shared';
+import type { CitiesDto, CityCharacterDto, RankingsDto, TravelDto, TurfBlockDto } from '@streets/shared';
 import { formatCentsExact, formatNumber } from '@streets/shared';
 import { communityApi } from '../api/community.js';
-import { crewApi } from '../api/crew.js';
 import { api, ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
 import { AllianceTag } from '../components/AllianceTag.js';
@@ -16,9 +15,9 @@ import { useCountdown } from '../hooks/useCountdown.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { useSession } from '../stores/session.js';
 import { formatClockTime, formatWhen } from '../utils/time.js';
-import { CityDistrictMap, type CityDistrictMapEntry } from '../components/CityDistrictMap.js';
-import { EmpireAreaLegend, EmpireInspector, EmpireManagementLayout, EmpireRosterCard } from '../components/EmpireManagement.js';
-import { thugsPostedOn } from '../utils/crewWhereabouts.js';
+import { EmpireInspector, EmpireManagementLayout, EmpireRosterCard } from '../components/EmpireManagement.js';
+import '../styles/empire-management.css';
+import '../styles/city-blocks.css';
 
 const ORDER: Record<TurfBlockDto['district'], number> = {
   CASINO: 0,
@@ -111,21 +110,13 @@ function holder(block: TurfBlockDto) {
   );
 }
 
-const cornerJobLabel: Record<string, string> = {
-  TURF: 'Posted',
-  CORNER_ENFORCER: 'Enforcer',
-  CORNER_LOOKOUT: 'Lookout',
-  STASH_GUARD: 'Stash guard',
-};
-
-function CityBlockBoard({ city, onChanged, onSelect, selectedDistrict, postedCrew }: { city: CityCharacterDto; onChanged: () => void; onSelect: (district: TurfBlockDto['district']) => void; selectedDistrict: TurfBlockDto['district'] | null; postedCrew: CrewMemberDto[] }) {
+function CityBlockBoard({ city, onChanged, onSelect, selectedDistrict }: { city: CityCharacterDto; onChanged: () => void; onSelect: (district: TurfBlockDto['district']) => void; selectedDistrict: TurfBlockDto['district'] | null }) {
   const turf = city.turf;
   if (!turf) return <p className="se-muted">Turf is not enabled in this round.</p>;
   const blocks = [...turf.blocks].sort((a, b) => ORDER[a.district] - ORDER[b.district]);
   const block = blocks.find((entry) => entry.district === selectedDistrict) ?? blocks[0] ?? null;
   if (!block) return <p className="se-muted">No districts are available in this city.</p>;
   const status = block.isMine ? 'mine' : block.holder ? 'held' : block.localsReclaimAt ? 'vacant' : 'locals';
-  const namedHere = block.isMine ? thugsPostedOn(postedCrew, block.id) : [];
 
   return (
     <>
@@ -166,24 +157,6 @@ function CityBlockBoard({ city, onChanged, onSelect, selectedDistrict, postedCre
                 )}
                 <span><b className="se-num">{Math.floor(block.presenceTurns)}</b><small>your presence</small></span>
               </div>
-              {block.isMine ? (
-                <div className="se-turfboard__posted">
-                  <span className="se-eyebrow">Who is posted here</span>
-                  {namedHere.length ? (
-                    <ul>
-                      {namedHere.map((member) => (
-                        <li key={member.id}>
-                          <span>#{String(member.serial).padStart(3, '0')} {member.name}</span>
-                          <small>{cornerJobLabel[member.assignment?.kind ?? ''] ?? 'Posted'}</small>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : <p className="se-muted">No named thugs are recorded on this corner.</p>}
-                  {block.cornerThugs > namedHere.length ? (
-                    <p className="se-hint">{formatNumber(block.cornerThugs - namedHere.length)} posted here {namedHere.length ? 'are not tied to a named thug' : 'have no named thug recorded'}.</p>
-                  ) : null}
-                </div>
-              ) : null}
               {block.fatigue && block.fatigue.percent > 0 ? (
                 <span className="se-hint se-turfboard__fatigue" title="War fatigue: businesses here earn this much less until it heals.">
                   Fatigue {block.fatigue.percent}% · output {100 - block.fatigue.percent}%
@@ -226,63 +199,6 @@ function CityBlockBoard({ city, onChanged, onSelect, selectedDistrict, postedCre
         }
       />
     </>
-  );
-}
-
-function CityTurfMap({
-  city,
-  onSelect,
-  selectedDistrict,
-}: {
-  city: CityCharacterDto;
-  onSelect: (district: TurfBlockDto['district']) => void;
-  selectedDistrict: TurfBlockDto['district'] | null;
-}) {
-  const blocks = [...(city.turf?.blocks ?? [])].sort((a, b) => ORDER[a.district] - ORDER[b.district]);
-  const mapDistricts = blocks.map((block): CityDistrictMapEntry => {
-    const locked = block.districtAccess?.unlocked === false;
-    const activePush = Boolean(block.push || block.war);
-    const status = locked ? 'locked' : activePush ? 'pressure' : block.isMine ? 'mine' : block.holder ? 'held' : block.localsReclaimAt ? 'vacant' : 'locals';
-    const owner = locked
-      ? `Unlock with ${block.districtAccess?.unlockName ?? 'a quest'}`
-      : block.holder
-        ? `${block.holder.alliance ? `[${block.holder.alliance.tag}] ` : ''}${block.holder.displayName}`
-        : block.localsReclaimAt ? 'Vacant · locals rebuilding' : 'Locals hold this block';
-    return {
-      district: block.district,
-      name: block.districtName,
-      status,
-      statusText: locked ? 'Locked' : activePush ? 'Conflict' : block.isMine ? 'Your crew' : block.holder ? 'Player-held' : block.localsReclaimAt ? 'Rebuilding' : 'Local control',
-      detail: owner,
-      tag: !locked && !block.isMine ? block.holder?.alliance?.tag ?? null : null,
-      lots: locked ? undefined : block.businesses?.map((lot) => lot.level > 0),
-    };
-  });
-
-  return (
-    <details className="se-cityblocks-mapdetails" open>
-      <summary>
-        <span><span className="se-eyebrow">City overview · {city.name}</span><strong>District map</strong></span>
-        <span>{selectedDistrict ? `Focused: ${blocks.find((block) => block.district === selectedDistrict)?.districtName ?? 'district'}` : 'Five districts · select to focus'}</span>
-      </summary>
-      <div className="se-citymap-layout">
-        <CityDistrictMap citySlug={city.slug} cityName={city.name} districts={mapDistricts} selectedDistrict={selectedDistrict} onSelect={(district) => onSelect(district as TurfBlockDto['district'])} />
-
-        <aside className="se-citymap-brief" aria-label="District map key">
-          <EmpireAreaLegend label="Turf map legend" items={[
-            { key: 'mine', label: 'Your crew', tone: 'mine' }, { key: 'held', label: 'Other crew', tone: 'held' },
-            { key: 'locals', label: 'Locals', tone: 'locals' }, { key: 'vacant', label: 'Rebuilding', tone: 'vacant' },
-            { key: 'pressure', label: 'Active conflict', tone: 'pressure' }, { key: 'locked', label: 'Locked', tone: 'locked' },
-          ]} />
-          {selectedDistrict ? (
-            <Link className="se-citymap-brief__action" to={`/game/turf?city=${encodeURIComponent(city.slug)}&district=${encodeURIComponent(selectedDistrict)}#turf-block-${encodeURIComponent(selectedDistrict)}`}>
-              Jump to district actions <span aria-hidden="true">↓</span>
-            </Link>
-          ) : null}
-          <p>Select a district to open its controls.</p>
-        </aside>
-      </div>
-    </details>
   );
 }
 
@@ -342,25 +258,15 @@ export function TurfPage() {
   const [cities, setCities] = useState<CitiesDto | null>(null);
   const [rankings, setRankings] = useState<RankingsDto | null>(null);
   const [travel, setTravel] = useState<TravelDto | null>(null);
-  const [postedCrew, setPostedCrew] = useState<CrewMemberDto[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [params, setParams] = useSearchParams();
 
   const load = useCallback(() => {
-    Promise.all([
-      api.get<CitiesDto>('/game/cities'),
-      communityApi.rankings(),
-      api.get<TravelDto>('/game/travel'),
-      crewApi.roster({ role: 'THUG', status: 'ASSIGNED', limit: 200 }).catch(() => null),
-    ]).then(([cityData, rankingData, travelData, roster]) => {
-      setCities(cityData);
-      setRankings(rankingData);
-      setTravel(travelData);
-      setPostedCrew(roster?.members ?? []);
-      setError(null);
-    }).catch((caught: unknown) => {
-      setError(caught instanceof ApiError ? caught.message : 'Could not load turf.');
-    });
+    void api.get<CitiesDto>('/game/cities')
+      .then((cityData) => { setCities(cityData); setError(null); })
+      .catch((caught: unknown) => { setError(caught instanceof ApiError ? caught.message : 'Could not load turf.'); });
+    void communityApi.rankings().then(setRankings).catch(() => undefined);
+    void api.get<TravelDto>('/game/travel').then(setTravel).catch(() => undefined);
   }, []);
 
   useEffect(load, [load, me?.id]);
@@ -461,17 +367,6 @@ export function TurfPage() {
                 ) : null}
 
                 <div className="se-cityblocks-command">
-                <CityTurfMap
-                  city={selected}
-                  selectedDistrict={selectedDistrict}
-                  onSelect={(district) => {
-                    const next = new URLSearchParams(params);
-                    next.set('city', selected.slug);
-                    next.set('district', district);
-                    setParams(next, { replace: true, preventScrollReset: true });
-                  }}
-                />
-
                 <section className="se-cityblocks-section">
                   <div className="se-cityblocks-sectionhead">
                     <div>
@@ -490,7 +385,6 @@ export function TurfPage() {
                     <CityBlockBoard
                       city={selected}
                       onChanged={load}
-                      postedCrew={postedCrew}
                       selectedDistrict={selectedDistrict}
                       onSelect={(district) => {
                         const next = new URLSearchParams(params);

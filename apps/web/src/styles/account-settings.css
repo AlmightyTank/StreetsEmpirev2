@@ -632,6 +632,14 @@
 }
 
 @media (max-width: 899px) {
+  /* Sit on top of the phone tab bar. bottom: 12px parks Save changes under it,
+     so the tap hits a tab instead of publishing the look. */
+  .se-app--tabbar .se-cosmetics-savebar {
+    bottom: var(--se-mobile-sticky-offset);
+    scroll-margin-bottom: var(--se-mobile-sticky-offset);
+    z-index: var(--se-layer-dock);
+  }
+
   .se-route--account.se-app--tabbar .se-topbar {
     gap: 6px 8px;
     padding-top: 7px;

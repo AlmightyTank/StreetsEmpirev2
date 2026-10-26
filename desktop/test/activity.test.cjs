@@ -1,7 +1,7 @@
 'use strict';
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { trustedNavigation, externalLink, presenceForUrl } = require('../src/activity.cjs');
+const { trustedNavigation, externalLink, discordAppLink, presenceForUrl } = require('../src/activity.cjs');
 
 test('loads only game domains and Discord OAuth domains inside the client', () => {
   assert.equal(trustedNavigation('https://play.streetsempire.dev/login'), true);
@@ -17,6 +17,11 @@ test('opens only https links externally', () => {
   assert.equal(externalLink('https://example.com'), true);
   assert.equal(externalLink('file:///etc/passwd'), false);
   assert.equal(externalLink('javascript:alert(1)'), false);
+});
+test('hands only Discord custom-scheme links to the installed Discord app', () => {
+  assert.equal(discordAppLink('discord://-/oauth2/authorize?client_id=123'), true);
+  assert.equal(discordAppLink('https://discord.com/oauth2/authorize'), false);
+  assert.equal(discordAppLink('javascript:alert(1)'), false);
 });
 test('presence is set only for the authenticated game area', () => {
   assert.equal(presenceForUrl('https://play.streetsempire.dev/login'), null);

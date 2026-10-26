@@ -293,10 +293,53 @@ export interface QuestStoryDefinition {
   readonly ready: string;
   /** Contact-flavored closing line after payment is collected. */
   readonly completed: string;
-  /** Plain-language system lesson this job is teaching. */
-  readonly lesson: string;
+  /** Plain-language system lesson this job is teaching. Story-campaign jobs teach nothing and omit it. */
+  readonly lesson?: string;
   /** Short actionable nudge toward the screen/action that advances the job. */
   readonly actionHint: string;
+  /**
+   * Story campaign. Authored moments on the active quest card: the player reads the scene and
+   * picks a response, and the server records it as a QUEST_STORY_SCENE event. A scene advances
+   * an EVENT_COUNT objective filtered on `where: { questKey, sceneKey }`.
+   */
+  readonly scenes?: readonly QuestStorySceneDefinition[];
+  /**
+   * Story campaign Slice H. Lines that change with what the player chose earlier. The server
+   * resolves them when it builds the quest page: for each line, the first variant whose
+   * condition holds replaces it, and the line above stays the default.
+   */
+  readonly variants?: readonly QuestStoryVariant[];
+}
+
+/** The story lines a variant may replace. */
+export const QUEST_STORY_VARIANT_FIELDS = ['intro', 'inProgress', 'ready', 'completed', 'actionHint'] as const;
+export type QuestStoryVariantField = typeof QUEST_STORY_VARIANT_FIELDS[number];
+
+/** Something the player did earlier that a line can depend on. */
+export type QuestStoryCondition =
+  | { readonly kind: 'BRANCH_CHOSEN'; readonly questKey: string; readonly branchKey: string }
+  | { readonly kind: 'SCENE_RESPONSE'; readonly questKey: string; readonly sceneKey: string; readonly responseKey: string }
+  | { readonly kind: 'QUEST_COMPLETED'; readonly questKey: string };
+
+export type QuestStoryVariant = { readonly when: QuestStoryCondition } & Partial<Record<QuestStoryVariantField, string>>;
+
+export interface QuestStorySceneDefinition {
+  /** Stable lower_snake key, unique within the quest. Recorded with the response; never rename. */
+  readonly key: string;
+  readonly title: string;
+  readonly prose: string;
+  readonly responses: readonly QuestStorySceneResponseDefinition[];
+  /** Required objective ids that must be complete before the scene opens, e.g. the store visit it follows. */
+  readonly after?: readonly string[];
+}
+
+export interface QuestStorySceneResponseDefinition {
+  /** Stable lower_snake key, unique within the scene. Recorded with the response; never rename. */
+  readonly key: string;
+  /** What the player chooses, e.g. "Return it unopened". */
+  readonly label: string;
+  /** What happens, shown once the response is recorded. */
+  readonly outcome: string;
 }
 
 export type ContactKey =
@@ -311,7 +354,9 @@ export type ContactKey =
   /** 1.3.0-F. The retired records sergeant who gives law Jobs. */
   | 'LEDGER'
   /** 2.4.0-A. An independent law-focused records contact. */
-  | 'COMMISSIONER';
+  | 'COMMISSIONER'
+  /** 2.6.0-G. The Missing Line: the broker who keeps the Clearinghouse book. */
+  | 'MARA_VENN';
 
 export interface ContactDefinition {
   readonly key: ContactKey;
@@ -1244,6 +1289,56 @@ export type StockAtField =
   | 'thugStockAt'
   | 'ammoStockAt'
   | 'vehiclePartsStockAt';
+
+/**
+ * The Board, slice A. Player listings trade inside a band set by the rank rule: cash counts at
+ * `economy.netWorth.cashWeightPercent` and the tax is deleted, so a fill inside the band never
+ * raises either side's net worth. Absent on rounds pinned before the Board.
+ */
+export interface PlayerBoardRules {
+  /** Off until slice E. A disabled block still prices the band; nothing may post or fill. */
+  readonly enabled: boolean;
+  /** Share of a fill deleted from the round, in percent. The seller keeps the rest, rounded down. */
+  readonly taxPercent: number;
+  /**
+   * The Board B. Net worth per held scavenge part, in cents, counted only while `enabled`. A key
+   * without a book can never be listed.
+   */
+  readonly partBookCents: { readonly [K in ScavengePartKey]: number };
+  /** The Board C. Kept on cancel and expiry: this percent of the stack's book value, rounded up, never under the minimum. */
+  readonly postingFeePercent: number;
+  readonly postingFeeMinCents: number;
+  /** The Board C. Open offers one player may have at once. */
+  readonly maxOpenOffers: number;
+  readonly startingOpenOffers?: number;
+  readonly reputationPerOpenOffer?: number;
+  /** The Board C. The listing lengths a seller may choose, in round hours. */
+  readonly listingHours: readonly number[];
+  /**
+   * The Board F. Products that may be listed. A product's book is its net worth value, and it is
+   * listable only while that equals Pip's buyback, so the Board never prices it off another number.
+   */
+  readonly listableProducts: readonly string[];
+  /** The Board. Most different items a barter offer may ask for. */
+  readonly maxAskItems: number;
+  /**
+   * The Board G. Keeper goods that may be listed: guns, low-riders and ammo. Each is listable only
+   * while its net worth value equals its keeper's buyback. The Board needs no keeper unlock and has
+   * no daily limit: what players ask decides what scarce goods cost.
+   */
+  readonly listableKeeperGoods: readonly PlayerBoardKeeperKey[];
+}
+
+/** The Board G. Keeper goods by Board key. */
+export type PlayerBoardKeeperKey = 'PISTOL' | 'SHOTGUN' | 'TEK9' | 'AK47' | 'LOW_RIDER' | 'AMMO';
+
+/** The Board B. Every hideout scavenge part, as stored in `RoundPlayer.scavengedComponents`. */
+export type ScavengePartKey =
+  | 'SCRAP_METAL' | 'WIRING' | 'TOOL_KIT' | 'BOTTLES' | 'LABELS' | 'PACKAGING' | 'LUMBER' | 'FASTENERS' | 'CLOTH'
+  | 'BASIC_MEDICINE' | 'FUEL_CAN' | 'RADIO'
+  | 'MOTOR_ASSEMBLY' | 'REPAIR_SUPPLIES' | 'SPECIALTY_CONTAINER'
+  | 'PRECISION_PARTS' | 'ADVANCED_MEDICAL'
+  | 'HIGH_CAPACITY_FUEL_CELL' | 'SPECIALIST_CIRCUITRY';
 
 /** 2.4.0-B. Versioned catalog data for the ammo and vehicle-parts foundation. */
 export interface AmmoPartsRules {
@@ -2954,6 +3049,14 @@ export interface CasinoPokerRules {
   readonly maxBuyInCents: number;
   readonly bigBlindCents: number;
   readonly raiseCents: number;
+  /** Solo house-table stakes. Multiplayer tables continue to use the base blinds above. */
+  readonly blindLevels: readonly {
+    readonly key: 'LOW' | 'MEDIUM' | 'HIGH';
+    readonly label: string;
+    readonly smallBlindCents: number;
+    readonly bigBlindCents: number;
+    readonly raiseCents: number;
+  }[];
   /** House rake on flopped pots, in basis points, up to a hand cap. */
   readonly rakeBps: number;
   readonly rakeCapCents: number;
@@ -3238,8 +3341,21 @@ export interface Ruleset {
     };
   };
   readonly meta: RulesetMeta;
+  /** Current-release surfaces retired without rewriting historical rounds. */
+  readonly retiredFeatures?: {
+    readonly salvageYard?: boolean;
+    readonly bulkOrders?: boolean;
+    readonly loanShark?: boolean;
+    readonly dealerCrews?: boolean;
+    readonly armory?: boolean;
+    readonly garage?: boolean;
+    readonly ammoParts?: boolean;
+    readonly scavenging?: boolean;
+  };
   /** 2.4.0-B. Absent on rounds pinned before the ammo and parts catalog. */
   readonly ammoParts?: AmmoPartsRules;
+  /** The Board A. Absent on rounds pinned before player listings; `enabled` gates every post and fill. */
+  readonly playerBoard?: PlayerBoardRules;
   /** 2.5.0-A. Absent on count-based rounds pinned before individual armories. */
   readonly individualItems?: IndividualItemsRules;
   /** 2.4.0-A. Per-round catalog opt-in; the round feature flag must also be enabled. */

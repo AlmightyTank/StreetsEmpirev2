@@ -1,4 +1,6 @@
 import { useState, type CSSProperties, type PointerEvent } from 'react';
+import '../styles/street-sign-builder.css';
+import '../styles/street-sign-backdrops.css';
 import { DEFAULT_STREET_SIGN, STREET_SIGN_BACKDROPS, STREET_SIGN_FONTS, STREET_SIGN_FONT_PACKS, STREET_SIGN_SHADOWS, STREET_SIGN_STREET_TYPES, STREET_SIGN_TAG_MAX, STREET_SIGN_TAG_PLACEMENTS, STREET_SIGN_TAG_SCALES, STREET_SIGN_TEXT_MAX, STREET_SIGN_TREATMENTS, STREET_SIGN_TRIMS, STREET_SIGN_VERSION, streetSignBackdropFor, type StreetSignDesign } from '@streets/shared';
 
 const FONT_LABELS: Record<(typeof STREET_SIGN_FONTS)[number], string> = {
@@ -91,7 +93,7 @@ export function StreetSignBuilder({ value, crewName = '', savedValue = null, unl
 
   return (
     <section className="se-street-sign-builder" aria-labelledby="street-sign-title">
-      <header className="se-street-sign-builder__head" data-tour="build-street-sign">
+      <header className="se-street-sign-builder__head">
         <div>
           <h3 id="street-sign-title">Your street sign</h3>
           <p>Make your crew’s mark. This sign is cosmetic and does not claim a city block.</p>
@@ -191,12 +193,6 @@ export function StreetSignBuilder({ value, crewName = '', savedValue = null, unl
         </fieldset>
 
         <div className="se-street-sign-builder__grid">
-          <div className="se-street-sign-builder__field se-street-sign-builder__field--wide">
-            <label htmlFor="street-sign-name">Crew name on sign</label>
-            <input id="street-sign-name" className="se-input" maxLength={STREET_SIGN_TEXT_MAX} value={design.streetName} placeholder="Set your crew name above" readOnly />
-            <small>{design.streetName.length}/{STREET_SIGN_TEXT_MAX}</small>
-            <p className="se-street-sign-builder__hint">The sign lettering stays linked to your crew name.</p>
-          </div>
           <div className="se-street-sign-builder__field">
             <label htmlFor="street-sign-type">Street type</label>
             <select id="street-sign-type" className="se-input" value={design.streetType} onChange={(event) => update({ streetType: event.target.value as StreetSignDesign['streetType'] })}>

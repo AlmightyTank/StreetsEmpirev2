@@ -30,6 +30,8 @@ See a concise map of tutorial chapters and each chapter's unlock requirement. Th
 
 Meet contacts with distinct voices, motives, and ongoing problems. Jobs connect across chapters, respond to previous outcomes where practical, and reveal the city through the player's work. Brief job-specific instructions may explain the objective, but core mechanics are taught by the tutorial.
 
+The proposed growing campaign is **The Missing Line**: 25 connected main-story quests and 15 side-story quests follow an apparently local missing-shipment problem into a citywide debt market selling routes, supply access, and information. Investigation leads can be pursued in different orders; side arcs follow characters and close loose ends; the final choice changes relationships and the epilogue. See the [25-main / 15-side Story Quest Campaign](./STORY-QUEST-CAMPAIGN-SPINE.md) for the full act-by-act story treatment and prose sample. Choices do not lock specialties, and tutorial teaching remains separate.
+
 ## Slices
 
 ### Slice A — Audit and system boundary

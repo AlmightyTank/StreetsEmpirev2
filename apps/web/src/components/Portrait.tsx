@@ -16,6 +16,7 @@ const PORTRAITS: Readonly<Record<string, { file: string; name: string }>> = {
   CHARLIE: { file: 'charlie.svg', name: 'Charlie' },
   COMMISSIONER: { file: 'commissioner.svg', name: 'The Commissioner' },
   CIVIC_HANDSHAKE: { file: 'civic-handshake.svg', name: 'A Civic Handshake official' },
+  MARA_VENN: { file: 'mara-venn.svg', name: 'Mara Venn' },
 };
 
 export function hasPortrait(key: string | null | undefined): key is string {

@@ -651,6 +651,35 @@ export interface AdminQuestContentDto {
   favors: AdminFavorCatalogRowDto[];
 }
 
+/** Story campaign Slice J. How far a round's crews have got through The Missing Line, and what they chose. */
+export interface AdminStoryCampaignDto {
+  round: { id: string; name: string; rulesetVersion: string };
+  /** Crews in the round; each has one campaign row per chapter once they open the job board. */
+  players: number;
+  chapters: Array<{
+    key: string;
+    title: string;
+    /** The act or side-arc label, e.g. "Act I · A Name in the Rain". */
+    chapter: string;
+    arc: 'MAIN' | 'SIDE';
+    available: number;
+    active: number;
+    ready: number;
+    completed: number;
+  }>;
+  scenes: Array<{
+    questKey: string;
+    sceneKey: string;
+    title: string;
+    responses: Array<{ key: string; label: string; count: number }>;
+  }>;
+  choices: Array<{
+    questKey: string;
+    title: string;
+    branches: Array<{ key: string; title: string; count: number }>;
+  }>;
+}
+
 export interface AdminFactionStandingDto {
   factionKey: string;
   factionName: string;
@@ -1377,6 +1406,55 @@ export interface AdminShipmentsDto {
   roundId: string;
   pending: Array<{ player: AdminPlayerRefDto; store: string; item: string; dueAt: string; orderedAt: string }>;
   delivered: Array<{ player: AdminPlayerRefDto; store: string; item: string; dueAt: string; deliveredAt: string | null }>;
+}
+
+/** The Board H. One line of the staff ledger: an offer posted, bought from, cancelled or expired. */
+export interface AdminPlayerBoardEventDto {
+  id: string;
+  kind: 'POST' | 'FILL' | 'CANCEL' | 'EXPIRE';
+  at: string;
+  offerId: string;
+  seller: AdminPlayerRefDto;
+  /** Fills only. Null when the buyer has since been deleted. */
+  buyer: AdminPlayerRefDto | null;
+  itemKey: string;
+  item: string;
+  /** Units posted, bought, or handed back on cancel or expiry. */
+  quantity: number;
+  priceKind: 'CASH' | 'BARTER';
+  unitPriceCents: number;
+  /** Barters: what the buyer hands over, e.g. "1 Radio per 10". Fills show the whole basket given. */
+  ask: string | null;
+  /** Fills: cash the buyer paid (sticker, Board fee or barter top-up). */
+  paidCents: number;
+  /** Fills: cash the seller got after tax. */
+  proceedsCents: number;
+  /** Posts: posting fee plus any listing tax. Fills: paid minus proceeds. Cash that left the round. */
+  deletedCents: number;
+}
+
+/** The Board H. A round's Board activity for staff, plus an escrow reconciliation. Read-only. */
+export interface AdminPlayerBoardDto {
+  roundId: string;
+  enabled: boolean;
+  generatedAt: string;
+  windowHours: number;
+  totals: {
+    posts: number;
+    fills: number;
+    cancels: number;
+    expiries: number;
+    openOffers: number;
+    unitsSold: number;
+    paidCents: number;
+    proceedsCents: number;
+    /** Posting fees, listing tax, sale tax, Board fees and barter top-ups: all deleted. */
+    deletedCents: number;
+  };
+  /** Newest first, capped. */
+  events: AdminPlayerBoardEventDto[];
+  /** Sellers whose escrow column does not match their open and unreturned offers. Empty when it all adds up. */
+  problems: Array<{ player: AdminPlayerRefDto; itemKey: string; escrow: number; offers: number }>;
 }
 
 /** 1.6.0-I. One reconciliation mismatch, for operators. */

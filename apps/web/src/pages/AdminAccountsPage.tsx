@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import '../styles/admin.css';
 import { Link, useSearchParams } from 'react-router-dom';
 import type { AdminAccountStatusFilter, AdminAccountSummaryDto, AdminPlayerSearchDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import '../styles/admin.css';
 import { Link } from 'react-router-dom';
 import { STAFF_ROLE_LABELS, formatNumber, type AdminStaffDto, type AdminStaffRoleChangeDto } from '@streets/shared';
 import { adminApi } from '../api/admin.js';

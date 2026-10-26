@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import '../styles/admin.css';
 import { Link } from 'react-router-dom';
 import type { AdminCasinoDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
@@ -57,7 +58,7 @@ export function AdminCasinoPage() {
             <div className="se-stats">
               <Stat label="Open bankrolls" value={formatNumber(data.operations.openSessions)} />
               <Stat label="Active Blackjack hands" value={formatNumber(data.operations.activeBlackjack)} />
-              <Stat label="Active solo Poker" value={formatNumber(data.operations.activeSoloPoker)} />
+              <Stat label="Active solo Texas Hold'em" value={formatNumber(data.operations.activeSoloPoker)} />
               <Stat label="Active table hands" value={formatNumber(data.operations.activeTableHands)} />
               <Stat label="Stale over 1 hour" value={formatNumber(data.operations.staleGames)} />
             </div>

@@ -71,8 +71,8 @@ describe('no friendly fire in combat eligibility', () => {
   const stranger = player({ id: 'stranger', accountId: 'stranger-account', publicPimpId: 1002, allianceId: 'other' });
   const dropped = player({ id: 'dropped', accountId: 'dropped-account', publicPimpId: 1003, formerAllianceId: 'crew', allianceCooldownUntil: later });
 
-  it('keeps the same ally and former-ally combat blocks on a 15-seat B round', () => {
-    expect(classicOgV19B.alliances.maxMembers).toBe(15);
+  it('keeps the same ally and former-ally combat blocks on a 7-seat B round', () => {
+    expect(classicOgV19B.alliances.maxMembers).toBe(7);
     expect(classicOgV19B.alliances.leaveCooldownHours).toBe(24);
     expect(combatTargetBlock(attacker, ally, classicOgV19B.combat, now, true)).toContain('your alliance');
     expect(driveByTargetBlock(attacker, dropped, classicOgV19B.combat, now)).toContain('cooldown');

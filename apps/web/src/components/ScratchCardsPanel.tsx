@@ -7,6 +7,7 @@ import { Button } from './Button.js';
 import { Panel } from './Panel.js';
 import { casinoSoundEnabled, playCasinoSound, setCasinoSoundEnabled } from '../lib/casinoAudio.js';
 import { newActionId } from '../utils/actionId.js';
+import { CASINO_RECEIPT_LABELS } from '../receipts/casinoReceiptChips.js';
 
 type Props = { casinoPage: CasinoPageDto; onPageChange: (page: CasinoPageDto) => void };
 
@@ -281,7 +282,7 @@ export function ScratchCardsPanel({ casinoPage, onPageChange }: Props) {
                 return <button key={`${card?.actionId ?? 'blank'}-${index}`} type="button" disabled={!spot || shown} className={shown ? `is-revealed${spot?.winning ? ' is-winning' : ''}` : ''} onPointerEnter={(event) => { if (event.buttons) reveal(index); }} onPointerDown={() => reveal(index)} aria-label={spot ? shown ? `${spot.label}, ${formatCents(spot.prizeCents)}${spot.winning ? ', winner' : ''}` : `Scratch spot ${index + 1}` : `Empty spot ${index + 1}`}><span className="se-scratch__foil">SCRATCH</span>{spot ? <span className="se-scratch__prize"><b>{spot.glyph}</b><small>{spot.label}</small><strong>{formatCents(spot.prizeCents)}</strong></span> : null}</button>;
               })}
             </div>
-            <footer><span>{card && allRevealed ? `Paid ${formatCents(card.payoutCents)} · Net ${signed(card.netCents)}` : 'Match any posted symbol to win the prize under it.'}</span>{card && !allRevealed ? <button type="button" className="se-btn se-btn--ghost" onClick={() => void revealAll()}>Scratch all</button> : null}</footer>
+            <footer><span>{card && allRevealed ? `${CASINO_RECEIPT_LABELS.wager} ${formatCents(card.denominationCents)} · ${CASINO_RECEIPT_LABELS.returned} ${formatCents(card.payoutCents)} · ${CASINO_RECEIPT_LABELS.net} ${signed(card.netCents)}` : 'Match any posted symbol to win the prize under it.'}</span>{card && !allRevealed ? <button type="button" className="se-btn se-btn--ghost" onClick={() => void revealAll()}>Scratch all</button> : null}</footer>
           </div>
           <Button type="button" className="se-btn se-btn--primary se-scratch__buy" disabledReason={blocked} onClick={() => void buy()}>{busy ? 'Printing…' : `Buy ${formatCents(denomination)} ticket`}</Button>
           <p className="se-hint">Each ticket is generated and settled on the server when purchased. Scratching only reveals the saved result.</p>

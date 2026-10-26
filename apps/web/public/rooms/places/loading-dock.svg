@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 480">
+  <!-- The other door: the loading dock behind the corner shop, a half-open roll-up, a hand truck, an empty pallet. -->
+  <defs>
+    <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1e1c1a"/><stop offset="1" stop-color="#121110"/></linearGradient>
+    <radialGradient id="lamp" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ffe0a0" stop-opacity=".45"/><stop offset="1" stop-color="#ffe0a0" stop-opacity="0"/></radialGradient>
+    <linearGradient id="door" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5a5a52"/><stop offset="1" stop-color="#3a3a34"/></linearGradient>
+  </defs>
+  <rect width="1200" height="480" fill="url(#wall)"/>
+  <g stroke="#262422" stroke-width="2"><path d="M0 80h1200M0 160h1200M0 240h1200"/></g>
+  <!-- Roll-up door, left, half open with light under it -->
+  <rect x="60" y="90" width="340" height="310" fill="#0c0a08"/><rect x="60" y="310" width="340" height="90" fill="#ffcf80" fill-opacity=".12"/>
+  <rect x="60" y="90" width="340" height="220" fill="url(#door)"/>
+  <g stroke="#2a2a26" stroke-width="4"><path d="M60 120h340M60 150h340M60 180h340M60 210h340M60 240h340M60 270h340M60 300h340"/></g>
+  <rect x="50" y="80" width="360" height="12" fill="#2a2826"/>
+  <text x="230" y="70" text-anchor="middle" font-family="Arial, sans-serif" font-weight="700" font-size="20" fill="#e8c840" fill-opacity=".7" letter-spacing="4">DELIVERIES</text>
+  <!-- Side door with a bulb cage, right -->
+  <rect x="880" y="170" width="120" height="230" fill="#3a2a22" stroke="#1a1410" stroke-width="8"/><circle cx="980" cy="290" r="6" fill="#b08a4a"/>
+  <ellipse cx="940" cy="140" rx="110" ry="90" fill="url(#lamp)"/><rect x="928" y="128" width="24" height="18" fill="#fff0c0"/>
+  <!-- Hand truck and empty pallet -->
+  <g stroke="#8a2a22" stroke-width="7" fill="none" stroke-linecap="round"><path d="M1080 250v150M1120 250v150M1080 400h60"/></g><circle cx="1090" cy="410" r="12" fill="#1a1a1a"/><circle cx="1130" cy="410" r="12" fill="#1a1a1a"/>
+  <g fill="#8a6a3a" stroke="#4a3a1a" stroke-width="3"><rect x="440" y="392" width="200" height="12"/><rect x="440" y="408" width="200" height="12"/><rect x="450" y="404" width="20" height="4"/><rect x="530" y="404" width="20" height="4"/><rect x="610" y="404" width="20" height="4"/></g>
+  <!-- Dock edge -->
+  <rect y="420" width="1200" height="60" fill="#2e2c28"/><rect y="416" width="1200" height="6" fill="#e8c840" fill-opacity=".55"/>
+  <g fill="#1a1816"><rect x="120" y="430" width="60" height="40"/><rect x="300" y="430" width="60" height="40"/></g>
+</svg>

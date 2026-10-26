@@ -4,6 +4,8 @@
 
 Make scavenging and hideout progression create useful choices between going out, selling loot, storing upgrade parts, and spending turns on crafting. Items should have a clear purpose: a recipe, an upgrade requirement, a sale value, a tactical use, or a collection/cosmetic payoff. Avoid adding filler loot that only occupies space.
 
+Selling scavenged parts is specified in [The Board](ROADMAP-THE-BOARD.md). That roadmap owns the player listings tab. This document keeps the stash, caches, crafting, and upgrades.
+
 The stash should feel physical and readable: items have artwork, rarity, size, and a grid footprint. Capacity should grow through Storage upgrades. Cache reveals should make their possible rewards and odds legible, with a satisfying reveal animation and original StreetsEmpire item art.
 
 ## Current delivery: Slice A — stash foundation

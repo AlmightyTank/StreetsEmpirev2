@@ -683,11 +683,13 @@ export function ProfilePage() {
     setCareerStory(null);
     setCareerStoryPortfolio([]);
     setError(null);
-    Promise.all([communityApi.career(), communityApi.careerStory(), communityApi.careerStoryPortfolio()])
-      .then(([response, storyResponse, portfolioResponse]) => { if (active) { setCareer(response.career); setCareerStory(storyResponse.story); setCareerStoryPortfolio(portfolioResponse.portfolio); } })
+    void communityApi.career()
+      .then((response) => { if (active) setCareer(response.career); })
       .catch((caught: unknown) => {
         if (active) setError(caught instanceof ApiError ? caught.message : 'Could not load your season history.');
       });
+    void communityApi.careerStory().then((response) => { if (active) setCareerStory(response.story); }).catch(() => undefined);
+    void communityApi.careerStoryPortfolio().then((response) => { if (active) setCareerStoryPortfolio(response.portfolio); }).catch(() => undefined);
     return () => { active = false; };
   }, [target, params.forumUserId]);
 
@@ -931,3 +933,4 @@ export function ProfilePage() {
     </GameLayout>
   );
 }
+import '../styles/profile.css';

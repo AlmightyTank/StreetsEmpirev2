@@ -28,6 +28,15 @@ const ALWAYS_NOTIFIABLE = new Set<ActivityType>([
   'DRIVE_BY_DEFENSE',
   'CONVOY_DEFENSE',
   'TURF_PUSH_DEFENSE',
+  'BLOCK_WAR_FIGHT',
+  'BLOCK_WAR_ENDED',
+  'BLOCK_WAR_CALL',
+  'BOSS_HIT_ATTACK',
+  'BOSS_HIT_DEFENSE',
+  'TRIP_RETURNED',
+  'RELOCATED',
+  'SIT_DOWN_AGREED',
+  'PLAYER_BOARD_SALE',
   'RUN_RETURNED',
   'RUN_INCIDENT',
   'CONVOY_BACKUP',
@@ -72,6 +81,10 @@ const ALWAYS_NOTIFIABLE = new Set<ActivityType>([
   // Sportsbook tickets: kickoff and grading should reach the player even if they are away.
   'SPORTSBOOK_GAME_STARTED',
   'SPORTSBOOK_TICKET_SETTLED',
+  // Hideout construction finished, a room ready to build, and new cosmetics.
+  'HIDEOUT_BUILD_COMPLETE',
+  'HIDEOUT_ROOM_READY',
+  'COSMETIC_UNLOCKED',
 ]);
 
 function objectPayload(payload: Prisma.InputJsonValue): Record<string, unknown> {
@@ -84,6 +97,10 @@ function objectPayload(payload: Prisma.InputJsonValue): Record<string, unknown> 
 export function shouldCreateInAppNotification(type: ActivityType, payload: Prisma.InputJsonValue): boolean {
   if (ALWAYS_NOTIFIABLE.has(type)) return true;
   const p = objectPayload(payload);
+  if (type === 'BLOCK_WAR_DECLARED') return p.role === 'defender' || p.assault === true;
+  // A boss-hit backup is first logged when the ally sends the crew. Only the
+  // later resolved receipt is an away-time outcome worth putting in the bell.
+  if (type === 'BOSS_HIT_BACKUP') return p.resolved === true;
   if (type === 'QUEST_CLAIMED') return Array.isArray(p.newlyAvailable) && p.newlyAvailable.length > 0;
   if (type === 'SCOUT' || type === 'PRODUCE_CRACK') return p.busted === true;
   return false;

@@ -489,3 +489,4 @@ export function ContactsPage() {
     </GameLayout>
   );
 }
+import '../styles/contacts.css';

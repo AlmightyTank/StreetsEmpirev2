@@ -4,11 +4,6 @@ import type {
   CasinoBlackjackDealInput,
   CasinoBlackjackDealResponseDto,
   CasinoBlackjackStateDto,
-  CasinoPoolPressInput,
-  CasinoPoolRackInput,
-  CasinoPoolResponseDto,
-  CasinoPoolShotInput,
-  CasinoPoolStateDto,
   CasinoCashierInput,
   CasinoCompHotelInput,
   CasinoPageDto,
@@ -61,10 +56,6 @@ export const casinoApi = {
     api.post<CasinoBlackjackActionResponseDto>('/game/casino/blackjack/double', input),
   blackjackSplit: (input: CasinoBlackjackActionInput) =>
     api.post<CasinoBlackjackActionResponseDto>('/game/casino/blackjack/split', input),
-  pool: () => api.get<CasinoPoolStateDto>('/game/casino/pool'),
-  poolRack: (input: CasinoPoolRackInput) => api.post<CasinoPoolResponseDto>('/game/casino/pool/rack', input),
-  poolShot: (input: CasinoPoolShotInput) => api.post<CasinoPoolResponseDto>('/game/casino/pool/shot', input),
-  poolPress: (input: CasinoPoolPressInput) => api.post<CasinoPoolResponseDto>('/game/casino/pool/press', input),
   roulette: () => api.get<CasinoRouletteStateDto>('/game/casino/roulette'),
   rouletteSpin: (input: CasinoRouletteSpinInput) =>
     api.post<CasinoRouletteSpinResponseDto>('/game/casino/roulette/spin', input),

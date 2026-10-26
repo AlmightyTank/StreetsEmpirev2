@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import '../styles/admin.css';
 import { Link } from 'react-router-dom';
 import type { EmpireInsightsDto, EmpireInsightsRoundDto, InsightMetricDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';

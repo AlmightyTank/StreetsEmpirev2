@@ -97,11 +97,15 @@ describe('1.0.0-F metrics registry', () => {
   it('keeps onboarding telemetry aggregate and step-scoped', () => {
     const registry = new MetricsRegistry(() => NOW);
     registry.recordOnboarding('tour_started');
-    registry.recordOnboarding('step_completed', 'shop-supplies');
-    registry.recordOnboarding('step_completed', 'shop-supplies');
+    registry.recordOnboarding('tour_first_action', '1-3m');
+    registry.recordOnboarding('tour_first_reward', '3-5m');
+    registry.recordOnboarding('step_completed', 'buy-condoms');
+    registry.recordOnboarding('step_completed', 'buy-condoms');
     expect(registry.summary(5).onboarding).toEqual([
-      { event: 'step_completed', step: 'shop-supplies', count: 2 },
+      { event: 'step_completed', step: 'buy-condoms', count: 2 },
       { event: 'tour_started', count: 1 },
+      { event: 'tour_first_action', step: '1-3m', count: 1 },
+      { event: 'tour_first_reward', step: '3-5m', count: 1 },
     ]);
     expect(JSON.stringify(registry.summary(5))).not.toContain('account');
   });

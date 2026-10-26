@@ -9,12 +9,11 @@ function render(value: StreetSignDesign | null, savedValue: StreetSignDesign | n
 }
 
 describe('StreetSignBuilder accessibility and preview controls', () => {
-  it('links the main sign lettering to the crew name and makes the lettering read-only', () => {
+  it('uses the account crew name for the main sign lettering without a duplicate field', () => {
     const html = render({ ...DEFAULT_STREET_SIGN, streetName: 'Old Name' }, null, 'Syndicate');
-    expect(html).toContain('Crew name on sign');
-    expect(html).toContain('value="Syndicate"');
-    expect(html).toContain('readOnly=""');
-    expect(html).toContain('The sign lettering stays linked to your crew name.');
+    expect(html).not.toContain('Crew name on sign');
+    expect(html).not.toContain('street-sign-name');
+    expect(html).toContain('Syndicate');
   });
 
   it('shows locked font pack milestones and keeps graffiti-only fonts out of street lettering', () => {

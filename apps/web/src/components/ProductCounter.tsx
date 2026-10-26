@@ -11,7 +11,7 @@ import { Button } from './Button.js';
 import { ShelfArt } from './ItemTile.js';
 import { Panel } from './Panel.js';
 import { ProductRecipeNote } from './ProductAccess.js';
-import { QuantitySteps } from './QuantitySteps.js';
+import { QuantityStepper } from './QuantityStepper.js';
 import { QuestLockNote } from './QuestLink.js';
 
 /** "30 minutes", "hour", "2 hours". */
@@ -98,7 +98,7 @@ export interface ProductBasketLine {
   stockLimit: number | null;
 }
 
-export function ProductCounter({ product, cashCents, bulkHelpers, blocked, basket, onDone, storeName, onAddToBasket }: {
+export function ProductCounter({ product, cashCents, blocked, basket, onDone, storeName, onAddToBasket }: {
   product: ProductStockDto; cashCents: number; bulkHelpers: number[];
   /** Why the whole counter is off, or null when it is open. */
   blocked: string | null;
@@ -200,10 +200,8 @@ export function ProductCounter({ product, cashCents, bulkHelpers, blocked, baske
               onChange={(event) => setQuantity(event.target.value === '' ? '' : Number(event.target.value))} />
           </div>
         </div>
-        <div className="se-spend__row">
-          <QuantitySteps value={quantity} onChange={setQuantity} max={max} steps={bulkHelpers}
-            disabled={blocked !== null || purchaseLocked} disabledReason={block} emptyReason={emptyReason} />
-        </div>
+        <QuantityStepper value={quantity} onChange={setQuantity} min={1} max={max}
+          disabled={blocked !== null || purchaseLocked} unitLabel="products" showMax />
         <p className="se-hint">
           {purchaseLocked ? 'Purchases are locked until the required job is complete.' : `${buying ? 'Can buy' : 'Can sell'} ${formatNumber(max)}.`}
           {stockLimit !== null && inBasket > 0 ? ` Basket has ${formatNumber(inBasket)}.` : ''}

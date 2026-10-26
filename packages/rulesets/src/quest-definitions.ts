@@ -1,4 +1,4 @@
-import type { QuestCosmeticCatalog, QuestDataObject, QuestDefinition, QuestDefinitionCatalog, SecretContentMeta } from './types.js';
+import { QUEST_STORY_VARIANT_FIELDS, type QuestCosmeticCatalog, type QuestDataObject, type QuestDefinition, type QuestDefinitionCatalog, type SecretContentMeta } from './types.js';
 
 export const SECRET_TRIGGER_KINDS = [
   'STATE_AT_LEAST',
@@ -139,6 +139,126 @@ export function secretContentProblems(content: unknown, quest: Pick<QuestDefinit
   return problems;
 }
 
+export const QUEST_STORY_SCENE_EVENT = 'QUEST_STORY_SCENE';
+const SCENE_KEY = /^[a-z][a-z0-9_]{0,63}$/;
+
+/** The scene an objective is fed by, when it is a story-scene objective. */
+function sceneObjectiveKey(objective: QuestDefinition['objectives'][number]): string | null | undefined {
+  const types = objective.params?.eventTypes;
+  if (!Array.isArray(types) || !types.includes(QUEST_STORY_SCENE_EVENT)) return undefined;
+  const where = isRecord(objective.params?.where) ? objective.params.where : null;
+  return typeof where?.sceneKey === 'string' ? where.sceneKey : null;
+}
+
+/**
+ * Story campaign. A scene is answered once per attempt and feeds exactly the objectives that
+ * name it, so every scene must be reachable, uniquely keyed and filtered to its own quest.
+ */
+export function storySceneProblems(quest: QuestDefinition): string[] {
+  const problems: string[] = [];
+  const scenes = quest.story?.scenes ?? [];
+  const sceneKeys = new Set<string>();
+  for (const scene of scenes) {
+    if (!SCENE_KEY.test(scene.key)) problems.push(`scene ${scene.key || '(blank)'}: key must be lower_snake_case`);
+    if (sceneKeys.has(scene.key)) problems.push(`scene ${scene.key}: duplicate key`);
+    sceneKeys.add(scene.key);
+    if (!scene.title.trim()) problems.push(`scene ${scene.key}: title is required`);
+    if (!scene.prose.trim()) problems.push(`scene ${scene.key}: prose is required`);
+    if (!scene.responses.length) problems.push(`scene ${scene.key}: at least one response is required`);
+    const responseKeys = new Set<string>();
+    for (const response of scene.responses) {
+      if (!SCENE_KEY.test(response.key)) problems.push(`scene ${scene.key}: response ${response.key || '(blank)'} key must be lower_snake_case`);
+      if (responseKeys.has(response.key)) problems.push(`scene ${scene.key}: duplicate response ${response.key}`);
+      responseKeys.add(response.key);
+      if (!response.label.trim()) problems.push(`scene ${scene.key}/${response.key}: label is required`);
+      if (!response.outcome.trim()) problems.push(`scene ${scene.key}/${response.key}: outcome is required`);
+    }
+    for (const id of scene.after ?? []) {
+      if (!quest.objectives.some((objective) => objective.id === id)) {
+        problems.push(`scene ${scene.key}: after names unknown required objective ${id}`);
+      }
+    }
+  }
+
+  const fedBy = new Map<string, string>();
+  const referenced = new Set<string>();
+  for (const objective of [...quest.objectives, ...quest.bonusObjectives]) {
+    const sceneKey = sceneObjectiveKey(objective);
+    if (sceneKey === undefined) continue;
+    const where = isRecord(objective.params?.where) ? objective.params.where : {};
+    if (objective.kind !== 'EVENT_COUNT' || objective.target !== 1) {
+      problems.push(`objective ${objective.id}: a scene objective must be EVENT_COUNT with target 1`);
+    }
+    if (JSON.stringify(objective.params?.eventTypes) !== JSON.stringify([QUEST_STORY_SCENE_EVENT])) {
+      problems.push(`objective ${objective.id}: a scene objective counts only ${QUEST_STORY_SCENE_EVENT}`);
+    }
+    if (where.questKey !== quest.key) {
+      problems.push(`objective ${objective.id}: a scene objective must filter on questKey ${quest.key}`);
+    }
+    if (sceneKey === null || !sceneKeys.has(sceneKey)) {
+      problems.push(`objective ${objective.id}: names unknown scene ${sceneKey ?? '(none)'}`);
+      continue;
+    }
+    referenced.add(sceneKey);
+    fedBy.set(objective.id, sceneKey);
+  }
+  for (const key of sceneKeys) {
+    if (!referenced.has(key)) problems.push(`scene ${key}: no objective counts it`);
+  }
+
+  // A scene waiting on an objective that only another waiting scene can complete never opens.
+  const waitsOn = new Map(scenes.map((scene) => [
+    scene.key,
+    (scene.after ?? []).flatMap((id) => fedBy.has(id) ? [fedBy.get(id)!] : []),
+  ]));
+  const visiting = new Set<string>();
+  const done = new Set<string>();
+  const cycles = new Set<string>();
+  const visit = (key: string): void => {
+    if (done.has(key)) return;
+    if (visiting.has(key)) { cycles.add(key); return; }
+    visiting.add(key);
+    for (const next of waitsOn.get(key) ?? []) visit(next);
+    visiting.delete(key);
+    done.add(key);
+  };
+  for (const key of waitsOn.keys()) visit(key);
+  for (const key of cycles) problems.push(`scene ${key}: after forms a cycle and can never open`);
+  return problems;
+}
+
+/**
+ * Story campaign Slice H. Every variant names a real outcome in this catalog and replaces at
+ * least one known line; the quest's own lines are the defaults, so nothing can resolve to empty.
+ */
+export function storyVariantProblems(quest: QuestDefinition, catalog: QuestDefinitionCatalog): string[] {
+  const problems: string[] = [];
+  const fields = new Set<string>(QUEST_STORY_VARIANT_FIELDS);
+  (quest.story?.variants ?? []).forEach((variant, index) => {
+    const label = `variant ${index + 1}`;
+    const when = variant.when;
+    const source = when ? catalog[when.questKey] : undefined;
+    if (!when || !source) {
+      problems.push(`${label}: names unknown quest ${when?.questKey ?? '(none)'}`);
+    } else if (when.kind === 'BRANCH_CHOSEN') {
+      if (!source.branches?.some((branch) => branch.key === when.branchKey)) problems.push(`${label}: unknown branch ${when.questKey}/${when.branchKey}`);
+    } else if (when.kind === 'SCENE_RESPONSE') {
+      const scene = source.story?.scenes?.find((entry) => entry.key === when.sceneKey);
+      if (!scene) problems.push(`${label}: unknown scene ${when.questKey}/${when.sceneKey}`);
+      else if (!scene.responses.some((response) => response.key === when.responseKey)) problems.push(`${label}: unknown response ${when.questKey}/${when.sceneKey}/${when.responseKey}`);
+    } else if (when.kind !== 'QUEST_COMPLETED') {
+      problems.push(`${label}: unknown condition ${(when as { kind: string }).kind}`);
+    }
+    const lines = Object.entries(variant).filter(([field]) => field !== 'when');
+    if (!lines.length) problems.push(`${label}: replaces no line`);
+    for (const [field, value] of lines) {
+      if (!fields.has(field)) problems.push(`${label}: cannot replace ${field}`);
+      else if (typeof value !== 'string' || !value.trim()) problems.push(`${label}: ${field} is empty`);
+    }
+  });
+  return problems;
+}
+
 export function questDefinitionProblems(catalog: QuestDefinitionCatalog): string[] {
   const problems: string[] = [];
 
@@ -151,11 +271,14 @@ export function questDefinitionProblems(catalog: QuestDefinitionCatalog): string
     if (quest.objectives.length === 0) problems.push(`${catalogKey}: at least one objective is required`);
     if (quest.story) {
       for (const [field, value] of Object.entries(quest.story)) {
+        if (field === 'scenes' || field === 'variants') continue;
         if (typeof value !== 'string' || !value.trim()) {
           problems.push(`${catalogKey}: story.${field} is required`);
         }
       }
     }
+    for (const problem of storySceneProblems(quest)) problems.push(`${catalogKey}: ${problem}`);
+    for (const problem of storyVariantProblems(quest, catalog)) problems.push(`${catalogKey}: ${problem}`);
     if (quest.type === 'SECRET') {
       if (quest.repeatability !== 'ONCE') problems.push(`${catalogKey}: SECRET quests must be ONCE`);
       if (quest.availability.hidden !== true) problems.push(`${catalogKey}: SECRET quests must set availability.hidden=true`);

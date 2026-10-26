@@ -72,7 +72,7 @@ export function StashGrid({ stash, busy, onSave }: {
           </Button>
         </div>
       </div>
-      <p className="se-stash__hint">Drag an item to move it, or tap an item then an empty spot. Product stock stays in product storage; equip and customize weapons in the Armory and Garage.</p>
+      <p className="se-stash__hint">Drag an item to move it, or tap an item then an empty spot. Product stock stays in product storage.</p>
       <div className="se-stash__board" style={{ '--stash-columns': stash.columns, '--stash-rows': stash.rows } as CSSProperties} aria-label={`Stash grid, ${stash.columns} columns by ${stash.rows} rows`}>
         {Array.from({ length: stash.rows }, (_, y) => Array.from({ length: stash.columns }, (_, x) => (
           <button

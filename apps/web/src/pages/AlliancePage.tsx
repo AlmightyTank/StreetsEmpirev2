@@ -770,3 +770,6 @@ export function AlliancePage() {
     </GameLayout>
   );
 }
+
+import '../styles/alliance.css';
+import '../styles/social-experience.css';

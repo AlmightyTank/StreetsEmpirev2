@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import '../styles/admin.css';
 import { Link } from 'react-router-dom';
 import type { AdminQuestContentDto, AdminRoundsDto } from '@streets/shared';
 import { formatNumber } from '@streets/shared';
@@ -7,6 +8,7 @@ import { ApiError } from '../api/client.js';
 import { Alert } from '../components/Alert.js';
 import { Button } from '../components/Button.js';
 import { GameDialog } from '../components/GameUI.js';
+import { AdminStoryCampaignPanel } from '../components/AdminStoryCampaignPanel.js';
 import { Panel, Stat } from '../components/Panel.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { adminWhen } from '../utils/admin.js';
@@ -234,6 +236,8 @@ export function AdminQuestContentPage() {
           </Panel>
         ) : null}
       </div>
+
+      {roundId ? <AdminStoryCampaignPanel roundId={roundId} /> : null}
 
       <Panel title="Quest definitions" aside={data ? `${formatNumber(quests.length)} shown` : undefined} flush className="se-mb">
         {!data ? (

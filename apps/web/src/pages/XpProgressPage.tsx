@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import '../styles/street-pass.css';
 import { Link } from 'react-router-dom';
 import { ACCOUNT_TRUST_GATES, EXPERIENCE_LEVEL_CROWNS, MENTORING, EXPERIENCE_LEVEL_REWARDS, STREET_SIGN_FONT_PACKS, PRESTIGE_LEVELS, accountGateOpen, accountLevelBadge, experienceCrownMilestones, experienceRequiredForLevel, experienceSourceLabel, experienceTitlesBetween, levelRewardsAt, formatCents, formatNumber, type PlayerExperienceDto, type PlayerExperienceEventDto, type MentoringDto, type PublicCareerDto, type XpLeaderboardDto } from '@streets/shared';
 import { communityApi } from '../api/community.js';

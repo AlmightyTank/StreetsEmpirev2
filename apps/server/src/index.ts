@@ -3,6 +3,7 @@ import { buildApp } from './app.js';
 import { env } from './config/env.js';
 import { IdempotencyService } from './services/idempotency.service.js';
 import { GameAlertService } from './services/game-alerts.service.js';
+import { HideoutBuildService } from './services/hideout-build.service.js';
 import { FactionWarningService } from './services/faction-warning.service.js';
 import { NotificationService } from './services/notification.service.js';
 import { ConvoyService } from './services/convoy.service.js';
@@ -113,6 +114,10 @@ const stopAlerts = startPoller('Alerts', 60_000, async () => {
     await BossHitService.sweep(app.prisma, now);
     // 0.9.0-G: bring runs home on time, so "made it home" goes out while their owner is away.
     await GameAlertService.sweepRuns(app.prisma, now);
+    // Hideout builds land on time, so "construction finished" reaches the bell while their owner is away.
+    for (const ownerId of await HideoutBuildService.dueOwners(app.prisma, now)) {
+      await PlayerStateService.settle(app.prisma, ownerId, { markActive: false, now });
+    }
     // 1.6.5-D: loan installments and property upkeep on their due time, from the cash on hand
     // then, so a missed installment reaches the bell while its owner is away.
     await DueSettleService.sweep(app.prisma, now, (roundPlayerId, error) => app.log.error({ err: error, roundPlayerId }, 'Due settle failed'));

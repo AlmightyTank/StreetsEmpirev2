@@ -35,7 +35,7 @@
   .se-casino-bet-control {
     width: 100%;
     display: grid;
-    grid-template-columns: auto auto minmax(4.5rem, 1fr) auto auto;
+    grid-template-columns: 2.75rem minmax(4.5rem, 1fr) 2.75rem 4rem;
   }
 
   .se-casino-bet-control > label {

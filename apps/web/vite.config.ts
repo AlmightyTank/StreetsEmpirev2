@@ -20,4 +20,5 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['@streets/shared'],
   },
+  // Let Vite split shared modules so dependency initialization order is preserved.
 });

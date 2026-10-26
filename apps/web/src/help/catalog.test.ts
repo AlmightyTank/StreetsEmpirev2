@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { ONBOARDING_GUIDE_STEPS, ONBOARDING_PAGE_KEYS } from '@streets/shared';
+import { ONBOARDING_PAGE_KEYS } from '@streets/shared';
 import { TOUR_STEP_KEYS } from '@streets/shared';
-import { GUIDE_STEPS, INTRO_CARDS, PAGE_HELP, PAGE_INTROS, TOUR_STEPS, pageHelpFor, pageIntroFor } from './catalog.js';
+import { INTRO_CARDS, PAGE_HELP, PAGE_INTROS, TOUR_STEPS, pageHelpFor, pageIntroFor } from './catalog.js';
 
 const rulesPage = readFileSync(new URL('../pages/RulesPage.tsx', import.meta.url), 'utf8');
 
@@ -40,10 +40,6 @@ describe('1.0.0-B help catalog', () => {
     }
   });
 
-  it('has copy for every getting-started goal', () => {
-    for (const key of ONBOARDING_GUIDE_STEPS) expect(GUIDE_STEPS[key]?.title, key).toBeTruthy();
-  });
-
   it('has a tour tooltip on a real route for every walkthrough step', () => {
     expect([...TOUR_STEP_KEYS]).toEqual(Object.keys(TOUR_STEPS));
     for (const key of TOUR_STEP_KEYS) {
@@ -59,7 +55,7 @@ describe('1.0.0-B help catalog', () => {
     const sources: Record<string, string> = {
       '/account': readFileSync(new URL('../pages/AccountSettingsPage.tsx', import.meta.url), 'utf8')
         + readFileSync(new URL('../components/StreetSignBuilder.tsx', import.meta.url), 'utf8'),
-      '/game/quests': readFileSync(new URL('../pages/QuestPage.tsx', import.meta.url), 'utf8'),
+      '/game/quests': readFileSync(new URL('../pages/QuestPhonePage.tsx', import.meta.url), 'utf8'),
       '/game/scout': readFileSync(new URL('../pages/ScoutPage.tsx', import.meta.url), 'utf8'),
       '/game/stores': readFileSync(new URL('../pages/StorePage.tsx', import.meta.url), 'utf8'),
       '/game/produce': readFileSync(new URL('../pages/ProducePage.tsx', import.meta.url), 'utf8'),

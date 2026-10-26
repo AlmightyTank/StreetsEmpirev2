@@ -18,6 +18,7 @@ import { Alert } from './Alert.js';
 import { Button } from './Button.js';
 import { minutesText } from './CityMap.js';
 import { Panel, Row } from './Panel.js';
+import { QuantityStepper } from './QuantityStepper.js';
 
 type TripPanelData = NonNullable<TravelDto['trips']>;
 
@@ -70,6 +71,7 @@ function RentGuns({ trip, rules, weapons, onDone }: { trip: TripDto; rules: Trip
           Rent · {formatCents(price * qty)}
         </Button>
       </div>
+      <QuantityStepper value={count} onChange={setCount} min={1} max={room} disabled={rent.busy} unitLabel="guns" />
       <p className="se-hint">For the rest of the stay, out of the bankroll. They go back at check-out and are never yours.</p>
       {rent.error ? <Alert>{rent.error}</Alert> : null}
     </div>
@@ -253,6 +255,7 @@ export function TripPanel({ data, selected, onDone }: { data: TravelDto; selecte
           <label className="se-label" htmlFor="trip-guards">Bodyguards <span className="se-muted">up to {Math.min(bg.max, trips.fitThugs)}</span></label>
           <input id="trip-guards" className="se-input" type="number" inputMode="numeric" min={0} max={Math.min(bg.max, trips.fitThugs)} step={1} value={guards}
             onChange={(event) => setGuards(wholeDollars(event.target.value))} />
+          <QuantityStepper value={guards} onChange={setGuards} min={0} max={Math.min(bg.max, trips.fitThugs)} unitLabel="bodyguards" />
           <p className="se-hint">
             {formatCents(bg.ticketCents)} a ticket{bg.factionDiscount ? ` (${bg.factionDiscount.percent}% off with ${bg.factionDiscount.factionName})` : ''} and {formatCents(bg.lodgingCentsPerThugHour)} an hour each. They fight anyone who comes for the boss
             {trips.gunConnect?.unlocked ? ', and Tommy\u2019s people can rent them guns in town.' : ', bare-handed unless Tommy\u2019s people in town will rent to you.'}

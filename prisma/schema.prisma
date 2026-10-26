@@ -1770,6 +1770,7 @@ model PlayerQuest {
   questDefinitionId String
   questDefinition   QuestDefinition        @relation(fields: [questDefinitionId], references: [id], onDelete: Restrict)
   progressReceipts  QuestProgressReceipt[]
+  sceneResponses    QuestSceneResponse[]
 
   attempt   Int         @default(1)
   status    QuestStatus @default(AVAILABLE)
@@ -1800,6 +1801,23 @@ model PlayerQuest {
 /// Idempotency/audit receipt for one source event applied to one quest attempt.
 /// The source key is usually activity:<PlayerActivity.id>; explicit emitters may
 /// use another stable domain key.
+/// Story campaign. The response a player chose in one authored scene of one quest attempt.
+/// One row per attempt and scene, so answering is idempotent and the choice can be read back
+/// by later story copy and the story archive.
+model QuestSceneResponse {
+  id String @id @default(cuid())
+
+  playerQuestId String
+  playerQuest   PlayerQuest @relation(fields: [playerQuestId], references: [id], onDelete: Cascade)
+
+  sceneKey    String
+  responseKey String
+
+  createdAt DateTime @default(now())
+
+  @@unique([playerQuestId, sceneKey])
+}
+
 model QuestProgressReceipt {
   id String @id @default(cuid())
 
@@ -1855,6 +1873,7 @@ model Round {
   territoryPowerSelections    TerritoryPowerSelection[]
   territoryAuditEvents        TerritoryAuditEvent[]
   territoryYieldCaches        TerritoryYieldCache[]
+  playerBoardOffers           PlayerBoardOffer[]
   territoryTollPayments       TerritoryTollPayment[]
   territoryYieldDailyLedgers  TerritoryYieldDailyLedger[]
   territoryYieldPlayerDailyLedgers TerritoryYieldPlayerDailyLedger[]
@@ -2109,6 +2128,11 @@ model RoundPlayer {
 
   /// 2.3.0. Hideout components found while scouting; keyed by component id.
   scavengedComponents Json @default("{}")
+  /// Components that still retain found-in-raid provenance.
+  foundInRaid Json @default("{}")
+  /// The Board. Parts escrowed on open offers (and expired ones still waiting on stash room), by key. Counts toward net worth like held parts.
+  playerBoardEscrow   Json @default("{}")
+  playerBoardEscrowFoundInRaid Json @default("{}")
   /// 2.3.0. Cache rewards earned from scouting, before they are opened.
   scavengedCaches Json @default("[]")
 
@@ -2122,6 +2146,8 @@ model RoundPlayer {
   workshopSkillXp Int @default(0)
   workshopLastRecipe String?
   hideoutEconomyTelemetry HideoutEconomyTelemetry[]
+  playerBoardOffers       PlayerBoardOffer[]       @relation("PlayerBoardSeller")
+  playerBoardPurchases    PlayerBoardFill[]        @relation("PlayerBoardBuyer")
 
   displayName String
 
@@ -2391,6 +2417,16 @@ model RoundPlayer {
   /// 0.6.0-D. One level opens a second concurrent travel run.
   hideoutGarageLevel              Int     @default(0)
   hideoutStorageLevel             Int     @default(0)
+  /// One room under construction at a time. Cash, turns and components are paid
+  /// up front; the level lands when the build is ready (settle or the sweeper).
+  hideoutBuildRoom                String?
+  hideoutBuildLevel               Int?
+  hideoutBuildStartedAt           DateTime?
+  hideoutBuildReadyAt             DateTime?
+  /// Room key -> next level already announced as ready to build, so the bell says it once.
+  hideoutReadyAlerts              Json    @default("{}")
+  /// Cosmetic unlocks awarded after this moment still owe the player a bell notice.
+  cosmeticsAlertedAt              DateTime?
   /// 0.7.0-F. Which guns home squads and run escorts consume first.
   hideoutWeaponPriority           String  @default("POWER")
   /// 0.7.0-G. Permanent for this RoundPlayer; the next season starts clean.
@@ -2491,6 +2527,7 @@ model RoundPlayer {
   @@index([roundId, netWorthCents(sort: Desc)])
   @@index([roundId, cityId, netWorthCents(sort: Desc)])
   @@index([allianceId])
+  @@index([hideoutBuildReadyAt])
 }
 
 /// 2.5.0-A/F. One row represents one customized gun or a stack of identical stock guns, with item-specific history.
@@ -4372,6 +4409,7 @@ enum ActivityType {
   QUEST_READY
   QUEST_CLAIMED
   QUEST_ACCEPTED
+  QUEST_STORY_SCENE
   STREET_PASS_CLAIMED
   FAVOR_ACTIVATED
   FAVOR_DISARMED
@@ -4407,6 +4445,7 @@ enum ActivityType {
   BOSS_HIT_ATTACK
   BOSS_HIT_DEFENSE
   BOSS_HIT_BACKUP
+  PLAYER_BOARD_SALE
   OUTPOST_VISIT
   SIT_DOWN
   SIT_DOWN_AGREED
@@ -4469,6 +4508,9 @@ enum ActivityType {
   SPORTSBOOK_GAME_STARTED
   /// A sportsbook ticket was graded as won, lost, push or void.
   SPORTSBOOK_TICKET_SETTLED
+  HIDEOUT_BUILD_COMPLETE
+  HIDEOUT_ROOM_READY
+  COSMETIC_UNLOCKED
 }
 
 enum BattleKind {
@@ -6732,4 +6774,92 @@ model AdminLivingStoryDraft {
 
   @@unique([baseRulesetId, key])
   @@index([baseRulesetId, updatedAt(sort: Desc)])
+}
+
+// ---------------------------------------------------------------------------
+// The Board (player listings)
+// ---------------------------------------------------------------------------
+
+/// The Board. How an offer is paid for: cash per unit, or a basket of goods for the whole stack.
+enum PlayerBoardPriceKind {
+  CASH
+  BARTER
+}
+
+/// The Board C. OPEN holds the stack in escrow. CANCELLED and EXPIRED return it; SOLD arrives with fills.
+enum PlayerBoardOfferStatus {
+  OPEN
+  SOLD
+  CANCELLED
+  EXPIRED
+}
+
+/// The Board C. One posted stack. The parts leave `scavengedComponents` while it is OPEN, and an
+/// EXPIRED offer whose stack found no free stash cell keeps it until one opens (`returnedAt` null).
+model PlayerBoardOffer {
+  id String @id @default(cuid())
+
+  roundId  String
+  round    Round       @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  sellerId String
+  seller   RoundPlayer  @relation("PlayerBoardSeller", fields: [sellerId], references: [id], onDelete: Cascade)
+
+  itemKey        String
+  /// Units posted.
+  quantity       Int
+  /// Units still for sale and in escrow. Cash offers sell down in part; a barter goes whole.
+  remainingQuantity Int
+  /// Cash offers: the price per unit. Barter offers: 0.
+  unitPriceCents Int
+  /// Book per unit when posted, so the band and fee a listing was checked against stay on record.
+  bookCents      Int
+  /// The Board. Extra tax paid at posting for a price above the band (or a barter asking for more
+  /// than it offers). Kept, like the posting fee. Zero inside the band.
+  listingTaxCents Int                 @default(0)
+  /// The Board. CASH sells for a unit price; BARTER asks for `askItems` for each lot.
+  priceKind      PlayerBoardPriceKind @default(CASH)
+  /// Barter offers: units sold per lot. Buyers take whole lots; cash offers are always 1.
+  lotSize        Int                  @default(1)
+  /// Barter offers: what the buyer hands over for each lot, { itemKey: quantity }.
+  askItems       Json?
+  /// Barter offers: the book of one lot's `askItems`, never above the lot's book. The buyer's
+  /// cash top-up is priced from it on each fill.
+  askBookCents   Int?
+  feeCents       Int
+  durationHours  Int
+
+  /// `Round.pausedMinutesTotal` at posting. Pauses since then push the expiry back.
+  pausedMinutesAtPost Int
+  postedAt            DateTime @default(now())
+  /// Wall-clock expiry before any pause.
+  expiresAt           DateTime
+
+  status     PlayerBoardOfferStatus @default(OPEN)
+  closedAt   DateTime?
+  /// When the escrowed stack went back to the seller. Null while OPEN, SOLD, or EXPIRED and waiting on stash room.
+  returnedAt DateTime?
+  fills PlayerBoardFill[]
+
+  @@index([roundId, status, itemKey, unitPriceCents])
+  @@index([sellerId, status])
+}
+
+/// The Board E. One purchase from an offer: all of it, or part of a cash offer.
+model PlayerBoardFill {
+  id String @id @default(cuid())
+
+  offerId String
+  offer   PlayerBoardOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  buyerId String?
+  buyer   RoundPlayer?     @relation("PlayerBoardBuyer", fields: [buyerId], references: [id], onDelete: SetNull)
+
+  quantity      Int
+  /// Cash the buyer paid: the sticker for a cash offer, the top-up for a barter.
+  paidCents     Int
+  /// Cash the seller received, after the deleted tax. Zero for a barter.
+  proceedsCents Int
+  createdAt     DateTime @default(now())
+
+  @@index([offerId])
+  @@index([buyerId])
 }

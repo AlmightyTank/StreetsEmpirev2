@@ -52,6 +52,7 @@
 }
 
 .se-produce-plan {
+  scroll-margin-top: 240px;
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(350px, 0.8fr);
   gap: 10px;
