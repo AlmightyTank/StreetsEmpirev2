@@ -16,7 +16,7 @@ import { toAccountDto } from '../game/dto.js';
 import { AccountProfileService } from '../services/account-profile.service.js';
 import { UsernameChangeService } from '../services/username-change.service.js';
 import { AccountClosureService } from '../services/support.service.js';
-import { AccountDataService } from '../services/account-data.service.js';
+import { AccountDataService, eraseAccount } from '../services/account-data.service.js';
 import { noteSignIn, notePasswordChanged } from '../services/sign-in-notice.service.js';
 import { assertHuman } from '../auth/turnstile.js';
 import { TwoFactorService } from '../services/two-factor.service.js';
@@ -43,6 +43,8 @@ async function getDecoyHash(): Promise<string> {
 
 const DISCORD_STATE_COOKIE = 'se_discord_oauth_state';
 const DISCORD_LINK_COOKIE = 'se_discord_oauth_link';
+/** Signed proof that Discord OAuth found an account the user may review for merging. */
+const DISCORD_MERGE_COOKIE = 'se_discord_merge';
 /** Signed OAuth redirect URI, kept with state to avoid proxy header drift. */
 const DISCORD_REDIRECT_URI_COOKIE = 'se_discord_oauth_redirect_uri';
 /** rc.3. A sign-in waiting for its authenticator code. */
@@ -112,6 +114,7 @@ function exchangeOAuthCodeOnce(
 const discordStartSchema = z.object({
   // `?link=1` / `?link=true`; anything else (including "false" and "0") is not a link.
   link: z.string().optional().transform((value) => value === '1' || value === 'true'),
+  merge: z.string().optional().transform((value) => value === '1' || value === 'true'),
   // rc.4: `?remember=0` for a sign-in that ends with the browser. Anything else keeps it.
   remember: z.string().optional().default('1').transform((value) => value !== '0' && value !== 'false'),
 });
@@ -178,9 +181,10 @@ function authRedirect(message: string): string {
   return url.toString();
 }
 
-function accountRedirect(message: string): string {
+function accountRedirect(message: string, merge = false): string {
   const url = new URL('/account', env.frontendOrigin);
   url.searchParams.set('accountMessage', message);
+  if (merge) url.searchParams.set('accountMerge', '1');
   return url.toString();
 }
 
@@ -219,8 +223,35 @@ function requestOrigin(request: FastifyRequest): string {
   return `${protocol}://${host ?? 'localhost:3001'}`;
 }
 
+function isTrustedDiscordCallbackOrigin(origin: string): boolean {
+  try {
+    const url = new URL(origin);
+    if (url.protocol === 'https:' && (url.hostname === 'play.streetsempire.dev' || url.hostname === 'beta.streetsempire.dev')) return true;
+    return url.protocol === 'http:' && (url.hostname === 'localhost' || url.hostname === '127.0.0.1');
+  } catch {
+    return false;
+  }
+}
+
 function discordRedirectUri(request: FastifyRequest): string {
-  return env.discord.redirectUri || `${requestOrigin(request)}/api/auth/discord/callback`;
+  const currentOrigin = requestOrigin(request);
+  const configured = env.discord.redirectUri;
+
+  // OAuth must finish on the same host that started it. Otherwise the session
+  // cookie is set for (for example) localhost while the game is running on
+  // play.streetsempire.dev, so sign-in appears to succeed but the game remains
+  // logged out. Keep an explicitly configured URI when it matches the request;
+  // for trusted game/local hosts, prefer the current host so one server build
+  // works from both phone and PC and for both live and beta deployments.
+  if (configured) {
+    try {
+      if (new URL(configured).origin === new URL(currentOrigin).origin) return configured;
+    } catch { /* fall through to the safe current-origin check */ }
+  }
+  if (isTrustedDiscordCallbackOrigin(currentOrigin)) {
+    return `${currentOrigin}/api/auth/discord/callback`;
+  }
+  return configured || `${currentOrigin}/api/auth/discord/callback`;
 }
 
 function appleRedirectUri(request: FastifyRequest): string {
@@ -326,6 +357,24 @@ function setDiscordLinkCookie(reply: FastifyReply): void {
 
 function clearDiscordLinkCookie(reply: FastifyReply): void {
   reply.clearCookie(DISCORD_LINK_COOKIE, { path: '/api/auth' });
+}
+
+function setDiscordMergeCookie(reply: FastifyReply, value: string): void {
+  reply.setCookie(DISCORD_MERGE_COOKIE, value, {
+    httpOnly: true, sameSite: 'lax', secure: env.isProduction, signed: true,
+    path: '/api/auth', maxAge: 10 * 60,
+  });
+}
+
+function clearDiscordMergeCookie(reply: FastifyReply): void {
+  reply.clearCookie(DISCORD_MERGE_COOKIE, { path: '/api/auth' });
+}
+
+function readDiscordMergeCookie(request: FastifyRequest): { accountId: string; discordId: string } | null {
+  const value = readSignedCookie(request, DISCORD_MERGE_COOKIE);
+  if (!value) return null;
+  const [accountId, discordId] = value.split(':');
+  return accountId && discordId ? { accountId, discordId } : null;
 }
 
 function setTwoFactorCookie(reply: FastifyReply, token: string): void {
@@ -1158,6 +1207,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     setDiscordStateCookie(reply, state);
     setDiscordRedirectCookie(reply, redirectUri);
     if (linkMode) setDiscordLinkCookie(reply);
+    if (linkMode && query.merge) setDiscordMergeCookie(reply, 'pending');
     reply.setCookie(DISCORD_REMEMBER_COOKIE, query.remember ? '1' : '0', {
       httpOnly: true, sameSite: 'lax', secure: env.isProduction, signed: true, path: '/api/auth', maxAge: 10 * 60,
     });
@@ -1179,9 +1229,11 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     }
     const expectedState = readDiscordStateCookie(request);
     const linkMode = readDiscordLinkCookie(request);
+    const mergeMode = readSignedCookie(request, DISCORD_MERGE_COOKIE) === 'pending';
     const savedRedirectUri = readSignedCookie(request, DISCORD_REDIRECT_URI_COOKIE);
     clearDiscordStateCookie(reply);
     clearDiscordLinkCookie(reply);
+    clearDiscordMergeCookie(reply);
     reply.clearCookie(DISCORD_REDIRECT_URI_COOKIE, { path: '/api/auth' });
 
     if (query.error) {
@@ -1228,6 +1280,13 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
         if (adminNeedsSecondFactor(request.auth.account, request.auth.session)) {
           return conclude(accountRedirect('Admins cannot link Discord from a password-only sign-in. Sign in with your authenticator code, or use "Sign in with Discord" with a Discord account on this email.'));
         }
+        if (mergeMode) {
+          const linked = await fastify.prisma.account.findUnique({ where: { discordId: discordUser.id }, select: { id: true, isActive: true } });
+          if (linked && linked.id !== request.auth.account.id && linked.isActive) {
+            setDiscordMergeCookie(reply, `${linked.id}:${discordUser.id}`);
+            return conclude(accountRedirect('We found another account linked to this Discord. Review the accounts before merging.', true));
+          }
+        }
         await linkDiscordToAccount(fastify.prisma, request.auth.account, discordUser);
         return conclude(accountRedirect('Discord is linked.'));
       }
@@ -1266,6 +1325,49 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
         ? accountRedirect('Discord linking failed. Try again.')
         : authRedirect('Discord login failed. Try again.'));
     }
+  });
+
+  fastify.get('/discord/merge-preview', { preHandler: fastify.requireAuth }, async (request, reply) => {
+    const proof = readDiscordMergeCookie(request);
+    if (!proof || proof.accountId === request.auth!.account.id) {
+      throw AppError.notFound('DISCORD_MERGE_NOT_FOUND', 'There is no pending Discord account merge.');
+    }
+    const source = await fastify.prisma.account.findUnique({
+      where: { id: proof.accountId },
+      select: { id: true, username: true, email: true, discordId: true, isActive: true, isAdmin: true, staffRole: true, _count: { select: { roundPlayers: true } } },
+    });
+    if (!source || !source.isActive || source.discordId !== proof.discordId || source.isAdmin || source.staffRole) {
+      throw AppError.conflict('DISCORD_MERGE_UNAVAILABLE', 'That Discord account can no longer be merged.');
+    }
+    return { keep: { id: request.auth!.account.id, username: request.auth!.account.username }, remove: { id: source.id, username: source.username, email: source.email, roundsPlayed: source._count.roundPlayers } };
+  });
+
+  fastify.post('/discord/merge', { preHandler: fastify.requireAuth }, async (request, reply) => {
+    const proof = readDiscordMergeCookie(request);
+    if (!proof || proof.accountId === request.auth!.account.id) {
+      throw AppError.notFound('DISCORD_MERGE_NOT_FOUND', 'There is no pending Discord account merge.');
+    }
+
+    const result = await fastify.prisma.$transaction(async (tx) => {
+      const [winner, source] = await Promise.all([
+        tx.account.findUniqueOrThrow({ where: { id: request.auth!.account.id } }),
+        tx.account.findUnique({ where: { id: proof.accountId } }),
+      ]);
+      if (!source || !source.isActive || source.discordId !== proof.discordId || source.isAdmin || source.staffRole) {
+        throw AppError.conflict('DISCORD_MERGE_UNAVAILABLE', 'That Discord account can no longer be merged.');
+      }
+      if (winner.discordId && winner.discordId !== source.discordId) {
+        throw AppError.conflict('DISCORD_ALREADY_LINKED', 'The account you kept is already linked to a different Discord account.');
+      }
+      const linked = await tx.account.update({
+        where: { id: winner.id },
+        data: { discordId: source.discordId, discordUsername: source.discordUsername, discordAvatar: source.discordAvatar, discordLinkedAt: source.discordLinkedAt ?? new Date() },
+      });
+      await eraseAccount(tx, source, await hashPassword(randomBytes(32).toString('base64url')));
+      return linked;
+    });
+    clearDiscordMergeCookie(reply);
+    return { ok: true, message: `Accounts merged. ${result.username} is now linked to Discord.` };
   });
 
   fastify.delete('/discord', { preHandler: fastify.requireAuth }, async (request) => {

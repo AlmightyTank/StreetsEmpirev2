@@ -668,7 +668,7 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
           <div className="se-dashboard-command__column se-dashboard-command__column--left">
           <details id="crew-inventory" className="se-dashboard-fold" open={showCrewDetails} onToggle={(event) => setShowCrewDetails(event.currentTarget.open)}>
             <summary className="se-dashboard-fold__summary">
-              <span><strong>Crew, supplies & arsenal</strong><small>Personnel readiness, stock, weapons and assignments</small></span>
+              <span><strong>Crew, supplies, arsenal, happiness &amp; product stock</strong><small>Personnel readiness, supplies, weapons, morale and stored product</small></span>
               <span aria-hidden="true">+</span>
             </summary>
           <section className="se-dashboard-section se-dashboard-section--divided">

@@ -39,6 +39,8 @@ export function ConnectedAccountsPanel({ account, onConnectionsChanged }: Connec
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [confirmDiscord, setConfirmDiscord] = useState(false);
+  const [discordMerge, setDiscordMerge] = useState<{ keep: { username: string }; remove: { username: string; email: string; roundsPlayed: number } } | null>(null);
+  const [confirmMerge, setConfirmMerge] = useState(false);
   const [confirmForum, setConfirmForum] = useState(false);
   const [discordPassword, setDiscordPassword] = useState('');
   const [discordPasswordError, setDiscordPasswordError] = useState<string | null>(null);
@@ -84,6 +86,26 @@ export function ConnectedAccountsPanel({ account, onConnectionsChanged }: Connec
       window.removeEventListener('streets:play-games-error', onError);
     };
   }, []);
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('accountMerge') !== '1') return;
+    void authApi.discordMergePreview().then(setDiscordMerge).catch((caught) => {
+      setError(caught instanceof ApiError ? caught.message : 'This Discord merge is no longer available.');
+    });
+  }, []);
+
+  async function mergeDiscord() {
+    setBusy('discord-merge');
+    setError(null);
+    try {
+      const response = await authApi.mergeDiscordAccount();
+      window.location.assign(`/account?accountMessage=${encodeURIComponent(response.message)}`);
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'Could not merge these accounts. Try again.');
+    } finally {
+      setBusy(null);
+    }
+  }
 
   async function loadForum() {
     try {
@@ -349,9 +371,31 @@ export function ConnectedAccountsPanel({ account, onConnectionsChanged }: Connec
               ) : null}
             </>
           ) : (
-            <a onClick={startOAuth} className="se-btn se-btn--discord" href="/api/auth/discord?link=1">Link Discord</a>
+            <a onClick={startOAuth} className="se-btn se-btn--discord" href="/api/auth/discord?link=1&merge=1">Link Discord</a>
           )}
         </section>
+
+        {discordMerge ? (
+          <section className="se-connection se-connection__confirm">
+            <span className="se-connection__eyebrow">Account merge review</span>
+            <h3>Keep {discordMerge.keep.username}</h3>
+            <p>
+              Discord is currently linked to <strong>{discordMerge.remove.username}</strong> ({discordMerge.remove.email}).
+              Merging keeps <strong>{discordMerge.keep.username}</strong>, moves the Discord link here, and closes the other account.
+              {discordMerge.remove.roundsPlayed ? ` Its ${discordMerge.remove.roundsPlayed} season record(s) remain anonymized for history.` : ''}
+            </p>
+            {confirmMerge ? (
+              <div className="se-actions-row">
+                <Button type="button" className="se-btn se-btn--ghost" onClick={mergeDiscord} disabledReason={busy ? working : null}>
+                  {busy === 'discord-merge' ? 'Merging...' : 'Yes, merge accounts'}
+                </Button>
+                <Button type="button" className="se-btn se-btn--ghost" onClick={() => setConfirmMerge(false)} disabledReason={busy ? working : null}>Cancel</Button>
+              </div>
+            ) : (
+              <Button type="button" className="se-btn se-btn--ghost" onClick={() => setConfirmMerge(true)} disabledReason={busy ? working : null}>Review and merge</Button>
+            )}
+          </section>
+        ) : null}
 
         {appleEnabled || account.appleLinked ? (
           <section className="se-connection">

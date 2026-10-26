@@ -89,6 +89,10 @@ export const authApi = {
 
   unlinkDiscord: (input: { currentPassword: string }) =>
     api.delete<AccountResponse & { ok: true; message: string }>('/auth/discord', input),
+  discordMergePreview: () =>
+    api.get<{ keep: { id: string; username: string }; remove: { id: string; username: string; email: string; roundsPlayed: number } }>('/auth/discord/merge-preview'),
+  mergeDiscordAccount: () =>
+    api.post<{ ok: true; message: string }>('/auth/discord/merge', {}),
 
   unlinkApple: (input: { currentPassword: string }) =>
     api.delete<AccountResponse & { ok: true; message: string }>('/auth/apple', input),
