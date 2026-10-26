@@ -24,7 +24,7 @@ function signedMoney(value: number): string {
 
 const RACE_DURATION_MS = 7200;
 const GATE_ENTRY_END = 0.085;
-const LATE_RACE_START = 0.74;
+const LATE_RACE_START = 0.58;
 const START_PROGRESS = 0.035;
 const FINISH_LINE_RATIO = 0.76;
 const FIRST_FINISH_POSITION = FINISH_LINE_RATIO + 0.20;
@@ -133,23 +133,21 @@ export function HorseRacingPanel({ casinoPage, onPageChange }: Props) {
             return -0.12 + (START_PROGRESS + 0.12) * (entry * entry * (3 - 2 * entry));
           }
 
-          const packProgress = Math.min((rawProgress - GATE_ENTRY_END) / (LATE_RACE_START - GATE_ENTRY_END), 1);
-          const trackProgress = START_PROGRESS + packProgress * 0.68;
-          if (rawProgress < LATE_RACE_START) {
-            // Shared forward motion plus overlapping pace waves. Horses can
-            // pass and fall back, but no early movement gives away the result.
-            const envelope = Math.sin(Math.PI * packProgress);
-            const swing = Math.sin(packProgress * Math.PI * 4.5 + runner.phase) * 0.018
-              + Math.sin(packProgress * Math.PI * 8 + runner.phaseTwo) * 0.006;
-            const paceDrift = runner.speed * packProgress;
-            return Math.max(START_PROGRESS, Math.min(0.77, trackProgress + (swing + paceDrift) * envelope));
-          }
-
-          // In the final stretch each runner keeps a forward pace through the
-          // wire. Their speed determines when they cross; no one snaps or waits
-          // at a finish timer. This also ends at the settled result coordinates.
-          const lateProgress = Math.max(0, Math.min(1, (rawProgress - LATE_RACE_START) / (1 - LATE_RACE_START)));
-          return 0.715 + (runner.finishPosition - 0.715) * lateProgress;
+          // Keep one continuous pace curve for the whole run. The old two-stage
+          // curve changed each horse's speed abruptly at the stretch and pulled
+          // them into rigid finish slots. Now the field keeps flowing while
+          // small pace changes create passes and the official order emerges
+          // gradually in the last part of the race.
+          const raceProgress = Math.min((rawProgress - GATE_ENTRY_END) / (1 - GATE_ENTRY_END), 1);
+          const trackProgress = START_PROGRESS + raceProgress * (FIRST_FINISH_POSITION - START_PROGRESS - (2.5 * FINISH_POSITION_GAP));
+          const envelope = Math.sin(Math.PI * raceProgress);
+          const swing = (Math.sin(raceProgress * Math.PI * 4.5 + runner.phase) - Math.sin(runner.phase)) * 0.018
+            + (Math.sin(raceProgress * Math.PI * 8 + runner.phaseTwo) - Math.sin(runner.phaseTwo)) * 0.006;
+          const paceDrift = runner.speed * raceProgress;
+          const stretch = Math.max(0, Math.min(1, (raceProgress - LATE_RACE_START) / (1 - LATE_RACE_START)));
+          const stretchEase = stretch * stretch * (3 - 2 * stretch);
+          const rankOffset = (2.5 - rank) * FINISH_POSITION_GAP;
+          return Math.max(START_PROGRESS, Math.min(FIRST_FINISH_POSITION, trackProgress + (swing + paceDrift) * envelope + rankOffset * stretchEase));
         });
 
         positionsRef.current = newPositions;
