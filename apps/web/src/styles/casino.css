@@ -1320,7 +1320,10 @@
 .se-horse-racing__track { position: relative; isolation: isolate; overflow: hidden; min-height: 17.1rem; border: 3px solid #3b2a16; border-radius: .7rem; background: linear-gradient(180deg, #3f5f3a 0%, #2a4225 100%); box-shadow: inset 0 0 0 1px rgba(255,255,255,.06), 0 .5rem 1.2rem rgb(0 0 0 / .35); }
 .se-horse-racing__dirt { position: absolute; inset: 0; z-index: -1; background: repeating-linear-gradient(90deg, rgba(255,255,255,.04) 0, rgba(255,255,255,.04) 1px, transparent 1px 18%); }
 .se-horse-racing__rails { position: absolute; inset: 4px; z-index: 0; border: 2px dashed rgba(244,221,155,.35); border-radius: .4rem; pointer-events: none; }
-.se-horse-racing__finish { position: absolute; top: 2rem; right: 6rem; bottom: 0; width: 1.15rem; z-index: 1; background: repeating-linear-gradient(180deg, #fff 0 .9rem, #1a1a1a .9rem 1.8rem); border-left: 2px solid #1a1a1a; border-right: 2px solid #1a1a1a; box-shadow: 0 0 0 2px rgba(0,0,0,.35); pointer-events: none; }
+.se-horse-racing__finish { position: absolute; top: 2rem; left: 76%; bottom: 0; width: 1.15rem; z-index: 1; background: repeating-linear-gradient(180deg, #fff 0 .9rem, #1a1a1a .9rem 1.8rem); border-left: 2px solid #1a1a1a; border-right: 2px solid #1a1a1a; box-shadow: 0 0 0 2px rgba(0,0,0,.35); pointer-events: none; }
+.se-horse-racing.is-racing .se-horse-racing__dirt { animation: se-race-track-scroll .4s linear infinite; background-size: 150% 100%; }
+.se-horse-racing__progress { height: .22rem; overflow: hidden; background: rgb(0 0 0 / .24); }
+.se-horse-racing__progress span { display: block; height: 100%; border-radius: 0 999px 999px 0; background: linear-gradient(90deg, #f0c96a, #fff1bd); box-shadow: 0 0 .5rem rgb(255 225 146 / .6); transition: width .08s linear; }
 .se-horse-racing__rail { position: relative; z-index: 10; display: flex; justify-content: space-between; align-items: center; gap: .75rem; min-height: 2rem; padding: .35rem .65rem; overflow: visible; background: #162d1f; color: #f4dd9b; font-size: .65rem; font-weight: 900; letter-spacing: .1em; border-radius: .6rem .6rem 0 0; }
 .se-horse-racing__rail strong { color: #ffe59b; white-space: nowrap; }
 .se-horse-racing__rail span { flex: 0 0 auto; white-space: nowrap; }
@@ -1332,9 +1335,12 @@
 .se-horse-racing__runner { --rank: 5; position: relative; width: 100%; height: 2.85rem; min-width: 0; }
 .se-horse-racing__horse { position: absolute; top: 50%; z-index: 20; display: flex; align-items: center; gap: .15rem; transform: translate(-50%, -50%); transition: none; filter: drop-shadow(0 .2rem .2rem rgb(0 0 0 / .4)); will-change: left; }
 .se-horse-racing__horse b { position: relative; z-index: 21; font-size: 1.55rem; transform: scaleX(-1); line-height: 1; animation: se-horse-bob .32s ease-in-out infinite; animation-delay: var(--bob-delay, 0s); }
-.se-horse-racing__horse small { position: relative; z-index: 21; max-width: 5.5rem; overflow: hidden; color: #fff; font-size: .6rem; font-weight: 900; text-overflow: ellipsis; white-space: nowrap; text-shadow: 0 1px 2px #000; background: rgba(0,0,0,.35); padding: 0 .25rem; border-radius: .25rem; }
+.se-horse-racing__horse small { position: absolute; right: calc(100% + .3rem); z-index: 21; max-width: 5.5rem; overflow: hidden; color: #fff; font-size: .6rem; font-weight: 900; text-overflow: ellipsis; white-space: nowrap; text-shadow: 0 1px 2px #000; background: rgba(0,0,0,.52); padding: .12rem .3rem; border-radius: .25rem; }
+.se-horse-racing__horse::before { content: ''; position: absolute; right: .28rem; bottom: .12rem; z-index: 20; width: .58rem; height: .58rem; border: 1px solid rgb(255 255 255 / .7); border-radius: 50%; background: var(--runner-color); box-shadow: 0 0 .35rem rgb(0 0 0 / .6); }
 .se-horse-racing__lane.is-winner { background: linear-gradient(90deg, transparent 0%, rgba(242,202,83,.18) 100%); }
+.se-horse-racing__lane.is-leading { background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,.08) 100%); }
 .se-horse-racing__lane.is-winner .se-horse-racing__horse { filter: drop-shadow(0 .2rem .25rem rgb(255 215 90 / .6)); }
+.se-horse-racing__horse.is-leading { filter: drop-shadow(0 0 .3rem rgb(255 235 176 / .6)); }
 .se-horse-racing__horse.is-winner { filter: drop-shadow(0 0 .35rem #ffe38a) drop-shadow(0 .25rem .25rem rgb(0 0 0 / .45)); }
 .se-horse-racing__horse.is-winner { z-index: 30; }
 .se-horse-racing__horse.is-winner::after { content: 'WINNER'; position: absolute; left: 50%; bottom: calc(100% + .25rem); z-index: 31; padding: .12rem .3rem; border: 1px solid #ffe38a; border-radius: .25rem; background: #7b5514; color: #fff3bd; font-size: .5rem; font-weight: 950; letter-spacing: .08em; white-space: nowrap; animation: se-winner-pulse .8s ease-in-out infinite alternate; }
@@ -1350,6 +1356,7 @@
   0%, 100% { transform: scaleX(-1) translateY(0); }
   50% { transform: scaleX(-1) translateY(-.18rem); }
 }
+@keyframes se-race-track-scroll { to { background-position: 150% 0; } }
 @keyframes se-winner-pulse { from { opacity: .72; transform: translate(-50%, .08rem) scale(.96); } to { opacity: 1; transform: translate(-50%, 0) scale(1.04); } }
 @media (prefers-reduced-motion: reduce) { .se-scratch__foil, .se-scratch__grid > button.is-winning, .se-scratch__ticket.is-win, .se-horse-racing__horse b, .se-horse-racing__horse.is-winner::after { animation: none; transition: none; } }
 @media (max-width: 760px) { .se-scratch__denoms { grid-template-columns: repeat(4, 1fr); } .se-horse-racing__board { grid-template-columns: 1fr; } }
