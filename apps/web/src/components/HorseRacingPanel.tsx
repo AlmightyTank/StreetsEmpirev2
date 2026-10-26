@@ -99,11 +99,10 @@ export function HorseRacingPanel({ casinoPage, onPageChange }: Props) {
     const field = Array.from({ length: horseCount }, (_, index) => {
       const rank = rankOf.get(state?.horses[index]?.key ?? '') ?? index;
       return {
-        // Keep the field bunched until late, then reveal the official order as
-        // each runner gets its own wire time and space beyond the finish line.
-        finishAt: 0.835 + rank * 0.025,
-        finishPosition: 0.94 - rank * 0.022,
-        pace: 0.9 + Math.random() * 0.2,
+        // The final coordinates are the same ones used by the settled result.
+        // All runners keep moving through the wire and finish at slightly
+        // different distances, so crossing never freezes a horse in place.
+        finishPosition: FINISH_LINE_RATIO + 0.18 - rank * 0.024,
         phase: Math.random() * Math.PI * 2,
         phaseTwo: Math.random() * Math.PI * 2,
         speed: (Math.random() - 0.5) * 0.025,
@@ -126,7 +125,6 @@ export function HorseRacingPanel({ casinoPage, onPageChange }: Props) {
         const rawProgress = Math.min(elapsed / RACE_DURATION_MS, 1);
 
         const newPositions = field.map((runner) => {
-          if (rawProgress >= runner.finishAt) return runner.finishPosition;
           if (rawProgress < GATE_ENTRY_END) {
             // All runners break together and enter from off the left side.
             const entry = rawProgress / GATE_ENTRY_END;
@@ -139,19 +137,17 @@ export function HorseRacingPanel({ casinoPage, onPageChange }: Props) {
             // Shared forward motion plus overlapping pace waves. Horses can
             // pass and fall back, but no early movement gives away the result.
             const envelope = Math.sin(Math.PI * packProgress);
-            const swing = Math.sin(packProgress * Math.PI * 4.5 + runner.phase) * 0.035
-              + Math.sin(packProgress * Math.PI * 8 + runner.phaseTwo) * 0.018;
+            const swing = Math.sin(packProgress * Math.PI * 4.5 + runner.phase) * 0.018
+              + Math.sin(packProgress * Math.PI * 8 + runner.phaseTwo) * 0.006;
             const paceDrift = runner.speed * packProgress;
             return Math.max(START_PROGRESS, Math.min(0.77, trackProgress + (swing + paceDrift) * envelope));
           }
 
-          // Only in the closing stretch do the runners spread into their
-          // authoritative finish order. Ease each one through the wire at its
-          // own time so the photo finish reads clearly.
-          const lateProgress = Math.max(0, Math.min(1, (rawProgress - LATE_RACE_START) / (runner.finishAt - LATE_RACE_START)));
-          const eased = lateProgress * lateProgress * (3 - 2 * lateProgress);
-          const lateSwing = Math.sin(rawProgress * Math.PI * 18 + runner.phase) * 0.009 * (1 - eased);
-          return 0.715 + (runner.finishPosition - 0.715) * eased + lateSwing;
+          // In the final stretch each runner keeps a forward pace through the
+          // wire. Their speed determines when they cross; no one snaps or waits
+          // at a finish timer. This also ends at the settled result coordinates.
+          const lateProgress = Math.max(0, Math.min(1, (rawProgress - LATE_RACE_START) / (1 - LATE_RACE_START)));
+          return 0.715 + (runner.finishPosition - 0.715) * lateProgress;
         });
 
         positionsRef.current = newPositions;

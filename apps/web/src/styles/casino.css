@@ -1327,7 +1327,7 @@
 .se-horse-racing__rail { position: relative; z-index: 10; display: flex; justify-content: space-between; align-items: center; gap: .75rem; min-height: 2rem; padding: .35rem .65rem; overflow: visible; background: #162d1f; color: #f4dd9b; font-size: .65rem; font-weight: 900; letter-spacing: .1em; border-radius: .6rem .6rem 0 0; }
 .se-horse-racing__rail strong { color: #ffe59b; white-space: nowrap; }
 .se-horse-racing__rail span { flex: 0 0 auto; white-space: nowrap; }
-.se-horse-racing__lanes { position: relative; z-index: 20; display: block; min-height: 17.1rem; }
+.se-horse-racing__lanes { position: relative; z-index: 20; display: block; min-height: 17.1rem; padding-top: .65rem; }
 .se-horse-racing__lane { position: relative; z-index: 4; height: 2.85rem; display: grid; grid-template-columns: 2rem minmax(0, 1fr) 1.9rem; align-items: center; border-bottom: 1px dashed rgba(255,255,255,.12); padding-inline: .35rem; }
 .se-horse-racing__lane > span, .se-horse-racing__lane > em { z-index: 2; text-align: center; font-weight: 900; font-style: normal; color: #f4dd9b; text-shadow: 0 1px 2px #000; }
 .se-horse-racing__lane > span { justify-self: center; background: rgba(0,0,0,.35); border-radius: .3rem; padding: .05rem .35rem; font-size: .7rem; }
@@ -1337,7 +1337,7 @@
 .se-horse-racing__horse b { position: relative; z-index: 21; font-size: 1.55rem; transform: scaleX(-1); line-height: 1; animation: se-horse-bob .32s ease-in-out infinite; animation-delay: var(--bob-delay, 0s); }
 .se-horse-racing__horse small { position: absolute; right: calc(100% + .3rem); z-index: 21; max-width: 5.5rem; overflow: hidden; color: #fff; font-size: .6rem; font-weight: 900; text-overflow: ellipsis; white-space: nowrap; text-shadow: 0 1px 2px #000; background: rgba(0,0,0,.52); padding: .12rem .3rem; border-radius: .25rem; }
 .se-horse-racing__horse::before { content: ''; position: absolute; right: .28rem; bottom: .12rem; z-index: 20; width: .58rem; height: .58rem; border: 1px solid rgb(255 255 255 / .7); border-radius: 50%; background: var(--runner-color); box-shadow: 0 0 .35rem rgb(0 0 0 / .6); }
-.se-horse-racing__lane.is-winner { background: linear-gradient(90deg, transparent 0%, rgba(242,202,83,.18) 100%); }
+.se-horse-racing__lane.is-winner { z-index: 40; background: linear-gradient(90deg, transparent 0%, rgba(242,202,83,.18) 100%); }
 .se-horse-racing__lane.is-leading { background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,.08) 100%); }
 .se-horse-racing__lane.is-winner .se-horse-racing__horse { filter: drop-shadow(0 .2rem .25rem rgb(255 215 90 / .6)); }
 .se-horse-racing__horse.is-leading { filter: drop-shadow(0 0 .3rem rgb(255 235 176 / .6)); }
