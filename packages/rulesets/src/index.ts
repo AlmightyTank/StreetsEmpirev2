@@ -164,6 +164,7 @@ import { classicOgV26G } from './classic-og-v2.6-g/index.js';
 import { classicOgV26H } from './classic-og-v2.6-h/index.js';
 import { classicOgV26I } from './classic-og-v2.6-i/index.js';
 import { classicOgV26J, classicOgV26JBoard } from './classic-og-v2.6-j/index.js';
+import { classicOgV26K } from './classic-og-v2.6-k/index.js';
 import type { Ruleset } from './types.js';
 
 export * from './street-skills.js';
@@ -343,6 +344,7 @@ export { missingLineSideEchoes, missingLineSideQuests } from './classic-og-v2.6-
 export { classicOgV26I };
 export { CAMPAIGN_UNLOCKS, campaignOnlyStories, isRetiredStoryJob } from './classic-og-v2.6-i/campaign-only-stories.js';
 export { classicOgV26J, classicOgV26JBoard };
+export { classicOgV26K };
 export { UNDERWORLD_OPERATIONS_V1 } from './underworld-operations.js';
 export type { UnderworldOperationTemplate, UnderworldOperationCatalog } from './underworld-operations.js';
 export * from './living-case-outcomes.js';
@@ -540,6 +542,7 @@ export const rulesets: Readonly<Record<string, Ruleset>> = {
   // The Board H: the dark 2.6.0-J stays registered for any round pinned to it; new rounds take the live Board.
   [classicOgV26J.meta.id]: classicOgV26J,
   [classicOgV26JBoard.meta.id]: classicOgV26JBoard,
+  [classicOgV26K.meta.id]: classicOgV26K,
 };
 
 export { ROUND_ROLL_CALL_FINALE, ROUND_ROLL_CALL_FINALE_COSMETICS } from './round-roll-call-cosmetics.js';

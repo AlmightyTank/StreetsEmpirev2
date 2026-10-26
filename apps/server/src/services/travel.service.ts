@@ -46,12 +46,14 @@ import {
   runDriveOnSchema,
   runHeadHomeSchema,
   runLaunchSchema,
+  runReconSchema,
   runTradeSchema,
   vehiclePurchaseSchema,
   vehicleServiceSchema,
   type GameActionResult,
   type RunDto,
   type RunLaunchResult,
+  type RunMarketReconDto,
   type RunMoveResult,
   type RunReceiptDto,
   type RunSupplyPickupDto,
@@ -90,6 +92,7 @@ import {
   cargoOf,
   totalAwayWorth,
   marketPrice,
+  counterAt,
   recordSighting,
   takeFromRun,
   toIncidentDto,
@@ -279,6 +282,7 @@ async function runDto(db: Db | PrismaClient, roundPlayerId: string, ruleset: Rul
     startBeer: run.startBeer,
     capacity,
     cargo: run.cargo.map((row) => ({ key: row.productKey, quantity: row.quantity, startQuantity: row.startQuantity })),
+    ...(run.shipmentProductKey ? { shipment: { product: run.shipmentProductKey, direction: (run as LoadedRun & { shipmentDirection?: string | null }).shipmentDirection === 'buy' || Number(run.shipmentQuoteCents ?? 0) < 0 ? 'buy' as const : 'sell' as const, quantity: run.shipmentQuantity, soldQuantity: run.shipmentSoldQuantity, saleCents: Number(run.shipmentSaleCents), destination: (run as LoadedRun & { shipmentDestination?: string | null }).shipmentDestination ?? run.homeCity } } : {}),
     guns: { PISTOL: run.pistols, SHOTGUN: run.shotguns, TEK9: run.tek9s, AK47: run.ak47s },
     bossAboard: run.bossAboard,
     hotel: run.bossAboard && tripRules(ruleset)?.rideAlong
@@ -302,7 +306,7 @@ async function runDto(db: Db | PrismaClient, roundPlayerId: string, ruleset: Rul
       until: position.until.toISOString(),
     },
     // 1.6.0-C: a pickup run never trades, so it has no counter to show.
-    counter: position.phase === 'town' && !supplyPickup ? await liveCounter(db, roundPlayerId, ruleset, seed, position.city, now) : null,
+    counter: position.phase === 'town' && !supplyPickup && !run.shipmentProductKey ? await liveCounter(db, roundPlayerId, ruleset, seed, position.city, now) : null,
     trades: trades.map((trade) => toTradeDto(ruleset, trade)),
     incidents: incidents.map((incident) => toIncidentDto(ruleset, incident)),
     ...(supplyPickup ? { supplyPickup } : {}),
@@ -453,6 +457,33 @@ async function wireDto(prisma: PrismaClient, roundId: string, ruleset: Ruleset, 
  * a game action, so it is locked, idempotent and leaves a before and after.
  */
 export const TravelService = {
+  /** Snapshot the destination high market before loading a shipment. */
+  recon(prisma: PrismaClient, roundPlayerId: string, rawInput: unknown): Promise<GameActionResult<RunMarketReconDto>> {
+    const reconTurnCost = 2;
+    const input = runReconSchema.parse(rawInput);
+    return ActionService.run<RunMarketReconDto>(prisma, roundPlayerId, {
+      action: 'RUN_RECON',
+      actionId: input.actionId,
+        execute: async ({ tx, current, round, ruleset, now }) => {
+          requireRuns(ruleset);
+          assertTurns(current.turns, reconTurnCost);
+          if (!ruleset.cities?.[input.to]) throw AppError.badRequest('UNKNOWN_CITY', 'That city is not on the map.');
+        await recordSighting(tx, roundPlayerId, ruleset, round.id, input.to, now);
+        const counter = await counterAt(tx, roundPlayerId, ruleset, round.id, input.to, now);
+        return {
+            next: { ...current, turns: current.turns - reconTurnCost },
+          result: {
+            city: input.to,
+            cityName: cityName(ruleset, input.to),
+            seenAt: now.toISOString(),
+            expiresAt: new Date(now.getTime() + 30 * 60_000).toISOString(),
+            products: counter.products.map((entry) => ({ key: entry.key, buyCents: entry.market?.buyCents ?? null, sellCents: entry.market?.sellCents ?? null, depth: entry.market?.depth ?? null })),
+          },
+        };
+      },
+    });
+  },
+
   async page(prisma: PrismaClient, roundPlayerId: string, now: Date = new Date()): Promise<TravelDto> {
     const settled = await PlayerStateService.settle(prisma, roundPlayerId, { markActive: false, now });
     const { ruleset, player } = settled;
@@ -838,43 +869,36 @@ export const TravelService = {
         const vehicleFeeCents = BigInt(vehicleFee);
         /** Out of home stock. What the crew buys on the way out is added to `cargo` below. */
         const fromHome = Object.fromEntries(Object.entries(input.cargo).filter(([, quantity]) => quantity > 0));
+        const shipmentDirection = input.shipmentDirection;
+        const shipmentProduct = input.shipmentProduct ?? Object.keys(fromHome)[0] ?? null;
+        const shipmentQuantity = input.shipmentQuantity ?? (shipmentProduct ? fromHome[shipmentProduct] ?? 0 : 0);
+        if (shipmentDirection === 'buy' && (!shipmentProduct || shipmentQuantity < 1)) {
+          throw AppError.badRequest('BUY_ORDER_REQUIRED', 'Choose a product and quantity to buy at the destination.');
+        }
+        if (shipmentDirection === 'buy' && Object.keys(fromHome).length) {
+          throw AppError.badRequest('BUY_ORDER_HAS_CARGO', 'A destination buy order starts with an empty trunk.');
+        }
         const cargo: Record<string, number> = { ...fromHome };
         const marketTrades: Array<{ productKey: string; quantity: number; unitCents: number; totalCents: bigint }> = [];
+        if (shipmentDirection === 'sell' && Object.keys(fromHome).length > 1) {
+          throw AppError.badRequest('ONE_SHIPMENT_PRODUCT', 'A sell run carries one product. Choose one product and send the remainder on another roundtrip.');
+        }
         for (const [key, quantity] of Object.entries(fromHome)) {
           if (!(key in inventory)) throw AppError.badRequest('UNKNOWN_PRODUCT', 'That product is not part of this round.');
           if (quantity > inventory[key]!) {
             throw AppError.badRequest('NOT_ENOUGH_PRODUCT', `You only have ${inventory[key]} ${productName(ruleset, key)}.`, { cargo: `Only ${inventory[key]} ${productName(ruleset, key)}.` });
           }
         }
-        // 0.5.0-F: buy on the home market as the crew loads up, straight into the trunk and
-        // paid out of home cash. Buying only, so nobody sells on their own market.
-        const bought = Object.fromEntries(Object.entries(input.market).filter(([, quantity]) => quantity > 0));
-        let marketCents = 0n;
-        if (Object.keys(bought).length) {
-          const rules = ruleset.travel?.market;
-          if (!runRules(ruleset)?.homeMarketAtLaunch || !rules) {
-            throw AppError.conflict('NO_HOME_MARKET', 'You cannot buy on your own city\'s high market this round.');
-          }
-          const seed = player.roundId;
-          // In catalog order, so two crews loading up at once never take their locks the other way round.
-          for (const key of productKeys(ruleset).filter((product) => (bought[product] ?? 0) > 0)) {
-            const quantity = bought[key]!;
-            const market = await HighMarketService.lock(tx, ruleset, seed, player.city.slug, key, now);
-            const view = marketView(ruleset, seed, player.city.slug, key, market.push, now);
-            if (!view) throw AppError.badRequest('NO_MARKET_PRICE', `Nobody in ${cityName(ruleset, player.city.slug)} deals ${productName(ruleset, key)} in bulk.`, { market: 'No market for it here.' });
-            const fill = fillMarket(view, rules, 'buy', quantity);
-            const quoted = input.marketQuotes?.[key];
-            if (quoted !== undefined && quoteMoved(rules, 'buy', quoted, fill.firstUnitCents)) {
-              throw AppError.conflict('PRICE_MOVED', `The price moved: ${productName(ruleset, key)} now costs $${(fill.firstUnitCents / 100).toLocaleString('en-US')} a unit. Check it and try again.`);
-            }
-            await HighMarketService.write(tx, market.id, fill.pushAfter, now);
-            marketCents += fill.totalCents;
-            cargo[key] = (cargo[key] ?? 0) + quantity;
-            marketTrades.push({ productKey: key, quantity, unitCents: Math.round(Number(fill.totalCents) / quantity), totalCents: fill.totalCents });
-          }
+        // Runs are sell shipments now: product must already be in home inventory.
+        if (Object.keys(input.market).some((key) => input.market[key]! > 0)) {
+          throw AppError.conflict('HOME_MARKET_DISABLED', 'Runs load product from home inventory; recon the destination market instead.');
         }
+        if (shipmentDirection === 'buy' && input.shipmentQuoteCents === undefined) {
+          throw AppError.badRequest('BUY_ORDER_NEEDS_RECON', 'Recon the destination market before placing a buy order.');
+        }
+        let marketCents = 0n;
         if (cashCents + marketCents + vehicleFeeCents > current.cashCents) {
-          throw AppError.badRequest('NOT_ENOUGH_CASH', `The cash in the car, market buys, and ${formatCents(vehicleFee)} fleet fee exceed your home cash.`, { cashCents: 'Cash, market buys, and fleet fee must fit your home balance.' });
+          throw AppError.badRequest('NOT_ENOUGH_CASH', `The cash in the car and ${formatCents(vehicleFee)} fleet fee exceed your home cash.`, { cashCents: 'Cash and fleet fee must fit your home balance.' });
         }
 
         const baseCapacity = runCapacity(ruleset, loadout, skilledCargoShare(racketCargoShare(ruleset, readRacketEffects(player.racketEffects)), skills));
@@ -885,8 +909,12 @@ export const TravelService = {
               return sum + base * modPercent(vehicle, 'CARGO') / 100;
             }, 0))
           : baseCapacity;
-        if (cargoUnits(cargo) + input.beer > capacity) {
+        const reservedShipmentUnits = shipmentDirection === 'buy' ? shipmentQuantity : 0;
+        if (cargoUnits(cargo) + input.beer + reservedShipmentUnits > capacity) {
           throw AppError.badRequest('TRUNK_FULL', `This vehicle loadout carries ${capacity} units including beer.`, { cargo: `At most ${capacity} total units.` });
+        }
+        if (shipmentDirection === 'buy' && BigInt(input.shipmentQuoteCents!) * BigInt(shipmentQuantity) > cashCents) {
+          throw AppError.badRequest('BUY_ORDER_CASH', 'Load enough cash into the run to cover the destination buy order at the recon price.');
         }
         if (input.escortMemberIds?.length) await CrewRosterService.sync(tx, roundPlayerId, ruleset, now, current);
 
@@ -923,8 +951,14 @@ export const TravelService = {
             // Wheels' Open Road treats the outbound stop as already checked.
             roadChecks: openRoad ? 1 : 0,
             bossAboard: Boolean(rideAlong),
+            shipmentProductKey: shipmentProduct,
+            shipmentDestination: input.to,
+            shipmentQuantity,
+            // The checked-in Prisma client may predate shipmentDirection. Encode buy orders
+            // in the sign of the existing quote column until the client is regenerated.
+            shipmentQuoteCents: input.shipmentQuoteCents === undefined ? null : shipmentDirection === 'buy' ? -input.shipmentQuoteCents : input.shipmentQuoteCents,
             cargo: { create: productKeys(ruleset).filter((key) => (cargo[key] ?? 0) > 0).map((key) => ({ productKey: key, quantity: cargo[key]!, startQuantity: cargo[key]! })) },
-          },
+          } as Prisma.RunUncheckedCreateInput,
         });
         await CrewRosterService.assignTravelMembers(tx, {
           roundPlayerId,
@@ -961,6 +995,7 @@ export const TravelService = {
           cargo,
           market: Object.fromEntries(marketTrades.map((trade) => [trade.productKey, trade.quantity])),
           marketCents: Number(marketCents),
+          ...(Object.keys(fromHome).length === 1 ? { shipment: { product: Object.keys(fromHome)[0]!, quantity: Object.values(fromHome)[0]!, quoteCents: input.shipmentQuoteCents ?? 0 } } : {}),
           bossAboard: Boolean(rideAlong),
         };
         const baseNext = {
@@ -1034,6 +1069,7 @@ export const TravelService = {
         const seed = round.id;
         const run = await requireActiveRun(tx, roundPlayerId, input.runId);
         await assertNotSupplyRun(tx, run.id);
+        if (run.shipmentProductKey) throw AppError.conflict('SHIPMENT_AUTOMATIC_SALE', 'Sell shipments are sold automatically on arrival; Pip is not available on runs.');
         const stops = toStopPlans(run.stops);
         const position = runPosition(base, stops, now);
         if (position.phase !== 'town') {

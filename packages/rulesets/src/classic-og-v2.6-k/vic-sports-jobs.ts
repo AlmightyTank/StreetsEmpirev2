@@ -1,0 +1,95 @@
+import type { QuestDefinitionCatalog } from '../types.js';
+
+/** Vic's first sports contract: the result is fictional and never changes sportsbook settlement. */
+export const vicSportsJobs: QuestDefinitionCatalog = {
+  FAVOR_ON_THE_LINE: {
+    key: 'FAVOR_ON_THE_LINE',
+    title: 'Favor on the Line',
+    description: 'Vic has a client who needs one team to win and the other team to have a very ordinary bad night.',
+    contactKey: 'VIC',
+    type: 'SIDE',
+    category: 'CASINO',
+    difficulty: 'SERIOUS_BUSINESS',
+    prerequisites: [],
+    objectives: [
+      {
+        id: 'approach',
+        kind: 'EVENT_COUNT',
+        description: 'Choose how to put pressure on the game.',
+        target: 1,
+        params: { eventTypes: ['QUEST_STORY_SCENE'], where: { questKey: 'FAVOR_ON_THE_LINE', sceneKey: 'choose_approach' } },
+      },
+    ],
+    bonusObjectives: [],
+    rewards: [
+      { kind: 'CASH', amount: 350000 },
+      { kind: 'CONTACT_REP', key: 'VIC', amount: 10 },
+    ],
+    branches: [
+      {
+        key: 'ACE_ACCESS',
+        title: 'Use Ace’s guest list',
+        description: 'Get close enough to the right people to make a quiet suggestion.',
+        rewards: [{ kind: 'CONTACT_REP', key: 'ACE', amount: 4 }],
+        reputationDeltas: [{ contactKey: 'ACE', amount: 4 }],
+        followUpKeys: [],
+      },
+      {
+        key: 'TOMMY_PRESSURE',
+        title: 'Send Tommy’s pressure',
+        description: 'Make the message impossible to misunderstand. It will leave a mark.',
+        rewards: [{ kind: 'CONTACT_REP', key: 'TOMMY', amount: 4 }],
+        reputationDeltas: [{ contactKey: 'TOMMY', amount: 4 }],
+        followUpKeys: [],
+      },
+      {
+        key: 'WHEELS_LOGISTICS',
+        title: 'Let Wheels handle the route',
+        description: 'Move people and equipment without making the trip memorable.',
+        rewards: [{ kind: 'CONTACT_REP', key: 'WHEELS', amount: 4 }],
+        reputationDeltas: [{ contactKey: 'WHEELS', amount: 4 }],
+        followUpKeys: [],
+      },
+      {
+        key: 'BLOCKS_VENUE',
+        title: 'Work the venue',
+        description: 'Use Blocks’s local access to find the soft spot around the stadium.',
+        rewards: [{ kind: 'CONTACT_REP', key: 'BLOCKS', amount: 4 }],
+        reputationDeltas: [{ contactKey: 'BLOCKS', amount: 4 }],
+        followUpKeys: [],
+      },
+      {
+        key: 'LEDGER_COVER',
+        title: 'Keep the paperwork ordinary',
+        description: 'Ask Ledger how investigators recognize a pattern, then avoid creating one.',
+        rewards: [{ kind: 'CONTACT_REP', key: 'LEDGER', amount: 4 }],
+        reputationDeltas: [{ contactKey: 'LEDGER', amount: 4 }],
+        followUpKeys: [],
+      },
+    ],
+    story: {
+      chapter: 'A favor with a face',
+      intro: 'Vic slides a game sheet across the table. “No fixing games. We are arranging pressure around one of them.”',
+      inProgress: 'The linked game is approaching. Choose an approach, then come back before the line closes.',
+      ready: 'Vic checks the time and the names on the sheet. “Good. Now we find out whether the pressure landed.”',
+      completed: 'Vic folds the game sheet in half. “The client got an answer. Whether it was the one they wanted is between us and the night.”',
+      actionHint: 'Choose an approach, then return to Vic before the linked game starts.',
+      scenes: [{
+        key: 'choose_approach',
+        title: 'Pressure point',
+        prose: 'The target is a fictional player role on the linked team. Pick the kind of pressure you can live with.',
+        responses: [
+          { key: 'quiet_access', label: 'Keep it quiet with Ace’s access.', outcome: 'Ace opens a door and makes sure nobody asks why you walked through it.' },
+          { key: 'hard_message', label: 'Send Tommy with a hard message.', outcome: 'The message lands. So does the possibility that somebody remembers who sent it.' },
+          { key: 'clean_route', label: 'Let Wheels move the pieces.', outcome: 'The route is clean, the timing is tighter, and the tires leave no story behind.' },
+          { key: 'work_the_venue', label: 'Work the venue with Blocks.', outcome: 'Blocks finds the weak point in the crowd and the people working it.' },
+          { key: 'ordinary_paper', label: 'Keep the paperwork ordinary with Ledger’s advice.', outcome: 'Ledger does not help corrupt the game. She explains how not to make a bad pattern worse.' },
+        ],
+      }],
+    },
+    followUpKeys: [],
+    repeatability: 'ONCE',
+    expiresAfterMinutes: 180,
+    availability: {},
+  },
+};

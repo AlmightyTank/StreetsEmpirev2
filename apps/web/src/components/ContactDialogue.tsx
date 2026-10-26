@@ -159,8 +159,23 @@ export function ContactDialogue({
       line = job.status === 'READY_TO_TURN_IN' && outcome ? `${outcome}\n\n${jobLine(job)}` : jobLine(job);
       extra = (
         <div className="se-room__job">
-          <span className="se-eyebrow">{job.story?.chapter ? `${job.story.chapter} · ` : ''}{job.title} · {jobStatusLabel(job)}</span>
-          {job.status !== 'AVAILABLE' ? (
+           <span className="se-eyebrow">{job.story?.chapter ? `${job.story.chapter} · ` : ''}{job.title} · {jobStatusLabel(job)}</span>
+           {job.sportsInfluence ? (
+             <div className="se-room__requirements">
+               <span className="se-eyebrow">Linked game</span>
+               <p className="se-hint">
+                 {job.sportsInfluence.homeTeam} vs. {job.sportsInfluence.awayTeam} · {job.sportsInfluence.sport}
+                  <br />Target: {job.sportsInfluence.targetTeam === 'HOME' ? job.sportsInfluence.homeTeam : job.sportsInfluence.awayTeam} {job.sportsInfluence.targetRole}
+                  <br />Desired result: {job.sportsInfluence.desiredOutcome === 'WIN' ? 'win' : 'lose'} · Deadline: {new Date(job.sportsInfluence.startsAt).toLocaleString()}
+                  {job.sportsInfluence.resolved ? (
+                    <><br />Official result: {job.sportsInfluence.resolved.actualOutcome === 'NO_EFFECT' ? 'no effect (event voided or tied)' : job.sportsInfluence.resolved.actualOutcome.toLowerCase()}
+                      {' · '}{job.sportsInfluence.resolved.success ? 'favor succeeded' : 'favor failed'}
+                      {' · Exposure: '}{job.sportsInfluence.resolved.exposure.toLowerCase()}</>
+                  ) : null}
+                </p>
+             </div>
+           ) : null}
+           {job.status !== 'AVAILABLE' ? (
             <ul className="se-room__objectives">
               {job.objectives.filter((objective) => !objective.bonus).map((objective) => (
                 <li key={objective.id} className={objective.completed ? 'is-done' : undefined}>

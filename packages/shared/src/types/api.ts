@@ -2301,6 +2301,18 @@ export interface PlayerQuestDto {
   attempt: number;
   title: string;
   description: string;
+  /** 2.6.0-K. A read-only snapshot for Vic's sports influence contract. */
+  sportsInfluence?: {
+    eventId: string;
+    sport: string;
+    homeTeam: string;
+    awayTeam: string;
+    startsAt: string;
+    targetTeam: 'HOME' | 'AWAY';
+    desiredOutcome: 'WIN' | 'LOSE';
+    targetRole: string;
+    resolved?: { actualOutcome: 'WIN' | 'LOSE' | 'NO_EFFECT'; success: boolean; exposure: 'LOW' | 'MEDIUM' | 'HIGH'; heatDelta: number };
+  };
   contactKey: string | null;
   contactName: string | null;
   /** 1.5.0-E2. On a locked Job: what it still waits for. */
@@ -2574,6 +2586,13 @@ export interface QuestClaimResult {
   }>;
   /** 1.4.0-E. The fee the claim took (Vic's introductions), in cents. */
   feeCents?: number;
+  /** 2.6.0-K. Official result of a linked Vic sports contract. */
+  sportsInfluence?: {
+    actualOutcome: 'WIN' | 'LOSE' | 'NO_EFFECT';
+    success: boolean;
+    exposure: 'LOW' | 'MEDIUM' | 'HIGH';
+    heatDelta: number;
+  };
 }
 
 export interface StoreDto {

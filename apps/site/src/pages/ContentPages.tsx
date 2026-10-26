@@ -10,9 +10,13 @@ export const guideTopics = [
   { slug: 'businesses', title: 'Businesses & Rackets', blurb: 'Build fronts on the blocks you hold, staff them, run a racket and protect the register.' },
   { slug: 'law', title: 'Heat', blurb: 'Police attention, take drag, busts, arrests, and the dashboard bribe.' },
   { slug: 'factions', title: 'Factions & Contracts', blurb: 'Five underworld factions, the contracts they sponsor and what their standing unlocks.' },
-  { slug: 'casino', title: 'The Casino', blurb: 'Slots, blackjack, roulette, scratch cards, horse racing and poker tables, with chips you earned in the game.' },
+  { slug: 'casino', title: 'The Casino', blurb: 'Slots, table games, poker tournaments and sportsbook bets, with chips and cash you earned in the game.' },
   { slug: 'alliances', title: 'Alliances', blurb: 'Create a crew, invite players, cooperate and compete on alliance standings.' },
-  { slug: 'hideout', title: 'Hideouts', blurb: 'Seasonal rooms, including the Garage, and the utility they add to your operation.' },
+  { slug: 'stories', title: 'Stories & Careers', blurb: 'The Missing Line campaign, living street stories and career chapters that record your choices.' },
+  { slug: 'crew', title: 'Crew Loyalty', blurb: 'Build a roster of named crew with specialties, experience, loyalty and earned legends.' },
+  { slug: 'operations', title: 'Operations & Rivalries', blurb: 'Coordinate operations, track rival histories and resolve conflicts without target-farming.' },
+  { slug: 'intelligence', title: 'Empire Intelligence', blurb: 'Read your verified receipts, player-board listings and sports favors without exposing private state.' },
+  { slug: 'hideout', title: 'Hideouts', blurb: 'Seasonal rooms and the utility they add to your operation.' },
   { slug: 'street-pass', title: 'Street Pass', blurb: 'A free 30-tier reward track you fill by playing, with in-round boosts and permanent cosmetics.' },
   { slug: 'seasons', title: 'Seasons & Legacy', blurb: 'How rounds end, rankings freeze and your public career survives resets.' },
 ] as const;
@@ -55,7 +59,7 @@ export const guideCopy: Record<string, { title: string; intro: string; sections:
     sections: [
       { title: 'Run goods between cities', body: 'Runs carry vehicles, crew, cash and cargo away from home along real routes across the lower 48. Routes take real time and turns, and each destination has its own prices and police.' },
       { title: 'Pick the right vehicles', body: 'Low-Riders are the all-purpose street car and the one drive-bys need. Sedans are small and quieter on the road. Vans haul the biggest loads but draw more eyes. Runs can mix classes, and the planner shows seats, cargo and route risk before you leave.' },
-      { title: 'Garage service', body: 'A bust, an arrest or a lost convoy fight can leave a vehicle Damaged or Disabled. The Garage tab repairs and recovers them for a price, and an Auto Garage, a Chop Shop racket or Road Saints standing can make that cheaper.' },
+      { title: 'Plan the fleet', body: 'Vehicle choice determines seats, cargo and exposure on a run. Check the planner before committing a route, because the current ruleset does not enable the older Garage repair and recovery loop.' },
       { title: 'Risk follows the road', body: 'Police stops, road incidents and rival convoy hits can interrupt a run. Escorts, vehicle choice and timing reduce some risks, but no vehicle makes travel automatic profit.' },
       { title: 'Relocation changes home', body: 'A run is temporary; relocation moves the operation itself. Your home city sets your local districts, stores and turf for the rest of the season.' },
     ],
@@ -104,7 +108,7 @@ export const guideCopy: Record<string, { title: string; intro: string; sections:
     intro: 'Every city has a casino venue, from underground rooms to the full casino floor in Las Vegas. You earn money in the game and choose how much of it to risk.',
     sections: [
       { title: 'Chips stay in town', body: 'You exchange cash for chips at a city’s cage, and you have to be in that city to play. Away from home you can only buy chips with the cash you carried. Chips count toward net worth, so moving money through the cage never changes your rank.' },
-      { title: 'The games', body: 'Three slot cabinets (Empire Gold carries the Vegas progressive), blackjack, roulette, scratch cards, horse racing and Texas Hold’em tables. Which games a venue offers depends on the kind of room it is.' },
+      { title: 'The games', body: 'Three slot cabinets (Empire Gold carries the Vegas progressive), blackjack, roulette, scratch cards, horse racing, Texas Hold’em tables and sportsbook bets. Which games a venue offers depends on the kind of room it is.' },
       { title: 'Poker tournaments', body: 'Poker tables feed a weekly tournament board that ranks players by return on their buy-ins, not by how much they bet, plus season records for the biggest single-table runs.' },
       { title: 'No real money', body: 'The casino uses game money only. Nothing is for sale that changes the odds, and gambling is never meant to be the main way to earn in a season.' },
     ],
@@ -119,12 +123,48 @@ export const guideCopy: Record<string, { title: string; intro: string; sections:
       { title: 'Season-scoped identity', body: 'Alliances belong to a round. Historical season pages preserve final alliance membership and standings without pretending a later group with the same tag is automatically the same organization.' },
     ],
   },
+  stories: {
+    title: 'Stories & Careers',
+    intro: 'The current 2.6 ruleset gives the street a memory while keeping the core economy and competition readable.',
+    sections: [
+      { title: 'The Missing Line', body: 'The main story campaign follows a missing-shipment mystery through contacts, clues and choices. Its endings change the story record and relationships, not the competitive balance of the round.' },
+      { title: 'Living street stories', body: 'Verified actions can open city stories, investigations and optional cases. Cases belong in the Black Book and use evidence from normal play; opening a page does not award a reward.' },
+      { title: 'Career chapters', body: 'Enforcer, Smuggler, Fixer, Business Boss and Intelligence Broker careers add themed chapters to the actions you already play. Choices leave a narrative and cosmetic record rather than a permanent power advantage.' },
+    ],
+  },
+  crew: {
+    title: 'Crew Loyalty',
+    intro: 'Your roster is more than a headcount: named crew can build verified loyalty, specialties, experience and round memories.',
+    sections: [
+      { title: 'Loyalty comes from play', body: 'Assignments, defenses, completed trips, dealer shifts and jobs can produce server-verified loyalty receipts. Reassign spam and idle check-ins do not farm it.' },
+      { title: 'Legends are earned', body: 'Milestones can unlock curated nicknames and crew memories. They describe what a member actually did and remain bounded to the round, with eligible remembrance in the public legacy.' },
+      { title: 'No permanent combat carryover', body: 'Crew history makes the season personal without turning past loyalty into permanent competitive power.' },
+    ],
+  },
+  operations: {
+    title: 'Operations & Rivalries',
+    intro: 'Cooperative operations and documented rivalries turn conflict into readable, bounded stories instead of repeat-target farming.',
+    sections: [
+      { title: 'Coordinate an operation', body: 'Invite players, reserve roles, prepare and execute through the canonical game actions. A shared receipt settles the operation once, even if a client retries.' },
+      { title: 'Rivalries remember real conflict', body: 'Rival histories use settled turf and combat events. They can lead to limited objectives, vendettas or reconciliation, while privacy and cooldown rules protect players from harassment.' },
+      { title: 'Fair by design', body: 'Repeatedly attacking one target, farming NPCs or colluding across alternate accounts is not a shortcut to rewards. Rivalry outcomes remain bounded and can be closed.' },
+    ],
+  },
+  intelligence: {
+    title: 'Empire Intelligence',
+    intro: 'Use verified information to decide what to do next without turning private operations into public data.',
+    sections: [
+      { title: 'Profit intelligence', body: 'Holdings and dashboard views can group actual ledger receipts by source, city and period. Unknown or incomplete history stays labeled unknown rather than being guessed.' },
+      { title: 'The player board', body: 'The current 2.6.0-K ruleset enables a seasonal player board for eligible offers. Listings have fees, limits and expiry; it is a market surface, not a way to reveal private inventory.' },
+      { title: 'Sports favors', body: 'Vic’s current 2.6.0-K jobs can use the canonical sportsbook result to resolve a sports influence favor. Sportsbook betting remains game-only and does not change casino odds.' },
+    ],
+  },
   hideout: {
     title: 'Hideouts',
     intro: 'The Hideout is your seasonal headquarters. Its rooms add utility to an operation and reset naturally with the next round.',
     sections: [
       { title: 'Build over the season', body: 'Rooms are upgraded in levels, turning cash and progression into longer-term utility instead of immediate inventory.' },
-      { title: 'Different rooms, different jobs', body: 'The Safe Room, Lookouts, Workshop, Back Office and Garage each support a different part of the operation: protecting what you hold, seeing trouble coming, equipment, the books and your fleet.' },
+      { title: 'Different rooms, different jobs', body: 'The Safe Room, Lookouts, Workshop and Back Office support different parts of the operation: protecting what you hold, seeing trouble coming, equipment and the books.' },
       { title: 'Worth defending', body: 'Other crews can still raid what you keep at home. The Safe Room is the room that protects cash there.' },
       { title: 'Seasonal, not permanent power', body: 'Hideout levels belong to the round, so each new season starts a fresh competitive build while past seasons keep their final public history.' },
     ],
@@ -158,14 +198,18 @@ export function GamePage() {
     ['Businesses', 'Build fronts on the blocks you hold, run a racket and keep the register safe.'],
     ['Heat', 'One Heat number for your crew. It cools on the turn clock, cuts the take, and can end a trip in a bust or an arrest.'],
     ['Factions', 'Work contracts for five underworld factions and pick a side when you reach the Inner Circle.'],
-    ['Casino', 'Slots, table games and poker tournaments in every city, played with money you earned.'],
+    ['Casino & Sportsbook', 'Slots, table games, poker tournaments and sportsbook bets played with money you earned.'],
     ['Alliances', 'Organize seasonal groups and compete on combined public standings.'],
+    ['Stories & Careers', 'Play The Missing Line, living street stories and career chapters that record your choices.'],
+    ['Crew Loyalty', 'Build named crew histories through verified loyalty and earned legends.'],
+    ['Operations & Rivalries', 'Coordinate multi-stage work and turn meaningful conflict into a fair round history.'],
+    ['Empire Intelligence', 'Review verified profits and current player-board information while private state stays private.'],
     ['Street Pass', 'A free 30-tier reward track with in-round boosts and permanent cosmetics.'],
     ['Seasons', 'Fight through a finite game, freeze final results and build a career across resets.'],
   ] as const;
   return <div className="site-page"><PublicPageHero eyebrow="The game" title="Build an empire one decision at a time."><p>StreetsEmpire is a seasonal browser strategy game built around turns, information, economy, conflict and public competition.</p></PublicPageHero>
     <section className="site-section site-section--tight"><div className="container public-game-stack"><div className="content-grid">{systems.map(([title,body])=><article className="content-card" key={title}><h2>{title}</h2><p>{body}</p></article>)}</div>
-    <section className="site-panel content-callout"><div><span className="site-card__eyebrow">Coming next</span><h2>Supply Lines, on the beta server.</h2><p>Bulk orders, warehouses, dealer crews, three new cities and supply from abroad are being tested now. See the roadmap for what is live and what is next.</p></div><Link className="btn btn-outline-light" to="/roadmap">Roadmap</Link></section>
+     <section className="site-panel content-callout"><div><span className="site-card__eyebrow">Current ruleset</span><h2>Classic OG 2.6.0-K · Sports Favors</h2><p>The current default ruleset includes The Missing Line campaign, the player board and Vic’s sports-influence jobs. Exact round status and deployment version are shown on the live status page.</p></div><Link className="btn btn-outline-light" to="/status">Live status</Link></section>
     <section className="site-panel content-callout"><div><span className="site-card__eyebrow">Seasonal by design</span><h2>Power resets. History stays.</h2><p>Each game has its own economy, crews, turf and alliances. When it ends, final standings and public history become part of the permanent archive.</p></div><Link className="btn btn-primary" to="/games">Browse Games</Link></section>
     </div></section></div>;
 }
@@ -183,8 +227,13 @@ export function GuideTopicPage() {
     <section className="site-section site-section--tight"><div className="container article-wrap"><article className="site-panel article-body">{article.sections.map(s=><section key={s.title}><h2>{s.title}</h2><p>{s.body}</p></section>)}<div className="archive-back"><Link className="btn btn-outline-light" to="/guide">← All Guides</Link><a className="btn btn-primary" href="https://play.streetsempire.dev">Play Now</a></div></article></div></section></div>;
 }
 
-type MilestoneStatus = 'Live' | 'On beta' | 'Planned';
-const statusClass: Record<MilestoneStatus, string> = { Live: 'site-status-badge', 'On beta': 'site-status-badge site-status-badge--beta', Planned: 'site-status-badge site-status-badge--planned' };
+type MilestoneStatus = 'Live' | 'Retired' | 'Scaled back' | 'Planned';
+const statusClass: Record<MilestoneStatus, string> = {
+  Live: 'site-status-badge',
+  Retired: 'site-status-badge site-status-badge--planned',
+  'Scaled back': 'site-status-badge site-status-badge--planned',
+  Planned: 'site-status-badge site-status-badge--planned',
+};
 
 export function RoadmapPage() {
   const milestones: ReadonlyArray<readonly [string, string, MilestoneStatus, string]> = [
@@ -198,12 +247,15 @@ export function RoadmapPage() {
     ['1.2.0', 'Casino & Gambling', 'Live', 'A casino in every city: slots, blackjack, roulette, scratch cards, horse racing, poker tables and weekly tournaments.'],
     ['1.3.0', 'Heat', 'Live', 'One Heat number for the crew: it cools on the turn clock, cuts the take, and can end a trip in a bust or an arrest. A dashboard bribe pays it down.'],
     ['1.4.0', 'Factions & Contracts', 'Live', 'Five underworld factions, sponsored contract boards, standing perks, rivalries and the Inner Circle.'],
-    ['1.5.0', 'Vehicles & Garage 2.0', 'Live', 'Sedans and Vans alongside the Low-Rider, mixed run loadouts, garage repair and recovery, and San Francisco.'],
-    ['1.6.0', 'Supply Lines & City Footprints', 'On beta', 'Bulk orders from suppliers, pickups in loads, warehouses and safehouses, dealer crews that sell for you, Chicago, Tulsa and Dallas, and supply lanes from abroad.'],
-    ['1.7', 'Crew Identity & Management', 'Planned', 'Crew roles and a few rare specialists that make the empire feel personal without becoming a character simulator.'],
-    ['1.8', 'Competitive & World Events', 'Planned', 'Occasional disruptions and objectives across a season, such as crackdowns, shortages and boom weeks.'],
+    ['1.5.0', 'Vehicles & City Expansion', 'Live', 'Sedans and Vans alongside the Low-Rider, mixed run loadouts and the expanded city map. Garage repair and recovery belongs to older rulesets.'],
+    ['1.6.0', 'Supply Lines & City Footprints', 'Retired', 'Released in earlier rulesets. Bulk orders, dealer crews, loan-shark and related supply-line features are not enabled by the current 2.6.0-K ruleset.'],
+    ['1.7–1.8', 'Crew, Events & Public Competition', 'Live', 'Crew identity and loyalty, world events, public boards and the systems that make a season feel like a shared street.'],
+    ['2.0.0', 'Living Streets & The Missing Line', 'Live', 'City stories, investigations, contacts and the current campaign backbone, pinned to the round ruleset.'],
+    ['2.1–2.5', 'Living World Expansion', 'Scaled back', 'The original plan for a large connected living-world expansion was reduced. Selected pieces may remain in the game, but these versions are not being presented as a fully shipped feature bundle.'],
+    ['2.6.0-K', 'Sports Favors', 'Live', 'The current default ruleset: the player board is enabled and Vic’s jobs can resolve sports-influence favors against canonical sportsbook results.'],
+    ['3.0.0', 'Empire Cohesion', 'Scaled back', 'The larger multi-city holdings, logistics, alliance-pact and regional-perk vision is not currently promised as a full release. Any future work will be announced only after scope and implementation are confirmed.'],
   ];
-  return <div className="site-page"><PublicPageHero eyebrow="Development" title="Roadmap"><p>The public view of the major StreetsEmpire milestones: what is live, what is being tested on the beta server and what is planned. Detailed balance work stays in the development docs; this page focuses on player-facing direction.</p></PublicPageHero>
+  return <div className="site-page"><PublicPageHero eyebrow="Development" title="Roadmap"><p>This roadmap reflects the reduced, verified scope of StreetsEmpire. Earlier 2.0–2.7 planning documents described a larger feature set; those plans were scaled back and should not be read as promises of fully shipped systems. Only the current ruleset and confirmed future work are shown as live or planned here.</p></PublicPageHero>
     <section className="site-section site-section--tight"><div className="container roadmap-list">{milestones.map(([version,title,status,body],i)=><article className="roadmap-item" key={version}><div className="roadmap-item__marker">{i+1}</div><div><div className="roadmap-item__head"><span className="site-card__eyebrow">{version}</span><span className={statusClass[status]}>{status}</span></div><h2>{title}</h2><p>{body}</p></div></article>)}</div></section></div>;
 }
 
@@ -213,13 +265,16 @@ export function CommunityPage() {
       <a className="content-card content-card--link" href="https://forum.streetsempire.dev"><span className="site-card__eyebrow">Forum</span><h2>StreetsEmpire Forum</h2><p>Long-form discussion, announcements and alliance recruitment.</p><span className="site-card__link">Open forum →</span></a>
       <Link className="content-card content-card--link" to="/news"><span className="site-card__eyebrow">Official</span><h2>News</h2><p>Season announcements and development updates from the StreetsEmpire team.</p><span className="site-card__link">Read news →</span></Link>
       <Link className="content-card content-card--link" to="/alliances"><span className="site-card__eyebrow">Compete together</span><h2>Alliances</h2><p>See the groups currently fighting for combined wealth and turf.</p><span className="site-card__link">Alliance board →</span></Link>
+      <a className="content-card content-card--link" href="https://discord.gg/V3HYNcMv5H"><span className="site-card__eyebrow">Chat</span><h2>Discord</h2><p>Join the live community for conversation, recruitment, support and announcements.</p><span className="site-card__link">Join Discord →</span></a>
+      <a className="content-card content-card--link" href="https://www.facebook.com/StreetsEmpireHQ"><span className="site-card__eyebrow">Social</span><h2>Facebook</h2><p>Follow StreetsEmpire news, updates and community posts.</p><span className="site-card__link">Follow on Facebook →</span></a>
+      <a className="content-card content-card--link" href="https://x.com/StreetsEmpireHQ"><span className="site-card__eyebrow">Social</span><h2>X</h2><p>Follow the latest short updates from StreetsEmpire HQ.</p><span className="site-card__link">Follow on X →</span></a>
     </div></section></div>;
 }
 
 export function BetaPage() {
   return <div className="site-page"><PublicPageHero eyebrow="Test server" title="StreetsEmpire Beta"><p>Upcoming features can be tested separately from the live game.</p></PublicPageHero>
     <section className="site-section site-section--tight"><div className="container public-game-stack"><div className="site-panel beta-warning"><span className="site-status-badge">Beta environment</span><h2>Data may be reset.</h2><p>The beta game is for testing and validation. Progress there is not production progress and can be wiped when a feature or schema needs a clean test.</p><a className="btn btn-primary" href="https://beta.streetsempire.dev">Open Beta Game</a></div>
-    <section className="site-panel content-callout"><div><span className="site-card__eyebrow">Testing now</span><h2>1.6.0 Supply Lines & City Footprints</h2><p>Order in bulk, collect in loads, store stock in warehouses, and set up dealer crews that sell it for you, in three new cities and with supply lanes from abroad. Random street encounters, some of them with named NPC crews, are being tested alongside it.</p></div><Link className="btn btn-outline-light" to="/roadmap">Roadmap</Link></section></div></section></div>;
+     <section className="site-panel content-callout"><div><span className="site-card__eyebrow">Ruleset validation</span><h2>2.6.0-K Sports Favors</h2><p>Beta rounds may validate the current 2.6 story, player-board and sportsbook-influence contracts. The beta can be pinned to a different ruleset or reset independently, so check the in-game ruleset and live status before relying on a feature.</p></div><Link className="btn btn-outline-light" to="/roadmap">Roadmap</Link></section></div></section></div>;
 }
 
 export function SupportPage() {

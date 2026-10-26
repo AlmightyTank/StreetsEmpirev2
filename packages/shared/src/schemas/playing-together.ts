@@ -101,6 +101,10 @@ const travelCrewMemberIds = z.array(z.string().trim().min(1).max(64))
 const runId = z.string().trim().min(1).max(64);
 export const travelRoutesSchema = z.object({ to: citySlug, runId: runId.optional() }).strict();
 
+/** Recon the destination high market before committing a shipment. */
+export const runReconSchema = z.object({ to: citySlug, actionId: actionIdSchema }).strict();
+export type RunReconInput = z.infer<typeof runReconSchema>;
+
 export const runLaunchSchema = z.object({
   to: citySlug,
   route: z.number().int().min(0).max(9),
@@ -116,10 +120,14 @@ export const runLaunchSchema = z.object({
   /** 0.6.0-D. Beer rides as real cargo so a run can supply an outpost. */
   beer: unitCount('beer').default(0),
   cargo: z.record(runProduct, unitCount('a quantity')).default({}),
-  /** 0.5.0-F. Bought on the home high market as it leaves, straight into the trunk. */
+  /** Legacy fields are accepted for old clients but regular runs no longer buy at home. */
   market: z.record(runProduct, unitCount('a quantity')).default({}),
-  /** The next-unit prices the player saw on the home market; the launch is refused if one has moved too far. */
   marketQuotes: z.record(runProduct, z.number().int().positive().safe()).optional(),
+  /** The product's destination-market recon quote used for this shipment. */
+  shipmentProduct: runProduct.optional(),
+  shipmentDirection: z.enum(['sell', 'buy']).default('sell'),
+  shipmentQuantity: unitCount('a shipment quantity').optional(),
+  shipmentQuoteCents: z.number().int().positive().safe().optional(),
   /** Trips B. The boss rides along. */
   rideAlong: z.boolean().default(false),
   /** 1.8.6-G. Optional named escorts; when present, count must match escortThugs. */

@@ -99,6 +99,15 @@ import {
 import { CityConditionService } from './city-condition.service.js';
 import { PermanentUnlockService } from './permanent-unlock.service.js';
 import { recordSceneResponse, sceneResponsesFor, storyFactsFor, storyScenesDto, type SceneResponses } from './quest-story-scene.service.js';
+import {
+  createSportsInfluenceContract,
+  cancelSportsInfluenceContract,
+  isSportsInfluenceQuest,
+  persistSportsInfluenceContract,
+  resolveSportsInfluenceForClaim,
+  resolvedRewardState,
+  sportsInfluenceContract,
+} from './sports-influence.service.js';
 
 const TRACKED_LIMIT = 3;
 /** Shared-board work: not counted as a personal job and not abandonable. Personal jobs have no cap. */
@@ -484,11 +493,13 @@ function questDto(row: QuestRow, ruleset: Ruleset, context: QuestContext, commun
   );
   const availability = availabilityJson(row.questDefinition.availability);
   const story = storyDto(row, ruleset, context.sceneResponses, context.storyFacts);
+  const sportsContract = sportsInfluenceContract(row.rewardState);
   return {
     key: row.questDefinition.key,
     attempt: row.attempt,
     title: cityState?.title ?? row.questDefinition.title,
     description: cityState?.description ?? row.questDefinition.description,
+    ...(sportsContract ? { sportsInfluence: sportsContract } : {}),
     contactKey: row.questDefinition.contactKey,
     contactName: contact?.shortName ?? null,
     ...(row.status === 'LOCKED' ? { requires: questRequirements(ruleset, ruleset.questDefinitions?.[row.questDefinition.key], context) } : {}),
@@ -989,7 +1000,15 @@ async function syncRotatingBoards(
 }
 
 /** Move an AVAILABLE job to ACTIVE, the same way whether the player clicked Accept or auto-accept did. */
-async function startQuest(db: Db, roundPlayerId: string, row: QuestRow, ruleset: Ruleset, acceptedAt: Date, track: boolean): Promise<void> {
+async function startQuest(
+  db: Db,
+  roundPlayerId: string,
+  row: QuestRow,
+  ruleset: Ruleset,
+  acceptedAt: Date,
+  track: boolean,
+  initialRewardState?: Prisma.InputJsonValue,
+): Promise<void> {
   const preserveOffer = preservesGeneratedOffer(row, ruleset);
   await db.playerQuest.update({
     where: { id: row.id },
@@ -1002,7 +1021,7 @@ async function startQuest(db: Db, roundPlayerId: string, row: QuestRow, ruleset:
       abandonedAt: null,
       objectiveProgress: {},
       bonusProgress: {},
-      rewardState: preserveOffer ? inputJson(row.rewardState) : {},
+      rewardState: initialRewardState ?? (preserveOffer ? inputJson(row.rewardState) : {}),
       expiresAt: preserveOffer
         ? row.expiresAt
         : row.questDefinition.expiresAfterMinutes
@@ -1444,7 +1463,22 @@ export const HandcraftedQuestService = {
         await acceptAllianceContract(tx, roundPlayerId, ruleset, key, acceptedAt, tracked < TRACKED_LIMIT);
         return;
       }
-      await startQuest(tx, roundPlayerId, row, ruleset, acceptedAt, tracked < TRACKED_LIMIT);
+      const initialRewardState = isSportsInfluenceQuest(key)
+        ? inputJson({ sportsInfluence: await createSportsInfluenceContract(tx, acceptedAt) })
+        : undefined;
+      await startQuest(tx, roundPlayerId, row, ruleset, acceptedAt, tracked < TRACKED_LIMIT, initialRewardState);
+      if (isSportsInfluenceQuest(key) && initialRewardState) {
+        const contract = sportsInfluenceContract(initialRewardState as Prisma.JsonValue);
+        if (contract) {
+          await persistSportsInfluenceContract(tx, {
+            roundPlayerId,
+            playerQuestId: row.id,
+            contract,
+            acceptedAt,
+            deadlineAt: new Date(contract.startsAt),
+          });
+        }
+      }
     });
     // Availability was refreshed inside the write transaction above, so skip
     // the second sync + refresh and go straight to the read.
@@ -1500,6 +1534,7 @@ export const HandcraftedQuestService = {
       await tx.questProgressReceipt.deleteMany({ where: { playerQuestId: row.id } });
       // A fresh start on the same attempt plays its scenes again too.
       await tx.questSceneResponse.deleteMany({ where: { playerQuestId: row.id } });
+      if (isSportsInfluenceQuest(key)) await cancelSportsInfluenceContract(tx, row.id, new Date());
       const preserveOffer = preservesGeneratedOffer(row, ruleset);
       await tx.playerQuest.update({
         where: { id: row.id },
@@ -1590,6 +1625,13 @@ export const HandcraftedQuestService = {
         );
 
         const next: PlayerState = { ...current };
+        const sportsContract = isSportsInfluenceQuest(key) ? sportsInfluenceContract(row.rewardState) : null;
+        const sportsResolution = isSportsInfluenceQuest(key)
+          ? await resolveSportsInfluenceForClaim(tx, row.id, selectedBranch?.key ?? row.chosenBranch, current.heat, now)
+          : null;
+        if (sportsResolution) {
+          next.heat = ruleset.heat ? Math.min(ruleset.heat.max, current.heat + sportsResolution.heatDelta) : current.heat;
+        }
         const reputationChanges = selectedBranch?.reputationDeltas.map((delta) =>
           branchReputationDto(delta.contactKey, delta.amount, ruleset)
         ) ?? [];
@@ -1654,6 +1696,7 @@ export const HandcraftedQuestService = {
             claimedAt: now,
             isTracked: false,
             chosenBranch: selectedBranch?.key ?? row.chosenBranch,
+            ...(sportsResolution ? { rewardState: resolvedRewardState(row.rewardState, sportsResolution) } : {}),
           },
         });
         if (communityEvent) {
@@ -1688,8 +1731,9 @@ export const HandcraftedQuestService = {
             rewards: dtoRewards,
             reputationChanges,
             newlyAvailable,
-            standingChanges,
-            ...(feeCents > 0n ? { feeCents: Number(feeCents) } : {}),
+              standingChanges,
+              ...(sportsResolution ? { sportsInfluence: sportsResolution } : {}),
+              ...(feeCents > 0n ? { feeCents: Number(feeCents) } : {}),
           },
           // The fee is its own ledger line; whatever else the claim paid is booked under the job's name.
           ledger: [
@@ -1710,6 +1754,17 @@ export const HandcraftedQuestService = {
               ...(standingChanges.some((change) => change.locked?.length) ? { lockedRivals: standingChanges.flatMap((change) => change.locked ?? []) } : {}),
               ...(feeCents > 0n ? { feeCents: Number(feeCents) } : {}),
               newlyAvailable,
+              ...(sportsContract && sportsResolution ? {
+                sportsInfluence: {
+                  eventId: sportsContract.eventId,
+                  targetTeam: sportsContract.targetTeam,
+                  desiredOutcome: sportsContract.desiredOutcome,
+                  actualOutcome: sportsResolution.actualOutcome,
+                  success: sportsResolution.success,
+                  exposure: sportsResolution.exposure,
+                  heatDelta: sportsResolution.heatDelta,
+                },
+              } : {}),
             }),
           },
         };

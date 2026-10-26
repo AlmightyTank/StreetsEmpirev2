@@ -21,6 +21,7 @@ import {
 import { creditLegacySportsbookChips, creditSportsbookChips, debitSportsbookChips } from './casino.service.js';
 import { createPlayerActivity } from './in-app-notification.service.js';
 import { DEFAULT_SPORTSBOOK_PROVIDER_ID, sportsbookProviderName } from './sportsbook/sportsbook-providers.js';
+import { resolveSportsInfluencesForEventTx, sportsInfluenceContract } from './sports-influence.service.js';
 
 export const SPORTSBOOK_LEAGUES = [
   { key: 'NFL', name: 'NFL' },
@@ -303,6 +304,10 @@ export async function settleSportsbookEventTx(
       summary.creditedCents += credit;
     }
   }
+  // The canonical sportsbook result resolves linked Vic contracts without changing
+  // ticket grading or player payouts. Claiming the quest still performs the reward
+  // and Heat transaction after this audit record exists.
+  await resolveSportsInfluencesForEventTx(tx, eventId, now);
   return summary;
 }
 
@@ -445,6 +450,13 @@ export const SportsbookService = {
           throw AppError.conflict('ACTION_ID_REUSED', 'That action ID already belongs to another sportsbook wager.');
         }
         return { bet: { id: replay.id, status: replay.status, stakeCents: Number(replay.stakeCents), payoutCents: Number(replay.payoutCents), oddsAmerican: replay.oddsAmerican }, replayed: true };
+      }
+      const activeInfluenceQuests = await tx.playerQuest.findMany({
+        where: { roundPlayerId, status: { in: ['ACTIVE', 'READY_TO_TURN_IN'] } },
+        select: { rewardState: true },
+      });
+      if (activeInfluenceQuests.some((quest) => sportsInfluenceContract(quest.rewardState)?.eventId === input.eventId)) {
+        throw AppError.conflict('SPORTSBOOK_INFLUENCE_LOCK', 'You cannot bet on a game while you have a favor riding on it.');
       }
       const casinoReplay = await tx.casinoLedgerEntry.findUnique({
         where: { roundPlayerId_actionId: { roundPlayerId, actionId: input.actionId } },

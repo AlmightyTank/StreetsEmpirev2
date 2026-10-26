@@ -147,6 +147,8 @@ const playingTogetherRoutes: FastifyPluginAsync = async (app) => {
     const { to, runId } = parseBody(travelRoutesSchema, request.query);
     return TravelService.routes(app.prisma, await me(request.auth!.account.id), to, runId);
   });
+  app.post('/travel/recon', { preHandler: app.requireAuth }, async (request) =>
+    TravelService.recon(app.prisma, await me(request.auth!.account.id), request.body ?? {}));
   app.post('/travel/launch', { preHandler: app.requireAuth }, async (request) => {
     const trust = await accountTrust(app.prisma, request.auth!.account.id);
     assertTrustGate(trust, 'runs');

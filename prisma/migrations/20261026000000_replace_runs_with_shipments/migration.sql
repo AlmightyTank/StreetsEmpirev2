@@ -1,0 +1,7 @@
+ALTER TABLE "Run" ADD COLUMN "shipmentProductKey" TEXT;
+ALTER TABLE "Run" ADD COLUMN "shipmentDirection" TEXT DEFAULT 'sell';
+ALTER TABLE "Run" ADD COLUMN "shipmentDestination" TEXT;
+ALTER TABLE "Run" ADD COLUMN "shipmentQuantity" INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "Run" ADD COLUMN "shipmentSoldQuantity" INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "Run" ADD COLUMN "shipmentSaleCents" BIGINT NOT NULL DEFAULT 0;
+ALTER TABLE "Run" ADD COLUMN "shipmentQuoteCents" INTEGER;

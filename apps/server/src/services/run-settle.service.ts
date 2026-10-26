@@ -3,6 +3,7 @@ import {
   hashParts,
   loadRulesetForRound,
   marketView,
+  fillMarket,
   resolveRoadStop,
   runNetWorthCents,
   runPosition,
@@ -110,6 +111,58 @@ export async function refreshAwayWorth(tx: Db, roundPlayerId: string, ruleset: R
 export function marketPrice(ruleset: Ruleset, seed: string, city: string, product: string, push: number, at: Date): MarketPriceDto | null {
   const view = marketView(ruleset, seed, city, product, push, at);
   return view ? { buyCents: view.buyCents, sellCents: view.sellCents, depth: view.depth } : null;
+}
+
+/** Sell a shipment exactly once when it reaches its destination. */
+async function settleShipmentSale(tx: Db, roundPlayerId: string, ruleset: Ruleset, seed: string, run: LoadedRun, stops: readonly RunStopPlan[], now: Date): Promise<LoadedRun> {
+  const shipmentDestination = (run as LoadedRun & { shipmentDestination?: string | null }).shipmentDestination;
+  const destination = shipmentDestination ? stops.find((stop) => stop.city === shipmentDestination) ?? null : null;
+  const product = run.shipmentProductKey;
+  if (!destination || !product || run.shipmentQuantity <= run.shipmentSoldQuantity || now < destination.arriveAt || !ruleset.travel?.market) return run;
+  const market = await HighMarketService.lock(tx, ruleset, seed, destination.city, product, now);
+  const view = marketView(ruleset, seed, destination.city, product, market.push, now);
+  if (!view) return run;
+  const direction: 'buy' | 'sell' = (run as LoadedRun & { shipmentDirection?: string | null }).shipmentDirection === 'buy' || Number(run.shipmentQuoteCents ?? 0) < 0 ? 'buy' : 'sell';
+  const requestedQuantity = run.shipmentQuantity - run.shipmentSoldQuantity;
+  const cargo = run.cargo.find((row) => row.productKey === product)?.quantity ?? 0;
+  if (direction !== 'buy' && cargo <= 0) return run;
+  const quoteCents = Math.abs(Number(run.shipmentQuoteCents ?? 0));
+  const quantity = direction === 'buy' && quoteCents > 0
+    ? Math.min(requestedQuantity, Math.floor(Number(run.cashCents) / quoteCents))
+    : Math.min(requestedQuantity, cargo);
+  if (quantity <= 0) return run;
+  const fill = fillMarket(view, ruleset.travel.market, direction === 'buy' ? 'buy' : 'sell', quantity);
+  const totalCents = direction === 'buy' && quoteCents > 0
+    ? BigInt(quoteCents) * BigInt(quantity)
+    : fill.totalCents;
+  await HighMarketService.write(tx, market.id, fill.pushAfter, now);
+  if (direction === 'buy') {
+    await tx.runCargo.upsert({
+      where: { runId_productKey: { runId: run.id, productKey: product } },
+      create: { runId: run.id, productKey: product, quantity, startQuantity: 0 },
+      update: { quantity: { increment: quantity } },
+    });
+  } else {
+    await tx.runCargo.update({ where: { runId_productKey: { runId: run.id, productKey: product } }, data: { quantity: { decrement: quantity } } });
+  }
+  await tx.runTrade.create({ data: {
+    runId: run.id, city: destination.city, productKey: product, direction, venue: 'market',
+    quantity, unitCents: Math.round(Number(totalCents) / quantity), totalCents, createdAt: now,
+  } });
+  const saleCents = run.shipmentSaleCents + totalCents;
+  const shipmentSoldQuantity = run.shipmentSoldQuantity + quantity;
+  await tx.run.update({ where: { id: run.id }, data: { cashCents: direction === 'buy' ? { decrement: totalCents } : { increment: totalCents }, shipmentSoldQuantity, shipmentSaleCents: saleCents } });
+  await EconomyLedgerService.record(tx, roundPlayerId, [{ source: 'RUN_TRADE', label: `Run ${direction} · ${product}`, amountCents: direction === 'buy' ? -totalCents : totalCents }], now);
+  await refreshAwayWorth(tx, roundPlayerId, ruleset);
+  return {
+    ...run,
+    cashCents: direction === 'buy' ? run.cashCents - totalCents : run.cashCents + totalCents,
+    shipmentSoldQuantity,
+    shipmentSaleCents: saleCents,
+    cargo: direction === 'buy'
+      ? [...run.cargo.filter((row) => row.productKey !== product), { id: `buy-${run.id}-${product}`, runId: run.id, productKey: product, quantity, startQuantity: 0 }]
+      : run.cargo.map((row) => row.productKey === product ? { ...row, quantity: row.quantity - quantity } : row),
+  };
 }
 
 /** What the crew sees in a city at a moment: Pip's counter, every product, and the high market. */
@@ -487,7 +540,8 @@ export const RunSettleService = {
       const moved = after === stops ? landed : await rollRoadStops(tx, roundPlayerId, ruleset, landed, after, now);
       const rest = firstTail ? await billHotel(tx, roundPlayerId, ruleset, moved, after, now) : { run: moved, stops: after };
       // A bill that ran the wallet dry sends the run home: roll the road for that leg too.
-      const run = firstTail ? await rollRoadStops(tx, roundPlayerId, ruleset, rest.run, rest.stops, now) : rest.run;
+      let run = firstTail ? await rollRoadStops(tx, roundPlayerId, ruleset, rest.run, rest.stops, now) : rest.run;
+      run = await settleShipmentSale(tx, roundPlayerId, ruleset, round.id, run, rest.stops, now);
       await recordStops(tx, roundPlayerId, ruleset, round.id, rest.stops, now);
       if (runPosition(ruleset, rest.stops, now).phase === 'home') await bringHome(tx, roundPlayerId, ruleset, run, rest.stops);
     }
