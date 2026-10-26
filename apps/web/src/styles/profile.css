@@ -3,9 +3,23 @@
   gap: 16px;
 }
 
-.se-street-skill-badges, .se-member-skills { display: flex; flex-wrap: wrap; gap: 5px; margin: 8px 0 0; }
-.se-street-skill-badge { padding: 3px 8px; border: 1px solid var(--se-line); border-radius: 999px; color: var(--se-text-dim); font-size: 11px; }
-.se-street-skill-badge strong { color: var(--se-accent); }
+.se-street-skill-badges { display: grid; grid-template-columns: repeat(2, minmax(126px, 1fr)); gap: 6px; max-width: 430px; margin: 10px 0 0; }
+.se-street-skill-badge { --se-skill-color: var(--se-accent); display: flex; min-width: 0; gap: 8px; padding: 7px; border: 1px solid color-mix(in srgb, var(--se-skill-color) 38%, var(--se-line)); border-radius: 4px; background: linear-gradient(135deg, color-mix(in srgb, var(--se-skill-color) 10%, transparent), rgba(4, 7, 12, 0.72)); color: var(--se-text-dim); box-shadow: inset 0 1px rgba(255,255,255,.04), 0 2px 8px rgba(0,0,0,.18); }
+.se-street-skill-badge--wheels { --se-skill-color: #e4ae58; }
+.se-street-skill-badge--muscle { --se-skill-color: #d86767; }
+.se-street-skill-badge--connections { --se-skill-color: #62a9d8; }
+.se-street-skill-badge--luck { --se-skill-color: #b38be0; }
+.se-street-skill-badge--hustle { --se-skill-color: #54c9a0; }
+.se-street-skill-badge--fixer { --se-skill-color: #d7c36a; }
+.se-street-skill-badge__icon { display: grid; flex: 0 0 28px; place-items: center; width: 28px; height: 28px; border: 1px solid color-mix(in srgb, var(--se-skill-color) 62%, #121722); border-radius: 3px; background: color-mix(in srgb, var(--se-skill-color) 16%, #0a0e17); color: var(--se-skill-color); font-size: 17px; font-weight: 900; line-height: 1; text-shadow: 0 0 8px color-mix(in srgb, var(--se-skill-color) 42%, transparent); }
+.se-street-skill-badge__body { display: grid; min-width: 0; flex: 1; gap: 2px; align-content: center; }
+.se-street-skill-badge__name { overflow: hidden; color: var(--se-text); font-size: 10px; font-weight: 800; letter-spacing: .08em; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
+.se-street-skill-badge__level { color: var(--se-text-dim); font-family: var(--se-mono); font-size: 9px; }
+.se-street-skill-badge__level strong { color: var(--se-skill-color); font-size: 12px; }
+.se-street-skill-badge__meter { display: block; height: 4px; margin-top: 2px; overflow: hidden; border: 1px solid color-mix(in srgb, var(--se-skill-color) 28%, var(--se-line)); border-radius: 1px; background: rgba(0,0,0,.48); }
+.se-street-skill-badge__meter span { display: block; height: 100%; min-width: 3px; background: var(--se-skill-color); box-shadow: 0 0 6px color-mix(in srgb, var(--se-skill-color) 60%, transparent); transition: width 500ms ease; }
+.se-member-skills { display: flex; flex-wrap: wrap; gap: 5px; margin: 8px 0 0; }
+.se-member-skills { color: var(--se-text-dim); font-size: 11px; }
 
 .se-rivalry-timeline__list { display: grid; gap: 10px; }
 .se-rivalry-timeline__item { border: 1px solid var(--se-line-soft, var(--se-line)); border-radius: 8px; padding: 10px 12px; }
@@ -16,11 +30,13 @@
 .se-rivalry-timeline__dismiss:focus-visible { outline: 2px solid var(--se-accent); outline-offset: 2px; }
 
 @media (max-width: 640px) {
+  .se-street-skill-badges { max-width: 100%; }
   .se-rivalry-timeline__item { padding: 9px; overflow-wrap: anywhere; }
   .se-rivalry-timeline__item ul { padding-left: 16px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .se-street-skill-badge__meter span { transition: none; }
   .se-rivalry-timeline *, .se-rivalry-timeline *::before, .se-rivalry-timeline *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: 0.01ms !important; }
 }
 
