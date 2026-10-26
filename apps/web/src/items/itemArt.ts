@@ -57,31 +57,31 @@ export const ITEM_ART = {
   AMMO_BOX: { name: 'Ammo Box', shortName: 'Ammo Box', category: 'SUPPLY', rarity: 'COMMON', file: 'ammo.svg', cells: ONE },
   AMMO_CASE: { name: 'Ammo Case', shortName: 'Ammo Case', category: 'SUPPLY', rarity: 'UNCOMMON', file: 'ammo.svg', cells: ONE },
   AMMO_CRATE: { name: 'Ammo Crate', shortName: 'Ammo Crate', category: 'SUPPLY', rarity: 'RARE', file: 'ammo.svg', cells: ONE },
-  PARTS_BOX: { name: 'Parts Box', shortName: 'Parts Box', category: 'SUPPLY', rarity: 'COMMON', file: 'parts.svg', cells: ONE },
-  PARTS_CRATE: { name: 'Parts Crate', shortName: 'Parts Crate', category: 'SUPPLY', rarity: 'UNCOMMON', file: 'parts.svg', cells: ONE },
-  PARTS_PALLET: { name: 'Parts Pallet', shortName: 'Pallet', category: 'SUPPLY', rarity: 'RARE', file: 'parts.svg', cells: ONE },
+  PARTS_BOX: { name: 'Parts Box', shortName: 'Parts Box', category: 'SUPPLY', rarity: 'COMMON', file: 'parts-box.svg', cells: ONE },
+  PARTS_CRATE: { name: 'Parts Crate', shortName: 'Parts Crate', category: 'SUPPLY', rarity: 'UNCOMMON', file: 'parts-crate.svg', cells: ONE },
+  PARTS_PALLET: { name: 'Parts Pallet', shortName: 'Pallet', category: 'SUPPLY', rarity: 'RARE', file: 'parts-pallet.svg', cells: ONE },
 
-  // Hideout scavenging components. Most have their own art; labels, radio and
-  // specialist circuitry still reuse the generic parts illustration.
+  // Hideout scavenging components. Each has its own art; the three package
+  // sizes of parts (box, crate, pallet) step up in size and rarity.
   SCRAP_METAL: { name: 'Scrap metal', shortName: 'Scrap', category: 'SUPPLY', rarity: 'COMMON', file: 'scrap-metal.svg', cells: ONE },
   WIRING: { name: 'Wiring', shortName: 'Wiring', category: 'SUPPLY', rarity: 'COMMON', file: 'wiring.svg', cells: ONE },
   TOOL_KIT: { name: 'Tool kit', shortName: 'Tool kit', category: 'SUPPLY', rarity: 'COMMON', file: 'tool-kit.svg', cells: ONE },
   BOTTLES: { name: 'Bottles', shortName: 'Bottles', category: 'SUPPLY', rarity: 'COMMON', file: 'beer.svg', cells: ONE },
-  LABELS: { name: 'Labels', shortName: 'Labels', category: 'SUPPLY', rarity: 'COMMON', file: 'parts.svg', cells: ONE },
+  LABELS: { name: 'Labels', shortName: 'Labels', category: 'SUPPLY', rarity: 'COMMON', file: 'labels.svg', cells: ONE },
   PACKAGING: { name: 'Packaging', shortName: 'Pack', category: 'SUPPLY', rarity: 'COMMON', file: 'packaging.svg', cells: ONE },
   LUMBER: { name: 'Lumber', shortName: 'Lumber', category: 'SUPPLY', rarity: 'COMMON', file: 'lumber.svg', cells: ONE },
   FASTENERS: { name: 'Fasteners', shortName: 'Fasteners', category: 'SUPPLY', rarity: 'COMMON', file: 'fasteners.svg', cells: ONE },
   CLOTH: { name: 'Cloth', shortName: 'Cloth', category: 'SUPPLY', rarity: 'COMMON', file: 'cloth.svg', cells: ONE },
   BASIC_MEDICINE: { name: 'Basic medicine', shortName: 'Basic meds', category: 'SUPPLY', rarity: 'UNCOMMON', file: 'medicine.svg', cells: ONE },
   FUEL_CAN: { name: 'Fuel can', shortName: 'Fuel can', category: 'SUPPLY', rarity: 'UNCOMMON', file: 'fuel-can.svg', cells: ONE },
-  RADIO: { name: 'Radio', shortName: 'Radio', category: 'SUPPLY', rarity: 'UNCOMMON', file: 'parts.svg', cells: ONE },
+  RADIO: { name: 'Radio', shortName: 'Radio', category: 'SUPPLY', rarity: 'UNCOMMON', file: 'radio.svg', cells: ONE },
   MOTOR_ASSEMBLY: { name: 'Motor assembly', shortName: 'Motor', category: 'SUPPLY', rarity: 'RARE', file: 'motor-assembly.svg', cells: ONE },
   REPAIR_SUPPLIES: { name: 'Repair supplies', shortName: 'Repairs', category: 'SUPPLY', rarity: 'RARE', file: 'repair-supplies.svg', cells: ONE },
   SPECIALTY_CONTAINER: { name: 'Specialty container', shortName: 'Container', category: 'SUPPLY', rarity: 'RARE', file: 'specialty-container.svg', cells: ONE },
   PRECISION_PARTS: { name: 'Precision parts', shortName: 'Precision', category: 'SUPPLY', rarity: 'EPIC', file: 'precision-parts.svg', cells: ONE },
   ADVANCED_MEDICAL: { name: 'Advanced medical component', shortName: 'Adv. med', category: 'SUPPLY', rarity: 'EPIC', file: 'medicine.svg', cells: ONE },
   HIGH_CAPACITY_FUEL_CELL: { name: 'High-capacity fuel cell', shortName: 'Fuel cell', category: 'SUPPLY', rarity: 'LEGENDARY', file: 'fuel-cell.svg', cells: ONE },
-  SPECIALIST_CIRCUITRY: { name: 'Specialist circuitry', shortName: 'Circuitry', category: 'SUPPLY', rarity: 'LEGENDARY', file: 'parts.svg', cells: ONE },
+  SPECIALIST_CIRCUITRY: { name: 'Specialist circuitry', shortName: 'Circuitry', category: 'SUPPLY', rarity: 'LEGENDARY', file: 'specialist-circuitry.svg', cells: ONE },
 
   // Products
   CRACK: { name: 'Crack', shortName: 'Crack', category: 'PRODUCT', rarity: 'COMMON', file: 'crack.svg', cells: ONE },
