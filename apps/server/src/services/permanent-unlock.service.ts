@@ -103,8 +103,11 @@ export const PermanentUnlockService = {
    * in the catalog that pays it wins; null when only a seasonal or admin source grants it.
    */
   questFor(ruleset: Ruleset, unlockKey: string): QuestLinkDto | null {
+    const unlock = ruleset.permanentUnlocks?.[unlockKey];
     const quest = Object.values(ruleset.questDefinitions ?? {}).find((definition) =>
-      definition.rewards.some((reward) => reward.kind === 'PERMANENT_UNLOCK' && reward.key === unlockKey));
+      definition.rewards.some((reward) =>
+        (reward.kind === 'PERMANENT_UNLOCK' && reward.key === unlockKey)
+        || (reward.kind === 'WEAPON_ACCESS' && unlock?.effect.kind === 'WEAPON_ACCESS' && reward.key === unlock.effect.weapon)));
     if (!quest) return null;
     const giver = quest.contactKey ? ruleset.contacts?.[quest.contactKey as keyof typeof ruleset.contacts] : undefined;
     return { key: quest.key, title: quest.title, giverName: giver?.shortName ?? giver?.name ?? null };

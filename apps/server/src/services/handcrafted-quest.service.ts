@@ -22,6 +22,7 @@ import {
 import type {
   GameActionResult,
   PlayerQuestDto,
+  PlayerQuestStatusDto,
   QuestRequirementDto,
   QuestClaimInput,
   QuestBranchChoiceDto,
@@ -1284,6 +1285,23 @@ export const HandcraftedQuestService = {
           awardedAt: row.awardedAt.toISOString(),
         }];
       });
+      const questUnlocks = Object.values(ruleset.permanentUnlocks ?? {}).flatMap((unlock) => {
+        const quest = PermanentUnlockService.questFor(ruleset, unlock.key);
+        if (!quest) return [];
+        const questRow = rows.find((row) => row.questDefinition.key === quest.key);
+        const questStatus: PlayerQuestStatusDto = questRow?.status
+          ?? (completedQuestKeys.has(quest.key) ? 'COMPLETED' : (latestHistoricalStatus.get(quest.key) as PlayerQuestStatusDto | undefined) ?? 'LOCKED');
+        return [{
+          key: unlock.key,
+          name: unlock.name,
+          description: unlock.description,
+          category: unlock.category,
+          quest,
+          unlocked: unlockRows.some((row) => row.key === unlock.key),
+          questStatus,
+          requires: questRow?.status === 'LOCKED' ? questDto(questRow, ruleset, questContext).requires ?? [] : [],
+        }];
+      });
       const favors = favorEntries.map((entry) => ({
         key: entry.key,
         name: entry.definition.name,
@@ -1344,6 +1362,7 @@ export const HandcraftedQuestService = {
         contacts,
         factions,
         permanentUnlocks,
+        questUnlocks,
         recipeLadder: recipeLadder(ruleset).map((rung, index) => ({
           step: index + 1,
           questKey: rung.questKey,

@@ -2374,6 +2374,18 @@ export interface QuestPermanentUnlockDto {
   awardedAt: string;
 }
 
+/** A round's quest backed unlocks, including the job and the player's current progress. */
+export interface QuestUnlockLookupDto {
+  key: string;
+  name: string;
+  description: string;
+  category: string;
+  quest: QuestLinkDto;
+  unlocked: boolean;
+  questStatus: PlayerQuestStatusDto;
+  requires: QuestRequirementDto[];
+}
+
 export interface QuestActiveFavorDto {
   key: string;
   name: string;
@@ -2464,6 +2476,8 @@ export interface QuestPageDto {
   /** 1.4.0-A. The round's factions, or null before 1.4. */
   factions: FactionDto[] | null;
   permanentUnlocks: QuestPermanentUnlockDto[];
+  /** Quest lookup catalog for gameplay unlocks in this round's ruleset. */
+  questUnlocks?: QuestUnlockLookupDto[];
   /** Quest Recipe Unlocks D. The jobs that open recipes, in order. Absent or empty without recipe gates. */
   recipeLadder?: RecipeLadderStepDto[];
   activeFavors: QuestActiveFavorDto[];

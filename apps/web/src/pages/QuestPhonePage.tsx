@@ -6,6 +6,7 @@ import { ApiError } from '../api/client.js';
 import { questsApi } from '../api/quests.js';
 import { Alert } from '../components/Alert.js';
 import { Portrait } from '../components/Portrait.js';
+import { QuestLink } from '../components/QuestLink.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { publishQuestsChanged, trackedFromQuests } from '../quests/questSignals.js';
 import { confirmAction } from '../stores/confirm.js';
@@ -13,7 +14,7 @@ import { useSession } from '../stores/session.js';
 import { contactJobs, contactRoomHref, lockedJobCount } from '../utils/contactRoom.js';
 import { formatWhen } from '../utils/time.js';
 
-type PhoneView = 'contacts' | 'jobs' | 'history';
+type PhoneView = 'contacts' | 'jobs' | 'history' | 'unlocks';
 
 interface ContactSummary {
   contact: QuestContactDto;
@@ -123,9 +124,10 @@ export function QuestPhonePage() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [trackingKey, setTrackingKey] = useState<string | null>(null);
   const [claimingKey, setClaimingKey] = useState<string | null>(null);
+  const [unlockSearch, setUnlockSearch] = useState('');
 
   const requestedView = new URLSearchParams(location.search).get('view');
-  const view: PhoneView = requestedView === 'jobs' || requestedView === 'history' ? requestedView : 'contacts';
+  const view: PhoneView = requestedView === 'jobs' || requestedView === 'history' || requestedView === 'unlocks' ? requestedView : 'contacts';
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -192,6 +194,11 @@ export function QuestPhonePage() {
   const openContacts = contacts.filter((entry) => entry.ready || entry.active || entry.available).length;
   const activeJobs = page?.quests.filter((quest) => quest.status === 'ACTIVE' || quest.status === 'READY_TO_TURN_IN') ?? [];
   const trackedJobs = activeJobs.filter((job) => job.isTracked);
+  const filteredUnlocks = (page?.questUnlocks ?? []).filter((unlock) => {
+    const query = unlockSearch.trim().toLocaleLowerCase();
+    return !query || [unlock.name, unlock.description, unlock.category, unlock.quest.title, unlock.quest.giverName ?? '']
+      .some((part) => part.toLocaleLowerCase().includes(query));
+  });
 
   async function toggleTracking(job: QuestPageDto['quests'][number]) {
     setTrackingKey(job.key);
@@ -243,7 +250,7 @@ export function QuestPhonePage() {
         <header className="se-quest-phone__topbar">
           <div>
             <span className="se-eyebrow">Street line · private</span>
-            <h1>{view === 'contacts' ? 'Contacts' : view === 'jobs' ? 'My jobs' : 'History'}</h1>
+            <h1>{view === 'contacts' ? 'Contacts' : view === 'jobs' ? 'My jobs' : view === 'unlocks' ? 'Quest unlocks' : 'History'}</h1>
           </div>
           <span className="se-quest-phone__signal" aria-label="Connected">● Connected</span>
         </header>
@@ -252,17 +259,20 @@ export function QuestPhonePage() {
           <Link className={view === 'contacts' ? 'is-active' : undefined} to="/game/quests?view=contacts" aria-current={view === 'contacts' ? 'page' : undefined}><span aria-hidden="true">◉</span>Contacts</Link>
           <Link className={view === 'jobs' ? 'is-active' : undefined} to="/game/quests?view=jobs" aria-current={view === 'jobs' ? 'page' : undefined}><span aria-hidden="true">▣</span>My jobs</Link>
           <Link className={view === 'history' ? 'is-active' : undefined} to="/game/quests?view=history" aria-current={view === 'history' ? 'page' : undefined}><span aria-hidden="true">▤</span>History</Link>
+          <Link className={view === 'unlocks' ? 'is-active' : undefined} to="/game/quests?view=unlocks" aria-current={view === 'unlocks' ? 'page' : undefined}><span aria-hidden="true">⌕</span>Unlocks</Link>
         </nav>
 
         <section className="se-quest-phone__intro" aria-labelledby="quest-phone-intro-title">
           <div>
-            <span className="se-eyebrow">{view === 'contacts' ? 'Your people know the work' : view === 'jobs' ? 'Keep the line open' : 'What has already happened'}</span>
-            <h2 id="quest-phone-intro-title">{view === 'contacts' ? 'Who are you calling?' : view === 'jobs' ? 'What is still on your plate?' : 'Your finished business'}</h2>
+            <span className="se-eyebrow">{view === 'contacts' ? 'Your people know the work' : view === 'jobs' ? 'Keep the line open' : view === 'unlocks' ? 'Find the job behind the lock' : 'What has already happened'}</span>
+            <h2 id="quest-phone-intro-title">{view === 'contacts' ? 'Who are you calling?' : view === 'jobs' ? 'What is still on your plate?' : view === 'unlocks' ? 'What do you need to unlock?' : 'Your finished business'}</h2>
             <p>{view === 'contacts'
               ? 'Jobs come through people, not a board. Open a conversation to hear what is happening, take a job, or settle what you already owe.'
               : view === 'jobs'
                 ? 'Your active work stays here. Open the contact who gave it to you when you are ready to make your next move.'
-                : 'The street remembers. Revisit completed jobs and the choices you made with the people who trusted you.'}</p>
+                : view === 'unlocks'
+                  ? 'Search weapons, products, travel, or districts to see which job opens them and what you need to do first.'
+                  : 'The street remembers. Revisit completed jobs and the choices you made with the people who trusted you.'}</p>
           </div>
           <div className="se-quest-phone__stats" aria-label="Job summary">
             <span><strong>{formatNumber(ready)}</strong><small>ready</small></span>
@@ -345,6 +355,70 @@ export function QuestPhonePage() {
             </div>
             <div className="se-quest-phone__active-list">
                 {activeJobs.length ? activeJobs.map((job) => <JobDetails key={job.key} job={job} onTrack={toggleTracking} tracking={trackingKey === job.key} onClaim={claimJob} claiming={claimingKey === job.key} />) : <p className="se-quest-phone__empty">Nothing is active. Call someone when you are ready for more work.</p>}
+            </div>
+          </section>
+        ) : null}
+
+        {page && view === 'unlocks' ? (
+          <section className="se-quest-phone__active" aria-labelledby="quest-phone-unlocks-title">
+            <div className="se-quest-phone__sectionhead">
+              <div>
+                <span className="se-eyebrow">Round progression</span>
+                <h2 id="quest-phone-unlocks-title">Unlock lookup</h2>
+              </div>
+              <span className="se-quest-phone__sectionmeta">{formatNumber(filteredUnlocks.length)} found</span>
+            </div>
+            <label className="se-quest-phone__lookup-label" htmlFor="quest-unlock-search">Search unlocks</label>
+            <input
+              id="quest-unlock-search"
+              className="se-quest-phone__lookup-search"
+              type="search"
+              value={unlockSearch}
+              onChange={(event) => setUnlockSearch(event.target.value)}
+              placeholder="Try AK-47, Meth, Casino…"
+              autoComplete="off"
+            />
+            <div className="se-quest-phone__unlock-list">
+              {filteredUnlocks.map((unlock) => {
+                const quest = page.quests.find((job) => job.key === unlock.quest.key);
+                const status = unlock.unlocked ? 'Unlocked this round'
+                  : unlock.questStatus === 'AVAILABLE' ? 'Job available'
+                    : unlock.questStatus === 'ACTIVE' ? 'Job in progress'
+                      : unlock.questStatus === 'READY_TO_TURN_IN' ? 'Ready to collect'
+                        : unlock.questStatus === 'COMPLETED' ? 'Job completed'
+                          : unlock.questStatus === 'LOCKED' ? 'Job locked' : 'Not available';
+                return (
+                  <article className={`se-quest-phone__unlock${unlock.unlocked ? ' is-open' : ''}`} key={unlock.key}>
+                    <div className="se-quest-phone__unlock-head">
+                      <div><span className="se-eyebrow">{unlock.category}</span><h3>{unlock.name}</h3></div>
+                      <span className="se-quest-phone__unlock-status">{status}</span>
+                    </div>
+                    <p>{unlock.description}</p>
+                    <div className="se-quest-phone__unlock-route">
+                      <span>{unlock.unlocked ? 'Opened by' : 'Unlock quest'}</span>
+                      <strong><QuestLink quest={unlock.quest} /></strong>
+                    </div>
+                    {!unlock.unlocked && unlock.requires.length ? (
+                      <p className="se-quest-phone__unlock-prereq">
+                        Before this opens: {unlock.requires.map((requirement, index) => {
+                          const prerequisiteQuest = requirement.questKey ? page.quests.find((job) => job.key === requirement.questKey) : undefined;
+                          return (
+                            <span key={`${requirement.questKey ?? requirement.label}:${index}`}>
+                              {index ? ' · ' : ''}{prerequisiteQuest
+                                ? <QuestLink quest={{ key: prerequisiteQuest.key, title: prerequisiteQuest.title, giverName: prerequisiteQuest.contactName }} />
+                                : requirement.label}
+                            </span>
+                          );
+                        })}
+                      </p>
+                    ) : null}
+                    {!unlock.unlocked && !unlock.requires.length && quest?.status === 'LOCKED' ? (
+                      <p className="se-quest-phone__unlock-prereq">This job has not opened yet. Check its conversation for the next step.</p>
+                    ) : null}
+                  </article>
+                );
+              })}
+              {!filteredUnlocks.length ? <p className="se-quest-phone__empty">{page.questUnlocks?.length ? 'No unlocks match that search.' : 'No quest locked features are set up in this round.'}</p> : null}
             </div>
           </section>
         ) : null}
