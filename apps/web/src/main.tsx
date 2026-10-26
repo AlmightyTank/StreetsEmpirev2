@@ -12,6 +12,7 @@ import './styles/community.css';
 import './styles/stability.css';
 import './styles/polish.css';
 import './styles/shared-components.css';
+import './styles/avatar-portrait.css';
 import './styles/release.css';
 // 3. Shared responsive layout and application shell.
 import './styles/mobile.css';
