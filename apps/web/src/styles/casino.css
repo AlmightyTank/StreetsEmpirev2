@@ -1349,6 +1349,7 @@
 .se-horse-racing__result.is-win strong { color: #73d494; }
 .se-horse-racing__result.is-loss strong { color: #df7474; }
 .se-horse-racing__bet { display: grid; grid-template-columns: minmax(0, 1fr) minmax(11rem, auto); gap: .6rem; align-items: end; }
+.se-horse-racing__ticket-preview { grid-column: 1 / -1; margin: 0; color: var(--se-muted); font-size: .78rem; line-height: 1.4; }
 .se-horse-racing__bet > .se-btn { min-height: 2.75rem; }
 @keyframes se-scratch-pop { 0% { transform: scale(.94); } 65% { transform: scale(1.04); } 100% { transform: scale(1); } }
 @keyframes se-ticket-win { 35% { transform: rotate(-.6deg) scale(1.015); } 70% { transform: rotate(.4deg) scale(1.01); } }
