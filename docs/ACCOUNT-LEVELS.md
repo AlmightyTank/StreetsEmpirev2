@@ -28,7 +28,7 @@ daily contract window.
   levels past 50 adds a prestige title ("Twice a Legend", then "Legend ★★★").
   Each level-up grants every title up to the new level, so older accounts catch
   up.
-- **Crowns:** 20 at level 2, then 20 every 5 levels and 75 every 25, with no top level. That is 330
+- **Crowns:** 150 at level 2, then 20 every 5 levels and 75 every 25, with no top level. That is 460
   by level 50. Each milestone pays once per account as an `EARN` with no round,
   outside the per-round earn cap, with the same catch-up.
 - **Prestige:** a star per 50 levels, shown on the level chip and the XP page.
