@@ -72,6 +72,9 @@ export function HorseRacingPanel({ casinoPage, onPageChange }: Props) {
 
   const wagerCents = dollars(wager);
   const horse = state?.horses.find((runner) => runner.key === horseKey) ?? null;
+  const potentialReturnCents = wagerCents && horse
+    ? Number((BigInt(wagerCents) * BigInt(horse.returnBps)) / 10_000n)
+    : null;
   const bankroll = casinoPage.openSession?.bankrollCents ?? 0;
   const blocked = !state || !horse ? 'Pick a horse first.'
     : !casinoPage.openSession ? 'Open a casino bankroll first.'
@@ -251,13 +254,15 @@ export function HorseRacingPanel({ casinoPage, onPageChange }: Props) {
           </div>
         </div>
         {race && !racing ? <div className={`se-horse-racing__result${race.returnCents > 0 ? ' is-win' : ' is-loss'}`}>
+          <span>Last ticket: {race.horseName} · wager {formatCents(race.wagerCents)}</span>
           <span>Official finish: {race.finishOrder.slice(0, 3).map((key, index) => `${index + 1}. ${state.horses.find((item) => item.key === key)?.name ?? key}`).join(' · ')}</span>
-          <strong>{race.horseName} finished #{Math.max(1, race.finishOrder.indexOf(race.horseKey) + 1)}</strong>
-          <span>{CASINO_RECEIPT_LABELS.wager} {formatCents(race.wagerCents)} · {CASINO_RECEIPT_LABELS.returned} {formatCents(race.returnCents)} · {CASINO_RECEIPT_LABELS.net} {signedMoney(race.netCents)}</span>
+          <strong>Your horse finished #{Math.max(1, race.finishOrder.indexOf(race.horseKey) + 1)}</strong>
+          <span>{CASINO_RECEIPT_LABELS.returned} {formatCents(race.returnCents)} · {CASINO_RECEIPT_LABELS.net} {signedMoney(race.netCents)}</span>
         </div> : null}
         <div className="se-horse-racing__bet">
-          <CasinoBetControl id="horse-wager" label="Win bet" ariaLabel="Horse race wager" value={wager} disabled={racing} onChange={(value) => { setWager(value); actionId.current = newActionId(); }} onDecrease={() => setWager(String(Math.max(state.minBetCents, (wagerCents ?? state.minBetCents) - state.betStepCents) / 100))} onIncrease={() => setWager(String(Math.min(state.maxBetCents, (wagerCents ?? state.minBetCents) + state.betStepCents) / 100))} onMax={() => setWager(String(Math.floor(Math.min(state.maxBetCents, bankroll) / state.betStepCents) * state.betStepCents / 100))} />
-          <Button type="button" className="se-btn se-btn--primary" disabledReason={blocked} onClick={() => void run()}>{racing ? 'Race in progress…' : `Bet ${horse?.name ?? 'runner'}`}</Button>
+          {horse && wagerCents && potentialReturnCents !== null ? <p className="se-horse-racing__ticket-preview">Next ticket: {formatCents(wagerCents)} on {horse.name} · {horse.oddsLabel} profit odds · returns {formatCents(potentialReturnCents)} if it wins.</p> : null}
+          <CasinoBetControl id="horse-wager" label="Next win bet" ariaLabel="Next horse race wager" value={wager} disabled={racing} onChange={(value) => { setWager(value); actionId.current = newActionId(); }} onDecrease={() => setWager(String(Math.max(state.minBetCents, (wagerCents ?? state.minBetCents) - state.betStepCents) / 100))} onIncrease={() => setWager(String(Math.min(state.maxBetCents, (wagerCents ?? state.minBetCents) + state.betStepCents) / 100))} onMax={() => setWager(String(Math.floor(Math.min(state.maxBetCents, bankroll) / state.betStepCents) * state.betStepCents / 100))} />
+          <Button type="button" className="se-btn se-btn--primary" disabledReason={blocked} onClick={() => void run()}>{racing ? 'Race in progress…' : wagerCents ? `Bet ${formatCents(wagerCents)} on ${horse?.name ?? 'runner'}` : `Bet on ${horse?.name ?? 'runner'}`}</Button>
         </div>
         <p className="se-hint">Live odds react to recent volume, winners, and casino status. Odds are locked by the server when your ticket is settled; the animation cannot change the result.</p>
       </> : null}
