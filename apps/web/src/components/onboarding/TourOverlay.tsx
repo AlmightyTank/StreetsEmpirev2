@@ -11,7 +11,7 @@ export function tourStepIndex(step: TourStepKey | null): number {
 
 /** First step at or after the current one that is still open, for Next/Back. */
 export function neighborStep(steps: Array<{ key: TourStepKey; done: boolean }>, current: TourStepKey, direction: 1 | -1): TourStepKey | null {
-  const order = TOUR_STEP_KEYS;
+  const order = steps.map((step) => step.key);
   let index = order.indexOf(current) + direction;
   while (index >= 0 && index < order.length) {
     const key = order[index]!;
@@ -22,9 +22,9 @@ export function neighborStep(steps: Array<{ key: TourStepKey; done: boolean }>, 
 }
 
 /** Adjacent walkthrough step, including completed steps, for explicit arrow navigation. */
-export function adjacentStep(current: TourStepKey, direction: 1 | -1): TourStepKey | null {
-  const index = TOUR_STEP_KEYS.indexOf(current) + direction;
-  return index >= 0 && index < TOUR_STEP_KEYS.length ? TOUR_STEP_KEYS[index]! : null;
+export function adjacentStep(current: TourStepKey, direction: 1 | -1, steps: readonly TourStepKey[] = TOUR_STEP_KEYS): TourStepKey | null {
+  const index = steps.indexOf(current) + direction;
+  return index >= 0 && index < steps.length ? steps[index]! : null;
 }
 
 type TargetRect = { top: number; left: number; width: number; height: number };
@@ -141,9 +141,10 @@ export function TourOverlay({ tour: tourOverride }: { tour?: OnboardingStateDto[
 
   if (!visible || !tour || !step || !copy) return null;
 
-  const index = tourStepIndex(step);
-  const previous = adjacentStep(step, -1);
-  const next = adjacentStep(step, 1);
+  const stepOrder = tour.steps.map((item) => item.key);
+  const index = stepOrder.indexOf(step);
+  const previous = adjacentStep(step, -1, stepOrder);
+  const next = adjacentStep(step, 1, stepOrder);
   const anchored = Boolean(rect);
   const preferAbove = copy.target === 'build-street-sign' || copy.target === 'scout-plan' || copy.target === 'produce-plan' || copy.target === 'upgrade-hideout' || copy.target === 'combat-intel' || copy.target === 'first-raid';
   const cardAnchor = preferAbove && typeof document !== 'undefined'
@@ -197,18 +198,19 @@ export function TourOverlay({ tour: tourOverride }: { tour?: OnboardingStateDto[
         className={`se-tour__card${anchored ? ' se-tour__card--anchored' : ' se-tour__card--fallback'}`}
         style={cardStyle}
       >
-        <p className="se-eyebrow">{copy.chapter} · Step {index + 1} of {TOUR_STEP_KEYS.length}</p>
+        <p className="se-eyebrow">{copy.chapter} · Step {index + 1} of {tour.steps.length}</p>
         <h2 id="se-tour-title">Next step: {copy.title}</h2>
         <p className="se-tour__mentor">{copy.mentor} says: {copy.detail}</p>
+        <p className="se-hint">Your place is saved. Come back when you’re ready, including after turns refill.</p>
         <div
           className="se-tour__progress"
           role="progressbar"
           aria-label="Walkthrough progress"
           aria-valuemin={0}
-          aria-valuemax={TOUR_STEP_KEYS.length}
+          aria-valuemax={tour.steps.length}
           aria-valuenow={tour.steps.filter((item) => item.done).length}
         >
-          <span style={{ width: `${Math.round((tour.steps.filter((item) => item.done).length / TOUR_STEP_KEYS.length) * 100)}%` }} />
+          <span style={{ width: `${Math.round((tour.steps.filter((item) => item.done).length / tour.steps.length) * 100)}%` }} />
         </div>
         <ol className="se-tour__dots" aria-label="Walkthrough progress">
           {tour.steps.map((item) => (
