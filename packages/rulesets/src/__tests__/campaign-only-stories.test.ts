@@ -46,15 +46,24 @@ describe('2.6.0-I The Missing Line is the only story', () => {
       .toEqual(['FIGHT_HEAT', 'HEAT_COOLING', 'HEAT_GAIN', 'HEAT_COOLING', undefined, undefined]);
   });
 
-  it('moves every permanent unlock the retired jobs granted onto exactly one campaign chapter', () => {
+  it('moves retired unlocks and live-only gates onto exactly one campaign chapter', () => {
     const retiredUnlocks = unlocksIn(before).filter(({ quest }) => isRetiredStoryJob(before[quest]!)).map(({ unlock }) => unlock).sort();
     expect(retiredUnlocks).toHaveLength(12);
     const now = unlocksIn(after);
-    expect(now.map(({ unlock }) => unlock).sort()).toEqual(retiredUnlocks);
+    const expectedUnlocks = [...new Set([
+      ...retiredUnlocks,
+      ...Object.values(CAMPAIGN_UNLOCKS).flat(),
+    ])].sort();
+    expect(now.map(({ unlock }) => unlock).sort()).toEqual(expectedUnlocks);
     expect(now.every(({ quest }) => quest.startsWith('ML_'))).toBe(true);
     expect(new Set(now.map(({ unlock }) => unlock)).size).toBe(now.length);
     for (const { unlock } of now) expect(classicOgV26I.permanentUnlocks).toHaveProperty(unlock);
     expect(Object.fromEntries(Object.keys(CAMPAIGN_UNLOCKS).map((key) => [key, unlocksIn({ [key]: after[key]! }).map(({ unlock }) => unlock)]))).toEqual(CAMPAIGN_UNLOCKS);
+  });
+
+  it('gives every current permanent unlock a quest route', () => {
+    const routed = new Set(unlocksIn(after).map(({ unlock }) => unlock));
+    expect(Object.keys(classicOgV26I.permanentUnlocks ?? {}).filter((key) => !routed.has(key))).toEqual([]);
   });
 
   it('changes nothing else about the campaign chapters that now carry unlocks', () => {

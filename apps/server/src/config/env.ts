@@ -186,11 +186,7 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).optional(),
   MAINTENANCE_MESSAGE: z.string().max(280).default('StreetsEmpire is down for maintenance. Everything you own is safe; check back shortly.'),
   EMAIL_VERIFICATION_TTL_MINUTES: z.coerce.number().int().positive().default(60),
-  /** Server-only provider keys. Empty leaves that adapter disabled. */
-  THERUNDOWN_API_KEY: z.string().default(''),
-  THE_ODDS_API_KEY: z.string().default(''),
-  SPORTSGAMEODDS_API_KEY: z.string().default(''),
-  /** Shared cached snapshot cadence; deliberately no faster than 15 minutes on free delayed data. */
+  /** Shared cached snapshot cadence. */
   SPORTSBOOK_POLL_MINUTES: z.coerce.number().int().min(30).max(180).default(30),
   /** Optional monitoring-only moderation provider. Deterministic local blocking is always enabled. */
   PROFANITY_MODERATION_API_KEY: z.string().default(''),
@@ -314,11 +310,8 @@ export const env = {
     message: parsed.data.MAINTENANCE_MESSAGE,
   },
   sportsbook: {
-    keys: {
-      therundown: parsed.data.THERUNDOWN_API_KEY,
-      theoddsapi: parsed.data.THE_ODDS_API_KEY,
-    },
-    configured: Boolean(parsed.data.THERUNDOWN_API_KEY || parsed.data.THE_ODDS_API_KEY),
+    keys: { internal: 'internal' },
+    configured: true,
     pollMinutes: parsed.data.SPORTSBOOK_POLL_MINUTES,
   },
   betaAccess: {

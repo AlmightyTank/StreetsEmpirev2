@@ -10,13 +10,7 @@ import {
   shouldPollSportsbookDate,
 } from '../sportsbook-feed.service.js';
 import { retryAfterMs } from '../sportsbook/sportsbook-provider.js';
-import {
-  TheRundownProviderSession as ProviderSession,
-  diagnoseProviderEvent,
-  providerOutcome,
-  singleEventFromPayload,
-  summarizeSnapshot,
-} from '../sportsbook/therundown.provider.js';
+import { ProviderSession } from '../sportsbook/sportsbook-provider.js';
 
 function reply(status: number, body: unknown = { events: [] }, headers: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', ...headers } });
@@ -34,7 +28,7 @@ function scripted(...steps: Array<Response | Error>) {
     return step;
   }) as typeof fetch;
   const sleep = async (ms: number) => { sleeps.push(ms); };
-  const session = new ProviderSession('test-key', { used: 0, limit: 0, remaining: null, period: '' }, { fetch: fetchImpl, sleep });
+  const session = new ProviderSession({ id: 'internal', name: 'StreetsEmpire Sports Network', baseUrl: 'https://internal.invalid', authHeaders: () => ({}), usage: () => ({ units: 0 }) }, 'internal', { used: 0, limit: 0, remaining: null, period: '' }, { fetch: fetchImpl, sleep });
   return { session, calls, sleeps };
 }
 
@@ -89,16 +83,6 @@ describe('1.8.0-C sportsbook feed', () => {
     expect(missing.calls).toHaveLength(1);
     const garbled = scripted(reply(200, ['not', 'an', 'object']));
     await expect(garbled.session.get('/x')).rejects.toMatchObject({ kind: 'PAYLOAD' });
-  });
-
-  it('finds the event inside a v2 single-event response', () => {
-    const final = { event_id: 'abc', score: { event_status: 'STATUS_FINAL', score_away: 107, score_home: 110 } };
-    const unwrapped = singleEventFromPayload({ meta: null, events: [final] }, 'abc');
-    expect(unwrapped).toBe(final);
-    expect(providerOutcome(unwrapped!)).toBe('FINAL');
-    expect(singleEventFromPayload({ events: [{ event_id: 'other' }, final] }, 'abc')).toBe(final);
-    expect(singleEventFromPayload({ events: [] }, 'abc')).toBeNull();
-    expect(singleEventFromPayload({ event: final }, 'abc')).toBe(final);
   });
 
   it('tracks datapoint headers across requests, including retried ones', async () => {
@@ -160,64 +144,11 @@ describe('1.8.0-C sportsbook feed', () => {
     expect(sportsbookNextRecoveryAt(failed, [])).toBeNull();
   });
 
-  it('reads provider status codes, words and flags into one outcome', () => {
-    expect(providerOutcome({ status: 'STATUS_FINAL' })).toBe('FINAL');
-    expect(providerOutcome({ status: 'Final/OT' })).toBe('FINAL');
-    expect(providerOutcome({ is_final: true })).toBe('FINAL');
-    expect(providerOutcome({ status: 'STATUS_CANCELED' })).toBe('CANCELLED');
-    expect(providerOutcome({ event_status: 'postponed' })).toBe('CANCELLED');
-    expect(providerOutcome({ status: 'STATUS_IN_PROGRESS' })).toBe('LIVE');
-    // A suspended baseball game resumes later; it is not a void.
-    expect(providerOutcome({ status: 'STATUS_SUSPENDED' })).toBe('LIVE');
-    expect(providerOutcome({ status: 'STATUS_SCHEDULED' })).toBe('PRE');
-    expect(providerOutcome({})).toBe('PRE');
-  });
-
   it('adds yesterday while US evening games are ahead, and only pulls games a snapshot must contain', () => {
     expect(sportsbookPollDates(new Date('2026-10-11T04:00:00.000Z'))).toEqual(['2026-10-10', '2026-10-11', '2026-10-12', '2026-10-13']);
     expect(sportsbookPollDates(new Date('2026-10-11T15:00:00.000Z'))).toEqual(['2026-10-11', '2026-10-12', '2026-10-13']);
     expect(snapshotCoverage(['2026-10-11', '2026-10-12'])).toEqual({
       from: new Date('2026-10-11T10:00:00.000Z'), to: new Date('2026-10-13T00:00:00.000Z'),
-    });
-  });
-});
-
-describe('1.8.0-E provider payload diagnostics', () => {
-  const listing = (overrides: Record<string, unknown> = {}) => ({
-    event_id: 'evt-1', event_date: '2026-10-11T23:00:00Z', status: 'STATUS_SCHEDULED',
-    teams: [{ name: 'Road', is_away: true }, { name: 'House', is_away: false }],
-    markets: [{ market_id: 1, participants: [{ name: 'Road', price: 120 }, { name: 'House', price: -140 }] }],
-    ...overrides,
-  });
-
-  it('says why the feed would skip a listing, matching what it stores', () => {
-    expect(diagnoseProviderEvent(listing())).toBeNull();
-    expect(diagnoseProviderEvent(listing({ event_id: undefined }))).toBe('NO_EVENT_ID');
-    expect(diagnoseProviderEvent(listing({ event_date: 'tomorrow-ish' }))).toBe('BAD_START');
-    expect(diagnoseProviderEvent(listing({ teams: [{ name: 'Road', is_away: true }] }))).toBe('NO_TEAMS');
-    expect(diagnoseProviderEvent(listing({ markets: [{ market_id: 2, participants: [] }] }))).toBe('NO_MONEYLINE');
-    expect(diagnoseProviderEvent('not an object')).toBe('NO_EVENT_ID');
-  });
-
-  it('summarises a snapshot: parsed, skipped, priceless, statuses and samples', () => {
-    const summary = summarizeSnapshot([
-      listing(),
-      listing({ event_id: 'evt-2', status: 'STATUS_IN_PROGRESS' }),
-      listing({ event_id: 'evt-3', markets: [{ market_id: 1, participants: [] }] }),
-      listing({ event_id: undefined }),
-      listing({ event_id: 'evt-5', teams: [] }),
-    ]);
-    expect(summary).toMatchObject({
-      events: 5, parsed: 3, withoutPrices: 1,
-      skipped: { NO_EVENT_ID: 1, BAD_START: 0, NO_TEAMS: 1, NO_MONEYLINE: 0 },
-    });
-    expect(summary.statuses).toEqual([
-      { raw: 'STATUS_SCHEDULED', outcome: 'PRE', count: 4 },
-      { raw: 'STATUS_IN_PROGRESS', outcome: 'LIVE', count: 1 },
-    ]);
-    expect(summary.samples[0]).toEqual({
-      providerEventId: 'evt-1', startsAt: '2026-10-11T23:00:00.000Z', homeTeam: 'House', awayTeam: 'Road',
-      homeOdds: -140, awayOdds: 120, rawStatus: 'STATUS_SCHEDULED', outcome: 'PRE',
     });
   });
 });

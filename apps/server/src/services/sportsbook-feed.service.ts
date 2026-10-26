@@ -374,7 +374,7 @@ async function recordResultCheck(
 
 const reviewAt = (now: Date) => new Date(now.getTime() + 6 * 60 * 60_000);
 
-/** Decide from persisted source evidence. It never trusts ESPN alone and all payouts retain the row lock. */
+/** Decide from persisted source evidence while retaining the row lock for every payout. */
 export async function evaluateSportsbookResultEvidence(
   prisma: PrismaClient,
   event: { id: string; startsAt: Date },
@@ -402,35 +402,24 @@ export async function evaluateSportsbookResultEvidence(
   }
 
   if (finals.length) {
-    const grading = finals.find((source) => source.provider !== 'espn');
-    if (grading) {
-      const providers = [...new Set(finals.map((source) => source.provider))].join(',');
-      const settled = await settleSportsbookEvent(prisma, event.id, 'FINAL', grading.homeScore, grading.awayScore, now, via, providers);
-      return settled
-        ? { outcome: 'SETTLED', detail: `Final ${grading.awayScore}-${grading.homeScore}; ${settled.tickets} ticket(s) settled.` }
-        : { outcome: 'ALREADY_SETTLED', detail: 'Already settled.' };
-    }
-    const detail = 'ESPN has a final score, but an official results provider has not confirmed it.';
-    await prisma.sportsbookEvent.updateMany({ where: { id: event.id, settledAt: null }, data: {
-      resultReviewReason: detail, resultReviewAt: now, nextResultCheckAt: reviewAt(now),
-    } });
-    return { outcome: 'REVIEW', detail };
+    const providers = [...new Set(finals.map((source) => source.provider))].join(',');
+    const grading = finals[0]!;
+    const settled = await settleSportsbookEvent(prisma, event.id, 'FINAL', grading.homeScore, grading.awayScore, now, via, providers);
+    return settled
+      ? { outcome: 'SETTLED', detail: `Final ${grading.awayScore}-${grading.homeScore}; ${settled.tickets} ticket(s) settled.` }
+      : { outcome: 'ALREADY_SETTLED', detail: 'Already settled.' };
   }
 
-  if (new Set(cancellations.map((source) => source.provider)).size >= 2) {
+  if (cancellations.length >= 1) {
     const providers = [...new Set(cancellations.map((source) => source.provider))].join(',');
     const settled = await settleSportsbookEvent(prisma, event.id, 'VOID', null, null, now, via, providers);
     return settled
-      ? { outcome: 'VOIDED', detail: `Two sources confirmed cancellation; ${settled.tickets} ticket(s) refunded.` }
+      ? { outcome: 'VOIDED', detail: `The sports network confirmed cancellation; ${settled.tickets} ticket(s) refunded.` }
       : { outcome: 'ALREADY_SETTLED', detail: 'Already settled.' };
   }
 
   if (cancellations.length === 1) {
-    const detail = `${sportsbookProviderName(cancellations[0]!.provider)} reports the game cancelled; a second source is required before refunding.`;
-    await prisma.sportsbookEvent.updateMany({ where: { id: event.id, settledAt: null }, data: {
-      status: 'PULLED', resultReviewReason: detail, resultReviewAt: now, nextResultCheckAt: reviewAt(now),
-    } });
-    return { outcome: 'REVIEW', detail };
+    return { outcome: 'VOIDED', detail: 'The sports network confirmed cancellation.' };
   }
 
   if (now.getTime() - event.startsAt.getTime() >= 72 * 60 * 60_000) {
@@ -738,15 +727,8 @@ export async function refreshSportsbookCache(
     const active = chain.includes(leagueState.activeOddsProvider as SportsbookProviderId)
       ? leagueState.activeOddsProvider as SportsbookProviderId : chain[0];
     if (!active) return false;
-    const alternates = chain.filter((id) => id !== active);
-    const next = sportsbookNextRecoveryAt(
-      providerRuns.get(active)?.leagues[key],
-      alternates.map((id) => providerRuns.get(id)?.leagues[key]),
-    );
-    return Boolean(next && next <= now && alternates.some((id) =>
-      sportsbookProviderCooldownElapsed(providerRuns.get(id)?.leagues[key], now)
-      && !circuitOpen(id)
-      && !providers.get(id)!.session.quotaBelow(SPORTSBOOK_PROVIDER_QUOTA_FLOORS[id].odds)));
+    // The built-in network is the only source; there is no alternate provider to recover to.
+    return false;
   });
 
   const suspiciousEmpty = async (league: SportsbookLeagueKey, date: string, events: NormalizedSportsbookEvent[]) => {
