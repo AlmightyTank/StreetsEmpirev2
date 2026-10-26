@@ -3049,6 +3049,14 @@ export interface CasinoPokerRules {
   readonly maxBuyInCents: number;
   readonly bigBlindCents: number;
   readonly raiseCents: number;
+  /** Solo house-table stakes. Multiplayer tables continue to use the base blinds above. */
+  readonly blindLevels: readonly {
+    readonly key: 'LOW' | 'MEDIUM' | 'HIGH';
+    readonly label: string;
+    readonly smallBlindCents: number;
+    readonly bigBlindCents: number;
+    readonly raiseCents: number;
+  }[];
   /** House rake on flopped pots, in basis points, up to a hand cap. */
   readonly rakeBps: number;
   readonly rakeCapCents: number;

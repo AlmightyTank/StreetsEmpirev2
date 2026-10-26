@@ -15,7 +15,7 @@ import { CasinoStatusService } from './casino-status.service.js';
 import { bossPresence } from './boss-presence.service.js';
 
 const TABLE_KEY = 'SOLO_HOLDEM';
-const FALLBACK_POKER_RULES = { minBuyInCents: 1_000, maxBuyInCents: 100_000, bigBlindCents: 100, raiseCents: 200, rakeBps: 500, rakeCapCents: 500, venueKinds: ['FULL_CASINO', 'PRIVATE_CLUB', 'UNDERGROUND', 'NIGHTLIFE'] as const };
+const FALLBACK_POKER_RULES = { minBuyInCents: 1_000, maxBuyInCents: 100_000, bigBlindCents: 100, raiseCents: 200, blindLevels: [{ key: 'LOW' as const, label: 'Low', smallBlindCents: 50, bigBlindCents: 100, raiseCents: 200 }, { key: 'MEDIUM' as const, label: 'Medium', smallBlindCents: 250, bigBlindCents: 500, raiseCents: 1_000 }, { key: 'HIGH' as const, label: 'High', smallBlindCents: 1_000, bigBlindCents: 2_000, raiseCents: 4_000 }], rakeBps: 500, rakeCapCents: 500, venueKinds: ['FULL_CASINO', 'PRIVATE_CLUB', 'UNDERGROUND', 'NIGHTLIFE'] as const };
 const secureRng: Rng = () => randomInt(0x1_0000_0000) / 0x1_0000_0000;
 /** How long a multiplayer seat may sit on its turn before another player in the hand can skip it. */
 export const POKER_TURN_TIMEOUT_MS = 60_000;
@@ -30,6 +30,10 @@ type PokerState = {
   currentBet: number; outcome: string | null; revealedBots: boolean; rakeBps: number; rakeCapCents: number; rakeCents: number;
   /** Seat holding the button when this hand was dealt; old saved hands default to the player. */
   dealerId?: string;
+  blindLevel?: 'LOW' | 'MEDIUM' | 'HIGH';
+  smallBlindCents?: number;
+  bigBlindCents?: number;
+  raiseCents?: number;
 };
 type PlayerRow = RoundPlayer & { city: { id: string; slug: string; name: string }; round: { rulesetId: string; rulesetVersion: string } };
 
@@ -42,6 +46,10 @@ function parseState(value: Prisma.JsonValue): PokerState {
   state.rakeBps ??= FALLBACK_POKER_RULES.rakeBps;
   state.rakeCapCents ??= FALLBACK_POKER_RULES.rakeCapCents;
   state.rakeCents ??= 0;
+  state.blindLevel ??= 'LOW';
+  state.smallBlindCents ??= FALLBACK_POKER_RULES.blindLevels[0]!.smallBlindCents;
+  state.bigBlindCents ??= FALLBACK_POKER_RULES.blindLevels[0]!.bigBlindCents;
+  state.raiseCents ??= FALLBACK_POKER_RULES.blindLevels[0]!.raiseCents;
   return state;
 }
 
@@ -114,6 +122,10 @@ function dto(row: Pick<CasinoPokerHand, 'id' | 'status' | 'state' | 'buyInCents'
     potCents: pot(state),
     amountToCallCents: Math.max(0, state.currentBet - human.streetBet),
     buyInCents: Number(row.buyInCents), bankrollAfterCents: Number(row.bankrollAfterCents),
+    blindLevel: state.blindLevel ?? 'LOW',
+    smallBlindCents: state.smallBlindCents ?? FALLBACK_POKER_RULES.blindLevels[0]!.smallBlindCents,
+    bigBlindCents: state.bigBlindCents ?? FALLBACK_POKER_RULES.blindLevels[0]!.bigBlindCents,
+    raiseCents: state.raiseCents ?? FALLBACK_POKER_RULES.blindLevels[0]!.raiseCents,
     outcome: state.outcome, rakeCents: state.rakeCents, createdAt: row.createdAt.toISOString(), settledAt: row.settledAt?.toISOString() ?? null,
   };
 }
@@ -181,7 +193,9 @@ async function stateInDb(db: Db | PrismaClient, playerId: string): Promise<Casin
   const rules = poker ?? FALLBACK_POKER_RULES;
   return { enabled: Boolean(poker), minBuyInCents: rules.minBuyInCents, maxBuyInCents: rules.maxBuyInCents,
     smallBlindCents: Math.max(1, Math.floor(rules.bigBlindCents / 2)), bigBlindCents: rules.bigBlindCents,
-    raiseCents: rules.raiseCents, rakeBps: rules.rakeBps, rakeCapCents: rules.rakeCapCents,
+    raiseCents: rules.raiseCents,
+    blindLevels: [...('blindLevels' in rules && rules.blindLevels.length ? rules.blindLevels : FALLBACK_POKER_RULES.blindLevels)],
+    rakeBps: rules.rakeBps, rakeCapCents: rules.rakeCapCents,
     activeHand: active ? dto(active) : null, history: history.map(dto), tables: await Promise.all(tables.map((row) => tableDto(db, row, playerId))) };
 }
 
@@ -240,14 +254,24 @@ function actionOrder(state: PokerState): string[] {
   );
 }
 
-function botResponses(state: PokerState, rng: Rng, order: readonly string[]): void {
+function botResponses(state: PokerState, rng: Rng, order: readonly string[], raiseSize: number, allowRaises: boolean): void {
   for (const id of order) {
     const bot = state.seats.find((seat) => seat.id === id);
     if (!bot || bot.human || bot.folded) continue;
     const due = Math.max(0, state.currentBet - bot.streetBet);
-    const action = choosePokerBotAction({ holeCards: bot.hole, communityCards: state.board, amountToCall: due, canRaise: false, rng, potCents: pot(state) });
+    const canRaise = allowRaises && bot.stack >= due + raiseSize;
+    const action = choosePokerBotAction({ holeCards: bot.hole, communityCards: state.board, amountToCall: due, canRaise, rng, potCents: pot(state) });
     if (action === 'FOLD') bot.folded = true;
-    else { const amount = Math.min(due, bot.stack); bot.stack -= amount; bot.contribution += amount; bot.streetBet += amount; }
+    else {
+      const raiseBy = action === 'RAISE'
+        ? Math.max(raiseSize, Math.round((pot(state) + due) * 0.4))
+        : 0;
+      const amount = Math.min(bot.stack, due + raiseBy);
+      bot.stack -= amount;
+      bot.contribution += amount;
+      bot.streetBet += amount;
+      state.currentBet = Math.max(state.currentBet, bot.streetBet);
+    }
     settleByFold(state);
     if (state.street === 'SHOWDOWN' || state.street === 'COMPLETE') return;
   }
@@ -290,7 +314,7 @@ function act(state: PokerState, action: CasinoPokerActionInput['action'], rng: R
   const humanOrderIndex = order.indexOf(human.id);
   // Resolve the bots who act before the player first. If the player raises,
   // those bots get another response after the players behind the button.
-  botResponses(state, rng, order.slice(0, humanOrderIndex));
+  botResponses(state, rng, order.slice(0, humanOrderIndex), raiseSize, true);
   // The bots may have settled the hand; read the street again rather than the narrowed one.
   if (handSettled(state)) return;
   const previousBet = state.currentBet;
@@ -310,8 +334,8 @@ function act(state: PokerState, action: CasinoPokerActionInput['action'], rng: R
     const added = human.stack; human.stack = 0; human.contribution += added; human.streetBet += added;
     state.currentBet = Math.max(state.currentBet, human.streetBet);
   }
-  botResponses(state, rng, order.slice(humanOrderIndex + 1));
-  if (state.currentBet > previousBet) botResponses(state, rng, order.slice(0, humanOrderIndex));
+  botResponses(state, rng, order.slice(humanOrderIndex + 1), raiseSize, false);
+  if (state.currentBet > previousBet) botResponses(state, rng, order.slice(0, humanOrderIndex), raiseSize, false);
   let streetAfterBots = state.street as PokerState['street'];
   if (streetAfterBots !== 'SHOWDOWN' && streetAfterBots !== 'COMPLETE') {
     const playersAbleToBet = state.seats.filter((seat) => !seat.folded && seat.stack > 0).length;
@@ -500,7 +524,7 @@ export const CasinoPokerService = {
       if (replay) {
         if (replay.kind !== 'START') throw AppError.conflict('ACTION_ID_REUSED', 'That action ID already belongs to another Poker action.');
         const saved = replay.response as unknown as CasinoPokerResponseDto;
-        if (saved.hand.buyInCents !== input.buyInCents) throw AppError.conflict('ACTION_ID_REUSED', 'That action ID already belongs to a different Poker hand.');
+        if (saved.hand.buyInCents !== input.buyInCents || (saved.hand.blindLevel ?? 'LOW') !== (input.blindLevel ?? 'LOW')) throw AppError.conflict('ACTION_ID_REUSED', 'That action ID already belongs to a different Poker hand.');
         return saved;
       }
       const casinoReceipt = await tx.casinoLedgerEntry.findUnique({ where: { roundPlayerId_actionId: { roundPlayerId: playerId, actionId: input.actionId } }, select: { id: true } });
@@ -508,6 +532,10 @@ export const CasinoPokerService = {
       const { player, ruleset, casino } = await playerAndCasino(tx, playerId);
       const pokerRules = casino.poker;
       if (!pokerRules) throw AppError.conflict('POKER_CLOSED', 'Poker is not enabled in this round.');
+      const blindLevel = input.blindLevel ?? 'LOW';
+      const blindRules = ('blindLevels' in pokerRules ? pokerRules.blindLevels : FALLBACK_POKER_RULES.blindLevels)
+        .find((level) => level.key === blindLevel);
+      if (!blindRules) throw AppError.badRequest('POKER_BLIND_LEVEL', 'Choose a valid Poker blind level.');
       if (input.buyInCents < pokerRules.minBuyInCents || input.buyInCents > pokerRules.maxBuyInCents || input.buyInCents % 100 !== 0) {
         throw AppError.badRequest('POKER_BUY_IN', `Choose a buy-in from ${pokerRules.minBuyInCents / 100} to ${pokerRules.maxBuyInCents / 100} dollars in whole dollars.`);
       }
@@ -537,8 +565,8 @@ export const CasinoPokerService = {
       const handsPlayed = await tx.casinoPokerHand.count({ where: { roundPlayerId: playerId } });
       const dealerIndex = (seatIds.length - (handsPlayed % seatIds.length)) % seatIds.length;
       const blinds: Record<string, number> = {
-        [seatIds[(dealerIndex + 1) % seatIds.length]!]: Math.floor(pokerRules.bigBlindCents / 2),
-        [seatIds[(dealerIndex + 2) % seatIds.length]!]: pokerRules.bigBlindCents,
+        [seatIds[(dealerIndex + 1) % seatIds.length]!]: blindRules.smallBlindCents,
+        [seatIds[(dealerIndex + 2) % seatIds.length]!]: blindRules.bigBlindCents,
       };
       const deck = shufflePokerDeck(rng);
       const dealt = dealPokerHoleCards(deck, seatIds, dealerIndex);
@@ -547,9 +575,10 @@ export const CasinoPokerService = {
         return { id, name, human, hole: [...dealt.holeCards[id]!] as [PokerCard, PokerCard], folded: false, stack: input.buyInCents - blind, contribution: blind, streetBet: blind };
       };
       const state: PokerState = {
-        deck: [...dealt.deck], board: [], street: 'PREFLOP', currentBet: pokerRules.bigBlindCents, outcome: null, revealedBots: false,
+        deck: [...dealt.deck], board: [], street: 'PREFLOP', currentBet: blindRules.bigBlindCents, outcome: null, revealedBots: false,
         rakeBps: pokerRules.rakeBps, rakeCapCents: pokerRules.rakeCapCents, rakeCents: 0,
         dealerId: seatIds[dealerIndex],
+        blindLevel, smallBlindCents: blindRules.smallBlindCents, bigBlindCents: blindRules.bigBlindCents, raiseCents: blindRules.raiseCents,
         seats: [seat('player', player.displayName, true), seat('bot-1', 'Mack', false), seat('bot-2', 'Rico', false)],
       };
       const row = await tx.casinoPokerHand.create({ data: {
@@ -582,7 +611,7 @@ export const CasinoPokerService = {
       if (!row) throw AppError.notFound('POKER_HAND_NOT_FOUND', 'That Poker hand could not be found.');
       if (row.status !== 'ACTIVE') throw AppError.conflict('POKER_HAND_SETTLED', 'That Poker hand is already settled.');
       const state = parseState(row.state);
-      act(state, input.action, rng, pokerRules.raiseCents);
+      act(state, input.action, rng, state.raiseCents ?? pokerRules.raiseCents);
       const settled = state.street === 'SHOWDOWN' || state.street === 'COMPLETE';
       let bankroll = row.bankrollAfterCents;
       if (settled) {

@@ -12,6 +12,11 @@ export const classicOgV12E = {
       maxBuyInCents: 100_000,
       bigBlindCents: 100,
       raiseCents: 200,
+      blindLevels: [
+        { key: 'LOW', label: 'Low', smallBlindCents: 50, bigBlindCents: 100, raiseCents: 200 },
+        { key: 'MEDIUM', label: 'Medium', smallBlindCents: 250, bigBlindCents: 500, raiseCents: 1_000 },
+        { key: 'HIGH', label: 'High', smallBlindCents: 1_000, bigBlindCents: 2_000, raiseCents: 4_000 },
+      ],
       rakeBps: 500,
       rakeCapCents: 500,
       venueKinds: ['FULL_CASINO', 'PRIVATE_CLUB', 'UNDERGROUND', 'NIGHTLIFE'],

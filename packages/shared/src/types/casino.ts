@@ -477,6 +477,10 @@ export interface CasinoPokerHandDto {
   potCents: number;
   amountToCallCents: number;
   buyInCents: number;
+  blindLevel: 'LOW' | 'MEDIUM' | 'HIGH';
+  smallBlindCents: number;
+  bigBlindCents: number;
+  raiseCents: number;
   bankrollAfterCents: number;
   outcome: string | null;
   rakeCents: number;
@@ -490,6 +494,7 @@ export interface CasinoPokerStateDto {
   smallBlindCents: number;
   bigBlindCents: number;
   raiseCents: number;
+  blindLevels: Array<{ key: 'LOW' | 'MEDIUM' | 'HIGH'; label: string; smallBlindCents: number; bigBlindCents: number; raiseCents: number }>;
   rakeBps: number;
   rakeCapCents: number;
   activeHand: CasinoPokerHandDto | null;
