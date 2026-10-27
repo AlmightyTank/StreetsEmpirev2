@@ -102,7 +102,15 @@ export function shouldCreateInAppNotification(type: ActivityType, payload: Prism
   // later resolved receipt is an away-time outcome worth putting in the bell.
   if (type === 'BOSS_HIT_BACKUP') return p.resolved === true;
   if (type === 'QUEST_CLAIMED') return Array.isArray(p.newlyAvailable) && p.newlyAvailable.length > 0;
-  if (type === 'SCOUT' || type === 'PRODUCE_CRACK') return p.busted === true;
+  if (type === 'SCOUT') {
+    // A black-market cache is rare enough to surface remotely; ordinary
+    // scavenging stays in the activity feed without filling the bell.
+    const cache = p.cacheFound && typeof p.cacheFound === 'object' && !Array.isArray(p.cacheFound)
+      ? p.cacheFound as Record<string, unknown>
+      : null;
+    return p.busted === true || cache?.quality === 'BLACK_MARKET_CACHE';
+  }
+  if (type === 'PRODUCE_CRACK') return p.busted === true;
   return false;
 }
 

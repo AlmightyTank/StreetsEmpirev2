@@ -151,8 +151,9 @@ export function pickNextHideoutRoom<T extends { nextCostCents: number | null; ca
   return [...pool].sort((a, b) => a.nextCostCents - b.nextCostCents)[0] ?? null;
 }
 
-export function hideoutBuildStatus(readyCount: number, openCount: number): string {
+export function hideoutBuildStatus(readyCount: number, openCount: number, buildingCount = 0): string {
   if (openCount === 0) return 'Season complete';
+  if (buildingCount > 0) return 'Building now';
   if (readyCount === 1) return '1 room ready';
   if (readyCount > 1) return `${readyCount} rooms ready`;
   return 'No upgrades ready';

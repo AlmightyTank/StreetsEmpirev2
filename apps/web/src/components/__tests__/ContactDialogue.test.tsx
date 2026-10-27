@@ -117,6 +117,20 @@ describe('ContactDialogue', () => {
     expect(branching).not.toContain('Collect payment');
   });
 
+  it('keeps an unresolved sports favor waiting instead of offering collection', () => {
+    const pending = quest('FAVOR_ON_THE_LINE', 'READY_TO_TURN_IN', {
+      sportsInfluence: {
+        eventId: 'event-1', sport: 'NBA', homeTeam: 'Home', awayTeam: 'Away', startsAt: new Date().toISOString(),
+        targetTeam: 'HOME', desiredOutcome: 'WIN', targetRole: 'starting guard',
+      },
+    } as Partial<PlayerQuestDto>);
+    const html = render({ kind: 'job', questKey: 'FAVOR_ON_THE_LINE' }, [pending]);
+    expect(html).toContain('Waiting for official result');
+    expect(html).toContain('Vic is waiting on the official result before closing this favor.');
+    expect(html).toContain('Wait for the official result.');
+    expect(html).not.toContain('Collect payment');
+  });
+
   it('shows the work still to do on an active job', () => {
     const html = render({ kind: 'job', questKey: 'ACTIVE' }, [quest('ACTIVE', 'ACTIVE')]);
     expect(html).toContain('Sell to Pip.');

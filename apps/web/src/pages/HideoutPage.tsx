@@ -229,7 +229,7 @@ function RoomCard({
 
       {!maxed && !building && nextCostComponents.length ? (
         <div className="se-hideout-room__requirements">
-          {nextCostComponents.map((component) => (
+          {nextCostComponents.filter((component) => component.quantity > 0).map((component) => (
             <div key={component.key} className={component.met ? 'is-met' : undefined}>
               <span>{component.key.replaceAll('_', ' ')}</span>
               <strong>{formatNumber(component.current)} / {formatNumber(component.quantity)}</strong>
@@ -466,6 +466,7 @@ export function HideoutPage() {
   const receipt = action.result?.result ?? null;
   const openRooms = hideout?.rooms.filter((room) => room.nextCostCents !== null) ?? [];
   const readyRooms = openRooms.filter((room) => room.canUpgrade);
+  const buildingRooms = openRooms.filter((room) => room.build);
   // Each panel below exists only on rulesets that carry it; a section with none of them stays out of the page and the nav.
   const hasSecurity = Boolean(hideout && (hideout.security || hideout.assetProtection || hideout.armory || hideout.infirmary));
   const hasOperations = Boolean(hideout && (hideout.workshop || hideout.garage || hideout.ledger));
@@ -668,7 +669,7 @@ export function HideoutPage() {
                     <span className="se-eyebrow">Headquarters snapshot</span>
                     <h2>Operation status</h2>
                   </div>
-                  <span className="se-hideout-chip">{hideoutBuildStatus(readyRooms.length, openRooms.length)}</span>
+                  <span className="se-hideout-chip">{hideoutBuildStatus(readyRooms.length, openRooms.length, buildingRooms.length)}</span>
                 </div>
 
                 <div className="se-hideout-metrics">

@@ -21,6 +21,17 @@ describe('shouldCreateInAppNotification', () => {
     expect(shouldCreateInAppNotification('PRODUCE_CRACK', payload({ busted: true }))).toBe(true);
   });
 
+  it('alerts when a scout finds a black-market cache', () => {
+    expect(shouldCreateInAppNotification('SCOUT', payload({
+      busted: false,
+      cacheFound: { quality: 'BLACK_MARKET_CACHE', label: 'Black-market cache' },
+    }))).toBe(true);
+    expect(shouldCreateInAppNotification('SCOUT', payload({
+      busted: false,
+      cacheFound: { quality: 'SECURED_CACHE', label: 'Secured cache' },
+    }))).toBe(false);
+  });
+
   it('ignores ordinary activity that never becomes a toast', () => {
     expect(shouldCreateInAppNotification('STORE_BUY', payload({ item: 'beer' }))).toBe(false);
     expect(shouldCreateInAppNotification('WORK_STREETS', payload({ turns: 5 }))).toBe(false);

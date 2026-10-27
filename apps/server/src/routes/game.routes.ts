@@ -465,14 +465,14 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
   });
 
   fastify.get('/hideout/workshop', { preHandler: fastify.requireAuth }, async (request) => {
-    const { player } = await requirePlayer(request.auth!.account.id);
-    return WorkshopService.page(fastify.prisma, player.id);
+    const { round, player } = await requirePlayer(request.auth!.account.id);
+    return WorkshopService.page(fastify.prisma, player.id, loadRulesetForRound(round));
   });
 
   fastify.post('/hideout/workshop/craft', { preHandler: fastify.requireAuth }, async (request) => {
     const body = parseBody(z.object({ recipeKey: z.string().trim().min(1).max(64), actionId: z.string().trim().min(1).max(128).optional() }).strict(), request.body);
-    const { player } = await requirePlayer(request.auth!.account.id);
-    return WorkshopService.craft(fastify.prisma, player.id, body.recipeKey, body.actionId);
+    const { round, player } = await requirePlayer(request.auth!.account.id);
+    return WorkshopService.craft(fastify.prisma, player.id, body.recipeKey, body.actionId, loadRulesetForRound(round));
   });
 
   fastify.get('/armory', { preHandler: fastify.requireAuth }, async (request) => {
