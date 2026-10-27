@@ -115,12 +115,18 @@ export interface CraftingIngredientDto {
   quantity: number;
 }
 
+export type CraftingRecipeKindDto = 'ASSEMBLE' | 'DISASSEMBLE';
+
 export interface CraftingRecipeDto {
   key: string;
   name: string;
   purpose: string;
+  /** ASSEMBLE spends parts on a stash good. DISASSEMBLE spends a part and returns cheaper parts. */
+  kind: CraftingRecipeKindDto;
   ingredients: CraftingIngredientDto[];
   output: { key: string; name: string; quantity: number; footprint: { width: number; height: number } };
+  /** Parts returned to the component pile. Set for break-down recipes. */
+  partYields?: CraftingIngredientDto[];
   turns: number;
   requiresPower: boolean;
   unlockLevel: number;
@@ -138,6 +144,8 @@ export interface CraftingWorkshopDto {
 export interface CraftingResultDto {
   recipe: CraftingRecipeDto;
   output: { key: string; name: string; quantity: number; footprint: { width: number; height: number } };
+  /** Parts returned when the recipe breaks something down. */
+  partYields?: CraftingIngredientDto[];
   availableComponents: Array<{ key: string; quantity: number }>;
   skill: number;
   skillXp: number;
