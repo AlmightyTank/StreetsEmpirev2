@@ -82,6 +82,12 @@ export const ITEM_ART = {
   HIGH_CAPACITY_FUEL_CELL: { name: 'High-capacity fuel cell', shortName: 'Fuel cell', category: 'SUPPLY', rarity: 'LEGENDARY', file: 'fuel-cell.svg', cells: ONE },
   SPECIALIST_CIRCUITRY: { name: 'Specialist circuitry', shortName: 'Circuitry', category: 'SUPPLY', rarity: 'LEGENDARY', file: 'specialist-circuitry.svg', cells: ONE },
 
+  // Scouting caches, one picture per quality tier. Keys match ScavengeCacheDto.quality.
+  STREET_STASH: { name: 'Street stash', shortName: 'Stash', category: 'SUPPLY', rarity: 'COMMON', file: 'street-stash.svg', cells: ONE },
+  SUPPLY_CACHE: { name: 'Supply cache', shortName: 'Supply', category: 'SUPPLY', rarity: 'UNCOMMON', file: 'supply-cache.svg', cells: ONE },
+  SECURED_CACHE: { name: 'Secured cache', shortName: 'Secured', category: 'SUPPLY', rarity: 'RARE', file: 'secured-cache.svg', cells: ONE },
+  BLACK_MARKET_CACHE: { name: 'Black-market cache', shortName: 'Black mkt', category: 'SUPPLY', rarity: 'EPIC', file: 'black-market-cache.svg', cells: ONE },
+
   // Products
   CRACK: { name: 'Crack', shortName: 'Crack', category: 'PRODUCT', rarity: 'COMMON', file: 'crack.svg', cells: ONE },
   WEED: { name: 'Weed', shortName: 'Weed', category: 'PRODUCT', rarity: 'COMMON', file: 'weed.svg', cells: ONE },
