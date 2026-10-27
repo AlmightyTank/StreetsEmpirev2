@@ -537,7 +537,7 @@ export function CasinoPage() {
               games={CASINO_GAMES.map((game) => ({
                 key: game.key,
                 label: game.label,
-                icon: game.icon,
+                icon: <CasinoGameIcon game={game.key} />,
                 href: '/game/casino/' + game.key,
               }))}
             />

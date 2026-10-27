@@ -57,7 +57,7 @@
   padding: 8px 0;
   transform: translateX(0);
 }
-.se-cache-reveal__reel--spinning .se-cache-reveal__track { animation: se-cache-reel-spin 1350ms cubic-bezier(.12, .72, .18, 1) forwards; }
+.se-cache-reveal__reel--spinning .se-cache-reveal__track { animation: se-cache-reel-spin 2600ms cubic-bezier(.12, .72, .18, 1) forwards; }
 .se-cache-reveal__reel--settled .se-cache-reveal__track { transform: translateX(var(--reveal-distance)); }
 .se-cache-reveal__reel-item {
   display: grid;

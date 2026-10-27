@@ -4,7 +4,13 @@ import { formatCents, formatNumber, type PlayerQuestDto } from '@streets/shared'
 import { loadTrackedQuests, onQuestsChanged, peekTrackedQuests, trackedFromQuests } from '../quests/questSignals.js';
 import { contactRoomHref } from '../utils/contactRoom.js';
 
+function isSportsPending(quest: PlayerQuestDto): boolean {
+  return Boolean(quest.sportsInfluence && !quest.sportsInfluence.resolved);
+}
+
 function primaryProgress(quest: PlayerQuestDto): string {
+  const sportsPending = isSportsPending(quest);
+  if (sportsPending) return 'Waiting for official result';
   const objective = quest.objectives.find((item) => !item.bonus && !item.completed)
     ?? quest.objectives.find((item) => !item.bonus);
   if (!objective) return quest.status === 'READY_TO_TURN_IN' ? 'Ready to collect' : '';
@@ -44,10 +50,10 @@ export function TrackedQuests() {
         {quests.map((quest) => (
           <Link key={quest.key} to={quest.contactKey
             ? `${contactRoomHref(quest.contactKey)}?job=${encodeURIComponent(quest.key)}`
-            : { pathname: '/game/quests', search: '?view=jobs', hash: `#quest-${encodeURIComponent(quest.key)}` }} className={'se-tracked-quest' + (quest.status === 'READY_TO_TURN_IN' ? ' se-tracked-quest--ready' : '')}>
+            : { pathname: '/game/quests', search: '?view=jobs', hash: `#quest-${encodeURIComponent(quest.key)}` }} className={'se-tracked-quest' + (quest.status === 'READY_TO_TURN_IN' && !isSportsPending(quest) ? ' se-tracked-quest--ready' : '')}>
             <span className="se-tracked-quest__name">{quest.title}</span>
             <span className="se-tracked-quest__progress">
-              {quest.status === 'READY_TO_TURN_IN' ? 'Collect' : primaryProgress(quest)}
+              {quest.status === 'READY_TO_TURN_IN' && !isSportsPending(quest) ? 'Collect' : primaryProgress(quest)}
             </span>
           </Link>
         ))}

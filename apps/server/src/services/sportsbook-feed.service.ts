@@ -167,7 +167,7 @@ export function isResultCheckDue(
   return event.startsAt.getTime() + firstCheck * 60_000 <= now.getTime();
 }
 
-/** The UTC dates to request: today plus the next two days keeps the board focused. */
+/** The UTC dates to request: a week of feed data keeps the expanded board populated. */
 /** Only skip a future date when its most recent successful snapshot was empty and is recent.
  * Never skip today: new lines and schedule changes must remain visible promptly.
  */
@@ -179,7 +179,7 @@ export function shouldPollSportsbookDate(date: string, now: Date, cached?: { eve
 }
 
 export function sportsbookPollDates(now: Date): string[] {
-  const dates = Array.from({ length: 3 }, (_, offset) => dateKey(new Date(now.getTime() + offset * 86_400_000)));
+  const dates = Array.from({ length: 7 }, (_, offset) => dateKey(new Date(now.getTime() + offset * 86_400_000)));
   if (now.getUTCHours() < PROVIDER_DATE_OFFSET_HOURS) dates.unshift(dateKey(new Date(now.getTime() - 86_400_000)));
   return dates;
 }

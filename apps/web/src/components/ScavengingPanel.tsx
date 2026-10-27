@@ -16,7 +16,7 @@ export function ScavengingPanel({ page, onChanged, heading = true }: { page: Sca
   useEffect(() => {
     if (!reveal) return;
     setRevealPhase('spinning');
-    const timer = window.setTimeout(() => setRevealPhase('settled'), 1350);
+     const timer = window.setTimeout(() => setRevealPhase('settled'), 2600);
     return () => window.clearTimeout(timer);
   }, [reveal]);
   async function open(id: string) {

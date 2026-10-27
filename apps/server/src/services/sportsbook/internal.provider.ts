@@ -1,4 +1,4 @@
-import { SPORTSBOOK_TEAMS, type SportsbookLeagueKey } from '@streets/shared';
+import { SPORTSBOOK_TEAMS, sportsbookTeamIsVisitable, type SportsbookLeagueKey } from '@streets/shared';
 import type {
   NormalizedSportsbookEvent,
   NormalizedSportsbookResult,
@@ -23,11 +23,11 @@ type ScheduleProfile = {
 // These are broad real-world scheduling patterns, not live fixtures. The
 // generated board stays fictional but feels like each league's calendar.
 const SCHEDULES: Record<SportsbookLeagueKey, ScheduleProfile> = {
-  NFL: { start: [9, 1], end: [2, 15], gamesPerDay: 1, startHoursUtc: [17, 20, 0] },
-  NBA: { start: [10, 20], end: [6, 25], gamesPerDay: 5, startHoursUtc: [23, 1, 3] },
-  MLB: { start: [3, 26], end: [11, 5], gamesPerDay: 8, startHoursUtc: [17, 19, 22] },
-  NHL: { start: [10, 1], end: [6, 25], gamesPerDay: 6, startHoursUtc: [23, 1, 3] },
-  SOFTBALL: { start: [2, 1], end: [6, 10], gamesPerDay: 5, startHoursUtc: [17, 20, 23] },
+  NFL: { start: [9, 1], end: [2, 15], gamesPerDay: 2, startHoursUtc: [17, 19, 21, 0] },
+  NBA: { start: [10, 20], end: [6, 25], gamesPerDay: 8, startHoursUtc: [22, 0, 2, 4] },
+  MLB: { start: [3, 26], end: [11, 5], gamesPerDay: 12, startHoursUtc: [16, 18, 20, 22] },
+  NHL: { start: [10, 1], end: [6, 25], gamesPerDay: 8, startHoursUtc: [22, 0, 2, 4] },
+  SOFTBALL: { start: [2, 1], end: [6, 10], gamesPerDay: 8, startHoursUtc: [16, 18, 20, 22] },
   // Main cards are staged for Saturday evening in North American time, not daily.
   MMA: { start: [1, 1], end: [12, 31], gamesPerDay: 1, startHoursUtc: [23] },
 };
@@ -43,8 +43,8 @@ function inSeason(league: SportsbookLeagueKey, date: Date): boolean {
 
 function gamesFor(league: SportsbookLeagueKey, date: Date): number {
   const base = SCHEDULES[league].gamesPerDay;
-  if (league === 'NFL') return [0, 6].includes(date.getUTCDay()) ? 6 : base;
-  if (league === 'MMA') return date.getUTCDay() === 6 ? 1 : 0;
+  if (league === 'NFL') return [0, 6].includes(date.getUTCDay()) ? 8 : base;
+  if (league === 'MMA') return date.getUTCDay() === 6 ? base : 0;
   return base;
 }
 
@@ -107,7 +107,8 @@ export class InternalSportsbookProvider implements SportsbookProvider {
   constructor(private readonly now = new Date()) {}
 
   async listEvents(league: SportsbookLeagueKey, dates: readonly string[]): Promise<NormalizedSportsbookEvent[]> {
-    const teams = Object.entries(SPORTSBOOK_TEAMS[league]);
+    const teams = Object.entries(SPORTSBOOK_TEAMS[league])
+      .filter(([teamId]) => sportsbookTeamIsVisitable(league, teamId));
     const schedule = SCHEDULES[league];
     return dates.flatMap((date) => {
       const day = new Date(`${date}T00:00:00.000Z`);

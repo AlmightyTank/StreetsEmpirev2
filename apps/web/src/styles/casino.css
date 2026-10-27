@@ -1556,6 +1556,7 @@
   text-decoration: none;
 }
 .se-casino-switch__game span { font-size: 1.05rem; line-height: 1; }
+.se-casino-switch__game span svg { display: block; width: 1.35rem; height: 1.35rem; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
 .se-casino-switch__game small { font-size: .62rem; font-weight: 700; letter-spacing: .02em; white-space: nowrap; }
 .se-casino-switch__game:hover { color: var(--se-text); border-color: var(--se-border); }
 .se-casino-switch__game.is-active { color: var(--se-accent); border-color: color-mix(in srgb, var(--se-accent) 55%, transparent); background: color-mix(in srgb, var(--se-accent) 8%, transparent); }

@@ -64,9 +64,11 @@ const casinoRoutes: FastifyPluginAsync = async (fastify) => {
   });
 
   fastify.get('/sportsbook', { preHandler: fastify.requireAuth }, async (request) => {
+    const round = await RoundService.requireCurrent(fastify.prisma);
     const player = await requirePlayer(request.auth!.account.id);
+    const ruleset = loadRulesetForRound(round);
     const [board, tickets, limits] = await Promise.all([
-      SportsbookService.board(fastify.prisma, { configured: true, pollMinutes: env.SPORTSBOOK_POLL_MINUTES }),
+      SportsbookService.board(fastify.prisma, { configured: true, pollMinutes: env.SPORTSBOOK_POLL_MINUTES }, ruleset),
       SportsbookService.tickets(fastify.prisma, player.id),
       SportsbookService.limits(fastify.prisma, player.id),
     ]);

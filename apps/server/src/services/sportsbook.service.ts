@@ -1,8 +1,10 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
 import { lockRoundPlayer, type Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
-import { loadRulesetForRound } from '@streets/rules-engine';
+import { loadRulesetForRound, type Ruleset } from '@streets/rules-engine';
 import {
+  resolveSportsbookTeam,
+  SPORTSBOOK_TEAMS,
   SPORTSBOOK_LIMITS,
   SPORTSBOOK_ODDS_MAX_AGE_MINUTES,
   sportsbookStakeCheck,
@@ -32,11 +34,47 @@ export const SPORTSBOOK_LEAGUES = [
   { key: 'MMA', name: 'MMA' },
 ] as const;
 
+function cityVariants(cityName: string): string[] {
+  const variants = new Set([cityName]);
+  for (const suffix of ['city', 'beach']) {
+    variants.add(cityName.replace(new RegExp(`\\s+${suffix}$`, 'i'), '').trim());
+  }
+  return [...variants].filter(Boolean);
+}
+
+/** True when a provider team belongs to one of the round's travel cities. */
+export function sportsbookTeamIsVisitInCity(league: SportsbookLeagueKey, team: string, cityName: string): boolean {
+  // Fighters are identities, not city-based clubs. Their venue model is
+  // intentionally separate from the travel-city sportsbook allowlist.
+  if (league === 'MMA') return true;
+  const teamId = resolveSportsbookTeam(league, team);
+  if (!teamId) return false;
+  const identity = SPORTSBOOK_TEAMS[league][teamId];
+  if (identity?.city) return cityVariants(cityName).some((city) => city.toLowerCase() === identity.city!.toLowerCase());
+  const normalizedCities = cityVariants(cityName).map((city) => city.toLowerCase());
+  return normalizedCities.some((city) => (
+    resolveSportsbookTeam(league, city) === teamId
+    || identity?.name.toLowerCase().startsWith(`${city} `)
+    || identity?.aliases.some((alias) => alias.toLowerCase() === city)
+  ));
+}
+
+/** Both sides must be teams in cities the player can visit this round. */
+export function sportsbookEventIsVisitAvailable(
+  event: { sport: string; homeTeam: string; awayTeam: string },
+  ruleset: Ruleset,
+): boolean {
+  const cities = Object.values(ruleset.cities ?? {}).map((city) => city.name);
+  if (!cities.length) return true;
+  const league = event.sport as SportsbookLeagueKey;
+  return [event.homeTeam, event.awayTeam].every((team) => cities.some((city) => sportsbookTeamIsVisitInCity(league, team, city)));
+}
+
 const ODDS_MAX_AGE_MS = SPORTSBOOK_ODDS_MAX_AGE_MINUTES * 60_000;
 // Keep the player-facing slate close to what a person would actually scan at
 // once. The feed can contain a full multi-day schedule, but the board should
 // not turn into a schedule dump.
-const PLAYER_BOARD_EVENT_LIMIT = 6;
+const PLAYER_BOARD_EVENT_LIMIT = 24;
 
 export type JsonRecord = Record<string, unknown>;
 
@@ -377,9 +415,10 @@ export const SportsbookService = {
   async board(
     prisma: PrismaClient,
     options: { configured: boolean; pollMinutes: number },
+    ruleset?: Ruleset,
     now = new Date(),
   ): Promise<SportsbookBoardDto> {
-    const boardHorizon = new Date(now.getTime() + 3 * 86_400_000);
+    const boardHorizon = new Date(now.getTime() + 7 * 86_400_000);
     const [events, providerStates, leagueProviderStates] = await Promise.all([
       prisma.sportsbookEvent.findMany({
         // 1.8.0-C: a pulled line stays listed (closed, with a reason) until it returns or starts.
@@ -387,14 +426,17 @@ export const SportsbookService = {
         // Show only the next few games across all leagues. This also keeps the
         // league filter counts meaningful instead of displaying a multi-day
         // schedule dump (the feed itself still stores every event).
-        orderBy: [{ startsAt: 'asc' }, { sport: 'asc' }], take: PLAYER_BOARD_EVENT_LIMIT,
+        orderBy: [{ startsAt: 'asc' }, { sport: 'asc' }],
       }),
       prisma.sportsbookProviderState.findMany(),
       prisma.sportsbookLeagueProviderState.findMany(),
     ]);
     const providers = new Map(providerStates.map((state) => [state.id, state]));
     const leagueProviders = new Map(leagueProviderStates.map((state) => [state.league, state]));
-    const rows = events.map((event) => ({
+      const visibleEvents = events
+        .filter((event) => !ruleset || sportsbookEventIsVisitAvailable(event, ruleset))
+        .slice(0, PLAYER_BOARD_EVENT_LIMIT);
+     const rows = visibleEvents.map((event) => ({
       id: event.id, sport: event.sport as SportsbookLeagueKey, homeTeam: event.homeTeam, awayTeam: event.awayTeam,
       startsAt: event.startsAt.toISOString(), oddsUpdatedAt: event.oddsUpdatedAt?.toISOString() ?? null,
       homeOdds: event.homeOdds, awayOdds: event.awayOdds, oddsProvider: event.oddsProvider,
@@ -469,9 +511,12 @@ export const SportsbookService = {
       // 1.8.0-E: the sportsbook and its limits are pinned to the round's ruleset.
       const book = ruleset.casino?.enabled ? ruleset.casino.sportsbook : undefined;
       if (!book) throw AppError.conflict('SPORTSBOOK_CLOSED', 'Sports betting is not part of this round\'s rules.');
-      const event = await tx.sportsbookEvent.findUnique({ where: { id: input.eventId } });
-      if (event?.status === 'PULLED' && event.startsAt > now) throw AppError.conflict('SPORTSBOOK_LINE_PULLED', 'The book took this line down. Try another game.');
-      if (!event || event.status !== 'PRE' || event.startsAt <= now) throw AppError.conflict('SPORTSBOOK_CLOSED', 'That game is no longer open for betting.');
+       const event = await tx.sportsbookEvent.findUnique({ where: { id: input.eventId } });
+       if (event?.status === 'PULLED' && event.startsAt > now) throw AppError.conflict('SPORTSBOOK_LINE_PULLED', 'The book took this line down. Try another game.');
+       if (!event || event.status !== 'PRE' || event.startsAt <= now) throw AppError.conflict('SPORTSBOOK_CLOSED', 'That game is no longer open for betting.');
+       if (!sportsbookEventIsVisitAvailable(event, ruleset)) {
+         throw AppError.conflict('SPORTSBOOK_CITY_UNAVAILABLE', 'That game is outside the cities available to you this round.');
+       }
       if (!isSportsbookBettingOpen(event, now)) throw AppError.conflict('SPORTSBOOK_STALE_ODDS', 'The line is being refreshed. Try again shortly.');
       const providerState = await tx.sportsbookProviderState.findUnique({ where: { id: event.oddsProvider } });
       if (!isSportsbookFeedFresh(providerState?.lastPolledAt, now)) {

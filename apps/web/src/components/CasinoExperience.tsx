@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 export type CasinoGameDestination = {
   key: string;
   label: string;
-  icon: string;
+  icon: ReactNode;
   href: string;
 };
 
