@@ -132,6 +132,16 @@ const CASINO_GAMES: readonly {
   },
 ];
 
+function CasinoGameIcon({ game }: { game: CasinoGameKey }) {
+  const common = { viewBox: '0 0 48 48', focusable: false } as const;
+  if (game === 'slots') return <svg {...common}><rect x="5" y="8" width="38" height="31" rx="4" /><path d="M8 15h32M8 32h32" /><circle cx="15" cy="23" r="4" /><path d="M25 19l6 8m0-8-6 8M37 19v8" /><path d="M18 43h12M24 39v4" /></svg>;
+  if (game === 'horse-racing') return <svg {...common}><path d="M10 34c5-2 6-8 5-14l7-7 8 2 5 7-3 4 5 8H25l-4-7-4 7H9Z" /><path d="m22 13 2-6 6 3m-3 5 6-3 5 4M14 21l-6-5" /><circle cx="29" cy="13" r="1.5" /></svg>;
+  if (game === 'sportsbook') return <svg {...common}><path d="M8 14h32v22H8zM12 36v5m24-5v5M8 20h32" /><path d="M20 26c2-4 6-4 8 0s-2 8-4 8-6-4-4-8Z" /><path d="m22 27 4 4m0-4-4 4" /></svg>;
+  if (game === 'blackjack') return <svg {...common}><rect x="8" y="7" width="23" height="32" rx="3" transform="rotate(-10 8 7)" /><rect x="17" y="8" width="23" height="32" rx="3" transform="rotate(8 17 8)" /><path d="M28 18c-3 4-3 6 0 9 3-3 3-5 0-9Zm0 9v6" /></svg>;
+  if (game === 'roulette') return <svg {...common}><circle cx="24" cy="24" r="16" /><circle cx="24" cy="24" r="4" /><path d="M24 8v32M8 24h32M13 13l22 22M35 13 13 35" /><path d="m24 4 3 5h-6Z" /></svg>;
+  return <svg {...common}><rect x="7" y="12" width="34" height="25" rx="3" /><path d="M12 18h24M12 24h24M12 30h12" /><path d="m33 27 3 3-6 6-3-3Z" /></svg>;
+}
+
 function CasinoGamePlaceholder({
   icon,
   title,
@@ -623,7 +633,7 @@ export function CasinoPage() {
                 <section className="se-casino-lobby" aria-label="Casino games">
                   {CASINO_GAMES.map((game) => (
                     <Link key={game.key} to={'/game/casino/' + game.key} className={'se-casino-gamecard se-casino-gamecard--' + game.key}>
-                      <span className="se-casino-gamecard__icon" aria-hidden="true">{game.icon}</span>
+                      <span className="se-casino-gamecard__icon" aria-hidden="true"><CasinoGameIcon game={game.key} /></span>
                       <span className="se-casino-gamecard__copy">
                         <strong>{game.title}</strong>
                         <small>{game.description}</small>

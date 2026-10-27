@@ -155,5 +155,5 @@ export function hideoutBuildStatus(readyCount: number, openCount: number): strin
   if (openCount === 0) return 'Season complete';
   if (readyCount === 1) return '1 room ready';
   if (readyCount > 1) return `${readyCount} rooms ready`;
-  return 'Build in progress';
+  return 'No upgrades ready';
 }

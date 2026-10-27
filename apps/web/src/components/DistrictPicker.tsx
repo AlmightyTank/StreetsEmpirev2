@@ -74,7 +74,12 @@ export function DistrictPicker({
                   <Link to="/game/quests">Call your contacts</Link>
                 )}
               </LockedChoiceOverlay>
-            ) : null}
+            ) : (
+              <span className={`se-scout-choice-status${value === district.key ? ' is-current' : ''}`}>
+                <span aria-hidden="true">{value === district.key ? '✓' : '○'}</span>
+                {value === district.key ? 'Current district' : 'Available to scout'}
+              </span>
+            )}
           </label>
         );
       })}

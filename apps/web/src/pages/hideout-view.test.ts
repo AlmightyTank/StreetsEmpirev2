@@ -125,6 +125,6 @@ describe('hideout room status', () => {
     expect(hideoutBuildStatus(0, 0)).toBe('Season complete');
     expect(hideoutBuildStatus(1, 3)).toBe('1 room ready');
     expect(hideoutBuildStatus(2, 4)).toBe('2 rooms ready');
-    expect(hideoutBuildStatus(0, 2)).toBe('Build in progress');
+    expect(hideoutBuildStatus(0, 2)).toBe('No upgrades ready');
   });
 });

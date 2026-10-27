@@ -225,13 +225,19 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
     <Panel title="Load up a run" aside={`${home.turns} turns`}>
       <form onSubmit={submit} className="se-launch">
         <div className="se-field">
-          <label className="se-label" htmlFor="run-to">Where to</label>
-          <select id="run-to" className="se-input" value={destination ? to : ''} onChange={(event) => onPick(event.target.value)}>
-            <option value="" disabled>Pick a city</option>
-            {data.cities.filter((city) => !city.isHome).map((city) => (
-              <option key={city.slug} value={city.slug}>{city.name}{city.gameMinutes !== null ? ` · ${minutesText(city.gameMinutes)}` : ''}</option>
-            ))}
-          </select>
+          <span className="se-label" id="run-to-label">Where to</span>
+          <div className="se-launch-destinations" aria-labelledby="run-to-label">
+            {data.cities.filter((city) => !city.isHome).map((city) => {
+              const picked = city.slug === to;
+              return (
+                <button key={city.slug} type="button" className={`se-launch-destination${picked ? ' is-picked' : ''}`} aria-pressed={picked} onClick={() => onPick(city.slug)}>
+                  <span className="se-launch-destination__pin" aria-hidden="true">{picked ? '◆' : '◇'}</span>
+                  <span className="se-launch-destination__copy"><strong>{city.name}</strong><small>{city.gameMinutes !== null ? minutesText(city.gameMinutes) : 'Route time unknown'}</small></span>
+                  <span className="se-launch-destination__action">{picked ? 'Selected' : 'Choose'}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
         {destination && routes ? (
           <RoutePicker routes={routes} value={route} onChange={setRoute} name="launch-route" costLabel={(turns) => `${turns} turns there and back`} />

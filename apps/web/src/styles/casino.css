@@ -1637,8 +1637,18 @@
   height: 2.8rem;
   border-radius: .7rem;
   background: color-mix(in srgb, var(--se-accent) 12%, var(--se-bg));
+  color: var(--se-accent);
   font-size: 1.45rem;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--se-accent) 22%, transparent), 0 0 18px color-mix(in srgb, var(--se-accent) 8%, transparent);
 }
+.se-casino-gamecard__icon svg { width: 2rem; height: 2rem; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2; }
+.se-casino-gamecard--slots { --se-accent: #e9b44c; }
+.se-casino-gamecard--blackjack { --se-accent: #db7182; }
+.se-casino-gamecard--roulette { --se-accent: #db6670; }
+.se-casino-gamecard--scratch-cards { --se-accent: #8fc9e8; }
+.se-casino-gamecard--horse-racing { --se-accent: #c89b61; }
+.se-casino-gamecard--poker { --se-accent: #b98ce8; }
+.se-casino-gamecard--sportsbook { --se-accent: #62d2a1; }
 .se-casino-gamecard__copy { display: grid; gap: .25rem; align-content: start; }
 .se-casino-gamecard__copy strong { font-size: 1.05rem; }
 .se-casino-gamecard__copy small { color: var(--se-text-dim); font-size: .78rem; line-height: 1.4; }

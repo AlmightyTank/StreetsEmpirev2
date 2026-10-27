@@ -279,13 +279,13 @@
   flex: 0 0 auto;
   position: relative;
   overflow: visible;
-  width: 88px;
-  height: 88px;
-  border: 5px solid color-mix(in srgb, var(--se-profile-accent, var(--se-accent)) 42%, #071008);
+  width: 128px;
+  height: 128px;
+  border: 6px solid color-mix(in srgb, var(--se-profile-accent, var(--se-accent)) 42%, #071008);
   border-radius: 999px;
   background: color-mix(in srgb, var(--se-profile-accent, var(--se-accent)) 68%, #f5ffd9);
   color: #071008;
-  font-size: 28px;
+  font-size: 38px;
   font-weight: 1000;
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 12px 32px rgba(0, 0, 0, 0.3);
 }
@@ -902,10 +902,10 @@
   }
 
   .se-profile-pagehead__avatar {
-    width: 64px;
-    height: 64px;
-    border-width: 4px;
-    font-size: 20px;
+    width: 92px;
+    height: 92px;
+    border-width: 5px;
+    font-size: 28px;
   }
 
   .se-profile-sectionhead > p,
