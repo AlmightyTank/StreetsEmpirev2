@@ -48,6 +48,17 @@ function blackjackOutcomeLabel(outcome: string | null): string {
   return outcome;
 }
 
+type BlackjackFeltTheme = 'street' | 'neon' | 'salon' | 'black-room';
+
+/** Keep table identity data out of the class name while giving every room a distinct felt. */
+function blackjackFeltTheme(tableKey: string | null | undefined, tableName?: string): BlackjackFeltTheme {
+  const identity = `${tableKey ?? ''} ${tableName ?? ''}`.toUpperCase();
+  if (identity.includes('BLACK_ROOM') || identity.includes('BLACK ROOM')) return 'black-room';
+  if (identity.includes('SALON')) return 'salon';
+  if (identity.includes('NEON')) return 'neon';
+  return 'street';
+}
+
 const SUIT_GLYPH: Record<string, string> = { S: '♠', H: '♥', D: '♦', C: '♣' };
 
 /** A card as it lies on the felt: rank and suit in the corners, the suit large in the middle. */
@@ -155,6 +166,7 @@ export function BlackjackPanel({ casinoPage, onPageChange }: Props) {
     [state, selectedTableKey],
   );
   const shownHand = state?.activeHand ?? lastHand;
+  const feltTheme = blackjackFeltTheme(shownHand?.tableKey ?? selectedTable?.key, selectedTable?.name ?? shownHand?.tableName);
 
   const currentPlayerHand = shownHand?.status === 'ACTIVE'
     ? shownHand.playerHands[shownHand.activeHandIndex] ?? null
@@ -320,7 +332,7 @@ export function BlackjackPanel({ casinoPage, onPageChange }: Props) {
                 </details>
               </div>
 
-              <div className={'se-blackjack__felt' + (shownHand?.status === 'SETTLED' ? ' is-settled' : '') + (shownHand ? '' : ' is-empty') + (busy ? ' is-dealing' : '')}>
+              <div className={'se-blackjack__felt se-blackjack__felt--' + feltTheme + (shownHand?.status === 'SETTLED' ? ' is-settled' : '') + (shownHand ? '' : ' is-empty') + (busy ? ' is-dealing' : '')}>
                 {busy ? <div className="se-blackjack__table-status" role="status">{busy === 'deal' ? 'DEALING' : busy === 'stand' ? 'DEALER PLAYS' : busy.toUpperCase()}</div> : null}
                 <div className="se-blackjack__dealer">
                   <div className="se-blackjack__label">

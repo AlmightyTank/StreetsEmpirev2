@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 688 420" preserveAspectRatio="none">
+  <defs>
+    <pattern id="gold-diamonds" width="54" height="54" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <path d="M27 0v54M0 27h54" stroke="#ffe8a1" stroke-opacity=".16" stroke-width="2"/>
+      <circle cx="27" cy="27" r="5" fill="none" stroke="#fff0b5" stroke-opacity=".2"/>
+    </pattern>
+    <radialGradient id="gold-light" cx="78%" cy="0%" r="70%">
+      <stop offset="0" stop-color="#fff1b0" stop-opacity=".7"/>
+      <stop offset=".35" stop-color="#d5962d" stop-opacity=".18"/>
+      <stop offset="1" stop-color="#3b1b10" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="688" height="420" fill="#27150b"/>
+  <rect width="688" height="420" fill="url(#gold-diamonds)"/>
+  <rect width="688" height="420" fill="url(#gold-light)"/>
+  <path d="M-40 330 180 70l130 150L500 20l250 320" fill="none" stroke="#ffe99b" stroke-opacity=".2" stroke-width="15"/>
+</svg>
