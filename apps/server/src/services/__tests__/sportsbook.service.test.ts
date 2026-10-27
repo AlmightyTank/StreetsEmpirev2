@@ -1,14 +1,24 @@
 import { describe, expect, it } from 'vitest';
 import { SPORTSBOOK_LIMITS, sportsbookLineReason, sportsbookPayoutCents, sportsbookReturnCents } from '@streets/shared';
-import { classicOgV18E, rulesets } from '@streets/rulesets';
+import { classicOgV18E, classicOgV26K, rulesets } from '@streets/rulesets';
 import {
   americanPayout,
   isSportsbookBettingOpen,
   sportsbookFeedStatus,
+  sportsbookEventIsVisitAvailable,
   sportsbookLineState,
+  sportsbookTeamIsVisitInCity,
 } from '../sportsbook.service.js';
 
 describe('pregame sportsbook', () => {
+  it('limits feed teams to cities available in the current round', () => {
+    expect(sportsbookTeamIsVisitInCity('NFL', 'Detroit Lions', 'Detroit')).toBe(true);
+    expect(sportsbookTeamIsVisitInCity('NBA', 'Miami Heat', 'Miami Beach')).toBe(true);
+    expect(sportsbookTeamIsVisitInCity('NFL', 'Boston Patriots', 'Detroit')).toBe(false);
+    expect(sportsbookEventIsVisitAvailable({ sport: 'NFL', homeTeam: 'Detroit Lions', awayTeam: 'Seattle Seahawks' }, classicOgV26K)).toBe(true);
+    expect(sportsbookEventIsVisitAvailable({ sport: 'NFL', homeTeam: 'Detroit Lions', awayTeam: 'New England Patriots' }, classicOgV26K)).toBe(false);
+  });
+
   it('pins whole-cent payouts for positive and negative American odds', () => {
     expect(americanPayout(1_000n, 150)).toBe(2_500n);
     expect(americanPayout(1_000n, -150)).toBe(1_667n);

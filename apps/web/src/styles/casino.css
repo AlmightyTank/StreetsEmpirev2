@@ -1283,6 +1283,9 @@
 .se-scratch__denoms button { min-height: 2.35rem; border: 1px solid var(--se-border); border-radius: 999px; background: var(--se-surface); color: inherit; font-weight: 850; cursor: pointer; }
 .se-scratch__denoms button.is-selected { border-color: var(--se-accent); background: color-mix(in srgb, var(--se-accent) 18%, var(--se-surface)); box-shadow: inset 0 0 0 1px var(--se-accent); }
 .se-scratch__ticket { width: min(100%, 43rem); margin-inline: auto; padding: .8rem; border: 2px solid #dba62e; border-radius: .75rem; background: radial-gradient(circle at 50% 0, #4f1f7c, transparent 48%), linear-gradient(145deg, #251047, #771c6b); box-shadow: 0 .65rem 1.6rem rgb(0 0 0 / .3); color: #fff; }
+.se-scratch__ticket--street { border-color: #dba62e; background: #251047 url('/casino/scratch-cards/street.svg') center / cover no-repeat; }
+.se-scratch__ticket--premium { border-color: #71d5e8; background: #102d53 url('/casino/scratch-cards/premium.svg') center / cover no-repeat; }
+.se-scratch__ticket--high-roller { border-color: #f4d47a; background: #27150b url('/casino/scratch-cards/high-roller.svg') center / cover no-repeat; }
 .se-scratch__ticket.is-win { animation: se-ticket-win .6s ease-out; border-color: #7fec9d; box-shadow: 0 .65rem 1.6rem rgb(0 0 0 / .3), 0 0 1.5rem rgb(127 236 157 / .24); }
 .se-scratch__ticket > header, .se-scratch__ticket > footer { display: flex; justify-content: space-between; align-items: center; gap: .75rem; }
 .se-scratch__ticket > header div { display: grid; }
@@ -1556,6 +1559,7 @@
   text-decoration: none;
 }
 .se-casino-switch__game span { font-size: 1.05rem; line-height: 1; }
+.se-casino-switch__game span svg { display: block; width: 1.35rem; height: 1.35rem; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
 .se-casino-switch__game small { font-size: .62rem; font-weight: 700; letter-spacing: .02em; white-space: nowrap; }
 .se-casino-switch__game:hover { color: var(--se-text); border-color: var(--se-border); }
 .se-casino-switch__game.is-active { color: var(--se-accent); border-color: color-mix(in srgb, var(--se-accent) 55%, transparent); background: color-mix(in srgb, var(--se-accent) 8%, transparent); }
@@ -1637,8 +1641,18 @@
   height: 2.8rem;
   border-radius: .7rem;
   background: color-mix(in srgb, var(--se-accent) 12%, var(--se-bg));
+  color: var(--se-accent);
   font-size: 1.45rem;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--se-accent) 22%, transparent), 0 0 18px color-mix(in srgb, var(--se-accent) 8%, transparent);
 }
+.se-casino-gamecard__icon svg { width: 2rem; height: 2rem; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2; }
+.se-casino-gamecard--slots { --se-accent: #e9b44c; }
+.se-casino-gamecard--blackjack { --se-accent: #db7182; }
+.se-casino-gamecard--roulette { --se-accent: #db6670; }
+.se-casino-gamecard--scratch-cards { --se-accent: #8fc9e8; }
+.se-casino-gamecard--horse-racing { --se-accent: #c89b61; }
+.se-casino-gamecard--poker { --se-accent: #b98ce8; }
+.se-casino-gamecard--sportsbook { --se-accent: #62d2a1; }
 .se-casino-gamecard__copy { display: grid; gap: .25rem; align-content: start; }
 .se-casino-gamecard__copy strong { font-size: 1.05rem; }
 .se-casino-gamecard__copy small { color: var(--se-text-dim); font-size: .78rem; line-height: 1.4; }
@@ -1733,6 +1747,25 @@
     0 18px 38px rgb(0 0 0 / .45);
   overflow: hidden;
   isolation: isolate;
+}
+/* Each table has its own room identity while retaining the same readable card layout. */
+.se-blackjack__felt--neon {
+  --felt: #087b86;
+  --felt-deep: #062b47;
+  --rail: #10243b;
+  box-shadow: inset 0 0 0 2px rgb(79 242 255 / .42), inset 0 18px 40px rgb(0 0 0 / .4), 0 1px 0 4px #071622, 0 18px 38px rgb(0 0 0 / .5);
+}
+.se-blackjack__felt--salon {
+  --felt: #7b244a;
+  --felt-deep: #35132c;
+  --rail: #2d1720;
+  box-shadow: inset 0 0 0 2px rgb(250 181 199 / .34), inset 0 18px 40px rgb(0 0 0 / .4), 0 1px 0 4px #1b0d13, 0 18px 38px rgb(0 0 0 / .5);
+}
+.se-blackjack__felt--black-room {
+  --felt: #272b35;
+  --felt-deep: #080a10;
+  --rail: #17131a;
+  box-shadow: inset 0 0 0 2px rgb(240 216 139 / .48), inset 0 18px 40px rgb(0 0 0 / .55), 0 1px 0 4px #07070a, 0 18px 38px rgb(0 0 0 / .6);
 }
 /* The gold print line that curves around the player's side of the table. */
 .se-blackjack__felt::after {

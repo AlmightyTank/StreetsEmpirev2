@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 688 420" preserveAspectRatio="none">
+  <defs>
+    <pattern id="premium-lines" width="42" height="42" patternUnits="userSpaceOnUse" patternTransform="rotate(-28)">
+      <path d="M0 4h42M0 21h42" stroke="#8debf1" stroke-opacity=".2" stroke-width="3"/>
+      <path d="M0 35h42" stroke="#0b385e" stroke-opacity=".6" stroke-width="7"/>
+    </pattern>
+    <linearGradient id="premium-sheen" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#73e2ee" stop-opacity=".35"/>
+      <stop offset=".45" stop-color="#0b6f8a" stop-opacity="0"/>
+      <stop offset="1" stop-color="#b7f5ff" stop-opacity=".22"/>
+    </linearGradient>
+  </defs>
+  <rect width="688" height="420" fill="#102d53"/>
+  <rect width="688" height="420" fill="url(#premium-lines)"/>
+  <rect width="688" height="420" fill="url(#premium-sheen)"/>
+  <path d="M-80 380 190 80l120 135L520 30l250 300" fill="none" stroke="#a9f6ff" stroke-opacity=".18" stroke-width="12"/>
+</svg>

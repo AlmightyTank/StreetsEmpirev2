@@ -118,10 +118,14 @@
 .se-scout-plan .se-choices {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: 1fr;
   gap: 8px;
 }
 
 .se-scout-plan .se-choice {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  height: 100%;
   min-width: 0;
   margin: 0;
   border: 1px solid var(--se-line);
@@ -162,6 +166,24 @@
   font-family: var(--se-mono);
   font-size: 9px;
 }
+
+.se-scout-choice-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 7px 12px;
+  border-top: 1px solid var(--se-line);
+  color: var(--se-muted);
+  font-family: var(--se-mono);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.se-scout-choice-status > span { color: var(--se-muted); font-size: 12px; }
+.se-scout-choice-status.is-current { border-top-color: color-mix(in srgb, var(--se-accent) 35%, var(--se-line)); color: var(--se-accent); }
+.se-scout-choice-status.is-current > span { color: var(--se-accent); }
 
 .se-scout-risk {
   display: inline-flex;
@@ -552,6 +574,7 @@
 
   .se-scout-plan .se-choices {
     grid-template-columns: 1fr;
+    grid-auto-rows: unset;
   }
 
   .se-scout-plan__main,
@@ -568,6 +591,26 @@
   .se-scout-sectionhead > p {
     max-width: none;
     text-align: left;
+  }
+
+  .se-scout-plan .se-choice {
+    grid-template-rows: auto auto;
+    height: auto;
+  }
+
+  .se-scout-plan .se-choice__body,
+  .se-scout-plan .se-choice--gated .se-choice__body {
+    min-height: 0;
+    padding: 10px 11px;
+  }
+
+  .se-scout-plan .se-choice__blurb {
+    min-height: 0;
+  }
+
+  .se-scout-choice-status {
+    min-height: 30px;
+    padding: 6px 11px;
   }
 
   .se-scout-map-details > summary,
@@ -600,7 +643,8 @@
 /* A locked scouting district cannot be hovered into an available-looking state. */
 .se-scout-plan .se-choice--gated,
 .se-scout-plan .se-choice--gated:hover {
-  min-height: 176px;
+  display: grid;
+  min-height: 0;
   border-color: color-mix(in srgb, var(--se-bad) 24%, var(--se-line));
   background:
     radial-gradient(circle at 75% 25%, color-mix(in srgb, var(--se-bad) 18%, transparent), transparent 60%),
@@ -609,9 +653,33 @@
 }
 
 .se-scout-plan .se-choice--gated .se-choice__body {
-  padding-inline: 14px;
+  min-height: 148px;
+  padding: 14px;
+  opacity: 1;
+  filter: none;
 }
 
+/* Keep locked districts readable. The requirement is a compact card footer,
+   not a fogged-out copy layer over the district name and flavor text. */
+.se-scout-plan .se-choice--gated .se-locked-choice {
+  position: static;
+  z-index: auto;
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  grid-template-rows: auto auto auto;
+  align-items: center;
+  gap: 2px 8px;
+  min-height: 0;
+  padding: 9px 12px 10px;
+  border-top: 1px solid color-mix(in srgb, var(--se-bad) 22%, var(--se-line));
+  background: color-mix(in srgb, var(--se-bad) 4%, var(--se-panel-hi));
+  text-align: left;
+}
+.se-scout-plan .se-choice--gated .se-locked-choice__icon { grid-row: 1 / span 3; width: 18px; height: 18px; color: var(--se-bad); }
+.se-scout-plan .se-choice--gated .se-locked-choice__banner { width: auto; max-width: none; padding: 0; border: 0; background: none; color: color-mix(in srgb, var(--se-bad) 55%, white); font-size: 9px; letter-spacing: .12em; text-transform: uppercase; }
+.se-scout-plan .se-choice--gated .se-locked-choice__requirement { max-width: none; font-size: 10px; line-height: 1.3; }
+.se-scout-plan .se-choice--gated .se-locked-choice__action { align-self: start; margin-top: 2px; font-size: 10px; }
+
 @media (max-width: 700px) {
-  .se-scout-plan .se-choice--gated { min-height: 168px; }
+  .se-scout-plan .se-choice--gated .se-choice__body { min-height: 0; }
 }

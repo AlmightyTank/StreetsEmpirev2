@@ -12,6 +12,7 @@ import {
   classicOgV07I,
   classicOgV21B,
   classicOgV21C,
+  classicOgV26K,
   hideoutV2For,
   hideoutV2Problems,
 } from '../index.js';
@@ -163,5 +164,25 @@ describe('every ruleset from 0.7-A on keeps the Hideout v2 extension', () => {
     const next = { ...newest, meta: { ...newest.meta, id: 'classic-og-unregistered-next' } };
     expect(hideoutV2For(next)).toBe(hideoutV2For(newest));
     expect(hideoutV2For(next)).not.toBeNull();
+  });
+});
+
+describe('classic-og-v2.6-k hideout progression', () => {
+  it('removes activity gates while preserving the inherited hideout systems', () => {
+    const inherited = hideoutV2For(classicOgV21C);
+    const current = hideoutV2For(classicOgV26K);
+
+    expect(current).not.toBeNull();
+    expect(Object.values(current!.rooms).every((room) => room?.requirements === undefined)).toBe(true);
+    expect(current?.security).toEqual(inherited?.security);
+    expect(current?.workshop).toEqual(inherited?.workshop);
+    expect(current?.garage).toEqual(inherited?.garage);
+    expect(current?.specializationEffects).toEqual(inherited?.specializationEffects);
+  });
+
+  it('does not change the progression gates in older pinned rulesets', () => {
+    expect(hideoutV2For(classicOgV07D)?.rooms.GARAGE?.requirements?.[1]).toEqual([
+      { key: 'LOW_RIDERS', label: 'Low-Riders owned', amount: 2 },
+    ]);
   });
 });

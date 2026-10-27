@@ -123,6 +123,8 @@
   object-fit: contain; opacity: 0; transition: opacity .15s ease;
 }
 .sb-badge .se-sportsbook__ticket-mark img.is-loaded { opacity: 1; border-radius: 50%; background: var(--se-bg); }
+.sb-badge .se-sportsbook__ticket-mark.has-local-logo .se-sportsbook__ticket-fallback { display: none; }
+.sb-badge .se-sportsbook-local-logo { display: block; width: 100%; height: 100%; padding: .08rem; }
 .sb-side.is-picked .sb-badge { box-shadow: 0 0 0 2px var(--se-accent), 0 0 1.1rem var(--sb-glow); }
 .sb-ticket.is-won .sb-side.is-picked .sb-badge { box-shadow: 0 0 0 2px var(--se-good), 0 0 1.1rem var(--sb-good-glow); }
 .sb-ticket.is-lost .sb-side.is-picked .sb-badge { box-shadow: 0 0 0 2px var(--se-bad); }

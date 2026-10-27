@@ -223,10 +223,24 @@ export function TripPanel({ data, selected, onDone }: { data: TravelDto; selecte
 
   return (
     <Panel title="Take a trip" aside={`${formatCents(trips.rules.ticketCents)} a ticket`}>
-      <p className="se-dim">
-        {bg ? 'The boss flies alone or with bodyguards, who land unarmed: nothing gets through the airport.' : 'The boss flies alone.'} Home stays home: you still live in {home.name}, rank there and can be hit there, and the operation keeps
-        working. While you are gone the lieutenant skims {percent(trips.rules.lieutenantCut)} of every Scout and Produce take.
-      </p>
+      <div className="se-trip-brief" aria-label="Trip brief">
+        <div className="se-trip-brief__item">
+          <span className="se-trip-brief__icon" aria-hidden="true">✈</span>
+          <span><strong>Travel</strong><small>{bg ? 'The boss travels personally. Bodyguards arrive separately and unarmed.' : 'The boss travels personally.'}</small></span>
+        </div>
+        <div className="se-trip-brief__item">
+          <span className="se-trip-brief__icon" aria-hidden="true">⌂</span>
+          <span><strong>Home operations</strong><small>Home stays in {home.name}. The lieutenant skims {percent(trips.rules.lieutenantCut)} of Scout and Produce take while you are away.</small></span>
+        </div>
+        <div className={`se-trip-brief__item${airport && airportChance > 0 ? ' is-warning' : ''}`}>
+          <span className="se-trip-brief__icon" aria-hidden="true">!</span>
+          <span><strong>Airport security</strong><small>{airport && airportChance > 0
+            ? `${Math.round(outboundChance * 100)}% outbound inspection${airport.checkHome ? ` · ${Math.round(airportChance * 100)}% return` : ''}. ${airport.seizePercent}% of bankroll and ${airport.delayMinutes} minutes at a stop.`
+            : airport && airport.bodyguardHeat > 0 && bg
+              ? `Each bodyguard adds ${airport.bodyguardHeat} Heat at airport security.`
+              : 'No current airport inspection risk.'}</small></span>
+        </div>
+      </div>
       <div className="se-field se-mt">
         <label className="se-label" htmlFor="trip-to">Fly to</label>
         <select id="trip-to" className="se-input" value={to} onChange={(event) => setTo(event.target.value)}>

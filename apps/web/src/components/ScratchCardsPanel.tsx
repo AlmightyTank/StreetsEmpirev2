@@ -151,6 +151,12 @@ function ScratchCanvas({ width, height, onRevealProgress, onComplete, resetKey }
   );
 }
 
+function scratchTier(denominationCents: number): 'street' | 'premium' | 'high-roller' {
+  if (denominationCents <= 1_000) return 'street';
+  if (denominationCents <= 10_000) return 'premium';
+  return 'high-roller';
+}
+
 export function ScratchCardsPanel({ casinoPage, onPageChange }: Props) {
   const [state, setState] = useState<CasinoScratchCardStateDto | null>(null);
   const [denomination, setDenomination] = useState(100);
@@ -253,10 +259,10 @@ export function ScratchCardsPanel({ casinoPage, onPageChange }: Props) {
         {!state ? <p className="se-muted">Opening the ticket case…</p> : null}
         {state && !state.enabled ? <p className="se-muted">Scratch cards are not enabled in this round.</p> : null}
         {state?.enabled ? <>
-          <div className="se-scratch__denoms" role="group" aria-label="Scratch-card prices">
-            {state.denominationsCents.map((value) => <button key={value} type="button" disabled={busy} aria-pressed={denomination === value} className={denomination === value ? 'is-selected' : ''} onClick={() => { setDenomination(value); actionId.current = newActionId(); playCasinoSound('CHIP_PLACE', soundEnabled, value); }}>{formatCents(value)}</button>)}
-          </div>
-          <div className={`se-scratch__ticket${allRevealed ? card!.netCents > 0 ? ' is-win' : card!.netCents === 0 ? ' is-push' : ' is-loss' : ''}`}>
+           <div className={`se-scratch__denoms se-scratch__denoms--${scratchTier(denomination)}`} role="group" aria-label="Scratch-card prices">
+             {state.denominationsCents.map((value) => <button key={value} type="button" disabled={busy} aria-pressed={denomination === value} className={denomination === value ? `is-selected is-${scratchTier(value)}` : ''} onClick={() => { setDenomination(value); actionId.current = newActionId(); playCasinoSound('CHIP_PLACE', soundEnabled, value); }}>{formatCents(value)}</button>)}
+           </div>
+           <div className={`se-scratch__ticket se-scratch__ticket--${scratchTier(card?.denominationCents ?? denomination)}${allRevealed ? card!.netCents > 0 ? ' is-win' : card!.netCents === 0 ? ' is-push' : ' is-loss' : ''}`}>
             <header><div><span>STREETS EMPIRE</span><strong>WINNING SYMBOLS</strong></div><b>{card ? formatCents(card.denominationCents) : formatCents(denomination)}</b></header>
             <div className="se-scratch__winners" aria-label="Winning symbols">
               {(card?.winningSymbols ?? []).map((symbol) => <span key={symbol.key}><b>{symbol.glyph}</b><small>{symbol.label}</small></span>)}

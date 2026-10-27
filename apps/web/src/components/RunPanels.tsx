@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
-import type { GameActionResult, MarketPriceDto, RandomEncounterDto, RunDto, RunIncidentDto, RunLaunchResult, RunMoveResult, RunOutpostEstablishResult, RunOutpostTransferResult, RunReceiptDto, RunTradeResult, TravelDto, TravelRoutesDto, VehicleDamageDto } from '@streets/shared';
+import type { GameActionResult, MarketPriceDto, RandomEncounterDto, RunDto, RunIncidentDto, RunLaunchResult, RunMarketReconDto, RunMoveResult, RunOutpostEstablishResult, RunOutpostTransferResult, RunReceiptDto, RunTradeResult, TravelDto, TravelRoutesDto, VehicleDamageDto } from '@streets/shared';
 import { formatCents, formatNumber } from '@streets/shared';
 import { api, ApiError } from '../api/client.js';
 import { useCountdown } from '../hooks/useCountdown.js';
@@ -104,6 +104,7 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
   onDone: () => void;
 }) {
   const launch = useGameAction<RunLaunchResult>();
+  const recon = useGameAction<RunMarketReconDto>();
   const { home, rules } = data;
   const [route, setRoute] = useState(0);
   const [vehicleLoadout, setVehicleLoadout] = useState<{ LOW_RIDER: number | ''; SEDAN: number | ''; VAN: number | '' }>({
@@ -118,12 +119,15 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
   const [cash, setCash] = useState<number | ''>(0);
   const [beer, setBeer] = useState<number | ''>(0);
   const [cargo, setCargo] = useState<Record<string, number | ''>>({});
-  const [buy, setBuy] = useState<Record<string, number | ''>>({});
+  const [shipmentDirection, setShipmentDirection] = useState<'sell' | 'buy'>('sell');
+  const [orderProduct, setOrderProduct] = useState('');
+  const [orderQuantity, setOrderQuantity] = useState<number | ''>('');
   // Trips B: the boss can ride along when the round allows it and they are at home.
   const [rideAlong, setRideAlong] = useState(false);
   const ride = data.trips?.rules.rideAlong ?? null;
   const bossHome = Boolean(data.trips && !data.trips.trip && !data.trips.bossRun);
   const destination = data.cities.find((city) => city.slug === to && !city.isHome) ?? null;
+  const homeCity = data.cities.find((city) => city.isHome) ?? null;
   const { routes, error: routeError } = useRoutes(destination ? to : '', data.home.turns);
   useEffect(() => { setRoute(0); }, [to]);
 
@@ -171,15 +175,14 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
   const hasProduct = held.some((product) => product.quantity > 0);
   const chosen = routes?.routes[route] ?? null;
   const cashCents = (typeof cash === 'number' ? cash : 0) * 100;
-  // 0.5.0-F: the home market, wholesale, as the crew loads up.
-  const homeCity = data.cities.find((city) => city.isHome) ?? null;
-  const wholesale = rules.homeMarketAtLaunch
-    ? (homeCity?.counter?.products ?? []).flatMap((entry) => (entry.market ? [{ key: entry.key, market: entry.market }] : []))
-    : [];
-  const bought = Object.fromEntries(Object.entries(buy).filter(([, count]) => typeof count === 'number' && count > 0)) as Record<string, number>;
-  const marketCents = wholesale.reduce((sum, entry) => sum + marketEstimate(entry.market, true, bought[entry.key] ?? 0), 0);
   const beerUnits = typeof beer === 'number' ? beer : 0;
-  const loaded = units(cargo) + units(buy) + beerUnits;
+  const loaded = units(cargo) + beerUnits;
+  const shipmentProduct = shipmentDirection === 'buy' ? orderProduct : Object.entries(cargo).find(([, count]) => typeof count === 'number' && count > 0)?.[0];
+  const requestedBuyQuantity = typeof orderQuantity === 'number' ? orderQuantity : 0;
+  const plannedLoaded = loaded + (shipmentDirection === 'buy' ? requestedBuyQuantity : 0);
+  const shipmentQuoteCents = recon.result?.result.products.find((entry) => entry.key === shipmentProduct)?.[shipmentDirection === 'buy' ? 'buyCents' : 'sellCents']
+    ?? destination?.counter?.products.find((entry) => entry.key === shipmentProduct)?.market?.[shipmentDirection === 'buy' ? 'buyCents' : 'sellCents'];
+  const reconProducts = recon.result?.result.city === to ? recon.result.result.products : [];
   const riding = Boolean(ride && bossHome && rideAlong);
   const escortCount = typeof escorts === 'number' ? escorts : 0;
   const roomCents = data.trips?.destinations.find((city) => city.slug === to)?.hotelCentsPerHour ?? 0;
@@ -192,9 +195,12 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
           : individualFleetEnabled && vehicleMode === 'manual' && (chosenIndividual.length !== Object.values(vehicleIds).reduce((sum, qty) => sum + qty, 0) || chosenIndividual.length < 1) ? 'Choose at least one ready vehicle.'
           : !individualFleetEnabled && (['LOW_RIDER', 'SEDAN', 'VAN'] as const).some((classId) => selected[classId] > owned[classId]) ? 'You do not have that many vehicles ready at home.'
           : (typeof escorts === 'number' ? escorts : 0) > Math.min(home.fitThugs, seats) ? `Send at most ${Math.min(home.fitThugs, seats)} escorts: ${seats} seats, ${home.fitThugs} fit thugs at home.`
-          : cashCents + marketCents + vehicleFeeCents > home.cashCents ? `Cash in the run, market buys, and the ${formatCents(vehicleFeeCents)} fleet fee exceed your ${formatCents(home.cashCents)} at home.`
+          : cashCents + vehicleFeeCents > home.cashCents ? `Cash in the run and the ${formatCents(vehicleFeeCents)} fleet fee exceed your ${formatCents(home.cashCents)} at home.`
               : beerUnits > home.beer ? `You only have ${formatNumber(home.beer)} beer at home.`
-              : loaded > capacity ? `This loadout carries ${formatNumber(capacity)} units, and that is ${formatNumber(loaded)}.`
+                 : plannedLoaded > capacity ? `This loadout carries ${formatNumber(capacity)} units, and that is ${formatNumber(plannedLoaded)}.`
+                 : shipmentDirection === 'buy' && (!shipmentProduct || requestedBuyQuantity < 1) ? 'Choose a product and quantity for the destination buy order.'
+                   : shipmentDirection === 'buy' && !shipmentQuoteCents ? 'Recon the destination market before placing a buy order.'
+                     : shipmentDirection === 'buy' && shipmentQuoteCents && BigInt(Math.round(cashCents)) < BigInt(shipmentQuoteCents) * BigInt(requestedBuyQuantity) ? 'Load enough cash to cover the destination buy order.'
                 : held.some((product) => (typeof cargo[product.key] === 'number' ? cargo[product.key] as number : 0) > product.quantity) ? 'You cannot load more than you have.'
                   : chosen.turns > home.turns ? `The drive costs ${chosen.turns} turns and you have ${home.turns}.`
                     : null;
@@ -203,11 +209,12 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
     event.preventDefault();
     if (block || !chosen) return;
     const load = Object.fromEntries(Object.entries(cargo).filter(([, count]) => typeof count === 'number' && count > 0)) as Record<string, number>;
-    const quotes = Object.fromEntries(wholesale.filter((entry) => bought[entry.key]).map((entry) => [entry.key, entry.market.buyCents]));
     await launch.run((actionId): Promise<GameActionResult<RunLaunchResult>> => api.post('/game/travel/launch', {
       to, route, lowRiders: selected.LOW_RIDER, vehicleLoadout: vehicleMode === 'auto' && individualFleetEnabled ? { LOW_RIDER: typeof autoFleetCount === 'number' ? autoFleetCount : 0, SEDAN: 0, VAN: 0 } : selected,
       ...(individualFleetEnabled ? vehicleMode === 'manual' ? { vehicleIds: chosenIndividual.map((vehicle) => vehicle.id) } : { autoFleet: true } : {}),
-      escortThugs: typeof escorts === 'number' ? escorts : 0, cashCents, beer: beerUnits, cargo: load, market: bought, marketQuotes: quotes,
+      escortThugs: typeof escorts === 'number' ? escorts : 0, cashCents, beer: beerUnits, cargo: shipmentDirection === 'buy' ? {} : load,
+      shipmentDirection, ...(shipmentProduct ? { shipmentProduct, ...(shipmentQuoteCents ? { shipmentQuoteCents } : {}) } : {}),
+      ...(shipmentDirection === 'buy' ? { shipmentQuantity: requestedBuyQuantity } : {}),
       ...(riding ? { rideAlong: true } : {}), actionId,
     }));
     setRideAlong(false);
@@ -218,17 +225,61 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
     <Panel title="Load up a run" aside={`${home.turns} turns`}>
       <form onSubmit={submit} className="se-launch">
         <div className="se-field">
-          <label className="se-label" htmlFor="run-to">Where to</label>
-          <select id="run-to" className="se-input" value={destination ? to : ''} onChange={(event) => onPick(event.target.value)}>
-            <option value="" disabled>Pick a city</option>
-            {data.cities.filter((city) => !city.isHome).map((city) => (
-              <option key={city.slug} value={city.slug}>{city.name}{city.gameMinutes !== null ? ` · ${minutesText(city.gameMinutes)}` : ''}</option>
-            ))}
-          </select>
+          <span className="se-label" id="run-to-label">Where to</span>
+          <div className="se-launch-destinations" aria-labelledby="run-to-label">
+            {data.cities.filter((city) => !city.isHome).map((city) => {
+              const picked = city.slug === to;
+              return (
+                <button key={city.slug} type="button" className={`se-launch-destination${picked ? ' is-picked' : ''}`} aria-pressed={picked} onClick={() => onPick(city.slug)}>
+                  <span className="se-launch-destination__pin" aria-hidden="true">{picked ? '◆' : '◇'}</span>
+                  <span className="se-launch-destination__copy"><strong>{city.name}</strong><small>{city.gameMinutes !== null ? minutesText(city.gameMinutes) : 'Route time unknown'}</small></span>
+                  <span className="se-launch-destination__action">{picked ? 'Selected' : 'Choose'}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
         {destination && routes ? (
           <RoutePicker routes={routes} value={route} onChange={setRoute} name="launch-route" costLabel={(turns) => `${turns} turns there and back`} />
         ) : null}
+        {destination ? <div className="se-field se-mt">
+          <Button type="button" variant="ghost" disabled={recon.busy || data.home.turns < 2} onClick={() => recon.run((actionId) => api.post('/game/travel/recon', { to, actionId }))}>
+            {recon.busy ? 'Checking the market...' : 'Recon destination market · 2 turns'}
+          </Button>
+          {data.home.turns < 2 ? <p className="se-hint">You need 2 turns to recon this market.</p> : null}
+          {recon.result?.result.city === to ? (
+            <div className="se-run-recon se-mt">
+              <p className="se-hint">Recon at {clock(recon.result.result.seenAt)} · valid until {clock(recon.result.result.expiresAt)}. Prices are compared with the same side of the high market at home.</p>
+              {reconProducts.some((entry) => entry[shipmentDirection === 'buy' ? 'buyCents' : 'sellCents'] !== null) ? (
+                <div className="se-run-recon__table" role="table" aria-label="Destination market comparison">
+                  <div className="se-run-recon__row se-run-recon__row--head" role="row">
+                    <span role="columnheader">Product</span><span role="columnheader">Home {shipmentDirection === 'buy' ? 'buy' : 'sell'}</span><span role="columnheader">Destination {shipmentDirection === 'buy' ? 'buy' : 'sell'}</span><span role="columnheader">Difference</span><span role="columnheader">Depth</span>
+                  </div>
+                  {reconProducts.filter((entry) => entry[shipmentDirection === 'buy' ? 'buyCents' : 'sellCents'] !== null).map((entry) => {
+                    const homePrice = homeCity?.counter?.products.find((product) => product.key === entry.key)?.market?.[shipmentDirection === 'buy' ? 'buyCents' : 'sellCents'] ?? null;
+                    const destinationPrice = entry[shipmentDirection === 'buy' ? 'buyCents' : 'sellCents']!;
+                    const difference = homePrice === null ? null : destinationPrice - homePrice;
+                    const quantity = shipmentDirection === 'buy' ? (entry.key === shipmentProduct ? requestedBuyQuantity : 0) : typeof cargo[entry.key] === 'number' ? cargo[entry.key] as number : 0;
+                    return (
+                      <div className="se-run-recon__row" role="row" key={entry.key}>
+                        <strong role="cell">{nameOf(data.products, entry.key)}</strong>
+                        <span role="cell">{homePrice === null ? '—' : unitPrice(homePrice)}</span>
+                        <span role="cell">{unitPrice(destinationPrice)}</span>
+                        <span role="cell" className={difference === null ? '' : difference >= 0 ? 'se-good' : 'se-bad'}>
+                          {difference === null ? 'No home quote' : `${difference >= 0 ? '+' : '-'}${unitPrice(Math.abs(difference))}/unit`}
+                          {quantity > 0 && difference !== null ? ` · ${difference >= 0 ? '+' : '-'}${formatCents(Math.abs(difference * quantity))} on ${formatNumber(quantity)}` : ''}
+                        </span>
+                        <span role="cell">{entry.depth === null ? '—' : formatNumber(entry.depth)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : <p className="se-hint">No bulk buyers found at that destination.</p>}
+              <p className="se-hint">For selling, a positive difference means the destination pays more. For buying, a negative difference means the destination is cheaper than home. The order uses this recon quote when it arrives.</p>
+            </div>
+          ) : null}
+          {recon.error ? <Alert>{recon.error}</Alert> : null}
+        </div> : null}
 
         {data.vehicleFleet?.length ? (
           <p className="se-hint se-mt">
@@ -306,11 +357,18 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
           </div>
         ) : null}
 
-        <h3 className="se-city__heading">In the trunk <span className="se-num">{formatNumber(loaded)} / {formatNumber(capacity)}</span></h3>
+         <div className="se-btn-row se-mt"><Button type="button" variant={shipmentDirection === 'sell' ? 'primary' : 'ghost'} onClick={() => setShipmentDirection('sell')}>Sell home product</Button><Button type="button" variant={shipmentDirection === 'buy' ? 'primary' : 'ghost'} onClick={() => setShipmentDirection('buy')}>Buy at destination</Button></div>
+         {shipmentDirection === 'buy' ? (
+           <div className="se-launch__grid se-mt">
+             <div className="se-field"><label className="se-label" htmlFor="run-buy-product">Product to buy</label><select id="run-buy-product" className="se-input" value={orderProduct} onChange={(event) => setOrderProduct(event.target.value)}><option value="">Choose product</option>{data.products.map((product) => <option key={product.key} value={product.key}>{product.name}</option>)}</select></div>
+             <div className="se-field"><label className="se-label" htmlFor="run-buy-quantity">Quantity to buy</label><input id="run-buy-quantity" className="se-input" type="number" min={0} value={orderQuantity} onChange={(event) => setOrderQuantity(whole(event.target.value))} /></div>
+           </div>
+         ) : null}
+         <h3 className="se-city__heading">In the trunk <span className="se-num">{formatNumber(plannedLoaded)} / {formatNumber(capacity)}</span></h3>
         <div className="se-meter se-launch__meter" aria-hidden="true">
           <div className={`se-meter__fill${loaded > capacity ? ' se-meter__fill--bad' : ''}`} style={{ width: `${capacity ? Math.min(100, (loaded / capacity) * 100) : 0}%` }} />
         </div>
-        <div className="se-launch__cargo">
+         {shipmentDirection === 'sell' ? <div className="se-launch__cargo">
           {held.map((product) => (
             <div className="se-field" key={product.key}>
               <label className="se-label" htmlFor={`run-cargo-${product.key}`}>{nameOf(data.products, product.key)} <span className="se-muted">of {formatNumber(product.quantity)}</span></label>
@@ -320,30 +378,8 @@ export function LaunchPanel({ data, to, onPick, onDone }: {
               <QuantityStepper value={cargo[product.key] ?? 0} onChange={(value) => setCargo({ ...cargo, [product.key]: value })} min={0} max={product.quantity} disabled={product.quantity === 0} unitLabel="units" />
             </div>
           ))}
-        </div>
-        {!hasProduct && !wholesale.length ? <p className="se-hint">Nothing at home to load. A run can still go with cash and come back with product.</p> : null}
-
-        {wholesale.length ? (
-          <>
-            <h3 className="se-city__heading">Buy on the {homeCity?.name} market {marketCents > 0 ? <span className="se-num">{formatCents(marketCents)}</span> : null}</h3>
-            <div className="se-launch__cargo">
-              {wholesale.map((entry) => (
-                <div className="se-field" key={entry.key}>
-                  <label className="se-label" htmlFor={`run-buy-${entry.key}`}>
-                    {nameOf(data.products, entry.key)} <span className="se-muted se-num">{unitPrice(entry.market.buyCents)}</span>
-                  </label>
-                  <input id={`run-buy-${entry.key}`} className="se-input" type="number" inputMode="numeric" min={0}
-                    max={marketMaxBuy(entry.market, home.cashCents - cashCents, Math.max(0, capacity - units(cargo)))}
-                    value={buy[entry.key] ?? ''} placeholder="0"
-                    onChange={(event) => setBuy({ ...buy, [entry.key]: whole(event.target.value) })} />
-                  <QuantityStepper value={buy[entry.key] ?? 0} onChange={(value) => setBuy({ ...buy, [entry.key]: value })} min={0}
-                    max={marketMaxBuy(entry.market, home.cashCents - cashCents, Math.max(0, capacity - units(cargo)))} unitLabel="units" />
-                </div>
-              ))}
-            </div>
-            <p className="se-hint">Wholesale, out of home cash and straight into the trunk. Every unit you buy moves the price, and you cannot sell here: the market at home is for loading up.</p>
-          </>
-        ) : null}
+         </div> : null}
+         {shipmentDirection === 'buy' ? <p className="se-hint">The run will spend its loaded cash at the recon price, collect the order at the destination, and bring it home.</p> : !hasProduct ? <p className="se-hint">Nothing at home to load. Recon a destination market, then send product from home inventory.</p> : <p className="se-hint">The shipment sells automatically at the destination high market, then the crew returns. If the load exceeds this convoy&rsquo;s capacity, send another run for the remainder.</p>}
 
         <Button className="se-btn se-btn--primary se-btn--block se-mt" disabledReason={block}>
           {launch.busy ? 'Loading up...' : destination ? `Send the run to ${destination.name}${chosen ? ` · ${chosen.turns} turns` : ''}` : 'Send the run'}
@@ -910,6 +946,7 @@ export function RunPanel({ run, data, onDone }: { run: RunDto; data: TravelDto; 
           </>
         ) : null}
         <Row label="Trunk" value={`${formatNumber(trunk + run.beer)} / ${formatNumber(run.capacity)}`} />
+        {run.shipment ? <Row label="Shipment" value={`${formatNumber(run.shipment.soldQuantity)} / ${formatNumber(run.shipment.quantity)} sold · ${formatCents(run.shipment.saleCents)}`} strong tooltip="The destination high market sells this shipment automatically on arrival. Any road loss remains lost." /> : null}
         {run.beer > 0 ? <Row label="Beer" value={formatNumber(run.beer)} /> : null}
         {run.escortThugs > 0 ? (
           <Row label="Escorts carry" tooltip="Out of home stock, the best first. A bust or an arrest takes every one."
@@ -927,6 +964,8 @@ export function RunPanel({ run, data, onDone }: { run: RunDto; data: TravelDto; 
         <p className="se-hint">{pickup.status === 'PLANNED' ? 'Loading.' : `The load comes off in ${pickup.destinationCityName} first.`} A pickup run cannot trade or drive on; it moves on when the window closes.</p>
       ) : pickup ? (
         <p className="se-hint">{pickup.status === 'PLANNED' ? 'Driving out empty. It loads when it reaches the supplier.' : pickup.status === 'IN_TRANSIT' ? `Carrying the load to ${pickup.destinationCitySlug === homeSlug ? 'the stash at home' : `your ${pickup.destinationCityName} warehouse`}.` : 'The load is stored; the run is heading home.'}</p>
+      ) : inTown && run.shipment ? (
+        <p className="se-hint">{run.shipment.soldQuantity >= run.shipment.quantity ? 'Shipment sold automatically. The crew is returning home.' : 'The destination market could not take the full shipment yet; the crew is returning with the remainder.'}</p>
       ) : inTown ? (
         <>
           <TownCounter run={run} data={data} onDone={onDone} />
@@ -938,7 +977,7 @@ export function RunPanel({ run, data, onDone }: { run: RunDto; data: TravelDto; 
           <MoveOn run={run} data={data} onDone={onDone} />
         </>
       ) : (
-        <p className="se-hint">You can trade once it gets there. A run left alone trades nothing: it waits out its window and comes home with what it has.</p>
+        <p className="se-hint">This shipment sells automatically at the destination high market, then returns home. Road stops and convoy risk still apply.</p>
       )}
 
       <IncidentList incidents={run.incidents} products={data.products} />

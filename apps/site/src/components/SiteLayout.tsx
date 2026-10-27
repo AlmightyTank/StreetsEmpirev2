@@ -23,7 +23,7 @@ const pageMeta = (pathname: string): { title: string; description: string; noind
   const segment = pathname.split('/').filter(Boolean)[0] ?? '';
   const map: Record<string, { title: string; description: string; noindex?: boolean }> = {
     wiki: { title: 'Wiki', description: 'Simple guides to StreetsEmpire: how seasons work, how to earn, fight, take turf and survive the law.' },
-    game: { title: 'The Game', description: 'Learn how StreetsEmpire seasons, economy, combat, travel, turf, businesses, the law, factions and the casino fit together.' },
+    game: { title: 'The Game', description: 'Learn how StreetsEmpire seasons, stories, crew loyalty, economy, combat, travel, turf, businesses, factions and sportsbook fit together.' },
     guide: { title: 'Wiki', description: 'Player guides for StreetsEmpire systems from first turns through city control.' },
     cities: { title: 'Cities', description: 'Explore StreetsEmpire cities, districts, public economy and current turf control.' },
     turf: { title: 'Turf', description: 'Follow current district control and recent public turf captures in StreetsEmpire.' },
@@ -34,7 +34,7 @@ const pageMeta = (pathname: string): { title: string; description: string; noind
     alliances: { title: 'Alliances', description: 'Current StreetsEmpire alliance standings, rosters and turf presence.' },
     stats: { title: 'Statistics', description: 'Current and all-time public StreetsEmpire game statistics.' },
     news: { title: 'News', description: 'Official StreetsEmpire announcements, season updates and release news.' },
-    roadmap: { title: 'Roadmap', description: 'What is live in StreetsEmpire, what is on the beta server and what is planned next.' },
+    roadmap: { title: 'Roadmap', description: 'The current StreetsEmpire ruleset, historical milestones and what is planned next.' },
     community: { title: 'Community', description: 'Find the StreetsEmpire forum, public competition pages and community resources.' },
     beta: { title: 'Beta', description: 'Information about the separate StreetsEmpire beta testing environment.', noindex: true },
     status: { title: 'Status', description: 'Current StreetsEmpire public API and database service health.' },
@@ -195,6 +195,9 @@ export function SiteLayout() {
               <a href="https://play.streetsempire.dev">Live Game</a>
               <a href="https://beta.streetsempire.dev">Beta Game</a>
               <a href="https://forum.streetsempire.dev">Forum</a>
+              <a href="https://discord.gg/V3HYNcMv5H">Discord</a>
+              <a href="https://www.facebook.com/StreetsEmpireHQ">Facebook</a>
+              <a href="https://x.com/StreetsEmpireHQ">X</a>
             </nav>
           </div>
         </div>

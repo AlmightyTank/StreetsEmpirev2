@@ -363,8 +363,6 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
         {notice ? <p className="se-alert se-alert--success" role="status">{notice}</p> : null}
 
         {!mobileLayout ? soundToolbar : null}
-        {mobileLayout ? ticketHeader : null}
-
         <div className="sb-leagues" role="group" aria-label="Filter by league">
           {LEAGUE_FILTERS.map((key) => {
             const count = key === 'ALL' ? events.length : page?.leagues.find((item) => item.key === key)?.eventCount ?? 0;
@@ -384,7 +382,6 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
           })}
         </div>
 
-        {mobileLayout ? ticketCards : null}
         {mobileLayout ? soundToolbar : null}
 
         <div className="sb-board-head">
@@ -549,6 +546,8 @@ export function SportsbookPanel({ bankrollCents, onPlaced }: { bankrollCents: nu
           </aside>
         </div>
 
+        {mobileLayout ? ticketHeader : null}
+        {mobileLayout ? ticketCards : null}
         {!mobileLayout ? ticketHeader : null}
         {!mobileLayout ? ticketCards : null}
       </div>

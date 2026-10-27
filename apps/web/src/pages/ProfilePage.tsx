@@ -36,6 +36,17 @@ import { useSession } from '../stores/session.js';
 import { formatDate, formatElapsed } from '../utils/time.js';
 import { RivalryTimeline } from '../components/RivalryTimeline.js';
 
+const streetSkillPresentation: Record<string, { icon: string; className: string; hint: string }> = {
+  WHEELS: { icon: '↯', className: 'wheels', hint: 'Travel, transport, and getting clear.' },
+  MUSCLE: { icon: '✦', className: 'muscle', hint: 'Pressure, force, and handling trouble.' },
+  CONNECTIONS: { icon: '⌁', className: 'connections', hint: 'People, favors, and useful introductions.' },
+  LUCK: { icon: '✧', className: 'luck', hint: 'The edge you get when the odds turn.' },
+  HUSTLE: { icon: '₿', className: 'hustle', hint: 'Making money and spotting an angle.' },
+  FIXER: { icon: '⚿', className: 'fixer', hint: 'Keeping heat down and problems contained.' },
+};
+
+const publicStreetSkillCap = 40;
+
 const categoryName: Record<PublicAwardDto['category'], string> = {
   rank: 'Rank',
   wealth: 'Wealth',
@@ -787,9 +798,28 @@ export function ProfilePage() {
                 </p>
               ) : null}
               {player?.streetSkillBadges?.length ? (
-                <p className="se-street-skill-badges" aria-label="Street skill points">
-                  {player.streetSkillBadges.map((badge) => <span className="se-street-skill-badge" key={badge.skill}>{badge.label} <strong>{badge.points}</strong></span>)}
-                </p>
+                <div className="se-street-skill-badges" aria-label="Street skill points">
+                  {player.streetSkillBadges.map((badge) => {
+                    const presentation = streetSkillPresentation[badge.skill] ?? { icon: '•', className: 'unknown', hint: 'Street skill progress.' };
+                    const progress = Math.min(100, Math.max(0, (badge.points / publicStreetSkillCap) * 100));
+                    return (
+                      <article
+                        className={`se-street-skill-badge se-street-skill-badge--${presentation.className}`}
+                        key={badge.skill}
+                        title={`${badge.label}: ${presentation.hint}`}
+                      >
+                        <span className="se-street-skill-badge__icon" aria-hidden="true">{presentation.icon}</span>
+                        <span className="se-street-skill-badge__body">
+                          <span className="se-street-skill-badge__name">{badge.label}</span>
+                          <span className="se-street-skill-badge__level"><strong>{badge.points}</strong> level</span>
+                          <span className="se-street-skill-badge__meter" role="progressbar" aria-label={`${badge.label}: ${badge.points} of ${publicStreetSkillCap} points`} aria-valuemin={0} aria-valuemax={publicStreetSkillCap} aria-valuenow={badge.points}>
+                            <span style={{ width: `${progress}%` }} />
+                          </span>
+                        </span>
+                      </article>
+                    );
+                  })}
+                </div>
               ) : null}
               <p className="se-eyebrow">
                 {player ? `${player.city.name}${player.isYou ? ' · Your profile' : ''}` : 'Permanent season record'}

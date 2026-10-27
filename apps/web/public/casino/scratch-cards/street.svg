@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 688 420" preserveAspectRatio="none">
+  <defs>
+    <pattern id="street-grid" width="34" height="34" patternUnits="userSpaceOnUse" patternTransform="rotate(22)">
+      <path d="M0 0h34M0 17h34" stroke="#d66bd0" stroke-opacity=".13" stroke-width="2"/>
+      <circle cx="8" cy="8" r="2" fill="#f2b4ec" fill-opacity=".18"/>
+    </pattern>
+    <radialGradient id="street-glow" cx="50%" cy="0%" r="75%">
+      <stop offset="0" stop-color="#a950b0" stop-opacity=".65"/>
+      <stop offset="1" stop-color="#2a1049" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="688" height="420" fill="#251047"/>
+  <rect width="688" height="420" fill="url(#street-grid)"/>
+  <rect width="688" height="420" fill="url(#street-glow)"/>
+  <path d="M-40 350 180 80l120 170L480 20l250 310" fill="none" stroke="#f0a2e4" stroke-opacity=".12" stroke-width="18"/>
+</svg>

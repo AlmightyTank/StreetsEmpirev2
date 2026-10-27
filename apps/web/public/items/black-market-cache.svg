@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <filter id="s" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="2.5" flood-color="#000" flood-opacity=".6"/></filter>
+    <radialGradient id="halo"><stop offset="0" stop-color="#b46bff" stop-opacity=".5"/><stop offset="1" stop-color="#b46bff" stop-opacity="0"/></radialGradient>
+    <linearGradient id="bk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4a4e5a"/><stop offset=".45" stop-color="#1f222b"/><stop offset="1" stop-color="#07080b"/></linearGradient>
+    <linearGradient id="br" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe9a0"/><stop offset=".45" stop-color="#d9a032"/><stop offset="1" stop-color="#6a4810"/></linearGradient>
+    <linearGradient id="gem" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e2c2ff"/><stop offset=".5" stop-color="#9a4de0"/><stop offset="1" stop-color="#4a1a86"/></linearGradient>
+  </defs>
+  <ellipse cx="64" cy="66" rx="60" ry="50" fill="url(#halo)"/>
+  <g filter="url(#s)" stroke="#050507" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M48 40 V32 Q48 24 56 24 H72 Q80 24 80 32 V40" fill="none" stroke-width="9"/>
+    <path d="M48 40 V32 Q48 24 56 24 H72 Q80 24 80 32 V40" fill="none" stroke="url(#br)" stroke-width="5"/>
+    <path d="M14 48 Q14 40 22 40 H106 Q114 40 114 48 V102 Q114 110 106 110 H22 Q14 110 14 102 Z" fill="url(#bk)"/>
+    <path d="M14 70 H114" fill="none" stroke="#0b0c10" stroke-width="3"/>
+    <path d="M14 40 H34 V56 H20 V48 Q20 44 14 44 Z M114 40 H94 V56 H108 V48 Q108 44 114 44 Z M14 110 H34 V94 H20 V102 Q20 106 14 106 Z M114 110 H94 V94 H108 V102 Q108 106 114 106 Z" fill="url(#br)" stroke="#3e2a06" stroke-width="1.2"/>
+    <path d="M36 62 H50 V76 H36 Z M78 62 H92 V76 H78 Z" fill="url(#br)" stroke="#3e2a06" stroke-width="1.2"/>
+    <path d="M64 50 L78 70 L64 90 L50 70 Z" fill="url(#gem)" stroke="#2a0e4e" stroke-width="1.6"/>
+  </g>
+  <path d="M64 50 L78 70 L64 90 L50 70 Z M50 70 H78 M64 50 L58 70 L64 90 L70 70 Z" fill="none" stroke="#f3e2ff" stroke-opacity=".45" stroke-width="1"/>
+  <g fill="none" stroke-linecap="round">
+    <path d="M24 42.5 H104" stroke="#fff" stroke-opacity=".3" stroke-width="1.4"/>
+    <path d="M17 62 V100" stroke="#fff" stroke-opacity=".16" stroke-width="2.2"/>
+    <path d="M38 64.5 H48" stroke="#fff6c8" stroke-opacity=".85" stroke-width="1.2"/>
+    <path d="M80 64.5 H90" stroke="#fff6c8" stroke-opacity=".85" stroke-width="1.2"/>
+    <path d="M58 60 L64 53" stroke="#fff" stroke-opacity=".8" stroke-width="1.3"/>
+  </g>
+  <path d="M106 14 L108.2 21.6 L115.8 23.8 L108.2 26 L106 33.6 L103.8 26 L96.2 23.8 L103.8 21.6 Z" fill="#fff3b8" stroke="#c8962e" stroke-width="1" stroke-linejoin="round"/>
+</svg>

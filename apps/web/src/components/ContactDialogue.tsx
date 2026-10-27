@@ -66,7 +66,12 @@ function lastOutcome(quest: PlayerQuestDto): string | null {
   return answered.at(-1)?.response?.outcome ?? null;
 }
 
+export function isSportsPending(quest: PlayerQuestDto): boolean {
+  return Boolean(quest.sportsInfluence && !quest.sportsInfluence.resolved);
+}
+
 function prerequisiteStatus(quest: PlayerQuestDto): string {
+  if (isSportsPending(quest)) return 'Waiting for official result';
   switch (quest.status) {
     case 'AVAILABLE': return 'Available now';
     case 'ACTIVE': return 'In progress';
@@ -97,7 +102,7 @@ export function ContactDialogue({
 }) {
   const jobs = contactJobs(quests, contact.key);
   const locked = lockedJobCount(quests, contact.key);
-  const ready = jobs.filter((quest) => quest.status === 'READY_TO_TURN_IN').length;
+  const ready = jobs.filter((quest) => quest.status === 'READY_TO_TURN_IN' && !isSportsPending(quest)).length;
   const store = storeSlugFor(contact.key);
   const back = (label: string, to: ContactRoomView = { kind: 'hub' }): Option => ({
     key: 'back', icon: '↩', label, onSelect: () => handlers.onView(to),
@@ -112,6 +117,7 @@ export function ContactDialogue({
   if (view.kind === 'job' && job) {
     const scene = openScene(job);
     const outcome = lastOutcome(job);
+    const sportsPending = isSportsPending(job);
     if (job.status === 'LOCKED') {
       line = 'I can’t put you on this job yet. Here’s what needs to happen first.';
       extra = (
@@ -156,11 +162,28 @@ export function ContactDialogue({
         back('Back to this contact’s work.', { kind: 'work' }),
       ];
     } else {
-      line = job.status === 'READY_TO_TURN_IN' && outcome ? `${outcome}\n\n${jobLine(job)}` : jobLine(job);
+      line = sportsPending
+        ? 'Vic is waiting on the official result before closing this favor.'
+        : job.status === 'READY_TO_TURN_IN' && outcome ? `${outcome}\n\n${jobLine(job)}` : jobLine(job);
       extra = (
         <div className="se-room__job">
-          <span className="se-eyebrow">{job.story?.chapter ? `${job.story.chapter} · ` : ''}{job.title} · {jobStatusLabel(job)}</span>
-          {job.status !== 'AVAILABLE' ? (
+           <span className="se-eyebrow">{job.story?.chapter ? `${job.story.chapter} · ` : ''}{job.title} · {sportsPending ? 'Waiting for official result' : jobStatusLabel(job)}</span>
+           {job.sportsInfluence ? (
+             <div className="se-room__requirements">
+               <span className="se-eyebrow">Linked game</span>
+               <p className="se-hint">
+                 {job.sportsInfluence.homeTeam} vs. {job.sportsInfluence.awayTeam} · {job.sportsInfluence.sport}
+                  <br />Target: {job.sportsInfluence.targetTeam === 'HOME' ? job.sportsInfluence.homeTeam : job.sportsInfluence.awayTeam} {job.sportsInfluence.targetRole}
+                  <br />Desired result: {job.sportsInfluence.desiredOutcome === 'WIN' ? 'win' : 'lose'} · Deadline: {new Date(job.sportsInfluence.startsAt).toLocaleString()}
+                   {job.sportsInfluence.resolved ? (
+                    <><br />Official result: {job.sportsInfluence.resolved.actualOutcome === 'NO_EFFECT' ? 'no effect (event voided or tied)' : job.sportsInfluence.resolved.actualOutcome.toLowerCase()}
+                      {' · '}{job.sportsInfluence.resolved.success ? 'favor succeeded' : 'favor failed'}
+                       {' · Exposure: '}{job.sportsInfluence.resolved.exposure.toLowerCase()}</>
+                   ) : <><br />Waiting for the official result before this favor can be closed.</>}
+                </p>
+             </div>
+           ) : null}
+           {job.status !== 'AVAILABLE' ? (
             <ul className="se-room__objectives">
               {job.objectives.filter((objective) => !objective.bonus).map((objective) => (
                 <li key={objective.id} className={objective.completed ? 'is-done' : undefined}>
@@ -177,6 +200,8 @@ export function ContactDialogue({
           { key: 'accept', icon: '✓', label: 'I’ll take it.', onSelect: () => handlers.onAccept(job.key) },
           back('Not right now.', { kind: 'work' }),
         ];
+      } else if (sportsPending) {
+        options = [back('Wait for the official result.', { kind: 'work' })];
       } else if (scene) {
         options = [
           ...scene.responses.map((response): Option => ({
@@ -208,8 +233,8 @@ export function ContactDialogue({
         : 'Nothing for you right now.';
     options = [
       ...jobs.map((quest): Option => ({
-        key: 'job:' + quest.key, icon: quest.status === 'READY_TO_TURN_IN' ? '$' : openScene(quest) ? '!' : '•',
-        label: quest.title, detail: jobStatusLabel(quest),
+        key: 'job:' + quest.key, icon: isSportsPending(quest) ? '…' : quest.status === 'READY_TO_TURN_IN' ? '$' : openScene(quest) ? '!' : '•',
+        label: quest.title, detail: isSportsPending(quest) ? 'Waiting for official result' : jobStatusLabel(quest),
         onSelect: () => handlers.onView({ kind: 'job', questKey: quest.key }),
       })),
       back('Something else.'),

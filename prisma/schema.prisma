@@ -1771,6 +1771,7 @@ model PlayerQuest {
   questDefinition   QuestDefinition        @relation(fields: [questDefinitionId], references: [id], onDelete: Restrict)
   progressReceipts  QuestProgressReceipt[]
   sceneResponses    QuestSceneResponse[]
+  sportsInfluenceContract SportsInfluenceContract?
 
   attempt   Int         @default(1)
   status    QuestStatus @default(AVAILABLE)
@@ -2381,6 +2382,7 @@ model RoundPlayer {
   skills                 PlayerSkill[]
   skillAwards            PlayerSkillAward[]
   playerQuests           PlayerQuest[]
+  sportsInfluenceContracts SportsInfluenceContract[]
   permanentUnlocks       PlayerUnlock[]
   favorInventory         PlayerFavor[]
   activeFavors           PlayerActiveFavor[]
@@ -3719,6 +3721,14 @@ model Run {
   /// Trips B. The arrival of the stay being billed, and the hours of it paid so far.
   hotelStayAt          DateTime?
   hotelHours           Int            @default(0)
+  /// Destination high-market shipment. Sale is settled once on arrival.
+  shipmentProductKey   String?
+  shipmentDirection    String?        @default("sell")
+  shipmentDestination  String?
+  shipmentQuantity     Int            @default(0)
+  shipmentSoldQuantity Int            @default(0)
+  shipmentSaleCents    BigInt         @default(0)
+  shipmentQuoteCents   Int?
   tails                ConvoyTail[]
   stops                RunStop[]
   cargo                RunCargo[]
@@ -5503,10 +5513,52 @@ model SportsbookEvent {
 
   bets    SportsbookBet[]
   sources SportsbookEventSource[]
+  sportsInfluenceContracts SportsInfluenceContract[]
 
   @@index([sport, startsAt, status])
   @@index([status, settledAt])
   @@index([resultReviewAt])
+}
+
+/// 2.6.0-K. Durable Vic sports-influence contract. The sportsbook result remains authoritative;
+/// this record stores the player's locked target, approach and audited resolution.
+model SportsInfluenceContract {
+  id String @id @default(cuid())
+
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  playerQuestId String @unique
+  playerQuest   PlayerQuest @relation(fields: [playerQuestId], references: [id], onDelete: Cascade)
+
+  sportsbookEventId String
+  sportsbookEvent   SportsbookEvent @relation(fields: [sportsbookEventId], references: [id], onDelete: Restrict)
+
+  targetTeam     String
+  targetRole     String
+  desiredOutcome String
+  approach       String?
+  difficulty     Int @default(50)
+  influencePower Int @default(0)
+  exposure       String @default("MEDIUM")
+  evidenceGenerated Json @default("{}")
+
+  status          String @default("ACTIVE")
+  actualOutcome   String?
+  success         Boolean?
+  heatDelta       Int @default(0)
+  resolutionReason String?
+
+  acceptedAt DateTime
+  deadlineAt DateTime
+  resolvedAt DateTime?
+  claimedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([roundPlayerId, status])
+  @@index([sportsbookEventId, status])
+  @@index([status, deadlineAt])
 }
 
 /// Slice B. One provider's listing of a canonical sportsbook event.

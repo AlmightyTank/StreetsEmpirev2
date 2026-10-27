@@ -10,10 +10,11 @@
 }
 
 .se-career-nav__item {
-  display: grid;
+  display: flex;
+  align-items: center;
   min-width: 145px;
-  gap: 3px;
-  padding: 11px 13px;
+  gap: 8px;
+  padding: 8px 13px;
   border-right: 1px solid var(--se-line);
   color: var(--se-text);
   text-decoration: none;
@@ -27,6 +28,7 @@
   background: rgba(var(--se-accent-rgb), 0.075);
 }
 .se-career-nav__item small {
+  flex: none;
   color: var(--se-muted);
   font-size: 9px;
   font-weight: 800;
@@ -118,7 +120,7 @@
 
 @media (max-width: 620px) {
   .se-career-nav { grid-template-columns: repeat(4, minmax(128px, 1fr)); }
-  .se-career-nav__item { min-width: 128px; padding: 10px; }
+  .se-career-nav__item { min-width: 128px; padding: 8px 10px; }
   .se-career-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .se-career-metric { border-bottom: 1px solid var(--se-line); }
   .se-career-metric:nth-child(2n) { border-right: 0; }

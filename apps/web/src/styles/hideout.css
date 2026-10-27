@@ -15,6 +15,68 @@
   gap: 10px;
 }
 
+.se-cache-reveal__reel {
+  position: relative;
+  overflow: hidden;
+  min-height: 116px;
+  border: 1px solid var(--se-line);
+  border-radius: 5px;
+  background: linear-gradient(180deg, rgba(var(--se-accent-rgb), .08), var(--se-panel));
+  box-shadow: inset 0 0 24px rgba(0, 0, 0, .24);
+}
+.se-cache-reveal__reel::before,
+.se-cache-reveal__reel::after {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  bottom: 0;
+  width: 28px;
+  content: "";
+  pointer-events: none;
+}
+.se-cache-reveal__reel::before { left: 0; background: linear-gradient(90deg, var(--se-panel), transparent); }
+.se-cache-reveal__reel::after { right: 0; background: linear-gradient(270deg, var(--se-panel), transparent); }
+.se-cache-reveal__marker {
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  background: var(--se-accent);
+  box-shadow: 0 0 12px rgba(var(--se-accent-rgb), .8);
+  transform: translateX(-1px);
+  pointer-events: none;
+}
+.se-cache-reveal__track {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: max-content;
+  min-height: 116px;
+  padding: 8px 0;
+  transform: translateX(0);
+}
+.se-cache-reveal__reel--spinning .se-cache-reveal__track { animation: se-cache-reel-spin 2600ms cubic-bezier(.12, .72, .18, 1) forwards; }
+.se-cache-reveal__reel--settled .se-cache-reveal__track { transform: translateX(var(--reveal-distance)); }
+.se-cache-reveal__reel-item {
+  display: grid;
+  flex: 0 0 96px;
+  justify-items: center;
+  gap: 3px;
+  min-height: 98px;
+  padding: 7px 5px;
+  border: 1px solid var(--se-line);
+  border-radius: 4px;
+  background: linear-gradient(180deg, var(--se-panel-hi), var(--se-panel));
+}
+.se-cache-reveal__reel-item small { color: var(--se-muted); font-family: var(--se-mono); font-size: 8px; text-transform: uppercase; }
+.se-cache-reveal__reel-item--uncommon { border-color: color-mix(in srgb, var(--se-good) 42%, var(--se-line)); }
+.se-cache-reveal__reel-item--rare,
+.se-cache-reveal__reel-item--epic { border-color: color-mix(in srgb, var(--se-accent) 58%, var(--se-line)); }
+.se-cache-reveal__reel-item--legendary { border-color: color-mix(in srgb, var(--se-warn) 70%, var(--se-line)); }
+.se-cache-reveal__reel-item.is-stop { box-shadow: 0 0 18px rgba(var(--se-accent-rgb), .32); }
+
 .se-cache-reveal__item {
   display: grid;
   justify-items: center;
@@ -25,6 +87,19 @@
   background: linear-gradient(180deg, var(--se-panel-hi), var(--se-panel));
   animation: se-cache-reveal-in 280ms ease-out both;
 }
+.se-cache-reveal__item-backer {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-height: 84px;
+  padding: 7px;
+  border-radius: 4px;
+  background: linear-gradient(145deg, rgba(var(--se-accent-rgb), .18), var(--se-panel));
+}
+.se-cache-reveal__item--uncommon .se-cache-reveal__item-backer { background: linear-gradient(145deg, rgba(var(--se-good-rgb), .18), var(--se-panel)); }
+.se-cache-reveal__item--rare .se-cache-reveal__item-backer,
+.se-cache-reveal__item--epic .se-cache-reveal__item-backer { background: linear-gradient(145deg, rgba(var(--se-accent-rgb), .3), var(--se-panel)); }
+.se-cache-reveal__item--legendary .se-cache-reveal__item-backer { background: linear-gradient(145deg, rgba(255, 181, 71, .3), var(--se-panel)); }
 
 .se-cache-reveal__item--rare,
 .se-cache-reveal__item--epic,
@@ -104,7 +179,7 @@
 .se-scavenge-cache { display: grid; gap: 10px; padding: 16px; border-color: rgba(var(--se-accent-rgb), .24); background: linear-gradient(135deg, rgba(var(--se-accent-rgb), .06), transparent 55%), var(--se-panel); }
 .se-scavenge-cache--black_market_cache { border-color: color-mix(in srgb, var(--se-accent) 55%, var(--se-line)); box-shadow: inset 3px 0 0 var(--se-accent), 0 0 24px rgba(var(--se-accent-rgb), .06); }
 .se-scavenge-cache__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
-.se-scavenge-cache__head > div { display: grid; gap: 3px; }
+.se-scavenge-cache__head > div { display: grid; flex: 1; min-width: 0; gap: 3px; }
 .se-scavenge-cache__head strong { font-size: 17px; }
 .se-scavenge-cache__badge { flex: none; padding: 4px 7px; border: 1px solid var(--se-line); border-radius: 999px; color: var(--se-muted); font-size: 9px; white-space: nowrap; }
 .se-scavenge-cache__district { color: var(--se-text-dim); }
@@ -116,6 +191,18 @@
 @keyframes se-cache-reveal-in {
   from { opacity: 0; transform: translateY(8px) scale(.96); }
   to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes se-cache-reel-spin {
+  from { transform: translateX(0); }
+  to { transform: translateX(var(--reveal-distance)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .se-cache-reveal__reel--spinning .se-cache-reveal__track {
+    animation: none;
+    transform: translateX(var(--reveal-distance));
+  }
 }
 
 .se-hideout-hero {

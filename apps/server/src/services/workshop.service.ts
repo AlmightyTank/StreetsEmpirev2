@@ -1,5 +1,6 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
 import type { CraftingRecipeDto, CraftingResultDto, CraftingWorkshopDto } from '@streets/shared';
+import type { Ruleset } from '@streets/rules-engine';
 import { AppError } from '../utils/errors.js';
 import { ActionService, assertTurns } from './action.service.js';
 import { canFitAdditionalStack, StashService } from './stash.service.js';
@@ -29,16 +30,21 @@ function balances(value: Prisma.JsonValue): Record<string, number> {
 
 export function craftingRecipes(): readonly Recipe[] { return RECIPES; }
 export function workshopSkill(xp: number): number { return skillFromXp(xp); }
+function availableRecipes(ruleset?: Ruleset): readonly Recipe[] {
+  if (!ruleset?.retiredFeatures) return RECIPES;
+  return RECIPES.filter((recipe) => !(recipe.key === 'AMMO_BUNDLE' && ruleset.retiredFeatures?.armory)
+    && !(recipe.key === 'VEHICLE_REPAIR_KIT' && ruleset.retiredFeatures?.garage));
+}
 
 export const WorkshopService = {
-  async page(prisma: PrismaClient, roundPlayerId: string): Promise<CraftingWorkshopDto> {
+  async page(prisma: PrismaClient, roundPlayerId: string, ruleset?: Ruleset): Promise<CraftingWorkshopDto> {
     const player = await prisma.roundPlayer.findUnique({ where: { id: roundPlayerId }, select: { hideoutWorkshopLevel: true, workshopSkillXp: true, scavengedComponents: true } });
     if (!player) throw AppError.notFound('PLAYER_NOT_FOUND', 'Player not found.');
-    return { level: player.hideoutWorkshopLevel, skill: skillFromXp(player.workshopSkillXp), skillXp: player.workshopSkillXp, availableComponents: Object.entries(balances(player.scavengedComponents)).map(([key, quantity]) => ({ key, quantity })), recipes: RECIPES.map((recipe) => recipeDto(recipe, player.hideoutWorkshopLevel)) };
+    return { level: player.hideoutWorkshopLevel, skill: skillFromXp(player.workshopSkillXp), skillXp: player.workshopSkillXp, availableComponents: Object.entries(balances(player.scavengedComponents)).map(([key, quantity]) => ({ key, quantity })), recipes: availableRecipes(ruleset).map((recipe) => recipeDto(recipe, player.hideoutWorkshopLevel)) };
   },
 
-  craft(prisma: PrismaClient, roundPlayerId: string, recipeKey: string, actionId?: string): Promise<import('@streets/shared').GameActionResult<CraftingResultDto>> {
-    const recipe = RECIPES.find((candidate) => candidate.key === recipeKey);
+  craft(prisma: PrismaClient, roundPlayerId: string, recipeKey: string, actionId?: string, ruleset?: Ruleset): Promise<import('@streets/shared').GameActionResult<CraftingResultDto>> {
+    const recipe = availableRecipes(ruleset).find((candidate) => candidate.key === recipeKey);
     if (!recipe) return Promise.reject(AppError.badRequest('UNKNOWN_CRAFTING_RECIPE', 'That workshop recipe does not exist.'));
     return ActionService.run<CraftingResultDto>(prisma, roundPlayerId, {
       action: 'CRAFT', actionId,

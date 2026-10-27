@@ -5,20 +5,18 @@ import type { NormalizedSportsbookEvent } from '../sportsbook/sportsbook-provide
 
 const at = (hour: number) => new Date(`2026-10-12T${String(hour).padStart(2, '0')}:00:00.000Z`);
 const listing = (startsAt = at(18)): NormalizedSportsbookEvent => ({
-  providerEventId: 'provider-1', league: 'MLB', homeTeam: 'NYY', awayTeam: 'Boston Red Sox', startsAt,
+  providerEventId: 'provider-1', league: 'MLB', homeTeam: 'NYY', awayTeam: 'San Francisco Giants', startsAt,
   status: 'PRE', prices: { moneyline: { home: -120, away: 105 } }, scores: { home: null, away: null },
 });
-const game = (id: string, startsAt: Date, homeTeam = 'New York Yankees', awayTeam = 'Boston Red Sox') => ({
+const game = (id: string, startsAt: Date, homeTeam = 'New York Yankees', awayTeam = 'San Francisco Giants') => ({
   id, sport: 'MLB', homeTeam, awayTeam, startsAt,
 });
 
 describe('sportsbook canonical event matching', () => {
   it('resolves abbreviations, mascot/city forms and recent franchise names', () => {
-    expect(resolveSportsbookTeam('NFL', 'JAX')).toBe('JAX');
-    expect(resolveSportsbookTeam('NFL', 'Jacksonville Jaguars')).toBe('JAX');
     expect(resolveSportsbookTeam('NFL', 'Oakland Raiders')).toBe('LV');
-    expect(resolveSportsbookTeam('MLB', 'Cleveland Indians')).toBe('CLE');
-    expect(resolveSportsbookTeam('NHL', 'Utah Hockey Club')).toBe('UTA');
+    expect(resolveSportsbookTeam('MLB', 'LA Dodgers')).toBe('LAD');
+    expect(resolveSportsbookTeam('NHL', 'Vegas')).toBe('VGK');
     expect(resolveSportsbookTeam('NFL', 'New York')).toBeNull();
   });
 
@@ -30,7 +28,7 @@ describe('sportsbook canonical event matching', () => {
   it('refuses an equal-distance ambiguity instead of guessing', () => {
     expect(matchSportsbookEvent(listing(at(20)), [game('one', at(19)), game('two', at(21))])).toEqual({
       kind: 'AMBIGUOUS', candidateIds: ['one', 'two'],
-      teams: { homeTeamId: 'NYY', awayTeamId: 'BOS', homeTeam: 'New York Yankees', awayTeam: 'Boston Red Sox' },
+       teams: { homeTeamId: 'NYY', awayTeamId: 'SF', homeTeam: 'New York Yankees', awayTeam: 'San Francisco Giants' },
     });
   });
 

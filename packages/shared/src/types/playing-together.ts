@@ -907,6 +907,14 @@ export interface TravelRoutesDto {
   routes: TravelRouteDto[];
 }
 
+export interface RunMarketReconDto {
+  city: string;
+  cityName: string;
+  seenAt: string;
+  expiresAt: string;
+  products: Array<{ key: string; buyCents: number | null; sellCents: number | null; depth: number | null }>;
+}
+
 export interface RunStopDto {
   city: string;
   cityName: string;
@@ -949,6 +957,7 @@ export interface RunDto {
   startBeer: number;
   capacity: number;
   cargo: Array<{ key: string; quantity: number; startQuantity: number }>;
+  shipment?: { product: string; direction: 'buy' | 'sell'; quantity: number; soldQuantity: number; saleCents: number; destination: string };
   /** 0.5.0-E. The guns the escorts carry. A bust or an arrest takes them all. */
   guns: { PISTOL: number; SHOTGUN: number; TEK9: number; AK47: number };
   /** Trips B. The boss rides with this run. */
@@ -1150,6 +1159,7 @@ export interface TravelDto extends CitiesDto {
     turns: number;
     products: Array<{ key: string; quantity: number }>;
   };
+  marketRecon?: RunMarketReconDto | null;
   /** Backward-compatible primary run: the oldest active run, if any. */
   run: RunDto | null;
   /** 0.6.0-D Garage: every active run, oldest first. */
@@ -1471,6 +1481,7 @@ export interface RunLaunchResult {
   /** 0.5.0-F. What it bought on the home market on the way out, and what that cost. */
   market: Record<string, number>;
   marketCents: number;
+  shipment?: { product: string; quantity: number; quoteCents: number };
   /** Trips B. The boss rides with it. */
   bossAboard: boolean;
   /** 1.6.0-F. Action-triggered road color and consequences. */

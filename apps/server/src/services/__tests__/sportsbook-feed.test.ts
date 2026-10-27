@@ -145,8 +145,8 @@ describe('1.8.0-C sportsbook feed', () => {
   });
 
   it('adds yesterday while US evening games are ahead, and only pulls games a snapshot must contain', () => {
-    expect(sportsbookPollDates(new Date('2026-10-11T04:00:00.000Z'))).toEqual(['2026-10-10', '2026-10-11', '2026-10-12', '2026-10-13']);
-    expect(sportsbookPollDates(new Date('2026-10-11T15:00:00.000Z'))).toEqual(['2026-10-11', '2026-10-12', '2026-10-13']);
+    expect(sportsbookPollDates(new Date('2026-10-11T04:00:00.000Z'))).toEqual(['2026-10-10', '2026-10-11', '2026-10-12', '2026-10-13', '2026-10-14', '2026-10-15', '2026-10-16', '2026-10-17']);
+    expect(sportsbookPollDates(new Date('2026-10-11T15:00:00.000Z'))).toEqual(['2026-10-11', '2026-10-12', '2026-10-13', '2026-10-14', '2026-10-15', '2026-10-16', '2026-10-17']);
     expect(snapshotCoverage(['2026-10-11', '2026-10-12'])).toEqual({
       from: new Date('2026-10-11T10:00:00.000Z'), to: new Date('2026-10-13T00:00:00.000Z'),
     });

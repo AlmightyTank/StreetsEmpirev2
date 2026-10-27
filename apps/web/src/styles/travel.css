@@ -3,6 +3,32 @@
   gap: 16px;
 }
 
+.se-trip-brief {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin-bottom: 14px;
+}
+.se-trip-brief__item {
+  display: flex;
+  min-width: 0;
+  gap: 8px;
+  padding: 9px;
+  border: 1px solid var(--se-line);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, .018);
+}
+.se-trip-brief__item.is-warning { border-color: color-mix(in srgb, var(--se-warn) 45%, var(--se-line)); background: color-mix(in srgb, var(--se-warn) 5%, transparent); }
+.se-trip-brief__icon { display: grid; flex: 0 0 22px; place-items: center; width: 22px; height: 22px; border: 1px solid var(--se-line); border-radius: 3px; color: var(--se-accent); font-family: var(--se-mono); font-size: 13px; font-weight: 800; }
+.se-trip-brief__item.is-warning .se-trip-brief__icon { color: var(--se-warn); border-color: color-mix(in srgb, var(--se-warn) 45%, var(--se-line)); }
+.se-trip-brief__item > span:last-child { display: grid; min-width: 0; gap: 3px; align-content: start; }
+.se-trip-brief__item strong { color: var(--se-text); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; }
+.se-trip-brief__item small { color: var(--se-text-dim); font-size: 10px; line-height: 1.35; }
+
+@media (max-width: 720px) {
+  .se-trip-brief { grid-template-columns: 1fr; }
+}
+
 .se-travel-loading {
   display: grid;
   place-items: center;
@@ -487,6 +513,42 @@
   gap: 10px;
 }
 
+.se-travel-tabpanel .se-launch-destinations {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 7px;
+  margin-top: 6px;
+}
+.se-travel-tabpanel .se-launch-destination {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 58px;
+  padding: 9px 10px;
+  border: 1px solid var(--se-line);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, .014);
+  color: var(--se-text-dim);
+  text-align: left;
+  cursor: pointer;
+}
+.se-travel-tabpanel .se-launch-destination:hover { border-color: var(--se-accent-dim); color: var(--se-text); }
+.se-travel-tabpanel .se-launch-destination.is-picked {
+  border-color: color-mix(in srgb, var(--se-accent) 60%, var(--se-line));
+  background: color-mix(in srgb, var(--se-accent) 7%, var(--se-panel));
+  box-shadow: inset 3px 0 0 var(--se-accent);
+  color: var(--se-text);
+}
+.se-launch-destination__pin { color: var(--se-muted); font-size: 13px; text-align: center; }
+.se-launch-destination.is-picked .se-launch-destination__pin { color: var(--se-accent); }
+.se-launch-destination__copy { display: grid; min-width: 0; gap: 3px; }
+.se-launch-destination__copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+.se-launch-destination__copy small { color: var(--se-muted); font-family: var(--se-mono); font-size: 9px; }
+.se-launch-destination__action { color: var(--se-muted); font-family: var(--se-mono); font-size: 8px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.se-launch-destination.is-picked .se-launch-destination__action { color: var(--se-accent); }
+
 .se-travel-tabpanel .se-routes {
   display: grid;
   gap: 6px;
@@ -534,6 +596,7 @@
   .se-travel-tabpanel .se-launch__cargo {
       grid-template-columns: 1fr;
     }
+  .se-travel-tabpanel .se-launch-destinations { grid-template-columns: 1fr; }
 }
 
 /* ---------- 1.5.0-C garage ----------
@@ -638,3 +701,26 @@
     grid-template-columns: 1fr;
   }
 }
+.se-run-recon__table {
+  display: grid;
+  gap: 0;
+  overflow-x: auto;
+  border: 1px solid var(--se-border);
+  border-radius: .55rem;
+  background: color-mix(in srgb, var(--se-surface) 82%, transparent);
+  font-size: .78rem;
+}
+
+.se-run-recon__row {
+  display: grid;
+  grid-template-columns: minmax(7rem, 1.2fr) repeat(4, minmax(5.8rem, 1fr));
+  gap: .65rem;
+  align-items: center;
+  min-width: 35rem;
+  padding: .48rem .65rem;
+  border-top: 1px solid var(--se-border);
+}
+
+.se-run-recon__row:first-child { border-top: 0; }
+.se-run-recon__row--head { color: var(--se-muted); font-size: .68rem; text-transform: uppercase; letter-spacing: .08em; }
+.se-run-recon__row > span:not(:first-child), .se-run-recon__row > strong:not(:first-child) { text-align: right; }

@@ -57,6 +57,7 @@ import { AdminPlayerBoardService } from '../services/admin-player-board.service.
 import { env } from '../config/env.js';
 import { AdminCasinoService } from '../services/admin-casino.service.js';
 import { AdminSportsbookService } from '../services/admin-sportsbook.service.js';
+import { sportsInfluenceAdminReport } from '../services/sports-influence.service.js';
 import { AdminFactionService } from '../services/admin-faction.service.js';
 import { ADMIN_VEHICLE_MAX, AdminVehicleService } from '../services/admin-vehicle.service.js';
 import { AdminAmmoPartsService } from '../services/admin-ammo-parts.service.js';
@@ -1258,6 +1259,12 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     keys: { ...env.sportsbook.keys, internal: 'internal' },
   });
   fastify.get('/sportsbook', async () => AdminSportsbookService.report(fastify.prisma, sportsbookFeed()));
+
+  /** 2.6.0-K: staff audit of Vic contracts against canonical sportsbook results. */
+  fastify.get('/sportsbook/influence', async (request) => {
+    const { limit } = parseBody(z.object({ limit: z.coerce.number().int().min(1).max(1_000).optional() }).strict(), request.query ?? {});
+    return sportsInfluenceAdminReport(fastify.prisma, limit ?? 500);
+  });
 
   fastify.post('/sportsbook/events/:eventId/recheck', async (request) => {
     const { eventId } = parseBody(sportsbookEventParams, request.params);
