@@ -2606,6 +2606,12 @@
   flex: 0 0 96px;
   gap: 3px;
 }
+.se-board-list select[size] {
+  height: 152px;
+  overflow-y: auto;
+  scrollbar-color: var(--se-accent) color-mix(in srgb, var(--se-panel-hi) 75%, var(--se-bg));
+  scrollbar-width: thin;
+}
 .se-market-trader-quantity > .se-board-buy__qty {
   box-sizing: border-box;
   width: 100%;

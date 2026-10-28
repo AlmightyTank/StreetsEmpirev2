@@ -223,7 +223,7 @@ function ListPanel({ book, busy, form, onForm, onPost }: Pick<PlayerBoardViewPro
     <form className="se-board-list" onSubmit={(event) => { event.preventDefault(); void confirmPost(); }}>
       <div className="se-field">
         <label className="se-label" htmlFor="board-part">Item</label>
-        <select id="board-part" className="se-input" value={part.key}
+        <select id="board-part" className="se-input" size={book.listable.length > 6 ? 6 : undefined} value={part.key}
           onChange={(event) => {
             const next = book.listable.find((row) => row.key === event.target.value)!;
             onForm({
