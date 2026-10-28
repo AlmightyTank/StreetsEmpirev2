@@ -382,7 +382,7 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
         if (marketSort.key === 'price') return row.priceKind === 'CASH' ? row.unitPriceCents : 0;
         return new Date(row.expiresAt).getTime();
       }
-      if (marketSort.key === 'item') return (row.product?.name ?? row.item?.name ?? '').toLocaleLowerCase();
+      if (marketSort.key === 'item') return (row.displayName ?? row.product?.name ?? row.item?.name ?? '').toLocaleLowerCase();
       if (marketSort.key === 'seller') return row.seller.toLocaleLowerCase();
       if (marketSort.key === 'quantity') return row.depth;
       if (marketSort.key === 'price') return row.buyCents;
