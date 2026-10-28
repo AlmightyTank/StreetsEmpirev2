@@ -98,8 +98,8 @@ function CityBlocksMetric({
 function holder(block: TurfBlockDto) {
   if (!block.holder) {
     return block.localsReclaimAt
-      ? <span className="se-muted">Vacant · locals rebuilding</span>
-      : <span className="se-muted">Locals</span>;
+      ? <span className="se-muted">Vacant · {block.localGang?.crewName ?? 'locals'} rebuilding</span>
+      : <span className="se-muted">{block.localGang?.crewName ?? 'Locals'}</span>;
   }
   return (
     <span className="se-turfboard__owner">
@@ -135,7 +135,7 @@ function CityBlockBoard({ city, onChanged, onSelect, selectedDistrict }: { city:
                 <div>
                   <div className="se-turfboard__holder">{holder(block)}</div>
                 </div>
-                <span className="se-turfboard__age" title={block.heldSince ? `Held since ${formatWhen(block.heldSince)}` : undefined}>
+                <span className="se-turfboard__age" title={block.heldSince ? `Held since ${formatWhen(block.heldSince)}` : block.localGang ? `${block.localGang.bossName} · ${block.localGang.crewTag}` : undefined}>
                   {block.holder ? `held ${durationFrom(block.heldSince)}` : block.localsReclaimAt ? 'open' : 'locals'}
                 </span>
               </div>

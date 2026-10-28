@@ -16,6 +16,7 @@ import { applyLocalsClaim, dormancyFor, dormantLevelNow, localsMaxWithBusinesses
 import { CrewRosterService } from './crew-roster.service.js';
 import { planIndividualCombat } from './individual-combat.service.js';
 import { IndividualItemsService } from './individual-items.service.js';
+import { recordGangEvent } from './gang-relationship.service.js';
 
 function localDistrictName(ruleset: Ruleset, citySlug: string, district: DistrictKey): string {
   return ruleset.cities?.[citySlug]?.districts?.[district]?.name ?? ruleset.districts[district].name;
@@ -161,6 +162,20 @@ export const TurfActionService = {
             },
           });
           await startTurfHold(tx, fresh.id, now);
+          if (fresh.localGangId) {
+            await recordGangEvent(tx, {
+              roundId: round.id,
+              gangId: fresh.localGangId,
+              roundPlayerId,
+              turfId: fresh.id,
+              sourceKind: 'LOCAL_TURF_CLAIM',
+              sourceId: input.actionId,
+              outcome: 'CLAIMED',
+              scoreDelta: 3,
+              summary: `${player.city.slug} ${key} was taken from the local gang.`,
+              occurredAt: now,
+            });
+          }
           await recordTerritoryControlChange(tx, {
             roundId: round.id, cityId: player.cityId, ruleset, before: controlBefore, at: now,
           });

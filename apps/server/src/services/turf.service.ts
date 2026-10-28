@@ -34,6 +34,7 @@ import {
   racketsFor,
   racketType,
   type Rng,
+  hashParts,
   type Ruleset,
 } from '@streets/rules-engine';
 import type { BusinessKey, DistrictKey, RacketKey } from '@streets/rulesets';
@@ -58,6 +59,7 @@ import {
 } from './turf-territory.service.js';
 import { PermanentUnlockService } from './permanent-unlock.service.js';
 import { fitThugs } from './crew-availability.js';
+import { EncounterGangService } from './encounter-gang.service.js';
 
 type TurfDb = PrismaClient | Db;
 const TIER_NAME = { FOOTHOLD: 'a Foothold', ESTABLISHED: 'Established', STRONGHOLD: 'a Stronghold' } as const;
@@ -97,6 +99,21 @@ export function localsReclaimAt(ruleset: Ruleset, releasedAt: Date): Date {
 }
 function utcDay(now: Date): Date { return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())); }
 function holdingOn(ruleset: Ruleset): boolean { return ruleset.turf?.holding === true; }
+function gangRulesOn(ruleset: Ruleset) { return ruleset.randomEncounters?.gangs?.enabled === true; }
+
+async function ensureLocalGangAssignments(db: TurfDb, roundId: string, ruleset: Ruleset): Promise<void> {
+  if (!gangRulesOn(ruleset)) return;
+  await EncounterGangService.ensureRound(db as Db, roundId, ruleset);
+  const [gangs, turfs] = await Promise.all([
+    db.encounterGang.findMany({ where: { roundId, status: 'ACTIVE' }, select: { id: true }, orderBy: { slug: 'asc' } }),
+    db.turf.findMany({ where: { roundId, localGangId: null }, select: { id: true, cityId: true, district: true } }),
+  ]);
+  if (!gangs.length) return;
+  await Promise.all(turfs.map((turf) => {
+    const index = Math.abs(hashParts(roundId, turf.cityId, turf.district, 'local-gang')) % gangs.length;
+    return db.turf.update({ where: { id: turf.id }, data: { localGangId: gangs[index]!.id } });
+  }));
+}
 function homeFit(player: { thugs: number; woundedThugs: number; busyThugs: number; postedThugs: number; businessThugs?: number; dealerThugs?: number }): number {
   return fitThugs(player);
 }
@@ -239,6 +256,9 @@ export const TurfService = {
         return cityId ? [{ roundId, cityId, district: block.district, localsThugs: localsThugs(ruleset, block) }] : [];
       }),
     });
+    // The encounter gang is now the named identity behind local turf. Assignment is
+    // deterministic and remains attached while a player temporarily holds the block.
+    await ensureLocalGangAssignments(db, roundId, ruleset);
     await TurfService.ensureBusinesses(db, roundId, ruleset);
   },
 
@@ -717,6 +737,16 @@ export const TurfService = {
         include: {
           city: { select: { id: true, slug: true } },
           holder: { select: { id: true, allianceId: true, publicPimpId: true, displayName: true, alliance: { select: { name: true, tag: true } } } },
+          localGang: {
+            select: {
+              slug: true, bossName: true, crewName: true, crewTag: true,
+              playerRelationships: {
+                where: { roundPlayerId: player.id },
+                select: { status: true, score: true, eventCount: true, lastEventAt: true },
+                take: 1,
+              },
+            },
+          },
           outpost: true,
         },
         orderBy: [{ city: { sortOrder: 'asc' } }, { district: 'asc' }],
@@ -1024,6 +1054,18 @@ export const TurfService = {
         holder: row.holder ? {
           publicPimpId: row.holder.publicPimpId, displayName: row.holder.displayName,
           alliance: row.holder.alliance ? { name: row.holder.alliance.name, tag: row.holder.alliance.tag } : null,
+        } : null,
+        localGang: row.localGang ? {
+          slug: row.localGang.slug,
+          bossName: row.localGang.bossName,
+          crewName: row.localGang.crewName,
+          crewTag: row.localGang.crewTag,
+        } : null,
+        localGangRelationship: row.localGang?.playerRelationships[0] ? {
+          status: row.localGang.playerRelationships[0].status as NonNullable<TurfBlockDto['localGangRelationship']>['status'],
+          score: row.localGang.playerRelationships[0].score,
+          eventCount: row.localGang.playerRelationships[0].eventCount,
+          lastEventAt: row.localGang.playerRelationships[0].lastEventAt.toISOString(),
         } : null,
         isMine, cornerThugs: row.cornerThugs, cornerMinimumThugs: minimum, cornerGuns: dtoGuns(gunsFromTurf(row)),
         outpost: isMine && row.city.id !== player.cityId && row.outpost ? {

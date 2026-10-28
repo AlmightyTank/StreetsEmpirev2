@@ -1930,6 +1930,7 @@ model Round {
   supplySupplierStocks     SupplySupplierStock[]
   encounterGangs           EncounterGang[]
   encounterGangTurfs       EncounterGangTurf[]
+  gangEvents               GangEvent[]
   careerStoryInstances     CareerStoryInstance[]
 
   @@index([status])
@@ -2308,6 +2309,8 @@ model RoundPlayer {
   tips                     PlayerTip[]
   randomEncounters         RandomEncounter[]
   encounterGangGrudges     EncounterGangGrudge[]
+  gangRelationships        GangPlayerRelationship[]
+  gangEvents               GangEvent[]
   rivalriesAsA             RivalryRelationship[]    @relation("RivalryParticipantA")
   rivalriesAsB             RivalryRelationship[]    @relation("RivalryParticipantB")
   rivalrySources           RivalrySourceReceipt[]   @relation("RivalrySourceParticipant")
@@ -4710,6 +4713,10 @@ model EncounterGang {
 
   turf    EncounterGangTurf[]
   grudges EncounterGangGrudge[]
+  /// The named gang that owns a block whenever players do not.
+  localTurfs Turf[] @relation("LocalGangTurfs")
+  playerRelationships GangPlayerRelationship[]
+  events             GangEvent[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -5018,6 +5025,11 @@ model Turf {
   /// Null means the locals are already on a holderless block, or a player currently holds it.
   localsReclaimAt DateTime?
 
+  /// The persistent named gang behind this block's locals. This remains attached while a
+  /// player holds the block so the same gang returns when the hold ends.
+  localGangId String?
+  localGang   EncounterGang? @relation("LocalGangTurfs", fields: [localGangId], references: [id], onDelete: SetNull)
+
   /// 0.6.0-B. Last corner-upkeep boundary settled.
   upkeepAt DateTime @default(now())
 
@@ -5041,9 +5053,59 @@ model Turf {
   holdSegments TurfHoldSegment[]
   businesses   Business[]
   blockWars    BlockWar[]
+  gangEvents   GangEvent[]
 
   @@unique([roundId, cityId, district])
   @@index([roundId, holderId])
+  @@index([roundId, localGangId])
+}
+
+/// Player-specific memory of meaningful conflict with a named street gang.
+model GangPlayerRelationship {
+  id            String @id @default(cuid())
+  gangId        String
+  gang          EncounterGang @relation(fields: [gangId], references: [id], onDelete: Cascade)
+  roundPlayerId String
+  roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+
+  status       String @default("UNKNOWN")
+  score        Int    @default(0)
+  eventCount   Int    @default(0)
+  firstEventAt DateTime @default(now())
+  lastEventAt  DateTime @default(now())
+  vendettaAt   DateTime?
+  nemesisAt    DateTime?
+  defeatedAt   DateTime?
+
+  @@unique([gangId, roundPlayerId])
+  @@index([roundPlayerId, status, lastEventAt])
+}
+
+/// Idempotent, narrative-ready record of a player/gang interaction.
+model GangEvent {
+  id             String @id @default(cuid())
+  roundId        String
+  round          Round @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  gangId         String
+  gang           EncounterGang @relation(fields: [gangId], references: [id], onDelete: Cascade)
+  roundPlayerId  String?
+  roundPlayer    RoundPlayer? @relation(fields: [roundPlayerId], references: [id], onDelete: SetNull)
+  turfId         String?
+  turf           Turf? @relation(fields: [turfId], references: [id], onDelete: SetNull)
+
+  sourceKind     String
+  sourceId       String
+  idempotencyKey String @unique
+  outcome        String
+  scoreDelta     Int @default(0)
+  summary        String
+  metadata       Json @default("{}")
+  occurredAt     DateTime @default(now())
+  createdAt      DateTime @default(now())
+
+  @@index([roundId, occurredAt(sort: Desc)])
+  @@index([gangId, occurredAt(sort: Desc)])
+  @@index([roundPlayerId, occurredAt(sort: Desc)])
 }
 
 /// 1.1.0-A. One business lot on a block. Every block has three, fixed by its district,

@@ -397,6 +397,19 @@ export interface TurfBlockDto {
     displayName: string;
     alliance: AllianceTagDto | null;
   } | null;
+  /** The named gang behind local control, including while a player holds the block. */
+  localGang: {
+    slug: string;
+    bossName: string;
+    crewName: string;
+    crewTag: string;
+  } | null;
+  localGangRelationship: {
+    status: 'UNKNOWN' | 'NOTICED' | 'HOSTILE' | 'VENDETTA' | 'NEMESIS' | 'DEFEATED';
+    score: number;
+    eventCount: number;
+    lastEventAt: string;
+  } | null;
   isMine: boolean;
   cornerThugs: number;
   cornerMinimumThugs: number;
