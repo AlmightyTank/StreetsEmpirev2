@@ -8,6 +8,7 @@ import { ActivityService } from './activity.service.js';
 import { emitCityMemoryEvent } from './city-memory.service.js';
 import { EconomyLedgerService } from './economy-ledger.service.js';
 import { OPERATION_SOURCES } from './operation-catalog.js';
+import { GangRelationshipEventKind, recordGangEvent } from './gang-relationship.service.js';
 import { CRACK, ProductInventoryService } from './product-inventory.service.js';
 import {
   inviteOpen,
@@ -232,6 +233,7 @@ async function autoResolve(tx: Db, operation: { id: string; roundId: string; lea
   };
   await tryOne('action', OPERATION_SOURCES.supplyStock, typeof target.supplyStockId === 'string' ? target.supplyStockId : undefined);
   await tryOne('prep', OPERATION_SOURCES.shipment, typeof target.runId === 'string' ? target.runId : undefined);
+  await tryOne('intel', OPERATION_SOURCES.gangInvestigation, typeof target.gangInvestigationId === 'string' ? target.gangInvestigationId : undefined);
   if (typeof target.threatKind === 'string' && typeof target.threatId === 'string') {
     await tryOne('action', target.threatKind, target.threatId);
   }
@@ -342,6 +344,18 @@ export const TemplatedOperations = {
       await assertThreat(prisma, me.roundId, roundPlayerId, input.threatKind, input.threatId);
       target.threatKind = input.threatKind;
       target.threatId = input.threatId;
+    }
+    if (templateKey === 'GANG_OPERATION') {
+      if (!input.gangInvestigationId) throw AppError.badRequest('OPERATION_SOURCE', 'Name the gang lead you are acting on.');
+      const investigation = await prisma.gangInvestigation.findUnique({
+        where: { id: input.gangInvestigationId },
+        select: { roundId: true, roundPlayerId: true, cityId: true, status: true, expiresAt: true },
+      });
+      if (!investigation || investigation.roundId !== me.roundId || investigation.roundPlayerId !== roundPlayerId
+        || investigation.cityId !== city.id || !['CONFIRMED', 'STAKEOUT'].includes(investigation.status) || investigation.expiresAt <= new Date()) {
+        throw AppError.conflict('OPERATION_SOURCE', 'That gang lead is not ready for an operation.');
+      }
+      target.gangInvestigationId = input.gangInvestigationId;
     }
     const now = new Date();
     const operation = await prisma.$transaction(async (tx) => {
@@ -618,6 +632,35 @@ export const TemplatedOperations = {
       }
       const windows = await autoResolve(tx, operation, snapshot);
       const band = bandFor(snapshot, windows);
+      const target = targetOf(operation.target);
+      if (snapshot.key === 'GANG_OPERATION' && typeof target.gangInvestigationId === 'string') {
+        const investigation = await tx.gangInvestigation.findUnique({
+          where: { id: target.gangInvestigationId },
+          select: { id: true, gangId: true, roundPlayerId: true, status: true, gang: { select: { crewName: true } } },
+        });
+        if (investigation && investigation.roundPlayerId === operation.leaderId && investigation.status !== 'RESOLVED') {
+          const relationship = await tx.gangPlayerRelationship.findUnique({
+            where: { gangId_roundPlayerId: { gangId: investigation.gangId, roundPlayerId: operation.leaderId } },
+            select: { trustScore: true },
+          });
+          await tx.gangInvestigation.update({ where: { id: investigation.id }, data: { status: 'RESOLVED', resolvedAt: now } });
+          await recordGangEvent(tx, {
+            roundId: operation.roundId,
+            gangId: investigation.gangId,
+            roundPlayerId: operation.leaderId,
+            sourceKind: GangRelationshipEventKind.PLAYER_ATTACKED_GANG,
+            sourceId: operation.id,
+            outcome: band.toUpperCase(),
+            scoreDelta: band === 'success' ? 3 : band === 'partial' ? 2 : 1,
+            trustDelta: band === 'success' ? -2 : -1,
+            respectDelta: band === 'success' ? 2 : band === 'partial' ? 1 : 0,
+            betrayal: (relationship?.trustScore ?? 0) >= 4,
+            summary: `${investigation.gang.crewName} was targeted by a ${band} group operation.`,
+            metadata: { operationId: operation.id, band },
+            occurredAt: now,
+          });
+        }
+      }
       const crew = operation.participants.filter((seat) => seat.status === 'LOCKED' || seat.status === 'ACCEPTED');
       const distinct = [...new Set(crew.map((seat) => seat.roundPlayerId))];
       if (distinct.length === 0) distinct.push(operation.leaderId);
@@ -676,7 +719,6 @@ export const TemplatedOperations = {
       }
       const totalPayoutCents = shares.reduce((sum, share) => sum + share, 0);
       const cited = windows.find((window) => window.sourceId);
-      const target = targetOf(operation.target);
       const report = {
         success: band === 'success',
         band,

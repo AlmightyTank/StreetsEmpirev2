@@ -12,6 +12,7 @@ const operationTemplateSchema = z.enum([
   'CONVOY_PROTECTION',
   'BLOCK_DEFENSE',
   'BIG_SCORE',
+  'GANG_OPERATION',
 ]);
 
 /** 2.0.0. Start an operation. Corner Takeover names a district. 2.2.0 templates add their source. */
@@ -25,6 +26,7 @@ export const operationStartSchema = z.object({
   routeRisk: z.enum(['LOW', 'BALANCED', 'HIGH']).optional(),
   threatKind: z.enum(['block-war', 'turf-push']).optional(),
   threatId: z.string().trim().min(1).max(64).optional(),
+  gangInvestigationId: z.string().trim().min(1).max(64).optional(),
 }).strict();
 /** 2.0.0. Lock a role for yourself. */
 export const operationLockSchema = z.object({ operationId, role: operationRoleSchema }).strict();

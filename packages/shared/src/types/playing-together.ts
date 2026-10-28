@@ -707,6 +707,15 @@ export interface OperationsPageDto {
       status: string;
       endsAt: string | null;
     }>;
+    gangInvestigations: Array<{
+      id: string;
+      citySlug: string;
+      district: string;
+      targetLocation: string;
+      status: string;
+      expiresAt: string;
+      gang: { slug: string; crewName: string };
+    }>;
   };
 }
 

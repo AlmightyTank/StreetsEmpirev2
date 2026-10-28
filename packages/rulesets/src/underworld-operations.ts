@@ -20,7 +20,7 @@ export interface UnderworldBandRule {
 }
 
 export interface UnderworldOperationTemplate {
-  readonly key: 'STASH_RECOVERY' | 'CONVOY_PROTECTION' | 'BLOCK_DEFENSE' | 'BIG_SCORE';
+  readonly key: 'STASH_RECOVERY' | 'CONVOY_PROTECTION' | 'BLOCK_DEFENSE' | 'BIG_SCORE' | 'GANG_OPERATION';
   readonly label: string;
   readonly roles: readonly UnderworldRoleRule[];
   readonly minSeats: number;
@@ -57,6 +57,25 @@ const bands = (success: number, partial: number, successLabel: string, partialLa
 export const UNDERWORLD_OPERATIONS_V1: UnderworldOperationCatalog = {
   version: '2.2.0-A',
   templates: [
+    {
+      key: 'GANG_OPERATION',
+      label: 'Gang Operation',
+      roles: [{ key: 'intel' }, { key: 'enforcer' }, { key: 'driver' }],
+      minSeats: 1,
+      soloCapable: true,
+      startCostCents: 0,
+      deadlineHours: 48,
+      inviteTtlHours: 24,
+      cooldownHours: 24,
+      inviteLimitPerHour: 6,
+      collusionPairLimit: 3,
+      rewardCapCents: 50_000,
+      units: 0,
+      productKey: 'CRACK',
+      bands: bands(50_000, 20_000, 'The gang takes a serious hit', 'The gang loses ground', 'The gang slips the net'),
+      windows: [{ key: 'intel', optional: false, sourceKinds: ['gang-investigation'] }],
+      milestone: null,
+    },
     {
       key: 'STASH_RECOVERY',
       label: 'Stash Recovery',

@@ -101,7 +101,7 @@ export const OperationsService = {
     });
     const now = new Date();
     const pauseMs = pauseOffsetMs(round, now);
-    const [stash, shipments, blockWars, turfPushes] = await Promise.all([
+    const [stash, shipments, blockWars, turfPushes, gangInvestigations] = await Promise.all([
       prisma.supplyStock.findMany({
         where: { warehouse: { roundPlayerId, isActive: true }, quantity: { gt: 0 } },
         select: { id: true, productKey: true, quantity: true, warehouse: { select: { citySlug: true } } },
@@ -125,6 +125,19 @@ export const OperationsService = {
         where: { roundId: me.roundId, defenderId: roundPlayerId, status: 'PENDING' },
         select: { id: true, status: true, landsAt: true, turf: { select: { district: true, city: { select: { slug: true } } } } },
         orderBy: { landsAt: 'asc' },
+      }),
+      prisma.gangInvestigation.findMany({
+        where: {
+          roundPlayerId,
+          resolvedAt: null,
+          status: { in: ['CONFIRMED', 'STAKEOUT'] },
+          expiresAt: { gt: now },
+        },
+        select: {
+          id: true, city: { select: { slug: true } }, district: true, targetLocation: true,
+          status: true, expiresAt: true, gang: { select: { slug: true, crewName: true } },
+        },
+        orderBy: { expiresAt: 'asc' },
       }),
     ]);
     return {
@@ -173,6 +186,15 @@ export const OperationsService = {
             endsAt: source.landsAt.toISOString(),
           })),
         ],
+        gangInvestigations: gangInvestigations.map((source) => ({
+          id: source.id,
+          citySlug: source.city.slug,
+          district: source.district,
+          targetLocation: source.targetLocation,
+          status: source.status,
+          expiresAt: source.expiresAt.toISOString(),
+          gang: source.gang,
+        })),
       },
     };
   },
