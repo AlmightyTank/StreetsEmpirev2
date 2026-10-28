@@ -1335,7 +1335,7 @@ export type PlayerBoardKeeperKey = 'PISTOL' | 'SHOTGUN' | 'TEK9' | 'AK47' | 'LOW
 /** The Board B. Every hideout scavenge part, as stored in `RoundPlayer.scavengedComponents`. */
 export type ScavengePartKey =
   | 'SCRAP_METAL' | 'WIRING' | 'TOOL_KIT' | 'BOTTLES' | 'LABELS' | 'PACKAGING' | 'LUMBER' | 'FASTENERS' | 'CLOTH'
-  | 'BASIC_MEDICINE' | 'FUEL_CAN' | 'RADIO'
+  | 'BASIC_MEDICINE' | 'FUEL_CAN' | 'RADIO' | 'WATER_FILTER'
   | 'MOTOR_ASSEMBLY' | 'REPAIR_SUPPLIES' | 'SPECIALTY_CONTAINER'
   | 'PRECISION_PARTS' | 'ADVANCED_MEDICAL'
   | 'HIGH_CAPACITY_FUEL_CELL' | 'SPECIALIST_CIRCUITRY';

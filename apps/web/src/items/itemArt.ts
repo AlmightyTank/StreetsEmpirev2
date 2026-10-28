@@ -74,6 +74,7 @@ export const ITEM_ART = {
   BASIC_MEDICINE: { name: 'Basic medicine', shortName: 'Basic meds', category: 'SUPPLY', rarity: 'UNCOMMON', file: 'medicine.svg', cells: ONE },
   FUEL_CAN: { name: 'Fuel can', shortName: 'Fuel can', category: 'SUPPLY', rarity: 'UNCOMMON', file: 'fuel-can.svg', cells: ONE },
   RADIO: { name: 'Radio', shortName: 'Radio', category: 'SUPPLY', rarity: 'UNCOMMON', file: 'radio.svg', cells: ONE },
+  WATER_FILTER: { name: 'Water filter', shortName: 'Filter', category: 'SUPPLY', rarity: 'UNCOMMON', file: 'water-filter.svg', cells: ONE },
   MOTOR_ASSEMBLY: { name: 'Motor assembly', shortName: 'Motor', category: 'SUPPLY', rarity: 'RARE', file: 'motor-assembly.svg', cells: ONE },
   REPAIR_SUPPLIES: { name: 'Repair supplies', shortName: 'Repairs', category: 'SUPPLY', rarity: 'RARE', file: 'repair-supplies.svg', cells: ONE },
   SPECIALTY_CONTAINER: { name: 'Specialty container', shortName: 'Container', category: 'SUPPLY', rarity: 'RARE', file: 'specialty-container.svg', cells: ONE },

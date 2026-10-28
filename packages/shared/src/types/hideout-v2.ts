@@ -115,6 +115,13 @@ export interface CraftingIngredientDto {
   quantity: number;
 }
 
+/** A tool the craft wears down. Percent comes off one item; two partials do not combine. */
+export interface CraftingFilterDto {
+  key: string;
+  name: string;
+  percent: number;
+}
+
 export type CraftingRecipeKindDto = 'ASSEMBLE' | 'DISASSEMBLE';
 
 export interface CraftingRecipeDto {
@@ -127,6 +134,8 @@ export interface CraftingRecipeDto {
   output: { key: string; name: string; quantity: number; footprint: { width: number; height: number } };
   /** Parts returned to the component pile. Set for break-down recipes. */
   partYields?: CraftingIngredientDto[];
+  /** Resource burned from one tool, such as a water filter. The craft needs a single tool with at least this much left. */
+  filter?: CraftingFilterDto;
   turns: number;
   requiresPower: boolean;
   unlockLevel: number;
@@ -138,6 +147,8 @@ export interface CraftingWorkshopDto {
   skill: number;
   skillXp: number;
   availableComponents: Array<{ key: string; quantity: number }>;
+  /** Remaining percent on each water filter, one entry per filter the player holds. */
+  waterFilters: number[];
   recipes: CraftingRecipeDto[];
 }
 
@@ -147,6 +158,8 @@ export interface CraftingResultDto {
   /** Parts returned when the recipe breaks something down. */
   partYields?: CraftingIngredientDto[];
   availableComponents: Array<{ key: string; quantity: number }>;
+  /** Remaining percent on each water filter after this craft. */
+  waterFilters: number[];
   skill: number;
   skillXp: number;
 }

@@ -207,11 +207,11 @@ describe('The Board B: part books', () => {
   const on = { ...rules, playerBoard: { ...rules.playerBoard, enabled: true } };
   const books = rules.playerBoard.partBookCents;
 
-  it('books all 19 scavenge keys at one price per rarity', () => {
+  it('books all 20 scavenge keys at one price per rarity', () => {
     const byBook = (cents: number) => Object.keys(books).filter((key) => books[key as keyof typeof books] === cents);
-    expect(Object.keys(books)).toHaveLength(19);
+    expect(Object.keys(books)).toHaveLength(20);
     expect(byBook(400)).toEqual(['SCRAP_METAL', 'WIRING', 'TOOL_KIT', 'BOTTLES', 'LABELS', 'PACKAGING', 'LUMBER', 'FASTENERS', 'CLOTH']);
-    expect(byBook(2_500)).toEqual(['BASIC_MEDICINE', 'FUEL_CAN', 'RADIO']);
+    expect(byBook(2_500)).toEqual(['BASIC_MEDICINE', 'FUEL_CAN', 'RADIO', 'WATER_FILTER']);
     expect(byBook(8_000)).toEqual(['MOTOR_ASSEMBLY', 'REPAIR_SUPPLIES', 'SPECIALTY_CONTAINER']);
     expect(byBook(25_000)).toEqual(['PRECISION_PARTS', 'ADVANCED_MEDICAL']);
     expect(byBook(250_000)).toEqual(['HIGH_CAPACITY_FUEL_CELL', 'SPECIALIST_CIRCUITRY']);

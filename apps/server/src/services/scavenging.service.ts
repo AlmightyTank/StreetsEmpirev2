@@ -21,6 +21,7 @@ export const COMPONENTS: readonly ComponentDefinition[] = [
   { key: 'BASIC_MEDICINE', name: 'Basic medicine', rarity: 'UNCOMMON', purpose: 'Field first-aid kits and recovery.', themes: ['medical', 'residential'] },
   { key: 'FUEL_CAN', name: 'Fuel can', rarity: 'UNCOMMON', purpose: 'Generator fuel for powered turns.', themes: ['waterfront', 'industrial'] },
   { key: 'RADIO', name: 'Radio', rarity: 'UNCOMMON', purpose: 'Intel room upgrades and scouting clues.', themes: ['commercial', 'downtown'] },
+  { key: 'WATER_FILTER', name: 'Water filter', rarity: 'UNCOMMON', purpose: 'Brewing. A filter holds 100% and a batch burns part of one.', themes: ['waterfront', 'residential'] },
   { key: 'MOTOR_ASSEMBLY', name: 'Motor assembly', rarity: 'RARE', purpose: 'Garage repairs and vehicle upgrades.', themes: ['industrial', 'waterfront'] },
   { key: 'REPAIR_SUPPLIES', name: 'Repair supplies', rarity: 'RARE', purpose: 'Vehicle repair and workshop upgrades.', themes: ['residential', 'medical'] },
   { key: 'SPECIALTY_CONTAINER', name: 'Specialty container', rarity: 'RARE', purpose: 'High-value packaging and storage upgrades.', themes: ['commercial', 'waterfront'] },

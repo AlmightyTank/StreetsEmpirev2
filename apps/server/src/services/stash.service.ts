@@ -14,7 +14,7 @@ const FOOTPRINTS: Record<StashItemKeyDto, readonly [number, number]> = {
   LOW_RIDER: [2, 1], SEDAN: [2, 1], VAN: [2, 1],
   SCRAP_METAL: [1, 1], WIRING: [1, 1], TOOL_KIT: [1, 1], BOTTLES: [1, 1], LABELS: [1, 1],
   PACKAGING: [1, 1], LUMBER: [1, 1], FASTENERS: [1, 1], CLOTH: [1, 1], BASIC_MEDICINE: [1, 1],
-  FUEL_CAN: [1, 1], RADIO: [1, 1], MOTOR_ASSEMBLY: [1, 1], REPAIR_SUPPLIES: [1, 1], SPECIALTY_CONTAINER: [1, 1],
+  FUEL_CAN: [1, 1], RADIO: [1, 1], WATER_FILTER: [1, 1], MOTOR_ASSEMBLY: [1, 1], REPAIR_SUPPLIES: [1, 1], SPECIALTY_CONTAINER: [1, 1],
   PRECISION_PARTS: [1, 1], ADVANCED_MEDICAL: [1, 1], HIGH_CAPACITY_FUEL_CELL: [1, 1], SPECIALIST_CIRCUITRY: [1, 1],
 };
 for (const component of COMPONENTS) FOOTPRINTS[component.key as StashItemKeyDto] = [1, 1];

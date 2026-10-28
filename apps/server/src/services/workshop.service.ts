@@ -1,5 +1,5 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
-import type { CraftingIngredientDto, CraftingRecipeDto, CraftingResultDto, CraftingWorkshopDto } from '@streets/shared';
+import type { CraftingFilterDto, CraftingIngredientDto, CraftingRecipeDto, CraftingResultDto, CraftingWorkshopDto } from '@streets/shared';
 import type { Ruleset } from '@streets/rules-engine';
 import { AppError } from '../utils/errors.js';
 import { ActionService, assertTurns } from './action.service.js';
@@ -12,11 +12,19 @@ type Recipe = Omit<CraftingRecipeDto, 'unlocked'>;
 type PartLine = CraftingIngredientDto;
 
 const CELL = { width: 1, height: 1 } as const;
+const WATER_FILTER_KEY = 'WATER_FILTER';
+/** A fresh filter. Crafts burn a percent of one filter and cannot pool two partials. */
+export const FILTER_CAPACITY = 100;
 
 function part(key: string, quantity: number): PartLine {
   const definition = COMPONENTS.find((row) => row.key === key);
   if (!definition) throw new Error(`Unknown workshop component ${key}`);
   return { key, name: definition.name, quantity };
+}
+
+function filterUse(percent: number): CraftingFilterDto {
+  const { key, name } = part(WATER_FILTER_KEY, 1);
+  return { key, name, percent };
 }
 
 function breakdown(input: {
@@ -49,8 +57,8 @@ function breakdown(input: {
 const RECIPES: readonly Recipe[] = [
   { key: 'PREMIUM_CONDOMS', name: 'Premium condoms', purpose: 'A higher-value trade item for the corner store.', kind: 'ASSEMBLE', ingredients: [{ key: 'PACKAGING', name: 'Packaging', quantity: 1 }, { key: 'SPECIALTY_CONTAINER', name: 'Specialty container', quantity: 1 }, { key: 'CLOTH', name: 'Cloth', quantity: 1 }], output: { key: 'CONDOM', name: 'Premium condoms', quantity: 2, footprint: CELL }, turns: 2, requiresPower: false, unlockLevel: 0 },
   { key: 'CORNER_WRAP', name: 'Corner wrap', purpose: 'A plain condom pack from common parts, when no specialty container is on the bench.', kind: 'ASSEMBLE', ingredients: [part('LABELS', 1), part('PACKAGING', 1), part('CLOTH', 1)], output: { key: 'CONDOM', name: 'Condoms', quantity: 1, footprint: CELL }, turns: 2, requiresPower: false, unlockLevel: 0 },
-  { key: 'HOUSE_BREW', name: 'House Brew', purpose: 'A trade good that keeps the crew supplied.', kind: 'ASSEMBLE', ingredients: [{ key: 'BOTTLES', name: 'Bottles', quantity: 2 }, { key: 'LABELS', name: 'Labels', quantity: 1 }, { key: 'PACKAGING', name: 'Packaging', quantity: 1 }], output: { key: 'BEER', name: 'House Brew', quantity: 2, footprint: CELL }, turns: 3, requiresPower: true, unlockLevel: 1 },
-  { key: 'CRATE_BREW', name: 'Crate brew', purpose: 'A rough beer batch from bottles, lumber, and fasteners when the labels run out.', kind: 'ASSEMBLE', ingredients: [part('BOTTLES', 1), part('LUMBER', 2), part('FASTENERS', 1)], output: { key: 'BEER', name: 'Beer', quantity: 1, footprint: CELL }, turns: 2, requiresPower: true, unlockLevel: 1 },
+  { key: 'HOUSE_BREW', name: 'House Brew', purpose: 'A trade good that keeps the crew supplied. The batch takes time and burns part of one water filter.', kind: 'ASSEMBLE', ingredients: [{ key: 'BOTTLES', name: 'Bottles', quantity: 2 }, { key: 'LABELS', name: 'Labels', quantity: 1 }, { key: 'PACKAGING', name: 'Packaging', quantity: 1 }], output: { key: 'BEER', name: 'House Brew', quantity: 2, footprint: CELL }, filter: filterUse(30), turns: 3, requiresPower: true, unlockLevel: 1 },
+  { key: 'CRATE_BREW', name: 'Crate brew', purpose: 'A rough beer batch from bottles, lumber, and fasteners. It takes time and burns part of one water filter.', kind: 'ASSEMBLE', ingredients: [part('BOTTLES', 1), part('LUMBER', 2), part('FASTENERS', 1)], output: { key: 'BEER', name: 'Beer', quantity: 1, footprint: CELL }, filter: filterUse(20), turns: 2, requiresPower: true, unlockLevel: 1 },
   { key: 'FIELD_FIRST_AID', name: 'Field first-aid kit', purpose: 'Medicine prepared for a risky outing.', kind: 'ASSEMBLE', ingredients: [{ key: 'BASIC_MEDICINE', name: 'Basic medicine', quantity: 1 }, { key: 'CLOTH', name: 'Cloth', quantity: 2 }, { key: 'PACKAGING', name: 'Packaging', quantity: 1 }], output: { key: 'MEDICINE', name: 'Field first-aid kit', quantity: 1, footprint: CELL }, turns: 2, requiresPower: false, unlockLevel: 1 },
   { key: 'RAG_DRESSING', name: 'Rag dressing', purpose: 'A field dressing from cloth and fasteners when basic medicine is short.', kind: 'ASSEMBLE', ingredients: [part('CLOTH', 3), part('FASTENERS', 1), part('PACKAGING', 1)], output: { key: 'MEDICINE', name: 'Rag dressing', quantity: 1, footprint: CELL }, turns: 2, requiresPower: false, unlockLevel: 1 },
   { key: 'AMMO_BUNDLE', name: 'Ammo bundle', purpose: 'Converts workshop materials into a limited bullet supply.', kind: 'ASSEMBLE', ingredients: [{ key: 'SCRAP_METAL', name: 'Scrap metal', quantity: 2 }, { key: 'WIRING', name: 'Wiring', quantity: 1 }], output: { key: 'AMMO_BOX', name: 'Ammo bundle', quantity: 20, footprint: CELL }, turns: 2, requiresPower: true, unlockLevel: 1 },
@@ -70,6 +78,48 @@ const RECIPES: readonly Recipe[] = [
 const LEGACY_FIELDS: Record<string, 'condoms' | 'medicine' | 'beer' | 'ammo' | 'vehicleParts'> = {
   CONDOM: 'condoms', MEDICINE: 'medicine', BEER: 'beer', AMMO_BOX: 'ammo', PARTS_BOX: 'vehicleParts',
 };
+
+/** Percents still on the filters the player holds. Values outside 1–100 are ignored. */
+export function waterFilterLoads(value: Prisma.JsonValue | null | undefined): number[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((load): load is number => typeof load === 'number' && Number.isInteger(load) && load >= 1 && load <= FILTER_CAPACITY);
+}
+
+/**
+ * The component count is how many filters exist. A longer list means filters were found or bought,
+ * so the new ones are full. A shorter list means some were sold or posted, and the fullest go first
+ * so a worn filter stays on the bench.
+ */
+export function reconcileWaterFilters(loads: readonly number[], count: number): number[] {
+  const clean = loads.filter((load) => Number.isInteger(load) && load >= 1 && load <= FILTER_CAPACITY);
+  const held = Math.max(0, Math.floor(count));
+  if (clean.length === held) return [...clean];
+  if (clean.length < held) return [...clean, ...Array.from({ length: held - clean.length }, () => FILTER_CAPACITY)];
+  return [...clean].sort((left, right) => left - right).slice(0, held);
+}
+
+/**
+ * Burns `percent` from the most worn filter that can cover it. Two partial filters never combine.
+ * Returns null when no single filter has enough left. `destroyed` means that filter hit zero.
+ */
+export function spendWaterFilter(loads: readonly number[], percent: number): { loads: number[]; destroyed: boolean } | null {
+  if (!Number.isInteger(percent) || percent < 1 || percent > FILTER_CAPACITY) return null;
+  let bestIndex = -1;
+  for (let index = 0; index < loads.length; index += 1) {
+    const load = loads[index] ?? 0;
+    if (load < percent) continue;
+    if (bestIndex < 0 || load < (loads[bestIndex] ?? 0)) bestIndex = index;
+  }
+  if (bestIndex < 0) return null;
+  const next = loads.slice();
+  const left = (next[bestIndex] ?? 0) - percent;
+  if (left <= 0) {
+    next.splice(bestIndex, 1);
+    return { loads: next, destroyed: true };
+  }
+  next[bestIndex] = left;
+  return { loads: next, destroyed: false };
+}
 
 function skillFromXp(xp: number): number { return Math.min(100, Math.floor(Math.sqrt(Math.max(0, xp)) * 10)); }
 function recipeDto(recipe: Recipe, level: number): CraftingRecipeDto { return { ...recipe, unlocked: level >= recipe.unlockLevel }; }
@@ -115,9 +165,11 @@ function availableRecipes(ruleset?: Ruleset): readonly Recipe[] {
 
 export const WorkshopService = {
   async page(prisma: PrismaClient, roundPlayerId: string, ruleset?: Ruleset): Promise<CraftingWorkshopDto> {
-    const player = await prisma.roundPlayer.findUnique({ where: { id: roundPlayerId }, select: { hideoutWorkshopLevel: true, workshopSkillXp: true, scavengedComponents: true } });
+    const player = await prisma.roundPlayer.findUnique({ where: { id: roundPlayerId }, select: { hideoutWorkshopLevel: true, workshopSkillXp: true, scavengedComponents: true, waterFilters: true } });
     if (!player) throw AppError.notFound('PLAYER_NOT_FOUND', 'Player not found.');
-    return { level: player.hideoutWorkshopLevel, skill: skillFromXp(player.workshopSkillXp), skillXp: player.workshopSkillXp, availableComponents: Object.entries(balances(player.scavengedComponents)).map(([key, quantity]) => ({ key, quantity })), recipes: availableRecipes(ruleset).map((recipe) => recipeDto(recipe, player.hideoutWorkshopLevel)) };
+    const components = balances(player.scavengedComponents);
+    const waterFilters = reconcileWaterFilters(waterFilterLoads(player.waterFilters), components[WATER_FILTER_KEY] ?? 0);
+    return { level: player.hideoutWorkshopLevel, skill: skillFromXp(player.workshopSkillXp), skillXp: player.workshopSkillXp, availableComponents: Object.entries(components).map(([key, quantity]) => ({ key, quantity })), waterFilters, recipes: availableRecipes(ruleset).map((recipe) => recipeDto(recipe, player.hideoutWorkshopLevel)) };
   },
 
   craft(prisma: PrismaClient, roundPlayerId: string, recipeKey: string, actionId?: string, ruleset?: Ruleset): Promise<import('@streets/shared').GameActionResult<CraftingResultDto>> {
@@ -138,6 +190,23 @@ export const WorkshopService = {
           const missing = recipe.ingredients.find((ingredient) => (components[ingredient.key] ?? 0) < ingredient.quantity);
           throw AppError.badRequest('MISSING_CRAFTING_COMPONENTS', `You need more ${missing?.name ?? 'parts'}.`);
         }
+        let waterFilters = reconcileWaterFilters(waterFilterLoads(player.waterFilters), components[WATER_FILTER_KEY] ?? 0);
+        if (recipe.filter) {
+          const spent = spendWaterFilter(waterFilters, recipe.filter.percent);
+          if (!spent) {
+            const fullest = waterFilters.reduce((best, load) => Math.max(best, load), 0);
+            const detail = fullest > 0
+              ? `This batch needs ${recipe.filter.percent}% of one water filter. The fullest one has ${fullest}% left.`
+              : `This batch needs a water filter with at least ${recipe.filter.percent}% left.`;
+            throw AppError.badRequest('WATER_FILTER_TOO_WORN', detail);
+          }
+          waterFilters = spent.loads;
+          if (spent.destroyed) {
+            const left = (nextComponents[WATER_FILTER_KEY] ?? 0) - 1;
+            if (left > 0) nextComponents[WATER_FILTER_KEY] = left;
+            else delete nextComponents[WATER_FILTER_KEY];
+          }
+        }
         const stash = await StashService.page(tx, roundPlayerId);
         if (recipe.kind === 'DISASSEMBLE') {
           const { added, removed } = componentStacksOpened(components, nextComponents);
@@ -152,10 +221,13 @@ export const WorkshopService = {
         const next = outputField
           ? { ...current, turns: current.turns - recipe.turns, [outputField]: Number(current[outputField] ?? 0) + recipe.output.quantity }
           : { ...current, turns: current.turns - recipe.turns };
-         await tx.roundPlayer.update({ where: { id: roundPlayerId }, data: { scavengedComponents: nextComponents as Prisma.InputJsonValue, workshopSkillXp: skillXp, workshopLastRecipe: recipe.key } });
+         await tx.roundPlayer.update({ where: { id: roundPlayerId }, data: { scavengedComponents: nextComponents as Prisma.InputJsonValue, waterFilters: waterFilters as Prisma.InputJsonValue, workshopSkillXp: skillXp, workshopLastRecipe: recipe.key } });
          for (const ingredient of recipe.ingredients) await recordHideoutEconomy(tx, roundPlayerId, 'COMPONENT_SPENT', { itemKey: ingredient.key, quantity: ingredient.quantity, payload: { source: 'CRAFT', recipeKey: recipe.key } });
-         await recordHideoutEconomy(tx, roundPlayerId, 'RECIPE_COMPLETED', { itemKey: recipe.output.key, quantity: recipe.output.quantity, payload: { recipeKey: recipe.key, kind: recipe.kind, turns: recipe.turns, ...(recipe.partYields ? { partYields: recipe.partYields.map((line) => ({ key: line.key, name: line.name, quantity: line.quantity })) } : {}) } as Prisma.InputJsonValue });
-          return { next, result: { recipe: recipeDto(recipe, current.hideoutWorkshopLevel), output: recipe.output, ...(recipe.partYields ? { partYields: recipe.partYields } : {}), availableComponents: Object.entries(nextComponents).map(([key, quantity]) => ({ key, quantity })), skill: skillFromXp(skillXp), skillXp } };
+         if (recipe.filter && (components[WATER_FILTER_KEY] ?? 0) > (nextComponents[WATER_FILTER_KEY] ?? 0)) {
+           await recordHideoutEconomy(tx, roundPlayerId, 'COMPONENT_SPENT', { itemKey: recipe.filter.key, quantity: 1, payload: { source: 'CRAFT', recipeKey: recipe.key, filterPercent: recipe.filter.percent } });
+         }
+         await recordHideoutEconomy(tx, roundPlayerId, 'RECIPE_COMPLETED', { itemKey: recipe.output.key, quantity: recipe.output.quantity, payload: { recipeKey: recipe.key, kind: recipe.kind, turns: recipe.turns, ...(recipe.filter ? { filterKey: recipe.filter.key, filterPercent: recipe.filter.percent } : {}), ...(recipe.partYields ? { partYields: recipe.partYields.map((line) => ({ key: line.key, name: line.name, quantity: line.quantity })) } : {}) } as Prisma.InputJsonValue });
+          return { next, result: { recipe: recipeDto(recipe, current.hideoutWorkshopLevel), output: recipe.output, ...(recipe.partYields ? { partYields: recipe.partYields } : {}), availableComponents: Object.entries(nextComponents).map(([key, quantity]) => ({ key, quantity })), waterFilters, skill: skillFromXp(skillXp), skillXp } };
       },
     });
   },

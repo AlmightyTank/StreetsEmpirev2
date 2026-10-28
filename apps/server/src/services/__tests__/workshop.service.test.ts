@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { classicOgV26J } from '@streets/rulesets';
 import { playerBoardPartBookCents } from '@streets/rules-engine';
 import { salvagePrice } from '../salvage-yard.service.js';
-import { componentStacksOpened, craftingRecipes, previewCraftComponents, workshopSkill } from '../workshop.service.js';
+import { componentStacksOpened, craftingRecipes, previewCraftComponents, reconcileWaterFilters, spendWaterFilter, workshopSkill } from '../workshop.service.js';
 
 const STASH_OUTPUTS = new Set(['CONDOM', 'MEDICINE', 'BEER', 'AMMO_BOX', 'PARTS_BOX']);
 
@@ -20,8 +20,11 @@ describe('hideout workshop crafting catalog', () => {
     expect(recipes.every((recipe) => recipe.ingredients.length > 0 && recipe.turns > 0 && recipe.output.quantity > 0)).toBe(true);
 
     const brew = recipes.find((recipe) => recipe.key === 'HOUSE_BREW');
-    expect(brew).toMatchObject({ kind: 'ASSEMBLE', turns: 3, requiresPower: true, unlockLevel: 1, output: { key: 'BEER', quantity: 2 } });
+    expect(brew).toMatchObject({ kind: 'ASSEMBLE', turns: 3, requiresPower: true, unlockLevel: 1, output: { key: 'BEER', quantity: 2 }, filter: { key: 'WATER_FILTER', percent: 30 } });
     expect(brew?.ingredients.map((ingredient) => ingredient.key)).toEqual(['BOTTLES', 'LABELS', 'PACKAGING']);
+    const crate = recipes.find((recipe) => recipe.key === 'CRATE_BREW');
+    expect(crate).toMatchObject({ turns: 2, requiresPower: true, filter: { key: 'WATER_FILTER', percent: 20 } });
+    expect(recipes.filter((recipe) => recipe.key !== 'HOUSE_BREW' && recipe.key !== 'CRATE_BREW').every((recipe) => recipe.filter === undefined)).toBe(true);
 
     const assembly = recipes.filter((recipe) => recipe.kind === 'ASSEMBLE');
     const breakdown = recipes.filter((recipe) => recipe.kind === 'DISASSEMBLE');
@@ -68,6 +71,19 @@ describe('hideout workshop crafting catalog', () => {
 
     const wrap = craftingRecipes().find((recipe) => recipe.key === 'CORNER_WRAP')!;
     expect(previewCraftComponents({ LABELS: 1, PACKAGING: 2, CLOTH: 1 }, wrap)).toEqual({ PACKAGING: 1 });
+  });
+
+  it('wears one water filter and will not pool two partial filters', () => {
+    expect(spendWaterFilter([100], 30)).toEqual({ loads: [70], destroyed: false });
+    expect(spendWaterFilter([20, 100], 30)).toEqual({ loads: [20, 70], destroyed: false });
+    expect(spendWaterFilter([50, 40, 100], 30)).toEqual({ loads: [50, 10, 100], destroyed: false });
+    expect(spendWaterFilter([30, 50], 30)).toEqual({ loads: [50], destroyed: true });
+    expect(spendWaterFilter([20], 30)).toBeNull();
+    expect(spendWaterFilter([20], 20)).toEqual({ loads: [], destroyed: true });
+    expect(reconcileWaterFilters([40], 3)).toEqual([40, 100, 100]);
+    expect(reconcileWaterFilters([20, 100, 80], 2)).toEqual([20, 80]);
+    expect(reconcileWaterFilters([70], 1)).toEqual([70]);
+    expect(reconcileWaterFilters([70, 40], 0)).toEqual([]);
   });
 
   it('uses diminishing returns for repeated workshop recipes', () => {

@@ -2129,6 +2129,8 @@ model RoundPlayer {
 
   /// 2.3.0. Hideout components found while scouting; keyed by component id.
   scavengedComponents Json @default("{}")
+  /// Remaining percent (1–100) on each water filter. The count of filters lives in scavengedComponents.WATER_FILTER.
+  waterFilters Json @default("[]")
   /// Components that still retain found-in-raid provenance.
   foundInRaid Json @default("{}")
   /// The Board. Parts escrowed on open offers (and expired ones still waiting on stash room), by key. Counts toward net worth like held parts.

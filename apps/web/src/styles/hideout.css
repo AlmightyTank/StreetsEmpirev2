@@ -179,6 +179,13 @@
 .se-workshop__inputs span.is-met, .se-generator__requirements .is-met { border-color: color-mix(in srgb, var(--se-good) 45%, transparent); }
 .se-workshop__inputs span.is-missing, .se-generator__requirements .is-missing { border-color: color-mix(in srgb, var(--se-warn) 45%, transparent); color: var(--se-warn); }
 .se-workshop__inputs small { color: var(--se-muted); font-family: var(--se-mono); }
+.se-workshop__filter-row { display: grid; gap: 6px; padding: 6px 8px; border: 1px solid var(--se-line); border-radius: 4px; font-size: 11px; }
+.se-workshop__filter-row.is-met { border-color: color-mix(in srgb, var(--se-good) 45%, transparent); }
+.se-workshop__filter-row.is-missing { border-color: color-mix(in srgb, var(--se-warn) 45%, transparent); color: var(--se-warn); }
+.se-workshop__filter-row > span { display: flex; justify-content: space-between; gap: 10px; padding: 0; border: 0; }
+.se-workshop__filter-meter { height: 6px; border-radius: 999px; background: var(--se-line); overflow: hidden; }
+.se-workshop__filter-meter > i { display: block; height: 100%; background: var(--se-good); }
+.se-workshop__filter-row.is-missing .se-workshop__filter-meter > i { background: var(--se-warn); }
 
 .se-scavenge__caches { gap: 10px; }
 .se-scavenge-cache { display: grid; gap: 10px; padding: 16px; border-color: rgba(var(--se-accent-rgb), .24); background: linear-gradient(135deg, rgba(var(--se-accent-rgb), .06), transparent 55%), var(--se-panel); }
