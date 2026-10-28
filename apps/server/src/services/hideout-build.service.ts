@@ -8,14 +8,15 @@ import { createPlayerActivity } from './in-app-notification.service.js';
  * One room is under construction at a time.
  */
 
-export type HideoutBuildRoom = 'SAFE_ROOM' | 'LOOKOUTS' | 'WORKSHOP' | 'BACK_OFFICE' | 'GARAGE' | 'STORAGE';
+export type HideoutBuildRoom = 'SAFE_ROOM' | 'LOOKOUTS' | 'WORKSHOP' | 'BACK_OFFICE' | 'GARAGE' | 'GENERATOR' | 'STORAGE';
 
-const LEVEL_FIELDS: Record<HideoutBuildRoom, 'hideoutSafeRoomLevel' | 'hideoutLookoutsLevel' | 'hideoutWorkshopLevel' | 'hideoutBackOfficeLevel' | 'hideoutGarageLevel' | 'hideoutStorageLevel'> = {
+const LEVEL_FIELDS: Record<HideoutBuildRoom, 'hideoutSafeRoomLevel' | 'hideoutLookoutsLevel' | 'hideoutWorkshopLevel' | 'hideoutBackOfficeLevel' | 'hideoutGarageLevel' | 'hideoutGeneratorLevel' | 'hideoutStorageLevel'> = {
   SAFE_ROOM: 'hideoutSafeRoomLevel',
   LOOKOUTS: 'hideoutLookoutsLevel',
   WORKSHOP: 'hideoutWorkshopLevel',
   BACK_OFFICE: 'hideoutBackOfficeLevel',
   GARAGE: 'hideoutGarageLevel',
+  GENERATOR: 'hideoutGeneratorLevel',
   STORAGE: 'hideoutStorageLevel',
 };
 
@@ -25,6 +26,7 @@ export const HIDEOUT_ROOM_NAMES: Record<HideoutBuildRoom, string> = {
   WORKSHOP: 'Workshop',
   BACK_OFFICE: 'Back Office',
   GARAGE: 'Garage',
+  GENERATOR: 'Generator',
   STORAGE: 'Storage',
 };
 
@@ -53,7 +55,7 @@ export const HideoutBuildService = {
       select: {
         hideoutBuildRoom: true, hideoutBuildLevel: true, hideoutBuildReadyAt: true,
         hideoutSafeRoomLevel: true, hideoutLookoutsLevel: true, hideoutWorkshopLevel: true,
-        hideoutBackOfficeLevel: true, hideoutGarageLevel: true, hideoutStorageLevel: true,
+        hideoutBackOfficeLevel: true, hideoutGarageLevel: true, hideoutGeneratorLevel: true, hideoutStorageLevel: true,
       },
     });
     if (!player?.hideoutBuildReadyAt || player.hideoutBuildReadyAt > now) return false;

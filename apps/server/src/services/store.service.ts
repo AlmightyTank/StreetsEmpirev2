@@ -258,16 +258,17 @@ function turfSpecialOrderDiscountPercent(ruleset: Ruleset, blocksHeld: number): 
   );
 }
 
-const HIDEOUT_ROOMS: readonly HideoutRoomKey[] = ['SAFE_ROOM', 'LOOKOUTS', 'WORKSHOP', 'BACK_OFFICE', 'GARAGE'];
+const HIDEOUT_ROOMS: readonly HideoutRoomKey[] = ['SAFE_ROOM', 'LOOKOUTS', 'WORKSHOP', 'BACK_OFFICE', 'GARAGE', 'GENERATOR'];
 
 const HIDEOUT_FIELDS: Record<HideoutRoomKey, keyof Pick<PlayerState,
-  'hideoutSafeRoomLevel' | 'hideoutLookoutsLevel' | 'hideoutWorkshopLevel' | 'hideoutBackOfficeLevel' | 'hideoutGarageLevel'
+  'hideoutSafeRoomLevel' | 'hideoutLookoutsLevel' | 'hideoutWorkshopLevel' | 'hideoutBackOfficeLevel' | 'hideoutGarageLevel' | 'hideoutGeneratorLevel'
 >> = {
   SAFE_ROOM: 'hideoutSafeRoomLevel',
   LOOKOUTS: 'hideoutLookoutsLevel',
   WORKSHOP: 'hideoutWorkshopLevel',
   BACK_OFFICE: 'hideoutBackOfficeLevel',
   GARAGE: 'hideoutGarageLevel',
+  GENERATOR: 'hideoutGeneratorLevel',
 };
 
 function hideoutIntegration(ruleset: Ruleset, player: PlayerState): StoreIntegrationDto['hideout'] {

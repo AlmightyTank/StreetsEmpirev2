@@ -31,6 +31,12 @@ export const classicOgV03A = {
         maxLevel: 5,
         costsCents: [125_000, 375_000, 1_000_000, 2_500_000, 6_250_000],
       },
+      GENERATOR: {
+        name: 'Generator',
+        blurb: 'A powered room keeps the hideout systems running through the night.',
+        maxLevel: 1,
+        costsCents: [250_000],
+      },
     },
     buffs: {
       safeRoomProtectedCashCentsPerLevel: 100_000,

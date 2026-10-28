@@ -175,7 +175,7 @@ export type ProduceCrackInput = z.infer<typeof produceCrackSchema>;
 export type PayoutInput = z.infer<typeof payoutSchema>;
 
 export const hideoutUpgradeSchema = z.object({
-  room: z.enum(['SAFE_ROOM', 'LOOKOUTS', 'WORKSHOP', 'BACK_OFFICE', 'GARAGE', 'STORAGE']),
+  room: z.enum(['SAFE_ROOM', 'LOOKOUTS', 'WORKSHOP', 'BACK_OFFICE', 'GARAGE', 'GENERATOR', 'STORAGE']),
   actionId: actionIdSchema,
 });
 export type HideoutUpgradeInput = z.infer<typeof hideoutUpgradeSchema>;
@@ -519,6 +519,8 @@ export type CrewTurfMoveMembersInput = z.infer<typeof crewTurfMoveMembersSchema>
 export const productTradeSchema = z.object({
   product: z.string().trim().toUpperCase().regex(/^[A-Z][A-Z0-9_]{1,31}$/, 'Pick a product.'),
   direction: z.enum(['buy', 'sell']),
+  venue: z.enum(['pip', 'market']).default('pip'),
+  quoteCents: z.number().int().nonnegative().optional(),
   quantity: z.number({ invalid_type_error: 'Enter a quantity.' })
     .int('Quantity must be a whole number.').positive('Enter at least one.').max(MAX_ORDER_QUANTITY, 'That order is too large.'),
   actionId: actionIdSchema,

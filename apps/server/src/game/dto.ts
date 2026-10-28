@@ -199,6 +199,8 @@ export function toRoundPlayerDto(
       unarmedThugs: Math.max(0, fitThugs(player) - armedThugsForDto(player)),
       condoms: player.condoms,
       medicine: player.medicine,
+      fieldFirstAidKits: player.fieldFirstAidKits,
+      ragDressings: player.ragDressings,
       product: player.crack,
       crack: player.crack,
       beer: player.beer,

@@ -115,12 +115,27 @@ export interface CraftingIngredientDto {
   quantity: number;
 }
 
+/** A tool the craft wears down. Percent comes off one item; two partials do not combine. */
+export interface CraftingFilterDto {
+  key: string;
+  name: string;
+  percent: number;
+}
+
+export type CraftingRecipeKindDto = 'ASSEMBLE' | 'DISASSEMBLE';
+
 export interface CraftingRecipeDto {
   key: string;
   name: string;
   purpose: string;
+  /** ASSEMBLE spends parts on a stash good. DISASSEMBLE spends a part and returns cheaper parts. */
+  kind: CraftingRecipeKindDto;
   ingredients: CraftingIngredientDto[];
   output: { key: string; name: string; quantity: number; footprint: { width: number; height: number } };
+  /** Parts returned to the component pile. Set for break-down recipes. */
+  partYields?: CraftingIngredientDto[];
+  /** Resource burned from one tool, such as a water filter. The craft needs a single tool with at least this much left. */
+  filter?: CraftingFilterDto;
   turns: number;
   requiresPower: boolean;
   unlockLevel: number;
@@ -132,15 +147,49 @@ export interface CraftingWorkshopDto {
   skill: number;
   skillXp: number;
   availableComponents: Array<{ key: string; quantity: number }>;
+  /** Remaining percent on each water filter, one entry per filter the player holds. */
+  waterFilters: number[];
   recipes: CraftingRecipeDto[];
 }
 
 export interface CraftingResultDto {
   recipe: CraftingRecipeDto;
   output: { key: string; name: string; quantity: number; footprint: { width: number; height: number } };
+  /** How many times the recipe was run. Time, parts, output, and filter wear all scale by this. */
+  batches: number;
+  /** Parts returned when the recipe breaks something down. */
+  partYields?: CraftingIngredientDto[];
   availableComponents: Array<{ key: string; quantity: number }>;
+  /** Remaining percent on each water filter after this craft. */
+  waterFilters: number[];
   skill: number;
   skillXp: number;
+}
+
+/** Most copies of one recipe a single craft may run. Time, parts, and filter wear scale with the count. */
+export const MAX_CRAFT_BATCH = 99;
+
+/**
+ * How many copies the bench can start. Parts limit every recipe. A water filter limits a brew to
+ * what one filter can cover, so two partial filters never add up.
+ */
+export function maxCraftBatches(
+  recipe: Pick<CraftingRecipeDto, 'ingredients' | 'filter'>,
+  components: ReadonlyArray<{ key: string; quantity: number }>,
+  filters: readonly number[] = [],
+): number {
+  let cap = MAX_CRAFT_BATCH;
+  for (const ingredient of recipe.ingredients) {
+    if (ingredient.quantity <= 0) return 0;
+    const have = components.find((item) => item.key === ingredient.key)?.quantity ?? 0;
+    cap = Math.min(cap, Math.floor(have / ingredient.quantity));
+  }
+  if (recipe.filter) {
+    if (recipe.filter.percent <= 0) return 0;
+    const usable = filters.reduce((best, load) => Math.max(best, load), 0);
+    cap = Math.min(cap, Math.floor(usable / recipe.filter.percent));
+  }
+  return cap < 1 ? 0 : cap;
 }
 
 export interface HideoutWorkshopDto {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { classicOgV07F, classicOgV07G, classicOgV07H } from '../index.js';
+import { classicOgV07F, classicOgV07G, classicOgV07H, classicOgV26K } from '../index.js';
+import type { QuestDefinitionCatalog } from '../types.js';
 
 describe('quest roadmap Phase I permanent unlocks', () => {
   it('keeps 0.7-F/G unchanged and enables the generic unlock catalog only in 0.7-H', () => {
@@ -83,4 +84,20 @@ describe('quest roadmap Phase I permanent unlocks', () => {
     expect(productGates).toEqual(['COCAINE', 'ECSTASY', 'HEROIN', 'METH']);
     expect(productGates).not.toContain('WEED');
   });
+
+  it('keeps current districts and vehicles open while drug production and purchases stay quest-locked', () => {
+    const current = Object.values(classicOgV26K.permanentUnlocks ?? {});
+    expect(current.every(({ effect }) =>
+      effect.kind === 'WEAPON_ACCESS'
+      || effect.kind === 'PRODUCT_PURCHASE_ACCESS'
+      || effect.kind === 'PRODUCT_PRODUCTION_ACCESS')).toBe(true);
+    expect(current.filter(({ effect }) => effect.kind === 'PRODUCT_PURCHASE_ACCESS').map(({ effect }) => effect.kind === 'PRODUCT_PURCHASE_ACCESS' ? effect.productKey : '').sort())
+      .toEqual(['COCAINE', 'ECSTASY', 'HEROIN', 'METH']);
+    expect(current.filter(({ effect }) => effect.kind === 'PRODUCT_PRODUCTION_ACCESS').map(({ effect }) => effect.kind === 'PRODUCT_PRODUCTION_ACCESS' ? effect.productKey : '').sort())
+      .toEqual(['COCAINE', 'ECSTASY', 'HEROIN', 'METH', 'WEED']);
+    const quests = classicOgV26K.questDefinitions as QuestDefinitionCatalog;
+    expect(quests.ML_M03_OTHER_DOOR!.rewards).toContainEqual({ kind: 'PERMANENT_UNLOCK', key: 'PRODUCT_WEED_RECIPE' });
+    expect(quests.ML_M06_PIPS_COUNT!.rewards).toContainEqual({ kind: 'PERMANENT_UNLOCK', key: 'PRODUCT_ECSTASY_ACCESS' });
+  });
+
 });

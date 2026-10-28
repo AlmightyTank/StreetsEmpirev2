@@ -1971,9 +1971,17 @@ export const CombatService = {
         medicinePerThug,
         medicineEfficiencyPercent,
         Boolean(doctorFavor),
+        settled.player.fieldFirstAidKits ?? 0,
+        settled.player.ragDressings ?? 0,
       );
       if (doctorFavor) await SingleUseFavorService.consume(tx, doctorFavor.id);
-      const next = { ...toState(settled.player), woundedThugs: treatment.woundedThugs, medicine: settled.player.medicine - treatment.medicineUsed };
+      const next = {
+        ...toState(settled.player),
+        woundedThugs: treatment.woundedThugs,
+        medicine: settled.player.medicine - treatment.medicineUsed,
+        fieldFirstAidKits: (settled.player.fieldFirstAidKits ?? 0) - treatment.fieldFirstAidKitsUsed,
+        ragDressings: (settled.player.ragDressings ?? 0) - treatment.ragDressingsUsed,
+      };
       assertPlayerState(next, settled.ruleset);
       const happiness = HappinessService.recalculate({ ...next, thugs: fitThugs(next), products: settled.products }, settled.ruleset, await HappinessService.awayPenalty(tx, settled.ruleset, playerId, now));
       await tx.roundPlayer.update({
@@ -1981,6 +1989,8 @@ export const CombatService = {
         data: {
           woundedThugs: next.woundedThugs,
           medicine: next.medicine,
+          fieldFirstAidKits: next.fieldFirstAidKits,
+          ragDressings: next.ragDressings,
           netWorthCents: NetWorthService.calculate({ ...next, products: settled.products }, settled.ruleset),
           thugHappiness: happiness.thugHappiness,
           whoreHappiness: happiness.whoreHappiness,
@@ -1989,6 +1999,8 @@ export const CombatService = {
       const result: CombatTreatmentDto = {
         treatedThugs: treatment.treatedThugs,
         medicineUsed: treatment.medicineUsed,
+        ...(treatment.fieldFirstAidKitsUsed > 0 ? { fieldFirstAidKitsUsed: treatment.fieldFirstAidKitsUsed } : {}),
+        ...(treatment.ragDressingsUsed > 0 ? { ragDressingsUsed: treatment.ragDressingsUsed } : {}),
         ...(medicineEfficiencyPercent > 0 ? { medicineEfficiencyPercent } : {}),
         ...(favorBonuses.treatmentMedicineEfficiencyPercent > 0
           ? { favorMedicineEfficiencyPercent: favorBonuses.treatmentMedicineEfficiencyPercent }

@@ -70,7 +70,7 @@ Starter recipe candidates:
 
 | Product | Ingredients / station | Purpose |
 |---|---|---|
-| Premium condoms | Basic condoms, packaging, specialist material; Workshop | Higher-value trade item or a modest, clearly described gameplay bonus. |
+| Premium condoms | Basic condoms, packaging, specialist material; Workshop | Built. Own stash item (`PREMIUM_CONDOM`). One covers three uses; about 5% of shifts and trips a batch goes bad and the uses it covered leave the girls unprotected. House Brew (`HOUSE_BREW`) works the same way for beer, and a bad batch sends part of the crew home sick. Tunables live in `premium-supply.ts`. |
 | House Brew | Bottles, grain/sugar, labels; Brewery module and power | Trade good and optional crew morale benefit. |
 | Field first-aid kit | Basic medicine, sterile cloth, packaging; Workshop | Useful recovery item for an outing. |
 | Ammo bundle | Gunpowder and casing components; powered Workshop | Converts scavenged materials into a limited supply of bullets. |

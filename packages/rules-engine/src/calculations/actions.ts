@@ -9,6 +9,7 @@ import {
 } from '../rng.js';
 import { clientMultiplier } from './clients.js';
 import { heatTakeMultiplier } from './heat.js';
+import { BAD_BREW_CREW_FRACTION, drawStock, rollBadBatch } from './premium-supply.js';
 import type { ProductRecipe } from './product-economy.js';
 import {
   calculateDepartures,
@@ -56,6 +57,9 @@ function addConsumption(target: Consumption, next: Consumption): void {
   target.condoms += next.condoms;
   target.crack += next.crack;
   target.beer += next.beer;
+  // Only present once premium stock is actually burned, so plain-stock rounds read exactly as before.
+  if (next.premiumCondoms) target.premiumCondoms = (target.premiumCondoms ?? 0) + next.premiumCondoms;
+  if (next.houseBrew) target.houseBrew = (target.houseBrew ?? 0) + next.houseBrew;
 }
 
 function addDepartures(target: Departures, next: Departures): void {
@@ -308,6 +312,8 @@ export interface StreetTake {
   crackFound: number;
   consumption: Consumption;
   shortages: { condoms: number; beer: number };
+  /** Set when premium condoms or House Brew burned on this action turned out to be a bad batch. */
+  badBatch?: { condoms: boolean; brew: boolean };
   departures: Departures;
   /** Who caught something working an under-supplied shift. */
   infections: Infections;
@@ -350,6 +356,10 @@ export function calculateStreetTake(
   const rules = ruleset.scouting;
   const definition = rules.districts[district];
   const state: UpkeepInput = { ...player };
+  // One roll per action for each premium good held. Nothing is drawn from the rng without premium stock.
+  const condomsBadBatch = rollBadBatch(state.premiumCondoms ?? 0, rng);
+  const brewBadBatch = rollBadBatch(state.houseBrew ?? 0, rng);
+  let brewStruck = false;
   let exposure = calculateExposure(state, definition, ruleset);
   let clients = {
     capacity: context.clientCapacity,
@@ -419,18 +429,24 @@ export function calculateStreetTake(
       needCarry.condoms = 0;
       needCarry.beer = 0;
     }
+    const condomDraw = drawStock(turnNeeded.condoms, state.condoms, state.premiumCondoms ?? 0);
+    const beerDraw = drawStock(turnNeeded.beer, state.beer, state.houseBrew ?? 0);
     const turnConsumption = {
-      condoms: Math.min(turnNeeded.condoms, state.condoms),
+      condoms: condomDraw.regular,
       crack: Math.min(turnNeeded.crack, state.crack),
-      beer: Math.min(turnNeeded.beer, state.beer),
+      beer: beerDraw.regular,
+      premiumCondoms: condomDraw.premium,
+      houseBrew: beerDraw.premium,
     };
     if (context.supply) turnConsumption.crack = 0;
     addConsumption(consumption, turnConsumption);
     state.condoms = Math.max(0, state.condoms - turnConsumption.condoms);
     state.crack = Math.max(0, state.crack - turnConsumption.crack);
     state.beer = Math.max(0, state.beer - turnConsumption.beer);
-    shortages.condoms += turnNeeded.condoms - turnConsumption.condoms;
-    shortages.beer += turnNeeded.beer - turnConsumption.beer;
+    if (condomDraw.premium > 0) state.premiumCondoms = Math.max(0, (state.premiumCondoms ?? 0) - condomDraw.premium);
+    if (beerDraw.premium > 0) state.houseBrew = Math.max(0, (state.houseBrew ?? 0) - beerDraw.premium);
+    shortages.condoms += turnNeeded.condoms - condomDraw.covered;
+    shortages.beer += turnNeeded.beer - beerDraw.covered;
 
     if (rng() < rules.finds.chancePerTurn) {
       const span = rules.finds.crackMax - rules.finds.crackMin;
@@ -447,13 +463,21 @@ export function calculateStreetTake(
       whores: Math.min(rawDepartures.whores, Math.max(0, departureCaps.whores - departures.whores)),
       thugs: Math.min(rawDepartures.thugs, Math.max(0, departureCaps.thugs - departures.thugs)),
     };
+    // A bad House Brew sends part of the crew home sick, once per action, inside the departure limit.
+    if (brewBadBatch && !brewStruck && beerDraw.premium > 0) {
+      brewStruck = true;
+      const sick = Math.ceil(state.thugs * BAD_BREW_CREW_FRACTION);
+      turnDepartures.thugs += Math.max(0, Math.min(sick, departureCaps.thugs - departures.thugs - turnDepartures.thugs, state.thugs - turnDepartures.thugs));
+    }
 
     const infectionRoom = Math.max(0, infectionCap - infections.infected);
     const rawInfections = infectionRoom > 0
       ? calculateInfections(
           state,
           1,
-          turnNeeded.condoms > 0 ? (turnNeeded.condoms - turnConsumption.condoms) / turnNeeded.condoms : 0,
+          turnNeeded.condoms > 0
+            ? Math.min(1, (turnNeeded.condoms - condomDraw.covered + (condomsBadBatch ? condomDraw.premiumUses : 0)) / turnNeeded.condoms)
+            : 0,
           ruleset,
           rng,
         )
@@ -474,6 +498,7 @@ export function calculateStreetTake(
   }
 
   if (context.supply) consumption.crack = context.supply.consumed.CRACK ?? 0;
+  const condomsStruck = condomsBadBatch && (consumption.premiumCondoms ?? 0) > 0;
 
   const grossCents = BigInt(Math.max(0, gross));
   const crewTakeCents = BigInt(Math.floor(Number(grossCents) * (payoutPercent / 100)));
@@ -489,6 +514,7 @@ export function calculateStreetTake(
     crackFound,
     consumption,
     shortages,
+    ...(condomsStruck || brewStruck ? { badBatch: { condoms: condomsStruck, brew: brewStruck } } : {}),
     departures,
     infections,
   };

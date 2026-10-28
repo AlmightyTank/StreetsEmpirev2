@@ -36,7 +36,12 @@ export const ITEM_ART = {
   // Corner Store
   CONDOM: { name: 'Condoms', shortName: 'Condoms', category: 'SUPPLY', rarity: 'COMMON', file: 'condoms.svg', cells: ONE },
   MEDICINE: { name: 'Medicine', shortName: 'Meds', category: 'SUPPLY', rarity: 'COMMON', file: 'medicine.svg', cells: ONE },
+  FIELD_FIRST_AID: { name: 'Field first-aid kit', shortName: 'First aid', category: 'SUPPLY', rarity: 'UNCOMMON', file: 'field-first-aid.svg', cells: ONE, purpose: 'Treats two wounded thugs.' },
+  RAG_DRESSING: { name: 'Rag dressing', shortName: 'Rag dress', category: 'SUPPLY', rarity: 'COMMON', file: 'rag-dressing.svg', cells: ONE, purpose: 'Two dressings treat one wounded thug.' },
   BEER: { name: 'Beer', shortName: 'Beer', category: 'SUPPLY', rarity: 'COMMON', file: 'beer.svg', cells: ONE },
+  // Workshop goods. Each covers three uses, with a small chance of a bad batch.
+  PREMIUM_CONDOM: { name: 'Premium condoms', shortName: 'Premium', category: 'SUPPLY', rarity: 'UNCOMMON', file: 'premium-condoms.svg', cells: ONE, purpose: 'Each pack covers three uses. A small chance a batch goes bad and leaves the girls unprotected.' },
+  HOUSE_BREW: { name: 'House Brew', shortName: 'House Brew', category: 'SUPPLY', rarity: 'UNCOMMON', file: 'house-brew.svg', cells: ONE, purpose: 'Each bottle covers three beers. A small chance a batch goes bad and part of the crew walks.' },
 
   // Tek9 Tommy's
   THUG: { name: 'Thug', shortName: 'Thug', category: 'CREW', rarity: 'UNCOMMON', file: 'thug.svg', cells: ONE },
@@ -74,6 +79,7 @@ export const ITEM_ART = {
   BASIC_MEDICINE: { name: 'Basic medicine', shortName: 'Basic meds', category: 'SUPPLY', rarity: 'UNCOMMON', file: 'medicine.svg', cells: ONE },
   FUEL_CAN: { name: 'Fuel can', shortName: 'Fuel can', category: 'SUPPLY', rarity: 'UNCOMMON', file: 'fuel-can.svg', cells: ONE },
   RADIO: { name: 'Radio', shortName: 'Radio', category: 'SUPPLY', rarity: 'UNCOMMON', file: 'radio.svg', cells: ONE },
+  WATER_FILTER: { name: 'Water filter', shortName: 'Filter', category: 'SUPPLY', rarity: 'UNCOMMON', file: 'water-filter.svg', cells: ONE },
   MOTOR_ASSEMBLY: { name: 'Motor assembly', shortName: 'Motor', category: 'SUPPLY', rarity: 'RARE', file: 'motor-assembly.svg', cells: ONE },
   REPAIR_SUPPLIES: { name: 'Repair supplies', shortName: 'Repairs', category: 'SUPPLY', rarity: 'RARE', file: 'repair-supplies.svg', cells: ONE },
   SPECIALTY_CONTAINER: { name: 'Specialty container', shortName: 'Container', category: 'SUPPLY', rarity: 'RARE', file: 'specialty-container.svg', cells: ONE },

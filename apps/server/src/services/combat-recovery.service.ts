@@ -11,6 +11,8 @@ export interface RecoverySettlement {
 export interface RecoveryTreatment {
   treatedThugs: number;
   medicineUsed: number;
+  fieldFirstAidKitsUsed: number;
+  ragDressingsUsed: number;
   woundedThugs: number;
   nextRecoveryAt: Date | null;
 }
@@ -71,14 +73,21 @@ export const CombatRecoveryService = {
     medicinePerThug: number,
     efficiencyPercent = 0,
     waiveMedicine = false,
+    fieldFirstAidKitsAvailable = 0,
+    ragDressingsAvailable = 0,
   ): Promise<RecoveryTreatment> {
     if (!Number.isSafeInteger(thugs) || thugs <= 0) {
       throw AppError.badRequest('INVALID_TREATMENT', 'Choose how many wounded thugs to treat.');
     }
     if (medicinePerThug <= 0) throw AppError.conflict('RECOVERY_DISABLED', 'Treatment is not available in this round.');
-    const medicineNeeded = waiveMedicine ? 0 : medicineNeededForTreatment(thugs, medicinePerThug, efficiencyPercent);
-    if (medicineAvailable < medicineNeeded) {
-      throw AppError.badRequest('NOT_ENOUGH_MEDICINE', `You need ${medicineNeeded} medicine to treat that many thugs.`);
+    const treatmentUnits = waiveMedicine ? 0 : medicineNeededForTreatment(thugs, medicinePerThug, efficiencyPercent);
+    const fieldFirstAidKitsUsed = waiveMedicine ? 0 : Math.min(fieldFirstAidKitsAvailable, Math.floor(treatmentUnits / 2));
+    const afterKits = treatmentUnits - fieldFirstAidKitsUsed * 2;
+    const medicineUsed = waiveMedicine ? 0 : Math.min(medicineAvailable, afterKits);
+    const remainingUnits = afterKits - medicineUsed;
+    const ragDressingsUsed = waiveMedicine ? 0 : remainingUnits * 2;
+    if (!waiveMedicine && ragDressingsAvailable < ragDressingsUsed) {
+      throw AppError.badRequest('NOT_ENOUGH_MEDICINE', `You need ${treatmentUnits} treatment supplies to treat that many thugs.`);
     }
 
     const rows = await tx.combatInjury.findMany({
@@ -107,7 +116,9 @@ export const CombatRecoveryService = {
 
     return {
       treatedThugs: thugs,
-      medicineUsed: medicineNeeded,
+      medicineUsed,
+      fieldFirstAidKitsUsed,
+      ragDressingsUsed,
       ...summarize(remainingRows),
     };
   },

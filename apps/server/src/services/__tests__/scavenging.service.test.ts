@@ -3,8 +3,13 @@ import { classicOgV26J } from '@streets/rulesets';
 import {
   COMPONENTS,
   cacheOdds,
+  cacheChanceForSegment,
   cacheQualityForTurns,
+  cacheQualityForSegment,
+  cacheTurnSegments,
   districtSupplyClue,
+  districtEligiblePool,
+  cacheDropWeight,
   eligiblePool,
   makeCache,
   openCache,
@@ -34,6 +39,18 @@ describe('hideout scavenging', () => {
     expect(makeCache('URBAN_GHETTO', 'Urban Ghetto', 10).quality).toBe('BLACK_MARKET_CACHE');
   });
 
+  it('uses each district common and scarce list as its cache pool', () => {
+    expect(districtEligiblePool('NIGHTCLUB').map((item) => item.name).sort()).toEqual([
+      'Advanced medical component', 'Labels', 'Packaging', 'Radio', 'Specialist circuitry', 'Wiring',
+    ]);
+    expect(districtEligiblePool('LOW_RENT').map((item) => item.name).sort()).toEqual([
+      'Advanced medical component', 'Basic medicine', 'Cloth', 'Fasteners', 'Lumber', 'Repair supplies', 'Water filter',
+    ]);
+    expect(cacheDropWeight('WATER_FILTER')).toBe(25);
+    expect(cacheDropWeight('LUMBER')).toBe(100);
+    expect(cacheDropWeight('ADVANCED_MEDICAL')).toBe(25);
+  });
+
   it('resolves rarity boundaries deterministically and previews a reward', () => {
     const odds = cacheOdds('SUPPLY_CACHE');
     expect(rollRarity(odds, () => 0)).toBe('COMMON');
@@ -54,6 +71,18 @@ describe('hideout scavenging', () => {
     expect(scavengeFindCount(2)).toBe(1);
     expect(scavengeFindCount(3)).toBe(2);
     expect(scavengeFindCount(10)).toBe(5);
+  });
+
+  it('resets cache quality every 30 turns and keeps a qualifying remainder', () => {
+    expect(cacheTurnSegments(1)).toEqual([]);
+    expect(cacheTurnSegments(30)).toEqual([30]);
+    expect(cacheTurnSegments(144)).toEqual([30, 30, 30, 30, 24]);
+    expect(cacheTurnSegments(144).map((turns) => cacheQualityForSegment(turns))).toEqual([
+      'BLACK_MARKET_CACHE', 'BLACK_MARKET_CACHE', 'BLACK_MARKET_CACHE', 'BLACK_MARKET_CACHE', 'SECURED_CACHE',
+    ]);
+    expect(cacheChanceForSegment(1)).toBe(0);
+    expect(cacheChanceForSegment(10)).toBeCloseTo(0.6);
+    expect(cacheChanceForSegment(30)).toBe(0.85);
   });
 
 });

@@ -46,7 +46,7 @@ export type WeaponKey = 'PISTOL' | 'SHOTGUN' | 'TEK9' | 'AK47';
 export type WeaponPriority = 'POWER' | 'CONSERVE';
 export type WeaponUnlockKey = 'SHOTGUN' | 'TEK9' | 'AK47';
 export type BaseHideoutRoomKey = 'SAFE_ROOM' | 'LOOKOUTS' | 'WORKSHOP' | 'BACK_OFFICE';
-export type HideoutRoomKey = BaseHideoutRoomKey | 'GARAGE';
+export type HideoutRoomKey = BaseHideoutRoomKey | 'GARAGE' | 'GENERATOR';
 
 /**
  * What a shopkeeper wants before he will sell you the heavy stuff.
@@ -1335,7 +1335,7 @@ export type PlayerBoardKeeperKey = 'PISTOL' | 'SHOTGUN' | 'TEK9' | 'AK47' | 'LOW
 /** The Board B. Every hideout scavenge part, as stored in `RoundPlayer.scavengedComponents`. */
 export type ScavengePartKey =
   | 'SCRAP_METAL' | 'WIRING' | 'TOOL_KIT' | 'BOTTLES' | 'LABELS' | 'PACKAGING' | 'LUMBER' | 'FASTENERS' | 'CLOTH'
-  | 'BASIC_MEDICINE' | 'FUEL_CAN' | 'RADIO'
+  | 'BASIC_MEDICINE' | 'FUEL_CAN' | 'RADIO' | 'WATER_FILTER'
   | 'MOTOR_ASSEMBLY' | 'REPAIR_SUPPLIES' | 'SPECIALTY_CONTAINER'
   | 'PRECISION_PARTS' | 'ADVANCED_MEDICAL'
   | 'HIGH_CAPACITY_FUEL_CELL' | 'SPECIALIST_CIRCUITRY';
@@ -2693,7 +2693,7 @@ export interface HeatRules {
 export type ProductCatalog = { readonly CRACK: ProductDefinition } & { readonly [key: string]: ProductDefinition };
 
 export interface HideoutRules {
-  readonly rooms: { readonly [K in BaseHideoutRoomKey]: HideoutRoomRule } & { readonly GARAGE?: HideoutRoomRule };
+  readonly rooms: { readonly [K in BaseHideoutRoomKey]: HideoutRoomRule } & { readonly GARAGE?: HideoutRoomRule; readonly GENERATOR?: HideoutRoomRule };
   readonly buffs: {
     readonly safeRoomProtectedCashCentsPerLevel: number;
     readonly lookoutsDefenseBonusPercentPerLevel: number;

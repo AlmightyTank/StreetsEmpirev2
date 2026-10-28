@@ -23,6 +23,9 @@ export interface NetWorthInput {
   crack: number;
   condoms: number;
   beer: number;
+  /** Workshop goods, each worth three plain ones. */
+  premiumCondoms?: number;
+  houseBrew?: number;
   pistols: number;
   shotguns: number;
   tek9s: number;

@@ -37,11 +37,21 @@ function player(overrides: Partial<PlayerState> = {}): PlayerState {
     hideoutWorkshopLevel: 0,
     hideoutBackOfficeLevel: 0,
     hideoutGarageLevel: 0,
+    hideoutGeneratorLevel: 0,
     ...overrides,
   } as PlayerState;
 }
 
 describe('hideout v2 catalog', () => {
+  it('keeps the generator hidden until its room is built', () => {
+    const locked = hideoutCatalog(classicOgV07A, player());
+    expect(locked.generator).toBeUndefined();
+    expect(locked.rooms.find((room) => room.key === 'GENERATOR')).toMatchObject({ level: 0, maxLevel: 1 });
+
+    const built = hideoutCatalog(classicOgV07A, player({ hideoutGeneratorLevel: 1 }));
+    expect(built.generator).toBeDefined();
+  });
+
   it('exposes the Slice E Storage module and concrete next-level costs', () => {
     const catalog = hideoutCatalog(classicOgV07A, player({ scavengedComponents: {} }));
     const storage = catalog.rooms.find((room) => room.key === 'STORAGE')!;
