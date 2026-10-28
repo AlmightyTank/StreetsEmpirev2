@@ -143,6 +143,7 @@ type TraderOffer = {
   depth: number;
   locked: boolean;
   unlockLabel?: string | null;
+  unlockQuest?: { key: string; title: string } | null;
   maxBuy?: number;
 };
 
@@ -173,6 +174,7 @@ function ItemOptions({ rows }: { rows: ReadonlyArray<{ key: string; name: string
 
 function ListPanel({ book, busy, form, onForm, onPost }: Pick<PlayerBoardViewProps, 'book' | 'busy' | 'form' | 'onForm' | 'onPost'>) {
   const [itemMenuOpen, setItemMenuOpen] = useState(false);
+  const [itemQuery, setItemQuery] = useState('');
   const part: PlayerBoardListableDto | undefined = book.listable.find((row) => row.key === form.key) ?? book.listable[0];
   if (!part) {
     return <p className="se-board-empty">You have nothing eligible to list. Favors cannot be listed.</p>;
@@ -212,6 +214,10 @@ function ListPanel({ book, busy, form, onForm, onPost }: Pick<PlayerBoardViewPro
   const setAsk = (index: number, change: Partial<{ key: string; quantity: string }>) =>
     onForm({ ...form, ask: form.ask.map((line, at) => (at === index ? { ...line, ...change } : line)) });
   const firstFree = askable.find((row) => !form.ask.some((line) => line.key === row.key));
+  const pickerRows = book.listable.filter((row) => {
+    const needle = itemQuery.trim().toLocaleLowerCase();
+    return !needle || `${row.name} ${row.key}`.toLocaleLowerCase().includes(needle);
+  });
   function choosePart(next: PlayerBoardListableDto) {
     onForm({
       ...form, key: next.key, quantity: String(Math.min(Number(form.quantity) || 1, next.held)), price: (next.floorCents / 100).toFixed(2),
@@ -236,9 +242,11 @@ function ListPanel({ book, busy, form, onForm, onPost }: Pick<PlayerBoardViewPro
             <span>{part.name} ({formatNumber(part.held)} held)</span><span aria-hidden="true">⌄</span>
           </button>
           {itemMenuOpen ? <div id="board-part-options" className="se-board-item-picker__menu" role="listbox" aria-labelledby="board-part-label">
-            {book.listable.map((row) => <button key={row.key} type="button" role="option" aria-selected={row.key === part.key} className={`se-board-item-picker__option${row.key === part.key ? ' is-selected' : ''}`} onClick={() => choosePart(row)}>
-              <span>{row.name}</span><small>{formatNumber(row.held)} held</small>
-            </button>)}
+            <input className="se-input se-board-item-picker__search" type="search" aria-label="Search eligible items" placeholder="Search items" value={itemQuery} onChange={(event) => setItemQuery(event.target.value)} />
+             {pickerRows.map((row) => <button key={row.key} type="button" role="option" aria-selected={row.key === part.key} className={`se-board-item-picker__option${row.key === part.key ? ' is-selected' : ''}`} onClick={() => choosePart(row)}>
+               <span>{row.name}</span><small>{formatNumber(row.held)} held</small>
+             </button>)}
+            {pickerRows.length === 0 ? <p className="se-board-item-picker__empty">No eligible items match.</p> : null}
           </div> : null}
         </div>
       </div>
@@ -338,7 +346,7 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
   const productTraderRows: TraderOffer[] = (book.filter === 'ALL' || book.filter === 'PRODUCTS')
     ? pipProducts.flatMap((product) => [
       ...(product.market ? [{ key: `market:${product.key}`, product, category: 'PRODUCTS' as const, venue: 'market' as const, seller: 'High market', buyCents: product.market.buyCents, sellCents: product.market.sellCents, depth: product.market.depth, locked: false }] : []),
-      ...(product.pip ? [{ key: `store:${product.key}`, product, category: 'PRODUCTS' as const, venue: 'store' as const, seller: "Pip's counter", buyCents: product.pip.buyCents, sellCents: product.pip.sellCents, depth: product.pip.stock, locked: !product.pip.purchaseUnlocked, unlockLabel: product.pip.unlockName, maxBuy: product.pip.maxBuy }] : []),
+      ...(product.pip ? [{ key: `store:${product.key}`, product, category: 'PRODUCTS' as const, venue: 'store' as const, seller: "Pip's counter", buyCents: product.pip.buyCents, sellCents: product.pip.sellCents, depth: product.pip.stock, locked: !product.pip.purchaseUnlocked, unlockLabel: product.pip.unlockName, unlockQuest: product.pip.unlockQuest ? { key: product.pip.unlockQuest.key, title: product.pip.unlockQuest.title } : null, maxBuy: product.pip.maxBuy }] : []),
     ])
     : [];
   const listableCategories = new Map(book.listable.map((row) => [row.key, row.category]));
@@ -353,7 +361,7 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
     if (book.filter !== 'ALL' && book.filter !== filter) return [];
     const units = item.unitsPerOrder ?? 1;
     const offerCategory = filter === 'PARTS' || filter === 'CREW' || filter === 'SUPPLIES' ? filter : filter === 'CARS' ? 'CARS' : 'GUNS';
-    return [{ key: `store-item:${store.key}:${item.key}`, item, storeKey: store.key, category: offerCategory as TraderOffer['category'], venue: 'store' as const, seller: store.name, buyCents: item.buyCents, sellCents: item.sellCents ?? 0, depth: item.restock ? Math.floor(item.restock.stock / units) : item.maxBuy, locked: item.questLock?.unlocked === false || item.unlock?.unlocked === false, unlockLabel: item.questLock?.unlockName ?? item.unlock?.title, maxBuy: item.maxBuy }];
+    return [{ key: `store-item:${store.key}:${item.key}`, item, storeKey: store.key, category: offerCategory as TraderOffer['category'], venue: 'store' as const, seller: store.name, buyCents: item.buyCents, sellCents: item.sellCents ?? 0, depth: item.restock ? Math.floor(item.restock.stock / units) : item.maxBuy, locked: item.questLock?.unlocked === false || item.unlock?.unlocked === false, unlockLabel: item.questLock?.unlockName ?? item.unlock?.title, unlockQuest: item.questLock?.quest ? { key: item.questLock.quest.key, title: item.questLock.quest.title } : null, maxBuy: item.maxBuy }];
   }));
   const traderRows = [...productTraderRows, ...storeRows];
   function toggleMarketSort(key: MarketSortKey) {
@@ -469,7 +477,7 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
                             ? onMarketTrade?.(offer.product, direction, quantity, offer.venue)
                             : onStoreTrade?.(offer.storeKey!, offer.item!, direction, quantity);
                           return <tr key={offer.key} className={`se-market-trader-row${offer.locked ? ' se-market-trader-row--locked' : ''}`}>
-                            <td data-label="Item"><ItemLabel itemKey={itemKey} zoomable={false}><span className={`se-board-rarity se-board-rarity--${offer.category === 'PRODUCTS' ? 'product' : offer.category === 'KEEPER' ? 'keeper' : 'common'}`}>{productName}</span></ItemLabel>{offer.locked ? <small className="se-market-lock" title={offer.unlockLabel ?? 'Complete the required quest or mission'}>🔒 {offer.unlockLabel ? `Unlock: ${offer.unlockLabel}` : 'Locked'}</small> : null}</td>
+                            <td data-label="Item"><ItemLabel itemKey={itemKey} zoomable={false}><span className={`se-board-rarity se-board-rarity--${offer.category === 'PRODUCTS' ? 'product' : offer.category === 'KEEPER' ? 'keeper' : 'common'}`}>{productName}</span></ItemLabel>{offer.locked ? <small className="se-market-lock">🔒 {offer.unlockQuest ? <Link to={`/game/quests?focus=${encodeURIComponent(offer.unlockQuest.key)}`}>Unlock: {offer.unlockQuest.title}</Link> : offer.unlockLabel ? `Unlock: ${offer.unlockLabel}` : 'Locked'}</small> : null}</td>
                             <td data-label="Seller">{offer.seller}</td>
                             <td className="se-table__number se-num" data-label="Available">{formatNumber(offer.depth)}</td>
                             <td data-label="Price / unit"><span className="se-num">Buy {formatCentsExact(offer.buyCents)}</span><br /><span className="se-num">Sell {formatCentsExact(offer.sellCents)}</span></td>
