@@ -35,6 +35,7 @@ export const stores = {
    */
   CORNER: {
     slug: 'corner',
+    gangSlug: 'quiet-money',
     keeper: 'The clerk',
     name: 'Corner Store',
     blurb: 'Supplies. Keeps the girls stocked and the crew drinking.',
@@ -86,6 +87,7 @@ export const stores = {
 
   TOMMY: {
     slug: 'tommy',
+    gangSlug: 'red-hand',
     keeper: 'Tommy',
     name: "Tek9 Tommy's",
     blurb: 'Muscle and hardware. The heavy guns come in on Tommy’s schedule, not yours.',
@@ -152,6 +154,7 @@ export const stores = {
 
   CHARLIE: {
     slug: 'charlie',
+    gangSlug: 'chop-shop',
     keeper: 'Charlie',
     name: "Charlie's Chop Shop",
     blurb: 'Each Low-Rider can transport 6 Thugs. Charlie builds them one at a time.',
@@ -205,6 +208,7 @@ export const stores = {
    */
   PIP: {
     slug: 'pip',
+    gangSlug: 'cookhouse',
     keeper: 'Pip',
     name: "Pip's Deals on Wheels",
     blurb: 'Product in, product out. Selling at $3 preserves the net worth value.',

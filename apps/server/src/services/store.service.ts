@@ -59,6 +59,7 @@ import { applyTerritoryModifier, resolveTerritoryModifiers, territorySourcesForA
 import { consumeTerritoryAccessGrant } from './territory-access.service.js';
 import { NO_SKILL_EFFECTS, type SkillEffects } from './player-skill.service.js';
 import { IndividualItemsService } from './individual-items.service.js';
+import { recordGangEvent } from './gang-relationship.service.js';
 
 const MAX_CITY_CONDITION_CASH_CENTS = BigInt(Number.MAX_SAFE_INTEGER);
 
@@ -198,6 +199,34 @@ function shipmentDto(input: {
 
 function standingTierIndex(points: number, ruleset: Ruleset): number {
   return Math.max(0, ruleset.reputation.tiers.filter((tier) => points >= tier.at).length - 1);
+}
+
+async function recordGangTraderTrade(
+  db: Db,
+  roundId: string,
+  roundPlayerId: string,
+  gangSlug: string | undefined,
+  sourceId: string,
+  summary: string,
+  now: Date,
+): Promise<void> {
+  if (!gangSlug) return;
+  const gang = await db.encounterGang.findUnique({ where: { roundId_slug: { roundId, slug: gangSlug } }, select: { id: true } });
+  if (!gang) return;
+  await recordGangEvent(db, {
+    roundId,
+    gangId: gang.id,
+    roundPlayerId,
+    sourceKind: 'GANG_TRADE',
+    sourceId,
+    outcome: 'TRADE_COMPLETED',
+    scoreDelta: 0,
+    trustDelta: 1,
+    respectDelta: 1,
+    summary,
+    metadata: { gangSlug },
+    occurredAt: now,
+  });
 }
 
 export function specialOrderQuote(input: {
@@ -560,6 +589,16 @@ export const StoreService = {
     const ordered = await openSpecialOrders(prisma, roundPlayerId, now);
     // 1.5.0-E2: Sedans and Vans this crew has not opened yet.
     const lockedVehicles = await PermanentUnlockService.lockedVehicles(prisma, roundPlayerId, ruleset);
+    const gangs = options.round
+      ? await prisma.encounterGang.findMany({
+          where: { roundId: options.round.id, status: 'ACTIVE', slug: { in: Object.values(ruleset.stores).map((store) => store.gangSlug).filter((slug): slug is string => Boolean(slug)) } },
+          select: {
+            slug: true, bossName: true, crewName: true, crewTag: true,
+            playerRelationships: { where: { roundPlayerId }, select: { status: true, score: true, trustScore: true, respectScore: true, favorsCompleted: true, favorsOwed: true, betrayalCount: true, eventCount: true, lastEventAt: true }, take: 1 },
+          },
+        })
+      : [];
+    const gangBySlug = new Map(gangs.map((gang) => [gang.slug, gang]));
     const stores = Object.entries(ruleset.stores).map(([key, store]) => {
         const news: string[] = [];
         const items = Object.entries(store.items).map(([itemKey, item]) => {
@@ -640,12 +679,27 @@ export const StoreService = {
               : null,
           };
         });
+        const gang = store.gangSlug ? gangBySlug.get(store.gangSlug) : undefined;
         return {
           key, slug: store.slug, name: store.name, keeper: store.keeper, blurb: store.blurb,
           standing: tierFor(standings[key as TraderKey]?.points ?? 0, ruleset).name,
           reputation: standings[key as TraderKey]?.points ?? 0,
           restockSpeedup: Math.round(restockSpeedup(standings[key as TraderKey]?.points ?? 0, ruleset) * 100),
           relationship: relationshipState(standings[key as TraderKey]?.points ?? 0, ruleset, key as StoreKey),
+          gangTrader: gang ? {
+            gang: { slug: gang.slug, bossName: gang.bossName, crewName: gang.crewName, crewTag: gang.crewTag },
+            relationship: gang.playerRelationships[0] ? {
+              status: gang.playerRelationships[0].status as import('@streets/shared').GangRelationshipSummaryDto['status'],
+              hostilityScore: gang.playerRelationships[0].score,
+              trustScore: gang.playerRelationships[0].trustScore,
+              respectScore: gang.playerRelationships[0].respectScore,
+              favorsCompleted: gang.playerRelationships[0].favorsCompleted,
+              favorsOwed: gang.playerRelationships[0].favorsOwed,
+              betrayalCount: gang.playerRelationships[0].betrayalCount,
+              eventCount: gang.playerRelationships[0].eventCount,
+              lastEventAt: gang.playerRelationships[0].lastEventAt.toISOString(),
+            } : null,
+          } : null,
           ...(news.length ? { news: news.slice(0, 3) } : {}),
           items,
         };
@@ -742,7 +796,12 @@ export const StoreService = {
         // Being a regular. Paid once a day per trader however much you buy,
         // so standing tracks showing up rather than spending.
         const trader = normalizedInput.store as TraderKey;
-        const credit = creditDailyTrade(standings[trader], now, ruleset);
+         const credit = creditDailyTrade(standings[trader], now, ruleset);
+
+         if (credit.credited) await recordGangTraderTrade(
+           tx, round.id, roundPlayerId, foundStore?.store.gangSlug, input.actionId,
+           `${trade.storeName} completed a daily trade with the crew.`, now,
+         );
 
         if (discount && quote.favorApplies) await SingleUseFavorService.consume(tx, discount.id);
         const nudged = await logStoreNudge(tx, roundPlayerId, ruleset, quote, trade.unitCents, input.quantity, `store:${input.actionId ?? now.toISOString()}`, now);
@@ -1045,6 +1104,14 @@ export const StoreService = {
         }
 
         if (discount && discountApplied) await SingleUseFavorService.consume(tx, discount.id);
+
+        for (const trader of creditedTraders) {
+          await recordGangTraderTrade(
+            tx, round.id, roundPlayerId, ruleset.stores[trader].gangSlug,
+            `${input.actionId}:${trader}`,
+            `${ruleset.stores[trader].name} completed a daily checkout with the crew.`, now,
+          );
+        }
 
         const cashChangeCents = results.reduce((sum, line) => sum + line.cashChangeCents, 0);
         const totalCents = results.reduce((sum, line) => sum + line.totalCents, 0);

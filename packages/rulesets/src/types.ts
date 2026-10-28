@@ -1465,6 +1465,8 @@ export interface StoreItem {
 
 export interface Store {
   readonly slug: string;
+  /** Optional shared-world gang represented by this trader in Nemesis-enabled rounds. */
+  readonly gangSlug?: string;
   readonly name: string;
   /** Who is behind the counter. Used when the shop talks about its stock. */
   readonly keeper: string;

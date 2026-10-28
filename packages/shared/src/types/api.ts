@@ -1870,6 +1870,16 @@ export interface GangRelationshipSummaryDto {
   lastEventAt: string;
 }
 
+export interface GangTraderDto {
+  gang: {
+    slug: string;
+    bossName: string;
+    crewName: string;
+    crewTag: string;
+  };
+  relationship: GangRelationshipSummaryDto | null;
+}
+
 export interface GangInvestigationDto extends GangIntelDto {
   id: string;
   clues: Array<{ text: string; observedAt: string }>;
@@ -2667,6 +2677,8 @@ export interface StoreDto {
   restockSpeedup: number;
   /** 0.8.0-D. Current and next ruleset-defined relationship benefit. */
   relationship?: StoreRelationshipDto;
+  /** The named gang represented by this trader, when the round enables gang traders. */
+  gangTrader?: GangTraderDto | null;
   /** 0.8.0-E. Trader-facing headlines about fresh stock and shortages. */
   news?: string[];
   items: StoreItemDto[];
