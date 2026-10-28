@@ -392,7 +392,7 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
                 ) : (
                   <div className="se-tablewrap se-market-tablewrap">
                     <table className="se-table se-board-book se-market-table">
-                       <thead><tr><th>Item</th><th>Seller</th><th className="se-table__number">Available</th><th>Price / unit</th><th>Ends</th><th><span className="se-sr-only">Action</span></th></tr></thead>
+                       <thead><tr><th>Item</th><th>Seller</th><th className="se-table__number">Qty</th><th>Price</th><th>Ends</th><th>Action</th></tr></thead>
                       <tbody>
                         {visibleRows.map((row) => (
                            <tr key={row.id} className={row.mine ? 'se-board-book__mine' : undefined}>
