@@ -44,7 +44,7 @@ export function parseDollarsToCents(value: string): number | null {
   return Number(match[1]) * 100 + Number((match[2] ?? '').padEnd(2, '0'));
 }
 
-const FILTERS: ReadonlyArray<readonly [PlayerBoardFilterDto, string]> = [['ALL', 'All items'], ['PRODUCTS', 'Drugs'], ['KEEPER', 'Guns & cars'], ['PARTS', 'Parts']];
+const FILTERS: ReadonlyArray<readonly [PlayerBoardFilterDto, string]> = [['ALL', 'All items'], ['PRODUCTS', 'Drugs'], ['SUPPLIES', 'Supplies'], ['KEEPER', 'Guns & cars'], ['PARTS', 'Parts']];
 const STATUS_LABEL: Record<PlayerBoardOfferDto['status'], string> = { OPEN: 'Up', SOLD: 'Sold', CANCELLED: 'Cancelled', EXPIRED: 'Expired' };
 const BOARD_UNLOCK_QUEST_KEYS = ['ML_M09_TWO_BUYERS', 'ML_M10_FAVOR_ALREADY_PAID'] as const;
 function closesIn(iso: string, now: number): string {
@@ -135,7 +135,7 @@ type TraderOffer = {
   product?: ProductStockDto;
   item?: StoreItemDto;
   storeKey?: string;
-  category: 'PRODUCTS' | 'KEEPER' | 'PARTS' | 'SUPPLY';
+  category: 'PRODUCTS' | 'KEEPER' | 'PARTS' | 'SUPPLIES';
   venue: 'market' | 'store';
   seller: string;
   buyCents: number;
@@ -333,9 +333,10 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
   const listableCategories = new Map(book.listable.map((row) => [row.key, row.category]));
   const storeRows: TraderOffer[] = (storeCatalog?.stores ?? []).flatMap((store) => store.items.flatMap((item) => {
     const category = listableCategories.get(item.key) ?? (['PISTOL', 'SHOTGUN', 'TEK9', 'AK47', 'LOW_RIDER', 'SEDAN', 'VAN'].includes(item.key) ? 'KEEPER' : 'SUPPLY');
-    if (book.filter !== 'ALL' && (book.filter !== category + (category === 'PRODUCT' ? 'S' : '') || category === 'SUPPLY')) return [];
+    const filter = category === 'PART' ? 'PARTS' : category === 'PRODUCT' ? 'PRODUCTS' : category === 'KEEPER' ? 'KEEPER' : 'SUPPLIES';
+    if (book.filter !== 'ALL' && book.filter !== filter) return [];
     const units = item.unitsPerOrder ?? 1;
-    return [{ key: `store-item:${store.key}:${item.key}`, item, storeKey: store.key, category: category === 'KEEPER' ? 'KEEPER' as const : category === 'PART' ? 'PARTS' as const : 'SUPPLY' as const, venue: 'store' as const, seller: store.name, buyCents: item.buyCents, sellCents: item.sellCents ?? 0, depth: item.restock ? Math.floor(item.restock.stock / units) : item.maxBuy, locked: item.questLock?.unlocked === false || item.unlock?.unlocked === false, unlockLabel: item.questLock?.unlockName ?? item.unlock?.title, maxBuy: item.maxBuy }];
+    return [{ key: `store-item:${store.key}:${item.key}`, item, storeKey: store.key, category: category === 'KEEPER' ? 'KEEPER' as const : category === 'PART' ? 'PARTS' as const : 'SUPPLIES' as const, venue: 'store' as const, seller: store.name, buyCents: item.buyCents, sellCents: item.sellCents ?? 0, depth: item.restock ? Math.floor(item.restock.stock / units) : item.maxBuy, locked: item.questLock?.unlocked === false || item.unlock?.unlocked === false, unlockLabel: item.questLock?.unlockName ?? item.unlock?.title, maxBuy: item.maxBuy }];
   }));
   const traderRows = [...productTraderRows, ...storeRows];
   async function confirmMarketTrade(itemName: string, direction: 'buy' | 'sell', quantity: number, unitPriceCents: number, trade: () => void) {
