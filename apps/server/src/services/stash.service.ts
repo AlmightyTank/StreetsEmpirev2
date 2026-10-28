@@ -9,7 +9,7 @@ export function stashDimensions(storageLevel = 0): { columns: number; rows: numb
   return { columns: COLUMNS + Math.max(0, storageLevel) * 2, rows: ROWS + Math.max(0, storageLevel) };
 }
 const FOOTPRINTS: Record<StashItemKeyDto, readonly [number, number]> = {
-  CONDOM: [1, 1], PREMIUM_CONDOM: [1, 1], MEDICINE: [1, 1], BEER: [1, 1], HOUSE_BREW: [1, 1], AMMO_BOX: [1, 1], PARTS_BOX: [1, 1],
+  CONDOM: [1, 1], PREMIUM_CONDOM: [1, 1], MEDICINE: [1, 1], FIELD_FIRST_AID: [1, 1], RAG_DRESSING: [1, 1], BEER: [1, 1], HOUSE_BREW: [1, 1], AMMO_BOX: [1, 1], PARTS_BOX: [1, 1],
   PISTOL: [1, 1], SHOTGUN: [2, 1], TEK9: [2, 1], AK47: [2, 1],
   LOW_RIDER: [2, 1], SEDAN: [2, 1], VAN: [2, 1],
   SCRAP_METAL: [1, 1], WIRING: [1, 1], TOOL_KIT: [1, 1], BOTTLES: [1, 1], LABELS: [1, 1],
@@ -20,7 +20,7 @@ const FOOTPRINTS: Record<StashItemKeyDto, readonly [number, number]> = {
 for (const component of COMPONENTS) FOOTPRINTS[component.key as StashItemKeyDto] = [1, 1];
 type Position = { key: StashItemKeyDto; x: number; y: number };
 type PlayerStash = {
-  condoms: number; medicine: number; beer: number; premiumCondoms?: number; houseBrew?: number; ammo: number; vehicleParts: number;
+  condoms: number; medicine: number; fieldFirstAidKits?: number; ragDressings?: number; beer: number; premiumCondoms?: number; houseBrew?: number; ammo: number; vehicleParts: number;
   pistols: number; shotguns: number; tek9s: number; ak47s: number; lowRiders: number; sedans: number; vans: number;
   stashLayout: Prisma.JsonValue;
   scavengedComponents?: Prisma.JsonValue;
@@ -29,7 +29,7 @@ type PlayerStash = {
 
 function ownedItems(player: PlayerStash): Array<{ key: StashItemKeyDto; quantity: number }> {
   const legacy = ([
-    ['CONDOM', player.condoms], ['PREMIUM_CONDOM', player.premiumCondoms ?? 0], ['MEDICINE', player.medicine], ['BEER', player.beer], ['HOUSE_BREW', player.houseBrew ?? 0],
+    ['CONDOM', player.condoms], ['PREMIUM_CONDOM', player.premiumCondoms ?? 0], ['MEDICINE', player.medicine], ['FIELD_FIRST_AID', player.fieldFirstAidKits ?? 0], ['RAG_DRESSING', player.ragDressings ?? 0], ['BEER', player.beer], ['HOUSE_BREW', player.houseBrew ?? 0],
     ['AMMO_BOX', player.ammo], ['PARTS_BOX', player.vehicleParts],
     ['PISTOL', player.pistols], ['SHOTGUN', player.shotguns], ['TEK9', player.tek9s], ['AK47', player.ak47s],
     ['LOW_RIDER', player.lowRiders], ['SEDAN', player.sedans], ['VAN', player.vans],
@@ -124,14 +124,14 @@ export function canFitAdditionalStack(stash: StashDto, key: StashItemKeyDto): bo
 
 export const StashService = {
   async page(prisma: PrismaClient | Prisma.TransactionClient, roundPlayerId: string): Promise<StashDto> {
-    const player = await prisma.roundPlayer.findUnique({ where: { id: roundPlayerId }, select: { condoms: true, premiumCondoms: true, medicine: true, beer: true, houseBrew: true, ammo: true, vehicleParts: true, pistols: true, shotguns: true, tek9s: true, ak47s: true, lowRiders: true, sedans: true, vans: true, stashLayout: true, scavengedComponents: true, hideoutStorageLevel: true } });
+    const player = await prisma.roundPlayer.findUnique({ where: { id: roundPlayerId }, select: { condoms: true, premiumCondoms: true, medicine: true, fieldFirstAidKits: true, ragDressings: true, beer: true, houseBrew: true, ammo: true, vehicleParts: true, pistols: true, shotguns: true, tek9s: true, ak47s: true, lowRiders: true, sedans: true, vans: true, stashLayout: true, scavengedComponents: true, hideoutStorageLevel: true } });
     if (!player) throw AppError.notFound('PLAYER_NOT_FOUND', 'Player not found.');
     return buildDto(player, undefined);
   },
 
   async saveLayout(prisma: PrismaClient, roundPlayerId: string, input: UpdateStashLayoutInput): Promise<StashDto> {
     return prisma.$transaction(async (tx) => {
-      const player = await tx.roundPlayer.findUnique({ where: { id: roundPlayerId }, select: { condoms: true, premiumCondoms: true, medicine: true, beer: true, houseBrew: true, ammo: true, vehicleParts: true, pistols: true, shotguns: true, tek9s: true, ak47s: true, lowRiders: true, sedans: true, vans: true, stashLayout: true, scavengedComponents: true, hideoutStorageLevel: true } });
+      const player = await tx.roundPlayer.findUnique({ where: { id: roundPlayerId }, select: { condoms: true, premiumCondoms: true, medicine: true, fieldFirstAidKits: true, ragDressings: true, beer: true, houseBrew: true, ammo: true, vehicleParts: true, pistols: true, shotguns: true, tek9s: true, ak47s: true, lowRiders: true, sedans: true, vans: true, stashLayout: true, scavengedComponents: true, hideoutStorageLevel: true } });
       if (!player) throw AppError.notFound('PLAYER_NOT_FOUND', 'Player not found.');
       const result = buildDto(player, input);
       const layout: Position[] = result.items.map(({ key, x, y }) => ({ key, x, y }));

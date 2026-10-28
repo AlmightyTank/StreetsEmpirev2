@@ -95,6 +95,8 @@ export interface PlayerState {
   /** Workshop goods. Each covers three uses and carries a small bad-batch risk. */
   premiumCondoms?: number;
   houseBrew?: number;
+  fieldFirstAidKits?: number;
+  ragDressings?: number;
 
   pistols: number;
   shotguns: number;
@@ -302,6 +304,8 @@ export function toState(player: RoundPlayer): PlayerState {
     beer: player.beer,
     premiumCondoms: player.premiumCondoms,
     houseBrew: player.houseBrew,
+    fieldFirstAidKits: player.fieldFirstAidKits,
+    ragDressings: player.ragDressings,
     pistols: player.pistols,
     shotguns: player.shotguns,
     tek9s: player.tek9s,
@@ -402,6 +406,8 @@ function toSnapshot(
       unarmedThugs: Math.max(0, fitThugs(state) - armedThugsForSnapshot(state)),
       condoms: state.condoms,
       medicine: state.medicine,
+      fieldFirstAidKits: state.fieldFirstAidKits ?? 0,
+      ragDressings: state.ragDressings ?? 0,
       product: state.crack,
       crack: state.crack,
       beer: state.beer,

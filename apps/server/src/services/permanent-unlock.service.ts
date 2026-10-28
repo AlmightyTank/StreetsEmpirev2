@@ -147,4 +147,5 @@ export const PermanentUnlockService = {
     const required = (await PermanentUnlockService.lockedProducts(db, roundPlayerId, ruleset)).get(productKey);
     if (required) throw AppError.conflict('PRODUCT_PURCHASE_LOCKED', `Complete the required job to unlock ${required.name}.`);
   },
+
 };

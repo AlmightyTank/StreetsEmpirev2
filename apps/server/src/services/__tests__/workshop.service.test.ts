@@ -5,7 +5,7 @@ import { playerBoardPartBookCents } from '@streets/rules-engine';
 import { salvagePrice } from '../salvage-yard.service.js';
 import { componentStacksOpened, craftingRecipes, previewCraftComponents, reconcileWaterFilters, scaleCraftRecipe, spendWaterFilter, workshopSkill } from '../workshop.service.js';
 
-const STASH_OUTPUTS = new Set(['CONDOM', 'PREMIUM_CONDOM', 'MEDICINE', 'BEER', 'HOUSE_BREW', 'AMMO_BOX', 'PARTS_BOX']);
+const STASH_OUTPUTS = new Set(['CONDOM', 'PREMIUM_CONDOM', 'MEDICINE', 'FIELD_FIRST_AID', 'RAG_DRESSING', 'BEER', 'HOUSE_BREW', 'AMMO_BOX', 'PARTS_BOX']);
 
 function book(key: string): number {
   const cents = playerBoardPartBookCents(key, classicOgV26J);

@@ -519,6 +519,8 @@ export type CrewTurfMoveMembersInput = z.infer<typeof crewTurfMoveMembersSchema>
 export const productTradeSchema = z.object({
   product: z.string().trim().toUpperCase().regex(/^[A-Z][A-Z0-9_]{1,31}$/, 'Pick a product.'),
   direction: z.enum(['buy', 'sell']),
+  venue: z.enum(['pip', 'market']).default('pip'),
+  quoteCents: z.number().int().nonnegative().optional(),
   quantity: z.number({ invalid_type_error: 'Enter a quantity.' })
     .int('Quantity must be a whole number.').positive('Enter at least one.').max(MAX_ORDER_QUANTITY, 'That order is too large.'),
   actionId: actionIdSchema,

@@ -2180,6 +2180,8 @@ model RoundPlayer {
   /// Workshop goods. One premium condom or one House Brew covers three uses, with a small chance of a bad batch.
   premiumCondoms Int @default(0)
   houseBrew      Int @default(0)
+  fieldFirstAidKits Int @default(0)
+  ragDressings     Int @default(0)
 
   pistols  Int @default(0)
   shotguns Int @default(0)

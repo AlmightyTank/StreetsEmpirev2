@@ -36,6 +36,8 @@ export const ITEM_ART = {
   // Corner Store
   CONDOM: { name: 'Condoms', shortName: 'Condoms', category: 'SUPPLY', rarity: 'COMMON', file: 'condoms.svg', cells: ONE },
   MEDICINE: { name: 'Medicine', shortName: 'Meds', category: 'SUPPLY', rarity: 'COMMON', file: 'medicine.svg', cells: ONE },
+  FIELD_FIRST_AID: { name: 'Field first-aid kit', shortName: 'First aid', category: 'SUPPLY', rarity: 'UNCOMMON', file: 'field-first-aid.svg', cells: ONE, purpose: 'Treats two wounded thugs.' },
+  RAG_DRESSING: { name: 'Rag dressing', shortName: 'Rag dress', category: 'SUPPLY', rarity: 'COMMON', file: 'rag-dressing.svg', cells: ONE, purpose: 'Two dressings treat one wounded thug.' },
   BEER: { name: 'Beer', shortName: 'Beer', category: 'SUPPLY', rarity: 'COMMON', file: 'beer.svg', cells: ONE },
   // Workshop goods. Each covers three uses, with a small chance of a bad batch.
   PREMIUM_CONDOM: { name: 'Premium condoms', shortName: 'Premium', category: 'SUPPLY', rarity: 'UNCOMMON', file: 'premium-condoms.svg', cells: ONE, purpose: 'Each pack covers three uses. A small chance a batch goes bad and leaves the girls unprotected.' },
