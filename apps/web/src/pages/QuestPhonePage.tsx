@@ -244,7 +244,7 @@ export function QuestPhonePage() {
     const focus = params.get('focus') ?? hashFocus;
     if (focus) {
       const quest = page.quests.find((entry) => entry.key === focus);
-      if (quest?.contactKey) {
+      if (view !== 'unlocks' && quest?.contactKey) {
         navigate(contactRoomHref(quest.contactKey), { replace: true });
         return;
       }
@@ -252,7 +252,19 @@ export function QuestPhonePage() {
     if (params.has('tab')) {
       navigate(`/game/quests?view=${params.get('tab') === 'completed' ? 'history' : 'jobs'}`, { replace: true });
     }
-  }, [location.hash, location.search, navigate, page]);
+  }, [location.hash, location.search, navigate, page, view]);
+
+  useEffect(() => {
+    if (view !== 'unlocks' || !page) return;
+    const focus = new URLSearchParams(location.search).get('focus');
+    if (!focus) return;
+    const unlock = page.questUnlocks?.find((entry) => entry.key === focus || entry.quest.key === focus);
+    if (!unlock) return;
+    const frame = window.requestAnimationFrame(() => {
+      document.getElementById(`quest-unlock-${unlock.key}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [location.search, page, view]);
 
   const contacts = useMemo(() => {
     if (!page) return [];
@@ -283,6 +295,10 @@ export function QuestPhonePage() {
     return !query || [unlock.name, unlock.description, unlock.category, unlock.quest.title, unlock.quest.giverName ?? '']
       .some((part) => part.toLocaleLowerCase().includes(query));
   });
+  const focus = new URLSearchParams(location.search).get('focus');
+  const focusedUnlockKey = view === 'unlocks'
+    ? filteredUnlocks.find((unlock) => unlock.key === focus || unlock.quest.key === focus)?.key ?? null
+    : null;
 
   async function toggleTracking(job: QuestPageDto['quests'][number]) {
     setTrackingKey(job.key);
@@ -472,7 +488,7 @@ export function QuestPhonePage() {
                         : unlock.questStatus === 'COMPLETED' ? 'Job completed'
                           : unlock.questStatus === 'LOCKED' ? 'Job locked' : 'Not available';
                 return (
-                  <article className={`se-quest-phone__unlock${unlock.unlocked ? ' is-open' : ''}`} key={unlock.key}>
+                   <article id={`quest-unlock-${unlock.key}`} className={`se-quest-phone__unlock${unlock.unlocked ? ' is-open' : ''}${unlock.key === focusedUnlockKey ? ' is-focused' : ''}`} key={unlock.key}>
                     <div className="se-quest-phone__unlock-head">
                       <div><span className="se-eyebrow">{unlock.category}</span><h3>{unlock.name}</h3></div>
                       <span className="se-quest-phone__unlock-status">{status}</span>

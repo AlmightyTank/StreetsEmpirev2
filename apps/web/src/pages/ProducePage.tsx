@@ -228,7 +228,7 @@ export function ProducePage() {
                       <LockedChoiceOverlay requirement={`Unlock ${locked.product.name} through a quest.`}>
                          {locked.quest
                            ? <>Finish <QuestLink quest={locked.quest} view="unlocks" /> to unlock.</>
-                          : <>{locked.unlockDescription} <Link className="se-golink" to="/game/quests">See jobs</Link></>}
+                           : <>{locked.unlockDescription} <Link className="se-golink" to="/game/quests?view=unlocks">See unlocks</Link></>}
                       </LockedChoiceOverlay>
                     </li>
                   ))}

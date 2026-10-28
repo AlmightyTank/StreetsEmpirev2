@@ -18,12 +18,12 @@ export function QuestLink({ quest, view = 'jobs' }: { quest: QuestLinkDto; view?
 
 /**
  * 1.5.0-E2. What every locked shelf says: the unlock, and the job that opens it. Falls back to
- * the jobs board when no single job grants it.
+ * the unlock lookup when no single job grants it.
  */
 export function QuestLockNote({ unlockName, quest, after }: { unlockName: string; quest: QuestLinkDto | null | undefined; after?: string }) {
   return (
     <p className="se-hint">
-      {quest ? <>Finish <QuestLink quest={quest} /> to unlock {unlockName}.</> : <>Earn {unlockName} through <Link className="se-golink" to="/game/quests">underworld contacts</Link>.</>}
+      {quest ? <>Finish <QuestLink quest={quest} view="unlocks" /> to unlock {unlockName}.</> : <>Earn {unlockName} through <Link className="se-golink" to="/game/quests?view=unlocks">underworld contacts</Link>.</>}
       {after ? ` ${after}` : ''}
     </p>
   );

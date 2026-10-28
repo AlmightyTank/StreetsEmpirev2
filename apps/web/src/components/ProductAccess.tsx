@@ -76,7 +76,7 @@ export function ProductRecipeNote({ product }: { product: ProductStockDto }) {
       <p className="se-hint">
         {product.recipeAccess.unlockQuest
            ? <>Finish <QuestLink quest={product.recipeAccess.unlockQuest} view="unlocks" /> to cook {product.name} yourself.</>
-          : <>Earn the {product.recipeAccess.unlockName} through <Link className="se-golink" to="/game/quests">underworld contacts</Link> to cook it yourself.</>}
+           : <>Earn the {product.recipeAccess.unlockName} through <Link className="se-golink" to="/game/quests?view=unlocks">underworld contacts</Link> to cook it yourself.</>}
       </p>
     );
   }

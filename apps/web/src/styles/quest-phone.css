@@ -106,6 +106,7 @@
 .se-quest-phone__unlock-list { display: grid; gap: 8px; }
 .se-quest-phone__unlock { min-width: 0; padding: 13px; border: 1px solid var(--se-line); border-radius: 10px; background: var(--se-panel); }
 .se-quest-phone__unlock.is-open { border-color: color-mix(in srgb, var(--se-good) 42%, var(--se-line)); }
+.se-quest-phone__unlock.is-focused { border-color: var(--se-accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--se-accent) 24%, transparent); }
 .se-quest-phone__unlock-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
 .se-quest-phone__unlock h3 { margin: 2px 0 0; color: var(--se-text); font-size: 15px; }
 .se-quest-phone__unlock-status { flex: 0 0 auto; padding: 4px 7px; border: 1px solid var(--se-line); border-radius: 999px; color: var(--se-text-dim); font-size: 10px; font-weight: 700; }
