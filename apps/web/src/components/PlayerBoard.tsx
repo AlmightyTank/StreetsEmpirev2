@@ -189,9 +189,16 @@ function ListPanel({ book, busy, form, onForm, onPost }: Pick<PlayerBoardViewPro
   const setAsk = (index: number, change: Partial<{ key: string; quantity: string }>) =>
     onForm({ ...form, ask: form.ask.map((line, at) => (at === index ? { ...line, ...change } : line)) });
   const firstFree = askable.find((row) => !form.ask.some((line) => line.key === row.key));
+  async function confirmPost() {
+    if (reason) return;
+    const breakdown = barter
+      ? `You offer ${askSummary(askLines.map((line) => ({ name: line.item!.name, quantity: line.units })))} for ${formatNumber(quantity)} × ${part!.name}. Posting fee: ${formatCentsExact(fee ?? 0)}${tax > 0 ? `; tax: ${formatCentsExact(tax)}` : ''}.`
+      : `You list ${formatNumber(quantity)} × ${part!.name} at ${formatCentsExact(price!)} each. Gross sale: ${formatCentsExact(price! * quantity)}. Posting fee: ${formatCentsExact(fee ?? 0)}${tax > 0 ? `; tax: ${formatCentsExact(tax)}` : ''}.`;
+    if (await confirmAction({ title: 'Post this market offer?', body: breakdown, confirmLabel: 'Post offer' })) onPost();
+  }
 
   return (
-    <form className="se-board-list" onSubmit={(event) => { event.preventDefault(); if (!reason) onPost(); }}>
+    <form className="se-board-list" onSubmit={(event) => { event.preventDefault(); void confirmPost(); }}>
       <div className="se-field">
         <label className="se-label" htmlFor="board-part">Item</label>
         <select id="board-part" className="se-input" value={part.key}
@@ -321,10 +328,18 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
     const total = quantity * unitPriceCents;
     const ok = await confirmAction({
       title: `${direction === 'buy' ? 'Buy' : 'Sell'} ${formatNumber(quantity)} × ${itemName}?`,
-      body: direction === 'buy' ? `The high market asks ${formatCentsExact(total)}.` : `The high market pays ${formatCentsExact(total)}.`,
+      body: `${formatNumber(quantity)} × ${itemName} at ${formatCentsExact(unitPriceCents)} each. ${direction === 'buy' ? `Total: ${formatCentsExact(total)}.` : `You receive: ${formatCentsExact(total)}.`}`,
       confirmLabel: direction === 'buy' ? `Pay ${formatCentsExact(total)}` : `Sell for ${formatCentsExact(total)}`,
     });
     if (ok) trade();
+  }
+
+  async function confirmListingPurchase(row: PlayerBoardRowDto, units: number) {
+    const fee = boardRowTopUpCents(row, units, book.rules);
+    const goods = row.priceKind === 'BARTER'
+      ? `Trade: ${askSummary(row.ask.map((line) => ({ name: line.name, quantity: line.quantity * (units / row.lotSize) })))}${fee > 0 ? ` plus ${formatCentsExact(fee)} Board top-up` : ''}.`
+      : `${formatNumber(units)} × ${row.name} at ${formatCentsExact(row.unitPriceCents)} each. Total: ${formatCentsExact(row.unitPriceCents * units + fee)}${fee > 0 ? ` including ${formatCentsExact(fee)} Board fee` : ''}.`;
+    if (await confirmAction({ title: `Buy ${formatNumber(units)} × ${row.name}?`, body: goods, confirmLabel: 'Confirm purchase' })) onBuy(row, units);
   }
 
   return (
@@ -426,7 +441,7 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
                     ) : null}
                     {!selectedRow.mine && selectedUnits !== null ? <p className="se-market-inspector__total">You pay <strong>{formatCentsExact(selectedCash)}</strong>{selectedFee > 0 ? ' including Board fee' : ''}</p> : null}
                     {selectedRow.mine ? <p className="se-hint">This is your listing. Manage it under My listings.</p> : (
-                      <Button variant="primary" disabledReason={buyBlocker(selectedRow, book, busy, selectedUnits)} onClick={() => onBuy(selectedRow, selectedUnits!)}>
+                       <Button variant="primary" disabledReason={buyBlocker(selectedRow, book, busy, selectedUnits)} onClick={() => { if (selectedUnits !== null) void confirmListingPurchase(selectedRow, selectedUnits); }}>
                         {selectedRow.priceKind === 'BARTER' ? 'Complete trade' : 'Buy listing'}
                       </Button>
                     )}
@@ -436,9 +451,9 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
             </div>
 
             {pipProducts.some((product) => product.market) ? <section className="se-board-section se-market-traders" aria-labelledby="board-traders">
-              <div className="se-stores-sectionhead">
-                <div><span className="se-eyebrow">High market</span><h2 id="board-traders">Local market prices</h2></div>
-                <p>The same shared bulk market used by runs. Every trade moves the quote.</p>
+              <div className="se-market-results__heading">
+                <div><span className="se-eyebrow">Trader listings</span><h2 id="board-traders">Market traders</h2></div>
+                <span>High market · prices move with every trade</span>
               </div>
               <div className="se-tablewrap"><table className="se-table se-table--cards"><thead><tr><th>Trader</th><th>Item</th><th>Price</th><th>Stock</th><th /></tr></thead><tbody>
                 {pipProducts.filter((product) => product.market).map((product) => {
