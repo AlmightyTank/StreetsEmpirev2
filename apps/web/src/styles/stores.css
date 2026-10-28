@@ -2169,7 +2169,7 @@
 .se-market-category.is-active { color: var(--se-text); background: color-mix(in srgb, var(--se-accent) 12%, transparent); box-shadow: inset 3px 0 var(--se-accent); font-weight: 700; }
 .se-market-results { overflow: hidden; }
 .se-market-controls { grid-template-columns: minmax(0, 1fr) minmax(152px, 190px); gap: 8px; margin: 0; padding: 10px; border-bottom: 1px solid var(--se-line-soft); }
-.se-market-controls .se-field > span { margin: 0; }
+.se-market-results .se-market-controls .se-field > span { margin: 0; }
 .se-market-search .se-input,
 .se-market-sort .se-input { min-height: 40px; }
 .se-market-results__heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 14px 10px; }
@@ -2516,19 +2516,6 @@
   width: 76px;
 }
 
-@media (max-width: 680px) {
-  .se-table--cards td.se-market-buy-controls {
-    justify-content: stretch;
-  }
-
-  .se-table--cards td.se-market-buy-controls .se-btn {
-    flex: 1;
-    width: auto;
-  }
-}
-
-
-
 /* Board trader quantity controls stay compact inside phone cards. */
 .se-market-buy-controls {
   min-width: 0;
@@ -2554,6 +2541,12 @@
     width: auto;
     min-width: 0;
     white-space: nowrap;
+  }
+}
+
+@media (max-width: 680px) {
+  .se-table--cards td.se-market-buy-controls {
+    justify-content: stretch;
   }
 }
 

@@ -46,7 +46,7 @@ export type WeaponKey = 'PISTOL' | 'SHOTGUN' | 'TEK9' | 'AK47';
 export type WeaponPriority = 'POWER' | 'CONSERVE';
 export type WeaponUnlockKey = 'SHOTGUN' | 'TEK9' | 'AK47';
 export type BaseHideoutRoomKey = 'SAFE_ROOM' | 'LOOKOUTS' | 'WORKSHOP' | 'BACK_OFFICE';
-export type HideoutRoomKey = BaseHideoutRoomKey | 'GARAGE';
+export type HideoutRoomKey = BaseHideoutRoomKey | 'GARAGE' | 'GENERATOR';
 
 /**
  * What a shopkeeper wants before he will sell you the heavy stuff.
@@ -2693,7 +2693,7 @@ export interface HeatRules {
 export type ProductCatalog = { readonly CRACK: ProductDefinition } & { readonly [key: string]: ProductDefinition };
 
 export interface HideoutRules {
-  readonly rooms: { readonly [K in BaseHideoutRoomKey]: HideoutRoomRule } & { readonly GARAGE?: HideoutRoomRule };
+  readonly rooms: { readonly [K in BaseHideoutRoomKey]: HideoutRoomRule } & { readonly GARAGE?: HideoutRoomRule; readonly GENERATOR?: HideoutRoomRule };
   readonly buffs: {
     readonly safeRoomProtectedCashCentsPerLevel: number;
     readonly lookoutsDefenseBonusPercentPerLevel: number;

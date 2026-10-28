@@ -62,7 +62,13 @@
 }
 
 .se-item-tile__name { top: 3px; }
-.se-item-tile__qty { bottom: 3px; color: #fff; font-size: 11px; }
+.se-item-tile__qty {
+  bottom: 3px;
+  color: var(--se-text);
+  font-size: 11px;
+  background: transparent;
+  text-shadow: 0 1px 1px var(--se-overlay-mix);
+}
 
 /* Can't be bought yet (a locked gun, an unopened product). */
 .se-item-tile--locked { --se-item-tint: 90, 96, 106; }

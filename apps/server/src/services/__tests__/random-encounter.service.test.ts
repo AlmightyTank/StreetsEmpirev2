@@ -32,6 +32,7 @@ const state: PlayerState = {
   tek9s: 0,
   ak47s: 0,
   lowRiders: 0,
+  hideoutGeneratorLevel: 0,
   sedans: 0,
   vans: 0,
   damagedLowRiders: 0,

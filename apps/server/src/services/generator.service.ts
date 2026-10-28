@@ -8,6 +8,7 @@ const MAX_CAPACITY_LEVEL = 3;
 const MAX_EFFICIENCY_LEVEL = 2;
 
 type GeneratorRow = {
+  hideoutGeneratorLevel: number;
   generatorPowered: boolean;
   generatorFuel: number;
   generatorCapacityLevel: number;
@@ -69,12 +70,17 @@ export function consumeGeneratorFuel<T extends { generatorPowered?: boolean; gen
   return { ...state, generatorFuel: fuel - fuelUsed, generatorPowered: fuel > fuelUsed };
 }
 
-const select = { generatorPowered: true, generatorFuel: true, generatorCapacityLevel: true, generatorEfficiencyLevel: true, scavengedComponents: true } as const;
+const select = { hideoutGeneratorLevel: true, generatorPowered: true, generatorFuel: true, generatorCapacityLevel: true, generatorEfficiencyLevel: true, scavengedComponents: true } as const;
+
+function assertBuilt(row: Pick<GeneratorRow, 'hideoutGeneratorLevel'>): void {
+  if (row.hideoutGeneratorLevel < 1) throw AppError.conflict('GENERATOR_LOCKED', 'Build the level 1 Generator room before using the generator.');
+}
 
 export const GeneratorService = {
   async page(prisma: PrismaClient, roundPlayerId: string): Promise<HideoutGeneratorDto> {
     const row = await prisma.roundPlayer.findUnique({ where: { id: roundPlayerId }, select });
     if (!row) throw AppError.notFound('PLAYER_NOT_FOUND', 'Player not found.');
+    assertBuilt(row);
     return generatorDto(row);
   },
 
@@ -82,6 +88,7 @@ export const GeneratorService = {
     return prisma.$transaction(async (tx) => {
       const row = await tx.roundPlayer.findUnique({ where: { id: roundPlayerId }, select: { ...select, cashCents: true } });
       if (!row) throw AppError.notFound('PLAYER_NOT_FOUND', 'Player not found.');
+      assertBuilt(row);
       const balances = componentBalances(row.scavengedComponents);
       const data: Record<string, unknown> = {};
 

@@ -1475,7 +1475,7 @@ export interface SeasonHideoutDto {
   }>;
 }
 
-export type HideoutRoomKeyDto = 'SAFE_ROOM' | 'LOOKOUTS' | 'WORKSHOP' | 'BACK_OFFICE' | 'GARAGE' | 'STORAGE';
+export type HideoutRoomKeyDto = 'SAFE_ROOM' | 'LOOKOUTS' | 'WORKSHOP' | 'BACK_OFFICE' | 'GARAGE' | 'GENERATOR' | 'STORAGE';
 
 export interface HideoutRoomDto {
   key: HideoutRoomKeyDto;

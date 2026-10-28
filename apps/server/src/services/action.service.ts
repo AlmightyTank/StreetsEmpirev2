@@ -162,6 +162,7 @@ export interface PlayerState {
   hideoutWorkshopLevel: number;
   hideoutBackOfficeLevel: number;
   hideoutGarageLevel: number;
+  hideoutGeneratorLevel: number;
   hideoutStorageLevel?: number;
   /** The room under construction, if any; its level lands when the build is ready. */
   hideoutBuildRoom?: string | null;
@@ -342,6 +343,7 @@ export function toState(player: RoundPlayer): PlayerState {
     hideoutWorkshopLevel: player.hideoutWorkshopLevel,
     hideoutBackOfficeLevel: player.hideoutBackOfficeLevel,
     hideoutGarageLevel: player.hideoutGarageLevel,
+    hideoutGeneratorLevel: player.hideoutGeneratorLevel,
     hideoutStorageLevel: player.hideoutStorageLevel,
     hideoutBuildRoom: player.hideoutBuildRoom,
     hideoutBuildLevel: player.hideoutBuildLevel,

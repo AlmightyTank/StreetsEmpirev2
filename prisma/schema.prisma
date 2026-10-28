@@ -2424,6 +2424,7 @@ model RoundPlayer {
   hideoutBackOfficeLevel          Int     @default(0)
   /// 0.6.0-D. One level opens a second concurrent travel run.
   hideoutGarageLevel              Int     @default(0)
+  hideoutGeneratorLevel           Int     @default(0)
   hideoutStorageLevel             Int     @default(0)
   /// One room under construction at a time. Cash, turns and components are paid
   /// up front; the level lands when the build is ready (settle or the sweeper).
