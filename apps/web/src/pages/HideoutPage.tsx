@@ -934,6 +934,8 @@ export function HideoutPage() {
                         <Metric label="Fit thugs" value={formatNumber(hideout.infirmary.fitThugs)} />
                         <Metric label="Wounded" value={formatNumber(hideout.infirmary.woundedThugs)} tone={hideout.infirmary.woundedThugs > 0 ? 'warn' : 'good'} />
                         <Metric label="Medicine" art="MEDICINE" value={formatNumber(hideout.infirmary.medicine)} />
+                        <Metric label="First-aid kits" art="FIELD_FIRST_AID" value={formatNumber(hideout.infirmary.fieldFirstAidKits ?? 0)} />
+                        <Metric label="Rag dressings" art="RAG_DRESSING" value={formatNumber(hideout.infirmary.ragDressings ?? 0)} />
                         <Metric label="Treat now" value={formatNumber(hideout.infirmary.maxTreatableThugs)} tone="accent" />
                       </div>
                       <div className="se-rows se-mt">

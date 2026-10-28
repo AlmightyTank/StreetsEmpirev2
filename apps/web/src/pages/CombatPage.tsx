@@ -1187,7 +1187,10 @@ function RaidPage({ playerId, roundId }: { playerId: string; roundId: string }) 
                 <Panel title="Fight shelf" aside={<Link to="/game/stores/pip">Pip&rsquo;s</Link>} flush className="se-raids-panel">
                   <div className="se-rows">
                     <Row label="Medicine" value={formatNumber(me.resources.medicine)} />
+                    <Row label="Field first-aid kits" value={formatNumber(me.resources.fieldFirstAidKits ?? 0)} />
+                    <Row label="Rag dressings" value={formatNumber(me.resources.ragDressings ?? 0)} />
                     <Row label="Beer" value={formatNumber(me.resources.beer)} />
+                    <Row label="House Brew" value={formatNumber(me.resources.houseBrew ?? 0)} />
                     <Row label="Low-Riders" value={formatNumber(me.resources.lowRiders)} />
                     <WorkSupplyStockRows jobs={FIGHT_SUPPLY_JOBS} refreshKey={latest?.id ?? report?.id} />
                   </div>

@@ -397,6 +397,8 @@ function infirmaryDto(
     fitThugs: fitThugs(player),
     woundedThugs: player.woundedThugs,
     medicine: player.medicine,
+    fieldFirstAidKits: player.fieldFirstAidKits,
+    ragDressings: player.ragDressings,
     nextRecoveryAt: nextRecoveryAt?.toISOString() ?? null,
     medicineEfficiencyPercent: efficiency,
     medicineNeededForAll,

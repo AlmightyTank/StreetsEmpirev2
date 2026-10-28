@@ -406,10 +406,14 @@ export function ProducePage() {
                   <ProduceMetric label={selectedProfile.name} value={formatNumber(currentStock)} detail="current stock" tone="accent" />
                   <ProduceMetric label="Cash" value={formatCents(me.resources.cashCents)} detail="ingredients draw here" />
                   <ProduceMetric label="Condoms" value={formatNumber(me.resources.condoms)} />
+                  <ProduceMetric label="Premium condoms" value={formatNumber(me.resources.premiumCondoms ?? 0)} />
                   <ProduceMetric label="Beer" value={formatNumber(me.resources.beer)} />
+                  <ProduceMetric label="House Brew" value={formatNumber(me.resources.houseBrew ?? 0)} />
                 </div>
                 <div className="se-rows">
                   <Row label="Medicine" value={formatNumber(me.resources.medicine)} />
+                  <Row label="First-aid kits" value={formatNumber(me.resources.fieldFirstAidKits ?? 0)} />
+                  <Row label="Rag dressings" value={formatNumber(me.resources.ragDressings ?? 0)} />
                   {me.products ? null : <Row label="Product" value={formatNumber(me.resources.product)} />}
                   <WorkSupplyStockRows jobs={supplyJobs} refreshKey={action.result} />
                 </div>

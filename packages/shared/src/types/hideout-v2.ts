@@ -254,6 +254,8 @@ export interface HideoutInfirmaryDto {
   fitThugs: number;
   woundedThugs: number;
   medicine: number;
+  fieldFirstAidKits?: number;
+  ragDressings?: number;
   nextRecoveryAt: string | null;
   medicineEfficiencyPercent: number;
   medicineNeededForAll: number;

@@ -429,8 +429,8 @@ export function calculateStreetTake(
       needCarry.condoms = 0;
       needCarry.beer = 0;
     }
-    const condomDraw = drawStock(turnNeeded.condoms, state.condoms, state.premiumCondoms ?? 0);
-    const beerDraw = drawStock(turnNeeded.beer, state.beer, state.houseBrew ?? 0);
+    const condomDraw = drawStock(turnNeeded.condoms, state.condoms, state.premiumCondoms ?? 0, context.supply?.policy.condoms !== 'REGULAR');
+    const beerDraw = drawStock(turnNeeded.beer, state.beer, state.houseBrew ?? 0, context.supply?.policy.beer !== 'REGULAR');
     const turnConsumption = {
       condoms: condomDraw.regular,
       crack: Math.min(turnNeeded.crack, state.crack),

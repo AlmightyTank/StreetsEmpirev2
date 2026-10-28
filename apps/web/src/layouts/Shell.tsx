@@ -42,7 +42,7 @@ export function routeIdentity(pathname: string): string {
   if (path === '/game/supporter') return 'supporter';
   if (path.startsWith('/game/stores/')) return 'store-detail';
   if (path === '/game/stores') return 'stores';
-  if (path === '/game/supply') return 'supply';
+  if (path === '/game/supply' || path === '/game/supplies') return 'supply';
   if (path === '/game/holdings') return 'holdings';
   if (path === '/game/loans') return 'loans';
   if (path === '/game/dealers') return 'dealers';

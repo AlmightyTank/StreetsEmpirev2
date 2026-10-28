@@ -385,9 +385,13 @@ function LiveDashboardPage({ me }: { me: RoundPlayerDto }) {
     <Panel title="Supplies" aside={<Link to="/game/stores/corner">Restock</Link>} flush className="se-dashboard-panel">
       <div className="se-dashboard-stockgrid">
         <DashboardMetric label="Condoms" art="CONDOM" value={formatNumber(me.resources.condoms)} />
+        <DashboardMetric label="Premium condoms" art="PREMIUM_CONDOM" value={formatNumber(me.resources.premiumCondoms ?? 0)} />
         {me.products ? null : <DashboardMetric label="Product" art="CRACK" value={formatNumber(me.resources.product)} />}
         <DashboardMetric label="Beer" art="BEER" value={formatNumber(me.resources.beer)} />
+        <DashboardMetric label="House Brew" art="HOUSE_BREW" value={formatNumber(me.resources.houseBrew ?? 0)} />
         <DashboardMetric label="Medicine" art="MEDICINE" value={formatNumber(me.resources.medicine)} />
+        <DashboardMetric label="First-aid kits" art="FIELD_FIRST_AID" value={formatNumber(me.resources.fieldFirstAidKits ?? 0)} />
+        <DashboardMetric label="Rag dressings" art="RAG_DRESSING" value={formatNumber(me.resources.ragDressings ?? 0)} />
         {me.resources.ammo !== undefined ? <DashboardMetric label="Ammo" value={formatNumber(me.resources.ammo)} detail="Rounds" /> : null}
         {me.resources.vehicleParts !== undefined ? <DashboardMetric label="Parts" value={formatNumber(me.resources.vehicleParts)} detail="Vehicle repair" /> : null}
       </div>

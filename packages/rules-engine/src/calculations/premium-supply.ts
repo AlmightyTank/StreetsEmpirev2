@@ -33,10 +33,17 @@ export interface StockDraw {
  * set of three uses at a time, then plain stock, then one more premium unit
  * for any uses still left. Plain-only stock behaves exactly as it always has.
  */
-export function drawStock(need: number, regular: number, premium: number): StockDraw {
+export function drawStock(need: number, regular: number, premium: number, premiumFirst = true): StockDraw {
   const want = Math.max(0, Math.floor(need));
   const plain = Math.max(0, Math.floor(regular));
   const extra = Math.max(0, Math.floor(premium));
+  if (!premiumFirst) {
+    const regularUsed = Math.min(plain, want);
+    const left = want - regularUsed;
+    const premiumUsed = left > 0 ? Math.min(extra, Math.ceil(left / PREMIUM_USES)) : 0;
+    const premiumUses = Math.min(left, premiumUsed * PREMIUM_USES);
+    return { regular: regularUsed, premium: premiumUsed, covered: regularUsed + premiumUses, premiumUses };
+  }
   const sets = Math.min(extra, Math.floor(want / PREMIUM_USES));
   let left = want - sets * PREMIUM_USES;
   let premiumUsed = sets;

@@ -410,7 +410,7 @@ export const ConvoyService = {
           const policy = await tx.workSupplyPolicy.findUnique({ where: { roundPlayerId_job: { roundPlayerId: attackerId, job: RAID_JOB } } });
           if (policy) {
             const products = await ProductInventoryService.read(tx, attackerId, ruleset);
-            const supply = planWorkSupply({ job: RAID_JOB, role: 'fighters', workers: input.squad, turns: 1, ruleset, policy, inventory: { ...products, [CRACK]: current.crack } });
+            const supply = planWorkSupply({ job: RAID_JOB, role: 'fighters', workers: input.squad, turns: 1, ruleset, policy: { ...policy, condoms: policy.condoms as 'REGULAR' | 'PREMIUM', beer: policy.beer as 'REGULAR' | 'HOUSE_BREW' }, inventory: { ...products, [CRACK]: current.crack } });
             await WorkSupplyService.consume(tx, attackerId, ruleset, supply);
             boost = { strength: supply.takeMultiplier, wounds: supply.woundMultiplier };
             drawnHeat = ruleset.heat ? supply.heat : 0;
@@ -580,7 +580,7 @@ export const ConvoyService = {
       if (ruleset.combatSupply && escorts > 0) {
         const policy = await tx.workSupplyPolicy.findUnique({ where: { roundPlayerId_job: { roundPlayerId: ownerId, job: CONVOY_JOB } } });
         if (policy) {
-          const supply = planWorkSupply({ job: CONVOY_JOB, role: 'fighters', workers: escorts, turns: 1, ruleset, policy, inventory: cargoOf(run) });
+          const supply = planWorkSupply({ job: CONVOY_JOB, role: 'fighters', workers: escorts, turns: 1, ruleset, policy: { ...policy, condoms: policy.condoms as 'REGULAR' | 'PREMIUM', beer: policy.beer as 'REGULAR' | 'HOUSE_BREW' }, inventory: cargoOf(run) });
           if (Object.keys(supply.consumed).length) run = await takeFromRun(tx, ownerId, ruleset, run, { seized: supply.consumed, fineCents: 0n });
           defenderBoost = { strength: supply.takeMultiplier, wounds: supply.woundMultiplier };
         }

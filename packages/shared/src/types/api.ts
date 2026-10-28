@@ -713,6 +713,7 @@ export interface ResourcesDto {
   unarmedThugs: number;
 
   condoms: number;
+  premiumCondoms?: number;
   medicine: number;
   fieldFirstAidKits?: number;
   ragDressings?: number;
@@ -720,6 +721,7 @@ export interface ResourcesDto {
   product: number;
   crack: number;
   beer: number;
+  houseBrew?: number;
 
   pistols: number;
   shotguns: number;

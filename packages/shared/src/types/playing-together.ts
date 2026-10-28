@@ -226,6 +226,8 @@ export interface WorkSupplyPolicyDto {
   fallback: string | null;
   emergency: string | null;
   strict: boolean;
+  condoms?: 'REGULAR' | 'PREMIUM';
+  beer?: 'REGULAR' | 'HOUSE_BREW';
 }
 
 export interface WorkSupplySliceDto {

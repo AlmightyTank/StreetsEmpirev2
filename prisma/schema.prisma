@@ -4138,6 +4138,8 @@ model WorkSupplyPolicy {
   emergency     String?
   /// Only the primary is ever burned.
   strict        Boolean     @default(false)
+  condoms       String      @default("PREMIUM")
+  beer          String      @default("HOUSE_BREW")
   updatedAt     DateTime    @updatedAt
 
   @@unique([roundPlayerId, job])

@@ -34,6 +34,8 @@ export interface WorkSupplyPolicy {
   emergency: string | null;
   /** Only the primary is ever burned; fallback and emergency are ignored. */
   strict: boolean;
+  condoms?: 'REGULAR' | 'PREMIUM';
+  beer?: 'REGULAR' | 'HOUSE_BREW';
 }
 
 export type WorkSupplyState = 'supplied' | 'substituted' | 'dry';
@@ -89,7 +91,7 @@ export interface WorkSupplyPlan {
 
 /** The policy a job uses before the player has set one: crack, nothing else, as every older round works. */
 export function defaultWorkSupplyPolicy(): WorkSupplyPolicy {
-  return { primary: 'CRACK', fallback: null, emergency: null, strict: false };
+  return { primary: 'CRACK', fallback: null, emergency: null, strict: false, condoms: 'PREMIUM', beer: 'HOUSE_BREW' };
 }
 
 /** Products the policy may burn, in order, without repeats. */

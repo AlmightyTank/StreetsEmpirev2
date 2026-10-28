@@ -53,6 +53,9 @@ export const workSupplyPolicySchema = z.object({
   fallback: productKey.nullable().optional(),
   emergency: productKey.nullable().optional(),
   strict: z.boolean().optional(),
+  /** Preferred crew consumable; the other variant remains a fallback. */
+  condoms: z.enum(['REGULAR', 'PREMIUM']).optional(),
+  beer: z.enum(['REGULAR', 'HOUSE_BREW']).optional(),
 }).strict().superRefine((policy, ctx) => {
   if (policy.fallback && policy.fallback === policy.primary) ctx.addIssue({ code: 'custom', path: ['fallback'], message: 'The fallback is already the primary.' });
   if (policy.emergency && [policy.primary, policy.fallback].includes(policy.emergency)) ctx.addIssue({ code: 'custom', path: ['emergency'], message: 'The emergency product is already in the list.' });

@@ -9,6 +9,7 @@ const PATHS: Record<IconName, string> = {
   produce: 'M9 3h6M10 3v6L4.5 18.5A1.7 1.7 0 0 0 6 21h12a1.7 1.7 0 0 0 1.5-2.5L14 9V3M7 15h10',
   raids: 'M12 3v4M12 17v4M3 12h4M17 12h4M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12zM12 13a1 1 0 1 0 0-2 1 1 0 0 0 0 2z',
   stores: 'M5 8h14l-1 12H6zM9 8V6a3 3 0 0 1 6 0v2',
+  supply: 'M4 7h16v13H4zM8 7V5h8v2M8 12h8M8 16h5',
   casino: 'M5 5h14v14H5zM9 9h.01M15 9h.01M12 12h.01M9 15h.01M15 15h.01',
   cities: 'M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2zM9 4v14M15 6v14',
   rankings: 'M5 20V13M12 20V5M19 20v-9M3 20h18',

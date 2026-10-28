@@ -445,8 +445,12 @@ export function ScoutPage() {
               >
                 <div className="se-scout-metricgrid se-scout-metricgrid--three">
                   <ScoutMetric label="Condoms" value={formatNumber(me.resources.condoms)} />
+                  <ScoutMetric label="Premium condoms" value={formatNumber(me.resources.premiumCondoms ?? 0)} />
                   <ScoutMetric label="Beer" value={formatNumber(me.resources.beer)} />
+                  <ScoutMetric label="House Brew" value={formatNumber(me.resources.houseBrew ?? 0)} />
                   <ScoutMetric label="Medicine" value={formatNumber(me.resources.medicine)} />
+                  <ScoutMetric label="First-aid kits" value={formatNumber(me.resources.fieldFirstAidKits ?? 0)} />
+                  <ScoutMetric label="Rag dressings" value={formatNumber(me.resources.ragDressings ?? 0)} />
                 </div>
                 <div className="se-rows">
                   {me.products ? null : <Row label="Product" value={formatNumber(me.resources.product)} />}

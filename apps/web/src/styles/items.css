@@ -67,7 +67,11 @@
   color: var(--se-text);
   font-size: 11px;
   background: transparent;
-  text-shadow: 0 1px 1px var(--se-overlay-mix);
+  /* Counts are plain overlay text; do not render a badge/outline around them. */
+  border: 0;
+  outline: none;
+  box-shadow: none;
+  text-shadow: none;
 }
 
 /* Can't be bought yet (a locked gun, an unopened product). */
@@ -80,6 +84,17 @@
 .se-item-tile--sm .se-item-tile__name { display: none; }
 .se-item-tile--lg .se-item-tile__name { font-size: 11px; }
 .se-item-tile--lg .se-item-tile__qty { font-size: 13px; }
+
+/* Workshop input rows style their direct spans as bordered chips. The quantity
+   overlay is nested inside those rows, so keep it as plain tile text. */
+.se-workshop__inputs .se-item-tile__qty {
+  display: block;
+  gap: normal;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  justify-content: normal;
+}
 
 /* Picture ahead of a list row's label (Hideout rooms and the like). */
 .se-item-label {

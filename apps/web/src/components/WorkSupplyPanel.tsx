@@ -158,7 +158,7 @@ function SupplyRow({ overview, row, jobLabel, turns, refreshKey, onOverview }: {
   const options = overview.products;
   const nameOf = (key: string) => options.find((product) => product.key === key)?.name ?? key;
 
-  useEffect(() => { setDraft(row.policy); }, [row.policy.primary, row.policy.fallback, row.policy.emergency, row.policy.strict]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setDraft(row.policy); }, [row.policy.primary, row.policy.fallback, row.policy.emergency, row.policy.strict, row.policy.condoms, row.policy.beer]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!row.active || typeof turns !== 'number' || turns < 1) { setPlan(null); return; }
@@ -193,6 +193,16 @@ function SupplyRow({ overview, row, jobLabel, turns, refreshKey, onOverview }: {
         {allowNone ? <option value="">None</option> : null}
         {/* Names only: counts do not fit a sidebar, and stock shows in the status line. */}
         {options.map((product) => <option key={product.key} value={product.key}>{product.name}</option>)}
+      </select>
+    </div>
+  );
+
+  const variantSelect = (field: 'condoms' | 'beer', label: string, options: Array<[string, string]>) => (
+    <div className="se-field">
+      <label className="se-label" htmlFor={`supply-${job}-${field}`}>{label}</label>
+      <select id={`supply-${job}-${field}`} className="se-input" value={draft[field] ?? ''}
+        onChange={(event) => setDraft({ ...draft, [field]: event.target.value as WorkSupplyPolicyDto[typeof field] })}>
+        {options.map(([value, name]) => <option key={value} value={value}>{name}</option>)}
       </select>
     </div>
   );
@@ -235,6 +245,10 @@ function SupplyRow({ overview, row, jobLabel, turns, refreshKey, onOverview }: {
             {select('primary', 'Primary', false)}
             {select('fallback', 'Fallback', true, draft.strict)}
             {select('emergency', 'Emergency', true, draft.strict || !draft.fallback)}
+          </div>
+          <div className="se-supply__policy">
+            {variantSelect('condoms', 'Condoms first', [['PREMIUM', 'Premium condoms'], ['REGULAR', 'Regular condoms']])}
+            {variantSelect('beer', 'Beer first', [['HOUSE_BREW', 'House Brew'], ['REGULAR', 'Regular beer']])}
           </div>
           <label className="se-checkrow se-checkrow--inline">
             <input type="checkbox" checked={draft.strict} onChange={(event) => setDraft({ ...draft, strict: event.target.checked })} />
@@ -285,6 +299,37 @@ export function WorkSupplyPanel({ jobs, turns, refreshKey, title = 'Product supp
       <div className="se-supply__list">
         {rows.map(({ job, label, row }) => (
           <SupplyRow key={job} overview={overview} row={row!} jobLabel={label} turns={turns} refreshKey={refreshKey} onOverview={setOverview} />
+        ))}
+      </div>
+    </Panel>
+  );
+}
+
+/** Central editor for all action supply preferences, used by the Supplies page. */
+export function WorkSupplySettingsPanel() {
+  const [overview, setOverview] = useState<WorkSupplyDto | null>(null);
+  const load = useCallback(() => {
+    api.get<WorkSupplyDto>('/game/work-supply').then(setOverview).catch(() => setOverview(null));
+  }, []);
+  useEffect(load, [load]);
+  useEffect(() => {
+    window.addEventListener(WORK_SUPPLY_CHANGED, load);
+    return () => window.removeEventListener(WORK_SUPPLY_CHANGED, load);
+  }, [load]);
+
+  if (!overview?.enabled) return null;
+  return (
+    <Panel title="Action supply settings" subtitle="Choose which product, condoms, and beer your crew uses for each type of action.">
+      <div className="se-supply__list">
+        {overview.jobs.map((row) => (
+          <SupplyRow
+            key={row.key}
+            overview={overview}
+            row={row}
+            jobLabel={row.name}
+            turns=""
+            onOverview={setOverview}
+          />
         ))}
       </div>
     </Panel>

@@ -59,7 +59,7 @@ function requireWorkSupply(ruleset: Ruleset): void {
 
 async function loadPolicies(db: Db | PrismaClient, roundPlayerId: string): Promise<Map<string, WorkSupplyPolicy>> {
   const rows = await db.workSupplyPolicy.findMany({ where: { roundPlayerId } });
-  return new Map(rows.map((row) => [row.job, { primary: row.primary, fallback: row.fallback, emergency: row.emergency, strict: row.strict }]));
+  return new Map(rows.map((row) => [row.job, { primary: row.primary, fallback: row.fallback, emergency: row.emergency, strict: row.strict, condoms: row.condoms as 'REGULAR' | 'PREMIUM', beer: row.beer as 'REGULAR' | 'HOUSE_BREW' }]));
 }
 
 export function toPlanDto(plan: WorkSupplyPlan, ruleset: Ruleset): WorkSupplyPlanDto {
@@ -151,7 +151,7 @@ export const WorkSupplyService = {
     for (const key of [input.primary, input.fallback, input.emergency]) {
       if (key && !known.includes(key)) throw AppError.badRequest('UNKNOWN_PRODUCT', 'That product is not part of this round.');
     }
-    const data = { primary: input.primary, fallback: input.fallback ?? null, emergency: input.emergency ?? null, strict: input.strict ?? false };
+    const data = { primary: input.primary, fallback: input.fallback ?? null, emergency: input.emergency ?? null, strict: input.strict ?? false, condoms: input.condoms ?? 'PREMIUM', beer: input.beer ?? 'HOUSE_BREW' };
     await prisma.workSupplyPolicy.upsert({
       where: { roundPlayerId_job: { roundPlayerId, job: input.job } },
       create: { roundPlayerId, job: input.job, ...data },
