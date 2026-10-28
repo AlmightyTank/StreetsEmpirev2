@@ -5069,12 +5069,22 @@ model GangPlayerRelationship {
   roundPlayer   RoundPlayer @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
 
   status       String @default("UNKNOWN")
+  /// Hostility/Nemesis pressure. Kept separate from trust so betrayal has history.
   score        Int    @default(0)
+  trustScore   Int    @default(0)
+  respectScore Int    @default(0)
+  favorsCompleted Int @default(0)
+  favorsOwed   Int    @default(0)
+  betrayalCount Int   @default(0)
   eventCount   Int    @default(0)
   firstEventAt DateTime @default(now())
   lastEventAt  DateTime @default(now())
   vendettaAt   DateTime?
   nemesisAt    DateTime?
+  friendlyAt   DateTime?
+  trustedAt    DateTime?
+  alliedAt     DateTime?
+  betrayedAt   DateTime?
   defeatedAt   DateTime?
 
   @@unique([gangId, roundPlayerId])
@@ -5098,6 +5108,11 @@ model GangEvent {
   idempotencyKey String @unique
   outcome        String
   scoreDelta     Int @default(0)
+  trustDelta     Int @default(0)
+  respectDelta   Int @default(0)
+  favorsCompletedDelta Int @default(0)
+  favorsOwedDelta Int @default(0)
+  betrayal       Boolean @default(false)
   summary        String
   metadata       Json @default("{}")
   occurredAt     DateTime @default(now())

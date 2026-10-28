@@ -1856,6 +1856,20 @@ export interface GangIntelDto {
   expiresAt: string;
 }
 
+export type GangRelationshipStatusDto = 'UNKNOWN' | 'NOTICED' | 'FRIENDLY' | 'TRUSTED' | 'ALLIED' | 'HOSTILE' | 'VENDETTA' | 'NEMESIS' | 'DEFEATED';
+
+export interface GangRelationshipSummaryDto {
+  status: GangRelationshipStatusDto;
+  hostilityScore: number;
+  trustScore: number;
+  respectScore: number;
+  favorsCompleted: number;
+  favorsOwed: number;
+  betrayalCount: number;
+  eventCount: number;
+  lastEventAt: string;
+}
+
 export interface GangInvestigationDto extends GangIntelDto {
   id: string;
   clues: Array<{ text: string; observedAt: string }>;

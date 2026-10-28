@@ -1,5 +1,5 @@
 import type { AllianceTagDto } from './alliance.js';
-import type { QuestLinkDto, QuestLockDto, RandomEncounterDto, TerritoryModifierReceiptDto } from './api.js';
+import type { GangRelationshipSummaryDto, QuestLinkDto, QuestLockDto, RandomEncounterDto, TerritoryModifierReceiptDto } from './api.js';
 import type { AvatarParts } from '../avatar-builder.js';
 import type { IndividualGunUseDto } from './combat.js';
 
@@ -380,12 +380,7 @@ export interface TurfBlockDto {
     crewName: string;
     crewTag: string;
   } | null;
-  localGangRelationship: {
-    status: 'UNKNOWN' | 'NOTICED' | 'HOSTILE' | 'VENDETTA' | 'NEMESIS' | 'DEFEATED';
-    score: number;
-    eventCount: number;
-    lastEventAt: string;
-  } | null;
+  localGangRelationship: GangRelationshipSummaryDto | null;
   isMine: boolean;
   cornerThugs: number;
   cornerMinimumThugs: number;

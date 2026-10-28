@@ -742,7 +742,11 @@ export const TurfService = {
               slug: true, bossName: true, crewName: true, crewTag: true,
               playerRelationships: {
                 where: { roundPlayerId: player.id },
-                select: { status: true, score: true, eventCount: true, lastEventAt: true },
+                select: {
+                  status: true, score: true, trustScore: true, respectScore: true,
+                  favorsCompleted: true, favorsOwed: true, betrayalCount: true,
+                  eventCount: true, lastEventAt: true,
+                },
                 take: 1,
               },
             },
@@ -1063,7 +1067,12 @@ export const TurfService = {
         } : null,
         localGangRelationship: row.localGang?.playerRelationships[0] ? {
           status: row.localGang.playerRelationships[0].status as NonNullable<TurfBlockDto['localGangRelationship']>['status'],
-          score: row.localGang.playerRelationships[0].score,
+          hostilityScore: row.localGang.playerRelationships[0].score,
+          trustScore: row.localGang.playerRelationships[0].trustScore,
+          respectScore: row.localGang.playerRelationships[0].respectScore,
+          favorsCompleted: row.localGang.playerRelationships[0].favorsCompleted,
+          favorsOwed: row.localGang.playerRelationships[0].favorsOwed,
+          betrayalCount: row.localGang.playerRelationships[0].betrayalCount,
           eventCount: row.localGang.playerRelationships[0].eventCount,
           lastEventAt: row.localGang.playerRelationships[0].lastEventAt.toISOString(),
         } : null,
