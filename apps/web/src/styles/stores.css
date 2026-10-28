@@ -1959,9 +1959,15 @@
   }
   .se-market-page .se-market-table td[data-label="Item"] {
     grid-area: item;
+    flex-wrap: wrap;
     justify-content: flex-start;
     padding: 0 0 8px;
     border-bottom: 1px solid var(--se-line-soft);
+    text-align: left;
+  }
+  .se-market-page .se-market-table td[data-label="Item"] .se-market-trade-breakdown {
+    flex: 0 0 100%;
+    width: 100%;
     text-align: left;
   }
   .se-market-page .se-market-table td[data-label="Item"]::before { content: none; }
