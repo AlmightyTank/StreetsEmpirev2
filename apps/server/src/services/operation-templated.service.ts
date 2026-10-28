@@ -186,9 +186,13 @@ async function sourceReady(tx: Db, operation: { id: string; roundId: string; lea
     if (!push || push.roundId !== operation.roundId || push.status !== 'PENDING') return false;
     return claimSource(tx, operation, sourceKind, sourceId);
   }
-  if (sourceKind === OPERATION_SOURCES.intelRumor) {
-    const rumor = await tx.intelRumor.findUnique({ where: { id: sourceId }, select: { id: true, roundId: true } });
-    if (!rumor || rumor.roundId !== operation.roundId) return false;
+  if (sourceKind === OPERATION_SOURCES.gangInvestigation) {
+    const investigation = await tx.gangInvestigation.findUnique({
+      where: { id: sourceId },
+      select: { id: true, roundId: true, roundPlayerId: true, status: true, expiresAt: true },
+    });
+    if (!investigation || investigation.roundId !== operation.roundId || investigation.roundPlayerId !== operation.leaderId
+      || !['CONFIRMED', 'STAKEOUT'].includes(investigation.status) || investigation.expiresAt <= new Date()) return false;
     return claimSource(tx, operation, sourceKind, sourceId);
   }
   return false;

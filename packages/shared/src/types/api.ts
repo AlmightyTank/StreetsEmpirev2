@@ -1856,6 +1856,22 @@ export interface GangIntelDto {
   expiresAt: string;
 }
 
+export interface GangInvestigationDto extends GangIntelDto {
+  id: string;
+  clues: Array<{ text: string; observedAt: string }>;
+  city: { slug: string; name: string };
+  lastObservedAt: string;
+}
+
+export interface GangInvestigationPageDto {
+  investigations: GangInvestigationDto[];
+}
+
+export interface GangInvestigationActionResult {
+  investigation: GangInvestigationDto;
+  turnsUsed: number;
+}
+
 /**
  * Manual 3.2. The girls still go out while the thugs cook - they just earn a
  * fraction of a scouted night, because nobody is out there running them.

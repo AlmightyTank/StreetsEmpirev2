@@ -17,30 +17,6 @@ export type WirePostKindDto = 'MESSAGE' | 'ANNOUNCEMENT';
 export type IntelConfidenceDto = 'rumor' | 'likely' | 'confirmed';
 export type IntelSourceKindDto = 'contact' | 'scout' | 'faction_warning';
 
-export interface BlackBookEntryDto {
-  id: string;
-  confidence: IntelConfidenceDto;
-  sourceKinds: IntelSourceKindDto[];
-  observedAt: string;
-  expiresAt: string;
-  ageMinutes: number;
-  target: { publicPimpId: number; displayName: string } | null;
-  city: { slug: string; name: string };
-  district: string | null;
-  strengthBand: 'light' | 'guarded' | 'heavy' | 'unknown';
-  actions: {
-    investigate: string;
-    negotiate: string | null;
-    reinforce: string;
-    strike: string | null;
-  };
-}
-
-export interface BlackBookPageDto {
-  entries: BlackBookEntryDto[];
-  expiredRemoved: number;
-}
-
 export type AllianceCoordinationCardKindDto =
   | 'SHARED_RECON'
   | 'TURF_ACTIVITY'

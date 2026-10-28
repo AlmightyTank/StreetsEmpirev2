@@ -67,6 +67,7 @@ const ReportBugPage = lazy(() => import('./pages/ReportBugPage.js').then(({ Repo
 const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage.js').then(({ ResetPasswordPage }) => ({ default: ResetPasswordPage })));
 const RulesPage = lazy(() => import('./pages/RulesPage.js').then(({ RulesPage }) => ({ default: RulesPage })));
 const ScoutPage = lazy(() => import('./pages/ScoutPage.js').then(({ ScoutPage }) => ({ default: ScoutPage })));
+const GangIntelPage = lazy(() => import('./pages/GangIntelPage.js').then(({ GangIntelPage }) => ({ default: GangIntelPage })));
 const StatusPage = lazy(() => import('./pages/StatusPage.js').then(({ StatusPage }) => ({ default: StatusPage })));
 const VerifyEmailPage = lazy(() => import('./pages/VerifyEmailPage.js').then(({ VerifyEmailPage }) => ({ default: VerifyEmailPage })));
 const StorePage = lazy(() => import('./pages/StorePage.js').then(({ StorePage }) => ({ default: StorePage })));
@@ -243,6 +244,7 @@ export function App() {
         <Route index element={<Protected><DashboardPage /></Protected>} />
         <Route path="combat" element={<Protected><LiveRound><CombatPage /></LiveRound></Protected>} />
         <Route path="scout" element={<Protected><LiveRound><ScoutPage /></LiveRound></Protected>} />
+        <Route path="gang-intel" element={<Protected><LiveRound><GangIntelPage /></LiveRound></Protected>} />
         <Route path="quests" element={<Protected><LiveRound><QuestPhonePage /></LiveRound></Protected>} />
         {/* The old quest desk is retired; preserve old bookmarks without restoring it. */}
         <Route path="quests/contracts" element={<Navigate to="/game/quests" replace />} />

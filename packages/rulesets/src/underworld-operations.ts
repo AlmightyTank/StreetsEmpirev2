@@ -131,7 +131,7 @@ export const UNDERWORLD_OPERATIONS_V1: UnderworldOperationCatalog = {
       productKey: 'CRACK',
       bands: bands(10_000, 4_000, 'The score is told for years', 'You got a piece of the plan', 'The score never came together'),
       windows: [
-        { key: 'intel', optional: true, sourceKinds: ['intel-rumor'] },
+         { key: 'intel', optional: true, sourceKinds: ['gang-investigation'] },
         { key: 'prep', optional: true, sourceKinds: ['run'] },
         { key: 'action', optional: false, sourceKinds: ['block-war', 'turf-push'] },
       ],

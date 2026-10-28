@@ -35,7 +35,7 @@ function makeDb() {
     runs: [] as any[],
     wars: [] as any[],
     pushes: [] as any[],
-    rumors: [] as any[],
+    investigations: [] as any[],
     claims: [] as any[],
     grants: [] as any[],
     movements: [] as any[],
@@ -173,8 +173,8 @@ function makeDb() {
     turfPush: {
       findUnique: vi.fn(async ({ where }: any) => state.pushes.find((row) => row.id === where.id) ?? null),
     },
-    intelRumor: {
-      findUnique: vi.fn(async ({ where }: any) => state.rumors.find((row) => row.id === where.id) ?? null),
+    gangInvestigation: {
+      findUnique: vi.fn(async ({ where }: any) => state.investigations.find((row) => row.id === where.id) ?? null),
     },
     legacyEntry: {
       findUnique: vi.fn(async ({ where }: any) => state.legacy.find((row) => row.idempotencyKey === where.idempotencyKey) ?? null),
@@ -393,7 +393,7 @@ describe('2.2.0 underworld operations', () => {
       shipment: 'run',
       blockWar: 'block-war',
       turfPush: 'turf-push',
-      intelRumor: 'intel-rumor',
+       gangInvestigation: 'gang-investigation',
     });
     const { db, state } = makeDb();
     const before = state.players[0]!.cashCents;
@@ -560,13 +560,13 @@ describe('2.2.0 underworld operations', () => {
   it('ignores a late window cite and pays a partial band inside the snapshot', async () => {
     const { db, state } = makeDb();
     enableCatalog(state);
-    state.rumors.push({ id: 'rumor-1', roundId: 'round-1' });
+    state.investigations.push({ id: 'investigation-1', roundId: 'round-1', roundPlayerId: 'leader-1', status: 'CONFIRMED', expiresAt: new Date(Date.now() + 60_000) });
     const score = await OperationsService.start(db, 'leader-1', { citySlug: 'vice-city', template: 'BIG_SCORE' });
     await OperationsService.lock(db, 'leader-1', { operationId: score.id, role: 'intel' });
-    await OperationsService.cite(db, 'leader-1', { operationId: score.id, windowKey: 'intel', sourceKind: 'intel-rumor', sourceId: 'rumor-1' });
-    const late = await OperationsService.cite(db, 'leader-1', { operationId: score.id, windowKey: 'intel', sourceKind: 'intel-rumor', sourceId: 'rumor-1' });
+    await OperationsService.cite(db, 'leader-1', { operationId: score.id, windowKey: 'intel', sourceKind: 'gang-investigation', sourceId: 'investigation-1' });
+    const late = await OperationsService.cite(db, 'leader-1', { operationId: score.id, windowKey: 'intel', sourceKind: 'gang-investigation', sourceId: 'investigation-1' });
     expect(late.checklist.filter((item) => item.key === 'intel' && item.done)).toHaveLength(1);
-    expect(late.checklist.find((item) => item.key === 'intel')!.sourceKinds).toEqual(['intel-rumor']);
+    expect(late.checklist.find((item) => item.key === 'intel')!.sourceKinds).toEqual(['gang-investigation']);
     expect(late.canCite).toBe(true);
     const partial = await OperationsService.execute(db, 'leader-1', { operationId: score.id });
     expect(partial.report!.band).toBe('partial');
@@ -579,12 +579,12 @@ describe('2.2.0 underworld operations', () => {
   it('grants The Big Score milestone once', async () => {
     const { db, state } = makeDb();
     enableCatalog(state);
-    state.rumors.push({ id: 'rumor-1', roundId: 'round-1' });
+    state.investigations.push({ id: 'investigation-1', roundId: 'round-1', roundPlayerId: 'leader-1', status: 'CONFIRMED', expiresAt: new Date(Date.now() + 60_000) });
     state.runs.push({ id: 'run-9', status: 'RETURNED', roundPlayer: { roundId: 'round-1' } });
     state.pushes.push({ id: 'push-1', roundId: 'round-1', status: 'PENDING', defenderId: 'leader-1' });
     const score = await OperationsService.start(db, 'leader-1', { citySlug: 'vice-city', template: 'BIG_SCORE' });
     await OperationsService.lock(db, 'leader-1', { operationId: score.id, role: 'intel' });
-    await OperationsService.cite(db, 'leader-1', { operationId: score.id, windowKey: 'intel', sourceKind: 'intel-rumor', sourceId: 'rumor-1' });
+    await OperationsService.cite(db, 'leader-1', { operationId: score.id, windowKey: 'intel', sourceKind: 'gang-investigation', sourceId: 'investigation-1' });
     await OperationsService.cite(db, 'leader-1', { operationId: score.id, windowKey: 'prep', sourceKind: 'run', sourceId: 'run-9' });
     await OperationsService.cite(db, 'leader-1', { operationId: score.id, windowKey: 'action', sourceKind: 'turf-push', sourceId: 'push-1' });
     const done = await OperationsService.execute(db, 'leader-1', { operationId: score.id });

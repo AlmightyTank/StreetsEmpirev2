@@ -6,14 +6,14 @@
  * - run: Run.id, the shipment ConvoyService and TravelService already settle
  * - block-war: BlockWar.id while the war is not ENDED
  * - turf-push: TurfPush.id while the push is PENDING
- * - intel-rumor: IntelRumor.id for a Big Score intel window
+ * - gang-investigation: confirmed GangInvestigation.id for a Big Score intel window
  */
 export const OPERATION_SOURCES = {
   supplyStock: 'supply-stock',
   shipment: 'run',
   blockWar: 'block-war',
   turfPush: 'turf-push',
-  intelRumor: 'intel-rumor',
+  gangInvestigation: 'gang-investigation',
 } as const;
 
 export type OperationSourceKind = (typeof OPERATION_SOURCES)[keyof typeof OPERATION_SOURCES];

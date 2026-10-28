@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { addContactSchema, businessBuildSchema, blockWarAnswerSchema, blockWarCallSchema, blockWarDeclareSchema, blockWarEndSchema, blockWarSendSchema, businessCollectSchema, businessRacketSchema, businessStaffSchema, businessTorchSchema, bossHitBackupSchema, bossHitCallSchema, bossHitSchema, heatBribeSchema, lawyerActionSchema, officialHireSchema, tipBuySchema, productTradeSchema, runOutpostEstablishSchema, runOutpostTransferSchema, sitDownAnswerSchema, sitDownProposeSchema, travelRoutesSchema, tripExtendSchema, tripHeadHomeSchema, tripLaunchSchema, tripOutpostVisitSchema, tripRentGunsSchema, turfClaimSchema, turfPostSchema, turfPullSchema, turfPushBackupSchema, turfPushCallSchema, turfPushSchema, updateContactKindSchema, updateContactSchema, wirePinSchema, wirePostSchema, workSupplyClearSchema, workSupplyPolicySchema, workSupplyPreviewSchema, operationAnswerSchema, operationCancelSchema, operationCiteSchema, operationExecuteSchema, operationInviteSchema, operationLockSchema, operationReleaseSchema, operationStartSchema } from '@streets/shared';
+import { addContactSchema, businessBuildSchema, blockWarAnswerSchema, blockWarCallSchema, blockWarDeclareSchema, blockWarEndSchema, blockWarSendSchema, businessCollectSchema, businessRacketSchema, businessStaffSchema, businessTorchSchema, bossHitBackupSchema, bossHitCallSchema, bossHitSchema, gangInvestigationAdvanceSchema, heatBribeSchema, lawyerActionSchema, officialHireSchema, tipBuySchema, productTradeSchema, runOutpostEstablishSchema, runOutpostTransferSchema, sitDownAnswerSchema, sitDownProposeSchema, travelRoutesSchema, tripExtendSchema, tripHeadHomeSchema, tripLaunchSchema, tripOutpostVisitSchema, tripRentGunsSchema, turfClaimSchema, turfPostSchema, turfPullSchema, turfPushBackupSchema, turfPushCallSchema, turfPushSchema, updateContactKindSchema, updateContactSchema, wirePinSchema, wirePostSchema, workSupplyClearSchema, workSupplyPolicySchema, workSupplyPreviewSchema, operationAnswerSchema, operationCancelSchema, operationCiteSchema, operationExecuteSchema, operationInviteSchema, operationLockSchema, operationReleaseSchema, operationStartSchema } from '@streets/shared';
 import { CitiesService } from '../services/cities.service.js';
 import { ConvoyService } from '../services/convoy.service.js';
 import { RelocationService } from '../services/relocation.service.js';
@@ -23,7 +23,7 @@ import { TurfActionService } from '../services/turf-action.service.js';
 import { BusinessActionService } from '../services/business-action.service.js';
 import { BlockWarService } from '../services/block-war.service.js';
 import { OperationsService } from '../services/operations.service.js';
-import { BlackBookService } from '../services/black-book.service.js';
+import { GangInvestigationService } from '../services/gang-investigation.service.js';
 import { TurfWarService } from '../services/turf-war.service.js';
 import { TurfOutpostService } from '../services/turf-outpost.service.js';
 import { accountTrust, assertTrustGate } from '../services/communication-guard.js';
@@ -72,8 +72,10 @@ const playingTogetherRoutes: FastifyPluginAsync = async (app) => {
   app.get('/cities', { preHandler: app.requireAuth }, async (request) =>
     CitiesService.page(app.prisma, await me(request.auth!.account.id)));
 
-  app.get('/black-book', { preHandler: app.requireAuth }, async (request) =>
-    BlackBookService.page(app.prisma, await me(request.auth!.account.id)));
+  app.get('/gang-intel', { preHandler: app.requireAuth }, async (request) =>
+    GangInvestigationService.page(app.prisma, await me(request.auth!.account.id)));
+  app.post('/gang-intel/advance', { preHandler: app.requireAuth }, async (request) =>
+    GangInvestigationService.advance(app.prisma, await me(request.auth!.account.id), parseBody(gangInvestigationAdvanceSchema, request.body ?? {})));
 
   /** 0.6.0-B: claim locals, reinforce a held corner, or pull thugs home. */
   app.post('/turf/claim', { preHandler: app.requireAuth }, async (request) =>

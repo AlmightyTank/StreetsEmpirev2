@@ -40,7 +40,7 @@ export const operationCancelSchema = z.object({ operationId }).strict();
 export const operationCiteSchema = z.object({
   operationId,
   windowKey: z.enum(['intel', 'prep', 'action']),
-  sourceKind: z.enum(['supply-stock', 'run', 'block-war', 'turf-push', 'intel-rumor']),
+  sourceKind: z.enum(['supply-stock', 'run', 'block-war', 'turf-push', 'gang-investigation']),
   sourceId: z.string().trim().min(1).max(64),
 }).strict();
 /** 2.0.0. Run the operation once every role is filled. */

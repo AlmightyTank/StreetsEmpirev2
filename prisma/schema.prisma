@@ -1920,7 +1920,6 @@ model Round {
   cityMemoryEvents         CityMemoryEvent[]
   operations               Operation[]
   legacyEntries            LegacyEntry[]
-  intelRumors              IntelRumor[]
   directMessages           DirectMessage[]
   businesses               Business[]
   blockWars                BlockWar[]
@@ -2089,7 +2088,6 @@ model City {
   turfCrackdowns     TurfCrackdown[]
   cityMemoryEvents   CityMemoryEvent[]
   operations         Operation[]
-  intelRumors        IntelRumor[]
   casinoWallets      CasinoWallet[]
   casinoSessions     CasinoSession[]
   casinoLedger       CasinoLedgerEntry[]
@@ -2523,8 +2521,6 @@ model RoundPlayer {
   blockWarsDefended     BlockWar[]             @relation("BlockWarDefender")
   operationsLed         Operation[]            @relation("OperationLeader")
   operationSeats        OperationParticipant[]
-  blackBookIntel        IntelRumor[]           @relation("IntelRumorOwner")
-  blackBookMentions     IntelRumor[]           @relation("IntelRumorTarget")
   blockWarSquads        BlockWarSquad[]
   turfPushBackups       TurfPushBackup[]
   /// 0.6.0-D. Supply/tax boxes for away turf.
@@ -6621,31 +6617,6 @@ model OperationGrant {
   createdAt     DateTime  @default(now())
 
   @@unique([operationId, roundPlayerId, kind])
-}
-
-model IntelRumor {
-  id         String       @id @default(cuid())
-  roundId    String
-  round      Round        @relation(fields: [roundId], references: [id], onDelete: Cascade)
-  ownerId    String
-  owner      RoundPlayer  @relation("IntelRumorOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  targetId   String?
-  target     RoundPlayer? @relation("IntelRumorTarget", fields: [targetId], references: [id], onDelete: Cascade)
-  cityId     String
-  city       City         @relation(fields: [cityId], references: [id], onDelete: Cascade)
-  district   String?
-  topic      String
-  confidence String       @default("rumor")
-  sources    Json         @default("[]")
-  detail     Json         @default("{}")
-  expiresAt  DateTime
-  createdAt  DateTime     @default(now())
-  updatedAt  DateTime     @updatedAt
-
-  @@unique([ownerId, topic])
-  @@index([ownerId, expiresAt])
-  @@index([roundId, cityId, confidence])
-  @@index([targetId])
 }
 
 model LegacyEntry {

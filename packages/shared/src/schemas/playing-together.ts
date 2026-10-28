@@ -33,10 +33,16 @@ export const addContactSchema = z.object({
 export const updateContactSchema = z.object({ note: contactNoteSchema }).strict();
 export const updateContactKindSchema = z.object({ kind: contactKindSchema }).strict();
 
+export const gangInvestigationAdvanceSchema = z.object({
+  investigationId: z.string().min(1).max(64),
+  actionId: actionIdSchema,
+}).strict();
+
 export type WirePostInputDto = z.infer<typeof wirePostSchema>;
 export type WirePinInputDto = z.infer<typeof wirePinSchema>;
 export type AddContactInputDto = z.infer<typeof addContactSchema>;
 export type UpdateContactKindInputDto = z.infer<typeof updateContactKindSchema>;
+export type GangInvestigationAdvanceInput = z.infer<typeof gangInvestigationAdvanceSchema>;
 
 const productKey = z.string().regex(/^[A-Z][A-Z0-9_]{1,31}$/, 'Pick a product.');
 
