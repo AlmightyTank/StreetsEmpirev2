@@ -55,6 +55,7 @@ export function EmpireRosterCard({
   detail,
   meta = [],
   selected = false,
+  className,
   onSelect,
   selectLabel,
   children,
@@ -67,6 +68,7 @@ export function EmpireRosterCard({
   detail?: ReactNode;
   meta?: ReactNode[];
   selected?: boolean;
+  className?: string;
   onSelect?: () => void;
   selectLabel?: string;
   children?: ReactNode;
@@ -84,7 +86,7 @@ export function EmpireRosterCard({
   );
 
   return (
-    <article className={`se-empire-roster${selected ? ' is-selected' : ''}`}>
+    <article className={`se-empire-roster${selected ? ' is-selected' : ''}${className ? ` ${className}` : ''}`}>
       {onSelect ? (
         <button type="button" className="se-empire-roster__select" onClick={onSelect} aria-pressed={selected} aria-label={selectLabel}>
           {summary}

@@ -33,6 +33,17 @@
 
 .se-empire-roster { min-width: 0; overflow: hidden; border: 1px solid var(--se-line); border-radius: var(--se-radius-sm, 4px); background: rgba(255,255,255,.012); }
 .se-empire-roster.is-selected { border-color: rgba(var(--se-accent-rgb), .55); box-shadow: inset 3px 0 0 var(--se-accent); background: rgba(var(--se-accent-rgb), .045); }
+.se-empire-roster--gang-red-hand { --gang-color: #d45b5b; }
+.se-empire-roster--gang-quiet-money { --gang-color: #d2ad55; }
+.se-empire-roster--gang-back-alley { --gang-color: #8d72c7; }
+.se-empire-roster--gang-cookhouse { --gang-color: #d27a45; }
+.se-empire-roster--gang-hot-wire { --gang-color: #4fa5d8; }
+.se-empire-roster--gang-block-breakers { --gang-color: #b96d4e; }
+.se-empire-roster--gang-kitchen-boys { --gang-color: #6eb36a; }
+.se-empire-roster--gang-chop-shop { --gang-color: #c56b9b; }
+.se-empire-roster[class*="se-empire-roster--gang-"] { border-color: color-mix(in srgb, var(--gang-color) 55%, var(--se-line)); box-shadow: inset 3px 0 0 var(--gang-color); }
+.se-empire-roster[class*="se-empire-roster--gang-"] .se-empire-roster__select:hover { background: color-mix(in srgb, var(--gang-color) 8%, transparent); }
+.se-empire-roster[class*="se-empire-roster--gang-"].is-selected { border-color: color-mix(in srgb, var(--gang-color) 75%, var(--se-line)); box-shadow: inset 4px 0 0 var(--gang-color), 0 0 0 1px color-mix(in srgb, var(--gang-color) 25%, transparent); background: color-mix(in srgb, var(--gang-color) 9%, transparent); }
 .se-empire-roster__select { display: flex; width: 100%; min-height: 54px; align-items: flex-start; justify-content: space-between; gap: 10px; padding: 9px 10px; border: 0; background: none; color: var(--se-text); font: inherit; text-align: left; }
 button.se-empire-roster__select { cursor: pointer; }
 button.se-empire-roster__select:hover { background: rgba(var(--se-accent-rgb), .045); }
