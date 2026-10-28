@@ -2174,19 +2174,25 @@
 .se-market-results__heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 14px 10px; }
 .se-market-results__heading h2 { margin: 1px 0 0; font-size: 18px; letter-spacing: -.025em; }
 .se-market-results__heading > span { color: var(--se-muted); font-size: 10px; white-space: nowrap; }
-.se-market-tablewrap { overflow: auto; }
-.se-market-table { width: 100%; table-layout: fixed; }
-.se-market-table th { padding: 7px 8px; color: var(--se-muted); background: color-mix(in srgb, var(--se-bg) 60%, var(--se-panel)); font-size: 9px; letter-spacing: .07em; text-transform: uppercase; }
-.se-market-table th:nth-child(1) { width: 28%; }
-.se-market-table th:nth-child(2) { width: 13%; }
-.se-market-table th:nth-child(3) { width: 10%; }
-.se-market-table th:nth-child(4) { width: 17%; }
-.se-market-table th:nth-child(5) { width: 10%; }
-.se-market-table th:nth-child(6) { width: 22%; }
-.se-market-table td { padding: 7px 8px; vertical-align: middle; }
-.se-market-table td[data-label="Seller"] { overflow-wrap: anywhere; }
+.se-market-tablewrap { overflow: visible; padding: 10px; }
+.se-market-table { display: block; width: 100%; }
+.se-market-table thead { display: none; }
+.se-market-table tbody { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.se-market-table tr { display: grid; grid-template-areas: "item item" "seller seller" "quantity ends" "price price" "action action"; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 12px; min-width: 0; padding: 10px 12px; border: 1px solid var(--se-line); border-radius: 9px; background: linear-gradient(145deg, color-mix(in srgb, var(--se-panel-hi) 84%, var(--se-panel)), var(--se-panel)); box-shadow: var(--se-shadow-soft); }
+.se-market-table td { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; min-width: 0; padding: 5px 0; border: 0; text-align: right; }
+.se-market-table td::before { flex: 0 0 auto; color: var(--se-muted); font-size: 9px; font-weight: 750; letter-spacing: .08em; text-align: left; text-transform: uppercase; }
+.se-market-table td[data-label="Item"] { grid-area: item; justify-content: flex-start; padding: 0 0 8px; border-bottom: 1px solid var(--se-line-soft); text-align: left; }
+.se-market-table td[data-label="Item"]::before { content: none; }
+.se-market-table td[data-label="Seller"] { grid-area: seller; justify-content: flex-start; overflow-wrap: anywhere; text-align: left; }
+.se-market-table td[data-label="Seller"]::before { content: "Seller"; }
+.se-market-table td[data-label="Available"] { grid-area: quantity; }
+.se-market-table td[data-label="Available"]::before { content: "Qty"; }
+.se-market-table td[data-label="Price / unit"] { grid-area: price; justify-content: space-between; }
+.se-market-table td[data-label="Price / unit"]::before { content: "Price"; }
+.se-market-table td[data-label="Ends"] { grid-area: ends; }
+.se-market-table td[data-label="Ends"]::before { content: "Ends"; }
 .se-market-table td[data-label="Action"],
-.se-market-table td.se-market-buy-controls { display: flex; align-items: center; justify-content: flex-end; gap: 4px; min-width: 0; }
+.se-market-table td.se-market-buy-controls { grid-area: action; display: flex; align-items: center; justify-content: flex-end; gap: 4px; min-width: 0; padding-top: 9px; border-top: 1px solid var(--se-line-soft); }
 .se-market-table td[data-label="Action"] .se-btn { flex: 0 0 auto; }
 .se-market-table .se-market-listing--selected td { background: color-mix(in srgb, var(--se-accent) 8%, var(--se-panel)); }
 .se-market-table .se-market-listing--selected td:first-child { box-shadow: inset 3px 0 var(--se-accent); }
