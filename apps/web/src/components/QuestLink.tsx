@@ -2,15 +2,15 @@ import { Link } from 'react-router-dom';
 import type { QuestLinkDto } from '@streets/shared';
 
 /** 1.5.0-E2. The jobs page, opened on one quest's card. */
-export function questHref(questKey: string): string {
-  return `/game/quests?view=jobs&focus=${encodeURIComponent(questKey)}#quest-${encodeURIComponent(questKey)}`;
+export function questHref(questKey: string, view: 'jobs' | 'unlocks' = 'jobs'): string {
+  return `/game/quests?view=${view}&focus=${encodeURIComponent(questKey)}#quest-${encodeURIComponent(questKey)}`;
 }
 
 /** 1.5.0-E2. A link straight to the job behind a lock: "“Pack Your Bags” for Wheels". */
-export function QuestLink({ quest }: { quest: QuestLinkDto }) {
+export function QuestLink({ quest, view = 'jobs' }: { quest: QuestLinkDto; view?: 'jobs' | 'unlocks' }) {
   return (
     <>
-      <Link className="se-golink" to={questHref(quest.key)}>“{quest.title}”</Link>
+      <Link className="se-golink" to={questHref(quest.key, view)}>“{quest.title}”</Link>
       {quest.giverName ? ` for ${quest.giverName}` : ''}
     </>
   );

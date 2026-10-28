@@ -21,7 +21,7 @@ function AccessCell({ access, open, none }: { access: AccessState; open: ReactNo
     <span>
       <span className="se-warn">Locked</span>
       {access.step ? <span className="se-muted"> · step {formatNumber(access.step)}</span> : null}
-      {access.quest ? <> · <QuestLink quest={access.quest} /></> : null}
+      {access.quest ? <> · <QuestLink quest={access.quest} view="unlocks" /></> : null}
     </span>
   );
 }
@@ -75,7 +75,7 @@ export function ProductRecipeNote({ product }: { product: ProductStockDto }) {
     return (
       <p className="se-hint">
         {product.recipeAccess.unlockQuest
-          ? <>Finish <QuestLink quest={product.recipeAccess.unlockQuest} /> to cook {product.name} yourself.</>
+           ? <>Finish <QuestLink quest={product.recipeAccess.unlockQuest} view="unlocks" /> to cook {product.name} yourself.</>
           : <>Earn the {product.recipeAccess.unlockName} through <Link className="se-golink" to="/game/quests">underworld contacts</Link> to cook it yourself.</>}
       </p>
     );

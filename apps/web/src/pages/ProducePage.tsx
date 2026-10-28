@@ -226,8 +226,8 @@ export function ProducePage() {
                         <span className="se-choice__meta">{recipeNumbers(locked.recipe)}</span>
                       </span>
                       <LockedChoiceOverlay requirement={`Unlock ${locked.product.name} through a quest.`}>
-                        {locked.quest
-                          ? <>Finish <QuestLink quest={locked.quest} /> to unlock.</>
+                         {locked.quest
+                           ? <>Finish <QuestLink quest={locked.quest} view="unlocks" /> to unlock.</>
                           : <>{locked.unlockDescription} <Link className="se-golink" to="/game/quests">See jobs</Link></>}
                       </LockedChoiceOverlay>
                     </li>
