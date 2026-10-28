@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import { maxCraftBatches } from '@streets/shared';
 import { classicOgV26J } from '@streets/rulesets';
 import { playerBoardPartBookCents } from '@streets/rules-engine';
 import { salvagePrice } from '../salvage-yard.service.js';
-import { componentStacksOpened, craftingRecipes, previewCraftComponents, reconcileWaterFilters, spendWaterFilter, workshopSkill } from '../workshop.service.js';
+import { componentStacksOpened, craftingRecipes, previewCraftComponents, reconcileWaterFilters, scaleCraftRecipe, spendWaterFilter, workshopSkill } from '../workshop.service.js';
 
 const STASH_OUTPUTS = new Set(['CONDOM', 'MEDICINE', 'BEER', 'AMMO_BOX', 'PARTS_BOX']);
 
@@ -84,6 +85,25 @@ describe('hideout workshop crafting catalog', () => {
     expect(reconcileWaterFilters([20, 100, 80], 2)).toEqual([20, 80]);
     expect(reconcileWaterFilters([70], 1)).toEqual([70]);
     expect(reconcileWaterFilters([70, 40], 0)).toEqual([]);
+  });
+
+  it('makes a bigger batch take longer and wear more of one filter', () => {
+    const house = craftingRecipes().find((recipe) => recipe.key === 'HOUSE_BREW')!;
+    const parts = [
+      { key: 'BOTTLES', quantity: 20 },
+      { key: 'LABELS', quantity: 10 },
+      { key: 'PACKAGING', quantity: 10 },
+    ];
+    expect(scaleCraftRecipe(house, 1)).toMatchObject({ turns: 3, filter: { percent: 30 }, output: { quantity: 2 } });
+    expect(scaleCraftRecipe(house, 3)).toMatchObject({ turns: 9, filter: { percent: 90 }, output: { quantity: 6 } });
+    expect(scaleCraftRecipe(house, 3).ingredients.find((line) => line.key === 'BOTTLES')?.quantity).toBe(6);
+    expect(maxCraftBatches(house, parts, [100])).toBe(3);
+    expect(maxCraftBatches(house, parts, [50])).toBe(1);
+    expect(maxCraftBatches(house, parts, [20, 100])).toBe(3);
+    expect(maxCraftBatches(house, parts, [20])).toBe(0);
+    const crate = craftingRecipes().find((recipe) => recipe.key === 'CRATE_BREW')!;
+    expect(scaleCraftRecipe(crate, 4).turns).toBe(8);
+    expect(maxCraftBatches(crate, [{ key: 'BOTTLES', quantity: 4 }, { key: 'LUMBER', quantity: 8 }, { key: 'FASTENERS', quantity: 4 }], [100])).toBe(4);
   });
 
   it('uses diminishing returns for repeated workshop recipes', () => {

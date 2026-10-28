@@ -165,6 +165,10 @@
 .se-workshop__recipe > small { padding-top: 4px; border-top: 1px solid var(--se-line-soft); color: var(--se-muted); font-size: 10px; line-height: 1.4; }
 .se-workshop__recipe .se-item-tile { justify-self: start; }
 .se-workshop__actions { justify-content: flex-start; margin-top: 2px; }
+.se-workshop__batch { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.se-workshop__batch label { color: var(--se-text); font-size: 11px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; }
+.se-workshop__batch input { width: 4.5rem; min-height: 40px; text-align: center; }
+.se-workshop__batch .se-btn { min-width: 40px; min-height: 40px; }
 .se-hideout-resources > .se-game-tabs { margin: 0 0 14px; }
 .se-hideout-resources > .se-game-tabs { gap: 8px; padding: 0; overflow-x: auto; border: 0; border-radius: 0; background: transparent; }
 .se-hideout-resources > .se-game-tabs > button { display: inline-flex; align-items: center; min-height: 40px; padding: 7px 11px; border: 1px solid var(--se-line); border-radius: 3px; background: var(--se-panel); color: var(--se-text-dim); font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; }

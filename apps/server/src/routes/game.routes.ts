@@ -26,6 +26,7 @@ import {
   favorArmSchema,
   streetPassClaimSchema,
   CLIENT_EASTER_EGG_IDS,
+  MAX_CRAFT_BATCH,
   profitIntelligenceGoalsSchema,
 } from '@streets/shared';
 import { toGameSnapshotDto } from '../game/dto.js';
@@ -470,9 +471,9 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
   });
 
   fastify.post('/hideout/workshop/craft', { preHandler: fastify.requireAuth }, async (request) => {
-    const body = parseBody(z.object({ recipeKey: z.string().trim().min(1).max(64), actionId: z.string().trim().min(1).max(128).optional() }).strict(), request.body);
+    const body = parseBody(z.object({ recipeKey: z.string().trim().min(1).max(64), quantity: z.number().int().min(1).max(MAX_CRAFT_BATCH).optional(), actionId: z.string().trim().min(1).max(128).optional() }).strict(), request.body);
     const { round, player } = await requirePlayer(request.auth!.account.id);
-    return WorkshopService.craft(fastify.prisma, player.id, body.recipeKey, body.actionId, loadRulesetForRound(round));
+    return WorkshopService.craft(fastify.prisma, player.id, body.recipeKey, body.actionId, loadRulesetForRound(round), body.quantity);
   });
 
   fastify.get('/armory', { preHandler: fastify.requireAuth }, async (request) => {
