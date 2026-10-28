@@ -350,11 +350,14 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
     ])
     : [];
   const listableCategories = new Map(book.listable.map((row) => [row.key, row.category]));
-  const productKeys = new Set(pipProducts.map((product) => product.key));
+  // Only skip generic Pip catalog rows when the product endpoint supplied the
+  // dedicated Pip offer. Crack is intentionally represented by the store
+  // catalog because it is not part of productEconomy().
+  const pipOfferKeys = new Set(pipProducts.filter((product) => product.pip).map((product) => product.key));
   const storeRows: TraderOffer[] = (storeCatalog?.stores ?? []).flatMap((store) => store.items.flatMap((item) => {
     // Pip's CRACK shelf is the same offer already represented by ProductStockDto;
     // do not show it a second time as the generic “Product” store item.
-    if (store.key === 'PIP' && productKeys.has(item.key)) return [];
+    if (store.key === 'PIP' && pipOfferKeys.has(item.key)) return [];
     const keeperKeys = ['PISTOL', 'SHOTGUN', 'TEK9', 'AK47', 'LOW_RIDER', 'SEDAN', 'VAN'];
     const category = listableCategories.get(item.key) ?? (keeperKeys.includes(item.key) ? 'KEEPER' : ['THUG', 'HOE'].includes(item.key) ? 'CREW' : 'SUPPLY');
     const filter = category === 'PART' ? 'PARTS' : category === 'PRODUCT' ? 'PRODUCTS' : category === 'KEEPER' ? (['LOW_RIDER', 'SEDAN', 'VAN'].includes(item.key) ? 'CARS' : 'GUNS') : category === 'CREW' ? 'CREW' : 'SUPPLIES';
