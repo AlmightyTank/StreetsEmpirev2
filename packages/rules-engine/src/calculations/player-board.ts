@@ -191,17 +191,35 @@ export function playerBoardKeeperName(key: string, ruleset: Ruleset): string | n
   return key === 'AMMO' ? 'Ammo (rounds)' : keeperItem(key, ruleset)?.name ?? null;
 }
 
+/** A real store good that is not already represented as a product or keeper. Favors are not store goods. */
+export function playerBoardStoreItem(key: string, ruleset: Ruleset): { name: string; field: string; buyCents: number; sellCents: number | null } | null {
+  for (const store of Object.values(ruleset.stores)) {
+    const item = store.items[key];
+    if (item && Number.isSafeInteger(item.buyCents) && item.buyCents > 0) {
+      return { name: item.name, field: item.field, buyCents: item.buyCents, sellCents: item.sellCents };
+    }
+  }
+  return null;
+}
+
+export function playerBoardStoreBookCents(key: string, ruleset: Ruleset): number | null {
+  const item = playerBoardStoreItem(key, ruleset);
+  const book = item?.sellCents ?? item?.buyCents;
+  return book !== undefined && Number.isSafeInteger(book) && book > 0 ? book : null;
+}
+
 /** The Board F-G. What a listable item is: a scavenge part, a drug, a keeper good, or nothing the Board takes. */
-export function playerBoardItemKind(key: string, ruleset: Ruleset): 'PART' | 'PRODUCT' | 'KEEPER' | null {
+export function playerBoardItemKind(key: string, ruleset: Ruleset): 'PART' | 'PRODUCT' | 'KEEPER' | 'SUPPLY' | 'CREW' | null {
   if (playerBoardPartBookCents(key, ruleset) !== null) return 'PART';
   if (playerBoardProductBookCents(key, ruleset) !== null) return 'PRODUCT';
   if (playerBoardKeeperBookCents(key, ruleset) !== null) return 'KEEPER';
+  if (playerBoardStoreBookCents(key, ruleset) !== null) return key === 'THUG' || key === 'HOE' ? 'CREW' : 'SUPPLY';
   return null;
 }
 
 /** The Board F-G. The book of any listable item, or null for anything the Board does not take. */
 export function playerBoardItemBookCents(key: string, ruleset: Ruleset): number | null {
-  return playerBoardPartBookCents(key, ruleset) ?? playerBoardProductBookCents(key, ruleset) ?? playerBoardKeeperBookCents(key, ruleset);
+  return playerBoardPartBookCents(key, ruleset) ?? playerBoardProductBookCents(key, ruleset) ?? playerBoardKeeperBookCents(key, ruleset) ?? playerBoardStoreBookCents(key, ruleset);
 }
 
 /**

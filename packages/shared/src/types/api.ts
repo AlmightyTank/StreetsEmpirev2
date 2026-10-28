@@ -563,7 +563,7 @@ export interface PlayerBoardOfferResult {
 /** The Board D-G. Which goods the book shows. */
 export type PlayerBoardFilterDto = 'ALL' | 'PARTS' | 'PRODUCTS' | 'KEEPER' | 'GUNS' | 'CARS' | 'SUPPLIES' | 'CREW';
 /** The Board F-G. What kind of good an offer is: a part, a drug, or a keeper good (guns, low-riders, ammo). */
-export type PlayerBoardCategoryDto = 'PART' | 'PRODUCT' | 'KEEPER';
+export type PlayerBoardCategoryDto = 'PART' | 'PRODUCT' | 'KEEPER' | 'SUPPLY' | 'CREW';
 /** The Board D. One open offer on the city-wide book. */
 export interface PlayerBoardRowDto {
   id: string;

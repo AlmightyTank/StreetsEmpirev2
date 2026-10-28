@@ -2612,6 +2612,13 @@
   scrollbar-color: var(--se-accent) color-mix(in srgb, var(--se-panel-hi) 75%, var(--se-bg));
   scrollbar-width: thin;
 }
+.se-board-item-picker { position: relative; }
+.se-board-item-picker__button { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 10px; text-align: left; cursor: pointer; }
+.se-board-item-picker__button:hover, .se-board-item-picker__button:focus-visible { border-color: var(--se-accent); }
+.se-board-item-picker__menu { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; right: 0; max-height: 220px; overflow-y: auto; padding: 4px; border: 1px solid var(--se-accent); border-radius: var(--se-radius-sm, 4px); background: var(--se-panel-hi, var(--se-panel)); box-shadow: var(--se-shadow-soft); scrollbar-color: var(--se-accent) color-mix(in srgb, var(--se-panel) 75%, var(--se-bg)); scrollbar-width: thin; }
+.se-board-item-picker__option { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 9px; border: 0; border-radius: 3px; color: var(--se-text); background: transparent; font: inherit; text-align: left; cursor: pointer; }
+.se-board-item-picker__option small { color: var(--se-muted); font-family: var(--se-mono); font-size: 10px; }
+.se-board-item-picker__option:hover, .se-board-item-picker__option:focus-visible, .se-board-item-picker__option.is-selected { color: var(--se-text); background: color-mix(in srgb, var(--se-accent) 20%, transparent); outline: none; }
 .se-market-trader-quantity > .se-board-buy__qty {
   box-sizing: border-box;
   width: 100%;

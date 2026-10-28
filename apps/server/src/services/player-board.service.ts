@@ -5,6 +5,7 @@ import {
   playerBoardBarterQuote,
   playerBoardItemBookCents,
   playerBoardItemKind,
+  playerBoardStoreItem,
   playerBoardKeeperName,
   playerBoardOfferExpiresAt,
   PLAYER_BOARD_KEEPER_GOODS,
@@ -58,7 +59,18 @@ function rulesFor(round: BoardRound): Ruleset {
 }
 
 export function itemName(key: string, ruleset: Ruleset): string {
-  return COMPONENTS.find((row) => row.key === key)?.name ?? ruleset.products?.[key]?.name ?? playerBoardKeeperName(key, ruleset) ?? key;
+  return COMPONENTS.find((row) => row.key === key)?.name ?? ruleset.products?.[key]?.name ?? playerBoardKeeperName(key, ruleset) ?? playerBoardStoreItem(key, ruleset)?.name ?? key;
+}
+
+type StoreBalanceField = 'thugs' | 'condoms' | 'medicine' | 'beer' | 'pistols' | 'shotguns' | 'tek9s' | 'ak47s' | 'lowRiders' | 'ammo' | 'vehicleParts';
+function storeBalanceField(key: string, ruleset: Ruleset): StoreBalanceField | null {
+  const field = playerBoardStoreItem(key, ruleset)?.field;
+  return field && ['thugs', 'condoms', 'medicine', 'beer', 'pistols', 'shotguns', 'tek9s', 'ak47s', 'lowRiders', 'ammo', 'vehicleParts'].includes(field)
+    ? field as StoreBalanceField : null;
+}
+
+function storeGoods(ruleset: Ruleset): string[] {
+  return Object.values(ruleset.stores).flatMap((store) => Object.keys(store.items));
 }
 
 /** A barter offer's stored basket as display lines; empty for cash. */
@@ -146,6 +158,11 @@ async function heldUnits(tx: Db, roundPlayerId: string, key: string, ruleset: Ru
   const kind = playerBoardItemKind(key, ruleset);
   if (kind === 'PRODUCT') return (await ProductInventoryService.read(tx, roundPlayerId, ruleset))[key] ?? 0;
   if (kind === 'KEEPER') return keeperHeld(tx, roundPlayerId, key, ruleset);
+  const field = storeBalanceField(key, ruleset);
+  if (field) {
+    const player = await tx.roundPlayer.findUnique({ where: { id: roundPlayerId } });
+    return player ? Number(player[field]) : 0;
+  }
   return (await partBalances(tx, roundPlayerId))[key] ?? 0;
 }
 
@@ -158,6 +175,7 @@ async function hasRoom(tx: Db, roundPlayerId: string, key: string, ruleset: Rule
     const { StashService, canFitAdditionalStack } = await import('./stash.service.js');
     return canFitAdditionalStack(await StashService.page(tx, roundPlayerId), PLAYER_BOARD_KEEPER_GOODS[key as keyof typeof PLAYER_BOARD_KEEPER_GOODS].stashKey as StashItemKeyDto);
   }
+  if (storeBalanceField(key, ruleset)) return true;
   return canReturn(tx, roundPlayerId, key, await partBalances(tx, roundPlayerId));
 }
 
@@ -174,6 +192,12 @@ async function moveHeld(tx: Db, roundPlayerId: string, key: string, delta: numbe
   }
   if (kind === 'PRODUCT') {
     await ProductInventoryService.adjust(tx, roundPlayerId, ruleset, { [key]: delta });
+    return;
+  }
+  const field = storeBalanceField(key, ruleset);
+  if (field) {
+    const player = await tx.roundPlayer.findUniqueOrThrow({ where: { id: roundPlayerId } });
+    await tx.roundPlayer.update({ where: { id: roundPlayerId }, data: { [field]: Number(player[field]) + delta } as Prisma.RoundPlayerUpdateInput });
     return;
   }
   const components = await partBalances(tx, roundPlayerId);
@@ -504,7 +528,7 @@ export const PlayerBoardService = {
         take: BOOK_LIMIT,
       }),
       PlayerBoardService.mine(prisma, round, viewerId, now),
-      prisma.roundPlayer.findUnique({ where: { id: viewerId }, select: { scavengedComponents: true, cashCents: true } }),
+      prisma.roundPlayer.findUnique({ where: { id: viewerId } }),
       prisma.playerReputation.aggregate({ where: { roundPlayerId: viewerId, trader: 'BOARD' }, _sum: { points: true } }),
     ]);
     if (!viewer) throw AppError.notFound('PLAYER_NOT_FOUND', 'Player not found.');
@@ -512,14 +536,16 @@ export const PlayerBoardService = {
     // Drugs, then guns, cars and ammo, then parts, each in catalog order.
     const products = Object.entries(ruleset.products ?? {}).sort(([, a], [, b]) => a.sortOrder - b.sortOrder).map(([key]) => key);
     if (!products.includes('CRACK')) products.unshift('CRACK');
-    const order = new Map([...products, ...Object.keys(PLAYER_BOARD_KEEPER_GOODS), ...COMPONENTS.map((row) => row.key)].map((key, index) => [key, index]));
-    const wanted = (kind: 'PART' | 'PRODUCT' | 'KEEPER' | null, key: string) => kind !== null
+    const order = new Map([...products, ...Object.keys(PLAYER_BOARD_KEEPER_GOODS), ...storeGoods(ruleset), ...COMPONENTS.map((row) => row.key)].map((key, index) => [key, index]));
+    const wanted = (kind: 'PART' | 'PRODUCT' | 'KEEPER' | 'SUPPLY' | 'CREW' | null, key: string) => kind !== null
       && (filter === 'ALL'
         || (filter === 'PARTS' && kind === 'PART')
         || (filter === 'PRODUCTS' && kind === 'PRODUCT')
         || (filter === 'KEEPER' && kind === 'KEEPER')
-        || (filter === 'GUNS' && kind === 'KEEPER' && key !== 'LOW_RIDER')
-        || (filter === 'CARS' && kind === 'KEEPER' && key === 'LOW_RIDER'));
+         || (filter === 'GUNS' && kind === 'KEEPER' && key !== 'LOW_RIDER')
+         || (filter === 'CARS' && kind === 'KEEPER' && key === 'LOW_RIDER')
+         || (filter === 'SUPPLIES' && kind === 'SUPPLY')
+         || (filter === 'CREW' && kind === 'CREW'));
     const rows: PlayerBoardRowDto[] = open
       .map((offer) => ({ offer, kind: playerBoardItemKind(offer.itemKey, ruleset) }))
       .filter(({ offer, kind }) => wanted(kind, offer.itemKey) && order.has(offer.itemKey))
@@ -550,7 +576,12 @@ export const PlayerBoardService = {
     for (const key of Object.keys(PLAYER_BOARD_KEEPER_GOODS)) {
       if (playerBoardItemKind(key, ruleset) === 'KEEPER') keeperHoldings[key] = await keeperHeld(prisma as unknown as Db, viewerId, key, ruleset, now);
     }
-    const held = { ...jsonObject(viewer.scavengedComponents, {}), ...(await ProductInventoryService.read(prisma, viewerId, ruleset)), ...keeperHoldings };
+    const storeHoldings: Record<string, number> = {};
+    for (const key of storeGoods(ruleset)) {
+      const field = storeBalanceField(key, ruleset);
+      if (field && playerBoardItemKind(key, ruleset)) storeHoldings[key] = Number(viewer[field]);
+    }
+    const held = { ...jsonObject(viewer.scavengedComponents, {}), ...(await ProductInventoryService.read(prisma, viewerId, ruleset)), ...keeperHoldings, ...storeHoldings };
     const reputationPoints = reputation._sum.points ?? 0;
     const startingOpenOffers = board.startingOpenOffers ?? 3;
     const reputationPerOpenOffer = board.reputationPerOpenOffer ?? 1;

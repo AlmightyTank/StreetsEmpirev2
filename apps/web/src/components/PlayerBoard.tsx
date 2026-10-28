@@ -156,10 +156,10 @@ export function boardBuyUnits(row: PlayerBoardRowDto, typed: string | undefined)
   return Number.isInteger(units) && units >= 1 && units <= row.quantity && units % row.lotSize === 0 ? units : null;
 }
 
-function ItemOptions({ rows }: { rows: ReadonlyArray<{ key: string; name: string; category: 'PART' | 'PRODUCT' | 'KEEPER'; label?: string }> }) {
+function ItemOptions({ rows }: { rows: ReadonlyArray<{ key: string; name: string; category: 'PART' | 'PRODUCT' | 'KEEPER' | 'SUPPLY' | 'CREW'; label?: string }> }) {
   return (
     <>
-      {([['PRODUCT', 'Drugs'], ['KEEPER', 'Guns & cars'], ['PART', 'Parts']] as const).map(([category, label]) => {
+      {([['PRODUCT', 'Drugs'], ['KEEPER', 'Guns & cars'], ['PART', 'Parts'], ['SUPPLY', 'Supplies'], ['CREW', 'Crew']] as const).map(([category, label]) => {
         const group = rows.filter((row) => row.category === category);
         return group.length ? (
           <optgroup key={category} label={label}>
@@ -172,9 +172,10 @@ function ItemOptions({ rows }: { rows: ReadonlyArray<{ key: string; name: string
 }
 
 function ListPanel({ book, busy, form, onForm, onPost }: Pick<PlayerBoardViewProps, 'book' | 'busy' | 'form' | 'onForm' | 'onPost'>) {
+  const [itemMenuOpen, setItemMenuOpen] = useState(false);
   const part: PlayerBoardListableDto | undefined = book.listable.find((row) => row.key === form.key) ?? book.listable[0];
   if (!part) {
-    return <p className="se-board-empty">You have nothing to list. Drugs come from cooking and Pip; parts come from scouting.</p>;
+    return <p className="se-board-empty">You have nothing eligible to list. Favors cannot be listed.</p>;
   }
   const quantity = Number(form.quantity);
   const quantityOk = Number.isInteger(quantity) && quantity >= 1 && quantity <= part.held;
@@ -211,6 +212,13 @@ function ListPanel({ book, busy, form, onForm, onPost }: Pick<PlayerBoardViewPro
   const setAsk = (index: number, change: Partial<{ key: string; quantity: string }>) =>
     onForm({ ...form, ask: form.ask.map((line, at) => (at === index ? { ...line, ...change } : line)) });
   const firstFree = askable.find((row) => !form.ask.some((line) => line.key === row.key));
+  function choosePart(next: PlayerBoardListableDto) {
+    onForm({
+      ...form, key: next.key, quantity: String(Math.min(Number(form.quantity) || 1, next.held)), price: (next.floorCents / 100).toFixed(2),
+      ask: form.ask.filter((line) => line.key !== next.key),
+    });
+    setItemMenuOpen(false);
+  }
   async function confirmPost() {
     if (reason) return;
     const breakdown = barter
@@ -222,17 +230,17 @@ function ListPanel({ book, busy, form, onForm, onPost }: Pick<PlayerBoardViewPro
   return (
     <form className="se-board-list" onSubmit={(event) => { event.preventDefault(); void confirmPost(); }}>
       <div className="se-field">
-        <label className="se-label" htmlFor="board-part">Item</label>
-        <select id="board-part" className="se-input" size={book.listable.length > 6 ? 6 : undefined} value={part.key}
-          onChange={(event) => {
-            const next = book.listable.find((row) => row.key === event.target.value)!;
-            onForm({
-              ...form, key: next.key, quantity: String(Math.min(Number(form.quantity) || 1, next.held)), price: (next.floorCents / 100).toFixed(2),
-              ask: form.ask.filter((line) => line.key !== next.key),
-            });
-          }}>
-          <ItemOptions rows={book.listable.map((row) => ({ ...row, label: `${row.name} (${formatNumber(row.held)} held)` }))} />
-        </select>
+        <span className="se-label" id="board-part-label">Item</span>
+        <div className="se-board-item-picker">
+          <button id="board-part" type="button" className="se-input se-board-item-picker__button" aria-haspopup="listbox" aria-expanded={itemMenuOpen} aria-controls="board-part-options" onClick={() => setItemMenuOpen((open) => !open)}>
+            <span>{part.name} ({formatNumber(part.held)} held)</span><span aria-hidden="true">⌄</span>
+          </button>
+          {itemMenuOpen ? <div id="board-part-options" className="se-board-item-picker__menu" role="listbox" aria-labelledby="board-part-label">
+            {book.listable.map((row) => <button key={row.key} type="button" role="option" aria-selected={row.key === part.key} className={`se-board-item-picker__option${row.key === part.key ? ' is-selected' : ''}`} onClick={() => choosePart(row)}>
+              <span>{row.name}</span><small>{formatNumber(row.held)} held</small>
+            </button>)}
+          </div> : null}
+        </div>
       </div>
       <div className="se-field">
         <label className="se-label" htmlFor="board-quantity">How many</label>
