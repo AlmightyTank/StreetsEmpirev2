@@ -236,7 +236,7 @@ function ListPanel({ book, busy, form, onForm, onPost }: Pick<PlayerBoardViewPro
         <label className="se-label" htmlFor="board-quantity">How many</label>
         <input id="board-quantity" className="se-input" type="number" inputMode="numeric" min={1} max={part.held} step={1}
           value={form.quantity} onChange={(event) => onForm({ ...form, quantity: event.target.value })} />
-        <QuantityStepper value={Number(form.quantity) || 1} min={1} max={part.held} unitLabel={part.name.toLowerCase()}
+        <QuantityStepper className="se-quantity-stepper--board" value={Number(form.quantity) || 1} min={1} max={part.held} unitLabel={part.name.toLowerCase()}
           onChange={(value) => onForm({ ...form, quantity: String(value) })} />
       </div>
       <div className="se-field">

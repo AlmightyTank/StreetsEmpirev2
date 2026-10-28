@@ -36,6 +36,16 @@
   outline: 2px solid color-mix(in srgb, var(--se-accent) 50%, transparent);
   outline-offset: 1px;
 }
+.se-quantity-stepper--board .se-quantity-stepper__button {
+  border-color: color-mix(in srgb, var(--se-accent) 48%, var(--se-line));
+  color: var(--se-accent);
+  background: color-mix(in srgb, var(--se-accent) 10%, var(--se-panel-hi, var(--se-panel)));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--se-accent) 10%, transparent);
+}
+.se-quantity-stepper--board .se-quantity-stepper__button:hover:not(:disabled) {
+  color: var(--se-text);
+  background: color-mix(in srgb, var(--se-accent) 22%, var(--se-panel-hi, var(--se-panel)));
+}
 .se-quantity-stepper__button:disabled { opacity: .42; cursor: not-allowed; }
 .se-quantity-stepper__max { min-height: 44px; padding: 0 10px; font-size: 11px; cursor: pointer; }
 .se-quantity-stepper__max:hover:not(:disabled) { border-color: var(--se-accent); color: var(--se-accent); }
