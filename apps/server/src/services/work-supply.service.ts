@@ -21,7 +21,7 @@ import {
   type WorkSupplyPolicy,
   type WorkSupplyRole,
 } from '@streets/rules-engine';
-import { workSupplyPolicySchema, type WorkSupplyDto, type WorkSupplyPlanDto, type WorkSupplyPreviewDto } from '@streets/shared';
+import { workSupplyPolicyAllSchema, workSupplyPolicySchema, type WorkSupplyDto, type WorkSupplyPlanDto, type WorkSupplyPreviewDto } from '@streets/shared';
 import type { Db } from '../utils/db.js';
 import { AppError } from '../utils/errors.js';
 import { fitThugs, workingWhores } from './action.service.js';
@@ -156,6 +156,36 @@ export const WorkSupplyService = {
       where: { roundPlayerId_job: { roundPlayerId, job: input.job } },
       create: { roundPlayerId, job: input.job, ...data },
       update: data,
+    });
+    return WorkSupplyService.overview(prisma, roundPlayerId);
+  },
+
+  /** Apply one policy atomically to every action supply job available in this round. */
+  async applyAll(prisma: PrismaClient, roundPlayerId: string, rawInput: unknown): Promise<WorkSupplyDto> {
+    const input = workSupplyPolicyAllSchema.parse(rawInput);
+    const player = await prisma.roundPlayer.findUniqueOrThrow({ where: { id: roundPlayerId }, include: { round: true } });
+    const ruleset = loadRulesetForRound(player.round);
+    requireWorkSupply(ruleset);
+    const known = productKeys(ruleset);
+    for (const key of [input.primary, input.fallback, input.emergency]) {
+      if (key && !known.includes(key)) throw AppError.badRequest('UNKNOWN_PRODUCT', 'That product is not part of this round.');
+    }
+    const data = {
+      primary: input.primary,
+      fallback: input.fallback ?? null,
+      emergency: input.emergency ?? null,
+      strict: input.strict ?? false,
+      condoms: input.condoms ?? 'PREMIUM',
+      beer: input.beer ?? 'HOUSE_BREW',
+    };
+    await prisma.$transaction(async (tx) => {
+      for (const job of workSupplyJobs(ruleset)) {
+        await tx.workSupplyPolicy.upsert({
+          where: { roundPlayerId_job: { roundPlayerId, job: job.key } },
+          create: { roundPlayerId, job: job.key, ...data },
+          update: data,
+        });
+      }
     });
     return WorkSupplyService.overview(prisma, roundPlayerId);
   },

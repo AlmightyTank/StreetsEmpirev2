@@ -1,5 +1,6 @@
 .se-supplies-page { max-width: 1180px; margin: 0 auto; }
 .se-supplies-panel { margin-top: 18px; }
+.se-supplies-settings-panel { margin-top: 18px; }
 .se-supplies-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .se-supply-card { display: flex; flex-direction: column; gap: 12px; min-width: 0; padding: 16px; border: 1px solid var(--se-line-soft); border-radius: 12px; background: var(--se-panel-raised, var(--se-panel)); }
 .se-supply-card--empty { border-color: color-mix(in srgb, var(--se-bad, #d85c5c) 50%, var(--se-line-soft)); }

@@ -47,8 +47,7 @@ export type GangInvestigationAdvanceInput = z.infer<typeof gangInvestigationAdva
 const productKey = z.string().regex(/^[A-Z][A-Z0-9_]{1,31}$/, 'Pick a product.');
 
 /** 0.4.0-B. Fallback and emergency must differ from what comes before them. */
-export const workSupplyPolicySchema = z.object({
-  job: z.string().regex(/^[A-Z][A-Z0-9_]{1,31}$/, 'Pick a job.'),
+const workSupplyPolicyFields = z.object({
   primary: productKey,
   fallback: productKey.nullable().optional(),
   emergency: productKey.nullable().optional(),
@@ -56,11 +55,20 @@ export const workSupplyPolicySchema = z.object({
   /** Preferred crew consumable; the other variant remains a fallback. */
   condoms: z.enum(['REGULAR', 'PREMIUM']).optional(),
   beer: z.enum(['REGULAR', 'HOUSE_BREW']).optional(),
-}).strict().superRefine((policy, ctx) => {
+}).strict();
+
+const validateWorkSupplyPolicy = <T extends z.AnyZodObject>(schema: T) => schema.superRefine((policy, ctx) => {
   if (policy.fallback && policy.fallback === policy.primary) ctx.addIssue({ code: 'custom', path: ['fallback'], message: 'The fallback is already the primary.' });
   if (policy.emergency && [policy.primary, policy.fallback].includes(policy.emergency)) ctx.addIssue({ code: 'custom', path: ['emergency'], message: 'The emergency product is already in the list.' });
   if (policy.emergency && !policy.fallback) ctx.addIssue({ code: 'custom', path: ['emergency'], message: 'Set a fallback before an emergency product.' });
 });
+
+export const workSupplyPolicySchema = validateWorkSupplyPolicy(workSupplyPolicyFields.extend({
+  job: z.string().regex(/^[A-Z][A-Z0-9_]{1,31}$/, 'Pick a job.'),
+}));
+
+/** Apply one saved policy to every action supply job in the current round. */
+export const workSupplyPolicyAllSchema = validateWorkSupplyPolicy(workSupplyPolicyFields);
 
 /** 0.4.0-E. POST /api/game/work-supply/policy/clear. */
 export const workSupplyClearSchema = z.object({

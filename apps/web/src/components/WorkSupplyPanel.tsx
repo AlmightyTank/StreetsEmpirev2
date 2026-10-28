@@ -145,8 +145,9 @@ export function WorkSupplyStockRows({ jobs, refreshKey }: {
  * another, and the editor only when asked for. The preview runs the same plan as
  * the action, so it matches the receipt as long as stock and crew do not change.
  */
-function SupplyRow({ overview, row, jobLabel, turns, refreshKey, onOverview }: {
+function SupplyRow({ overview, row, jobLabel, turns, refreshKey, onOverview, onApplyAll }: {
   overview: WorkSupplyDto; row: JobRow; jobLabel: string; turns: number | ''; refreshKey?: unknown; onOverview: (next: WorkSupplyDto) => void;
+  onApplyAll?: (policy: WorkSupplyPolicyDto) => Promise<void>;
 }) {
   const job = row.key;
   const { pathname } = useLocation();
@@ -185,11 +186,31 @@ function SupplyRow({ overview, row, jobLabel, turns, refreshKey, onOverview }: {
     }
   }
 
+  async function applyAll() {
+    if (!onApplyAll) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await onApplyAll(draft);
+      setEditing(false);
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'Could not apply the supply policy to all actions.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const select = (field: 'primary' | 'fallback' | 'emergency', label: string, allowNone: boolean, disabled = false) => (
     <div className="se-field">
       <label className="se-label" htmlFor={`supply-${job}-${field}`}>{label}</label>
       <select id={`supply-${job}-${field}`} className="se-input" disabled={disabled} value={draft[field] ?? ''}
-        onChange={(event) => setDraft({ ...draft, [field]: event.target.value || null, ...(field === 'fallback' && !event.target.value ? { emergency: null } : {}) })}>
+         onChange={(event) => setDraft({
+           ...draft,
+           [field]: event.target.value || null,
+           ...(field === 'fallback' ? {
+             ...(event.target.value ? { strict: false } : { emergency: null }),
+           } : {}),
+         })}>
         {allowNone ? <option value="">None</option> : null}
         {/* Names only: counts do not fit a sidebar, and stock shows in the status line. */}
         {options.map((product) => <option key={product.key} value={product.key}>{product.name}</option>)}
@@ -243,8 +264,8 @@ function SupplyRow({ overview, row, jobLabel, turns, refreshKey, onOverview }: {
         <div className="se-supply__editor">
           <div className="se-supply__policy">
             {select('primary', 'Primary', false)}
-            {select('fallback', 'Fallback', true, draft.strict)}
-            {select('emergency', 'Emergency', true, draft.strict || !draft.fallback)}
+             {select('fallback', 'Fallback', true)}
+             {select('emergency', 'Emergency', true, !draft.fallback)}
           </div>
           <div className="se-supply__policy">
             {variantSelect('condoms', 'Condoms first', [['PREMIUM', 'Premium condoms'], ['REGULAR', 'Regular condoms']])}
@@ -259,6 +280,11 @@ function SupplyRow({ overview, row, jobLabel, turns, refreshKey, onOverview }: {
               onClick={() => void send('/game/work-supply/policy', { job, ...draft }, 'Could not save the supply policy.')}>
               Save
             </Button>
+            {onApplyAll ? (
+              <Button type="button" className="se-btn se-btn--ghost se-btn--sm" disabledReason={busy} onClick={() => void applyAll()}>
+                Apply to all actions
+              </Button>
+            ) : null}
             <Button type="button" className="se-btn se-btn--ghost se-btn--sm" disabledReason={busy} onClick={() => { setDraft(row.policy); setEditing(false); }}>
               Cancel
             </Button>
@@ -317,9 +343,15 @@ export function WorkSupplySettingsPanel() {
     return () => window.removeEventListener(WORK_SUPPLY_CHANGED, load);
   }, [load]);
 
+  const applyAll = useCallback(async (policy: WorkSupplyPolicyDto) => {
+    const next = await api.post<WorkSupplyDto>('/game/work-supply/policy/all', policy);
+    setOverview(next);
+    announceWorkSupplyChanged();
+  }, []);
+
   if (!overview?.enabled) return null;
   return (
-    <Panel title="Action supply settings" subtitle="Choose which product, condoms, and beer your crew uses for each type of action.">
+    <Panel className="se-supplies-settings-panel" title="Action supply settings" subtitle="Choose which product, condoms, and beer your crew uses for each type of action.">
       <div className="se-supply__list">
         {overview.jobs.map((row) => (
           <SupplyRow
@@ -329,6 +361,7 @@ export function WorkSupplySettingsPanel() {
             jobLabel={row.name}
             turns=""
             onOverview={setOverview}
+            onApplyAll={applyAll}
           />
         ))}
       </div>
