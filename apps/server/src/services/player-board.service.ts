@@ -513,11 +513,16 @@ export const PlayerBoardService = {
     const products = Object.entries(ruleset.products ?? {}).sort(([, a], [, b]) => a.sortOrder - b.sortOrder).map(([key]) => key);
     if (!products.includes('CRACK')) products.unshift('CRACK');
     const order = new Map([...products, ...Object.keys(PLAYER_BOARD_KEEPER_GOODS), ...COMPONENTS.map((row) => row.key)].map((key, index) => [key, index]));
-    const wanted = (kind: 'PART' | 'PRODUCT' | 'KEEPER' | null) => kind !== null
-      && (filter === 'ALL' || (filter === 'PARTS' && kind === 'PART') || (filter === 'PRODUCTS' && kind === 'PRODUCT') || (filter === 'KEEPER' && kind === 'KEEPER'));
+    const wanted = (kind: 'PART' | 'PRODUCT' | 'KEEPER' | null, key: string) => kind !== null
+      && (filter === 'ALL'
+        || (filter === 'PARTS' && kind === 'PART')
+        || (filter === 'PRODUCTS' && kind === 'PRODUCT')
+        || (filter === 'KEEPER' && kind === 'KEEPER')
+        || (filter === 'GUNS' && kind === 'KEEPER' && key !== 'LOW_RIDER')
+        || (filter === 'CARS' && kind === 'KEEPER' && key === 'LOW_RIDER'));
     const rows: PlayerBoardRowDto[] = open
       .map((offer) => ({ offer, kind: playerBoardItemKind(offer.itemKey, ruleset) }))
-      .filter(({ offer, kind }) => wanted(kind) && order.has(offer.itemKey))
+      .filter(({ offer, kind }) => wanted(kind, offer.itemKey) && order.has(offer.itemKey))
       .filter(({ offer }) => playerBoardOfferExpiresAt(offer, round, now).getTime() > now.getTime())
       // Per item: cash offers cheapest first, then barters oldest first.
       .sort((a, b) => order.get(a.offer.itemKey)! - order.get(b.offer.itemKey)!
