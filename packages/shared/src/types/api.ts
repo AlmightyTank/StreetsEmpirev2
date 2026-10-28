@@ -1846,6 +1846,35 @@ export interface ScoutResult {
   turnsRemaining: number;
 }
 
+export interface CityEndingStoryDto {
+  citySlug: string;
+  endingKey: string;
+  title: string;
+  description: string;
+  status: 'ACTIVE' | 'ENDED';
+  progress: number;
+  requiredEvents: number;
+  resolvedAt: string | null;
+}
+
+export interface GlobalStorylineDto {
+  key: string;
+  title: string;
+  description: string;
+  catalogVersion: string;
+  chapter: number;
+  progress: number;
+  requiredEvents: number | null;
+  status: 'ACTIVE' | 'ENDED';
+  resolvedAt: string | null;
+}
+
+export interface StorylinePageDto {
+  enabled: boolean;
+  cities: CityEndingStoryDto[];
+  global: GlobalStorylineDto | null;
+}
+
 export interface GangIntelDto {
   gang: { slug: string; bossName: string; crewName: string; crewTag: string };
   district: string;

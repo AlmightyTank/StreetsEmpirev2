@@ -1747,6 +1747,33 @@ export interface CityRules {
   readonly storePrices?: { readonly [K in StoreKey]?: number };
 }
 
+/** Optional, round-pinned narrative ending rules. Mechanics remain in city memory. */
+export interface CityEndingDefinition {
+  readonly key: string;
+  readonly title: string;
+  readonly description: string;
+  readonly triggerKinds: readonly string[];
+  readonly requiredEvents: number;
+}
+
+export interface GlobalStorylineChapter {
+  readonly chapter: number;
+  readonly title: string;
+  readonly description: string;
+  readonly requiredEvents: number;
+}
+
+export interface CityEndingsCatalog {
+  readonly version: string;
+  readonly cities: Readonly<Record<string, CityEndingDefinition>>;
+  readonly global: {
+    readonly key: string;
+    readonly title: string;
+    readonly description: string;
+    readonly chapters: readonly GlobalStorylineChapter[];
+  };
+}
+
 /** 0.5.0-A. A real road between two cities. */
 export interface RoadRules {
   readonly from: string;
@@ -3425,6 +3452,8 @@ export interface Ruleset {
   readonly questDefinitions?: QuestDefinitionCatalog;
   /** Optional, round-pinned gang storyline metadata. Absent on historical rounds. */
   readonly gangQuestlines?: GangQuestlineCatalog;
+  /** Optional, round-pinned shared city endings and global storyline. */
+  readonly cityEndings?: CityEndingsCatalog;
   /** Named quest contacts and their relationship tracks. */
   readonly contacts?: ContactCatalog;
   /** 1.4.0-A. The underworld factions behind the contacts. Absent before 1.4. */

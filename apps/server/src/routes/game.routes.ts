@@ -33,6 +33,7 @@ import { toGameSnapshotDto } from '../game/dto.js';
 import { PayoutService } from '../services/payout.service.js';
 import { ProductionService } from '../services/production.service.js';
 import { HandcraftedQuestService } from '../services/handcrafted-quest.service.js';
+import { StorylineService } from '../services/storyline.service.js';
 import { GangQuestlineService } from '../services/gang-questline.service.js';
 import { StreetPassService } from '../services/street-pass.service.js';
 import { RoundRollCallService } from '../services/round-roll-call.service.js';
@@ -541,6 +542,11 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/quests', { preHandler: fastify.requireAuth }, async (request) => {
     const { round, player } = await requirePlayer(request.auth!.account.id);
     return HandcraftedQuestService.page(fastify.prisma, player.id, loadRulesetForRound(round));
+  });
+
+  fastify.get('/storyline', { preHandler: fastify.requireAuth }, async (request) => {
+    const { round } = await requirePlayer(request.auth!.account.id);
+    return StorylineService.page(fastify.prisma, round.id, loadRulesetForRound(round));
   });
 
   fastify.post('/hideout/workshop/collect', { preHandler: fastify.requireAuth }, async (request) => {

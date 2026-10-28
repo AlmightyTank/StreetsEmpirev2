@@ -1932,9 +1932,43 @@ model Round {
   gangEvents               GangEvent[]
   gangInvestigations       GangInvestigation[]
   careerStoryInstances     CareerStoryInstance[]
+  storyState               RoundStoryState?
+  cityStoryStates          CityStoryState[]
 
   @@index([status])
   @@index([discordEndedAt, discordEndedClaimedAt])
+}
+
+/// 3.0.0. Shared city-ending and global-storyline progress for a pinned round.
+model RoundStoryState {
+  id              String   @id @default(cuid())
+  roundId         String   @unique
+  round           Round    @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  catalogVersion  String
+  globalChapter   Int      @default(0)
+  globalProgress  Int      @default(0)
+  globalStatus    String   @default("ACTIVE")
+  globalResolvedAt DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model CityStoryState {
+  id             String   @id @default(cuid())
+  roundId        String
+  round          Round    @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  cityId         String
+  city           City     @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  endingKey      String
+  status         String   @default("ACTIVE")
+  progress       Int      @default(0)
+  requiredEvents Int
+  resolvedAt     DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([roundId, cityId])
+  @@index([roundId, status])
 }
 
 /// 2.4.0. Round-scoped career story progress pinned to an immutable catalog.
@@ -2087,6 +2121,7 @@ model City {
   turfControlEvents  TurfControlEvent[]
   turfCrackdowns     TurfCrackdown[]
   cityMemoryEvents   CityMemoryEvent[]
+  cityStoryStates    CityStoryState[]
   operations         Operation[]
   casinoWallets      CasinoWallet[]
   casinoSessions     CasinoSession[]
