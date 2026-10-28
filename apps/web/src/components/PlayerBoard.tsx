@@ -123,8 +123,21 @@ export interface PlayerBoardViewProps {
   pipProducts?: ProductStockDto[];
   marketQuantities?: Readonly<Record<string, string>>;
   onMarketQuantity?: (key: string, value: string) => void;
-  onMarketTrade?: (product: ProductStockDto, direction: 'buy' | 'sell', quantity: number) => void;
+  onMarketTrade?: (product: ProductStockDto, direction: 'buy' | 'sell', quantity: number, venue: 'market' | 'store') => void;
 }
+
+type TraderOffer = {
+  key: string;
+  product: ProductStockDto;
+  venue: 'market' | 'store';
+  seller: string;
+  buyCents: number;
+  sellCents: number;
+  depth: number;
+  locked: boolean;
+  unlockLabel?: string | null;
+  maxBuy?: number;
+};
 
 /** Units the viewer has asked for from an offer: all that is left unless they typed a number. Null when it is not a valid amount. */
 export function boardBuyUnits(row: PlayerBoardRowDto, typed: string | undefined): number | null {
@@ -304,8 +317,11 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
   const visibleRows = book.rows;
   // High-market quotes are product listings, so they belong to All items and Drugs,
   // but should not remain visible when the player switches to keepers or parts.
-  const marketRows = (book.filter === 'ALL' || book.filter === 'PRODUCTS')
-    ? pipProducts.filter((product) => product.market)
+  const traderRows: TraderOffer[] = (book.filter === 'ALL' || book.filter === 'PRODUCTS')
+    ? pipProducts.flatMap((product) => [
+      ...(product.market ? [{ key: `market:${product.key}`, product, venue: 'market' as const, seller: 'High market', buyCents: product.market.buyCents, sellCents: product.market.sellCents, depth: product.market.depth, locked: false }] : []),
+      ...(product.pip ? [{ key: `store:${product.key}`, product, venue: 'store' as const, seller: "Pip's counter", buyCents: product.pip.buyCents, sellCents: product.pip.sellCents, depth: product.pip.stock, locked: !product.pip.purchaseUnlocked, unlockLabel: product.pip.unlockName, maxBuy: product.pip.maxBuy }] : []),
+    ])
     : [];
   async function confirmMarketTrade(itemName: string, direction: 'buy' | 'sell', quantity: number, unitPriceCents: number, trade: () => void) {
     const total = quantity * unitPriceCents;
@@ -350,10 +366,10 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
 
               <section className="se-market-results" aria-labelledby="market-listings-heading">
                 <div className="se-market-results__heading">
-                   <div><span className="se-eyebrow">{formatNumber(visibleRows.length + marketRows.length)} listings</span><h2 id="market-listings-heading">On the street</h2></div>
+                   <div><span className="se-eyebrow">{formatNumber(visibleRows.length + traderRows.length)} listings</span><h2 id="market-listings-heading">On the street</h2></div>
                   <span>City-wide offers</span>
                 </div>
-                 {visibleRows.length === 0 && marketRows.length === 0 ? (
+                 {visibleRows.length === 0 && traderRows.length === 0 ? (
                    <p className="se-board-empty">Nothing is listed in this category yet.</p>
                 ) : (
                   <div className="se-tablewrap se-market-tablewrap">
@@ -379,24 +395,23 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
                              </td>
                          </tr>
                        ))}
-                        {marketRows.map((product) => {
-                          const market = product.market!;
-                          const key = product.key;
-                          const typed = marketQuantities[key] ?? '1';
+                        {traderRows.map((offer) => {
+                          const { product } = offer;
+                          const typed = marketQuantities[offer.key] ?? '1';
                           const quantity = Number(typed);
-                          const buyMax = market.buyCents > 0 ? Math.floor(book.cashCents / market.buyCents) : 0;
+                          const buyMax = offer.buyCents > 0 ? Math.min(offer.depth, offer.maxBuy ?? Number.MAX_SAFE_INTEGER, Math.floor(book.cashCents / offer.buyCents)) : 0;
                           const sellMax = product.quantity;
                           const validBuy = Number.isInteger(quantity) && quantity >= 1 && quantity <= buyMax;
                           const validSell = Number.isInteger(quantity) && quantity >= 1 && quantity <= sellMax;
-                          return <tr key={`market-${key}`} className="se-market-trader-row">
-                            <td data-label="Item"><ItemLabel itemKey={key} zoomable={false}><span className="se-board-rarity se-board-rarity--product">{product.name}</span></ItemLabel></td>
-                            <td data-label="Seller">High market</td>
-                            <td className="se-table__number se-num" data-label="Available">{formatNumber(market.depth)}</td>
-                            <td data-label="Price / unit"><span className="se-num">Buy {formatCentsExact(market.buyCents)}</span><br /><span className="se-num">Sell {formatCentsExact(market.sellCents)}</span></td>
+                          return <tr key={offer.key} className={`se-market-trader-row${offer.locked ? ' se-market-trader-row--locked' : ''}`}>
+                            <td data-label="Item"><ItemLabel itemKey={product.key} zoomable={false}><span className="se-board-rarity se-board-rarity--product">{product.name}</span></ItemLabel>{offer.locked ? <small className="se-market-lock" title={offer.unlockLabel ?? 'Complete the required quest or mission'}>🔒 {offer.unlockLabel ? `Unlock: ${offer.unlockLabel}` : 'Locked'}</small> : null}</td>
+                            <td data-label="Seller">{offer.seller}</td>
+                            <td className="se-table__number se-num" data-label="Available">{formatNumber(offer.depth)}</td>
+                            <td data-label="Price / unit"><span className="se-num">Buy {formatCentsExact(offer.buyCents)}</span><br /><span className="se-num">Sell {formatCentsExact(offer.sellCents)}</span></td>
                             <td data-label="Action" className="se-market-buy-controls">
-                              <div className="se-market-trader-quantity"><input className="se-input se-board-buy__qty" type="number" inputMode="numeric" min={1} max={Math.max(buyMax, sellMax)} step={1} aria-label={`Quantity of ${product.name} to trade`} value={typed} onChange={(event) => onMarketQuantity?.(key, event.target.value)} /><QuantityStepper value={Number.isFinite(quantity) && quantity > 0 ? quantity : 1} min={1} max={Math.max(buyMax, sellMax, 1)} onChange={(value) => onMarketQuantity?.(key, String(value))} showMax /></div>
-                              <Button size="sm" variant="primary" disabledReason={busy || !onMarketTrade ? 'Unavailable' : !validBuy ? buyMax < 1 ? 'Not enough cash for one' : `Buy 1 to ${formatNumber(buyMax)}` : null} onClick={() => void confirmMarketTrade(product.name, 'buy', quantity, market.buyCents, () => onMarketTrade?.(product, 'buy', quantity))}>Buy</Button>
-                              <Button size="sm" disabledReason={busy || !onMarketTrade ? 'Unavailable' : !validSell ? sellMax < 1 ? 'You have none to sell' : `Sell 1 to ${formatNumber(sellMax)}` : null} onClick={() => void confirmMarketTrade(product.name, 'sell', quantity, market.sellCents, () => onMarketTrade?.(product, 'sell', quantity))}>Sell</Button>
+                              <div className="se-market-trader-quantity"><input className="se-input se-board-buy__qty" type="number" inputMode="numeric" min={1} max={Math.max(buyMax, sellMax)} step={1} aria-label={`Quantity of ${product.name} to trade with ${offer.seller}`} value={typed} onChange={(event) => onMarketQuantity?.(offer.key, event.target.value)} /><QuantityStepper value={Number.isFinite(quantity) && quantity > 0 ? quantity : 1} min={1} max={Math.max(buyMax, sellMax, 1)} onChange={(value) => onMarketQuantity?.(offer.key, String(value))} showMax /></div>
+                              <Button size="sm" variant="primary" disabledReason={busy || !onMarketTrade ? 'Unavailable' : offer.locked ? `Locked${offer.unlockLabel ? ` · ${offer.unlockLabel}` : ''}` : !validBuy ? buyMax < 1 ? 'Not enough stock or cash for one' : `Buy 1 to ${formatNumber(buyMax)}` : null} onClick={() => void confirmMarketTrade(product.name, 'buy', quantity, offer.buyCents, () => onMarketTrade?.(product, 'buy', quantity, offer.venue))}>Buy</Button>
+                              <Button size="sm" disabledReason={busy || !onMarketTrade ? 'Unavailable' : !validSell ? sellMax < 1 ? 'You have none to sell' : `Sell 1 to ${formatNumber(sellMax)}` : null} onClick={() => void confirmMarketTrade(product.name, 'sell', quantity, offer.sellCents, () => onMarketTrade?.(product, 'sell', quantity, offer.venue))}>Sell</Button>
                             </td>
                           </tr>;
                         })}
@@ -641,12 +656,16 @@ export function PlayerBoard() {
             buyQuantities={buyQuantities} onBuyQuantity={(id, value) => setBuyQuantities((current) => ({ ...current, [id]: value }))}
              onBuy={(row, units) => void buy(row, units)} pipProducts={pipProducts} marketQuantities={marketQuantities}
              onMarketQuantity={(key, value) => setMarketQuantities((current) => ({ ...current, [key]: value }))}
-             onMarketTrade={(product, direction, quantity) => void change(async () => {
-               const result = await api.post<{ result: ProductStockDto & { productName?: string; quantity?: number; totalCents?: number; direction?: string }; cashChangeCents?: number }>('/game/products/trade', { product: product.key, direction, venue: 'market', quantity, quoteCents: direction === 'buy' ? product.market?.buyCents : product.market?.sellCents, actionId: newActionId() });
-               const catalog = await api.get<ProductsDto>('/game/products');
-               setPipProducts(catalog.products);
-               return `${direction === 'buy' ? 'Bought' : 'Sold'} ${formatNumber(quantity)} × ${product.name} on the high market for ${formatCentsExact(Math.abs(result.result?.totalCents ?? result.cashChangeCents ?? 0))}.`;
-             })} />
+              onMarketTrade={(product, direction, quantity, venue) => void change(async () => {
+                const payload = venue === 'market'
+                  ? { product: product.key, direction, venue, quantity, quoteCents: direction === 'buy' ? product.market?.buyCents : product.market?.sellCents, actionId: newActionId() }
+                  : { product: product.key, direction, quantity, actionId: newActionId() };
+                const result = await api.post<{ result: ProductStockDto & { productName?: string; quantity?: number; totalCents?: number; direction?: string }; cashChangeCents?: number }>('/game/products/trade', payload);
+                const catalog = await api.get<ProductsDto>('/game/products');
+                setPipProducts(catalog.products);
+                const trader = venue === 'market' ? 'on the high market' : "from Pip's counter";
+                return `${direction === 'buy' ? 'Bought' : 'Sold'} ${formatNumber(quantity)} × ${product.name} ${trader} for ${formatCentsExact(Math.abs(result.result?.totalCents ?? result.cashChangeCents ?? 0))}.`;
+              })} />
         ) : null}
       </div>
     </GameLayout>

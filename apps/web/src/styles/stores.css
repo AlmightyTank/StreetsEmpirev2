@@ -2194,6 +2194,8 @@
 .se-market-table td[data-label="Action"],
 .se-market-table td.se-market-buy-controls { grid-area: action; display: flex; align-items: center; justify-content: flex-end; gap: 4px; min-width: 0; padding-top: 9px; border-top: 1px solid var(--se-line-soft); }
 .se-market-table td[data-label="Action"] .se-btn { flex: 0 0 auto; }
+.se-market-lock { display: block; margin-top: 4px; color: var(--se-warn); font-size: 10px; line-height: 1.25; }
+.se-market-trader-row--locked td { background: color-mix(in srgb, var(--se-warn) 4%, transparent); }
 .se-market-table .se-market-listing--selected td { background: color-mix(in srgb, var(--se-accent) 8%, var(--se-panel)); }
 .se-market-table .se-market-listing--selected td:first-child { box-shadow: inset 3px 0 var(--se-accent); }
 .se-market-rowpick { display: block; max-width: 100%; padding: 0; border: 0; color: inherit; background: transparent; text-align: left; cursor: pointer; }
@@ -2579,7 +2581,7 @@
 .se-market-trader-quantity {
   display: grid;
   min-width: 0;
-  flex: 0 1 76px;
+  flex: 0 0 96px;
   gap: 3px;
 }
 .se-market-trader-quantity > .se-board-buy__qty {
@@ -2588,7 +2590,7 @@
   min-width: 0;
 }
 .se-market-trader-quantity > .se-quantity-stepper {
-  grid-template-columns: 24px 24px auto;
+  grid-template-columns: 24px 24px minmax(0, 1fr);
   gap: 3px;
   width: 100%;
   margin-top: 0;
@@ -2596,7 +2598,7 @@
 .se-market-trader-quantity > .se-quantity-stepper .se-quantity-stepper__select-label { display: none; }
 .se-market-trader-quantity > .se-quantity-stepper .se-quantity-stepper__button,
 .se-market-trader-quantity > .se-quantity-stepper .se-quantity-stepper__max { min-height: 28px; }
-.se-market-trader-quantity > .se-quantity-stepper .se-quantity-stepper__max { padding-inline: 5px; }
+.se-market-trader-quantity > .se-quantity-stepper .se-quantity-stepper__max { min-width: 0; padding-inline: 2px; font-size: 10px; }
 @media (max-width: 700px) {
   .se-table--cards td.se-market-buy-controls {
     display: grid;
