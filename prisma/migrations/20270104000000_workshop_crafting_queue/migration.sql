@@ -1,0 +1,1 @@
+ALTER TABLE "RoundPlayer" ADD COLUMN "workshopJobs" JSONB NOT NULL DEFAULT '[]';

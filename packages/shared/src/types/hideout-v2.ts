@@ -150,6 +150,18 @@ export interface CraftingWorkshopDto {
   /** Remaining percent on each water filter, one entry per filter the player holds. */
   waterFilters: number[];
   recipes: CraftingRecipeDto[];
+  jobs: CraftingJobDto[];
+}
+
+export interface CraftingJobDto {
+  id: string;
+  recipe: CraftingRecipeDto;
+  output: CraftingResultDto['output'];
+  partYields?: CraftingIngredientDto[];
+  batches: number;
+  startedAt: string;
+  readyAt: string;
+  status: 'WORKING' | 'READY';
 }
 
 export interface CraftingResultDto {
@@ -161,6 +173,17 @@ export interface CraftingResultDto {
   partYields?: CraftingIngredientDto[];
   availableComponents: Array<{ key: string; quantity: number }>;
   /** Remaining percent on each water filter after this craft. */
+  waterFilters: number[];
+  skill: number;
+  skillXp: number;
+  job: CraftingJobDto;
+}
+
+export interface CraftingCollectResultDto {
+  job: CraftingJobDto;
+  output: CraftingResultDto['output'];
+  partYields?: CraftingIngredientDto[];
+  availableComponents: Array<{ key: string; quantity: number }>;
   waterFilters: number[];
   skill: number;
   skillXp: number;

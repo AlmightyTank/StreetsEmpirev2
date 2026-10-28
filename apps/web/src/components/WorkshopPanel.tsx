@@ -1,14 +1,18 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { formatNumber, maxCraftBatches, MAX_CRAFT_BATCH, type CraftingRecipeDto, type CraftingWorkshopDto } from '@streets/shared';
 import { ApiError } from '../api/client.js';
 import { hideoutApi } from '../api/hideout.js';
 import { Button } from './Button.js';
+import { GameDialog } from './GameUI.js';
 import { ItemTile } from './ItemTile.js';
 import { type ItemArtKey } from '../items/itemArt.js';
 
 export function WorkshopPanel({ workshop, onChanged, heading = true }: { workshop: CraftingWorkshopDto; onChanged: (value: CraftingWorkshopDto) => void; heading?: boolean }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [collected, setCollected] = useState<{ name: string; items: Array<{ name: string; quantity: number }> } | null>(null);
+  const [, setClock] = useState(Date.now());
+  useEffect(() => { const timer = window.setInterval(() => setClock(Date.now()), 1000); return () => window.clearInterval(timer); }, []);
 
   async function craft(recipeKey: string, quantity: number) {
     setBusy(recipeKey);
@@ -21,12 +25,26 @@ export function WorkshopPanel({ workshop, onChanged, heading = true }: { worksho
         skillXp: result.result.skillXp,
         availableComponents: result.result.availableComponents,
         waterFilters: result.result.waterFilters,
+        jobs: [...workshop.jobs, result.result.job],
       });
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'That craft could not be completed. Check parts, turns, power, the water filter, and stash space.');
     } finally {
       setBusy(null);
     }
+  }
+
+  async function collect(jobId: string) {
+    setBusy(`collect:${jobId}`);
+    setError(null);
+    try {
+      const result = await hideoutApi.collectCraft(jobId);
+      const items = result.result.partYields?.length ? result.result.partYields : [{ name: result.result.output.name, quantity: result.result.output.quantity }];
+      setCollected({ name: result.result.job.recipe.name, items });
+      onChanged({ ...workshop, availableComponents: result.result.availableComponents, waterFilters: result.result.waterFilters, skill: result.result.skill, skillXp: result.result.skillXp, jobs: workshop.jobs.filter((job) => job.id !== jobId) });
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'That craft could not be collected.');
+    } finally { setBusy(null); }
   }
 
   const assembly = workshop.recipes.filter((recipe) => recipe.kind !== 'DISASSEMBLE');
@@ -40,12 +58,20 @@ export function WorkshopPanel({ workshop, onChanged, heading = true }: { worksho
         <p>Assembly spends parts on goods. Break down spends a part you cannot use and gives back cheaper pieces. Repeating one recipe trains more slowly.</p>
       </div>
     </div> : <p className="se-hideout-inline-note">Assembly spends parts on goods. Break down spends a part you cannot use and gives back cheaper pieces. Repeating one recipe trains more slowly.</p>}
-    <div className="se-panel se-workshop">
+      <div className="se-panel se-workshop">
       <div className="se-stash__summary se-workshop__summary"><strong>Workshop skill {formatNumber(workshop.skill)}</strong><span>{formatNumber(workshop.skillXp)} XP · level {formatNumber(workshop.level)}</span></div>
-      {error ? <p className="se-error" role="alert">{error}</p> : null}
+        {error ? <p className="se-error" role="alert">{error}</p> : null}
+        {workshop.jobs.length ? <div className="se-workshop__jobs"><h3 className="se-eyebrow">Workshop queue</h3>{workshop.jobs.map((job) => {
+          const ready = new Date(job.readyAt).getTime() <= Date.now();
+          const remaining = Math.max(0, Math.ceil((new Date(job.readyAt).getTime() - Date.now()) / 60000));
+          return <div className="se-workshop__job" key={job.id}><div><strong>{job.recipe.name}</strong><small>{ready ? 'Ready to collect' : `Finishing · about ${remaining} min`}</small></div><Button className="se-btn se-btn--primary se-btn--sm" disabled={!ready || busy !== null} onClick={() => collect(job.id)}>{busy === `collect:${job.id}` ? 'Collecting…' : 'Collect'}</Button></div>;
+        })}</div> : null}
       {assembly.length ? <RecipeGroup title="Assembly" note="Turn scavenged parts into goods for the crew and the corner. Choose how many to make. One takes the listed time, and each extra one adds that time again. Brewing also wears one water filter." recipes={assembly} busy={busy} level={workshop.level} components={workshop.availableComponents} filters={workshop.waterFilters ?? []} onCraft={craft} /> : null}
       {breakdown.length ? <RecipeGroup title="Break down" note="Take apart a part you cannot use. The pieces are worth less than the part you spend. Breaking down more takes longer." recipes={breakdown} busy={busy} level={workshop.level} components={workshop.availableComponents} filters={workshop.waterFilters ?? []} onCraft={craft} /> : null}
     </div>
+    <GameDialog open={collected !== null} title="Craft collected" description="These items have been added to your stash." onClose={() => setCollected(null)} actions={<Button onClick={() => setCollected(null)}>Done</Button>}>
+      {collected ? <div className="se-workshop__receipt"><strong>{collected.name}</strong>{collected.items.map((item) => <p key={item.name}>+{formatNumber(item.quantity)} {item.name}</p>)}</div> : null}
+    </GameDialog>
   </section>;
 }
 

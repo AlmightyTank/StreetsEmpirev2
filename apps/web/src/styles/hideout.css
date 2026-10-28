@@ -3,6 +3,13 @@
   gap: 18px;
 }
 
+.se-workshop__jobs { display: grid; gap: 8px; margin: 14px 0 18px; }
+.se-workshop__job { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px; border: 1px solid var(--se-line); border-left: 3px solid var(--se-accent); background: color-mix(in srgb, var(--se-panel) 88%, var(--se-accent)); }
+.se-workshop__job > div { display: grid; gap: 3px; }
+.se-workshop__job small { color: var(--se-text-dim); }
+.se-workshop__receipt { display: grid; gap: 8px; }
+.se-workshop__receipt p { margin: 0; color: var(--se-good, #8fd18f); font-weight: 700; }
+
 .se-cache-reveal {
   display: grid;
   gap: 12px;

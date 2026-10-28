@@ -72,4 +72,5 @@ export const hideoutApi = {
   updateGenerator: (input: { powered?: boolean; refuelCans?: number; upgrade?: 'CAPACITY' | 'EFFICIENCY' }) => api.post<HideoutGeneratorDto>('/game/hideout/generator', input),
   workshop: () => api.get<CraftingWorkshopDto>('/game/hideout/workshop'),
   craft: (recipeKey: string, quantity = 1, actionId?: string) => api.post<import('@streets/shared').GameActionResult<CraftingResultDto>>('/game/hideout/workshop/craft', { recipeKey, quantity, ...(actionId ? { actionId } : {}) }),
+  collectCraft: (jobId: string, actionId?: string) => api.post<import('@streets/shared').GameActionResult<import('@streets/shared').CraftingCollectResultDto>>('/game/hideout/workshop/collect', { jobId, ...(actionId ? { actionId } : {}) }),
 };

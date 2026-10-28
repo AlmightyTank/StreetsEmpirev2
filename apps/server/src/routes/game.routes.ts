@@ -543,6 +543,12 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
     return HandcraftedQuestService.page(fastify.prisma, player.id, loadRulesetForRound(round));
   });
 
+  fastify.post('/hideout/workshop/collect', { preHandler: fastify.requireAuth }, async (request) => {
+    const body = parseBody(z.object({ jobId: z.string().trim().min(1).max(128), actionId: z.string().trim().min(1).max(128).optional() }).strict(), request.body);
+    const { player } = await requirePlayer(request.auth!.account.id);
+    return WorkshopService.collect(fastify.prisma, player.id, body.jobId, body.actionId);
+  });
+
   fastify.get('/gang-quests', { preHandler: fastify.requireAuth }, async (request) => {
     const { round, player } = await requirePlayer(request.auth!.account.id);
     return GangQuestlineService.page(fastify.prisma, player.id, loadRulesetForRound(round));

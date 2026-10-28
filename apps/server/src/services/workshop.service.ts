@@ -1,5 +1,5 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
-import { MAX_CRAFT_BATCH, type CraftingFilterDto, type CraftingIngredientDto, type CraftingRecipeDto, type CraftingResultDto, type CraftingWorkshopDto } from '@streets/shared';
+import { MAX_CRAFT_BATCH, type CraftingFilterDto, type CraftingIngredientDto, type CraftingJobDto, type CraftingRecipeDto, type CraftingResultDto, type CraftingWorkshopDto, type CraftingCollectResultDto } from '@streets/shared';
 import type { Ruleset } from '@streets/rules-engine';
 import { AppError } from '../utils/errors.js';
 import { ActionService, assertTurns } from './action.service.js';
@@ -7,12 +7,15 @@ import { canFitAdditionalStack, StashService } from './stash.service.js';
 import { generatorFuelPerTurn } from './generator.service.js';
 import { recordHideoutEconomy } from './hideout-economy-telemetry.service.js';
 import { COMPONENTS } from './scavenging.service.js';
+import { randomUUID } from 'node:crypto';
 
 type Recipe = Omit<CraftingRecipeDto, 'unlocked'>;
 type PartLine = CraftingIngredientDto;
 
 const CELL = { width: 1, height: 1 } as const;
 const WATER_FILTER_KEY = 'WATER_FILTER';
+/** One spent game turn represents one minute of workshop time. */
+export const CRAFTING_TURN_MINUTES = 1;
 /** A fresh filter. Crafts burn a percent of one filter and cannot pool two partials. */
 export const FILTER_CAPACITY = 100;
 
@@ -128,6 +131,17 @@ function balances(value: Prisma.JsonValue): Record<string, number> {
   return Object.fromEntries(Object.entries(value).filter(([, quantity]) => typeof quantity === 'number' && quantity > 0)) as Record<string, number>;
 }
 
+type StoredJob = Omit<CraftingJobDto, 'status'>;
+function storedJobs(value: Prisma.JsonValue | null | undefined): StoredJob[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((job) => Boolean(job && typeof job === 'object' && !Array.isArray(job)
+    && typeof (job as Record<string, unknown>).id === 'string'
+    && typeof (job as Record<string, unknown>).readyAt === 'string')) as unknown as StoredJob[];
+}
+function jobDto(job: StoredJob, level: number): CraftingJobDto {
+  return { ...job, recipe: recipeDto(job.recipe as Recipe, level), status: new Date(job.readyAt) <= new Date() ? 'READY' : 'WORKING' };
+}
+
 /** Applies one craft to a component pile. Returns null when an ingredient is short. A stack that hits zero is removed. */
 export function previewCraftComponents(components: Record<string, number>, recipe: Recipe): Record<string, number> | null {
   const next = { ...components };
@@ -185,11 +199,11 @@ function availableRecipes(ruleset?: Ruleset): readonly Recipe[] {
 
 export const WorkshopService = {
   async page(prisma: PrismaClient, roundPlayerId: string, ruleset?: Ruleset): Promise<CraftingWorkshopDto> {
-    const player = await prisma.roundPlayer.findUnique({ where: { id: roundPlayerId }, select: { hideoutWorkshopLevel: true, workshopSkillXp: true, scavengedComponents: true, waterFilters: true } });
+    const player = await prisma.roundPlayer.findUnique({ where: { id: roundPlayerId }, select: { hideoutWorkshopLevel: true, workshopSkillXp: true, scavengedComponents: true, waterFilters: true, workshopJobs: true } });
     if (!player) throw AppError.notFound('PLAYER_NOT_FOUND', 'Player not found.');
     const components = balances(player.scavengedComponents);
     const waterFilters = reconcileWaterFilters(waterFilterLoads(player.waterFilters), components[WATER_FILTER_KEY] ?? 0);
-    return { level: player.hideoutWorkshopLevel, skill: skillFromXp(player.workshopSkillXp), skillXp: player.workshopSkillXp, availableComponents: Object.entries(components).map(([key, quantity]) => ({ key, quantity })), waterFilters, recipes: availableRecipes(ruleset).map((recipe) => recipeDto(recipe, player.hideoutWorkshopLevel)) };
+    return { level: player.hideoutWorkshopLevel, skill: skillFromXp(player.workshopSkillXp), skillXp: player.workshopSkillXp, availableComponents: Object.entries(components).map(([key, quantity]) => ({ key, quantity })), waterFilters, recipes: availableRecipes(ruleset).map((recipe) => recipeDto(recipe, player.hideoutWorkshopLevel)), jobs: storedJobs(player.workshopJobs).map((job) => jobDto(job, player.hideoutWorkshopLevel)) };
   },
 
   craft(prisma: PrismaClient, roundPlayerId: string, recipeKey: string, actionId?: string, ruleset?: Ruleset, batches?: number): Promise<import('@streets/shared').GameActionResult<CraftingResultDto>> {
@@ -200,7 +214,7 @@ export const WorkshopService = {
     const job = scaleCraftRecipe(recipe, count);
     return ActionService.run<CraftingResultDto>(prisma, roundPlayerId, {
       action: 'CRAFT', actionId,
-      execute: async ({ tx, current, player }) => {
+       execute: async ({ tx, current, player, now }) => {
         if (current.hideoutWorkshopLevel < recipe.unlockLevel) throw new AppError(403, 'RECIPE_LOCKED', 'Upgrade the Workshop to unlock that recipe.');
         assertTurns(current.turns, job.turns);
         if (job.requiresPower) {
@@ -244,17 +258,48 @@ export const WorkshopService = {
         const skillXp = (player.workshopSkillXp ?? 0) + gain;
         const outputField = job.kind === 'ASSEMBLE' ? LEGACY_FIELDS[job.output.key] : undefined;
         if (job.kind === 'ASSEMBLE' && !outputField) throw AppError.conflict('INVALID_CRAFTING_OUTPUT', 'That recipe has no valid stash output.');
-        const next = outputField
-          ? { ...current, turns: current.turns - job.turns, [outputField]: Number(current[outputField] ?? 0) + job.output.quantity }
-          : { ...current, turns: current.turns - job.turns };
-         await tx.roundPlayer.update({ where: { id: roundPlayerId }, data: { scavengedComponents: nextComponents as Prisma.InputJsonValue, waterFilters: waterFilters as Prisma.InputJsonValue, workshopSkillXp: skillXp, workshopLastRecipe: recipe.key } });
+        const jobs = storedJobs(player.workshopJobs);
+        const previousReady = jobs.reduce((latest, item) => Math.max(latest, new Date(item.readyAt).getTime()), 0);
+        const startedAt = now;
+        const readyAt = new Date(Math.max(startedAt.getTime(), previousReady) + job.turns * CRAFTING_TURN_MINUTES * 60_000);
+        const stored: StoredJob = { id: randomUUID(), recipe: recipeDto(recipe, current.hideoutWorkshopLevel), output: job.output, ...(job.partYields ? { partYields: job.partYields } : {}), batches: count, startedAt: startedAt.toISOString(), readyAt: readyAt.toISOString() };
+        const next = { ...current, turns: current.turns - job.turns };
+         await tx.roundPlayer.update({ where: { id: roundPlayerId }, data: { scavengedComponents: nextComponents as Prisma.InputJsonValue, waterFilters: waterFilters as Prisma.InputJsonValue, workshopSkillXp: skillXp, workshopLastRecipe: recipe.key, workshopJobs: [...jobs, stored] as unknown as Prisma.InputJsonValue } });
          for (const ingredient of job.ingredients) await recordHideoutEconomy(tx, roundPlayerId, 'COMPONENT_SPENT', { itemKey: ingredient.key, quantity: ingredient.quantity, payload: { source: 'CRAFT', recipeKey: recipe.key, batches: count } });
          if (job.filter && (components[WATER_FILTER_KEY] ?? 0) > (nextComponents[WATER_FILTER_KEY] ?? 0)) {
            await recordHideoutEconomy(tx, roundPlayerId, 'COMPONENT_SPENT', { itemKey: job.filter.key, quantity: 1, payload: { source: 'CRAFT', recipeKey: recipe.key, filterPercent: job.filter.percent, batches: count } });
          }
-         await recordHideoutEconomy(tx, roundPlayerId, 'RECIPE_COMPLETED', { itemKey: job.output.key, quantity: job.output.quantity, payload: { recipeKey: recipe.key, kind: job.kind, turns: job.turns, batches: count, ...(job.filter ? { filterKey: job.filter.key, filterPercent: job.filter.percent } : {}), ...(job.partYields ? { partYields: job.partYields.map((line) => ({ key: line.key, name: line.name, quantity: line.quantity })) } : {}) } as Prisma.InputJsonValue });
-          return { next, result: { recipe: recipeDto(recipe, current.hideoutWorkshopLevel), output: job.output, batches: count, ...(job.partYields ? { partYields: job.partYields } : {}), availableComponents: Object.entries(nextComponents).map(([key, quantity]) => ({ key, quantity })), waterFilters, skill: skillFromXp(skillXp), skillXp } };
+           return { next, result: { recipe: recipeDto(recipe, current.hideoutWorkshopLevel), output: job.output, batches: count, ...(job.partYields ? { partYields: job.partYields } : {}), availableComponents: Object.entries(nextComponents).map(([key, quantity]) => ({ key, quantity })), waterFilters, skill: skillFromXp(skillXp), skillXp, job: jobDto(stored, current.hideoutWorkshopLevel) } };
+      },
+    });
+  },
+
+  collect(prisma: PrismaClient, roundPlayerId: string, jobId: string, actionId?: string): Promise<import('@streets/shared').GameActionResult<CraftingCollectResultDto>> {
+    return ActionService.run<CraftingCollectResultDto>(prisma, roundPlayerId, { action: 'COLLECT_CRAFT', actionId,
+      execute: async ({ tx, current, player, now }) => {
+        const jobs = storedJobs(player.workshopJobs);
+        const job = jobs.find((candidate) => candidate.id === jobId);
+        if (!job) throw AppError.notFound('CRAFTING_JOB_NOT_FOUND', 'That crafting job is no longer waiting here.');
+        if (new Date(job.readyAt) > new Date()) throw AppError.conflict('CRAFTING_NOT_READY', 'That craft is still being finished.');
+        const components = balances(player.scavengedComponents);
+        const nextComponents = { ...components };
+        if (job.recipe.kind === 'DISASSEMBLE') {
+          for (const line of job.partYields ?? []) nextComponents[line.key] = (nextComponents[line.key] ?? 0) + line.quantity;
+        }
+        const stash = await StashService.page(tx, roundPlayerId);
+        if (job.recipe.kind === 'DISASSEMBLE') {
+          const { added, removed } = componentStacksOpened(components, nextComponents);
+          if (added > stash.totalCells - stash.usedCells + removed) throw AppError.conflict('STASH_FULL', 'There is no room in the stash for these crafted parts.');
+        } else if (!canFitAdditionalStack(stash, job.output.key as Parameters<typeof canFitAdditionalStack>[1])) {
+          throw AppError.conflict('STASH_FULL', 'There is no room in the stash for this crafted output.');
+        }
+        const outputField = job.recipe.kind === 'ASSEMBLE' ? LEGACY_FIELDS[job.output.key] : undefined;
+        const next = outputField ? { ...current, [outputField]: Number(current[outputField] ?? 0) + job.output.quantity } : current;
+        const remaining = jobs.filter((candidate) => candidate.id !== jobId);
+        await tx.roundPlayer.update({ where: { id: roundPlayerId }, data: { scavengedComponents: nextComponents as Prisma.InputJsonValue, workshopJobs: remaining as unknown as Prisma.InputJsonValue } });
+        return { next, result: { job: jobDto(job, player.hideoutWorkshopLevel), output: job.output, ...(job.partYields ? { partYields: job.partYields } : {}), availableComponents: Object.entries(nextComponents).map(([key, quantity]) => ({ key, quantity })), waterFilters: reconcileWaterFilters(waterFilterLoads(player.waterFilters), nextComponents[WATER_FILTER_KEY] ?? 0), skill: skillFromXp(player.workshopSkillXp), skillXp: player.workshopSkillXp } };
       },
     });
   },
 };
+

@@ -2149,6 +2149,8 @@ model RoundPlayer {
   /// 2.4.0. Workshop crafting progression; recipe repetition has diminishing returns.
   workshopSkillXp Int @default(0)
   workshopLastRecipe String?
+  /// Workshop jobs are paid for up front and remain here until collected.
+  workshopJobs Json @default("[]")
   hideoutEconomyTelemetry HideoutEconomyTelemetry[]
   playerBoardOffers       PlayerBoardOffer[]       @relation("PlayerBoardSeller")
   playerBoardPurchases    PlayerBoardFill[]        @relation("PlayerBoardBuyer")
