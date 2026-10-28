@@ -2647,6 +2647,14 @@
 .se-market-max-action:focus-visible { outline: 2px solid var(--se-accent); outline-offset: 1px; }
 .se-market-max-action:disabled { opacity: .42; cursor: not-allowed; }
 @media (max-width: 700px) {
+  .se-market-page .se-market-table td.se-market-buy-controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: stretch;
+    gap: 5px;
+  }
+  .se-market-page .se-market-trader-quantity { width: 100%; }
+  .se-market-page .se-market-table td.se-market-buy-controls > .se-btn { width: 100%; }
   .se-table--cards td.se-market-buy-controls {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
