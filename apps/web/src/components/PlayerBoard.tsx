@@ -146,6 +146,8 @@ type TraderOffer = {
   maxBuy?: number;
 };
 
+type MarketSortKey = 'item' | 'seller' | 'quantity' | 'price' | 'ends';
+
 /** Units the viewer has asked for from an offer: all that is left unless they typed a number. Null when it is not a valid amount. */
 export function boardBuyUnits(row: PlayerBoardRowDto, typed: string | undefined): number | null {
   if (row.priceKind === 'BARTER') return typed === undefined || typed === '' || Number(typed) === row.quantity ? row.quantity : null;
@@ -321,6 +323,7 @@ function buyBlocker(row: PlayerBoardRowDto, book: PlayerBoardDto, busy: boolean,
 /** The Street Market's player listings and selling desk. */
 export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPost, onCancel, buyQuantities, onBuyQuantity, onBuy, pipProducts = [], marketQuantities = {}, onMarketQuantity, onMarketTrade, storeCatalog, onStoreTrade }: PlayerBoardViewProps) {
   const [section, setSection] = useState<'browse' | 'listings' | 'sell'>('browse');
+  const [marketSort, setMarketSort] = useState<{ key: MarketSortKey; direction: 'asc' | 'desc' }>({ key: 'item', direction: 'asc' });
   const visibleRows = book.rows;
   // High-market quotes are product listings, so they belong to All items and Drugs,
   // but should not remain visible when the player switches to keepers or parts.
@@ -331,7 +334,11 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
     ])
     : [];
   const listableCategories = new Map(book.listable.map((row) => [row.key, row.category]));
+  const productKeys = new Set(pipProducts.map((product) => product.key));
   const storeRows: TraderOffer[] = (storeCatalog?.stores ?? []).flatMap((store) => store.items.flatMap((item) => {
+    // Pip's CRACK shelf is the same offer already represented by ProductStockDto;
+    // do not show it a second time as the generic “Product” store item.
+    if (store.key === 'PIP' && productKeys.has(item.key)) return [];
     const keeperKeys = ['PISTOL', 'SHOTGUN', 'TEK9', 'AK47', 'LOW_RIDER', 'SEDAN', 'VAN'];
     const category = listableCategories.get(item.key) ?? (keeperKeys.includes(item.key) ? 'KEEPER' : ['THUG', 'HOE'].includes(item.key) ? 'CREW' : 'SUPPLY');
     const filter = category === 'PART' ? 'PARTS' : category === 'PRODUCT' ? 'PRODUCTS' : category === 'KEEPER' ? (['LOW_RIDER', 'SEDAN', 'VAN'].includes(item.key) ? 'CARS' : 'GUNS') : category === 'CREW' ? 'CREW' : 'SUPPLIES';
@@ -341,6 +348,34 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
     return [{ key: `store-item:${store.key}:${item.key}`, item, storeKey: store.key, category: offerCategory as TraderOffer['category'], venue: 'store' as const, seller: store.name, buyCents: item.buyCents, sellCents: item.sellCents ?? 0, depth: item.restock ? Math.floor(item.restock.stock / units) : item.maxBuy, locked: item.questLock?.unlocked === false || item.unlock?.unlocked === false, unlockLabel: item.questLock?.unlockName ?? item.unlock?.title, maxBuy: item.maxBuy }];
   }));
   const traderRows = [...productTraderRows, ...storeRows];
+  function toggleMarketSort(key: MarketSortKey) {
+    setMarketSort((current) => current.key === key
+      ? { key, direction: current.direction === 'asc' ? 'desc' : 'asc' }
+      : { key, direction: 'asc' });
+  }
+  const compareMarketValue = (left: PlayerBoardRowDto | TraderOffer, right: PlayerBoardRowDto | TraderOffer): number => {
+    const value = (row: PlayerBoardRowDto | TraderOffer): string | number => {
+      if ('id' in row) {
+        if (marketSort.key === 'item') return row.name.toLocaleLowerCase();
+        if (marketSort.key === 'seller') return row.sellerName.toLocaleLowerCase();
+        if (marketSort.key === 'quantity') return row.quantity;
+        if (marketSort.key === 'price') return row.priceKind === 'CASH' ? row.unitPriceCents : 0;
+        return new Date(row.expiresAt).getTime();
+      }
+      if (marketSort.key === 'item') return (row.product?.name ?? row.item?.name ?? '').toLocaleLowerCase();
+      if (marketSort.key === 'seller') return row.seller.toLocaleLowerCase();
+      if (marketSort.key === 'quantity') return row.depth;
+      if (marketSort.key === 'price') return row.buyCents;
+      return Number.POSITIVE_INFINITY;
+    };
+    const a = value(left);
+    const b = value(right);
+    const result = typeof a === 'string' && typeof b === 'string' ? a.localeCompare(b) : Number(a) - Number(b);
+    return marketSort.direction === 'asc' ? result : -result;
+  };
+  const sortedVisibleRows = [...visibleRows].sort(compareMarketValue);
+  const sortedTraderRows = [...traderRows].sort(compareMarketValue);
+  const sortHeader = (label: string, key: MarketSortKey) => <button type="button" className="se-market-sort-button" onClick={() => toggleMarketSort(key)}>{label}<span aria-hidden="true">{marketSort.key === key ? marketSort.direction === 'asc' ? ' ▲' : ' ▼' : ' ↕'}</span></button>;
   async function confirmMarketTrade(itemName: string, direction: 'buy' | 'sell', quantity: number, unitPriceCents: number, trade: () => void) {
     const total = quantity * unitPriceCents;
     const ok = await confirmAction({
@@ -392,9 +427,9 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
                 ) : (
                   <div className="se-tablewrap se-market-tablewrap">
                     <table className="se-table se-board-book se-market-table">
-                       <thead><tr><th>Item</th><th>Seller</th><th className="se-table__number">Qty</th><th>Price</th><th>Ends</th><th>Action</th></tr></thead>
+                       <thead><tr><th aria-sort={marketSort.key === 'item' ? marketSort.direction === 'asc' ? 'ascending' : 'descending' : 'none'}>{sortHeader('Item', 'item')}</th><th aria-sort={marketSort.key === 'seller' ? marketSort.direction === 'asc' ? 'ascending' : 'descending' : 'none'}>{sortHeader('Seller', 'seller')}</th><th className="se-table__number" aria-sort={marketSort.key === 'quantity' ? marketSort.direction === 'asc' ? 'ascending' : 'descending' : 'none'}>{sortHeader('Qty', 'quantity')}</th><th aria-sort={marketSort.key === 'price' ? marketSort.direction === 'asc' ? 'ascending' : 'descending' : 'none'}>{sortHeader('Price', 'price')}</th><th aria-sort={marketSort.key === 'ends' ? marketSort.direction === 'asc' ? 'ascending' : 'descending' : 'none'}>{sortHeader('Ends', 'ends')}</th><th>Action</th></tr></thead>
                       <tbody>
-                        {visibleRows.map((row) => (
+                         {sortedVisibleRows.map((row) => (
                            <tr key={row.id} className={row.mine ? 'se-board-book__mine' : undefined}>
                              <td data-label="Item">
                                <ItemLabel itemKey={row.itemKey} zoomable={false}><span className={`se-board-rarity se-board-rarity--${row.category === 'PRODUCT' ? 'product' : row.category === 'KEEPER' ? 'keeper' : (row.rarity ?? 'common').toLowerCase()}`}>{row.name}</span></ItemLabel>
@@ -413,7 +448,7 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
                              </td>
                          </tr>
                        ))}
-                        {traderRows.map((offer) => {
+                        {sortedTraderRows.map((offer) => {
                           const productName = offer.product?.name ?? offer.item!.name;
                           const itemKey = offer.product?.key ?? offer.item!.key;
                           const typed = marketQuantities[offer.key] ?? '1';
@@ -430,6 +465,7 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
                             <td data-label="Seller">{offer.seller}</td>
                             <td className="se-table__number se-num" data-label="Available">{formatNumber(offer.depth)}</td>
                             <td data-label="Price / unit"><span className="se-num">Buy {formatCentsExact(offer.buyCents)}</span><br /><span className="se-num">Sell {formatCentsExact(offer.sellCents)}</span></td>
+                            <td data-label="Ends"><span className="se-muted">—</span></td>
                             <td data-label="Action" className="se-market-buy-controls">
                               <div className="se-market-trader-quantity"><input className="se-input se-board-buy__qty" type="number" inputMode="numeric" min={1} max={Math.max(buyMax, sellMax)} step={1} aria-label={`Quantity of ${productName} to trade with ${offer.seller}`} value={typed} onChange={(event) => onMarketQuantity?.(offer.key, event.target.value)} /><QuantityStepper value={Number.isFinite(quantity) && quantity > 0 ? quantity : 1} min={1} max={Math.max(buyMax, sellMax, 1)} onChange={(value) => onMarketQuantity?.(offer.key, String(value))} showMax /></div>
                               <Button size="sm" variant="primary" disabledReason={busy || (offer.product ? !onMarketTrade : !onStoreTrade) ? 'Unavailable' : offer.locked ? `Locked${offer.unlockLabel ? ` · ${offer.unlockLabel}` : ''}` : !validBuy ? buyMax < 1 ? 'Not enough stock or cash for one' : `Buy 1 to ${formatNumber(buyMax)}` : null} onClick={() => void confirmMarketTrade(productName, 'buy', quantity, offer.buyCents, () => trade('buy'))}>Buy</Button>

@@ -2178,12 +2178,15 @@
 .se-market-results__heading > span { color: var(--se-muted); font-size: 10px; white-space: nowrap; }
 .se-market-tablewrap { overflow: visible; padding: 10px; }
 .se-market-table { display: block; width: 100%; }
-.se-market-table thead { display: grid; grid-template-columns: minmax(170px, 2fr) minmax(100px, 1.1fr) minmax(58px, .7fr) minmax(125px, 1.25fr) minmax(70px, .8fr) minmax(265px, 2.4fr); gap: 10px; padding: 0 10px 4px; }
+.se-market-table thead { display: grid; grid-template-columns: minmax(145px, 1.8fr) minmax(85px, 1fr) minmax(52px, .6fr) minmax(100px, 1fr) minmax(52px, .6fr) minmax(205px, 2fr); gap: 8px; padding: 0 10px 4px; }
 .se-market-table thead tr { display: contents; }
 .se-market-table th { padding: 0; color: var(--se-muted); font-size: 9px; font-weight: 750; letter-spacing: .09em; line-height: 1.2; text-align: left; text-transform: uppercase; }
+.se-market-sort-button { display: inline-flex; align-items: center; gap: 2px; padding: 0; border: 0; color: inherit; background: transparent; font: inherit; font-weight: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
+.se-market-sort-button:hover, .se-market-sort-button:focus-visible { color: var(--se-accent); }
+.se-market-sort-button:focus-visible { outline: 2px solid var(--se-accent); outline-offset: 2px; }
 .se-market-table th.se-table__number { text-align: right; }
 .se-market-table tbody { display: block; }
-.se-market-table tr { display: grid; grid-template-columns: minmax(170px, 2fr) minmax(100px, 1.1fr) minmax(58px, .7fr) minmax(125px, 1.25fr) minmax(70px, .8fr) minmax(265px, 2.4fr); gap: 10px; align-items: center; min-width: 0; padding: 8px 10px; border-top: 1px solid var(--se-line-soft); background: color-mix(in srgb, var(--se-panel-hi) 34%, var(--se-panel)); }
+.se-market-table tr { display: grid; grid-template-columns: minmax(145px, 1.8fr) minmax(85px, 1fr) minmax(52px, .6fr) minmax(100px, 1fr) minmax(52px, .6fr) minmax(205px, 2fr); gap: 8px; align-items: center; min-width: 0; padding: 8px 10px; border-top: 1px solid var(--se-line-soft); background: color-mix(in srgb, var(--se-panel-hi) 34%, var(--se-panel)); }
 .se-market-table tr:first-child { border-top: 0; }
 .se-market-table tr:hover { background: color-mix(in srgb, var(--se-accent) 5%, var(--se-panel)); }
 .se-market-table td { display: block; min-width: 0; padding: 0; border: 0; text-align: left; }
