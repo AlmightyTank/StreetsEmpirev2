@@ -2219,6 +2219,8 @@
   .se-market-page .se-market-table td.se-market-buy-controls { grid-area: action; }
 }
 .se-market-lock { display: block; margin-top: 4px; color: var(--se-warn); font-size: 10px; line-height: 1.25; }
+.se-market-trade-breakdown { display: grid; gap: 1px; margin-top: 5px; color: var(--se-text-dim); font-family: var(--se-mono); font-size: 10px; line-height: 1.2; }
+.se-market-trade-breakdown span:first-child { color: var(--se-accent); }
 .se-market-trader-row--locked td { background: color-mix(in srgb, var(--se-warn) 4%, transparent); }
 .se-market-table .se-market-listing--selected td { background: color-mix(in srgb, var(--se-accent) 8%, var(--se-panel)); }
 .se-market-table .se-market-listing--selected td:first-child { box-shadow: inset 3px 0 var(--se-accent); }
