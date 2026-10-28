@@ -1931,6 +1931,7 @@ model Round {
   encounterGangs           EncounterGang[]
   encounterGangTurfs       EncounterGangTurf[]
   gangEvents               GangEvent[]
+  gangInvestigations       GangInvestigation[]
   careerStoryInstances     CareerStoryInstance[]
 
   @@index([status])
@@ -2102,6 +2103,7 @@ model City {
   encounterGangsHome EncounterGang[]     @relation("EncounterGangHomeCity")
   encounterGangsHere EncounterGang[]     @relation("EncounterGangCurrentCity")
   encounterGangTurfs EncounterGangTurf[]
+  gangInvestigations GangInvestigation[]
 }
 
 // ---------------------------------------------------------------------------
@@ -2311,6 +2313,7 @@ model RoundPlayer {
   encounterGangGrudges     EncounterGangGrudge[]
   gangRelationships        GangPlayerRelationship[]
   gangEvents               GangEvent[]
+  gangInvestigations       GangInvestigation[]
   rivalriesAsA             RivalryRelationship[]    @relation("RivalryParticipantA")
   rivalriesAsB             RivalryRelationship[]    @relation("RivalryParticipantB")
   rivalrySources           RivalrySourceReceipt[]   @relation("RivalrySourceParticipant")
@@ -4717,6 +4720,7 @@ model EncounterGang {
   localTurfs Turf[] @relation("LocalGangTurfs")
   playerRelationships GangPlayerRelationship[]
   events             GangEvent[]
+  investigations     GangInvestigation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -5106,6 +5110,36 @@ model GangEvent {
   @@index([roundId, occurredAt(sort: Desc)])
   @@index([gangId, occurredAt(sort: Desc)])
   @@index([roundPlayerId, occurredAt(sort: Desc)])
+}
+
+/// Persistent player-owned trail of a named gang, built from observable scouting.
+model GangInvestigation {
+  id            String        @id @default(cuid())
+  roundId       String
+  round         Round         @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  roundPlayerId String
+  roundPlayer   RoundPlayer   @relation(fields: [roundPlayerId], references: [id], onDelete: Cascade)
+  gangId        String
+  gang          EncounterGang @relation(fields: [gangId], references: [id], onDelete: Cascade)
+  cityId        String
+  city          City          @relation(fields: [cityId], references: [id], onDelete: Cascade)
+
+  district        String
+  targetLocation  String   @default("TURF_CORNER")
+  status          String   @default("RUMOR")
+  confidence      Int      @default(1)
+  clueCount       Int      @default(0)
+  clues           Json     @default("[]")
+  gangAwareness   Int      @default(0)
+  lastObservedAt  DateTime @default(now())
+  expiresAt       DateTime
+  resolvedAt      DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([roundPlayerId, gangId, cityId, district])
+  @@index([roundPlayerId, status, expiresAt])
+  @@index([gangId, cityId, district, status])
 }
 
 /// 1.1.0-A. One business lot on a block. Every block has three, fixed by its district,

@@ -371,6 +371,11 @@ export function scoutReceiptLines(action: GameActionResult<ScoutResult>, me: Pro
 
   return [
     { label: 'Turns used', value: formatNumber(result.turnsUsed) },
+    ...(result.gangIntel ? [{
+      label: `${result.gangIntel.gang.crewName} intel`,
+      value: result.gangIntel.clue,
+      detail: `${result.gangIntel.status} · confidence ${result.gangIntel.confidence}/4`,
+    }] : []),
     ...supplyReceiptLines(result.supply, '', false),
     ...heatReceiptLines(result.heat, false),
     cash,

@@ -19,6 +19,7 @@ import { CityConditionService } from './city-condition.service.js';
 import { applyTerritoryModifier, resolveTerritoryModifiers, territorySourcesForAction } from './territory-perks.service.js';
 import { consumeTerritoryAccessGrant } from './territory-access.service.js';
 import { districtSupplyClue, ScavengingService } from './scavenging.service.js';
+import { GangInvestigationService } from './gang-investigation.service.js';
 
 export interface Crew {
   whores: number;
@@ -333,6 +334,14 @@ export const ScoutService = {
           ruleset,
           now,
         });
+        const gangIntel = await GangInvestigationService.observeScout(tx, {
+          roundId: round.id,
+          roundPlayerId,
+          cityId: player.cityId,
+          district: found.key,
+          turns: input.turns,
+          now,
+        });
         const encounter = await RandomEncounterService.scout({
           tx,
           roundPlayerId,
@@ -349,6 +358,7 @@ export const ScoutService = {
 
         const result: ScoutResult = {
           district: toDistrictDto(found.key, found.district, all, ruleset, active, player.city.slug),
+          ...(gangIntel ? { gangIntel } : {}),
           ...(ruleset.turf?.holding ? { turf } : {}),
           ...(supply ? { supply: toPlanDto(supply, ruleset) } : {}),
           ...(trip.heat ? { heat: trip.heat } : {}),

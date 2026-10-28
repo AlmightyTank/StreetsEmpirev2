@@ -1772,6 +1772,8 @@ export interface RandomEncounterChoiceResult {
 
 export interface ScoutResult {
   district: DistrictDto;
+  /** 3.0.0. A named-gang trail found while working this district. */
+  gangIntel?: GangIntelDto;
   /** 0.6.0-B. Hold bonus or street tax applied to this trip. */
   turf?: TurfTripDto;
   /** 0.4.0-B. How the trip was supplied, on rounds with work supply. */
@@ -1840,6 +1842,18 @@ export interface ScoutResult {
 
   turnsUsed: number;
   turnsRemaining: number;
+}
+
+export interface GangIntelDto {
+  gang: { slug: string; bossName: string; crewName: string; crewTag: string };
+  district: string;
+  targetLocation: string;
+  status: 'RUMOR' | 'TRAIL' | 'SUSPECTED' | 'CONFIRMED' | 'STAKEOUT' | 'COMPROMISED' | 'EXPIRED' | 'RESOLVED';
+  confidence: number;
+  clueCount: number;
+  clue: string;
+  gangAwareness: number;
+  expiresAt: string;
 }
 
 /**
