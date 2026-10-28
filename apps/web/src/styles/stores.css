@@ -1865,10 +1865,10 @@
   .se-market-page .se-market-layout { gap: 8px; }
   .se-market-page .se-market-categories {
     display: flex;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     gap: 6px;
-    padding: 2px 0 7px;
-    overflow-x: auto;
+    padding: 2px 0 8px;
+    overflow: visible;
     border: 0;
     border-bottom: 1px solid var(--se-line-soft);
     border-radius: 0;
@@ -1889,6 +1889,7 @@
     font-size: 12px;
     font-weight: 650;
     white-space: nowrap;
+    text-align: left;
   }
   .se-market-page .se-market-category.is-active {
     border-color: color-mix(in srgb, var(--se-accent) 68%, var(--se-line));
@@ -2206,7 +2207,7 @@
 .se-market-table td.se-market-buy-controls { display: flex; align-items: center; justify-content: flex-end; gap: 4px; min-width: 0; }
 .se-market-table td[data-label="Action"] .se-btn { flex: 0 0 auto; }
 .se-market-trader-row td.se-market-buy-controls { transform: none; }
-.se-market-trader-row td.se-market-buy-controls > .se-btn { position: relative; top: -3px; }
+.se-market-trader-row td.se-market-buy-controls > .se-btn { position: static; align-self: center; }
 @media (max-width: 900px) {
   .se-market-page .se-market-table thead { display: none; }
   .se-market-page .se-market-table td[data-label="Item"] { grid-area: item; }
