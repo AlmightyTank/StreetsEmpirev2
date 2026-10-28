@@ -145,6 +145,7 @@ type TraderOffer = {
   unlockLabel?: string | null;
   unlockQuest?: { key: string; title: string } | null;
   maxBuy?: number;
+  displayName?: string;
 };
 
 type MarketSortKey = 'item' | 'seller' | 'quantity' | 'price' | 'ends';
@@ -364,7 +365,7 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
     if (book.filter !== 'ALL' && book.filter !== filter) return [];
     const units = item.unitsPerOrder ?? 1;
     const offerCategory = filter === 'PARTS' || filter === 'CREW' || filter === 'SUPPLIES' ? filter : filter === 'CARS' ? 'CARS' : 'GUNS';
-    return [{ key: `store-item:${store.key}:${item.key}`, item, storeKey: store.key, category: offerCategory as TraderOffer['category'], venue: 'store' as const, seller: store.name, buyCents: item.buyCents, sellCents: item.sellCents ?? 0, depth: item.restock ? Math.floor(item.restock.stock / units) : item.maxBuy, locked: item.questLock?.unlocked === false || item.unlock?.unlocked === false, unlockLabel: item.questLock?.unlockName ?? item.unlock?.title, unlockQuest: item.questLock?.quest ? { key: item.questLock.quest.key, title: item.questLock.quest.title } : null, maxBuy: item.maxBuy }];
+    return [{ key: `store-item:${store.key}:${item.key}`, item, storeKey: store.key, category: offerCategory as TraderOffer['category'], venue: 'store' as const, seller: store.key === 'PIP' ? "Pip's counter" : store.name, displayName: store.key === 'PIP' && item.key === 'CRACK' ? 'Crack' : item.name, buyCents: item.buyCents, sellCents: item.sellCents ?? 0, depth: item.restock ? Math.floor(item.restock.stock / units) : item.maxBuy, locked: item.questLock?.unlocked === false || item.unlock?.unlocked === false, unlockLabel: item.questLock?.unlockName ?? item.unlock?.title, unlockQuest: item.questLock?.quest ? { key: item.questLock.quest.key, title: item.questLock.quest.title } : null, maxBuy: item.maxBuy }];
   }));
   const traderRows = [...productTraderRows, ...storeRows];
   function toggleMarketSort(key: MarketSortKey) {
@@ -468,7 +469,7 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
                          </tr>
                        ))}
                         {sortedTraderRows.map((offer) => {
-                          const productName = offer.product?.name ?? offer.item!.name;
+                           const productName = offer.displayName ?? offer.product?.name ?? offer.item!.name;
                           const itemKey = offer.product?.key ?? offer.item!.key;
                           const typed = marketQuantities[offer.key] ?? '1';
                           const quantity = Number(typed);
