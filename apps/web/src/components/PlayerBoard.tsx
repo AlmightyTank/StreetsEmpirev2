@@ -318,6 +318,7 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
         return 0;
       });
   }, [book.rows, query, sort]);
+  const marketRows = pipProducts.filter((product) => product.market);
   const selectedRow = visibleRows.find((row) => row.id === selectedOfferId) ?? visibleRows[0] ?? null;
   const selectedUnits = selectedRow ? boardBuyUnits(selectedRow, buyQuantities[selectedRow.id]) : null;
   const selectedFee = selectedRow && selectedUnits ? boardRowTopUpCents(selectedRow, selectedUnits, book.rules) : 0;
@@ -363,7 +364,7 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
                     <span>{label}</span>
                   </button>
                 ))}
-              </aside>
+               </aside>
 
               <section className="se-market-results" aria-labelledby="market-listings-heading">
                 <div className="se-market-controls">
@@ -383,7 +384,7 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
                   <div><span className="se-eyebrow">{formatNumber(visibleRows.length)} listings</span><h2 id="market-listings-heading">On the street</h2></div>
                   <span>City-wide offers</span>
                 </div>
-                {visibleRows.length === 0 ? (
+                 {visibleRows.length === 0 && marketRows.length === 0 ? (
                   <p className="se-board-empty">{query ? 'No listings match that search.' : 'Nothing is listed in this category yet.'}</p>
                 ) : (
                   <div className="se-tablewrap se-market-tablewrap">
@@ -405,8 +406,29 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
                               {row.priceKind === 'BARTER' ? <span className="se-board-trade__tag">Trade offer</span> : <><span className="se-num">{formatCentsExact(row.unitPriceCents)}</span><small className="se-market-row-note"> each</small></>}
                             </td>
                             <td data-label="Ends">{closesIn(row.expiresAt, now)}</td>
-                          </tr>
-                        ))}
+                         </tr>
+                       ))}
+                        {marketRows.map((product) => {
+                          const market = product.market!;
+                          const key = product.key;
+                          const typed = marketQuantities[key] ?? '1';
+                          const quantity = Number(typed);
+                          const buyMax = market.buyCents > 0 ? Math.floor(book.cashCents / market.buyCents) : 0;
+                          const sellMax = product.quantity;
+                          const validBuy = Number.isInteger(quantity) && quantity >= 1 && quantity <= buyMax;
+                          const validSell = Number.isInteger(quantity) && quantity >= 1 && quantity <= sellMax;
+                          return <tr key={`market-${key}`} className="se-market-trader-row">
+                            <td data-label="Item"><ItemLabel itemKey={key} zoomable={false}><span className="se-board-rarity se-board-rarity--product">{product.name}</span></ItemLabel></td>
+                            <td data-label="Seller">High market</td>
+                            <td className="se-table__number se-num" data-label="Available">{formatNumber(market.depth)}</td>
+                            <td data-label="Price / unit"><span className="se-num">Buy {formatCentsExact(market.buyCents)}</span><br /><span className="se-num">Sell {formatCentsExact(market.sellCents)}</span></td>
+                            <td data-label="Trade" className="se-market-buy-controls">
+                              <div className="se-market-trader-quantity"><input className="se-input se-board-buy__qty" type="number" inputMode="numeric" min={1} max={Math.max(buyMax, sellMax)} step={1} aria-label={`Quantity of ${product.name} to trade`} value={typed} onChange={(event) => onMarketQuantity?.(key, event.target.value)} /><QuantityStepper value={Number.isFinite(quantity) && quantity > 0 ? quantity : 1} min={1} max={Math.max(buyMax, sellMax, 1)} onChange={(value) => onMarketQuantity?.(key, String(value))} showMax /></div>
+                              <Button size="sm" variant="primary" disabledReason={busy || !onMarketTrade ? 'Unavailable' : !validBuy ? buyMax < 1 ? 'Not enough cash for one' : `Buy 1 to ${formatNumber(buyMax)}` : null} onClick={() => void confirmMarketTrade(product.name, 'buy', quantity, market.buyCents, () => onMarketTrade?.(product, 'buy', quantity))}>Buy</Button>
+                              <Button size="sm" disabledReason={busy || !onMarketTrade ? 'Unavailable' : !validSell ? sellMax < 1 ? 'You have none to sell' : `Sell 1 to ${formatNumber(sellMax)}` : null} onClick={() => void confirmMarketTrade(product.name, 'sell', quantity, market.sellCents, () => onMarketTrade?.(product, 'sell', quantity))}>Sell</Button>
+                            </td>
+                          </tr>;
+                        })}
                       </tbody>
                     </table>
                   </div>
@@ -446,39 +468,10 @@ export function PlayerBoardView({ book, now, busy, form, onFilter, onForm, onPos
                       </Button>
                     )}
                   </div>
-                </> : <p className="se-board-empty">Select a listing to inspect the offer.</p>}
+                 </> : null}
               </aside>
             </div>
 
-            {pipProducts.some((product) => product.market) ? <section className="se-board-section se-market-traders" aria-labelledby="board-traders">
-              <div className="se-market-results__heading">
-                <div><span className="se-eyebrow">Trader listings</span><h2 id="board-traders">Market traders</h2></div>
-                <span>High market · prices move with every trade</span>
-              </div>
-              <div className="se-tablewrap"><table className="se-table se-table--cards"><thead><tr><th>Trader</th><th>Item</th><th>Price</th><th>Stock</th><th /></tr></thead><tbody>
-                {pipProducts.filter((product) => product.market).map((product) => {
-                  const market = product.market!;
-                  const key = product.key;
-                  const typed = marketQuantities[key] ?? '1';
-                  const quantity = Number(typed);
-                  const buyMax = market.buyCents > 0 ? Math.floor(book.cashCents / market.buyCents) : 0;
-                  const sellMax = product.quantity;
-                  const validBuy = Number.isInteger(quantity) && quantity >= 1 && quantity <= buyMax;
-                  const validSell = Number.isInteger(quantity) && quantity >= 1 && quantity <= sellMax;
-                  return <tr key={key}>
-                    <td data-label="Trader">High market</td><td data-label="Item">{product.name}</td><td data-label="Price" className="se-num"><span>Buy {formatCentsExact(market.buyCents)}</span><br /><span>Sell {formatCentsExact(market.sellCents)}</span></td>
-                    <td data-label="Stock" className="se-num">{formatNumber(market.depth)}</td><td data-label="" className="se-market-buy-controls">
-                      <div className="se-market-trader-quantity">
-                      <input className="se-input se-board-buy__qty" type="number" inputMode="numeric" min={1} max={Math.max(buyMax, sellMax)} step={1} aria-label={`Quantity of ${product.name} to trade`} value={typed} onChange={(event) => onMarketQuantity?.(key, event.target.value)} />
-                        <QuantityStepper value={Number.isFinite(quantity) && quantity > 0 ? quantity : 1} min={1} max={Math.max(buyMax, sellMax, 1)} onChange={(value) => onMarketQuantity?.(key, String(value))} showMax />
-                      </div>
-                      <Button size="sm" variant="primary" disabledReason={busy || !onMarketTrade ? 'Unavailable' : !validBuy ? buyMax < 1 ? 'Not enough cash for one' : `Buy 1 to ${formatNumber(buyMax)}` : null} onClick={() => void confirmMarketTrade(product.name, 'buy', quantity, market.buyCents, () => onMarketTrade?.(product, 'buy', quantity))}>Buy</Button>
-                      <Button size="sm" disabledReason={busy || !onMarketTrade ? 'Unavailable' : !validSell ? sellMax < 1 ? 'You have none to sell' : `Sell 1 to ${formatNumber(sellMax)}` : null} onClick={() => void confirmMarketTrade(product.name, 'sell', quantity, market.sellCents, () => onMarketTrade?.(product, 'sell', quantity))}>Sell</Button>
-                    </td>
-                  </tr>;
-                })}
-              </tbody></table></div>
-            </section> : null}
           </> : null}
 
           {section === 'listings' ?
