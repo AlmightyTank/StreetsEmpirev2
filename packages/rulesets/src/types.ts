@@ -717,9 +717,28 @@ export interface QuestDefinition {
    * refused when the player cannot pay it.
    */
   readonly fee?: { readonly netWorthShare: number; readonly minCents: number };
+  /** Optional shared-gang storyline metadata. The ordinary quest engine still owns progress and rewards. */
+  readonly gangQuestline?: GangQuestlineQuest;
 }
 
 export type QuestDefinitionCatalog = Readonly<Record<string, QuestDefinition>>;
+
+/** A per-player gang storyline layered onto the versioned quest catalog. */
+export interface GangQuestlineQuest {
+  readonly gangSlug: string;
+  readonly chapter: number;
+  /** City-specific prose/branch key; mechanics remain in the quest definition. */
+  readonly cityBranches: Readonly<Record<string, string>>;
+  /** Relationship gates are private to each player, never shared gang state. */
+  readonly gates?: {
+    readonly trustScoreAtLeast?: number;
+    readonly respectScoreAtLeast?: number;
+    readonly hostilityScoreAtMost?: number;
+    readonly allowNemesis?: boolean;
+  };
+}
+
+export type GangQuestlineCatalog = Readonly<Record<string, GangQuestlineQuest>>;
 
 /** 1.4.0-C. The boards whose contracts a faction can sponsor. */
 export type SponsoredBoard = 'DAILY' | 'WEEKLY' | 'CITY_CONTRACT' | 'SEASON' | 'ALLIANCE';
@@ -3404,6 +3423,8 @@ export interface Ruleset {
    * only so historical pinned rulesets remain valid.
    */
   readonly questDefinitions?: QuestDefinitionCatalog;
+  /** Optional, round-pinned gang storyline metadata. Absent on historical rounds. */
+  readonly gangQuestlines?: GangQuestlineCatalog;
   /** Named quest contacts and their relationship tracks. */
   readonly contacts?: ContactCatalog;
   /** 1.4.0-A. The underworld factions behind the contacts. Absent before 1.4. */

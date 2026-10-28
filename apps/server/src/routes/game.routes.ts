@@ -33,6 +33,7 @@ import { toGameSnapshotDto } from '../game/dto.js';
 import { PayoutService } from '../services/payout.service.js';
 import { ProductionService } from '../services/production.service.js';
 import { HandcraftedQuestService } from '../services/handcrafted-quest.service.js';
+import { GangQuestlineService } from '../services/gang-questline.service.js';
 import { StreetPassService } from '../services/street-pass.service.js';
 import { RoundRollCallService } from '../services/round-roll-call.service.js';
 import { TimedFavorService } from '../services/timed-favor.service.js';
@@ -540,6 +541,11 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/quests', { preHandler: fastify.requireAuth }, async (request) => {
     const { round, player } = await requirePlayer(request.auth!.account.id);
     return HandcraftedQuestService.page(fastify.prisma, player.id, loadRulesetForRound(round));
+  });
+
+  fastify.get('/gang-quests', { preHandler: fastify.requireAuth }, async (request) => {
+    const { round, player } = await requirePlayer(request.auth!.account.id);
+    return GangQuestlineService.page(fastify.prisma, player.id, loadRulesetForRound(round));
   });
 
   fastify.get('/quests/history', { preHandler: fastify.requireAuth }, async (request) => {

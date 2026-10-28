@@ -2567,6 +2567,27 @@ export interface QuestPageDto {
   quests: PlayerQuestDto[];
 }
 
+/** 3.0.0. A version-pinned gang storyline as seen by one player. */
+export interface GangQuestlineDto {
+  questKey: string;
+  title: string;
+  description: string;
+  gang: { slug: string; bossName: string; crewName: string; crewTag: string } | null;
+  chapter: number;
+  cityBranch: string | null;
+  relationship: {
+    status: string;
+    hostilityScore: number;
+    trustScore: number;
+    respectScore: number;
+  };
+  available: boolean;
+  unavailableReason: string | null;
+  status: string | null;
+}
+
+export interface GangQuestlinePageDto { quests: GangQuestlineDto[]; }
+
 /** Quest Recipe Unlocks D. One rung of the recipe ladder; its status and requirements are on the job in `quests`. */
 export interface RecipeLadderStepDto {
   step: number;

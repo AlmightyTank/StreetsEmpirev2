@@ -98,6 +98,7 @@ import {
 } from './seasonal-event.service.js';
 import { CityConditionService } from './city-condition.service.js';
 import { PermanentUnlockService } from './permanent-unlock.service.js';
+import { assertGangQuestlineAccess } from './gang-questline.service.js';
 import { recordSceneResponse, sceneResponsesFor, storyFactsFor, storyScenesDto, type SceneResponses } from './quest-story-scene.service.js';
 import {
   createSportsInfluenceContract,
@@ -1455,6 +1456,8 @@ export const HandcraftedQuestService = {
         throw AppError.conflict('QUEST_EXPIRED', 'That contract expired at reset. Refresh the board for new work.');
       }
       const definition = (ruleset.questDefinitions ?? {})[row.questDefinition.key];
+      const actor = await tx.roundPlayer.findUniqueOrThrow({ where: { id: roundPlayerId }, select: { roundId: true } });
+      await assertGangQuestlineAccess(tx, roundPlayerId, actor.roundId, ruleset, row.questDefinition.key);
       const adminTestMode = await seasonalEventAdminTestModeForPlayer(tx, roundPlayerId);
       if (definition && !seasonalEventAvailable(definition, acceptedAt, adminTestMode)) {
         throw AppError.conflict('QUEST_EVENT_CLOSED', 'That seasonal event is no longer active. Refresh the board for current event work.');
