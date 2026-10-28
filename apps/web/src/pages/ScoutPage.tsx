@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { isString, isTurns, rememberedKey, useRememberedState } from '../utils/remembered.js';
 import { Link, Navigate, useLocation, useSearchParams } from 'react-router-dom';
-import type { DistrictDto, RandomEncounterChoiceResult, ScavengeCacheDto, ScavengeComponentDto, ScoutResult } from '@streets/shared';
+import type { DistrictDto, OpenScavengeCacheResult, RandomEncounterChoiceResult, ScavengeCacheDto, ScavengeComponentDto, ScoutResult } from '@streets/shared';
 import { formatNumber } from '@streets/shared';
 import { EncounterEggNote } from '../components/EasterEggs.js';
 import { actionsApi } from '../api/actions.js';
@@ -17,6 +17,9 @@ import { TurnSpend } from '../components/TurnSpend.js';
 import { WorkSupplyPanel, WorkSupplyStockRows } from '../components/WorkSupplyPanel.js';
 import { HeatNotice } from '../components/HeatPanel.js';
 import { GameDialog } from '../components/GameUI.js';
+import { CacheReveal } from '../components/CacheReveal.js';
+import { ItemTile } from '../components/ItemTile.js';
+import { type ItemArtKey } from '../items/itemArt.js';
 import { useGameAction } from '../hooks/useGameAction.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { scoutReceiptLines } from '../receipts/actionReceipts.js';
@@ -58,6 +61,7 @@ export function ScoutPage() {
   const action = useGameAction<ScoutResult>();
   const encounterAction = useGameAction<RandomEncounterChoiceResult>();
   const [cacheReview, setCacheReview] = useState<{ caches: ScavengeCacheDto[]; rewards: Record<string, ScavengeComponentDto[]> } | null>(null);
+  const [cacheReveal, setCacheReveal] = useState<OpenScavengeCacheResult | null>(null);
   const [cacheBusy, setCacheBusy] = useState<string | null>(null);
   const [cacheError, setCacheError] = useState<string | null>(null);
 
@@ -172,6 +176,7 @@ export function ScoutPage() {
     try {
       const opened = await hideoutApi.openCache(cache.id);
       setCacheReview((current) => current ? { ...current, rewards: { ...current.rewards, [cache.id]: opened.rewards } } : current);
+      setCacheReveal(opened);
     } catch {
       setCacheError('That cache could not be opened. Refresh and try again.');
     } finally {
@@ -481,28 +486,34 @@ export function ScoutPage() {
 
         <GameDialog
           open={cacheReview !== null}
-          title="Caches found"
-          description="Review the caches from this scouting trip and open them before moving on."
-          onClose={() => setCacheReview(null)}
-          actions={<Button className="se-btn se-btn--primary" onClick={() => setCacheReview(null)}>Continue</Button>}
+          title={cacheReveal ? 'Cache opened' : 'Caches found'}
+          description={cacheReveal ? `${cacheReveal.cache.label} · ${cacheReveal.cache.districtName}` : 'Review the caches from this scouting trip and open them before moving on.'}
+          onClose={() => { setCacheReveal(null); setCacheReview(null); }}
+          actions={cacheReveal
+            ? <Button className="se-btn se-btn--primary" onClick={() => setCacheReveal(null)}>Done</Button>
+            : <Button className="se-btn se-btn--primary" onClick={() => setCacheReview(null)}>Continue</Button>}
         >
-          {cacheError ? <Alert>{cacheError}</Alert> : null}
-          <div className="se-rows">
-            {cacheReview?.caches.map((cache) => {
-              const rewards = cacheReview.rewards[cache.id];
-              return (
-                <div className="se-row" key={cache.id}>
-                  <span className="se-row__label">
-                    {cache.label} · {cache.districtName}
-                    {rewards ? <span className="se-muted"> · {rewards.map((reward) => `${reward.quantity} ${reward.name}`).join(', ')}</span> : null}
-                  </span>
-                  <span className="se-row__value">
-                    {rewards ? <span className="se-good">Opened</span> : <Button className="se-btn se-btn--secondary se-btn--sm" onClick={() => void openScoutingCache(cache)} disabledReason={cacheBusy ? 'Opening another cache...' : null}>Open</Button>}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
+          {cacheReveal ? <CacheReveal reveal={cacheReveal} /> : <>
+            {cacheError ? <Alert>{cacheError}</Alert> : null}
+            <div className="se-scout-cache-review">
+              {cacheReview?.caches.map((cache) => {
+                const rewards = cacheReview.rewards[cache.id];
+                return (
+                  <article className="se-scout-cache-review__item" key={cache.id}>
+                    <ItemTile item={cache.quality as ItemArtKey} size="md" label={false} />
+                    <div className="se-scout-cache-review__copy">
+                      <strong>{cache.label}</strong>
+                      <small>{cache.districtName} · {cache.eligiblePool.length} possible items</small>
+                      {rewards ? <span className="se-good">Opened · {rewards.map((reward) => `${reward.quantity} ${reward.name}`).join(', ')}</span> : null}
+                    </div>
+                    <div className="se-scout-cache-review__action">
+                      {rewards ? <span className="se-good">Opened</span> : <Button className="se-btn se-btn--secondary se-btn--sm" onClick={() => void openScoutingCache(cache)} disabledReason={cacheBusy ? 'Opening another cache...' : null}>{cacheBusy === cache.id ? 'Opening…' : 'Open'}</Button>}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </>}
         </GameDialog>
 
 

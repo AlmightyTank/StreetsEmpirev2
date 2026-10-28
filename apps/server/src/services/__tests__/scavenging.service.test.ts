@@ -3,10 +3,13 @@ import { classicOgV26J } from '@streets/rulesets';
 import {
   COMPONENTS,
   cacheOdds,
+  cacheChanceForSegment,
   cacheQualityForTurns,
   cacheQualityForSegment,
   cacheTurnSegments,
   districtSupplyClue,
+  districtEligiblePool,
+  cacheDropWeight,
   eligiblePool,
   makeCache,
   openCache,
@@ -34,6 +37,18 @@ describe('hideout scavenging', () => {
     expect(districtSupplyClue('URBAN_GHETTO').common).toContain('Scrap metal');
     expect(eligiblePool('industrial').every((item) => item.themes.includes('industrial'))).toBe(true);
     expect(makeCache('URBAN_GHETTO', 'Urban Ghetto', 10).quality).toBe('BLACK_MARKET_CACHE');
+  });
+
+  it('uses each district common and scarce list as its cache pool', () => {
+    expect(districtEligiblePool('NIGHTCLUB').map((item) => item.name).sort()).toEqual([
+      'Advanced medical component', 'Labels', 'Packaging', 'Radio', 'Specialist circuitry', 'Wiring',
+    ]);
+    expect(districtEligiblePool('LOW_RENT').map((item) => item.name).sort()).toEqual([
+      'Advanced medical component', 'Basic medicine', 'Cloth', 'Fasteners', 'Lumber', 'Repair supplies', 'Water filter',
+    ]);
+    expect(cacheDropWeight('WATER_FILTER')).toBe(25);
+    expect(cacheDropWeight('LUMBER')).toBe(100);
+    expect(cacheDropWeight('ADVANCED_MEDICAL')).toBe(25);
   });
 
   it('resolves rarity boundaries deterministically and previews a reward', () => {
@@ -65,6 +80,9 @@ describe('hideout scavenging', () => {
     expect(cacheTurnSegments(144).map((turns) => cacheQualityForSegment(turns))).toEqual([
       'BLACK_MARKET_CACHE', 'BLACK_MARKET_CACHE', 'BLACK_MARKET_CACHE', 'BLACK_MARKET_CACHE', 'SECURED_CACHE',
     ]);
+    expect(cacheChanceForSegment(1)).toBe(0);
+    expect(cacheChanceForSegment(10)).toBeCloseTo(0.6);
+    expect(cacheChanceForSegment(30)).toBe(0.85);
   });
 
 });

@@ -39,7 +39,7 @@ const ODDS: Record<CacheQuality, CacheOddsDto> = {
 };
 /** Components a scouting trip brings home: one for every two turns, at least one per trip. */
 export function scavengeFindCount(turns: number): number { return turns > 0 ? Math.ceil(turns / 2) : 0; }
-/** Split a scouting trip into 30-turn cache rolls. A short final segment still gets its own cache. */
+/** Split a scouting trip into independent 30-turn cache rolls. */
 export function cacheTurnSegments(turns: number): number[] {
   const safeTurns = Math.max(0, Math.floor(turns));
   const segments: number[] = [];
@@ -50,11 +50,35 @@ export function cacheTurnSegments(turns: number): number[] {
 
 const QUALITY_LABEL: Record<CacheQuality, string> = { STREET_STASH: 'Street stash', SUPPLY_CACHE: 'Supply cache', SECURED_CACHE: 'Secured cache', BLACK_MARKET_CACHE: 'Black-market cache' };
 const DISTRICT_THEME: Record<string, { theme: string; common: string[]; scarce: string[] }> = {
-  CASINO: { theme: 'commercial', common: ['Bottles', 'Labels', 'Packaging'], scarce: ['Radios', 'Specialty containers'] },
-  NIGHTCLUB: { theme: 'downtown', common: ['Wiring', 'Labels', 'Packaging'], scarce: ['Radios', 'Specialist circuitry'] },
-  LOW_RENT: { theme: 'residential', common: ['Lumber', 'Fasteners', 'Cloth'], scarce: ['Basic medicine', 'Repair supplies'] },
-  URBAN_GHETTO: { theme: 'industrial', common: ['Scrap metal', 'Wiring', 'Tool kits'], scarce: ['Motor assemblies', 'Precision parts'] },
-  WINO_SLUMS: { theme: 'waterfront', common: ['Fuel cans', 'Scrap metal', 'Bottles'], scarce: ['Motor assemblies', 'High-capacity fuel cells'] },
+  CASINO: { theme: 'commercial', common: ['Bottles', 'Labels', 'Packaging'], scarce: ['Radios', 'Specialty containers', 'Advanced medical component'] },
+  NIGHTCLUB: { theme: 'downtown', common: ['Wiring', 'Labels', 'Packaging'], scarce: ['Radios', 'Specialist circuitry', 'Advanced medical component'] },
+  LOW_RENT: { theme: 'residential', common: ['Lumber', 'Fasteners', 'Cloth'], scarce: ['Basic medicine', 'Repair supplies', 'Water filter', 'Advanced medical component'] },
+  URBAN_GHETTO: { theme: 'industrial', common: ['Scrap metal', 'Wiring', 'Tool kits'], scarce: ['Motor assemblies', 'Precision parts', 'Advanced medical component'] },
+  WINO_SLUMS: { theme: 'waterfront', common: ['Fuel cans', 'Scrap metal', 'Bottles'], scarce: ['Motor assemblies', 'High-capacity fuel cells', 'Water filter', 'Advanced medical component'] },
+};
+
+/** Relative weights used after the cache has already rolled a rarity. */
+const CACHE_DROP_WEIGHTS: Readonly<Record<string, number>> = {
+  SCRAP_METAL: 100,
+  WIRING: 100,
+  TOOL_KIT: 90,
+  BOTTLES: 100,
+  LABELS: 100,
+  PACKAGING: 90,
+  LUMBER: 100,
+  FASTENERS: 90,
+  CLOTH: 100,
+  BASIC_MEDICINE: 75,
+  FUEL_CAN: 75,
+  RADIO: 65,
+  WATER_FILTER: 25,
+  MOTOR_ASSEMBLY: 50,
+  REPAIR_SUPPLIES: 45,
+  SPECIALTY_CONTAINER: 40,
+  PRECISION_PARTS: 30,
+  ADVANCED_MEDICAL: 25,
+  HIGH_CAPACITY_FUEL_CELL: 15,
+  SPECIALIST_CIRCUITRY: 12,
 };
 
 export function districtSupplyClue(key: string) { return DISTRICT_THEME[key] ?? { theme: 'street', common: ['Scrap metal', 'Packaging'], scarce: ['Repair supplies'] }; }
@@ -62,6 +86,10 @@ export function cacheQualityForTurns(turns: number): CacheQuality { return turns
 /** A partial 30-turn segment cannot reach the top tier; a full segment is Black-market. */
 export function cacheQualityForSegment(turns: number): CacheQuality {
   return turns >= 30 ? 'BLACK_MARKET_CACHE' : turns >= 10 ? 'SECURED_CACHE' : cacheQualityForTurns(turns);
+}
+/** Cache chance resets for each segment; a 30-turn segment has the capped 85% chance. */
+export function cacheChanceForSegment(turns: number): number {
+  return turns >= 2 ? Math.min(0.85, 0.2 + turns * 0.04) : 0;
 }
 export function cacheOdds(quality: CacheQuality): CacheOddsDto { return { ...ODDS[quality] }; }
 
@@ -86,14 +114,26 @@ export function eligiblePool(theme: string): ComponentDefinition[] {
   return COMPONENTS.filter((item) => item.themes.includes(theme));
 }
 
+function normalizedLootName(name: string): string {
+  return name.toLowerCase().replace(/s$/, '');
+}
+
+/** The district clue is also the authoritative cache loot pool. */
+export function districtEligiblePool(districtKey: string): ComponentDefinition[] {
+  const clue = districtSupplyClue(districtKey);
+  const names = new Set([...clue.common, ...clue.scarce].map(normalizedLootName));
+  const pool = COMPONENTS.filter((item) => names.has(normalizedLootName(item.name)));
+  return pool.length ? pool : eligiblePool(clue.theme);
+}
+export function cacheDropWeight(key: string): number { return CACHE_DROP_WEIGHTS[key] ?? 1; }
+
 export function makeCache(districtKey: string, districtName: string, turns: number, now = new Date(), qualityOverride?: CacheQuality): StoredCache {
   const quality = qualityOverride ?? cacheQualityForTurns(turns);
-  const theme = districtSupplyClue(districtKey).theme;
-  const pool = eligiblePool(theme);
+  const pool = districtEligiblePool(districtKey);
   return {
     id: randomUUID(), quality, label: QUALITY_LABEL[quality], districtKey, districtName,
     createdAt: now.toISOString(), opened: false, odds: cacheOdds(quality),
-     eligiblePool: pool.map(({ key, name, rarity, purpose }) => ({ key, name, rarity, purpose, footprint: { width: 1, height: 1 } })),
+      eligiblePool: pool.map(({ key, name, rarity, purpose }) => ({ key, name, rarity, purpose, weight: cacheDropWeight(key), footprint: { width: 1, height: 1 } })),
   };
 }
 
@@ -108,7 +148,12 @@ export function openCache(cache: StoredCache, rng = Math.random): ScavengeCompon
   const rarity = rollRarity(cache.odds, rng);
   const candidates = cache.eligiblePool.filter((row) => row.rarity === rarity);
   const pool = candidates.length ? candidates : cache.eligiblePool.filter((row) => row.rarity === 'COMMON');
-  const chosen = pool[Math.floor(rng() * pool.length)] ?? cache.eligiblePool[0];
+  const totalWeight = pool.reduce((total, item) => total + Math.max(0, item.weight ?? cacheDropWeight(item.key)), 0);
+  let roll = Math.max(0, Math.min(0.999999, rng())) * totalWeight;
+  const chosen = pool.find((item) => {
+    roll -= Math.max(0, item.weight ?? cacheDropWeight(item.key));
+    return roll < 0;
+  }) ?? pool[0] ?? cache.eligiblePool[0];
   return chosen ? [componentDto(chosen.key, rarity === 'COMMON' ? 2 : 1)] : [];
 }
 
@@ -125,8 +170,7 @@ export const ScavengingService = {
      };
   },
   async addFinds(tx: Prisma.TransactionClient, roundPlayerId: string, player: { scavengedComponents: Prisma.JsonValue; foundInRaid: Prisma.JsonValue; scavengedCaches: Prisma.JsonValue }, districtKey: string, districtName: string, turns: number, rng = Math.random): Promise<{ components: ScavengeComponentDto[]; caches: ScavengeCacheDto[]; cache: ScavengeCacheDto | null }> {
-    const theme = districtSupplyClue(districtKey).theme;
-    const pool = eligiblePool(theme);
+    const pool = districtEligiblePool(districtKey);
     const found: Record<string, number> = {};
     const count = scavengeFindCount(turns);
     for (let i = 0; i < count; i += 1) { const item = pool[Math.floor(rng() * pool.length)]; if (item) found[item.key] = (found[item.key] ?? 0) + 1; }
@@ -137,7 +181,9 @@ export const ScavengingService = {
       foundInRaid[key] = (foundInRaid[key] ?? 0) + quantity;
     }
     const caches = jsonCaches(player.scavengedCaches);
-    const foundCaches = cacheTurnSegments(turns).map((segment) => makeCache(districtKey, districtName, segment, undefined, cacheQualityForSegment(segment)));
+    const foundCaches = cacheTurnSegments(turns)
+      .filter((segment) => rng() < cacheChanceForSegment(segment))
+      .map((segment) => makeCache(districtKey, districtName, segment, undefined, cacheQualityForSegment(segment)));
     caches.push(...foundCaches);
     if (Object.keys(found).length) {
       // Components are stackable, so only a previously unseen component needs

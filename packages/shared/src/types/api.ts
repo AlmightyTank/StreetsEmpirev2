@@ -461,7 +461,7 @@ export interface ScavengeCacheDto {
   createdAt: string;
   opened: boolean;
   odds: CacheOddsDto;
-  eligiblePool: Array<{ key: string; name: string; rarity: ScavengeRarityDto; purpose: string; footprint: { width: number; height: number } }>;
+  eligiblePool: Array<{ key: string; name: string; rarity: ScavengeRarityDto; purpose: string; footprint: { width: number; height: number }; weight?: number }>;
   rewards?: ScavengeComponentDto[];
 }
 export interface ScavengePageDto {
