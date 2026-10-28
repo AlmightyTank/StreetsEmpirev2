@@ -413,7 +413,7 @@ export interface HideoutCosmeticsDto {
 }
 
 /** Stacks arranged in the player's personal Hideout stash grid. */
-export type StashItemKeyDto = 'CONDOM' | 'MEDICINE' | 'BEER' | 'AMMO_BOX' | 'PARTS_BOX'
+export type StashItemKeyDto = 'CONDOM' | 'PREMIUM_CONDOM' | 'MEDICINE' | 'BEER' | 'HOUSE_BREW' | 'AMMO_BOX' | 'PARTS_BOX'
   | 'PISTOL' | 'SHOTGUN' | 'TEK9' | 'AK47' | 'LOW_RIDER' | 'SEDAN' | 'VAN'
   | 'SCRAP_METAL' | 'WIRING' | 'TOOL_KIT' | 'BOTTLES' | 'LABELS' | 'PACKAGING' | 'LUMBER' | 'FASTENERS' | 'CLOTH'
   | 'BASIC_MEDICINE' | 'FUEL_CAN' | 'RADIO' | 'WATER_FILTER' | 'MOTOR_ASSEMBLY' | 'REPAIR_SUPPLIES' | 'SPECIALTY_CONTAINER' | 'PRECISION_PARTS' | 'ADVANCED_MEDICAL' | 'HIGH_CAPACITY_FUEL_CELL' | 'SPECIALIST_CIRCUITRY';
@@ -1806,6 +1806,11 @@ export interface ScoutResult {
   condomsUsed: number;
   crackUsed: number;
   beerUsed: number;
+  /** Workshop goods burned on top of the plain counts. Each covers three uses. */
+  premiumCondomsUsed?: number;
+  houseBrewUsed?: number;
+  /** Set when premium stock used on this action was a bad batch. */
+  badBatch?: { condoms: boolean; brew: boolean };
   condomsMissing: number;
   beerMissing: number;
 
@@ -1890,6 +1895,11 @@ export interface ProduceCrackResult {
   condomsUsed: number;
   crackUsed: number;
   beerUsed: number;
+  /** Workshop goods burned on top of the plain counts. Each covers three uses. */
+  premiumCondomsUsed?: number;
+  houseBrewUsed?: number;
+  /** Set when premium stock used on this action was a bad batch. */
+  badBatch?: { condoms: boolean; brew: boolean };
   condomsMissing: number;
   beerMissing: number;
 

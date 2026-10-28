@@ -20,6 +20,8 @@ export interface InvariantPlayerState {
   medicine: number;
   crack: number;
   beer: number;
+  premiumCondoms?: number;
+  houseBrew?: number;
   pistols: number;
   shotguns: number;
   tek9s: number;
@@ -74,6 +76,8 @@ const WHOLE_NON_NEGATIVE: readonly (keyof InvariantPlayerState)[] = [
   'medicine',
   'crack',
   'beer',
+  'premiumCondoms',
+  'houseBrew',
   'pistols',
   'shotguns',
   'tek9s',
@@ -118,7 +122,7 @@ const WHOLE_NON_NEGATIVE: readonly (keyof InvariantPlayerState)[] = [
 
 const OPTIONAL_COUNTS: ReadonlySet<keyof InvariantPlayerState> = new Set([
   'sedans', 'vans', 'damagedLowRiders', 'damagedSedans', 'damagedVans', 'disabledLowRiders', 'disabledSedans', 'disabledVans', 'dealerThugs',
-  'ammo', 'vehicleParts', 'ammoStock', 'vehiclePartsStock',
+  'ammo', 'vehicleParts', 'ammoStock', 'vehiclePartsStock', 'premiumCondoms', 'houseBrew',
 ]);
 
 function invalid(message: string): never {

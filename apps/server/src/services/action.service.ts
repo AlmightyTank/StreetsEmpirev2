@@ -92,6 +92,9 @@ export interface PlayerState {
   medicine: number;
   crack: number;
   beer: number;
+  /** Workshop goods. Each covers three uses and carries a small bad-batch risk. */
+  premiumCondoms?: number;
+  houseBrew?: number;
 
   pistols: number;
   shotguns: number;
@@ -296,6 +299,8 @@ export function toState(player: RoundPlayer): PlayerState {
     medicine: player.medicine,
     crack: player.crack,
     beer: player.beer,
+    premiumCondoms: player.premiumCondoms,
+    houseBrew: player.houseBrew,
     pistols: player.pistols,
     shotguns: player.shotguns,
     tek9s: player.tek9s,

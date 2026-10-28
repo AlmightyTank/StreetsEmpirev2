@@ -1,6 +1,7 @@
 import { classicOgV01, type Ruleset } from '@streets/rulesets';
 import type { NetWorthInput } from '../types.js';
 import { productNetWorthCents } from './product-economy.js';
+import { PREMIUM_USES } from './premium-supply.js';
 import { weightedDebtCents } from './loans.js';
 import { playerBoardEscrowNetWorthCents, playerBoardPartsNetWorthCents } from './player-board.js';
 
@@ -36,6 +37,9 @@ export function calculateNetWorthCents(
     BigInt(player.crack) * BigInt(v.perCrackCents) +
     BigInt(player.condoms) * BigInt(v.perCondomCents) +
     BigInt(player.beer) * BigInt(v.perBeerCents) +
+    // Workshop goods stand in for three plain ones each.
+    BigInt(player.premiumCondoms ?? 0) * BigInt(PREMIUM_USES) * BigInt(v.perCondomCents) +
+    BigInt(player.houseBrew ?? 0) * BigInt(PREMIUM_USES) * BigInt(v.perBeerCents) +
     BigInt(player.pistols) * BigInt(v.perPistolCents) +
     BigInt(player.shotguns) * BigInt(v.perShotgunCents) +
     BigInt(player.tek9s) * BigInt(v.perTek9Cents) +

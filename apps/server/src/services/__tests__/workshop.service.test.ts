@@ -5,7 +5,7 @@ import { playerBoardPartBookCents } from '@streets/rules-engine';
 import { salvagePrice } from '../salvage-yard.service.js';
 import { componentStacksOpened, craftingRecipes, previewCraftComponents, reconcileWaterFilters, scaleCraftRecipe, spendWaterFilter, workshopSkill } from '../workshop.service.js';
 
-const STASH_OUTPUTS = new Set(['CONDOM', 'MEDICINE', 'BEER', 'AMMO_BOX', 'PARTS_BOX']);
+const STASH_OUTPUTS = new Set(['CONDOM', 'PREMIUM_CONDOM', 'MEDICINE', 'BEER', 'HOUSE_BREW', 'AMMO_BOX', 'PARTS_BOX']);
 
 function book(key: string): number {
   const cents = playerBoardPartBookCents(key, classicOgV26J);
@@ -21,7 +21,7 @@ describe('hideout workshop crafting catalog', () => {
     expect(recipes.every((recipe) => recipe.ingredients.length > 0 && recipe.turns > 0 && recipe.output.quantity > 0)).toBe(true);
 
     const brew = recipes.find((recipe) => recipe.key === 'HOUSE_BREW');
-    expect(brew).toMatchObject({ kind: 'ASSEMBLE', turns: 3, requiresPower: true, unlockLevel: 1, output: { key: 'BEER', quantity: 2 }, filter: { key: 'WATER_FILTER', percent: 30 } });
+    expect(brew).toMatchObject({ kind: 'ASSEMBLE', turns: 3, requiresPower: true, unlockLevel: 1, output: { key: 'HOUSE_BREW', quantity: 2 }, filter: { key: 'WATER_FILTER', percent: 30 } });
     expect(brew?.ingredients.map((ingredient) => ingredient.key)).toEqual(['BOTTLES', 'LABELS', 'PACKAGING']);
     const crate = recipes.find((recipe) => recipe.key === 'CRATE_BREW');
     expect(crate).toMatchObject({ turns: 2, requiresPower: true, filter: { key: 'WATER_FILTER', percent: 20 } });

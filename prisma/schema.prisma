@@ -2177,6 +2177,10 @@ model RoundPlayer {
   crack    Int @default(0)
   beer     Int @default(0)
 
+  /// Workshop goods. One premium condom or one House Brew covers three uses, with a small chance of a bad batch.
+  premiumCondoms Int @default(0)
+  houseBrew      Int @default(0)
+
   pistols  Int @default(0)
   shotguns Int @default(0)
   tek9s    Int @default(0)

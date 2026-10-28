@@ -199,8 +199,23 @@ function basicSupplyLines(result: {
   condomsMissing: number;
   beerUsed: number;
   beerMissing: number;
+  premiumCondomsUsed?: number;
+  houseBrewUsed?: number;
+  badBatch?: { condoms: boolean; brew: boolean };
 }, after: GameActionResult<unknown>['after']): ResultLine[] {
   return [
+    ...((result.premiumCondomsUsed ?? 0) > 0
+      ? [{ label: 'Premium condoms', detail: 'used', delta: -(result.premiumCondomsUsed ?? 0), muted: true }]
+      : []),
+    ...((result.houseBrewUsed ?? 0) > 0
+      ? [{ label: 'House Brew', detail: 'used', delta: -(result.houseBrewUsed ?? 0), muted: true }]
+      : []),
+    ...(result.badBatch?.condoms
+      ? [{ label: 'Bad batch', value: 'The premium condoms were a dud. The uses they covered left the girls unprotected.', invert: true }]
+      : []),
+    ...(result.badBatch?.brew
+      ? [{ label: 'Bad batch', value: 'The House Brew was off. Part of the crew walked out sick.', invert: true }]
+      : []),
     ...(result.condomsUsed > 0
       ? [{
           label: 'Condoms',

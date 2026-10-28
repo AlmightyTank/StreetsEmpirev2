@@ -37,6 +37,9 @@ export const ITEM_ART = {
   CONDOM: { name: 'Condoms', shortName: 'Condoms', category: 'SUPPLY', rarity: 'COMMON', file: 'condoms.svg', cells: ONE },
   MEDICINE: { name: 'Medicine', shortName: 'Meds', category: 'SUPPLY', rarity: 'COMMON', file: 'medicine.svg', cells: ONE },
   BEER: { name: 'Beer', shortName: 'Beer', category: 'SUPPLY', rarity: 'COMMON', file: 'beer.svg', cells: ONE },
+  // Workshop goods. Each covers three uses, with a small chance of a bad batch.
+  PREMIUM_CONDOM: { name: 'Premium condoms', shortName: 'Premium', category: 'SUPPLY', rarity: 'UNCOMMON', file: 'premium-condoms.svg', cells: ONE, purpose: 'Each pack covers three uses. A small chance a batch goes bad and leaves the girls unprotected.' },
+  HOUSE_BREW: { name: 'House Brew', shortName: 'House Brew', category: 'SUPPLY', rarity: 'UNCOMMON', file: 'house-brew.svg', cells: ONE, purpose: 'Each bottle covers three beers. A small chance a batch goes bad and part of the crew walks.' },
 
   // Tek9 Tommy's
   THUG: { name: 'Thug', shortName: 'Thug', category: 'CREW', rarity: 'UNCOMMON', file: 'thug.svg', cells: ONE },
