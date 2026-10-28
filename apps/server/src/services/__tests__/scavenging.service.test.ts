@@ -4,6 +4,8 @@ import {
   COMPONENTS,
   cacheOdds,
   cacheQualityForTurns,
+  cacheQualityForSegment,
+  cacheTurnSegments,
   districtSupplyClue,
   eligiblePool,
   makeCache,
@@ -54,6 +56,15 @@ describe('hideout scavenging', () => {
     expect(scavengeFindCount(2)).toBe(1);
     expect(scavengeFindCount(3)).toBe(2);
     expect(scavengeFindCount(10)).toBe(5);
+  });
+
+  it('resets cache quality every 30 turns and keeps a qualifying remainder', () => {
+    expect(cacheTurnSegments(1)).toEqual([]);
+    expect(cacheTurnSegments(30)).toEqual([30]);
+    expect(cacheTurnSegments(144)).toEqual([30, 30, 30, 30, 24]);
+    expect(cacheTurnSegments(144).map((turns) => cacheQualityForSegment(turns))).toEqual([
+      'BLACK_MARKET_CACHE', 'BLACK_MARKET_CACHE', 'BLACK_MARKET_CACHE', 'BLACK_MARKET_CACHE', 'SECURED_CACHE',
+    ]);
   });
 
 });

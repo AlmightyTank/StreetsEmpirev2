@@ -1801,6 +1801,8 @@ export interface ScoutResult {
   productsFound?: FoundProductDto[];
   /** Slice B. Components and caches found on this scouting trip. */
   componentsFound?: ScavengeComponentDto[];
+  cachesFound?: ScavengeCacheDto[];
+  /** Compatibility field containing the first cache found on the trip. */
   cacheFound?: ScavengeCacheDto;
 
   condomsUsed: number;

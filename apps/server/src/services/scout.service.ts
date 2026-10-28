@@ -370,6 +370,7 @@ export const ScoutService = {
           crackFound,
           ...(ruleset.productEconomy ? { productsFound } : {}),
           ...(scavenging.components.length ? { componentsFound: scavenging.components } : {}),
+          ...(scavenging.caches.length ? { cachesFound: scavenging.caches } : {}),
           ...(scavenging.cache ? { cacheFound: scavenging.cache } : {}),
           condomsUsed: outcome.consumption.condoms,
           crackUsed: outcome.consumption.crack,

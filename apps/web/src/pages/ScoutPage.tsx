@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { isString, isTurns, rememberedKey, useRememberedState } from '../utils/remembered.js';
 import { Link, Navigate, useLocation, useSearchParams } from 'react-router-dom';
-import type { DistrictDto, RandomEncounterChoiceResult, ScoutResult } from '@streets/shared';
+import type { DistrictDto, RandomEncounterChoiceResult, ScavengeCacheDto, ScavengeComponentDto, ScoutResult } from '@streets/shared';
 import { formatNumber } from '@streets/shared';
 import { EncounterEggNote } from '../components/EasterEggs.js';
 import { actionsApi } from '../api/actions.js';
+import { hideoutApi } from '../api/hideout.js';
 import { ActionDock, resultChips } from '../components/ActionDock.js';
 import { ActionReadiness, OperationDetails } from '../components/ActionReadiness.js';
 import { ActionResult } from '../components/ActionResult.js';
@@ -15,6 +16,7 @@ import { Panel, Row } from '../components/Panel.js';
 import { TurnSpend } from '../components/TurnSpend.js';
 import { WorkSupplyPanel, WorkSupplyStockRows } from '../components/WorkSupplyPanel.js';
 import { HeatNotice } from '../components/HeatPanel.js';
+import { GameDialog } from '../components/GameUI.js';
 import { useGameAction } from '../hooks/useGameAction.js';
 import { GameLayout } from '../layouts/GameLayout.js';
 import { scoutReceiptLines } from '../receipts/actionReceipts.js';
@@ -55,12 +57,19 @@ export function ScoutPage() {
   const requestedDistrict = searchParams.get('district') ?? '';
   const action = useGameAction<ScoutResult>();
   const encounterAction = useGameAction<RandomEncounterChoiceResult>();
+  const [cacheReview, setCacheReview] = useState<{ caches: ScavengeCacheDto[]; rewards: Record<string, ScavengeComponentDto[]> } | null>(null);
+  const [cacheBusy, setCacheBusy] = useState<string | null>(null);
+  const [cacheError, setCacheError] = useState<string | null>(null);
 
   const [districts, setDistricts] = useState<DistrictDto[]>([]);
   // The block and the turns come back next time; a block that is gone falls back below.
   const [district, setDistrict] = useRememberedState<string>(rememberedKey('scout.district', me?.id), '', { accept: isString });
   const [turns, setTurns] = useRememberedState<number | ''>(rememberedKey('scout.turns', me?.id), 13, { accept: isTurns });
   const [loadError, setLoadError] = useState<string | null>(null);
+  useEffect(() => {
+    const caches = action.result?.result.cachesFound;
+    if (caches?.length) setCacheReview({ caches, rewards: {} });
+  }, [action.result]);
   useEffect(() => {
     actionsApi
       .districts()
@@ -154,6 +163,20 @@ export function ScoutPage() {
   async function resolveEncounter(choice: string) {
     if (!pendingEncounter?.id) return;
     await encounterAction.run((actionId) => actionsApi.resolveEncounter(pendingEncounter.id!, { choice, actionId }));
+  }
+
+  async function openScoutingCache(cache: ScavengeCacheDto) {
+    if (cacheBusy) return;
+    setCacheBusy(cache.id);
+    setCacheError(null);
+    try {
+      const opened = await hideoutApi.openCache(cache.id);
+      setCacheReview((current) => current ? { ...current, rewards: { ...current.rewards, [cache.id]: opened.rewards } } : current);
+    } catch {
+      setCacheError('That cache could not be opened. Refresh and try again.');
+    } finally {
+      setCacheBusy(null);
+    }
   }
 
   return (
@@ -329,7 +352,7 @@ export function ScoutPage() {
                 ) : null}
               </>
             ),
-            onDismiss: action.clear,
+            onDismiss: () => { action.clear(); setCacheReview(null); },
           } : null}
         >
           <div>
@@ -455,6 +478,32 @@ export function ScoutPage() {
           </div>
         </section>
         </OperationDetails>
+
+        <GameDialog
+          open={cacheReview !== null}
+          title="Caches found"
+          description="Review the caches from this scouting trip and open them before moving on."
+          onClose={() => setCacheReview(null)}
+          actions={<Button className="se-btn se-btn--primary" onClick={() => setCacheReview(null)}>Continue</Button>}
+        >
+          {cacheError ? <Alert>{cacheError}</Alert> : null}
+          <div className="se-rows">
+            {cacheReview?.caches.map((cache) => {
+              const rewards = cacheReview.rewards[cache.id];
+              return (
+                <div className="se-row" key={cache.id}>
+                  <span className="se-row__label">
+                    {cache.label} · {cache.districtName}
+                    {rewards ? <span className="se-muted"> · {rewards.map((reward) => `${reward.quantity} ${reward.name}`).join(', ')}</span> : null}
+                  </span>
+                  <span className="se-row__value">
+                    {rewards ? <span className="se-good">Opened</span> : <Button className="se-btn se-btn--secondary se-btn--sm" onClick={() => void openScoutingCache(cache)} disabledReason={cacheBusy ? 'Opening another cache...' : null}>Open</Button>}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </GameDialog>
 
 
       </div>

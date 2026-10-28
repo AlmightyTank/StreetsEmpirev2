@@ -23,6 +23,8 @@ describe('hideout workshop crafting catalog', () => {
     const brew = recipes.find((recipe) => recipe.key === 'HOUSE_BREW');
     expect(brew).toMatchObject({ kind: 'ASSEMBLE', turns: 3, requiresPower: true, unlockLevel: 1, output: { key: 'HOUSE_BREW', quantity: 2 }, filter: { key: 'WATER_FILTER', percent: 30 } });
     expect(brew?.ingredients.map((ingredient) => ingredient.key)).toEqual(['BOTTLES', 'LABELS', 'PACKAGING']);
+    const premiumCondoms = recipes.find((recipe) => recipe.key === 'PREMIUM_CONDOMS');
+    expect(premiumCondoms).toMatchObject({ kind: 'ASSEMBLE', output: { key: 'PREMIUM_CONDOM', quantity: 1 } });
     const crate = recipes.find((recipe) => recipe.key === 'CRATE_BREW');
     expect(crate).toMatchObject({ turns: 2, requiresPower: true, filter: { key: 'WATER_FILTER', percent: 20 } });
     expect(recipes.filter((recipe) => recipe.key !== 'HOUSE_BREW' && recipe.key !== 'CRATE_BREW').every((recipe) => recipe.filter === undefined)).toBe(true);

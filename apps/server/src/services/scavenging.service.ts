@@ -39,6 +39,14 @@ const ODDS: Record<CacheQuality, CacheOddsDto> = {
 };
 /** Components a scouting trip brings home: one for every two turns, at least one per trip. */
 export function scavengeFindCount(turns: number): number { return turns > 0 ? Math.ceil(turns / 2) : 0; }
+/** Split a scouting trip into 30-turn cache rolls. A short final segment still gets its own cache. */
+export function cacheTurnSegments(turns: number): number[] {
+  const safeTurns = Math.max(0, Math.floor(turns));
+  const segments: number[] = [];
+  for (let remaining = safeTurns; remaining >= 30; remaining -= 30) segments.push(30);
+  if (safeTurns % 30 >= 2) segments.push(safeTurns % 30);
+  return segments;
+}
 
 const QUALITY_LABEL: Record<CacheQuality, string> = { STREET_STASH: 'Street stash', SUPPLY_CACHE: 'Supply cache', SECURED_CACHE: 'Secured cache', BLACK_MARKET_CACHE: 'Black-market cache' };
 const DISTRICT_THEME: Record<string, { theme: string; common: string[]; scarce: string[] }> = {
@@ -51,6 +59,10 @@ const DISTRICT_THEME: Record<string, { theme: string; common: string[]; scarce: 
 
 export function districtSupplyClue(key: string) { return DISTRICT_THEME[key] ?? { theme: 'street', common: ['Scrap metal', 'Packaging'], scarce: ['Repair supplies'] }; }
 export function cacheQualityForTurns(turns: number): CacheQuality { return turns >= 10 ? 'BLACK_MARKET_CACHE' : turns >= 6 ? 'SECURED_CACHE' : turns >= 3 ? 'SUPPLY_CACHE' : 'STREET_STASH'; }
+/** A partial 30-turn segment cannot reach the top tier; a full segment is Black-market. */
+export function cacheQualityForSegment(turns: number): CacheQuality {
+  return turns >= 30 ? 'BLACK_MARKET_CACHE' : turns >= 10 ? 'SECURED_CACHE' : cacheQualityForTurns(turns);
+}
 export function cacheOdds(quality: CacheQuality): CacheOddsDto { return { ...ODDS[quality] }; }
 
 export function jsonObject(value: Prisma.JsonValue, fallback: Record<string, number>): Record<string, number> {
@@ -74,8 +86,8 @@ export function eligiblePool(theme: string): ComponentDefinition[] {
   return COMPONENTS.filter((item) => item.themes.includes(theme));
 }
 
-export function makeCache(districtKey: string, districtName: string, turns: number, now = new Date()): StoredCache {
-  const quality = cacheQualityForTurns(turns);
+export function makeCache(districtKey: string, districtName: string, turns: number, now = new Date(), qualityOverride?: CacheQuality): StoredCache {
+  const quality = qualityOverride ?? cacheQualityForTurns(turns);
   const theme = districtSupplyClue(districtKey).theme;
   const pool = eligiblePool(theme);
   return {
@@ -112,7 +124,7 @@ export const ScavengingService = {
        caches: jsonCaches(player.scavengedCaches).filter((cache) => !cache.opened).map(cacheDto),
      };
   },
-  async addFinds(tx: Prisma.TransactionClient, roundPlayerId: string, player: { scavengedComponents: Prisma.JsonValue; foundInRaid: Prisma.JsonValue; scavengedCaches: Prisma.JsonValue }, districtKey: string, districtName: string, turns: number, rng = Math.random): Promise<{ components: ScavengeComponentDto[]; cache: ScavengeCacheDto | null }> {
+  async addFinds(tx: Prisma.TransactionClient, roundPlayerId: string, player: { scavengedComponents: Prisma.JsonValue; foundInRaid: Prisma.JsonValue; scavengedCaches: Prisma.JsonValue }, districtKey: string, districtName: string, turns: number, rng = Math.random): Promise<{ components: ScavengeComponentDto[]; caches: ScavengeCacheDto[]; cache: ScavengeCacheDto | null }> {
     const theme = districtSupplyClue(districtKey).theme;
     const pool = eligiblePool(theme);
     const found: Record<string, number> = {};
@@ -125,8 +137,8 @@ export const ScavengingService = {
       foundInRaid[key] = (foundInRaid[key] ?? 0) + quantity;
     }
     const caches = jsonCaches(player.scavengedCaches);
-    const cache = turns >= 2 && rng() < Math.min(0.85, 0.2 + turns * 0.04) ? makeCache(districtKey, districtName, turns) : null;
-    if (cache) caches.push(cache);
+    const foundCaches = cacheTurnSegments(turns).map((segment) => makeCache(districtKey, districtName, segment, undefined, cacheQualityForSegment(segment)));
+    caches.push(...foundCaches);
     if (Object.keys(found).length) {
       // Components are stackable, so only a previously unseen component needs
       // a new stash cell. Keep loot transactional: a full stash rejects the
@@ -140,8 +152,8 @@ export const ScavengingService = {
     }
      await tx.roundPlayer.update({ where: { id: roundPlayerId }, data: { scavengedComponents: components as Prisma.InputJsonValue, foundInRaid: foundInRaid as Prisma.InputJsonValue, scavengedCaches: caches as unknown as Prisma.InputJsonValue } });
      for (const [key, quantity] of Object.entries(found)) await recordHideoutEconomy(tx, roundPlayerId, 'COMPONENT_SCAVENGED', { itemKey: key, quantity, payload: { districtKey, turns } });
-     if (cache) await recordHideoutEconomy(tx, roundPlayerId, 'CACHE_FOUND', { rarity: cache.quality, payload: { districtKey, turns, cacheId: cache.id } });
-    return { components: Object.entries(found).map(([key, quantity]) => componentDto(key, quantity)), cache: cache ? cacheDto(cache) : null };
+      for (const cache of foundCaches) await recordHideoutEconomy(tx, roundPlayerId, 'CACHE_FOUND', { rarity: cache.quality, payload: { districtKey, turns, cacheId: cache.id } });
+    return { components: Object.entries(found).map(([key, quantity]) => componentDto(key, quantity)), caches: foundCaches.map(cacheDto), cache: foundCaches[0] ? cacheDto(foundCaches[0]) : null };
   },
 
   async open(prisma: PrismaClient, roundPlayerId: string, cacheId: string): Promise<import('@streets/shared').OpenScavengeCacheResult> {
