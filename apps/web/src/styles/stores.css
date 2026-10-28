@@ -2205,7 +2205,7 @@
 .se-market-table td[data-label="Action"],
 .se-market-table td.se-market-buy-controls { display: flex; align-items: center; justify-content: flex-end; gap: 4px; min-width: 0; }
 .se-market-table td[data-label="Action"] .se-btn { flex: 0 0 auto; }
-.se-market-trader-row td.se-market-buy-controls { transform: translateY(4px); }
+.se-market-trader-row td.se-market-buy-controls { transform: translateY(-2px); }
 @media (max-width: 900px) {
   .se-market-page .se-market-table thead { display: none; }
   .se-market-page .se-market-table td[data-label="Item"] { grid-area: item; }
