@@ -3,6 +3,38 @@
   gap: 16px;
 }
 
+.se-scout-cache-review {
+  display: grid;
+  gap: 10px;
+}
+
+.se-scout-cache-review__item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  border: 1px solid var(--se-line);
+  border-radius: 5px;
+  background: linear-gradient(135deg, rgba(var(--se-accent-rgb), .05), var(--se-panel));
+}
+
+.se-scout-cache-review__copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.se-scout-cache-review__copy small,
+.se-scout-cache-review__copy span {
+  color: var(--se-muted);
+  font-size: 10px;
+}
+
+.se-scout-cache-review__action {
+  justify-self: end;
+}
+
 .se-scout-hero {
   position: relative;
   overflow: hidden;
@@ -640,46 +672,46 @@
   }
 }
 
-/* A locked scouting district cannot be hovered into an available-looking state. */
+/* Keep district cards compact; the shared gated treatment then blurs the
+   unavailable card body while its lock span covers the whole card. */
+.se-scout-plan .se-choices {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.se-scout-plan .se-choice,
+.se-scout-plan .se-choice--gated {
+  min-height: 132px;
+}
+
 .se-scout-plan .se-choice--gated,
 .se-scout-plan .se-choice--gated:hover {
-  display: grid;
-  min-height: 0;
   border-color: color-mix(in srgb, var(--se-bad) 24%, var(--se-line));
-  background:
-    radial-gradient(circle at 75% 25%, color-mix(in srgb, var(--se-bad) 18%, transparent), transparent 60%),
-    var(--se-panel);
+  background: var(--se-panel);
   box-shadow: none;
 }
 
 .se-scout-plan .se-choice--gated .se-choice__body {
-  min-height: 148px;
-  padding: 14px;
-  opacity: 1;
-  filter: none;
+  min-height: 0;
+  padding: 10px 11px;
 }
 
-/* Keep locked districts readable. The requirement is a compact card footer,
-   not a fogged-out copy layer over the district name and flavor text. */
 .se-scout-plan .se-choice--gated .se-locked-choice {
-  position: static;
-  z-index: auto;
-  display: grid;
-  grid-template-columns: 18px minmax(0, 1fr);
-  grid-template-rows: auto auto auto;
-  align-items: center;
-  gap: 2px 8px;
-  min-height: 0;
-  padding: 9px 12px 10px;
-  border-top: 1px solid color-mix(in srgb, var(--se-bad) 22%, var(--se-line));
-  background: color-mix(in srgb, var(--se-bad) 4%, var(--se-panel-hi));
-  text-align: left;
+  gap: 6px;
+  padding: 12px 10px;
+  background:
+    radial-gradient(ellipse at 50% 52%, color-mix(in srgb, var(--se-bad) 20%, transparent), transparent 70%),
+    linear-gradient(130deg, color-mix(in srgb, var(--se-panel) 82%, transparent), color-mix(in srgb, var(--se-panel-hi) 91%, transparent));
 }
-.se-scout-plan .se-choice--gated .se-locked-choice__icon { grid-row: 1 / span 3; width: 18px; height: 18px; color: var(--se-bad); }
-.se-scout-plan .se-choice--gated .se-locked-choice__banner { width: auto; max-width: none; padding: 0; border: 0; background: none; color: color-mix(in srgb, var(--se-bad) 55%, white); font-size: 9px; letter-spacing: .12em; text-transform: uppercase; }
-.se-scout-plan .se-choice--gated .se-locked-choice__requirement { max-width: none; font-size: 10px; line-height: 1.3; }
-.se-scout-plan .se-choice--gated .se-locked-choice__action { align-self: start; margin-top: 2px; font-size: 10px; }
+
+.se-scout-plan .se-choice--gated .se-locked-choice__icon { width: 22px; height: 22px; }
+.se-scout-plan .se-choice--gated .se-locked-choice__banner { max-width: 180px; padding: 5px 8px; font-size: 11px; }
+.se-scout-plan .se-choice--gated .se-locked-choice__requirement { font-size: 10px; line-height: 1.3; }
+.se-scout-plan .se-choice--gated .se-locked-choice__action { font-size: 10px; }
+
+@media (max-width: 900px) {
+  .se-scout-plan .se-choices { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 
 @media (max-width: 700px) {
-  .se-scout-plan .se-choice--gated .se-choice__body { min-height: 0; }
+  .se-scout-plan .se-choices { grid-template-columns: 1fr; }
 }

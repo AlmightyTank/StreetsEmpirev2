@@ -307,6 +307,8 @@ export const ScoutService = {
           medicine: current.medicine - outcome.infections.medicineUsed,
           crack: current.crack - outcome.consumption.crack + crackFound,
           beer: current.beer - outcome.consumption.beer,
+          premiumCondoms: (current.premiumCondoms ?? 0) - (outcome.consumption.premiumCondoms ?? 0),
+          houseBrew: (current.houseBrew ?? 0) - (outcome.consumption.houseBrew ?? 0),
         };
 
         const scavenging = await ScavengingService.addFinds(
@@ -368,10 +370,14 @@ export const ScoutService = {
           crackFound,
           ...(ruleset.productEconomy ? { productsFound } : {}),
           ...(scavenging.components.length ? { componentsFound: scavenging.components } : {}),
+          ...(scavenging.caches.length ? { cachesFound: scavenging.caches } : {}),
           ...(scavenging.cache ? { cacheFound: scavenging.cache } : {}),
           condomsUsed: outcome.consumption.condoms,
           crackUsed: outcome.consumption.crack,
           beerUsed: outcome.consumption.beer,
+          ...(outcome.consumption.premiumCondoms ? { premiumCondomsUsed: outcome.consumption.premiumCondoms } : {}),
+          ...(outcome.consumption.houseBrew ? { houseBrewUsed: outcome.consumption.houseBrew } : {}),
+          ...(outcome.badBatch ? { badBatch: outcome.badBatch } : {}),
           condomsMissing: outcome.shortages.condoms,
           beerMissing: outcome.shortages.beer,
 

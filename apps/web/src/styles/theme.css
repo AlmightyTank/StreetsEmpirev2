@@ -40,6 +40,7 @@
   --se-bad-rgb: 243, 63, 99;
   --se-warn: #ff791a;
   --se-warn-rgb: 255, 121, 26;
+  --se-rarity-legendary: #ffb547;
 
   /* Semantic surfaces. Themes override the palette above, not these aliases. */
   --se-surface-page: var(--se-bg);

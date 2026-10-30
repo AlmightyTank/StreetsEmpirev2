@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <filter id="s" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="2.5" flood-color="#000" flood-opacity=".6"/></filter>
+    <linearGradient id="bowl" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#c3d8f3"/><stop offset=".35" stop-color="#92b3e0"/><stop offset="1" stop-color="#5a7fb6"/></linearGradient>
+    <linearGradient id="head" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cfe2f8"/><stop offset=".5" stop-color="#97b8e4"/><stop offset="1" stop-color="#6486bd"/></linearGradient>
+    <linearGradient id="collar" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b4cdee"/><stop offset="1" stop-color="#5c7fb5"/></linearGradient>
+    <linearGradient id="rib" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#d6e6fa"/><stop offset="1" stop-color="#86a8d8"/></linearGradient>
+    <linearGradient id="btn" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff8f62"/><stop offset=".5" stop-color="#e2552e"/><stop offset="1" stop-color="#a93514"/></linearGradient>
+  </defs>
+  <g filter="url(#s)" stroke="#0e1216" stroke-width="1.5" stroke-linejoin="round">
+    <path d="M44 15 V10 Q44 9 45 9 H51 Q52 9 52 10 V15 Z" fill="url(#head)"/>
+    <path d="M57 15 V11 Q57 10 58 10 H65 Q66 10 66 11 V15 Z" fill="url(#head)"/>
+    <path d="M70 15 V11 Q70 9 72 9 H74 Q76 9 76 11 V15 Z" fill="url(#btn)"/>
+    <path d="M38 35 V19 Q38 15 42 15 H84 Q92 15 92 21 V35 Z" fill="url(#head)"/>
+    <path d="M91 17 Q97 17 97 25 Q97 33 91 33 Z" fill="url(#head)"/>
+    <ellipse cx="93" cy="25" rx="2.8" ry="5.8" fill="#1c355a" stroke="#0b1626" stroke-width="1.2"/>
+    <rect x="33" y="34" width="62" height="12" rx="5" fill="url(#collar)"/>
+    <path d="M40 46 H88 V106 Q88 119 74 119 H54 Q40 119 40 106 Z" fill="url(#bowl)"/>
+    <path d="M49 50 H54 V80 Q51.5 82 49 80 Z" fill="url(#rib)" stroke-width="1.3"/>
+    <path d="M74 50 H79 V80 Q76.5 82 74 80 Z" fill="url(#rib)" stroke-width="1.3"/>
+  </g>
+  <g fill="none" stroke-linecap="round">
+    <path d="M42 18 H70" stroke="#fff" stroke-opacity=".55" stroke-width="1.4"/>
+    <path d="M38 37.5 H90" stroke="#fff" stroke-opacity=".5" stroke-width="1.2"/>
+    <path d="M44 54 V104" stroke="#fff" stroke-opacity=".4" stroke-width="2"/>
+    <path d="M51 53 V76" stroke="#fff" stroke-opacity=".55" stroke-width="1.1"/>
+    <path d="M76 53 V76" stroke="#fff" stroke-opacity=".55" stroke-width="1.1"/>
+    <path d="M71 12 H73" stroke="#fff" stroke-opacity=".6" stroke-width="1"/>
+  </g>
+</svg>

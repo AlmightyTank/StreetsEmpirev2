@@ -92,6 +92,11 @@ export interface PlayerState {
   medicine: number;
   crack: number;
   beer: number;
+  /** Workshop goods. Each covers three uses and carries a small bad-batch risk. */
+  premiumCondoms?: number;
+  houseBrew?: number;
+  fieldFirstAidKits?: number;
+  ragDressings?: number;
 
   pistols: number;
   shotguns: number;
@@ -159,6 +164,7 @@ export interface PlayerState {
   hideoutWorkshopLevel: number;
   hideoutBackOfficeLevel: number;
   hideoutGarageLevel: number;
+  hideoutGeneratorLevel: number;
   hideoutStorageLevel?: number;
   /** The room under construction, if any; its level lands when the build is ready. */
   hideoutBuildRoom?: string | null;
@@ -296,6 +302,10 @@ export function toState(player: RoundPlayer): PlayerState {
     medicine: player.medicine,
     crack: player.crack,
     beer: player.beer,
+    premiumCondoms: player.premiumCondoms,
+    houseBrew: player.houseBrew,
+    fieldFirstAidKits: player.fieldFirstAidKits,
+    ragDressings: player.ragDressings,
     pistols: player.pistols,
     shotguns: player.shotguns,
     tek9s: player.tek9s,
@@ -337,6 +347,7 @@ export function toState(player: RoundPlayer): PlayerState {
     hideoutWorkshopLevel: player.hideoutWorkshopLevel,
     hideoutBackOfficeLevel: player.hideoutBackOfficeLevel,
     hideoutGarageLevel: player.hideoutGarageLevel,
+    hideoutGeneratorLevel: player.hideoutGeneratorLevel,
     hideoutStorageLevel: player.hideoutStorageLevel,
     hideoutBuildRoom: player.hideoutBuildRoom,
     hideoutBuildLevel: player.hideoutBuildLevel,
@@ -395,6 +406,8 @@ function toSnapshot(
       unarmedThugs: Math.max(0, fitThugs(state) - armedThugsForSnapshot(state)),
       condoms: state.condoms,
       medicine: state.medicine,
+      fieldFirstAidKits: state.fieldFirstAidKits ?? 0,
+      ragDressings: state.ragDressings ?? 0,
       product: state.crack,
       crack: state.crack,
       beer: state.beer,

@@ -3,6 +3,7 @@ import {
   awayHappinessPenalty,
   calculateThugHappiness,
   calculateWhoreHappiness,
+  PREMIUM_USES,
   tripRules,
   type Ruleset,
   type ThugHappinessInput,
@@ -14,7 +15,11 @@ import type { Db } from '../utils/db.js';
  * Everything happiness reads: the cut, the shelves and the muscle. It is a
  * pure reading of current state - nothing accumulates between actions.
  */
-export type HappinessInput = ThugHappinessInput & WhoreHappinessInput;
+export type HappinessInput = ThugHappinessInput & WhoreHappinessInput & {
+  /** Workshop goods. Each stands in for three plain ones on the shelf. */
+  premiumCondoms?: number;
+  houseBrew?: number;
+};
 
 export interface Happiness {
   whoreHappiness: number;
@@ -44,9 +49,14 @@ export const HappinessService = {
    * stored and it is gone the moment the boss is home.
    */
   recalculate(player: HappinessInput, ruleset: Ruleset, awayPenalty = 0): Happiness {
+    const stocked = {
+      ...player,
+      condoms: player.condoms + (player.premiumCondoms ?? 0) * PREMIUM_USES,
+      beer: player.beer + (player.houseBrew ?? 0) * PREMIUM_USES,
+    };
     return {
-      whoreHappiness: Math.max(ruleset.happiness.min, calculateWhoreHappiness(player, ruleset) - Math.max(0, awayPenalty)),
-      thugHappiness: calculateThugHappiness(player, ruleset),
+      whoreHappiness: Math.max(ruleset.happiness.min, calculateWhoreHappiness(stocked, ruleset) - Math.max(0, awayPenalty)),
+      thugHappiness: calculateThugHappiness(stocked, ruleset),
     };
   },
 

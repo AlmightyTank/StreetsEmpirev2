@@ -26,6 +26,7 @@ import {
   favorArmSchema,
   streetPassClaimSchema,
   CLIENT_EASTER_EGG_IDS,
+  MAX_CRAFT_BATCH,
   profitIntelligenceGoalsSchema,
 } from '@streets/shared';
 import { toGameSnapshotDto } from '../game/dto.js';
@@ -424,7 +425,7 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.put('/hideout/stash/layout', { preHandler: fastify.requireAuth }, async (request) => {
     const body = parseBody(z.object({ items: z.array(z.object({
-      key: z.enum(['CONDOM', 'MEDICINE', 'BEER', 'AMMO_BOX', 'PARTS_BOX', 'PISTOL', 'SHOTGUN', 'TEK9', 'AK47', 'LOW_RIDER', 'SEDAN', 'VAN', 'SCRAP_METAL', 'WIRING', 'TOOL_KIT', 'BOTTLES', 'LABELS', 'PACKAGING', 'LUMBER', 'FASTENERS', 'CLOTH', 'BASIC_MEDICINE', 'FUEL_CAN', 'RADIO', 'MOTOR_ASSEMBLY', 'REPAIR_SUPPLIES', 'SPECIALTY_CONTAINER', 'PRECISION_PARTS', 'ADVANCED_MEDICAL', 'HIGH_CAPACITY_FUEL_CELL', 'SPECIALIST_CIRCUITRY']),
+      key: z.enum(['CONDOM', 'PREMIUM_CONDOM', 'MEDICINE', 'BEER', 'HOUSE_BREW', 'AMMO_BOX', 'PARTS_BOX', 'PISTOL', 'SHOTGUN', 'TEK9', 'AK47', 'LOW_RIDER', 'SEDAN', 'VAN', 'SCRAP_METAL', 'WIRING', 'TOOL_KIT', 'BOTTLES', 'LABELS', 'PACKAGING', 'LUMBER', 'FASTENERS', 'CLOTH', 'BASIC_MEDICINE', 'FUEL_CAN', 'RADIO', 'WATER_FILTER', 'MOTOR_ASSEMBLY', 'REPAIR_SUPPLIES', 'SPECIALTY_CONTAINER', 'PRECISION_PARTS', 'ADVANCED_MEDICAL', 'HIGH_CAPACITY_FUEL_CELL', 'SPECIALIST_CIRCUITRY']),
       x: z.number().int().min(0).max(9),
       y: z.number().int().min(0).max(5),
     }).strict()).max(12) }).strict(), request.body);
@@ -470,9 +471,9 @@ const gameRoutes: FastifyPluginAsync = async (fastify) => {
   });
 
   fastify.post('/hideout/workshop/craft', { preHandler: fastify.requireAuth }, async (request) => {
-    const body = parseBody(z.object({ recipeKey: z.string().trim().min(1).max(64), actionId: z.string().trim().min(1).max(128).optional() }).strict(), request.body);
+    const body = parseBody(z.object({ recipeKey: z.string().trim().min(1).max(64), quantity: z.number().int().min(1).max(MAX_CRAFT_BATCH).optional(), actionId: z.string().trim().min(1).max(128).optional() }).strict(), request.body);
     const { round, player } = await requirePlayer(request.auth!.account.id);
-    return WorkshopService.craft(fastify.prisma, player.id, body.recipeKey, body.actionId, loadRulesetForRound(round));
+    return WorkshopService.craft(fastify.prisma, player.id, body.recipeKey, body.actionId, loadRulesetForRound(round), body.quantity);
   });
 
   fastify.get('/armory', { preHandler: fastify.requireAuth }, async (request) => {

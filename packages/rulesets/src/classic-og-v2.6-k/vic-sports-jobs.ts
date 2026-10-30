@@ -1,7 +1,7 @@
 import type { QuestDefinitionCatalog } from '../types.js';
 
 /** Vic's first sports contract: the result is fictional and never changes sportsbook settlement. */
-export const vicSportsJobs: QuestDefinitionCatalog = {
+export const vicSportsJobs = {
   FAVOR_ON_THE_LINE: {
     key: 'FAVOR_ON_THE_LINE',
     title: 'Favor on the Line',
@@ -92,4 +92,4 @@ export const vicSportsJobs: QuestDefinitionCatalog = {
     expiresAfterMinutes: 180,
     availability: {},
   },
-};
+} as const satisfies QuestDefinitionCatalog;

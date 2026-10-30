@@ -2129,6 +2129,8 @@ model RoundPlayer {
 
   /// 2.3.0. Hideout components found while scouting; keyed by component id.
   scavengedComponents Json @default("{}")
+  /// Remaining percent (1–100) on each water filter. The count of filters lives in scavengedComponents.WATER_FILTER.
+  waterFilters Json @default("[]")
   /// Components that still retain found-in-raid provenance.
   foundInRaid Json @default("{}")
   /// The Board. Parts escrowed on open offers (and expired ones still waiting on stash room), by key. Counts toward net worth like held parts.
@@ -2174,6 +2176,12 @@ model RoundPlayer {
   medicine Int @default(0)
   crack    Int @default(0)
   beer     Int @default(0)
+
+  /// Workshop goods. One premium condom or one House Brew covers three uses, with a small chance of a bad batch.
+  premiumCondoms Int @default(0)
+  houseBrew      Int @default(0)
+  fieldFirstAidKits Int @default(0)
+  ragDressings     Int @default(0)
 
   pistols  Int @default(0)
   shotguns Int @default(0)
@@ -2418,6 +2426,7 @@ model RoundPlayer {
   hideoutBackOfficeLevel          Int     @default(0)
   /// 0.6.0-D. One level opens a second concurrent travel run.
   hideoutGarageLevel              Int     @default(0)
+  hideoutGeneratorLevel           Int     @default(0)
   hideoutStorageLevel             Int     @default(0)
   /// One room under construction at a time. Cash, turns and components are paid
   /// up front; the level lands when the build is ready (settle or the sweeper).

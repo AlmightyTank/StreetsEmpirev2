@@ -173,6 +173,8 @@ export interface CombatRecoveryDto {
 export interface CombatTreatmentDto {
   treatedThugs: number;
   medicineUsed: number;
+  fieldFirstAidKitsUsed?: number;
+  ragDressingsUsed?: number;
   /** 0.7.0-F. Zero on older rulesets. */
   medicineEfficiencyPercent?: number;
   favorMedicineEfficiencyPercent?: number;

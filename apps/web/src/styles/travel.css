@@ -16,7 +16,7 @@
   padding: 9px;
   border: 1px solid var(--se-line);
   border-radius: 4px;
-  background: rgba(255, 255, 255, .018);
+  background: color-mix(in srgb, var(--se-text) 1.8%, transparent);
 }
 .se-trip-brief__item.is-warning { border-color: color-mix(in srgb, var(--se-warn) 45%, var(--se-line)); background: color-mix(in srgb, var(--se-warn) 5%, transparent); }
 .se-trip-brief__icon { display: grid; flex: 0 0 22px; place-items: center; width: 22px; height: 22px; border: 1px solid var(--se-line); border-radius: 3px; color: var(--se-accent); font-family: var(--se-mono); font-size: 13px; font-weight: 800; }
@@ -529,7 +529,7 @@
   padding: 9px 10px;
   border: 1px solid var(--se-line);
   border-radius: 4px;
-  background: rgba(255, 255, 255, .014);
+  background: color-mix(in srgb, var(--se-text) 1.4%, transparent);
   color: var(--se-text-dim);
   text-align: left;
   cursor: pointer;

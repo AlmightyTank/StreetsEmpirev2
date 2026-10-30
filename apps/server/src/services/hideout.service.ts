@@ -38,7 +38,8 @@ type HideoutField =
   | 'hideoutLookoutsLevel'
   | 'hideoutWorkshopLevel'
   | 'hideoutBackOfficeLevel'
-  | 'hideoutGarageLevel';
+  | 'hideoutGarageLevel'
+  | 'hideoutGeneratorLevel';
 type ModuleKey = HideoutRoomKey | 'STORAGE';
 
 type ModuleComponentCost = { key: string; quantity: number };
@@ -49,13 +50,14 @@ const MODULE_COMPONENTS: Record<ModuleKey, (level: number) => ModuleComponentCos
   WORKSHOP: (level) => [{ key: 'SCRAP_METAL', quantity: level * 2 }, { key: 'TOOL_KIT', quantity: level }, ...(level >= 3 ? [{ key: 'PRECISION_PARTS', quantity: 1 }] : [])],
   BACK_OFFICE: (level) => [{ key: 'WIRING', quantity: level * 2 }, { key: 'RADIO', quantity: level }, ...(level >= 3 ? [{ key: 'SPECIALIST_CIRCUITRY', quantity: 1 }] : [])],
   GARAGE: (level) => [{ key: 'SCRAP_METAL', quantity: level * 3 }, { key: 'MOTOR_ASSEMBLY', quantity: Math.max(0, level - 1) }, ...(level >= 3 ? [{ key: 'PRECISION_PARTS', quantity: 1 }] : [])],
+  GENERATOR: (level) => [{ key: 'SCRAP_METAL', quantity: level * 2 }, { key: 'WIRING', quantity: level * 2 }],
   STORAGE: (level) => [{ key: 'LUMBER', quantity: level * 3 }, { key: 'FASTENERS', quantity: level * 2 }, ...(level >= 3 ? [{ key: 'SPECIALTY_CONTAINER', quantity: 1 }] : [])],
 };
 const STORAGE_COSTS = [60_000, 125_000, 250_000];
 const STORAGE_TURNS = [2, 3, 4];
 const MODULE_TURNS: Record<HideoutRoomKey, (level: number) => number> = {
   SAFE_ROOM: (level) => level + 1, LOOKOUTS: (level) => level + 1, WORKSHOP: (level) => level + 1,
-  BACK_OFFICE: (level) => level + 1, GARAGE: (level) => level + 1,
+  BACK_OFFICE: (level) => level + 1, GARAGE: (level) => level + 1, GENERATOR: (level) => level + 1,
 };
 
 const ROOM_FIELDS: Record<HideoutRoomKey, HideoutField> = {
@@ -64,9 +66,10 @@ const ROOM_FIELDS: Record<HideoutRoomKey, HideoutField> = {
   WORKSHOP: 'hideoutWorkshopLevel',
   BACK_OFFICE: 'hideoutBackOfficeLevel',
   GARAGE: 'hideoutGarageLevel',
+  GENERATOR: 'hideoutGeneratorLevel',
 };
 
-const ROOM_ORDER: readonly HideoutRoomKey[] = ['SAFE_ROOM', 'LOOKOUTS', 'WORKSHOP', 'BACK_OFFICE', 'GARAGE'];
+const ROOM_ORDER: readonly HideoutRoomKey[] = ['SAFE_ROOM', 'LOOKOUTS', 'WORKSHOP', 'BACK_OFFICE', 'GARAGE', 'GENERATOR'];
 
 export type HideoutProductStock = Record<string, number>;
 
@@ -474,6 +477,9 @@ function effect(room: ModuleKey, level: number, ruleset: Ruleset): string {
       ? `Up to ${runLimit} active runs at once · ${moveDiscount}% off relocation fees.`
       : `Up to ${runLimit} active runs at once.`;
   }
+  if (room === 'GENERATOR') {
+    return 'Powers the hideout generator and unlocks its fuel and efficiency upgrades.';
+  }
   return `+${level * buffs.backOfficeTakeBonusPercentPerLevel}% personal cash take from street work.`;
 }
 
@@ -547,7 +553,7 @@ function specializationFor(
 ): HideoutRoomV2Dto['specialization'] {
   const specialization = hideoutV2For(ruleset)?.rooms[room]?.specialization;
   if (!specialization) return null;
-  const selectedKey = room === 'GARAGE'
+  const selectedKey = room === 'GARAGE' || room === 'GENERATOR'
     ? null
     : hideoutSpecializationKey(ruleset, player, room);
   return {
@@ -636,7 +642,6 @@ export function hideoutCatalog(
       totalLevel: 0,
       totalMaxLevel: 0,
       rooms: [],
-      generator: generatorDto({ generatorPowered: player.generatorPowered ?? false, generatorFuel: player.generatorFuel ?? 0, generatorCapacityLevel: player.generatorCapacityLevel ?? 0, generatorEfficiencyLevel: player.generatorEfficiencyLevel ?? 0, scavengedComponents: {} }),
     };
   }
 
@@ -657,7 +662,7 @@ export function hideoutCatalog(
     ...(assetProtectionDto(ruleset, player, products) ? { assetProtection: assetProtectionDto(ruleset, player, products) } : {}),
     ...(workshopDto(ruleset, player) ? { workshop: workshopDto(ruleset, player) } : {}),
     ...(garageDto(ruleset, player) ? { garage: garageDto(ruleset, player) } : {}),
-    generator: generatorDto({ generatorPowered: player.generatorPowered ?? false, generatorFuel: player.generatorFuel ?? 0, generatorCapacityLevel: player.generatorCapacityLevel ?? 0, generatorEfficiencyLevel: player.generatorEfficiencyLevel ?? 0, scavengedComponents: {} }),
+    ...(player.hideoutGeneratorLevel > 0 ? { generator: generatorDto({ hideoutGeneratorLevel: player.hideoutGeneratorLevel, generatorPowered: player.generatorPowered ?? false, generatorFuel: player.generatorFuel ?? 0, generatorCapacityLevel: player.generatorCapacityLevel ?? 0, generatorEfficiencyLevel: player.generatorEfficiencyLevel ?? 0, scavengedComponents: {} }) } : {}),
   };
 }
 

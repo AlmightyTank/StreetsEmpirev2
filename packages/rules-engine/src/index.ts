@@ -15,6 +15,7 @@ export * from './calculations/restock.js';
 export * from './calculations/reputation.js';
 export * from './calculations/combat.js';
 export * from './calculations/work-supply.js';
+export * from './calculations/premium-supply.js';
 export * from './calculations/heat.js';
 export * from './calculations/law.js';
 export * from './calculations/factions.js';

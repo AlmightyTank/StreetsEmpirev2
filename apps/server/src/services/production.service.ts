@@ -237,6 +237,8 @@ export const ProductionService = {
           condoms: current.condoms - outcome.consumption.condoms,
           medicine: current.medicine - outcome.infections.medicineUsed,
           beer: current.beer - outcome.consumption.beer,
+          premiumCondoms: (current.premiumCondoms ?? 0) - (outcome.consumption.premiumCondoms ?? 0),
+          houseBrew: (current.houseBrew ?? 0) - (outcome.consumption.houseBrew ?? 0),
 
         };
 
@@ -286,6 +288,9 @@ export const ProductionService = {
           limitedByCash: outcome.limitedByCash,
 
           beerUsed: outcome.consumption.beer,
+          ...(outcome.consumption.premiumCondoms ? { premiumCondomsUsed: outcome.consumption.premiumCondoms } : {}),
+          ...(outcome.consumption.houseBrew ? { houseBrewUsed: outcome.consumption.houseBrew } : {}),
+          ...(outcome.badBatch ? { badBatch: outcome.badBatch } : {}),
           whoresLeft: outcome.departures.whores,
           thugsLeft: outcome.departures.thugs,
 

@@ -14,6 +14,9 @@ export interface UpkeepInput {
   condoms: number;
   crack: number;
   beer: number;
+  /** Workshop goods. Each covers three uses and carries a small bad-batch risk. */
+  premiumCondoms?: number;
+  houseBrew?: number;
   medicine: number;
   whoreHappiness: number;
   thugHappiness: number;
@@ -23,6 +26,9 @@ export interface Consumption {
   condoms: number;
   crack: number;
   beer: number;
+  /** Premium condoms and House Brew burned, on top of the plain counts above. */
+  premiumCondoms?: number;
+  houseBrew?: number;
 }
 
 export interface Departures {

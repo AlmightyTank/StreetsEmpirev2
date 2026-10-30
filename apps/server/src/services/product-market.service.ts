@@ -6,6 +6,7 @@ import {
   loadRulesetForRound,
   maxProductBuy,
   marketView,
+  quoteMoved,
   productEconomy,
   productRecipes,
   recipeLadder,
@@ -31,6 +32,57 @@ import { NO_SKILL_EFFECTS, type SkillEffects } from './player-skill.service.js';
 import { HighMarketService } from './high-market.service.js';
 import type { EconomyLedgerWrite } from './economy-ledger.service.js';
 import type { ReputationChange } from './reputation.service.js';
+
+async function tradeHighMarketLine(
+  ctx: Pick<ProductLineContext, 'tx' | 'roundPlayerId' | 'player' | 'round' | 'ruleset' | 'now' | 'cashCents'>,
+  input: { product: string; direction: 'buy' | 'sell'; quantity: number; quoteCents?: number },
+): Promise<ProductLineOutcome> {
+  const { tx, roundPlayerId, player, round, ruleset, now } = ctx;
+  const baseRuleset = loadRulesetForRound(round);
+  const marketRules = baseRuleset.travel?.market;
+  if (!marketRules) throw AppError.conflict('NO_MARKET', 'There is no high market this round.');
+  if (!productKeys(baseRuleset).includes(input.product)) throw AppError.badRequest('UNKNOWN_PRODUCT', 'That product is not part of this round.', { product: 'Pick a product.' });
+
+  const inventory = await ProductInventoryService.read(tx, roundPlayerId, ruleset);
+  const held = inventory[input.product] ?? 0;
+  const market = await HighMarketService.lock(tx, baseRuleset, round.id, player.city.slug, input.product, now);
+  const view = marketView(baseRuleset, round.id, player.city.slug, input.product, market.push, now);
+  if (!view) throw AppError.badRequest('NO_MARKET_PRICE', 'Nobody in this city deals that product in bulk.', { product: 'No market for it here.' });
+  const fill = fillMarket(view, marketRules, input.direction, input.quantity);
+  if (input.quoteCents !== undefined && quoteMoved(marketRules, input.direction, input.quoteCents, fill.firstUnitCents)) {
+    throw AppError.conflict('PRICE_MOVED', `The price moved: it now ${input.direction === 'buy' ? 'costs' : 'pays'} ${fill.firstUnitCents} cents a unit. Check it and try again.`);
+  }
+  if (input.direction === 'buy' && fill.totalCents > ctx.cashCents) {
+    throw AppError.badRequest('NOT_ENOUGH_CASH', 'You do not have enough cash for that order.', { quantity: 'Not enough cash.' });
+  }
+  if (input.direction === 'sell' && input.quantity > held) {
+    throw AppError.badRequest('NOT_ENOUGH_PRODUCT', held === 0 ? 'You do not have any of that product.' : `You only have ${held} to sell.`, { quantity: `At most ${held}.` });
+  }
+
+  await ProductInventoryService.adjust(tx, roundPlayerId, ruleset, { [input.product]: input.direction === 'buy' ? input.quantity : -input.quantity });
+  await HighMarketService.write(tx, market.id, fill.pushAfter, now);
+  const cashChangeCents = input.direction === 'buy' ? -fill.totalCents : fill.totalCents;
+  const productName = ruleset.products?.[input.product]?.name ?? input.product;
+  const result: ProductTradeResult = {
+    product: input.product,
+    productName,
+    direction: input.direction,
+    quantity: input.quantity,
+    unitCents: Math.round(Number(fill.totalCents) / input.quantity),
+    totalCents: Number(fill.totalCents),
+    cashChangeCents: Number(cashChangeCents),
+    quantityAfter: held + (input.direction === 'buy' ? input.quantity : -input.quantity),
+    stockAfter: null,
+    reputationGained: 0,
+  };
+  return {
+    result,
+    cashChangeCents,
+    ledger: { source: input.direction === 'buy' ? 'STORE_BUY' : 'STORE_SELL', label: `High market · ${input.direction} ${productName}`, amountCents: cashChangeCents },
+    reputation: null,
+    activity: { store: 'High market', storeKey: 'MARKET', item: productName, itemKey: input.product, product: input.product, city: player.city.slug, direction: input.direction, quantity: input.quantity, totalCents: result.totalCents },
+  };
+}
 
 function pressureQuote(
   buyCents: number,
@@ -250,7 +302,7 @@ export const ProductMarketService = {
     if (!ruleset.products) return { enabled: false, products: [] };
     const now = new Date();
     const baseRuleset = loadRulesetForRound(round);
-    const pushes = ruleset.storeEconomy?.pipProductPressure?.enabled
+    const pushes = baseRuleset.travel?.market
       ? await HighMarketService.pushes(prisma, baseRuleset, round.id, player.city.slug, now)
       : new Map<string, number>();
     const inventory = await ProductInventoryService.read(prisma, roundPlayerId, ruleset);
@@ -280,6 +332,9 @@ export const ProductMarketService = {
           ? boostedSellCents(quote.sellCents, quote.buyCents, relationship.sellBonusPercent + racketStorePrice(ruleset, effects, 'PIP', key).sellBonusPercent) ?? quote.sellCents
           : 0;
         const recipe = economyOn ? recipes.get(key) : undefined;
+        const highMarket = baseRuleset.travel?.market
+          ? marketView(baseRuleset, round.id, player.city.slug, key, pushes.get(key) ?? 0, now)
+          : null;
         const requiredUnlock = PermanentUnlockService.productPurchaseUnlock(ruleset, key);
         const purchaseUnlocked = !requiredUnlock || unlockKeys.has(requiredUnlock.key);
         const recipeUnlock = PermanentUnlockService.productProductionUnlock(ruleset, key);
@@ -291,6 +346,7 @@ export const ProductMarketService = {
           name: definition.name,
           blurb: definition.blurb,
           quantity,
+          market: highMarket ? { buyCents: highMarket.buyCents, sellCents: highMarket.sellCents, depth: highMarket.depth } : null,
           ...(economyOn ? {
             netWorthCents: key === CRACK ? ruleset.economy.netWorth.perCrackCents : economy?.netWorthCents ?? 0,
             pip: economy?.pip && shelf && quote ? {
@@ -348,6 +404,18 @@ export const ProductMarketService = {
       action: input.direction === 'buy' ? 'STORE_BUY' : 'STORE_SELL',
       actionId: input.actionId,
       execute: async ({ tx, current, player, round, ruleset, standings, now, skills }) => {
+        if (input.venue === 'market') {
+          const line = await tradeHighMarketLine(
+            { tx, roundPlayerId, player, round, ruleset, now, cashCents: current.cashCents },
+            input,
+          );
+          return {
+            next: { ...current, cashCents: current.cashCents + line.cashChangeCents },
+            result: line.result,
+            ledger: [line.ledger],
+            activity: { type: input.direction === 'buy' ? 'STORE_BUY' : 'STORE_SELL', payload: line.activity },
+          };
+        }
         const line = await tradeProductLine(
           { tx, roundPlayerId, player, round, ruleset, standings, now, cashCents: current.cashCents, sourceKey: `product:${input.actionId ?? now.toISOString()}`, creditPip: true, skills },
           input,
